@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "API": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "CONNECTION_STRING": "Host=localhost;Port=23456;Username=app;Password=app_pw;Database=appdb"
+      }
+    }
+  }
+}

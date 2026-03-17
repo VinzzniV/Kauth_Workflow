@@ -1,0 +1,31 @@
+# Node / frontend build artifacts
+/node_modules/
+/web/node_modules/
+/web/dist/
+
+# Frontend local environment
+/web/.env.*
+!/web/.env.example
+
+# .NET build and IDE artifacts
+/api/.vs/
+/api/API/.vs/
+/api/API/bin/
+/api/API/obj/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

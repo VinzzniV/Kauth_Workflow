@@ -1,0 +1,113 @@
+type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
+
+export type RequestOptions = {
+  method?: HttpMethod;
+  body?: unknown;
+};
+
+export type ApiError = Error & {
+  status?: number;
+};
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const DEMO_AUTH_TOKEN_STORAGE_KEY = "onboarding.demo.authToken";
+
+export function getDemoAuthToken(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const sessionToken = window.sessionStorage.getItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+  const localToken = window.localStorage.getItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+  const token = sessionToken ?? localToken;
+
+  if (!token) {
+    return null;
+  }
+
+  const normalized = token.trim();
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  if (!sessionToken && localToken) {
+    window.sessionStorage.setItem(DEMO_AUTH_TOKEN_STORAGE_KEY, normalized);
+    window.localStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+  }
+
+  return normalized;
+}
+
+export function setDemoAuthToken(token: string | null): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!token || !token.trim()) {
+    window.sessionStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+    window.localStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+    return;
+  }
+
+  window.sessionStorage.setItem(DEMO_AUTH_TOKEN_STORAGE_KEY, token.trim());
+  window.localStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+}
+
+function buildRequestHeaders(withJsonBody: boolean): HeadersInit {
+  const token = getDemoAuthToken();
+
+  return {
+    Accept: "application/json",
+    ...(withJsonBody ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function toSafeErrorMessage(status: number, payload: unknown): string {
+  if (typeof payload === "string" && payload.trim()) {
+    return payload;
+  }
+
+  if (payload && typeof payload === "object" && "message" in payload) {
+    const maybeMessage = (payload as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage;
+    }
+  }
+
+  return `Backend-Fehler (HTTP ${status}).`;
+}
+
+export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { method = "GET", body } = options;
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: buildRequestHeaders(Boolean(body)),
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch (error) {
+    const err = new Error("Backend ist nicht erreichbar.") as ApiError;
+    err.cause = error;
+    throw err;
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+  const payload = isJson ? await response.json().catch(() => null) : await response.text().catch(() => "");
+
+  if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      setDemoAuthToken(null);
+      window.dispatchEvent(new Event("demo-auth-invalid"));
+    }
+
+    const err = new Error(toSafeErrorMessage(response.status, payload)) as ApiError;
+    err.status = response.status;
+    throw err;
+  }
+
+  return payload as T;
+}

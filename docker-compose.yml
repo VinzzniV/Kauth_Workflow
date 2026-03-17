@@ -1,0 +1,51 @@
+# docker-compose.yml
+name: role-task-perms
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rtp_db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_pw
+      POSTGRES_DB: appdb
+    ports:
+      - "23456:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./api/API
+      dockerfile: Dockerfile
+    container_name: rtp_api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      CONNECTION_STRING: Host=db;Port=5432;Database=appdb;Username=app;Password=app_pw
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "5001:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: http://localhost:5001
+    container_name: rtp_web
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
