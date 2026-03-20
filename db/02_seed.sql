@@ -476,6 +476,182 @@ SET
     sort_order = EXCLUDED.sort_order;
 
 -- =========================
+-- Requirement behavior rules
+-- =========================
+DELETE FROM workflow_answer_single_select_keep_values
+WHERE answer_definition_id IN (
+    SELECT id
+    FROM workflow_answer_definitions
+    WHERE answer_key IN (
+        'hardware_type'
+    )
+);
+
+DELETE FROM workflow_answer_reset_rules
+WHERE answer_definition_id IN (
+        SELECT id
+        FROM workflow_answer_definitions
+        WHERE answer_key IN (
+            'ad_user_requested',
+            'comparison_user_available',
+            'hardware_requested',
+            'hardware_type',
+            'internal_drive_access_requested'
+        )
+    )
+   OR target_answer_definition_id IN (
+        SELECT id
+        FROM workflow_answer_definitions
+        WHERE answer_key IN (
+            'comparison_user_available',
+            'comparison_user_name',
+            'hardware_available',
+            'hardware_type',
+            'laptop_vpn_type',
+            'phone_requested',
+            'internal_drive_access_roles'
+        )
+    );
+
+DELETE FROM workflow_answer_validation_rules
+WHERE answer_definition_id IN (
+    SELECT id
+    FROM workflow_answer_definitions
+    WHERE answer_key IN (
+        'comparison_user_name',
+        'laptop_vpn_type',
+        'internal_drive_access_roles'
+    )
+);
+
+DELETE FROM workflow_answer_visibility_rules
+WHERE answer_definition_id IN (
+    SELECT id
+    FROM workflow_answer_definitions
+    WHERE answer_key IN (
+        'comparison_user_available',
+        'comparison_user_name',
+        'hardware_available',
+        'hardware_type',
+        'laptop_vpn_type',
+        'phone_requested',
+        'internal_drive_access_roles'
+    )
+);
+
+WITH visibility_seed(answer_key, dependency_answer_key, dependency_kind, expected_value_text, missing_result, sort_order) AS (
+    VALUES
+        ('comparison_user_available', 'ad_user_requested', 'boolean_true', NULL::text, TRUE, 1),
+        ('comparison_user_name', 'ad_user_requested', 'boolean_true', NULL::text, FALSE, 1),
+        ('comparison_user_name', 'comparison_user_available', 'boolean_true', NULL::text, FALSE, 2),
+        ('hardware_available', 'hardware_requested', 'boolean_true', NULL::text, FALSE, 1),
+        ('hardware_type', 'hardware_requested', 'boolean_true', NULL::text, TRUE, 1),
+        ('phone_requested', 'hardware_requested', 'boolean_true', NULL::text, TRUE, 1),
+        ('internal_drive_access_roles', 'internal_drive_access_requested', 'boolean_true', NULL::text, FALSE, 1),
+        ('laptop_vpn_type', 'hardware_requested', 'boolean_true', NULL::text, TRUE, 1),
+        ('laptop_vpn_type', 'hardware_type', 'selected_option_value', 'laptop', FALSE, 2)
+)
+INSERT INTO workflow_answer_visibility_rules (
+    answer_definition_id,
+    dependency_answer_definition_id,
+    dependency_kind,
+    expected_value_text,
+    missing_result,
+    sort_order
+)
+SELECT
+    answer_definition.id,
+    dependency_definition.id,
+    s.dependency_kind,
+    s.expected_value_text,
+    s.missing_result,
+    s.sort_order
+FROM visibility_seed s
+JOIN workflow_answer_definitions answer_definition ON answer_definition.answer_key = s.answer_key
+JOIN workflow_answer_definitions dependency_definition ON dependency_definition.answer_key = s.dependency_answer_key;
+
+WITH validation_seed(answer_key, validation_kind, message) AS (
+    VALUES
+        ('comparison_user_name', 'text_required', 'Bitte den Referenzuser angeben.'),
+        ('internal_drive_access_roles', 'multi_select_required', 'Bitte mindestens eine Funktion für die Laufwerksrechte auswählen.'),
+        ('laptop_vpn_type', 'single_select_required', 'Bitte auswählen, ob der Laptop mit VPN oder ohne VPN benötigt wird.')
+)
+INSERT INTO workflow_answer_validation_rules (
+    answer_definition_id,
+    validation_kind,
+    message
+)
+SELECT
+    definition.id,
+    s.validation_kind,
+    s.message
+FROM validation_seed s
+JOIN workflow_answer_definitions definition ON definition.answer_key = s.answer_key;
+
+WITH reset_seed(
+    answer_key,
+    trigger_kind,
+    target_answer_key,
+    clear_boolean,
+    clear_text,
+    clear_number,
+    clear_selected_option,
+    clear_selected_options,
+    sort_order
+) AS (
+    VALUES
+        ('ad_user_requested', 'when_not_true', 'comparison_user_available', TRUE, FALSE, FALSE, FALSE, FALSE, 1),
+        ('ad_user_requested', 'when_not_true', 'comparison_user_name', FALSE, TRUE, FALSE, FALSE, FALSE, 2),
+        ('comparison_user_available', 'when_not_true', 'comparison_user_name', FALSE, TRUE, FALSE, FALSE, FALSE, 1),
+        ('hardware_requested', 'when_not_true', 'hardware_available', TRUE, FALSE, FALSE, FALSE, FALSE, 1),
+        ('hardware_requested', 'when_not_true', 'phone_requested', TRUE, FALSE, FALSE, FALSE, FALSE, 2),
+        ('hardware_requested', 'when_not_true', 'hardware_type', FALSE, FALSE, FALSE, TRUE, TRUE, 3),
+        ('hardware_requested', 'when_not_true', 'laptop_vpn_type', FALSE, FALSE, FALSE, TRUE, TRUE, 4),
+        ('internal_drive_access_requested', 'when_not_true', 'internal_drive_access_roles', FALSE, FALSE, FALSE, FALSE, TRUE, 1),
+        ('hardware_type', 'single_select_mismatch', 'laptop_vpn_type', FALSE, FALSE, FALSE, TRUE, TRUE, 1)
+)
+INSERT INTO workflow_answer_reset_rules (
+    answer_definition_id,
+    trigger_kind,
+    target_answer_definition_id,
+    clear_boolean,
+    clear_text,
+    clear_number,
+    clear_selected_option,
+    clear_selected_options,
+    sort_order
+)
+SELECT
+    answer_definition.id,
+    s.trigger_kind,
+    target_definition.id,
+    s.clear_boolean,
+    s.clear_text,
+    s.clear_number,
+    s.clear_selected_option,
+    s.clear_selected_options,
+    s.sort_order
+FROM reset_seed s
+JOIN workflow_answer_definitions answer_definition ON answer_definition.answer_key = s.answer_key
+JOIN workflow_answer_definitions target_definition ON target_definition.answer_key = s.target_answer_key;
+
+WITH keep_value_seed(answer_key, option_value, sort_order) AS (
+    VALUES
+        ('hardware_type', 'laptop', 1)
+)
+INSERT INTO workflow_answer_single_select_keep_values (
+    answer_definition_id,
+    option_value,
+    sort_order
+)
+SELECT
+    definition.id,
+    s.option_value,
+    s.sort_order
+FROM keep_value_seed s
+JOIN workflow_answer_definitions definition ON definition.answer_key = s.answer_key;
+
+-- =========================
 -- Role recommendation/default values for variables
 -- =========================
 WITH default_seed(role_key, answer_key, is_recommended, is_default, default_value_boolean, default_value_text, default_value_number, sort_order) AS (
@@ -613,34 +789,36 @@ WITH template_seed(
     icon_key,
     owning_department_name,
     responsibility_key,
+    process_area_label,
+    is_department_phase_task,
     is_required,
     sort_order
 ) AS (
     VALUES
-        ('supervisor_fills_document', 'Anforderungen auswählen und bestätigen', 'Führungskraft', 'Die Abteilungsleitung wählt die benötigten Anforderungen aus und bestätigt diese.', 'identitat', NULL, NULL, TRUE, 40),
+        ('supervisor_fills_document', 'Anforderungen auswählen und bestätigen', 'Führungskraft', 'Die Abteilungsleitung wählt die benötigten Anforderungen aus und bestätigt diese.', 'identitat', NULL, NULL, 'Abteilungsleitung', FALSE, TRUE, 40),
 
-        ('ad_user_create', 'AD-User anlegen', 'Zugänge', 'AD-User für die neue Person anlegen.', 'ad_user', 'IT', 'it_ad', TRUE, 100),
-        ('permissions_from_reference_user', 'AD-Berechtigungen anhand Vergleichsuser übernehmen', 'Zugänge', 'AD-Berechtigungen anhand einer Vergleichsperson übernehmen.', 'berechtigungen', 'IT', 'it_ad', TRUE, 110),
-        ('exchange_create', 'Mailbox anlegen', 'Zugänge', 'Mailbox für die neue Person anlegen.', 'mailbox', 'IT', 'it_mailbox', TRUE, 120),
-        ('habel_user_create', 'Habel-User anlegen', 'Fachanwendungen', 'Habel-User für die neue Person anlegen.', 'habel', 'IT', 'it_habel', TRUE, 130),
-        ('ln_user_create', 'LN-User anlegen', 'Fachanwendungen', 'LN-User für die neue Person anlegen.', 'react', 'IT', 'it_ln', TRUE, 140),
-        ('internet_access_enable', 'Internetzugang einrichten', 'Zugänge', 'Internetzugang für die neue Person freischalten.', 'internetzugang', 'IT', 'it_ad', TRUE, 145),
-        ('internal_drive_access_grant', 'Laufwerksrechte vergeben', 'Zugänge', 'Zugriffsrechte für das interne Laufwerk der neuen Person einrichten.', 'berechtigungen', 'IT', 'it_ad', TRUE, 147),
-        ('office_install', 'Microsoft Office bereitstellen', 'Fachanwendungen', 'Microsoft Office für die neue Person bereitstellen und konfigurieren.', 'microsoft_office', 'IT', 'it_hardware', TRUE, 148),
+        ('ad_user_create', 'AD-User anlegen', 'Zugänge', 'AD-User für die neue Person anlegen.', 'ad_user', 'IT', 'it_ad', NULL, TRUE, TRUE, 100),
+        ('permissions_from_reference_user', 'AD-Berechtigungen anhand Vergleichsuser übernehmen', 'Zugänge', 'AD-Berechtigungen anhand einer Vergleichsperson übernehmen.', 'berechtigungen', 'IT', 'it_ad', NULL, TRUE, TRUE, 110),
+        ('exchange_create', 'Mailbox anlegen', 'Zugänge', 'Mailbox für die neue Person anlegen.', 'mailbox', 'IT', 'it_mailbox', NULL, TRUE, TRUE, 120),
+        ('habel_user_create', 'Habel-User anlegen', 'Fachanwendungen', 'Habel-User für die neue Person anlegen.', 'habel', 'IT', 'it_habel', NULL, TRUE, TRUE, 130),
+        ('ln_user_create', 'LN-User anlegen', 'Fachanwendungen', 'LN-User für die neue Person anlegen.', 'react', 'IT', 'it_ln', NULL, TRUE, TRUE, 140),
+        ('internet_access_enable', 'Internetzugang einrichten', 'Zugänge', 'Internetzugang für die neue Person freischalten.', 'internetzugang', 'IT', 'it_ad', NULL, TRUE, TRUE, 145),
+        ('internal_drive_access_grant', 'Laufwerksrechte vergeben', 'Zugänge', 'Zugriffsrechte für das interne Laufwerk der neuen Person einrichten.', 'berechtigungen', 'IT', 'it_ad', NULL, TRUE, TRUE, 147),
+        ('office_install', 'Microsoft Office bereitstellen', 'Fachanwendungen', 'Microsoft Office für die neue Person bereitstellen und konfigurieren.', 'microsoft_office', 'IT', 'it_hardware', NULL, TRUE, TRUE, 148),
 
-        ('hardware_procure', 'Hardware beschaffen', 'Ausstattung', 'Hardware-Bedarf prüfen und bei Bedarf passende Hardware beschaffen.', 'pc', 'IT', 'it_hardware', TRUE, 150),
-        ('hardware_setup', 'Hardware einrichten', 'Ausstattung', 'Hardware installieren und für den Einsatz vorbereiten.', 'pc', 'IT', 'it_hardware', TRUE, 160),
-        ('hardware_handover', 'Hardware bereitstellen', 'Ausstattung', 'Eingerichtete Hardware für die neue Person bereitstellen.', 'pc', 'IT', 'it_hardware', TRUE, 170),
-        ('phone_prepare', 'Tragbares Telefon bereitstellen', 'Ausstattung', 'Tragbares Telefon für die neue Person bereitstellen.', 'phone', 'IT', 'it_hardware', TRUE, 175),
-        ('catia_install', 'Catia bereitstellen', 'Fachanwendungen', 'Catia für die neue Person installieren und bereitstellen.', 'catia', 'IT', 'it_hardware', TRUE, 180),
-        ('datev_install', 'DATEV bereitstellen', 'Fachanwendungen', 'DATEV für die neue Person installieren und bereitstellen.', 'datev', 'IT', 'it_hardware', TRUE, 185),
-        ('tisoware_install', 'Tisoware bereitstellen', 'Fachanwendungen', 'Tisoware für die neue Person installieren und bereitstellen.', 'tiso', 'IT', 'it_hardware', TRUE, 190),
+        ('hardware_procure', 'Hardware beschaffen', 'Ausstattung', 'Hardware-Bedarf prüfen und bei Bedarf passende Hardware beschaffen.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 150),
+        ('hardware_setup', 'Hardware einrichten', 'Ausstattung', 'Hardware installieren und für den Einsatz vorbereiten.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 160),
+        ('hardware_handover', 'Hardware bereitstellen', 'Ausstattung', 'Eingerichtete Hardware für die neue Person bereitstellen.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 170),
+        ('phone_prepare', 'Tragbares Telefon bereitstellen', 'Ausstattung', 'Tragbares Telefon für die neue Person bereitstellen.', 'phone', 'IT', 'it_hardware', NULL, TRUE, TRUE, 175),
+        ('catia_install', 'Catia bereitstellen', 'Fachanwendungen', 'Catia für die neue Person installieren und bereitstellen.', 'catia', 'IT', 'it_hardware', NULL, TRUE, TRUE, 180),
+        ('datev_install', 'DATEV bereitstellen', 'Fachanwendungen', 'DATEV für die neue Person installieren und bereitstellen.', 'datev', 'IT', 'it_hardware', NULL, TRUE, TRUE, 185),
+        ('tisoware_install', 'Tisoware bereitstellen', 'Fachanwendungen', 'Tisoware für die neue Person installieren und bereitstellen.', 'tiso', 'IT', 'it_hardware', NULL, TRUE, TRUE, 190),
 
-        ('babtec_user_create', 'Babtec-User anlegen', 'Fachanwendungen', 'User in Babtec für die neue Person anlegen.', 'babtec', 'QS', 'qs_babtec', TRUE, 200),
-        ('gewatec_user_create', 'Gewatec-User anlegen', 'Fachanwendungen', 'Gewatec-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_gewatec', TRUE, 210),
-        ('provis_user_create', 'Provis-User anlegen', 'Fachanwendungen', 'Provis-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_provis', TRUE, 220),
-        ('consense_setup', 'Spinfire anlegen', 'Fachanwendungen', 'Spinfire für die neue Person anlegen.', 'spinfire', 'QMB', 'qmb_consense', TRUE, 230),
-        ('consense_training', 'Spinfire-Schulung planen', 'Schulung', 'Spinfire-Schulung für die neue Person planen und durchführen.', 'spinfire', 'QMB', 'qmb_consense', TRUE, 240)
+        ('babtec_user_create', 'Babtec-User anlegen', 'Fachanwendungen', 'User in Babtec für die neue Person anlegen.', 'babtec', 'QS', 'qs_babtec', NULL, TRUE, TRUE, 200),
+        ('gewatec_user_create', 'Gewatec-User anlegen', 'Fachanwendungen', 'Gewatec-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_gewatec', NULL, TRUE, TRUE, 210),
+        ('provis_user_create', 'Provis-User anlegen', 'Fachanwendungen', 'Provis-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_provis', NULL, TRUE, TRUE, 220),
+        ('consense_setup', 'Spinfire anlegen', 'Fachanwendungen', 'Spinfire für die neue Person anlegen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 230),
+        ('consense_training', 'Spinfire-Schulung planen', 'Schulung', 'Spinfire-Schulung für die neue Person planen und durchführen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 240)
 )
 INSERT INTO task_templates (
     template_key,
@@ -650,6 +828,8 @@ INSERT INTO task_templates (
     icon_key,
     owning_department_id,
     default_responsibility_id,
+    process_area_label,
+    is_department_phase_task,
     is_required,
     sort_order,
     is_active
@@ -662,6 +842,8 @@ SELECT
     s.icon_key,
     d.id,
     r.id,
+    s.process_area_label,
+    s.is_department_phase_task,
     s.is_required,
     s.sort_order,
     TRUE
@@ -676,6 +858,8 @@ SET
     icon_key = EXCLUDED.icon_key,
     owning_department_id = EXCLUDED.owning_department_id,
     default_responsibility_id = EXCLUDED.default_responsibility_id,
+    process_area_label = EXCLUDED.process_area_label,
+    is_department_phase_task = EXCLUDED.is_department_phase_task,
     is_required = EXCLUDED.is_required,
     sort_order = EXCLUDED.sort_order,
     is_active = EXCLUDED.is_active;

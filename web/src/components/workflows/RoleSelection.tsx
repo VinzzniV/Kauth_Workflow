@@ -31,7 +31,7 @@ export default function RoleSelection({
       return [];
     }
 
-    return roles.filter((role) => role.departmentId === selectedDepartmentId);
+    return roles.filter((role) => role.departmentId === selectedDepartmentId && role.isActive);
   }, [roles, selectedDepartmentId]);
 
   const selectedDepartmentName = useMemo(

@@ -1,6 +1,7 @@
 // Uebersicht ueber alle sichtbaren Onboarding-Faelle inklusive Filter und abgeleitetem Prozessstand.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
@@ -27,12 +28,17 @@ function formatDate(value: string): string {
 }
 
 export default function WorkflowListPage() {
+  const { capabilities } = useCurrentUser();
+  const isReaderOnlyView =
+    capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
+  const defaultStatusFilter: "all" | WorkflowStatus = isReaderOnlyView ? "all" : "open";
+
   const [rows, setRows] = useState<WorkflowSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowStatus>("open");
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowStatus>(defaultStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
 
@@ -108,12 +114,20 @@ export default function WorkflowListPage() {
     });
   }, [rows, search, statusFilter, departmentFilter, responsibilityFilter]);
 
+  const emptyFilterDescription = useMemo(() => {
+    if (isReaderOnlyView && statusFilter === "open") {
+      return "Im Lesemodus sehen Sie nur abgeschlossene oder abgebrochene Onboardings. Stellen Sie den Status auf Alle oder einen Endstatus.";
+    }
+
+    return "Die aktuelle Filterkombination liefert keine Onboarding-Fälle.";
+  }, [isReaderOnlyView, statusFilter]);
+
   return (
     <main className="onboarding-shell">
       <div className="page-container">
         <PageHeader
           title="Onboardings im Überblick"
-          description="Zentrale Übersicht über alle laufenden und abgeschlossenen Onboardings."
+          description="Zentrale Übersicht über alle für Sie sichtbaren Onboardings."
         />
 
         <section className="panel">
@@ -123,7 +137,11 @@ export default function WorkflowListPage() {
           </div>
           <div className="next-action-callout">
             <p className="next-action-label">Nächste nötige Aktion</p>
-            <p className="next-action-text">Prüfen Sie zuerst Fälle, die auf Abteilungsleitung oder Fachbereiche warten.</p>
+            <p className="next-action-text">
+              {isReaderOnlyView
+                ? "Im Lesemodus sehen Sie nur abgeschlossene oder abgebrochene Fälle."
+                : "Prüfen Sie zuerst Fälle, die auf Abteilungsleitung oder Fachbereiche warten."}
+            </p>
           </div>
 
           <div className="toolbar-row">
@@ -201,7 +219,7 @@ export default function WorkflowListPage() {
         {!isLoading && !error && rows.length > 0 && filteredRows.length === 0 ? (
           <EmptyState
             title="Keine Treffer"
-            description="Die aktuelle Filterkombination liefert keine Onboarding-Fälle."
+            description={emptyFilterDescription}
           />
         ) : null}
 

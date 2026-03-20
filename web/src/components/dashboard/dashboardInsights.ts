@@ -6,14 +6,11 @@ import {
   getMyTasks,
   getSupervisorStepWorkflows,
   getWorkflows,
-  getWorkflowSupervisorStep,
 } from "../../services/onboardingApi";
 import type {
-  WorkflowRequirementSnapshot,
   WorkflowSummary,
   WorkflowTask,
 } from "../../types/workflow";
-import { getVisibleRequirements, hasRequirementAnswer } from "../../utils/requirements";
 import { getTaskStatusLabel } from "../../utils/taskStatus";
 import {
   getWorkflowRuntimeStatusLabel,
@@ -102,11 +99,6 @@ function summarizeWorkflows(workflows: WorkflowSummary[]): WorkflowMetrics {
   );
 }
 
-function countPendingSelections(requirements: WorkflowRequirementSnapshot[]): number {
-  const relevantRequirements = getVisibleRequirements(requirements);
-  return relevantRequirements.filter((requirement) => !hasRequirementAnswer(requirement)).length;
-}
-
 async function loadHrInsights(): Promise<DashboardInsights> {
   const workflows = await getWorkflows();
   const metrics = summarizeWorkflows(workflows);
@@ -182,47 +174,20 @@ async function loadHrInsights(): Promise<DashboardInsights> {
 
 async function loadManagerInsights(): Promise<DashboardInsights> {
   const workflows = await getSupervisorStepWorkflows();
-  const pendingSelectionsByWorkflow = new Map<string, number>();
-
-  let pendingSelections = 0;
-  let unresolvedWorkflowCount = 0;
-  let requirementLoadFailures = 0;
-
-  if (workflows.length > 0) {
-    const requirementResults = await Promise.allSettled(
-      workflows.map(async (workflow) => {
-        const requirements = await getWorkflowSupervisorStep(workflow.uid);
-        return {
-          uid: workflow.uid,
-          pendingSelections: countPendingSelections(requirements),
-        };
-      })
-    );
-
-    for (const result of requirementResults) {
-      if (result.status !== "fulfilled") {
-        requirementLoadFailures += 1;
-        continue;
-      }
-
-      pendingSelectionsByWorkflow.set(result.value.uid, result.value.pendingSelections);
-      pendingSelections += result.value.pendingSelections;
-      if (result.value.pendingSelections > 0) {
-        unresolvedWorkflowCount += 1;
-      }
-    }
-  }
+  const pendingSelections = workflows.reduce(
+    (count, workflow) => count + workflow.requirementSummary.pendingVisibleCount,
+    0
+  );
+  const unresolvedWorkflowCount = workflows.filter(
+    (workflow) => workflow.requirementSummary.pendingVisibleCount > 0
+  ).length;
 
   const queueItems = workflows
     .slice()
     .sort((left, right) => toEpoch(left.createdAt) - toEpoch(right.createdAt))
     .slice(0, 5)
     .map((workflow) => {
-      const workflowPendingSelections = pendingSelectionsByWorkflow.get(workflow.uid);
-      const selectionText =
-        typeof workflowPendingSelections === "number"
-          ? `${workflowPendingSelections} offene Auswahlpunkte`
-          : "Auswahlpunkte werden geladen";
+      const selectionText = `${workflow.requirementSummary.pendingVisibleCount} offene Auswahlpunkte`;
 
       return {
         key: workflow.uid,
@@ -250,10 +215,7 @@ async function loadManagerInsights(): Promise<DashboardInsights> {
       },
     ],
     queueTitle: "Offene Onboardings",
-    queueDescription:
-      requirementLoadFailures > 0
-        ? "Einige Auswahlpunkte konnten nicht geladen werden."
-        : "Bearbeiten Sie zuerst die ältesten offenen Onboardings.",
+    queueDescription: "Bearbeiten Sie zuerst die ältesten offenen Onboardings.",
     queueItems,
     emptyQueueText: "Aktuell warten keine Onboardings auf Eingaben durch die Abteilungsleitung.",
   };

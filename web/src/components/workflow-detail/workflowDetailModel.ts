@@ -1,12 +1,9 @@
 import type {
-  RequirementSelectionPayload,
-  RequirementSelectionState,
   WorkflowDetail,
-  WorkflowRequirementSnapshot,
   WorkflowTask,
+  WorkflowTaskAreaSummary,
   WorkflowTaskArea,
 } from "../../types/workflow";
-import { createEmptyRequirementSelection } from "../../utils/requirements";
 import {
   getWorkflowLegacyStatusLabel,
   getWorkflowRuntimeStatusLabel,
@@ -28,46 +25,12 @@ export type ProcessAreaName = WorkflowTaskArea;
 export type ProcessAreaGroup = {
   name: ProcessAreaName;
   tasks: WorkflowTask[];
+  totalCount: number;
   openCount: number;
   inProgressCount: number;
-  doneCount: number;
+  completedCount: number;
   isCurrentArea: boolean;
 };
-
-const PROCESS_AREA_ORDER: ProcessAreaName[] = ["HR", "Abteilungsleitung", "IT", "QS", "AV", "QMB"];
-
-const TASK_TITLE_OVERRIDES: Partial<Record<string, string>> = {
-  contract_archived: "Vertrag ablegen",
-  kaba_user_created: "Kaba-Eintrag anlegen",
-  supervisor_fills_document: "Anforderungen bestätigen",
-  document_sent_to_distribution: "Unterlagen an Fachbereiche senden",
-  ad_user_create: "AD-User anlegen",
-  permissions_from_reference_user: "AD-Berechtigungen übernehmen",
-  exchange_create: "Mailbox anlegen",
-  habel_user_create: "Habel-User anlegen",
-  ln_user_create: "LN-User anlegen",
-  internet_access_enable: "Internetzugang einrichten",
-  internal_drive_access_grant: "Laufwerksrechte vergeben",
-  office_install: "Microsoft Office bereitstellen",
-  hardware_procure: "Hardware beschaffen",
-  hardware_setup: "Hardware einrichten",
-  hardware_handover: "Hardware bereitstellen",
-  phone_prepare: "Tragbares Telefon bereitstellen",
-  catia_install: "Catia bereitstellen",
-  datev_install: "DATEV bereitstellen",
-  tisoware_install: "Tisoware bereitstellen",
-  babtec_user_create: "Babtec-User anlegen",
-  gewatec_user_create: "Gewatec-User anlegen",
-  provis_user_create: "Provis-User anlegen",
-  consense_setup: "Spinfire anlegen",
-  consense_training: "Spinfire-Schulung planen",
-};
-
-export const PRE_SUPERVISOR_TASK_KEYS = new Set([
-  "contract_archived",
-  "kaba_user_created",
-  "supervisor_fills_document",
-]);
 
 export function formatDate(value: string | null): string {
   if (!value) {
@@ -132,7 +95,7 @@ export function inferAreaFromTask(task: WorkflowTask): ProcessAreaName | null {
 }
 
 export function toAreaStatus(group: ProcessAreaGroup): "none" | "open" | "in_progress" | "done" {
-  if (group.tasks.length === 0) {
+  if (group.totalCount === 0) {
     return "none";
   }
 
@@ -164,7 +127,7 @@ export function toAreaStatusLabel(status: ReturnType<typeof toAreaStatus>): stri
 }
 
 export function toAreaStatusNote(group: ProcessAreaGroup): string {
-  if (group.tasks.length === 0) {
+  if (group.totalCount === 0) {
     return "In diesem Bereich sind aktuell keine Aufgaben vorgesehen.";
   }
 
@@ -184,7 +147,7 @@ export function toAreaStatusNote(group: ProcessAreaGroup): string {
 }
 
 export function toTaskDisplayTitle(task: WorkflowTask): string {
-  return TASK_TITLE_OVERRIDES[task.taskKey] ?? task.title;
+  return task.title;
 }
 
 export function isDepartmentWorkflowPhase(status: WorkflowDetail["workflowStatus"]): boolean {
@@ -272,58 +235,9 @@ export function findCurrentTask(tasks: WorkflowTask[]): WorkflowTask | null {
     })[0];
 }
 
-export function toRequirementPayload(
-  requirements: WorkflowRequirementSnapshot[],
-  selections: Record<number, RequirementSelectionState>
-): RequirementSelectionPayload[] {
-  return requirements.map((requirement) => {
-    const selection = selections[requirement.id] ?? createEmptyRequirementSelection();
-
-    if (requirement.inputType === "boolean") {
-      return {
-        requirementId: requirement.id,
-        valueBoolean: selection.valueBoolean,
-      };
-    }
-
-    if (requirement.inputType === "text") {
-      return {
-        requirementId: requirement.id,
-        valueText: selection.valueText,
-      };
-    }
-
-    if (requirement.inputType === "select") {
-      return {
-        requirementId: requirement.id,
-        selectedOptionId: selection.selectedOptionId,
-      };
-    }
-
-    return {
-      requirementId: requirement.id,
-      selectedOptionIds: [...selection.selectedOptionIds],
-    };
-  });
-}
-
-export function buildProcessSteps(args: {
-  workflow: WorkflowDetail;
-  requirementSummary: { total: number; answered: number };
-  departmentOpenTaskCount: number;
-  departmentInProgressTaskCount: number;
-  departmentDoneTaskCount: number;
-  departmentTaskCount: number;
-}): ProcessStep[] {
-  const {
-    workflow,
-    requirementSummary,
-    departmentOpenTaskCount,
-    departmentInProgressTaskCount,
-    departmentDoneTaskCount,
-    departmentTaskCount,
-  } = args;
-
+export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
+  const requirementSummary = workflow.requirementSummary;
+  const departmentTaskMetrics = workflow.taskMetrics.departmentPhase;
   const isDepartmentPhase = isDepartmentWorkflowPhase(workflow.workflowStatus);
   const isTerminalWorkflow = isWorkflowTerminalStatus(workflow.workflowStatus);
   const hrStepState: ProcessStepState = workflow.workflowStatus === "draft" ? "active" : "done";
@@ -357,7 +271,7 @@ export function buildProcessSteps(args: {
       detail:
         workflow.workflowStatus === "draft"
           ? "Startet, sobald HR den Vorgang freigibt."
-          : `Beantwortet: ${requirementSummary.answered} von ${requirementSummary.total}.`,
+          : `Beantwortet: ${requirementSummary.answeredVisibleCount} von ${requirementSummary.visibleCount}.`,
       state: requirementStepState,
     },
     {
@@ -366,7 +280,7 @@ export function buildProcessSteps(args: {
       detail:
         workflow.workflowStatus === "draft" || workflow.workflowStatus === "waiting_for_supervisor"
           ? "Aufgaben für Fachbereiche entstehen erst nach Auswahl der Anforderungen."
-          : `Offen: ${departmentOpenTaskCount} | In Bearbeitung: ${departmentInProgressTaskCount} | Erledigt: ${departmentDoneTaskCount} von ${departmentTaskCount}.`,
+          : `Offen: ${departmentTaskMetrics.openCount} | In Bearbeitung: ${departmentTaskMetrics.inProgressCount} | Erledigt: ${departmentTaskMetrics.completedCount} von ${departmentTaskMetrics.totalCount}.`,
       state: departmentStepState,
     },
     {
@@ -385,26 +299,40 @@ export function buildProcessSteps(args: {
 
 export function buildTasksByArea(
   sortedTasks: WorkflowTask[],
-  activeAreas: ReadonlySet<ProcessAreaName>
+  taskAreas: WorkflowTaskAreaSummary[]
 ): ProcessAreaGroup[] {
-  const byArea = new Map<ProcessAreaName, WorkflowTask[]>(PROCESS_AREA_ORDER.map((name) => [name, [] as WorkflowTask[]]));
+  const byArea = new Map<ProcessAreaName, WorkflowTask[]>();
+  const orderedAreaNames = taskAreas.map((area) => area.name);
 
   for (const task of sortedTasks) {
-    const group = inferAreaFromTask(task);
-    if (group) {
-      byArea.get(group)?.push(task);
+    const areaName = inferAreaFromTask(task);
+    if (!areaName) {
+      continue;
     }
+
+    let tasks = byArea.get(areaName);
+    if (!tasks) {
+      tasks = [];
+      byArea.set(areaName, tasks);
+      if (!orderedAreaNames.includes(areaName)) {
+        orderedAreaNames.push(areaName);
+      }
+    }
+
+    tasks.push(task);
   }
 
-  return PROCESS_AREA_ORDER.map((name) => {
+  return orderedAreaNames.map((name) => {
     const tasks = byArea.get(name) ?? [];
+    const summary = taskAreas.find((area) => area.name === name);
     return {
       name,
       tasks,
-      openCount: tasks.filter((task) => isOpenStatus(task.status)).length,
-      inProgressCount: tasks.filter((task) => isInProgressStatus(task.status)).length,
-      doneCount: tasks.filter((task) => isDoneStatus(task.status)).length,
-      isCurrentArea: activeAreas.has(name),
+      totalCount: summary?.counts.totalCount ?? tasks.length,
+      openCount: summary?.counts.openCount ?? tasks.filter((task) => isOpenStatus(task.status)).length,
+      inProgressCount: summary?.counts.inProgressCount ?? tasks.filter((task) => isInProgressStatus(task.status)).length,
+      completedCount: summary?.counts.completedCount ?? tasks.filter((task) => isDoneStatus(task.status)).length,
+      isCurrentArea: summary?.isCurrentArea ?? false,
     };
   });
 }

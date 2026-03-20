@@ -23,6 +23,39 @@ export type RequirementOption = {
 
 export type RequirementInputType = "boolean" | "text" | "select" | "multi_select";
 
+export type RequirementVisibilityDependency = {
+  dependencyKey: string;
+  kind: "boolean_true" | "selected_option_value";
+  expectedValue: string | null;
+  missingResult: boolean;
+};
+
+export type RequirementValidation = {
+  kind: "text_required" | "single_select_required" | "multi_select_required";
+  message: string;
+};
+
+export type RequirementResetTarget = {
+  requirementKey: string;
+  clearBoolean: boolean;
+  clearText: boolean;
+  clearNumber: boolean;
+  clearSelectedOption: boolean;
+  clearSelectedOptions: boolean;
+};
+
+export type RequirementSingleSelectReset = {
+  keepSelectedOptionValues: string[];
+  targets: RequirementResetTarget[];
+};
+
+export type RequirementBehavior = {
+  visibilityDependencies: RequirementVisibilityDependency[];
+  validation: RequirementValidation | null;
+  resetTargetsWhenNotTrue: RequirementResetTarget[];
+  singleSelectReset: RequirementSingleSelectReset | null;
+};
+
 // Konfiguration fuer Anforderungen, wie sie bei der Erstellung eines Onboardings verwendet wird.
 export type RoleRequirement = {
   id: number;
@@ -41,6 +74,7 @@ export type RoleRequirement = {
   defaultValueNumber: number | null;
   defaultSelectedOptionId: number | null;
   defaultSelectedOptionIds: number[];
+  behavior: RequirementBehavior;
   options: RequirementOption[];
 };
 
@@ -127,11 +161,39 @@ export type WorkflowRuntimeStatus =
   | "cancelled";
 
 export type WorkflowTaskStatus = "open" | "ready" | "in_progress" | "blocked" | "done" | "skipped" | "cancelled";
-export type WorkflowTaskArea = "HR" | "Abteilungsleitung" | "IT" | "QS" | "AV" | "QMB";
+export type WorkflowTaskArea = string;
 
 export type WorkflowResponsibilityOption = {
   value: string;
   label: string;
+};
+
+export type WorkflowRequirementSummary = {
+  totalCount: number;
+  visibleCount: number;
+  answeredVisibleCount: number;
+  pendingVisibleCount: number;
+};
+
+export type WorkflowTaskCountSummary = {
+  totalCount: number;
+  openCount: number;
+  inProgressCount: number;
+  doneCount: number;
+  endedCount: number;
+  completedCount: number;
+  activeCount: number;
+};
+
+export type WorkflowTaskMetrics = {
+  overall: WorkflowTaskCountSummary;
+  departmentPhase: WorkflowTaskCountSummary;
+};
+
+export type WorkflowTaskAreaSummary = {
+  name: string;
+  isCurrentArea: boolean;
+  counts: WorkflowTaskCountSummary;
 };
 
 // Kompakte Uebersicht fuer Listen und Dashboards.
@@ -150,6 +212,8 @@ export type WorkflowSummary = {
   createdAt: string;
   pendingNotifications: number;
   failedNotifications: number;
+  requirementSummary: WorkflowRequirementSummary;
+  taskMetrics: WorkflowTaskMetrics;
   taskSummary: string;
   responsibilityOptions: WorkflowResponsibilityOption[];
 };
@@ -166,6 +230,7 @@ export type WorkflowRequirementSnapshot = {
   inputType: RequirementInputType;
   isRequired: boolean;
   sortOrder: number;
+  behavior: RequirementBehavior;
   options: WorkflowRequirementOptionSnapshot[];
   value: WorkflowRequirementValue;
 };
@@ -251,6 +316,7 @@ export type WorkflowTask = {
   completedAt: string | null;
   cancelledAt: string | null;
   processArea: WorkflowTaskArea | null;
+  isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
   assignments: WorkflowTaskAssignment[];
   dependencies: WorkflowTaskDependency[];
@@ -291,7 +357,10 @@ export type WorkflowDetail = {
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
   requirements: WorkflowRequirementSnapshot[];
+  requirementSummary: WorkflowRequirementSummary;
   tasks: WorkflowTask[];
+  taskMetrics: WorkflowTaskMetrics;
+  taskAreas: WorkflowTaskAreaSummary[];
   notifications: WorkflowNotification[];
 };
 

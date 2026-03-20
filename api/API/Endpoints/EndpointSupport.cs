@@ -38,6 +38,7 @@ internal static class EndpointSupport
         IAuthorizationPolicyService authorizationPolicy)
     {
         var shouldRedactAssignments = ShouldRedactTaskAssignments(currentUser, authorizationPolicy);
+        var shouldRedactAssigneeIdentity = ShouldRedactTaskAssigneeIdentity(currentUser, authorizationPolicy);
 
         foreach (var task in workflow.Tasks)
         {
@@ -67,6 +68,12 @@ internal static class EndpointSupport
             if (shouldRedactAssignments)
             {
                 task.Assignments.Clear();
+                continue;
+            }
+
+            if (shouldRedactAssigneeIdentity)
+            {
+                RedactTaskAssigneeIdentity(task);
             }
         }
     }
@@ -91,6 +98,12 @@ internal static class EndpointSupport
         if (ShouldRedactTaskAssignments(currentUser, authorizationPolicy))
         {
             task.Task.Assignments.Clear();
+            return;
+        }
+
+        if (ShouldRedactTaskAssigneeIdentity(currentUser, authorizationPolicy))
+        {
+            RedactTaskAssigneeIdentity(task.Task);
         }
     }
 
@@ -107,6 +120,28 @@ internal static class EndpointSupport
                 AuthorizationRoles.Worker);
     }
 
+    private static bool ShouldRedactTaskAssigneeIdentity(
+        CurrentUser currentUser,
+        IAuthorizationPolicyService authorizationPolicy)
+    {
+        return !authorizationPolicy.CanViewTaskAssigneeIdentity(currentUser);
+    }
+
+    private static void RedactTaskAssigneeIdentity(WorkflowTaskDto task)
+    {
+        foreach (var assignment in task.Assignments)
+        {
+            if (!string.Equals(assignment.AssignmentType, "user", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            assignment.AssigneeUserId = null;
+            assignment.AssigneeUserName = null;
+            assignment.AssigneeUserEmail = null;
+        }
+    }
+
     public static async Task<HashSet<int>?> GetObservableWorkflowDepartmentIds(
         CurrentUser currentUser,
         IWorkflowRepository repository,
@@ -121,10 +156,6 @@ internal static class EndpointSupport
         if (authorizationPolicy.CanAccessSupervisorStep(currentUser))
         {
             var departmentIds = await repository.GetRequirementSelectionDepartmentIds(currentUser.UserId);
-            if (currentUser.DepartmentId.HasValue)
-            {
-                departmentIds.Add(currentUser.DepartmentId.Value);
-            }
 
             foreach (var responsibility in currentUser.EffectiveResponsibilities)
             {

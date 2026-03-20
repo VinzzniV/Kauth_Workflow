@@ -51,6 +51,10 @@ export function getResponsibleUserLabel(task: Pick<WorkflowTask, "assignments">)
     return primary.assigneeUserEmail;
   }
 
+  if (primary.assignmentType === "user") {
+    return "Direkte Personenzuordnung ausgeblendet";
+  }
+
   return "Nicht zugewiesen";
 }
 

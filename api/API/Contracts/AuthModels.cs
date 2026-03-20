@@ -151,6 +151,7 @@ public sealed class AdminUserDto
     public required string Email { get; init; }
     public string? NotificationEmail { get; init; }
     public required bool IsActive { get; init; }
+    public required bool HasManagerAccess { get; init; }
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }
     public required List<AdminRoleDto> Roles { get; init; }

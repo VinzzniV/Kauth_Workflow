@@ -1,5 +1,5 @@
 import TaskStatusPill from "../workflows/TaskStatusPill";
-import type { WorkflowDetail, WorkflowTask } from "../../types/workflow";
+import type { WorkflowTask } from "../../types/workflow";
 import { getResponsibleResponsibilityLabel, getResponsibleUserLabel } from "../../utils/taskAssignment";
 import {
   getAvailableVisibleTaskStatuses,
@@ -17,7 +17,6 @@ import {
 } from "./workflowDetailModel";
 
 type WorkflowTaskAreasSectionProps = {
-  workflow: WorkflowDetail;
   tasksByArea: ProcessAreaGroup[];
   taskError: string | null;
   taskNotice: string | null;
@@ -33,7 +32,6 @@ function getAreaStatusClass(status: ReturnType<typeof toAreaStatus>): string {
 }
 
 export default function WorkflowTaskAreasSection({
-  workflow,
   tasksByArea,
   taskError,
   taskNotice,
@@ -62,7 +60,7 @@ export default function WorkflowTaskAreasSection({
                   <span className={getAreaStatusClass(status)}>{toAreaStatusLabel(status)}</span>
                 </div>
                 <p className="workflow-area-card-count">
-                  {group.tasks.length} Aufgabe{group.tasks.length === 1 ? "" : "n"}
+                  {group.totalCount} Aufgabe{group.totalCount === 1 ? "" : "n"}
                 </p>
                 <p className="workflow-area-card-note">{toAreaStatusNote(group)}</p>
               </article>
@@ -89,8 +87,8 @@ export default function WorkflowTaskAreasSection({
                 <header className="task-group-head">
                   <h3>{group.name}{group.isCurrentArea ? " · aktuell dran" : ""}</h3>
                   <p>
-                    {group.tasks.length} Aufgabe{group.tasks.length === 1 ? "" : "n"} | Offen: {group.openCount} | In
-                    Bearbeitung: {group.inProgressCount} | Erledigt: {group.doneCount}
+                    {group.totalCount} Aufgabe{group.totalCount === 1 ? "" : "n"} | Offen: {group.openCount} | In
+                    Bearbeitung: {group.inProgressCount} | Erledigt: {group.completedCount}
                   </p>
                 </header>
 
@@ -165,12 +163,7 @@ export default function WorkflowTaskAreasSection({
                             </div>
                           ) : null}
 
-                          {workflow.workflowStatus === "draft" && task.taskKey === "supervisor_fills_document" ? (
-                            <p className="panel-note">
-                              Dieser Schritt wird im Anschluss von der zuständigen Abteilungsleitung über den
-                              Anforderungsschritt abgeschlossen.
-                            </p>
-                          ) : null}
+
                         </li>
                       );
                     })}

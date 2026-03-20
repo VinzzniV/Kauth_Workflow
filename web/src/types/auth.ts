@@ -51,6 +51,7 @@ export type AdminUser = {
   email: string;
   notificationEmail: string | null;
   isActive: boolean;
+  hasManagerAccess: boolean;
   departmentId: number | null;
   departmentName: string | null;
   roles: AdminRole[];

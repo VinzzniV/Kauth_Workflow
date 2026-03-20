@@ -26,6 +26,44 @@ public sealed class RequirementOptionDto
     public required bool IsDefault { get; init; }
 }
 
+public sealed class RequirementVisibilityDependencyDto
+{
+    public required string DependencyKey { get; init; }
+    public required string Kind { get; init; }
+    public string? ExpectedValue { get; init; }
+    public required bool MissingResult { get; init; }
+}
+
+public sealed class RequirementValidationDto
+{
+    public required string Kind { get; init; }
+    public required string Message { get; init; }
+}
+
+public sealed class RequirementResetTargetDto
+{
+    public required string RequirementKey { get; init; }
+    public bool ClearBoolean { get; init; }
+    public bool ClearText { get; init; }
+    public bool ClearNumber { get; init; }
+    public bool ClearSelectedOption { get; init; }
+    public bool ClearSelectedOptions { get; init; }
+}
+
+public sealed class RequirementSingleSelectResetDto
+{
+    public required List<string> KeepSelectedOptionValues { get; init; }
+    public required List<RequirementResetTargetDto> Targets { get; init; }
+}
+
+public sealed class RequirementBehaviorDto
+{
+    public required List<RequirementVisibilityDependencyDto> VisibilityDependencies { get; init; }
+    public RequirementValidationDto? Validation { get; set; }
+    public required List<RequirementResetTargetDto> ResetTargetsWhenNotTrue { get; init; }
+    public RequirementSingleSelectResetDto? SingleSelectReset { get; set; }
+}
+
 public sealed class RequirementDto
 {
     public required int Id { get; init; }
@@ -38,6 +76,7 @@ public sealed class RequirementDto
     public required bool IsRequired { get; init; }
     public required int SortOrder { get; init; }
     public required List<RequirementOptionDto> Options { get; init; }
+    public required RequirementBehaviorDto Behavior { get; init; }
 }
 
 public sealed class RoleRecommendationDefaultValueDto
@@ -108,6 +147,38 @@ public sealed class WorkflowCreateSummaryDto
     public required int PendingNotifications { get; init; }
 }
 
+public sealed class WorkflowRequirementSummaryDto
+{
+    public required int TotalCount { get; init; }
+    public required int VisibleCount { get; init; }
+    public required int AnsweredVisibleCount { get; init; }
+    public required int PendingVisibleCount { get; init; }
+}
+
+public sealed class WorkflowTaskCountSummaryDto
+{
+    public required int TotalCount { get; init; }
+    public required int OpenCount { get; init; }
+    public required int InProgressCount { get; init; }
+    public required int DoneCount { get; init; }
+    public required int EndedCount { get; init; }
+    public required int CompletedCount { get; init; }
+    public required int ActiveCount { get; init; }
+}
+
+public sealed class WorkflowTaskMetricsDto
+{
+    public required WorkflowTaskCountSummaryDto Overall { get; init; }
+    public required WorkflowTaskCountSummaryDto DepartmentPhase { get; init; }
+}
+
+public sealed class WorkflowTaskAreaSummaryDto
+{
+    public required string Name { get; init; }
+    public required bool IsCurrentArea { get; init; }
+    public required WorkflowTaskCountSummaryDto Counts { get; init; }
+}
+
 // Zusammenfassungen und Detailmodelle fuer Listen, Aufgaben und Detailseiten.
 public sealed class WorkflowListItemDto
 {
@@ -125,6 +196,8 @@ public sealed class WorkflowListItemDto
     public required DateTime CreatedAt { get; init; }
     public required int PendingNotifications { get; init; }
     public required int FailedNotifications { get; init; }
+    public required WorkflowRequirementSummaryDto RequirementSummary { get; init; }
+    public required WorkflowTaskMetricsDto TaskMetrics { get; init; }
     public required string TaskSummary { get; init; }
     public required List<WorkflowResponsibilityOptionDto> ResponsibilityOptions { get; init; }
 }
@@ -148,6 +221,7 @@ public sealed class WorkflowRequirementSnapshotDto
     public required bool IsRequired { get; init; }
     public required int SortOrder { get; init; }
     public required List<WorkflowRequirementOptionSnapshotDto> Options { get; init; }
+    public required RequirementBehaviorDto Behavior { get; init; }
     public required WorkflowRequirementValueDto Value { get; set; }
 }
 
@@ -201,9 +275,9 @@ public sealed class WorkflowTaskAssignmentDto
     public required long Id { get; init; }
     public required string AssignmentType { get; init; }
     public required bool IsPrimary { get; init; }
-    public long? AssigneeUserId { get; init; }
-    public string? AssigneeUserName { get; init; }
-    public string? AssigneeUserEmail { get; init; }
+    public long? AssigneeUserId { get; set; }
+    public string? AssigneeUserName { get; set; }
+    public string? AssigneeUserEmail { get; set; }
     public int? AssigneeResponsibilityId { get; init; }
     public string? AssigneeResponsibilityKey { get; init; }
     public string? AssigneeResponsibilityName { get; init; }
@@ -239,6 +313,7 @@ public sealed class WorkflowTaskDto
     public DateTime? CompletedAt { get; init; }
     public DateTime? CancelledAt { get; init; }
     public string? ProcessArea { get; set; }
+    public bool IsDepartmentPhaseTask { get; set; }
     public bool CanUpdateStatus { get; set; }
     public required List<WorkflowTaskAssignmentDto> Assignments { get; init; }
     public required List<WorkflowTaskDependencyDto> Dependencies { get; init; }
@@ -298,7 +373,10 @@ public sealed class WorkflowDetailDto
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required List<WorkflowRequirementSnapshotDto> Requirements { get; init; }
+    public required WorkflowRequirementSummaryDto RequirementSummary { get; set; }
     public required List<WorkflowTaskDto> Tasks { get; init; }
+    public required WorkflowTaskMetricsDto TaskMetrics { get; set; }
+    public required List<WorkflowTaskAreaSummaryDto> TaskAreas { get; set; }
     public required List<WorkflowNotificationDto> Notifications { get; init; }
 }
 
@@ -342,6 +420,7 @@ internal sealed class AnswerDefinitionRecord
     public required string InputType { get; init; }
     public required bool IsRequired { get; init; }
     public required int SortOrder { get; init; }
+    public required RequirementBehaviorDto Behavior { get; set; }
     public required Dictionary<int, AnswerOptionRecord> OptionsById { get; init; }
 }
 
@@ -362,6 +441,15 @@ internal sealed class RoleDefaultRecord
     public decimal? DefaultValueNumber { get; init; }
     public int? DefaultSelectedOptionId { get; init; }
     public required List<int> DefaultSelectedOptionIds { get; init; }
+}
+
+internal sealed class RequirementSelectionStateRecord
+{
+    public bool? ValueBoolean { get; set; }
+    public string? ValueText { get; set; }
+    public decimal? ValueNumber { get; set; }
+    public int? SelectedOptionId { get; set; }
+    public required List<int> SelectedOptionIds { get; init; }
 }
 
 internal sealed class StoredWorkflowAnswerRecord
@@ -388,6 +476,8 @@ internal sealed class TaskTemplateRecord
     public required string Category { get; init; }
     public required string IconKey { get; init; }
     public int? DefaultResponsibilityId { get; init; }
+    public string? ProcessAreaLabel { get; init; }
+    public required bool IsDepartmentPhaseTask { get; init; }
     public required bool IsRequired { get; init; }
     public required int SortOrder { get; init; }
 }

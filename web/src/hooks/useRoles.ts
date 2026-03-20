@@ -23,11 +23,12 @@ export function useRoles(): UseRolesResult {
 
     try {
       const [roleData, departmentData] = await Promise.all([getRoles(), getDepartments()]);
+      const activeRoles = roleData.filter((role) => role.isActive);
 
-      setRoles(roleData);
+      setRoles(activeRoles);
       setDepartments(departmentData);
       console.info("[roles] loaded", {
-        roles: roleData.length,
+        roles: activeRoles.length,
         departments: departmentData.length,
       });
     } catch (err) {

@@ -10,17 +10,11 @@ import {
   findCurrentTask,
   formatDate,
   inferAreaFromTask,
-  isActiveStatus,
   isDepartmentWorkflowPhase,
-  isDoneStatus,
-  isInProgressStatus,
-  isOpenStatus,
-  PRE_SUPERVISOR_TASK_KEYS,
   toPhaseOwnerArea,
   toProcessStepClass,
   toReadAccessLabel,
   toRegularEditingLabel,
-  toRequirementPayload,
   toRuntimeStatusLabel,
   toTaskDisplayTitle,
   type ProcessAreaName,
@@ -44,8 +38,7 @@ import {
   applyRequirementSingleSelectSelection,
   buildRequirementSelections,
   createEmptyRequirementSelection,
-  getVisibleRequirements,
-  hasRequirementAnswer,
+  toRequirementSelectionPayload,
   validateRequirementSelections,
 } from "../utils/requirements";
 import { getResponsibleResponsibilityLabel, getResponsibleUserLabel } from "../utils/taskAssignment";
@@ -120,27 +113,17 @@ export default function WorkflowDetailPage() {
     return workflow.tasks.slice().sort((left, right) => left.sortOrder - right.sortOrder || left.id - right.id);
   }, [workflow]);
 
-  const openTaskCount = sortedTasks.filter((task) => isOpenStatus(task.status)).length;
-  const inProgressTaskCount = sortedTasks.filter((task) => isInProgressStatus(task.status)).length;
-  const doneTaskCount = sortedTasks.filter((task) => isDoneStatus(task.status)).length;
-  const activeTasks = useMemo(() => sortedTasks.filter((task) => isActiveStatus(task.status)), [sortedTasks]);
-  const resolvedActiveAreas = useMemo(() => {
-    return new Set(
-      activeTasks
-        .map((task) => inferAreaFromTask(task))
-        .filter((area): area is ProcessAreaName => area !== null)
-    );
-  }, [activeTasks]);
+  const activeAreaNames = useMemo(() => {
+    if (!workflow) {
+      return [] as ProcessAreaName[];
+    }
 
-  const activeAreaNames = useMemo(
-    () => Array.from(resolvedActiveAreas.values()).sort((left, right) => left.localeCompare(right, "de")),
-    [resolvedActiveAreas]
-  );
-  const postSupervisorTasks = sortedTasks.filter((task) => !PRE_SUPERVISOR_TASK_KEYS.has(task.taskKey));
-  const departmentOpenTaskCount = postSupervisorTasks.filter((task) => isOpenStatus(task.status)).length;
-  const departmentInProgressTaskCount = postSupervisorTasks.filter((task) => isInProgressStatus(task.status)).length;
-  const departmentDoneTaskCount = postSupervisorTasks.filter((task) => isDoneStatus(task.status)).length;
-  const departmentTaskCount = postSupervisorTasks.length;
+    return workflow.taskAreas
+      .filter((area) => area.isCurrentArea)
+      .map((area) => area.name)
+      .sort((left, right) => left.localeCompare(right, "de"));
+  }, [workflow]);
+  const activeTaskCount = workflow?.taskMetrics.overall.activeCount ?? 0;
 
   const currentTask = useMemo(() => findCurrentTask(sortedTasks), [sortedTasks]);
   const regularEditingText = useMemo(() => (workflow ? toRegularEditingLabel(workflow) : "-"), [workflow]);
@@ -173,13 +156,13 @@ export default function WorkflowDetailPage() {
         return `${activeAreaNames.length} Fachbereiche parallel`;
       }
 
-      if (activeAreaNames.length === 1 && activeTasks.length > 1) {
-        return `${activeAreaNames[0]} (${activeTasks.length} Aufgaben)`;
+      if (activeAreaNames.length === 1 && activeTaskCount > 1) {
+        return `${activeAreaNames[0]} (${activeTaskCount} Aufgaben)`;
       }
     }
 
-    if (workflow.workflowStatus === "draft" && activeAreaNames.length === 1 && activeTasks.length > 1) {
-      return `${activeAreaNames[0]} (${activeTasks.length} Aufgaben)`;
+    if (workflow.workflowStatus === "draft" && activeAreaNames.length === 1 && activeTaskCount > 1) {
+      return `${activeAreaNames[0]} (${activeTaskCount} Aufgaben)`;
     }
 
     if (currentTask) {
@@ -189,11 +172,15 @@ export default function WorkflowDetailPage() {
 
       const responsibility = getResponsibleResponsibilityLabel(currentTask);
       const user = getResponsibleUserLabel(currentTask);
+      if (user === "Direkte Personenzuordnung ausgeblendet") {
+        return responsibility;
+      }
+
       return `${responsibility} (${user})`;
     }
 
     return regularEditingText;
-  }, [activeAreaNames, activeTasks.length, currentTask, isReaderOnlyView, regularEditingText, workflow]);
+  }, [activeAreaNames, activeTaskCount, currentTask, isReaderOnlyView, regularEditingText, workflow]);
 
   const nextActionText = useMemo(() => {
     if (!workflow) {
@@ -214,7 +201,7 @@ export default function WorkflowDetailPage() {
         : "Offene Aufgaben parallel in mehreren Fachbereichen starten";
     }
 
-    if (workflow.workflowStatus === "draft" && activeTasks.length > 1) {
+    if (workflow.workflowStatus === "draft" && activeTaskCount > 1) {
       return "HR-Startaufgaben abschließen";
     }
 
@@ -239,7 +226,7 @@ export default function WorkflowDetailPage() {
     }
 
     return "Nächsten Prozessschritt prüfen";
-  }, [activeAreaNames.length, activeTasks.length, currentTask, workflow]);
+  }, [activeAreaNames.length, activeTaskCount, currentTask, workflow]);
 
   const handleTaskStatusChange = useCallback(
     async (taskId: number, status: VisibleTaskStatus, currentStatus: WorkflowTask["status"]) => {
@@ -332,7 +319,10 @@ export default function WorkflowDetailPage() {
     setRequirementsSaveNotice(null);
 
     try {
-      await updateWorkflowSupervisorStep(workflow.uid, toRequirementPayload(workflow.requirements, requirementSelections));
+      await updateWorkflowSupervisorStep(
+        workflow.uid,
+        toRequirementSelectionPayload(workflow.requirements, requirementSelections)
+      );
       await reload();
       setRequirementsSaveNotice("Anforderungen wurden per Admin-Override gespeichert.");
     } catch (err) {
@@ -343,42 +333,17 @@ export default function WorkflowDetailPage() {
     }
   }, [canEditSupervisorRequirements, reload, requirementSelections, workflow]);
 
-  const requirementSummary = useMemo(() => {
-    if (!workflow) {
-      return { total: 0, answered: 0 };
-    }
-
-    const visibleRequirements = getVisibleRequirements(workflow.requirements);
-    const total = visibleRequirements.length;
-    const answered = visibleRequirements.filter((requirement) => hasRequirementAnswer(requirement)).length;
-    return { total, answered };
-  }, [workflow]);
-
   const processSteps = useMemo<ProcessStep[]>(() => {
     if (!workflow) {
       return [] as ProcessStep[];
     }
 
-    return buildProcessSteps({
-      workflow,
-      requirementSummary,
-      departmentOpenTaskCount,
-      departmentInProgressTaskCount,
-      departmentDoneTaskCount,
-      departmentTaskCount,
-    });
-  }, [
-    departmentDoneTaskCount,
-    departmentInProgressTaskCount,
-    departmentOpenTaskCount,
-    departmentTaskCount,
-    requirementSummary,
-    workflow,
-  ]);
+    return buildProcessSteps(workflow);
+  }, [workflow]);
 
   const tasksByArea = useMemo(
-    () => buildTasksByArea(sortedTasks, resolvedActiveAreas),
-    [resolvedActiveAreas, sortedTasks]
+    () => (workflow ? buildTasksByArea(sortedTasks, workflow.taskAreas) : []),
+    [sortedTasks, workflow]
   );
 
   return (
@@ -468,9 +433,9 @@ export default function WorkflowDetailPage() {
 
                 <article className="workflow-detail-kpi">
                   <p className="workflow-detail-kpi-label">Offene Aufgaben</p>
-                  <p className="workflow-detail-kpi-value">{openTaskCount + inProgressTaskCount}</p>
+                  <p className="workflow-detail-kpi-value">{workflow.taskMetrics.overall.activeCount}</p>
                   <p className="workflow-detail-kpi-note">
-                    Offen: {openTaskCount} | In Bearbeitung: {inProgressTaskCount} | Erledigt: {doneTaskCount}
+                    Offen: {workflow.taskMetrics.overall.openCount} | In Bearbeitung: {workflow.taskMetrics.overall.inProgressCount} | Erledigt: {workflow.taskMetrics.overall.completedCount}
                   </p>
                 </article>
               </div>
@@ -511,7 +476,6 @@ export default function WorkflowDetailPage() {
             />
 
             <WorkflowTaskAreasSection
-              workflow={workflow}
               tasksByArea={tasksByArea}
               taskError={taskError}
               taskNotice={taskNotice}

@@ -11,7 +11,6 @@ import {
   updateWorkflowSupervisorStep,
 } from "../services/onboardingApi";
 import type {
-  RequirementSelectionPayload,
   RequirementSelectionState,
   WorkflowRequirementSnapshot,
   WorkflowSummary,
@@ -21,6 +20,7 @@ import {
   applyRequirementSingleSelectSelection,
   buildRequirementSelections,
   createEmptyRequirementSelection,
+  toRequirementSelectionPayload,
   validateRequirementSelections,
 } from "../utils/requirements";
 
@@ -35,42 +35,6 @@ function formatDate(value: string): string {
   }
 
   return parsed.toLocaleString("de-DE");
-}
-
-// Wandelt den lokalen Formularzustand wieder in das Transportformat des Backends um.
-function toPayload(
-  requirements: WorkflowRequirementSnapshot[],
-  selections: Record<number, RequirementSelectionState>
-): RequirementSelectionPayload[] {
-  return requirements.map((requirement) => {
-    const selection = selections[requirement.id] ?? createEmptyRequirementSelection();
-
-    if (requirement.inputType === "boolean") {
-      return {
-        requirementId: requirement.id,
-        valueBoolean: selection.valueBoolean,
-      };
-    }
-
-    if (requirement.inputType === "text") {
-      return {
-        requirementId: requirement.id,
-        valueText: selection.valueText,
-      };
-    }
-
-    if (requirement.inputType === "select") {
-      return {
-        requirementId: requirement.id,
-        selectedOptionId: selection.selectedOptionId,
-      };
-    }
-
-    return {
-      requirementId: requirement.id,
-      selectedOptionIds: [...selection.selectedOptionIds],
-    };
-  });
 }
 
 export default function SupervisorStepPage() {
@@ -188,7 +152,7 @@ export default function SupervisorStepPage() {
     setSaveSuccess(null);
 
     try {
-      await updateWorkflowSupervisorStep(selectedWorkflow.uid, toPayload(requirements, selections));
+      await updateWorkflowSupervisorStep(selectedWorkflow.uid, toRequirementSelectionPayload(requirements, selections));
       setSaveSuccess(
         usesAdminOverride
           ? "Auswahl wurde per Admin-Override gespeichert. Der Onboarding-Fall wurde in die nächste Phase überführt."

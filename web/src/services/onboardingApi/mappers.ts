@@ -1,6 +1,11 @@
 import type {
   Department,
+  RequirementBehavior,
   RequirementOption,
+  RequirementResetTarget,
+  RequirementSingleSelectReset,
+  RequirementValidation,
+  RequirementVisibilityDependency,
   Role,
   RoleRequirement,
   RoleRecommendations,
@@ -9,10 +14,14 @@ import type {
   WorkflowNotification,
   WorkflowRequirementOptionSnapshot,
   WorkflowRequirementSelectedOption,
+  WorkflowRequirementSummary,
   WorkflowRequirementSnapshot,
   WorkflowRequirementValue,
   WorkflowRuntimeStatus,
   WorkflowSummary,
+  WorkflowTaskAreaSummary,
+  WorkflowTaskCountSummary,
+  WorkflowTaskMetrics,
   WorkflowTask,
   WorkflowTaskArea,
   WorkflowTaskAssignment,
@@ -47,6 +56,39 @@ type BackendRequirementOptionDto = {
   isDefault: boolean;
 };
 
+type BackendRequirementVisibilityDependencyDto = {
+  dependencyKey: string;
+  kind: "boolean_true" | "selected_option_value";
+  expectedValue: string | null;
+  missingResult: boolean;
+};
+
+type BackendRequirementValidationDto = {
+  kind: "text_required" | "single_select_required" | "multi_select_required";
+  message: string;
+};
+
+type BackendRequirementResetTargetDto = {
+  requirementKey: string;
+  clearBoolean: boolean;
+  clearText: boolean;
+  clearNumber: boolean;
+  clearSelectedOption: boolean;
+  clearSelectedOptions: boolean;
+};
+
+type BackendRequirementSingleSelectResetDto = {
+  keepSelectedOptionValues: string[];
+  targets: BackendRequirementResetTargetDto[];
+};
+
+type BackendRequirementBehaviorDto = {
+  visibilityDependencies: BackendRequirementVisibilityDependencyDto[];
+  validation: BackendRequirementValidationDto | null;
+  resetTargetsWhenNotTrue: BackendRequirementResetTargetDto[];
+  singleSelectReset: BackendRequirementSingleSelectResetDto | null;
+};
+
 type BackendRequirementDto = {
   id: number;
   key: string;
@@ -57,6 +99,7 @@ type BackendRequirementDto = {
   inputType: "boolean" | "text" | "select" | "multi_select";
   isRequired: boolean;
   sortOrder: number;
+  behavior: BackendRequirementBehaviorDto;
   options: BackendRequirementOptionDto[];
 };
 
@@ -99,11 +142,41 @@ export type BackendWorkflowSummaryDto = {
   createdAt: string;
   pendingNotifications: number;
   failedNotifications: number;
+  requirementSummary: BackendWorkflowRequirementSummaryDto;
+  taskMetrics: BackendWorkflowTaskMetricsDto;
   taskSummary: string;
   responsibilityOptions: Array<{
     value: string;
     label: string;
   }>;
+};
+
+type BackendWorkflowRequirementSummaryDto = {
+  totalCount: number;
+  visibleCount: number;
+  answeredVisibleCount: number;
+  pendingVisibleCount: number;
+};
+
+type BackendWorkflowTaskCountSummaryDto = {
+  totalCount: number;
+  openCount: number;
+  inProgressCount: number;
+  doneCount: number;
+  endedCount: number;
+  completedCount: number;
+  activeCount: number;
+};
+
+type BackendWorkflowTaskMetricsDto = {
+  overall: BackendWorkflowTaskCountSummaryDto;
+  departmentPhase: BackendWorkflowTaskCountSummaryDto;
+};
+
+type BackendWorkflowTaskAreaSummaryDto = {
+  name: string;
+  isCurrentArea: boolean;
+  counts: BackendWorkflowTaskCountSummaryDto;
 };
 
 type BackendWorkflowRequirementOptionSnapshotDto = {
@@ -145,6 +218,7 @@ export type BackendWorkflowRequirementSnapshotDto = {
   inputType: "boolean" | "text" | "select" | "multi_select";
   isRequired: boolean;
   sortOrder: number;
+  behavior: BackendRequirementBehaviorDto;
   options: BackendWorkflowRequirementOptionSnapshotDto[];
   value: BackendWorkflowRequirementValueDto;
 };
@@ -202,6 +276,7 @@ export type BackendWorkflowTaskDto = {
   completedAt: string | null;
   cancelledAt: string | null;
   processArea: string | null;
+  isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
   assignments: BackendWorkflowTaskAssignmentDto[];
   dependencies: BackendWorkflowTaskDependencyDto[];
@@ -221,7 +296,10 @@ export type BackendWorkflowDetailDto = {
   workflowStatus: string;
   createdAt: string;
   requirements: BackendWorkflowRequirementSnapshotDto[];
+  requirementSummary: BackendWorkflowRequirementSummaryDto;
   tasks: BackendWorkflowTaskDto[];
+  taskMetrics: BackendWorkflowTaskMetricsDto;
+  taskAreas: BackendWorkflowTaskAreaSummaryDto[];
   notifications: BackendWorkflowNotificationDto[];
 };
 
@@ -290,21 +368,45 @@ function toWorkflowTaskStatus(status: string): WorkflowTaskStatus {
 }
 
 function toWorkflowTaskArea(area: string | null): WorkflowTaskArea | null {
-  switch (area) {
-    case "HR":
-    case "Abteilungsleitung":
-    case "IT":
-    case "QS":
-    case "AV":
-    case "QMB":
-      return area;
-    default:
-      return null;
+  if (!area || !area.trim()) {
+    return null;
   }
+
+  return area.trim();
 }
 
 function mapRequirementOption(dto: BackendRequirementOptionDto): RequirementOption {
   return dto;
+}
+
+function mapRequirementVisibilityDependency(
+  dto: BackendRequirementVisibilityDependencyDto
+): RequirementVisibilityDependency {
+  return { ...dto };
+}
+
+function mapRequirementValidation(dto: BackendRequirementValidationDto): RequirementValidation {
+  return { ...dto };
+}
+
+function mapRequirementResetTarget(dto: BackendRequirementResetTargetDto): RequirementResetTarget {
+  return { ...dto };
+}
+
+function mapRequirementSingleSelectReset(dto: BackendRequirementSingleSelectResetDto): RequirementSingleSelectReset {
+  return {
+    keepSelectedOptionValues: [...dto.keepSelectedOptionValues],
+    targets: dto.targets.map(mapRequirementResetTarget),
+  };
+}
+
+function mapRequirementBehavior(dto: BackendRequirementBehaviorDto): RequirementBehavior {
+  return {
+    visibilityDependencies: dto.visibilityDependencies.map(mapRequirementVisibilityDependency),
+    validation: dto.validation ? mapRequirementValidation(dto.validation) : null,
+    resetTargetsWhenNotTrue: dto.resetTargetsWhenNotTrue.map(mapRequirementResetTarget),
+    singleSelectReset: dto.singleSelectReset ? mapRequirementSingleSelectReset(dto.singleSelectReset) : null,
+  };
 }
 
 function mapRequirement(dto: BackendRequirementDto): RoleRequirement {
@@ -325,6 +427,7 @@ function mapRequirement(dto: BackendRequirementDto): RoleRequirement {
     defaultValueNumber: null,
     defaultSelectedOptionId: null,
     defaultSelectedOptionIds: [],
+    behavior: mapRequirementBehavior(dto.behavior),
     options: dto.options.map(mapRequirementOption),
   };
 }
@@ -356,6 +459,29 @@ function mapWorkflowRequirementValue(dto: BackendWorkflowRequirementValueDto): W
   };
 }
 
+function mapWorkflowRequirementSummary(dto: BackendWorkflowRequirementSummaryDto): WorkflowRequirementSummary {
+  return { ...dto };
+}
+
+function mapWorkflowTaskCountSummary(dto: BackendWorkflowTaskCountSummaryDto): WorkflowTaskCountSummary {
+  return { ...dto };
+}
+
+function mapWorkflowTaskMetrics(dto: BackendWorkflowTaskMetricsDto): WorkflowTaskMetrics {
+  return {
+    overall: mapWorkflowTaskCountSummary(dto.overall),
+    departmentPhase: mapWorkflowTaskCountSummary(dto.departmentPhase),
+  };
+}
+
+function mapWorkflowTaskAreaSummary(dto: BackendWorkflowTaskAreaSummaryDto): WorkflowTaskAreaSummary {
+  return {
+    name: dto.name,
+    isCurrentArea: dto.isCurrentArea,
+    counts: mapWorkflowTaskCountSummary(dto.counts),
+  };
+}
+
 export function mapWorkflowRequirement(dto: BackendWorkflowRequirementSnapshotDto): WorkflowRequirementSnapshot {
   return {
     workflowRequirementId: dto.workflowRequirementId,
@@ -368,6 +494,7 @@ export function mapWorkflowRequirement(dto: BackendWorkflowRequirementSnapshotDt
     inputType: dto.inputType,
     isRequired: dto.isRequired,
     sortOrder: dto.sortOrder,
+    behavior: mapRequirementBehavior(dto.behavior),
     options: dto.options.map(mapWorkflowRequirementOption),
     value: mapWorkflowRequirementValue(dto.value),
   };
@@ -418,6 +545,8 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
     createdAt: dto.createdAt,
     pendingNotifications: dto.pendingNotifications,
     failedNotifications: dto.failedNotifications,
+    requirementSummary: mapWorkflowRequirementSummary(dto.requirementSummary),
+    taskMetrics: mapWorkflowTaskMetrics(dto.taskMetrics),
     taskSummary: dto.taskSummary,
     responsibilityOptions: dto.responsibilityOptions.map((option) => ({ ...option })),
   };
@@ -438,7 +567,10 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
     workflowStatus: toWorkflowRuntimeStatus(dto.workflowStatus),
     createdAt: dto.createdAt,
     requirements: dto.requirements.map(mapWorkflowRequirement),
+    requirementSummary: mapWorkflowRequirementSummary(dto.requirementSummary),
     tasks: dto.tasks.map(mapWorkflowTask),
+    taskMetrics: mapWorkflowTaskMetrics(dto.taskMetrics),
+    taskAreas: dto.taskAreas.map(mapWorkflowTaskAreaSummary),
     notifications: dto.notifications.map(mapWorkflowNotification),
   };
 }

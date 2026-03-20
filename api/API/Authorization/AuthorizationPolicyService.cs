@@ -84,6 +84,11 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         return HasAnyRole(user, AuthorizationRoles.Admin);
     }
 
+    public bool CanViewTaskAssigneeIdentity(CurrentUser user)
+    {
+        return HasAnyRole(user, AuthorizationRoles.Admin);
+    }
+
     public bool CanObserveWorkflow(
         CurrentUser user,
         int workflowDepartmentId,

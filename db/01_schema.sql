@@ -13,6 +13,10 @@ DROP TABLE IF EXISTS workflow_answers CASCADE;
 DROP TABLE IF EXISTS workflows CASCADE;
 DROP TABLE IF EXISTS app_role_answer_default_options CASCADE;
 DROP TABLE IF EXISTS app_role_answer_defaults CASCADE;
+DROP TABLE IF EXISTS workflow_answer_single_select_keep_values CASCADE;
+DROP TABLE IF EXISTS workflow_answer_reset_rules CASCADE;
+DROP TABLE IF EXISTS workflow_answer_validation_rules CASCADE;
+DROP TABLE IF EXISTS workflow_answer_visibility_rules CASCADE;
 DROP TABLE IF EXISTS workflow_answer_options CASCADE;
 DROP TABLE IF EXISTS workflow_answer_definitions CASCADE;
 DROP TABLE IF EXISTS system_responsibilities CASCADE;
@@ -179,6 +183,66 @@ CREATE TABLE workflow_answer_options (
     UNIQUE (answer_definition_id, option_value)
 );
 
+CREATE TABLE workflow_answer_visibility_rules (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    answer_definition_id INTEGER NOT NULL REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
+    dependency_answer_definition_id INTEGER NOT NULL REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
+    dependency_kind VARCHAR(40) NOT NULL CHECK (dependency_kind IN ('boolean_true', 'selected_option_value')),
+    expected_value_text TEXT,
+    missing_result BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (answer_definition_id <> dependency_answer_definition_id)
+);
+
+CREATE UNIQUE INDEX uq_workflow_answer_visibility_rules
+    ON workflow_answer_visibility_rules (
+        answer_definition_id,
+        dependency_answer_definition_id,
+        dependency_kind,
+        (expected_value_text IS NULL),
+        COALESCE(expected_value_text, '')
+    );
+
+CREATE TABLE workflow_answer_validation_rules (
+    answer_definition_id INTEGER PRIMARY KEY REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
+    validation_kind VARCHAR(40) NOT NULL CHECK (validation_kind IN ('text_required', 'single_select_required', 'multi_select_required')),
+    message TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE workflow_answer_reset_rules (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    answer_definition_id INTEGER NOT NULL REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
+    trigger_kind VARCHAR(40) NOT NULL CHECK (trigger_kind IN ('when_not_true', 'single_select_mismatch')),
+    target_answer_definition_id INTEGER NOT NULL REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
+    clear_boolean BOOLEAN NOT NULL DEFAULT FALSE,
+    clear_text BOOLEAN NOT NULL DEFAULT FALSE,
+    clear_number BOOLEAN NOT NULL DEFAULT FALSE,
+    clear_selected_option BOOLEAN NOT NULL DEFAULT FALSE,
+    clear_selected_options BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (answer_definition_id <> target_answer_definition_id),
+    CHECK (clear_boolean OR clear_text OR clear_number OR clear_selected_option OR clear_selected_options)
+);
+
+CREATE UNIQUE INDEX uq_workflow_answer_reset_rules
+    ON workflow_answer_reset_rules (
+        answer_definition_id,
+        trigger_kind,
+        target_answer_definition_id
+    );
+
+CREATE TABLE workflow_answer_single_select_keep_values (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    answer_definition_id INTEGER NOT NULL REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
+    option_value VARCHAR(180) NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (answer_definition_id, option_value)
+);
+
 CREATE TABLE app_role_answer_defaults (
     app_role_id INTEGER NOT NULL REFERENCES app_roles(id) ON DELETE CASCADE,
     answer_definition_id INTEGER NOT NULL REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
@@ -251,6 +315,8 @@ CREATE TABLE task_templates (
     icon_key VARCHAR(80) NOT NULL DEFAULT 'berechtigungen',
     owning_department_id INTEGER REFERENCES departments(id) ON DELETE SET NULL,
     default_responsibility_id INTEGER REFERENCES app_responsibilities(id) ON DELETE SET NULL,
+    process_area_label VARCHAR(80),
+    is_department_phase_task BOOLEAN NOT NULL DEFAULT TRUE,
     is_required BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -301,6 +367,8 @@ CREATE TABLE workflow_tasks (
     category VARCHAR(80) NOT NULL,
     description TEXT NOT NULL,
     icon_key VARCHAR(80) NOT NULL DEFAULT 'berechtigungen',
+    process_area_label VARCHAR(80),
+    is_department_phase_task BOOLEAN NOT NULL DEFAULT TRUE,
     status VARCHAR(32) NOT NULL DEFAULT 'open'
         CHECK (status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped', 'cancelled')),
     is_required BOOLEAN NOT NULL DEFAULT TRUE,
@@ -377,6 +445,10 @@ CREATE INDEX idx_workflows_uid ON workflows(uid);
 CREATE INDEX idx_workflows_created_at ON workflows(created_at DESC);
 CREATE INDEX idx_workflow_answers_workflow_id ON workflow_answers(workflow_id);
 CREATE INDEX idx_workflow_answers_key ON workflow_answers(answer_key);
+CREATE INDEX idx_workflow_answer_visibility_rules_definition
+    ON workflow_answer_visibility_rules(answer_definition_id);
+CREATE INDEX idx_workflow_answer_reset_rules_definition
+    ON workflow_answer_reset_rules(answer_definition_id);
 CREATE INDEX idx_task_template_conditions_template_id ON task_template_conditions(task_template_id);
 CREATE INDEX idx_workflow_tasks_workflow_id ON workflow_tasks(workflow_id);
 CREATE INDEX idx_task_assignments_task_id ON task_assignments(workflow_task_id);

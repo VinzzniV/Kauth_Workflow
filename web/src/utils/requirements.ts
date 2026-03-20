@@ -1,18 +1,14 @@
 import type {
+  RequirementResetTarget,
+  RequirementSelectionPayload,
   RequirementSelectionState,
   RoleRequirement,
   WorkflowRequirementSnapshot,
 } from "../types/workflow";
-import {
-  requirementBooleanResetRules,
-  requirementSingleSelectResetRules,
-  requirementValidationRules,
-  requirementVisibilityRules,
-} from "./requirementRules";
 
-export type RequirementEntry = RoleRequirement | WorkflowRequirementSnapshot;
+type RequirementLike = RoleRequirement | WorkflowRequirementSnapshot;
 
-function isWorkflowRequirementSnapshot(requirement: RequirementEntry): requirement is WorkflowRequirementSnapshot {
+function isWorkflowRequirementSnapshot(requirement: RequirementLike): requirement is WorkflowRequirementSnapshot {
   return "value" in requirement;
 }
 
@@ -23,68 +19,89 @@ function hasExplicitSelection(
   return selections !== undefined && Object.prototype.hasOwnProperty.call(selections, requirementId);
 }
 
-function findRequirementByKey(
-  requirements: RequirementEntry[],
-  key: string
-): RequirementEntry | undefined {
+function findRequirementByKey(requirements: RequirementLike[], key: string): RequirementLike | undefined {
   return requirements.find((requirement) => requirement.key === key);
 }
 
-function applySelectionPatch(
+function applyResetTarget(
   currentSelection: RequirementSelectionState | undefined,
-  patch: Partial<RequirementSelectionState>
+  target: RequirementResetTarget
 ): RequirementSelectionState {
-  return {
+  const nextSelection = {
     ...(currentSelection ?? createEmptyRequirementSelection()),
-    ...patch,
   };
-}
 
-function areVisibilityDependenciesSatisfied(
-  requirement: RequirementEntry,
-  requirements: RequirementEntry[],
-  selections?: Record<number, RequirementSelectionState>
-): boolean {
-  const dependencies = requirementVisibilityRules[requirement.key];
-  if (!dependencies || dependencies.length === 0) {
-    return true;
+  if (target.clearBoolean) {
+    nextSelection.valueBoolean = null;
   }
 
-  return dependencies.every((dependency) => {
-    const dependencyRequirement = findRequirementByKey(requirements, dependency.dependencyKey);
-    if (!dependencyRequirement) {
-      return dependency.missingResult ?? true;
-    }
+  if (target.clearText) {
+    nextSelection.valueText = "";
+  }
 
-    if (dependency.kind === "boolean_true") {
-      return getRequirementSelection(dependencyRequirement, selections).valueBoolean === true;
-    }
+  if (target.clearNumber) {
+    nextSelection.valueNumber = null;
+  }
 
-    return (
-      getRequirementSelectedOptionValue(dependencyRequirement, selections) ===
-      (dependency.expectedValue ?? null)
-    );
-  });
+  if (target.clearSelectedOption) {
+    nextSelection.selectedOptionId = null;
+  }
+
+  if (target.clearSelectedOptions) {
+    nextSelection.selectedOptionIds = [];
+  }
+
+  return nextSelection;
 }
 
 function applyConfiguredResets(
-  requirements: RequirementEntry[],
+  requirements: RequirementLike[],
   currentSelections: Record<number, RequirementSelectionState>,
-  targets: Array<{ requirementKey: string; patch: Partial<RequirementSelectionState> }>
+  targets: RequirementResetTarget[]
 ): Record<number, RequirementSelectionState> {
   const nextSelections = { ...currentSelections };
 
   for (const target of targets) {
-    const dependencyRequirement = findRequirementByKey(requirements, target.requirementKey);
-    if (!dependencyRequirement) {
+    const targetRequirement = findRequirementByKey(requirements, target.requirementKey);
+    if (!targetRequirement) {
       continue;
     }
 
-    nextSelections[dependencyRequirement.id] = applySelectionPatch(nextSelections[dependencyRequirement.id], target.patch);
+    nextSelections[targetRequirement.id] = applyResetTarget(nextSelections[targetRequirement.id], target);
   }
 
   return nextSelections;
 }
+
+function areVisibilityDependenciesSatisfied(
+  requirement: RequirementLike,
+  requirements: RequirementLike[],
+  selections?: Record<number, RequirementSelectionState>
+): boolean {
+  if (requirement.behavior.visibilityDependencies.length === 0) {
+    return true;
+  }
+
+  return requirement.behavior.visibilityDependencies.every((dependency) => {
+    const dependencyRequirement = findRequirementByKey(requirements, dependency.dependencyKey);
+    if (!dependencyRequirement) {
+      return dependency.missingResult;
+    }
+
+    const dependencySelection = getRequirementSelection(dependencyRequirement, selections);
+    if (!hasMeaningfulSelection(dependencyRequirement, dependencySelection)) {
+      return dependency.missingResult;
+    }
+
+    if (dependency.kind === "boolean_true") {
+      return dependencySelection.valueBoolean === true;
+    }
+
+    return getRequirementSelectedOptionValue(dependencyRequirement, selections) === (dependency.expectedValue ?? null);
+  });
+}
+
+export type RequirementEntry = RequirementLike;
 
 export function createEmptyRequirementSelection(): RequirementSelectionState {
   return {
@@ -112,7 +129,7 @@ export function buildRequirementSelections(
 }
 
 export function getRequirementSelection(
-  requirement: RequirementEntry,
+  requirement: RequirementLike,
   selections?: Record<number, RequirementSelectionState>
 ): RequirementSelectionState {
   if (hasExplicitSelection(selections, requirement.id)) {
@@ -133,7 +150,7 @@ export function getRequirementSelection(
 }
 
 export function getRequirementSelectedOptionValue(
-  requirement: RequirementEntry | undefined,
+  requirement: RequirementLike | undefined,
   selections?: Record<number, RequirementSelectionState>
 ): string | null {
   if (!requirement) {
@@ -152,15 +169,34 @@ export function getRequirementSelectedOptionValue(
   return null;
 }
 
+function hasMeaningfulSelection(
+  requirement: RequirementLike,
+  selection: RequirementSelectionState
+): boolean {
+  if (requirement.inputType === "boolean") {
+    return selection.valueBoolean !== null;
+  }
+
+  if (requirement.inputType === "text") {
+    return selection.valueText.trim().length > 0;
+  }
+
+  if (requirement.inputType === "select") {
+    return selection.selectedOptionId !== null;
+  }
+
+  return selection.selectedOptionIds.length > 0;
+}
+
 export function isRequirementVisible(
-  requirement: RequirementEntry,
-  requirements: RequirementEntry[],
+  requirement: RequirementLike,
+  requirements: RequirementLike[],
   selections?: Record<number, RequirementSelectionState>
 ): boolean {
   return areVisibilityDependenciesSatisfied(requirement, requirements, selections);
 }
 
-export function getVisibleRequirements<TRequirement extends RequirementEntry>(
+export function getVisibleRequirements<TRequirement extends RequirementLike>(
   requirements: TRequirement[],
   selections?: Record<number, RequirementSelectionState>
 ): TRequirement[] {
@@ -193,34 +229,34 @@ export function validateRequirementSelections(
     }
 
     const selection = selections[requirement.id] ?? createEmptyRequirementSelection();
-    const validationRule = requirementValidationRules[requirement.key];
+    const validation = requirement.behavior.validation;
 
     if (requirement.inputType === "boolean" && selection.valueBoolean === null) {
       return `Bitte für "${requirement.title}" Ja oder Nein auswählen.`;
     }
 
     if (requirement.inputType === "select" && selection.selectedOptionId === null) {
-      if (validationRule?.kind === "single_select_required") {
-        return validationRule.message;
+      if (validation?.kind === "single_select_required") {
+        return validation.message;
       }
 
       return `Bitte für "${requirement.title}" eine Auswahl treffen.`;
     }
 
-    if (!validationRule) {
+    if (!validation) {
       continue;
     }
 
-    if (validationRule.kind === "text_required" && !selection.valueText.trim()) {
-      return validationRule.message;
+    if (validation.kind === "text_required" && !selection.valueText.trim()) {
+      return validation.message;
     }
 
-    if (validationRule.kind === "multi_select_required" && selection.selectedOptionIds.length === 0) {
-      return validationRule.message;
+    if (validation.kind === "multi_select_required" && selection.selectedOptionIds.length === 0) {
+      return validation.message;
     }
 
-    if (validationRule.kind === "single_select_required" && selection.selectedOptionId === null) {
-      return validationRule.message;
+    if (validation.kind === "single_select_required" && selection.selectedOptionId === null) {
+      return validation.message;
     }
   }
 
@@ -228,7 +264,7 @@ export function validateRequirementSelections(
 }
 
 export function applyRequirementBooleanSelection(
-  requirements: RequirementEntry[],
+  requirements: RequirementLike[],
   currentSelections: Record<number, RequirementSelectionState>,
   requirementId: number,
   value: boolean | null
@@ -246,16 +282,15 @@ export function applyRequirementBooleanSelection(
     return nextSelections;
   }
 
-  const resetTargets = requirementBooleanResetRules[changedRequirement.key];
-  if (value !== true && resetTargets) {
-    return applyConfiguredResets(requirements, nextSelections, resetTargets);
+  if (value === true || changedRequirement.behavior.resetTargetsWhenNotTrue.length === 0) {
+    return nextSelections;
   }
 
-  return nextSelections;
+  return applyConfiguredResets(requirements, nextSelections, changedRequirement.behavior.resetTargetsWhenNotTrue);
 }
 
 export function applyRequirementSingleSelectSelection(
-  requirements: RequirementEntry[],
+  requirements: RequirementLike[],
   currentSelections: Record<number, RequirementSelectionState>,
   requirementId: number,
   optionId: number | null
@@ -269,19 +304,56 @@ export function applyRequirementSingleSelectSelection(
   };
 
   const changedRequirement = requirements.find((requirement) => requirement.id === requirementId);
-  if (!changedRequirement) {
-    return nextSelections;
-  }
-
-  const resetRule = requirementSingleSelectResetRules[changedRequirement.key];
-  if (!resetRule) {
+  if (!changedRequirement || !changedRequirement.behavior.singleSelectReset) {
     return nextSelections;
   }
 
   const selectedOptionValue = changedRequirement.options.find((option) => option.id === optionId)?.value;
-  if (selectedOptionValue && resetRule.keepSelectedOptionValues.includes(selectedOptionValue)) {
+  if (
+    selectedOptionValue &&
+    changedRequirement.behavior.singleSelectReset.keepSelectedOptionValues.includes(selectedOptionValue)
+  ) {
     return nextSelections;
   }
 
-  return applyConfiguredResets(requirements, nextSelections, resetRule.targets);
+  return applyConfiguredResets(
+    requirements,
+    nextSelections,
+    changedRequirement.behavior.singleSelectReset.targets
+  );
+}
+
+export function toRequirementSelectionPayload(
+  requirements: RequirementLike[],
+  selections: Record<number, RequirementSelectionState>
+): RequirementSelectionPayload[] {
+  return requirements.map((requirement) => {
+    const selection = selections[requirement.id] ?? createEmptyRequirementSelection();
+
+    if (requirement.inputType === "boolean") {
+      return {
+        requirementId: requirement.id,
+        valueBoolean: selection.valueBoolean,
+      };
+    }
+
+    if (requirement.inputType === "text") {
+      return {
+        requirementId: requirement.id,
+        valueText: selection.valueText,
+      };
+    }
+
+    if (requirement.inputType === "select") {
+      return {
+        requirementId: requirement.id,
+        selectedOptionId: selection.selectedOptionId,
+      };
+    }
+
+    return {
+      requirementId: requirement.id,
+      selectedOptionIds: [...selection.selectedOptionIds],
+    };
+  });
 }

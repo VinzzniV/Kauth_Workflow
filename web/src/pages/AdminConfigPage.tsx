@@ -7,6 +7,7 @@ import {
   AdminNotificationEmailSection,
   AdminResponsibilitiesSection,
   AdminTechnicalAccessSection,
+  AdminWorkflowConfigurationSection,
   AdminUsersSection,
 } from "../components/admin-config/AdminConfigSections";
 import {
@@ -20,6 +21,7 @@ import PageHeader from "../components/layout/PageHeader";
 import {
   createAdminDepartment,
   createAdminUser,
+  getAdminWorkflowConfig,
   deleteAdminDepartment,
   deleteAdminUser,
   getAdminDepartmentAssignments,
@@ -45,6 +47,7 @@ import type {
   AdminRole,
   AdminUser,
 } from "../types/auth";
+import type { WorkflowConfig } from "../types/workflow";
 
 export default function AdminConfigPage() {
   const { refreshCurrentUser } = useCurrentUser();
@@ -53,6 +56,7 @@ export default function AdminConfigPage() {
   const [groups, setGroups] = useState<AdminGroup[]>([]);
   const [departmentAssignments, setDepartmentAssignments] = useState<AdminDepartmentAssignment[]>([]);
   const [responsibilityOwners, setResponsibilityOwners] = useState<AdminResponsibilityOwner[]>([]);
+  const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig | null>(null);
   const [notificationEmailConfiguration, setNotificationEmailConfiguration] =
     useState<AdminNotificationEmailConfiguration | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -133,6 +137,7 @@ export default function AdminConfigPage() {
     setError(null);
 
     try {
+      const workflowConfigPromise = getAdminWorkflowConfig().catch(() => null);
       const [usersData, departmentsData, responsibilitiesData, notificationEmailConfigurationData] = await Promise.all([
         getAdminUsers(),
         getAdminDepartmentAssignments(),
@@ -144,6 +149,7 @@ export default function AdminConfigPage() {
       setDepartmentAssignments(departmentsData);
       setResponsibilityOwners(responsibilitiesData);
       setNotificationEmailConfiguration(notificationEmailConfigurationData);
+      setWorkflowConfig(await workflowConfigPromise);
 
       if (hasLoadedTechnicalAccess) {
         await loadTechnicalAccess();
@@ -154,6 +160,7 @@ export default function AdminConfigPage() {
       setUsers([]);
       setDepartmentAssignments([]);
       setResponsibilityOwners([]);
+      setWorkflowConfig(null);
       setNotificationEmailConfiguration(null);
     } finally {
       setIsLoading(false);
@@ -175,6 +182,15 @@ export default function AdminConfigPage() {
   const sortedUsers = useMemo(
     () => users.slice().sort((left, right) => left.displayName.localeCompare(right.displayName, "de")),
     [users]
+  );
+  const eligibleSupervisorUsers = useMemo(
+    () =>
+      sortedUsers.filter(
+        (user) =>
+          user.isActive
+          && user.hasManagerAccess
+      ),
+    [sortedUsers]
   );
   const sortedRoles = useMemo(
     () =>
@@ -663,7 +679,7 @@ export default function AdminConfigPage() {
       <div className="page-container">
         <PageHeader
           title="Stammdaten pflegen"
-          description="Pflegen Sie Mail-Konfiguration, Abteilungen, Personen, Anforderungsverantwortung je Abteilung und fachliche Zuständigkeiten direkt in der Anwendung. Rollen und Gruppen bleiben bewusst separat."
+          description="Pflegen Sie Mail-Konfiguration, Abteilungen, Personen, Anforderungsverantwortung je Abteilung und fachliche Zuständigkeiten direkt in der Anwendung. Workflow-Definitionen werden hier transparent gemacht, der eigentliche Aufgabenplan bleibt derzeit bewusst read-only."
         />
 
         <AdminNotificationEmailSection
@@ -703,6 +719,8 @@ export default function AdminConfigPage() {
           onToggleTechnicalAccess={() => setIsTechnicalAccessOpen((current) => !current)}
         />
 
+        <AdminWorkflowConfigurationSection workflowConfig={workflowConfig} isLoading={isLoading} />
+
         {isLoading ? <LoadingState title="Stammdaten werden geladen..." /> : null}
         {!isLoading && error && users.length === 0 && departmentAssignments.length === 0 && responsibilityOwners.length === 0 ? (
           <EmptyState title="Stammdaten konnten nicht geladen werden." description={error} />
@@ -713,6 +731,7 @@ export default function AdminConfigPage() {
             <AdminDepartmentsSection
               sortedDepartments={sortedDepartments}
               sortedUsers={sortedUsers}
+              eligibleSupervisorUsers={eligibleSupervisorUsers}
               departmentDrafts={departmentDrafts}
               newDepartmentNameDraft={newDepartmentNameDraft}
               isCreatingDepartment={isCreatingDepartment}

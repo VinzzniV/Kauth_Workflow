@@ -13,6 +13,11 @@ internal sealed partial class PostgresWorkflowRepository
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
+        if (!await TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
+        {
+            return null;
+        }
+
         var taskRecord = await LoadTaskStateForUpdate(connection, transaction, taskId);
         if (!taskRecord.HasValue)
         {
