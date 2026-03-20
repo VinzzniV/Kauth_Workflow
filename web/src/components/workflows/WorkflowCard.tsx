@@ -4,22 +4,11 @@ import {
   getWorkflowLegacyStatusLabel,
   getWorkflowLegacyStatusPillClass,
 } from "../../utils/workflowStatus";
+import { formatDateTime } from "../../utils/dateFormat";
 
 type Props = {
   workflow: WorkflowSummary;
 };
-
-function formatDate(value: string): string {
-  if (!value) {
-    return "-";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "-";
-  }
-  return date.toLocaleString("de-DE");
-}
 
 export default function WorkflowCard({ workflow }: Props) {
   const fullName = `${workflow.firstName} ${workflow.lastName}`.trim();
@@ -56,7 +45,7 @@ export default function WorkflowCard({ workflow }: Props) {
         </div>
         <div>
           <dt>Erstellt</dt>
-          <dd>{formatDate(workflow.createdAt)}</dd>
+          <dd>{formatDateTime(workflow.createdAt)}</dd>
         </div>
       </dl>
 

@@ -71,8 +71,8 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Cancelled)]
-    public void CanReadWorkflow_ReturnsTrue_ForReader_WhenTerminal(string status)
+    [InlineData("cancelled")]
+    public void CanReadWorkflow_ReturnsTrue_ForReader_WhenTerminalOrLegacyCancelled(string status)
     {
         var user = CreateUser(AuthorizationRoles.Reader);
         Assert.True(_sut.CanReadWorkflow(user, status));
@@ -138,8 +138,8 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Cancelled)]
-    public void CanRegularlyEditWorkflow_ReturnsFalse_ForTerminalStatus(string status)
+    [InlineData("cancelled")]
+    public void CanRegularlyEditWorkflow_ReturnsFalse_ForNonEditableEndStatus(string status)
     {
         var worker = CreateUser(AuthorizationRoles.Worker);
         Assert.False(_sut.CanRegularlyEditWorkflow(worker, status));
@@ -384,8 +384,8 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Cancelled)]
-    public void CanUpdateTaskStatus_ReturnsFalse_ForTerminalWorkflow(string workflowStatus)
+    [InlineData("cancelled")]
+    public void CanUpdateTaskStatus_ReturnsFalse_ForNonEditableEndStatus(string workflowStatus)
     {
         var admin = CreateUser(AuthorizationRoles.Admin);
         var task = CreateTaskWithResponsibilityAssignment("some_task", workflowStatus, responsibilityId: 1);
@@ -479,8 +479,8 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Cancelled)]
-    public void CanUpdateTaskAssignment_Admin_ReturnsFalse_ForTerminalWorkflow(string workflowStatus)
+    [InlineData("cancelled")]
+    public void CanUpdateTaskAssignment_Admin_ReturnsFalse_ForNonEditableEndStatus(string workflowStatus)
     {
         var admin = CreateUser(AuthorizationRoles.Admin);
         var task = CreateTaskWithResponsibilityAssignment("hardware_setup", workflowStatus, responsibilityId: 1);

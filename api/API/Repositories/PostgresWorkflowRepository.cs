@@ -14,26 +14,23 @@ internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository
         "in_progress",
         "blocked",
         "done",
-        "skipped",
-        "cancelled"
+        "skipped"
     };
 
     private static readonly HashSet<string> TerminalTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         "done",
-        "skipped",
-        "cancelled"
+        "skipped"
     };
 
     private static readonly Dictionary<string, HashSet<string>> AllowedTaskTransitions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["open"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "in_progress", "blocked", "done", "skipped", "cancelled" },
-        ["ready"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "in_progress", "blocked", "done", "skipped", "cancelled" },
-        ["in_progress"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "done", "blocked", "skipped", "cancelled" },
-        ["blocked"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "cancelled" },
+        ["open"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "in_progress", "blocked", "done", "skipped" },
+        ["ready"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "in_progress", "blocked", "done", "skipped" },
+        ["in_progress"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "done", "blocked", "skipped" },
+        ["blocked"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "skipped" },
         ["done"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
         ["skipped"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-        ["cancelled"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     };
 
     private const string SupervisorRequirementTaskKey = "supervisor_fills_document";

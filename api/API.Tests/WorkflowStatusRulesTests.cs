@@ -8,10 +8,11 @@ public sealed class WorkflowStatusRulesTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Cancelled)]
+    [InlineData("cancelled")]
     [InlineData("COMPLETED")]
+    [InlineData("  completed  ")]
     [InlineData("  cancelled  ")]
-    public void IsTerminal_ReturnsTrue_ForCompletedAndCancelled(string status)
+    public void IsTerminal_ReturnsTrue_ForCompletedAndLegacyCancelled(string status)
     {
         Assert.True(WorkflowStatusRules.IsTerminal(status));
     }
@@ -59,7 +60,7 @@ public sealed class WorkflowStatusRulesTests
     [InlineData(WorkflowStatusRules.Draft)]
     [InlineData(WorkflowStatusRules.WaitingForSupervisor)]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Cancelled)]
+    [InlineData("cancelled")]
     public void IsDepartmentPhase_ReturnsFalse_ForNonDepartmentPhaseStatuses(string status)
     {
         Assert.False(WorkflowStatusRules.IsDepartmentPhase(status));
@@ -80,11 +81,11 @@ public sealed class WorkflowStatusRulesTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed, WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Cancelled, WorkflowStatusRules.Cancelled)]
     [InlineData(WorkflowStatusRules.Draft, WorkflowStatusRules.OpenLegacy)]
     [InlineData(WorkflowStatusRules.WaitingForSupervisor, WorkflowStatusRules.OpenLegacy)]
     [InlineData(WorkflowStatusRules.WaitingForDepartment, WorkflowStatusRules.OpenLegacy)]
     [InlineData(WorkflowStatusRules.InProgress, WorkflowStatusRules.OpenLegacy)]
+    [InlineData("cancelled", WorkflowStatusRules.OpenLegacy)]
     public void ToLegacyStatus_MapsTerminalDirectlyAndActiveToOpen(string status, string expectedLegacy)
     {
         Assert.Equal(expectedLegacy, WorkflowStatusRules.ToLegacyStatus(status));

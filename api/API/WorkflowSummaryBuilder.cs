@@ -214,8 +214,7 @@ internal static class WorkflowSummaryBuilder
                 continue;
             }
 
-            if (string.Equals(task.Status, "skipped", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(task.Status, "cancelled", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(task.Status, "skipped", StringComparison.OrdinalIgnoreCase))
             {
                 endedCount += 1;
             }

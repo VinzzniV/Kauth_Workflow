@@ -23,19 +23,7 @@ import {
   toRequirementSelectionPayload,
   validateRequirementSelections,
 } from "../utils/requirements";
-
-function formatDate(value: string): string {
-  if (!value) {
-    return "-";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "-";
-  }
-
-  return parsed.toLocaleString("de-DE");
-}
+import { formatDateTime } from "../utils/dateFormat";
 
 export default function SupervisorStepPage() {
   const { capabilities } = useCurrentUser();
@@ -250,7 +238,7 @@ export default function SupervisorStepPage() {
                   </div>
                   <div>
                     <dt>Erstellt</dt>
-                    <dd>{formatDate(workflow.createdAt)}</dd>
+                    <dd>{formatDateTime(workflow.createdAt)}</dd>
                   </div>
                 </dl>
 

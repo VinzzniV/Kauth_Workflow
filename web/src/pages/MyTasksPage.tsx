@@ -22,19 +22,7 @@ import {
   VISIBLE_TASK_STATUS_ORDER,
   type VisibleTaskStatus,
 } from "../utils/taskStatus";
-
-function formatDate(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "-";
-  }
-
-  return parsed.toLocaleString("de-DE");
-}
+import { formatDateTime } from "../utils/dateFormat";
 
 function toTaskStateKey(workflowUid: string, taskId: number): string {
   return `${workflowUid}:${taskId}`;
@@ -355,7 +343,7 @@ export default function MyTasksPage() {
                                 </div>
                                 <div>
                                   <dt>Erstellt</dt>
-                                  <dd>{formatDate(row.task.createdAt)}</dd>
+                                  <dd>{formatDateTime(row.task.createdAt)}</dd>
                                 </div>
                               </dl>
 

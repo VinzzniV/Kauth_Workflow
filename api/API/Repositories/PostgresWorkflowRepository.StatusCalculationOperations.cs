@@ -138,11 +138,11 @@ SET
     END,
     completed_at = CASE
         WHEN @status = 'done' THEN COALESCE(completed_at, NOW())
-        WHEN @status IN ('open', 'ready', 'in_progress', 'blocked', 'skipped', 'cancelled') THEN NULL
+        WHEN @status IN ('open', 'ready', 'in_progress', 'blocked', 'skipped') THEN NULL
         ELSE completed_at
     END,
     cancelled_at = CASE
-        WHEN @status IN ('cancelled', 'skipped') THEN COALESCE(cancelled_at, NOW())
+        WHEN @status = 'skipped' THEN COALESCE(cancelled_at, NOW())
         WHEN @status IN ('open', 'ready', 'in_progress', 'blocked', 'done') THEN NULL
         ELSE cancelled_at
     END
@@ -327,7 +327,7 @@ UPDATE workflows
 SET
     status = @status,
     started_at = CASE
-        WHEN @status IN ('waiting_for_supervisor', 'waiting_for_department', 'in_progress', 'completed', 'cancelled')
+        WHEN @status IN ('waiting_for_supervisor', 'waiting_for_department', 'in_progress', 'completed')
             THEN COALESCE(started_at, NOW())
         ELSE started_at
     END,
@@ -335,10 +335,7 @@ SET
         WHEN @status = 'completed' THEN COALESCE(completed_at, NOW())
         ELSE NULL
     END,
-    cancelled_at = CASE
-        WHEN @status = 'cancelled' THEN COALESCE(cancelled_at, NOW())
-        ELSE NULL
-    END
+    cancelled_at = NULL
 WHERE id = @workflowId;";
 
         await using var updateCommand = new NpgsqlCommand(workflowStatusUpdateSql, connection, transaction);

@@ -84,6 +84,50 @@ CREATE TABLE people (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE OR REPLACE FUNCTION sync_people_department_to_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+
+    UPDATE app_users
+    SET department_id = NEW.department_id
+    WHERE id = NEW.app_user_id
+      AND department_id IS DISTINCT FROM NEW.department_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sync_user_department_to_people()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+
+    UPDATE people
+    SET
+        department_id = NEW.department_id,
+        updated_at = NOW()
+    WHERE app_user_id = NEW.id
+      AND department_id IS DISTINCT FROM NEW.department_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_people_sync_department_to_user
+AFTER INSERT OR UPDATE OF department_id ON people
+FOR EACH ROW
+EXECUTE FUNCTION sync_people_department_to_user();
+
+CREATE TRIGGER trg_app_users_sync_department_to_people
+AFTER INSERT OR UPDATE OF department_id ON app_users
+FOR EACH ROW
+EXECUTE FUNCTION sync_user_department_to_people();
+
 CREATE TABLE app_groups (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     group_key VARCHAR(120) NOT NULL UNIQUE,
@@ -179,6 +223,7 @@ CREATE TABLE workflow_answer_options (
     option_value VARCHAR(180) NOT NULL,
     option_label VARCHAR(180) NOT NULL,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT uq_workflow_answer_options_definition_option_pair UNIQUE (answer_definition_id, id),
     UNIQUE (answer_definition_id, option_key),
     UNIQUE (answer_definition_id, option_value)
 );
@@ -277,7 +322,7 @@ CREATE TABLE workflows (
     employee_number INTEGER NOT NULL,
     badge_number INTEGER NOT NULL,
     status VARCHAR(40) NOT NULL DEFAULT 'draft'
-        CHECK (status IN ('draft', 'in_progress', 'waiting_for_supervisor', 'waiting_for_department', 'completed', 'cancelled')),
+        CHECK (status IN ('draft', 'in_progress', 'waiting_for_supervisor', 'waiting_for_department', 'completed')),
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
     cancelled_at TIMESTAMPTZ,
@@ -293,9 +338,13 @@ CREATE TABLE workflow_answers (
     value_boolean BOOLEAN,
     value_text TEXT,
     value_number NUMERIC(12, 2),
-    selected_option_id INTEGER REFERENCES workflow_answer_options(id) ON DELETE SET NULL,
+    selected_option_id INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (workflow_id, answer_definition_id)
+    UNIQUE (workflow_id, answer_definition_id),
+    CONSTRAINT fk_workflow_answers_selected_option_matches_definition
+        FOREIGN KEY (answer_definition_id, selected_option_id)
+        REFERENCES workflow_answer_options(answer_definition_id, id)
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE workflow_answer_selected_options (
@@ -327,7 +376,7 @@ CREATE TABLE task_template_conditions (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
     condition_group INTEGER NOT NULL DEFAULT 1,
-    answer_key VARCHAR(120) NOT NULL,
+    answer_key VARCHAR(120) NOT NULL REFERENCES workflow_answer_definitions(answer_key) ON UPDATE CASCADE ON DELETE RESTRICT,
     operator VARCHAR(32) NOT NULL CHECK (operator IN ('eq', 'neq', 'is_true', 'is_false', 'is_null', 'is_not_null')),
     expected_value_text TEXT,
     expected_value_boolean BOOLEAN,
@@ -354,7 +403,7 @@ CREATE TABLE task_template_dependencies (
     task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
     depends_on_task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
     required_status VARCHAR(32) NOT NULL DEFAULT 'done'
-        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped', 'cancelled')),
+        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped')),
     UNIQUE (task_template_id, depends_on_task_template_id)
 );
 
@@ -370,7 +419,7 @@ CREATE TABLE workflow_tasks (
     process_area_label VARCHAR(80),
     is_department_phase_task BOOLEAN NOT NULL DEFAULT TRUE,
     status VARCHAR(32) NOT NULL DEFAULT 'open'
-        CHECK (status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped', 'cancelled')),
+        CHECK (status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped')),
     is_required BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -386,7 +435,7 @@ CREATE TABLE workflow_task_dependencies (
     workflow_task_id BIGINT NOT NULL REFERENCES workflow_tasks(id) ON DELETE CASCADE,
     depends_on_workflow_task_id BIGINT NOT NULL REFERENCES workflow_tasks(id) ON DELETE CASCADE,
     required_status VARCHAR(32) NOT NULL DEFAULT 'done'
-        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped', 'cancelled')),
+        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped')),
     UNIQUE (workflow_task_id, depends_on_workflow_task_id),
     CHECK (workflow_task_id <> depends_on_workflow_task_id)
 );

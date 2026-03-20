@@ -51,7 +51,6 @@ type WorkflowMetrics = {
   waitingDepartment: number;
   inProgress: number;
   completed: number;
-  cancelled: number;
 };
 
 function toEpoch(value: string): number {
@@ -82,9 +81,6 @@ function summarizeWorkflows(workflows: WorkflowSummary[]): WorkflowMetrics {
       if (workflow.workflowStatus === "completed") {
         acc.completed += 1;
       }
-      if (workflow.workflowStatus === "cancelled") {
-        acc.cancelled += 1;
-      }
       return acc;
     },
     {
@@ -94,7 +90,6 @@ function summarizeWorkflows(workflows: WorkflowSummary[]): WorkflowMetrics {
       waitingDepartment: 0,
       inProgress: 0,
       completed: 0,
-      cancelled: 0,
     }
   );
 }
@@ -113,7 +108,6 @@ async function loadHrInsights(): Promise<DashboardInsights> {
         waiting_for_department: 2,
         in_progress: 3,
         completed: 4,
-        cancelled: 5,
       };
 
       const statusDelta = statusPriority[left.workflowStatus] - statusPriority[right.workflowStatus];
@@ -271,7 +265,6 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
     open: 3,
     done: 4,
     skipped: 5,
-    cancelled: 6,
   };
 
   const queueItems = openTasks
@@ -442,11 +435,6 @@ async function loadViewerInsights(): Promise<DashboardInsights> {
         label: "Abgeschlossen",
         value: metrics.completed,
         note: "Bereits abgeschlossen.",
-      },
-      {
-        label: "Beendet",
-        value: metrics.cancelled,
-        note: "Vorzeitig beendet.",
       },
     ],
     queueTitle: "Aktuelle Onboardings",

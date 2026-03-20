@@ -109,52 +109,18 @@ function collectActionKeys(args: {
     keys.push(actionKey);
   };
 
-  if (capabilities.canManageAdminConfiguration) {
-    addKey("adminConfig", canAccessFeature("adminConfig"));
-    addKey("dashboard", canAccessFeature("dashboard"));
-
-    if (surface === "header") {
-      addKey("hrOnboardings", canAccessFeature("workflowOverview"));
-      addKey("workflowSearch", canAccessFeature("workflowSearch"));
-    }
-  }
-
-  if (capabilities.hasHrRole) {
-    addKey("dashboard", canAccessFeature("dashboard"));
-    addKey("hrCreate", canAccessFeature("workflowCreate"));
-    addKey("hrOnboardings", canAccessFeature("workflowOverview"));
-
-    if (surface === "header") {
-      addKey("workflowSearch", canAccessFeature("workflowSearch"));
-    }
-
-    return keys;
-  }
-
-  if (capabilities.hasManagerRole && canAccessFeature("supervisorStep")) {
-    addKey("supervisorInbox", true);
-    addKey("hrOnboardings", canAccessFeature("workflowOverview"));
-    addKey("workflowSearch", canAccessFeature("workflowSearch"));
-    addKey("departmentTasks", capabilities.hasWorkerRole && canAccessFeature("technicalTasks"));
-    return keys;
-  }
-
-  if (capabilities.hasWorkerRole && canAccessFeature("technicalTasks")) {
-    addKey("departmentTasks", true);
-    return keys;
-  }
-
-  if (capabilities.dashboardPersona === "reader" && canAccessFeature("workflowOverview")) {
-    addKey(canAccessFeature("dashboard") ? "dashboard" : "hrOnboardings", true);
-
-    if (surface === "header") {
-      addKey("workflowSearch", canAccessFeature("workflowSearch"));
-    }
-
-    return keys;
-  }
-
   addKey("dashboard", canAccessFeature("dashboard"));
+  addKey("hrCreate", capabilities.hasHrRole && canAccessFeature("workflowCreate"));
+  addKey("hrOnboardings", canAccessFeature("workflowOverview"));
+
+  if (surface === "header") {
+    addKey("workflowSearch", canAccessFeature("workflowSearch"));
+  }
+
+  addKey("supervisorInbox", capabilities.hasManagerRole && canAccessFeature("supervisorStep"));
+  addKey("departmentTasks", capabilities.hasWorkerRole && canAccessFeature("technicalTasks"));
+  addKey("adminConfig", capabilities.canManageAdminConfiguration && canAccessFeature("adminConfig"));
+
   return keys;
 }
 
@@ -162,8 +128,8 @@ export function useRoleAwareNavigation() {
   const { canAccessFeature, capabilities } = useCurrentUser();
 
   const dashboardPersona = useMemo<DashboardPersona>(() => {
-    return capabilities.dashboardPersona;
-  }, [capabilities.dashboardPersona]);
+    return capabilities.hasMultipleRoles ? "generic" : capabilities.dashboardPersona;
+  }, [capabilities.dashboardPersona, capabilities.hasMultipleRoles]);
 
   // Primaere Aktionen zeigen den naechsten sinnvollen Schritt fuer die jeweilige Rolle.
   const dashboardActions = useMemo<DashboardAction[]>(() => {
@@ -181,6 +147,13 @@ export function useRoleAwareNavigation() {
 
   // Der Kontext liefert lesbare Titel und Einordnung fuer die Startseite.
   const dashboardContext = useMemo<NavigationContext>(() => {
+    if (capabilities.hasMultipleRoles) {
+      return {
+        title: "Ihre Arbeitsbereiche",
+        description: "Sie haben Zugriff auf mehrere Bereiche. Wählen Sie den passenden Einstieg für Ihren aktuellen Prozessschritt.",
+      };
+    }
+
     if (capabilities.dashboardPersona === "admin") {
       return {
         title: "Verwaltung",
@@ -220,7 +193,7 @@ export function useRoleAwareNavigation() {
       title: "Startbereich",
       description: "Nutzen Sie die freigegebenen Bereiche für Ihren Prozessschritt.",
     };
-  }, [capabilities.dashboardPersona]);
+  }, [capabilities.dashboardPersona, capabilities.hasMultipleRoles]);
 
   // Die Kopf-Navigation bleibt bewusst kompakt und zeigt nur freigegebene Hauptbereiche.
   const headerNavItems = useMemo<HeaderNavItem[]>(() => {

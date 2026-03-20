@@ -123,7 +123,7 @@ public sealed class WorkflowSummaryBuilderTests
             CreateTask(1, "supervisor_fills_document", "done", "HR", 10, isDepartmentPhaseTask: false),
             CreateTask(2, "hardware_procure", "open", "IT", 20, isDepartmentPhaseTask: true),
             CreateTask(3, "hardware_setup", "in_progress", "IT", 30, isDepartmentPhaseTask: true),
-            CreateTask(4, "phone_prepare", "cancelled", "IT", 40, isDepartmentPhaseTask: true)
+            CreateTask(4, "phone_prepare", "skipped", "IT", 40, isDepartmentPhaseTask: true)
         };
 
         var summary = WorkflowSummaryBuilder.BuildTaskMetrics(tasks);

@@ -168,6 +168,7 @@ LIMIT 1;";
         const string sql = @"
 SELECT u.id
 FROM app_users u
+LEFT JOIN people p ON p.app_user_id = u.id
 JOIN app_user_responsibilities ur ON ur.app_user_id = u.id
 LEFT JOIN app_responsibilities r ON r.id = ur.app_responsibility_id
 WHERE u.is_active = TRUE
@@ -175,10 +176,10 @@ WHERE u.is_active = TRUE
   AND (
       r.department_id = @effectiveDepartmentId
       OR r.department_id IS NULL
-      OR u.department_id = @effectiveDepartmentId
-      OR u.department_id IS NULL
+      OR COALESCE(p.department_id, u.department_id) = @effectiveDepartmentId
+      OR COALESCE(p.department_id, u.department_id) IS NULL
   )
-ORDER BY CASE WHEN u.department_id = @effectiveDepartmentId THEN 0 ELSE 1 END, u.id
+ORDER BY CASE WHEN COALESCE(p.department_id, u.department_id) = @effectiveDepartmentId THEN 0 ELSE 1 END, u.id
 LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);

@@ -7,7 +7,6 @@ internal static class WorkflowStatusRules
     public const string WaitingForDepartment = "waiting_for_department";
     public const string InProgress = "in_progress";
     public const string Completed = "completed";
-    public const string Cancelled = "cancelled";
     public const string OpenLegacy = "open";
 
     public static string Normalize(string workflowStatus)
@@ -18,7 +17,7 @@ internal static class WorkflowStatusRules
     public static bool IsTerminal(string workflowStatus)
     {
         var normalized = Normalize(workflowStatus);
-        return normalized is Completed or Cancelled;
+        return normalized == Completed || normalized == "cancelled";
     }
 
     public static bool IsWaitingForSupervisor(string workflowStatus)
@@ -37,7 +36,6 @@ internal static class WorkflowStatusRules
         return Normalize(workflowStatus) switch
         {
             Completed => Completed,
-            Cancelled => Cancelled,
             _ => OpenLegacy,
         };
     }

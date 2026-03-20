@@ -22,6 +22,7 @@ export type AppFeature =
 
 export type RoleCapabilities = {
   roleKeys: AuthRoleKey[];
+  hasMultipleRoles: boolean;
   hasAdminRole: boolean;
   hasHrRole: boolean;
   hasManagerRole: boolean;
@@ -99,6 +100,7 @@ export function deriveRoleCapabilities(rawRoleKeys: string[]): RoleCapabilities 
   const hasManager = roleSet.has(AUTH_ROLE_KEYS.manager);
   const hasWorker = roleSet.has(AUTH_ROLE_KEYS.worker);
   const hasReader = roleSet.has(AUTH_ROLE_KEYS.reader);
+  const hasMultipleRoles = roleSet.size > 1;
 
   const hasReadRole = hasAdmin || hasHr || hasManager || hasWorker || hasReader;
   const hasProcessActorRole = hasHr || hasManager || hasWorker;
@@ -121,6 +123,7 @@ export function deriveRoleCapabilities(rawRoleKeys: string[]): RoleCapabilities 
 
   return {
     roleKeys: Array.from(roleSet).sort((left, right) => left.localeCompare(right, "en")),
+    hasMultipleRoles,
     hasAdminRole: hasAdmin,
     hasHrRole: hasHr,
     hasManagerRole: hasManager,
@@ -160,6 +163,10 @@ export function canAccessFeature(capabilities: RoleCapabilities, feature: AppFea
 
 // Legt fest, wohin Benutzer nach Login oder fehlender Berechtigung geleitet werden.
 export function getDefaultRoute(capabilities: RoleCapabilities): string {
+  if (capabilities.hasMultipleRoles && canAccessFeature(capabilities, "dashboard")) {
+    return "/";
+  }
+
   switch (capabilities.dashboardPersona) {
     case "admin":
       if (canAccessFeature(capabilities, "adminConfig")) {

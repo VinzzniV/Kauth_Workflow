@@ -7,11 +7,19 @@
 /web/.env.*
 !/web/.env.example
 
+# Local assistant/editor config
+/.claude/settings.local.json
+
 # .NET build and IDE artifacts
 /api/.vs/
 /api/API/.vs/
 /api/API/bin/
 /api/API/obj/
+/api/API.Tests/bin/
+/api/API.Tests/obj/
+
+# Handoff artifacts
+/handoff/
 
 # Editors / OS
 .DS_Store

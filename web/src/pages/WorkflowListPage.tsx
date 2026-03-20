@@ -7,25 +7,13 @@ import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import { getWorkflows } from "../services/onboardingApi";
 import type { WorkflowStatus, WorkflowSummary } from "../types/workflow";
+import { formatDateTime } from "../utils/dateFormat";
 import {
   getWorkflowLegacyStatusLabel,
   getWorkflowLegacyStatusPillClass,
   getWorkflowRuntimeStatusLabel,
   matchesWorkflowLegacyStatusFilter,
 } from "../utils/workflowStatus";
-
-function formatDate(value: string): string {
-  if (!value) {
-    return "-";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "-";
-  }
-
-  return parsed.toLocaleString("de-DE");
-}
 
 export default function WorkflowListPage() {
   const { capabilities } = useCurrentUser();
@@ -116,7 +104,7 @@ export default function WorkflowListPage() {
 
   const emptyFilterDescription = useMemo(() => {
     if (isReaderOnlyView && statusFilter === "open") {
-      return "Im Lesemodus sehen Sie nur abgeschlossene oder abgebrochene Onboardings. Stellen Sie den Status auf Alle oder einen Endstatus.";
+      return "Im Lesemodus sehen Sie nur abgeschlossene Onboardings. Stellen Sie den Status auf Alle oder Abgeschlossen.";
     }
 
     return "Die aktuelle Filterkombination liefert keine Onboarding-Fälle.";
@@ -176,7 +164,6 @@ export default function WorkflowListPage() {
                 <option value="all">Alle</option>
                 <option value="open">Offen</option>
                 <option value="completed">Abgeschlossen</option>
-                <option value="cancelled">Abgebrochen</option>
               </select>
             </label>
 
@@ -262,7 +249,7 @@ export default function WorkflowListPage() {
                     </div>
                     <div>
                       <dt>Erstellt</dt>
-                      <dd>{formatDate(workflow.createdAt)}</dd>
+                      <dd>{formatDateTime(workflow.createdAt)}</dd>
                     </div>
                   </dl>
 

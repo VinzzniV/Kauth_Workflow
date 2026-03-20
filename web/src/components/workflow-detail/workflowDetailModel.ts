@@ -10,6 +10,10 @@ import {
   isDepartmentWorkflowPhase as isDepartmentWorkflowPhaseStatus,
   isWorkflowTerminalStatus,
 } from "../../utils/workflowStatus";
+import {
+  formatDate as formatDateValue,
+  formatDateTime as formatDateTimeValue,
+} from "../../utils/dateFormat";
 
 export type ProcessStepState = "done" | "active" | "pending";
 
@@ -33,29 +37,11 @@ export type ProcessAreaGroup = {
 };
 
 export function formatDate(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "-";
-  }
-
-  return parsed.toLocaleDateString("de-DE");
+  return formatDateValue(value);
 }
 
 export function formatDateTime(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "-";
-  }
-
-  return parsed.toLocaleString("de-DE");
+  return formatDateTimeValue(value);
 }
 
 export function toRuntimeStatusLabel(status: WorkflowDetail["workflowStatus"]): string {
@@ -83,7 +69,7 @@ export function isInProgressStatus(status: WorkflowTask["status"]): boolean {
 }
 
 export function isDoneStatus(status: WorkflowTask["status"]): boolean {
-  return status === "done" || status === "skipped" || status === "cancelled";
+  return status === "done" || status === "skipped";
 }
 
 export function isActiveStatus(status: WorkflowTask["status"]): boolean {
@@ -215,7 +201,6 @@ export function findCurrentTask(tasks: WorkflowTask[]): WorkflowTask | null {
     blocked: 3,
     done: 4,
     skipped: 5,
-    cancelled: 6,
   };
 
   const activeTasks = tasks.filter((task) => isActiveStatus(task.status));
@@ -289,9 +274,7 @@ export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
       detail:
         workflow.workflowStatus === "completed"
           ? "Onboarding ist abgeschlossen."
-          : workflow.workflowStatus === "cancelled"
-            ? "Onboarding wurde abgebrochen."
-            : "Abschluss steht noch aus.",
+          : "Abschluss steht noch aus.",
       state: completedStepState,
     },
   ];

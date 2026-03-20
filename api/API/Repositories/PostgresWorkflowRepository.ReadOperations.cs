@@ -333,8 +333,7 @@ WHERE wt.workflow_id = ANY(@workflowIds)
             {
                 metadata.InProgressTaskCount += 1;
             }
-            else if (taskStatus.Equals("cancelled", StringComparison.OrdinalIgnoreCase)
-                || taskStatus.Equals("skipped", StringComparison.OrdinalIgnoreCase))
+            else if (taskStatus.Equals("skipped", StringComparison.OrdinalIgnoreCase))
             {
                 metadata.EndedTaskCount += 1;
             }
@@ -357,8 +356,7 @@ WHERE wt.workflow_id = ANY(@workflowIds)
                 {
                     metadata.DepartmentInProgressTaskCount += 1;
                 }
-                else if (taskStatus.Equals("cancelled", StringComparison.OrdinalIgnoreCase)
-                    || taskStatus.Equals("skipped", StringComparison.OrdinalIgnoreCase))
+                else if (taskStatus.Equals("skipped", StringComparison.OrdinalIgnoreCase))
                 {
                     metadata.DepartmentEndedTaskCount += 1;
                 }

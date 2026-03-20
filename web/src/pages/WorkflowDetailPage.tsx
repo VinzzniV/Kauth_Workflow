@@ -191,10 +191,6 @@ export default function WorkflowDetailPage() {
       return "Der Vorgang ist abgeschlossen";
     }
 
-    if (workflow.workflowStatus === "cancelled") {
-      return "Der Vorgang wurde abgebrochen";
-    }
-
     if (isDepartmentWorkflowPhase(workflow.workflowStatus) && activeAreaNames.length > 1) {
       return workflow.workflowStatus === "in_progress"
         ? "Aufgaben parallel in mehreren Fachbereichen weiterbearbeiten"

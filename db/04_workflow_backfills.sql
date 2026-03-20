@@ -274,11 +274,38 @@ FROM inserted_tasks it
 JOIN workflow_tasks dep_wt ON dep_wt.workflow_id = it.workflow_id AND dep_wt.task_key = 'supervisor_fills_document'
 ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;
 
+-- Legacy-cancelled workflows must be normalized before the global status rollup.
+UPDATE workflow_task_dependencies
+SET required_status = 'skipped'
+WHERE required_status = 'cancelled';
+
+UPDATE task_template_dependencies
+SET required_status = 'skipped'
+WHERE required_status = 'cancelled';
+
+UPDATE workflow_tasks wt
+SET status = 'skipped',
+    cancelled_at = COALESCE(wt.cancelled_at, w.cancelled_at, NOW()),
+    completed_at = NULL
+FROM workflows w
+WHERE wt.workflow_id = w.id
+  AND (
+      wt.status = 'cancelled'
+      OR (w.status = 'cancelled' AND wt.status NOT IN ('done', 'skipped'))
+  );
+
+UPDATE workflows
+SET status = 'completed',
+    completed_at = COALESCE(completed_at, cancelled_at, NOW()),
+    cancelled_at = NULL
+WHERE status = 'cancelled';
+
 WITH workflow_rollup AS (
     SELECT
         w.id AS workflow_id,
+        w.status AS current_status,
         COUNT(wt.id) AS task_count,
-        COALESCE(BOOL_AND(wt.status = 'done'), FALSE) AS all_tasks_done,
+        COALESCE(BOOL_AND(wt.status IN ('done', 'skipped')), FALSE) AS all_tasks_done,
         COALESCE(BOOL_OR(wt.task_key = 'supervisor_fills_document'), FALSE) AS has_supervisor_task,
         COALESCE(BOOL_OR(wt.task_key = 'supervisor_fills_document' AND wt.status = 'done'), FALSE) AS supervisor_done,
         COALESCE(BOOL_OR(wt.task_key = 'supervisor_fills_document' AND wt.status IN ('ready', 'in_progress')), FALSE) AS supervisor_active,
@@ -286,12 +313,13 @@ WITH workflow_rollup AS (
         COALESCE(BOOL_OR(wt.task_key <> 'supervisor_fills_document' AND wt.status IN ('open', 'ready', 'blocked', 'in_progress')), FALSE) AS department_active
     FROM workflows w
     LEFT JOIN workflow_tasks wt ON wt.workflow_id = w.id
-    GROUP BY w.id
+    GROUP BY w.id, w.status
 ),
 workflow_status_recalc AS (
     SELECT
         workflow_id,
         CASE
+            WHEN task_count = 0 AND current_status = 'completed' THEN 'completed'
             WHEN task_count = 0 THEN 'draft'
             WHEN all_tasks_done THEN 'completed'
             WHEN has_supervisor_task AND supervisor_active THEN 'waiting_for_supervisor'
@@ -308,7 +336,7 @@ UPDATE workflows w
 SET
     status = s.next_status,
     started_at = CASE
-        WHEN s.next_status IN ('waiting_for_supervisor', 'waiting_for_department', 'in_progress', 'completed', 'cancelled')
+        WHEN s.next_status IN ('waiting_for_supervisor', 'waiting_for_department', 'in_progress', 'completed')
             THEN COALESCE(w.started_at, NOW())
         ELSE w.started_at
     END,
@@ -316,9 +344,131 @@ SET
         WHEN s.next_status = 'completed' THEN COALESCE(w.completed_at, NOW())
         ELSE NULL
     END,
-    cancelled_at = CASE
-        WHEN s.next_status = 'cancelled' THEN COALESCE(w.cancelled_at, NOW())
-        ELSE NULL
-    END
+    cancelled_at = NULL
 FROM workflow_status_recalc s
 WHERE w.id = s.workflow_id;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_task_template_conditions_answer_key'
+    ) THEN
+        ALTER TABLE task_template_conditions
+        ADD CONSTRAINT fk_task_template_conditions_answer_key
+        FOREIGN KEY (answer_key)
+        REFERENCES workflow_answer_definitions(answer_key)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT;
+    END IF;
+END $$;
+
+UPDATE people p
+SET
+    department_id = sync.department_id,
+    updated_at = NOW()
+FROM (
+    SELECT
+        p_inner.id,
+        COALESCE(p_inner.department_id, u.department_id) AS department_id
+    FROM people p_inner
+    JOIN app_users u ON u.id = p_inner.app_user_id
+) sync
+WHERE p.id = sync.id
+  AND p.department_id IS DISTINCT FROM sync.department_id;
+
+UPDATE app_users u
+SET department_id = sync.department_id
+FROM (
+    SELECT
+        u_inner.id,
+        COALESCE(p.department_id, u_inner.department_id) AS department_id
+    FROM app_users u_inner
+    LEFT JOIN people p ON p.app_user_id = u_inner.id
+) sync
+WHERE u.id = sync.id
+  AND u.department_id IS DISTINCT FROM sync.department_id;
+
+CREATE OR REPLACE FUNCTION sync_people_department_to_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+
+    UPDATE app_users
+    SET department_id = NEW.department_id
+    WHERE id = NEW.app_user_id
+      AND department_id IS DISTINCT FROM NEW.department_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sync_user_department_to_people()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+
+    UPDATE people
+    SET
+        department_id = NEW.department_id,
+        updated_at = NOW()
+    WHERE app_user_id = NEW.id
+      AND department_id IS DISTINCT FROM NEW.department_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_people_sync_department_to_user ON people;
+CREATE TRIGGER trg_people_sync_department_to_user
+AFTER INSERT OR UPDATE OF department_id ON people
+FOR EACH ROW
+EXECUTE FUNCTION sync_people_department_to_user();
+
+DROP TRIGGER IF EXISTS trg_app_users_sync_department_to_people ON app_users;
+CREATE TRIGGER trg_app_users_sync_department_to_people
+AFTER INSERT OR UPDATE OF department_id ON app_users
+FOR EACH ROW
+EXECUTE FUNCTION sync_user_department_to_people();
+
+UPDATE workflow_answers wa
+SET selected_option_id = NULL
+WHERE selected_option_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM workflow_answer_options wao
+      WHERE wao.id = wa.selected_option_id
+        AND wao.answer_definition_id = wa.answer_definition_id
+  );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'uq_workflow_answer_options_definition_option_pair'
+    ) THEN
+        ALTER TABLE workflow_answer_options
+        ADD CONSTRAINT uq_workflow_answer_options_definition_option_pair
+        UNIQUE (answer_definition_id, id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_workflow_answers_selected_option_matches_definition'
+    ) THEN
+        ALTER TABLE workflow_answers
+        ADD CONSTRAINT fk_workflow_answers_selected_option_matches_definition
+        FOREIGN KEY (answer_definition_id, selected_option_id)
+        REFERENCES workflow_answer_options(answer_definition_id, id)
+        ON DELETE RESTRICT;
+    END IF;
+END $$;

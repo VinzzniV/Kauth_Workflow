@@ -150,17 +150,16 @@ export type WorkflowCreationResponse = {
   summary: WorkflowCreationSummary;
 };
 
-export type WorkflowStatus = "open" | "completed" | "cancelled";
+export type WorkflowStatus = "open" | "completed";
 
 export type WorkflowRuntimeStatus =
   | "draft"
   | "in_progress"
   | "waiting_for_supervisor"
   | "waiting_for_department"
-  | "completed"
-  | "cancelled";
+  | "completed";
 
-export type WorkflowTaskStatus = "open" | "ready" | "in_progress" | "blocked" | "done" | "skipped" | "cancelled";
+export type WorkflowTaskStatus = "open" | "ready" | "in_progress" | "blocked" | "done" | "skipped";
 export type WorkflowTaskArea = string;
 
 export type WorkflowResponsibilityOption = {

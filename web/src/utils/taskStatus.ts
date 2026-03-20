@@ -9,7 +9,6 @@ export const TASK_STATUS_ORDER: WorkflowTaskStatus[] = [
   "blocked",
   "done",
   "skipped",
-  "cancelled",
 ];
 
 const TASK_STATUS_LABELS: Record<WorkflowTaskStatus, string> = {
@@ -19,7 +18,6 @@ const TASK_STATUS_LABELS: Record<WorkflowTaskStatus, string> = {
   blocked: "Offen",
   done: "Erledigt",
   skipped: "Erledigt",
-  cancelled: "Erledigt",
 };
 
 export const VISIBLE_TASK_STATUS_ORDER: VisibleTaskStatus[] = ["open", "in_progress", "done"];
@@ -35,7 +33,7 @@ export function getVisibleTaskStatus(status: WorkflowTaskStatus): VisibleTaskSta
     return "in_progress";
   }
 
-  if (status === "done" || status === "skipped" || status === "cancelled") {
+  if (status === "done" || status === "skipped") {
     return "done";
   }
 
@@ -60,7 +58,7 @@ export function mapVisibleTaskStatusToWorkflowStatus(
     case "in_progress":
       return "in_progress";
     case "done":
-      return "done";
+      return currentStatus === "blocked" ? "skipped" : "done";
     default:
       return "open";
   }
@@ -72,12 +70,11 @@ export function getAvailableVisibleTaskStatuses(currentStatus: WorkflowTaskStatu
     case "ready":
       return ["open", "in_progress", "done"];
     case "blocked":
-      return ["open"];
+      return ["open", "done"];
     case "in_progress":
       return ["in_progress", "done"];
     case "done":
     case "skipped":
-    case "cancelled":
       return ["done"];
     default:
       return ["open"];

@@ -116,7 +116,6 @@ export default function WorkflowSearchPage() {
                 <option value="all">Alle</option>
                 <option value="open">Offen</option>
                 <option value="completed">Abgeschlossen</option>
-                <option value="cancelled">Abgebrochen</option>
               </select>
             </label>
 

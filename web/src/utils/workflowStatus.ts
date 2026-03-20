@@ -9,8 +9,8 @@ function normalizeWorkflowStatus(status: string): string {
 export function toWorkflowLegacyStatus(status: string): WorkflowStatus {
   const normalized = normalizeWorkflowStatus(status);
 
-  if (normalized === "completed" || normalized === "cancelled") {
-    return normalized;
+  if (normalized === "completed") {
+    return "completed";
   }
 
   return "open";
@@ -18,7 +18,7 @@ export function toWorkflowLegacyStatus(status: string): WorkflowStatus {
 
 export function isWorkflowTerminalStatus(status: string): boolean {
   const normalized = normalizeWorkflowStatus(status);
-  return normalized === "completed" || normalized === "cancelled";
+  return normalized === "completed";
 }
 
 export function isDepartmentWorkflowPhase(status: string): boolean {
@@ -35,10 +35,6 @@ export function getWorkflowLegacyStatusLabel(status: string): string {
 
   if (legacyStatus === "completed") {
     return "Abgeschlossen";
-  }
-
-  if (legacyStatus === "cancelled") {
-    return "Abgebrochen";
   }
 
   return "Offen";
@@ -64,8 +60,6 @@ export function getWorkflowRuntimeStatusLabel(
       return variant === "action" ? "Fachbereiche bearbeiten Aufgaben" : "Fachbereiche offen";
     case "completed":
       return "Abgeschlossen";
-    case "cancelled":
-      return "Abgebrochen";
     default:
       return status;
   }

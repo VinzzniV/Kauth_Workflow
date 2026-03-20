@@ -34,10 +34,11 @@ SELECT
     u.display_name,
     u.email,
     u.is_active,
-    u.department_id,
+    COALESCE(p.department_id, u.department_id),
     d.name
 FROM app_users u
-LEFT JOIN departments d ON d.id = u.department_id
+LEFT JOIN people p ON p.app_user_id = u.id
+LEFT JOIN departments d ON d.id = COALESCE(p.department_id, u.department_id)
 WHERE (
     (@userId IS NOT NULL AND u.id = @userId)
     OR (@externalKey IS NOT NULL AND u.external_key = @externalKey)
@@ -127,7 +128,8 @@ SELECT
     u.email,
     d.name
 FROM app_users u
-LEFT JOIN departments d ON d.id = u.department_id
+LEFT JOIN people p ON p.app_user_id = u.id
+LEFT JOIN departments d ON d.id = COALESCE(p.department_id, u.department_id)
 WHERE u.is_active = TRUE
   AND u.external_key IS NOT NULL
   AND BTRIM(u.external_key) <> ''
