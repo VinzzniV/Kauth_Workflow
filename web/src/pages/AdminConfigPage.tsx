@@ -92,6 +92,10 @@ export default function AdminConfigPage() {
   const [notificationSenderEmailDraft, setNotificationSenderEmailDraft] = useState<string>("");
   const [notificationFrontendBaseUrlDraft, setNotificationFrontendBaseUrlDraft] = useState<string>("");
   const [notificationTestRecipientDraft, setNotificationTestRecipientDraft] = useState<string>("");
+  const [notificationSandboxRedirectDraft, setNotificationSandboxRedirectDraft] = useState<string>("");
+  const [notificationNotifyOnWorkflowCreatedDraft, setNotificationNotifyOnWorkflowCreatedDraft] = useState<boolean>(true);
+  const [notificationNotifyOnTaskReadyDraft, setNotificationNotifyOnTaskReadyDraft] = useState<boolean>(true);
+  const [notificationNotifyOnWorkflowCompletedDraft, setNotificationNotifyOnWorkflowCompletedDraft] = useState<boolean>(true);
   const [departmentDrafts, setDepartmentDrafts] = useState<
     Record<number, { departmentLeadUserId: string; requirementOwnerUserId: string }>
   >({});
@@ -232,6 +236,10 @@ export default function AdminConfigPage() {
       || toNullableText(notificationSenderEmailDraft) !== notificationEmailConfiguration.senderEmail
       || notificationFrontendBaseUrlDraft.trim() !== notificationEmailConfiguration.frontendBaseUrl
       || toNullableText(notificationTestRecipientDraft) !== notificationEmailConfiguration.testRecipientEmail
+      || toNullableText(notificationSandboxRedirectDraft) !== notificationEmailConfiguration.sandboxRedirectEmail
+      || notificationNotifyOnWorkflowCreatedDraft !== notificationEmailConfiguration.notifyOnWorkflowCreated
+      || notificationNotifyOnTaskReadyDraft !== notificationEmailConfiguration.notifyOnTaskReady
+      || notificationNotifyOnWorkflowCompletedDraft !== notificationEmailConfiguration.notifyOnWorkflowCompleted
     );
   }, [
     notificationClientIdDraft,
@@ -239,6 +247,10 @@ export default function AdminConfigPage() {
     notificationEmailConfiguration,
     notificationEnabledDraft,
     notificationFrontendBaseUrlDraft,
+    notificationNotifyOnTaskReadyDraft,
+    notificationNotifyOnWorkflowCompletedDraft,
+    notificationNotifyOnWorkflowCreatedDraft,
+    notificationSandboxRedirectDraft,
     notificationSenderEmailDraft,
     notificationTenantIdDraft,
     notificationTestRecipientDraft,
@@ -339,6 +351,10 @@ export default function AdminConfigPage() {
       setNotificationSenderEmailDraft("");
       setNotificationFrontendBaseUrlDraft("");
       setNotificationTestRecipientDraft("");
+      setNotificationSandboxRedirectDraft("");
+      setNotificationNotifyOnWorkflowCreatedDraft(true);
+      setNotificationNotifyOnTaskReadyDraft(true);
+      setNotificationNotifyOnWorkflowCompletedDraft(true);
       return;
     }
 
@@ -349,6 +365,10 @@ export default function AdminConfigPage() {
     setNotificationSenderEmailDraft(notificationEmailConfiguration.senderEmail ?? "");
     setNotificationFrontendBaseUrlDraft(notificationEmailConfiguration.frontendBaseUrl);
     setNotificationTestRecipientDraft(notificationEmailConfiguration.testRecipientEmail ?? "");
+    setNotificationSandboxRedirectDraft(notificationEmailConfiguration.sandboxRedirectEmail ?? "");
+    setNotificationNotifyOnWorkflowCreatedDraft(notificationEmailConfiguration.notifyOnWorkflowCreated);
+    setNotificationNotifyOnTaskReadyDraft(notificationEmailConfiguration.notifyOnTaskReady);
+    setNotificationNotifyOnWorkflowCompletedDraft(notificationEmailConfiguration.notifyOnWorkflowCompleted);
   }, [notificationEmailConfiguration]);
 
   const saveNotificationEmailConfiguration = useCallback(async () => {
@@ -366,6 +386,10 @@ export default function AdminConfigPage() {
         senderEmail: toNullableText(notificationSenderEmailDraft),
         frontendBaseUrl: notificationFrontendBaseUrlDraft.trim(),
         testRecipientEmail: toNullableText(notificationTestRecipientDraft),
+        sandboxRedirectEmail: toNullableText(notificationSandboxRedirectDraft),
+        notifyOnWorkflowCreated: notificationNotifyOnWorkflowCreatedDraft,
+        notifyOnTaskReady: notificationNotifyOnTaskReadyDraft,
+        notifyOnWorkflowCompleted: notificationNotifyOnWorkflowCompletedDraft,
       });
       setNotificationEmailConfiguration(updatedConfiguration);
       setNotificationClientSecretDraft("");
@@ -381,6 +405,10 @@ export default function AdminConfigPage() {
     notificationClientSecretDraft,
     notificationEnabledDraft,
     notificationFrontendBaseUrlDraft,
+    notificationNotifyOnTaskReadyDraft,
+    notificationNotifyOnWorkflowCompletedDraft,
+    notificationNotifyOnWorkflowCreatedDraft,
+    notificationSandboxRedirectDraft,
     notificationSenderEmailDraft,
     notificationTenantIdDraft,
     notificationTestRecipientDraft,
@@ -691,6 +719,10 @@ export default function AdminConfigPage() {
           notificationSenderEmailDraft={notificationSenderEmailDraft}
           notificationFrontendBaseUrlDraft={notificationFrontendBaseUrlDraft}
           notificationTestRecipientDraft={notificationTestRecipientDraft}
+          notificationSandboxRedirectDraft={notificationSandboxRedirectDraft}
+          notificationNotifyOnWorkflowCreatedDraft={notificationNotifyOnWorkflowCreatedDraft}
+          notificationNotifyOnTaskReadyDraft={notificationNotifyOnTaskReadyDraft}
+          notificationNotifyOnWorkflowCompletedDraft={notificationNotifyOnWorkflowCompletedDraft}
           isSavingNotificationEmailConfiguration={isSavingNotificationEmailConfiguration}
           isSendingNotificationEmailTest={isSendingNotificationEmailTest}
           isLoading={isLoading}
@@ -702,6 +734,10 @@ export default function AdminConfigPage() {
           onNotificationSenderEmailChange={setNotificationSenderEmailDraft}
           onNotificationFrontendBaseUrlChange={setNotificationFrontendBaseUrlDraft}
           onNotificationTestRecipientChange={setNotificationTestRecipientDraft}
+          onNotificationSandboxRedirectChange={setNotificationSandboxRedirectDraft}
+          onNotificationNotifyOnWorkflowCreatedChange={setNotificationNotifyOnWorkflowCreatedDraft}
+          onNotificationNotifyOnTaskReadyChange={setNotificationNotifyOnTaskReadyDraft}
+          onNotificationNotifyOnWorkflowCompletedChange={setNotificationNotifyOnWorkflowCompletedDraft}
           onSave={saveNotificationEmailConfiguration}
           onSendTest={sendNotificationEmailTest}
         />

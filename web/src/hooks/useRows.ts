@@ -41,7 +41,7 @@ export function useRows(options: UseRowsOptions = {}) {
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
-      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.workflowStatus, statusFilter);
+      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.status, statusFilter, row.workflowStatus);
       const searchText = search.trim().toLowerCase();
 
       if (!searchText) {

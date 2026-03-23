@@ -792,33 +792,34 @@ WITH template_seed(
     process_area_label,
     is_department_phase_task,
     is_required,
+    due_in_days,
     sort_order
 ) AS (
     VALUES
-        ('supervisor_fills_document', 'Anforderungen auswählen und bestätigen', 'Führungskraft', 'Die Abteilungsleitung wählt die benötigten Anforderungen aus und bestätigt diese.', 'identitat', NULL, NULL, 'Abteilungsleitung', FALSE, TRUE, 40),
+        ('supervisor_fills_document', 'Anforderungen auswählen und bestätigen', 'Führungskraft', 'Die Abteilungsleitung wählt die benötigten Anforderungen aus und bestätigt diese.', 'identitat', NULL, NULL, 'Abteilungsleitung', FALSE, TRUE, 2, 40),
 
-        ('ad_user_create', 'AD-User anlegen', 'Zugänge', 'AD-User für die neue Person anlegen.', 'ad_user', 'IT', 'it_ad', NULL, TRUE, TRUE, 100),
-        ('permissions_from_reference_user', 'AD-Berechtigungen anhand Vergleichsuser übernehmen', 'Zugänge', 'AD-Berechtigungen anhand einer Vergleichsperson übernehmen.', 'berechtigungen', 'IT', 'it_ad', NULL, TRUE, TRUE, 110),
-        ('exchange_create', 'Mailbox anlegen', 'Zugänge', 'Mailbox für die neue Person anlegen.', 'mailbox', 'IT', 'it_mailbox', NULL, TRUE, TRUE, 120),
-        ('habel_user_create', 'Habel-User anlegen', 'Fachanwendungen', 'Habel-User für die neue Person anlegen.', 'habel', 'IT', 'it_habel', NULL, TRUE, TRUE, 130),
-        ('ln_user_create', 'LN-User anlegen', 'Fachanwendungen', 'LN-User für die neue Person anlegen.', 'react', 'IT', 'it_ln', NULL, TRUE, TRUE, 140),
-        ('internet_access_enable', 'Internetzugang einrichten', 'Zugänge', 'Internetzugang für die neue Person freischalten.', 'internetzugang', 'IT', 'it_ad', NULL, TRUE, TRUE, 145),
-        ('internal_drive_access_grant', 'Laufwerksrechte vergeben', 'Zugänge', 'Zugriffsrechte für das interne Laufwerk der neuen Person einrichten.', 'berechtigungen', 'IT', 'it_ad', NULL, TRUE, TRUE, 147),
-        ('office_install', 'Microsoft Office bereitstellen', 'Fachanwendungen', 'Microsoft Office für die neue Person bereitstellen und konfigurieren.', 'microsoft_office', 'IT', 'it_hardware', NULL, TRUE, TRUE, 148),
+        ('ad_user_create', 'AD-User anlegen', 'Zugänge', 'AD-User für die neue Person anlegen.', 'ad_user', 'IT', 'it_ad', NULL, TRUE, TRUE, 3, 100),
+        ('permissions_from_reference_user', 'AD-Berechtigungen anhand Vergleichsuser übernehmen', 'Zugänge', 'AD-Berechtigungen anhand einer Vergleichsperson übernehmen.', 'berechtigungen', 'IT', 'it_ad', NULL, TRUE, TRUE, 3, 110),
+        ('exchange_create', 'Mailbox anlegen', 'Zugänge', 'Mailbox für die neue Person anlegen.', 'mailbox', 'IT', 'it_mailbox', NULL, TRUE, TRUE, 3, 120),
+        ('habel_user_create', 'Habel-User anlegen', 'Fachanwendungen', 'Habel-User für die neue Person anlegen.', 'habel', 'IT', 'it_habel', NULL, TRUE, TRUE, 3, 130),
+        ('ln_user_create', 'LN-User anlegen', 'Fachanwendungen', 'LN-User für die neue Person anlegen.', 'react', 'IT', 'it_ln', NULL, TRUE, TRUE, 3, 140),
+        ('internet_access_enable', 'Internetzugang einrichten', 'Zugänge', 'Internetzugang für die neue Person freischalten.', 'internetzugang', 'IT', 'it_ad', NULL, TRUE, TRUE, 3, 145),
+        ('internal_drive_access_grant', 'Laufwerksrechte vergeben', 'Zugänge', 'Zugriffsrechte für das interne Laufwerk der neuen Person einrichten.', 'berechtigungen', 'IT', 'it_ad', NULL, TRUE, TRUE, 3, 147),
+        ('office_install', 'Microsoft Office bereitstellen', 'Fachanwendungen', 'Microsoft Office für die neue Person bereitstellen und konfigurieren.', 'microsoft_office', 'IT', 'it_hardware', NULL, TRUE, TRUE, 3, 148),
 
-        ('hardware_procure', 'Hardware beschaffen', 'Ausstattung', 'Hardware-Bedarf prüfen und bei Bedarf passende Hardware beschaffen.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 150),
-        ('hardware_setup', 'Hardware einrichten', 'Ausstattung', 'Hardware installieren und für den Einsatz vorbereiten.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 160),
-        ('hardware_handover', 'Hardware bereitstellen', 'Ausstattung', 'Eingerichtete Hardware für die neue Person bereitstellen.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 170),
-        ('phone_prepare', 'Tragbares Telefon bereitstellen', 'Ausstattung', 'Tragbares Telefon für die neue Person bereitstellen.', 'phone', 'IT', 'it_hardware', NULL, TRUE, TRUE, 175),
-        ('catia_install', 'Catia bereitstellen', 'Fachanwendungen', 'Catia für die neue Person installieren und bereitstellen.', 'catia', 'IT', 'it_hardware', NULL, TRUE, TRUE, 180),
-        ('datev_install', 'DATEV bereitstellen', 'Fachanwendungen', 'DATEV für die neue Person installieren und bereitstellen.', 'datev', 'IT', 'it_hardware', NULL, TRUE, TRUE, 185),
-        ('tisoware_install', 'Tisoware bereitstellen', 'Fachanwendungen', 'Tisoware für die neue Person installieren und bereitstellen.', 'tiso', 'IT', 'it_hardware', NULL, TRUE, TRUE, 190),
+        ('hardware_procure', 'Hardware beschaffen', 'Ausstattung', 'Hardware-Bedarf prüfen und bei Bedarf passende Hardware beschaffen.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 5, 150),
+        ('hardware_setup', 'Hardware einrichten', 'Ausstattung', 'Hardware installieren und für den Einsatz vorbereiten.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 3, 160),
+        ('hardware_handover', 'Hardware bereitstellen', 'Ausstattung', 'Eingerichtete Hardware für die neue Person bereitstellen.', 'pc', 'IT', 'it_hardware', NULL, TRUE, TRUE, 1, 170),
+        ('phone_prepare', 'Tragbares Telefon bereitstellen', 'Ausstattung', 'Tragbares Telefon für die neue Person bereitstellen.', 'phone', 'IT', 'it_hardware', NULL, TRUE, TRUE, 3, 175),
+        ('catia_install', 'Catia bereitstellen', 'Fachanwendungen', 'Catia für die neue Person installieren und bereitstellen.', 'catia', 'IT', 'it_hardware', NULL, TRUE, TRUE, 3, 180),
+        ('datev_install', 'DATEV bereitstellen', 'Fachanwendungen', 'DATEV für die neue Person installieren und bereitstellen.', 'datev', 'IT', 'it_hardware', NULL, TRUE, TRUE, 3, 185),
+        ('tisoware_install', 'Tisoware bereitstellen', 'Fachanwendungen', 'Tisoware für die neue Person installieren und bereitstellen.', 'tiso', 'IT', 'it_hardware', NULL, TRUE, TRUE, 3, 190),
 
-        ('babtec_user_create', 'Babtec-User anlegen', 'Fachanwendungen', 'User in Babtec für die neue Person anlegen.', 'babtec', 'QS', 'qs_babtec', NULL, TRUE, TRUE, 200),
-        ('gewatec_user_create', 'Gewatec-User anlegen', 'Fachanwendungen', 'Gewatec-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_gewatec', NULL, TRUE, TRUE, 210),
-        ('provis_user_create', 'Provis-User anlegen', 'Fachanwendungen', 'Provis-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_provis', NULL, TRUE, TRUE, 220),
-        ('consense_setup', 'Spinfire anlegen', 'Fachanwendungen', 'Spinfire für die neue Person anlegen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 230),
-        ('consense_training', 'Spinfire-Schulung planen', 'Schulung', 'Spinfire-Schulung für die neue Person planen und durchführen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 240)
+        ('babtec_user_create', 'Babtec-User anlegen', 'Fachanwendungen', 'User in Babtec für die neue Person anlegen.', 'babtec', 'QS', 'qs_babtec', NULL, TRUE, TRUE, 3, 200),
+        ('gewatec_user_create', 'Gewatec-User anlegen', 'Fachanwendungen', 'Gewatec-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_gewatec', NULL, TRUE, TRUE, 3, 210),
+        ('provis_user_create', 'Provis-User anlegen', 'Fachanwendungen', 'Provis-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_provis', NULL, TRUE, TRUE, 3, 220),
+        ('consense_setup', 'Spinfire anlegen', 'Fachanwendungen', 'Spinfire für die neue Person anlegen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 3, 230),
+        ('consense_training', 'Spinfire-Schulung planen', 'Schulung', 'Spinfire-Schulung für die neue Person planen und durchführen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 7, 240)
 )
 INSERT INTO task_templates (
     template_key,
@@ -831,6 +832,7 @@ INSERT INTO task_templates (
     process_area_label,
     is_department_phase_task,
     is_required,
+    due_in_days,
     sort_order,
     is_active
 )
@@ -845,6 +847,7 @@ SELECT
     s.process_area_label,
     s.is_department_phase_task,
     s.is_required,
+    s.due_in_days,
     s.sort_order,
     TRUE
 FROM template_seed s
@@ -861,6 +864,7 @@ SET
     process_area_label = EXCLUDED.process_area_label,
     is_department_phase_task = EXCLUDED.is_department_phase_task,
     is_required = EXCLUDED.is_required,
+    due_in_days = EXCLUDED.due_in_days,
     sort_order = EXCLUDED.sort_order,
     is_active = EXCLUDED.is_active;
 

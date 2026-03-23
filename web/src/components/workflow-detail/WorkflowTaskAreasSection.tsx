@@ -1,4 +1,6 @@
 import TaskStatusPill from "../workflows/TaskStatusPill";
+import TaskCommentsSection from "../workflows/TaskCommentsSection";
+import TaskSlaPill from "../workflows/TaskSlaPill";
 import type { WorkflowTask } from "../../types/workflow";
 import { getResponsibleResponsibilityLabel, getResponsibleUserLabel } from "../../utils/taskAssignment";
 import {
@@ -21,10 +23,16 @@ type WorkflowTaskAreasSectionProps = {
   taskError: string | null;
   taskNotice: string | null;
   savingTaskIds: Record<number, boolean>;
+  commentDrafts: Record<number, string>;
+  savingCommentTaskIds: Record<number, boolean>;
+  commentFeedbackTaskId: number | null;
+  commentFeedbackMessage: string | null;
   usesAdminOverride: boolean;
   canManageAdminConfiguration: boolean;
   isReaderOnlyView: boolean;
   onTaskStatusChange: (taskId: number, status: VisibleTaskStatus, currentStatus: WorkflowTask["status"]) => Promise<void>;
+  onCommentDraftChange: (taskId: number, value: string) => void;
+  onTaskCommentSubmit: (taskId: number) => Promise<void>;
 };
 
 function getAreaStatusClass(status: ReturnType<typeof toAreaStatus>): string {
@@ -36,10 +44,16 @@ export default function WorkflowTaskAreasSection({
   taskError,
   taskNotice,
   savingTaskIds,
+  commentDrafts,
+  savingCommentTaskIds,
+  commentFeedbackTaskId,
+  commentFeedbackMessage,
   usesAdminOverride,
   canManageAdminConfiguration,
   isReaderOnlyView,
   onTaskStatusChange,
+  onCommentDraftChange,
+  onTaskCommentSubmit,
 }: WorkflowTaskAreasSectionProps) {
   return (
     <>
@@ -107,6 +121,7 @@ export default function WorkflowTaskAreasSection({
                       const canChangeTaskStatus =
                         canManageAdminConfiguration && task.canUpdateStatus && availableStatuses.length > 1;
 
+                      const commentFeedback = commentFeedbackTaskId === task.id ? commentFeedbackMessage : null;
                       return (
                         <li key={task.id} className="task-card">
                           <div className="task-card-top">
@@ -114,7 +129,10 @@ export default function WorkflowTaskAreasSection({
                               <h3>{toTaskDisplayTitle(task)}</h3>
                               <p className="panel-text">{task.description}</p>
                             </div>
-                            <TaskStatusPill status={task.status} />
+                            <div className="task-card-pill-group">
+                              <TaskSlaPill status={task.slaStatus} />
+                              <TaskStatusPill status={task.status} />
+                            </div>
                           </div>
 
                           <dl className="task-meta">
@@ -131,6 +149,10 @@ export default function WorkflowTaskAreasSection({
                             <div>
                               <dt>Erstellt</dt>
                               <dd>{formatDateTime(task.createdAt)}</dd>
+                            </div>
+                            <div>
+                              <dt>Fällig</dt>
+                              <dd>{task.dueAt ? formatDateTime(task.dueAt) : "Keine Frist"}</dd>
                             </div>
                           </dl>
 
@@ -163,7 +185,16 @@ export default function WorkflowTaskAreasSection({
                             </div>
                           ) : null}
 
-
+                          {!isReaderOnlyView ? (
+                            <TaskCommentsSection
+                              task={task}
+                              draftValue={commentDrafts[task.id] ?? ""}
+                              isSaving={savingCommentTaskIds[task.id] === true}
+                              feedbackMessage={commentFeedback}
+                              onDraftChange={onCommentDraftChange}
+                              onSubmit={onTaskCommentSubmit}
+                            />
+                          ) : null}
                         </li>
                       );
                     })}

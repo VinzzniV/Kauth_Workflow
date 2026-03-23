@@ -243,6 +243,7 @@ INSERT INTO workflows (
     last_name,
     employee_number,
     badge_number,
+    deadline_date,
     status,
     started_at
 )
@@ -254,6 +255,7 @@ VALUES (
     @lastName,
     @employeeNumber,
     @badgeNumber,
+    @deadlineDate,
     'draft',
     NULL
 )
@@ -271,6 +273,8 @@ RETURNING id, uid;";
             workflowInsertCommand.Parameters.AddWithValue("lastName", request.LastName);
             workflowInsertCommand.Parameters.AddWithValue("employeeNumber", request.EmployeeNumber);
             workflowInsertCommand.Parameters.AddWithValue("badgeNumber", request.BadgeNumber);
+            workflowInsertCommand.Parameters.Add("deadlineDate", NpgsqlDbType.Date).Value =
+                (object?)request.DeadlineDate ?? DBNull.Value;
 
             await using var reader = await workflowInsertCommand.ExecuteReaderAsync();
             if (!await reader.ReadAsync())
@@ -291,7 +295,17 @@ RETURNING id, uid;";
             TaskGenerationStage.Initial);
 
         await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
-        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId);
+        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, createdByUserId);
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflowId,
+            null,
+            createdByUserId,
+            "workflow_created",
+            null,
+            null,
+            $"{request.FirstName} {request.LastName}");
 
         var notificationTargets = await CreateWorkflowNotifications(
             connection,
@@ -312,7 +326,8 @@ RETURNING id, uid;";
     // Der Schritt der Abteilungsleitung ersetzt vorhandene Antworten und erzeugt daraus den weiteren Aufgabenplan.
     public async Task<WorkflowDetailDto?> CompleteSupervisorStep(
         Guid workflowUid,
-        IReadOnlyList<RequirementSelectionInputDto> selections)
+        IReadOnlyList<RequirementSelectionInputDto> selections,
+        long actorUserId)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -396,7 +411,8 @@ WHERE workflow_id = @workflowId;";
                 connection,
                 transaction,
                 workflowId,
-                SupervisorRequirementTaskKey);
+                SupervisorRequirementTaskKey,
+                actorUserId);
         }
 
         await GenerateWorkflowTasks(
@@ -408,7 +424,17 @@ WHERE workflow_id = @workflowId;";
             TaskGenerationStage.AfterSupervisor);
 
         await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
-        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId);
+        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflowId,
+            null,
+            actorUserId,
+            "supervisor_step_completed",
+            workflowStatus,
+            "completed",
+            $"Anforderungen gespeichert: {selections.Count}");
 
         await transaction.CommitAsync();
         return await GetWorkflowByUid(workflowUid);

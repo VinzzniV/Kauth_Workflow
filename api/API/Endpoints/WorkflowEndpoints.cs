@@ -103,6 +103,12 @@ internal static class WorkflowEndpoints
 
             try
             {
+                if (request.DeadlineDate.HasValue
+                    && request.DeadlineDate.Value < DateOnly.FromDateTime(DateTime.Today))
+                {
+                    return Results.BadRequest(new { message = "Die Deadline darf nicht in der Vergangenheit liegen." });
+                }
+
                 var creation = await repository.CreateWorkflow(request, access.User!.UserId);
                 var dispatchResults = await emailNotificationSender.SendNotificationsAsync(
                     creation.Uid,
@@ -223,6 +229,50 @@ internal static class WorkflowEndpoints
             EndpointSupport.ApplyWorkflowTaskPermissions(workflow, currentUser, authorizationPolicy);
             return Results.Ok(workflow);
         }).Produces<WorkflowDetailDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/workflows/{uid:guid}/audit-log", async (
+            Guid uid,
+            IWorkflowRepository repository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                currentUser => authorizationPolicy.CanCreateOrStartWorkflow(currentUser)
+                    || authorizationPolicy.CanAccessSupervisorStep(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "Audit-Log erfordert HR, Abteilungsleitung oder Admin.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var workflow = await repository.GetWorkflowByUid(uid);
+            if (workflow is null)
+            {
+                return Results.NotFound(new { message = "Workflow not found." });
+            }
+
+            var currentUser = access.User!;
+            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
+                currentUser,
+                repository,
+                authorizationPolicy);
+
+            if (!EndpointSupport.CanObserveWorkflow(
+                currentUser,
+                workflow.DepartmentId,
+                workflow.WorkflowStatus,
+                observableDepartmentIds,
+                authorizationPolicy))
+            {
+                return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
+            }
+
+            return Results.Ok(await repository.GetWorkflowAuditLog(uid));
+        }).Produces<List<WorkflowAuditEntryDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
 

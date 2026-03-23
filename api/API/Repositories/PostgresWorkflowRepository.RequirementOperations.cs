@@ -805,6 +805,7 @@ ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
                         IconKey = reader.GetString(5),
                         InputType = reader.GetString(6),
                         IsRequired = reader.GetBoolean(7),
+                        IsVisible = true,
                         SortOrder = reader.GetInt32(8),
                         Behavior = behaviorsByDefinitionId.TryGetValue(definitionId, out var behavior)
                             ? behavior

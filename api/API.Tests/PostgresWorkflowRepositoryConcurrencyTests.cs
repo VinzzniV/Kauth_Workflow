@@ -13,6 +13,7 @@ public sealed class PostgresWorkflowRepositoryIntegrationCollection
 public sealed class PostgresWorkflowRepositoryConcurrencyTests
 {
     private const string DefaultTestConnectionString = "Host=localhost;Port=23456;Database=appdb;Username=app;Password=app_pw";
+    private const long TestActorUserId = 1;
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -47,7 +48,7 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
             }
 
             var repository = new PostgresWorkflowRepository();
-            var updateTask = repository.UpdateTaskStatus(testData.TaskIds[0], "in_progress");
+            var updateTask = repository.UpdateTaskStatus(testData.TaskIds[0], "in_progress", TestActorUserId);
 
             await Task.Delay(TimeSpan.FromMilliseconds(300));
 
@@ -87,8 +88,8 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
         {
             var repository = new PostgresWorkflowRepository();
 
-            var firstUpdateTask = repository.UpdateTaskStatus(testData.TaskIds[0], "in_progress");
-            var secondUpdateTask = repository.UpdateTaskStatus(testData.TaskIds[1], "in_progress");
+            var firstUpdateTask = repository.UpdateTaskStatus(testData.TaskIds[0], "in_progress", TestActorUserId);
+            var secondUpdateTask = repository.UpdateTaskStatus(testData.TaskIds[1], "in_progress", TestActorUserId);
 
             await Task.WhenAll(firstUpdateTask, secondUpdateTask).WaitAsync(TimeSpan.FromSeconds(10));
 

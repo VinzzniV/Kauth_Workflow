@@ -80,6 +80,7 @@ FROM workflow_notifications
 WHERE workflow_id = @workflowId
   AND recipient_user_id = @recipientUserId
   AND notification_type = 'workflow_completed'
+  AND status <> 'disabled'
 LIMIT 1;";
 
         await using (var existingCommand = new NpgsqlCommand(existingNotificationSql, connection, transaction))
@@ -128,6 +129,32 @@ LIMIT 1;";
                 PreferredPath = recipient.Value.PreferredPath
             }
         ];
+    }
+
+    public async Task<List<Guid>> GetWorkflowUidsWithDisabledNotifications(string notificationType)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+SELECT DISTINCT w.uid
+FROM workflow_notifications n
+JOIN workflows w ON w.id = n.workflow_id
+WHERE n.notification_type = @notificationType
+  AND n.status = 'disabled'
+ORDER BY w.uid;";
+
+        var workflowUids = new List<Guid>();
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("notificationType", notificationType);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            workflowUids.Add(reader.GetGuid(0));
+        }
+
+        return workflowUids;
     }
 
     // Benachrichtigungsergebnisse werden gesammelt rueckgeschrieben, damit der Workflow-Verlauf nachvollziehbar bleibt.
@@ -389,6 +416,7 @@ WHERE wt.workflow_id = @workflowId
               WHERE n.workflow_task_id = wt.id
                 AND n.recipient_user_id = ta.assignee_user_id
                 AND n.notification_type = 'task_ready'
+                AND n.status <> 'disabled'
                 AND n.created_at >= wt.ready_at
           )
       )
@@ -400,6 +428,7 @@ WHERE wt.workflow_id = @workflowId
               WHERE n.workflow_task_id = wt.id
                 AND n.recipient_user_id = ta.assignee_user_id
                 AND n.notification_type = 'task_ready'
+                AND n.status <> 'disabled'
           )
       )
   )

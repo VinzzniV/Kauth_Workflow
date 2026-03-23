@@ -187,6 +187,7 @@ public sealed class WorkflowSummaryBuilderTests
             IconKey = "test",
             InputType = inputType,
             IsRequired = false,
+            IsVisible = true,
             SortOrder = id,
             Options = new List<WorkflowRequirementOptionSnapshotDto>(),
             Behavior = behavior ?? new RequirementBehaviorDto
@@ -249,6 +250,9 @@ public sealed class WorkflowSummaryBuilderTests
             IconKey = "test",
             Status = status,
             IsRequired = true,
+            DueInDays = 3,
+            DueAt = DateTime.UtcNow.AddDays(3),
+            SlaStatus = "on_track",
             SortOrder = sortOrder,
             CreatedAt = DateTime.UtcNow,
             ReadyAt = null,
@@ -259,7 +263,8 @@ public sealed class WorkflowSummaryBuilderTests
             IsDepartmentPhaseTask = isDepartmentPhaseTask,
             CanUpdateStatus = false,
             Assignments = new List<WorkflowTaskAssignmentDto>(),
-            Dependencies = new List<WorkflowTaskDependencyDto>()
+            Dependencies = new List<WorkflowTaskDependencyDto>(),
+            Comments = new List<WorkflowTaskCommentDto>()
         };
     }
 }

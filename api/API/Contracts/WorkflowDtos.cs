@@ -126,6 +126,7 @@ public sealed class CreateWorkflowRequest
     public required string LastName { get; init; }
     public required int EmployeeNumber { get; init; }
     public required int BadgeNumber { get; init; }
+    public DateOnly? DeadlineDate { get; init; }
 }
 
 public sealed class WorkflowCreateResponse
@@ -194,6 +195,7 @@ public sealed class WorkflowListItemDto
     public required string Status { get; init; }
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
+    public DateOnly? DeadlineDate { get; init; }
     public required int PendingNotifications { get; init; }
     public required int FailedNotifications { get; init; }
     public required WorkflowRequirementSummaryDto RequirementSummary { get; init; }
@@ -219,6 +221,7 @@ public sealed class WorkflowRequirementSnapshotDto
     public required string IconKey { get; init; }
     public required string InputType { get; init; }
     public required bool IsRequired { get; init; }
+    public required bool IsVisible { get; set; }
     public required int SortOrder { get; init; }
     public required List<WorkflowRequirementOptionSnapshotDto> Options { get; init; }
     public required RequirementBehaviorDto Behavior { get; init; }
@@ -270,6 +273,31 @@ public sealed class WorkflowNotificationDto
     public DateTime? SentAt { get; init; }
 }
 
+public sealed class WorkflowAuditEntryDto
+{
+    public required long Id { get; init; }
+    public required string EventType { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public long? TaskId { get; init; }
+    public string? TaskKey { get; init; }
+    public string? TaskTitle { get; init; }
+    public long? ActorUserId { get; init; }
+    public string? ActorUserName { get; init; }
+    public string? OldValue { get; init; }
+    public string? NewValue { get; init; }
+    public string? Detail { get; init; }
+}
+
+public sealed class WorkflowTaskCommentDto
+{
+    public required long Id { get; init; }
+    public required long TaskId { get; init; }
+    public long? AuthorUserId { get; init; }
+    public string? AuthorUserName { get; init; }
+    public required string CommentText { get; init; }
+    public required DateTime CreatedAt { get; init; }
+}
+
 public sealed class WorkflowTaskAssignmentDto
 {
     public required long Id { get; init; }
@@ -308,6 +336,9 @@ public sealed class WorkflowTaskDto
     public required bool IsRequired { get; init; }
     public required int SortOrder { get; init; }
     public required DateTime CreatedAt { get; init; }
+    public int? DueInDays { get; init; }
+    public DateTime? DueAt { get; init; }
+    public required string SlaStatus { get; init; }
     public DateTime? ReadyAt { get; init; }
     public DateTime? StartedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
@@ -315,8 +346,10 @@ public sealed class WorkflowTaskDto
     public string? ProcessArea { get; set; }
     public bool IsDepartmentPhaseTask { get; set; }
     public bool CanUpdateStatus { get; set; }
+    public bool CanAddComment { get; set; }
     public required List<WorkflowTaskAssignmentDto> Assignments { get; init; }
     public required List<WorkflowTaskDependencyDto> Dependencies { get; init; }
+    public required List<WorkflowTaskCommentDto> Comments { get; init; }
 }
 
 public sealed class TaskWorkflowContextDto
@@ -353,6 +386,11 @@ public sealed class TaskAssignRequest
     public int? AssigneeResponsibilityId { get; init; }
 }
 
+public sealed class TaskCommentCreateRequest
+{
+    public required string CommentText { get; init; }
+}
+
 public sealed class SupervisorStepUpdateRequest
 {
     public required List<RequirementSelectionInputDto> RequirementSelections { get; init; }
@@ -372,6 +410,7 @@ public sealed class WorkflowDetailDto
     public required string Status { get; init; }
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
+    public DateOnly? DeadlineDate { get; init; }
     public required List<WorkflowRequirementSnapshotDto> Requirements { get; init; }
     public required WorkflowRequirementSummaryDto RequirementSummary { get; set; }
     public required List<WorkflowTaskDto> Tasks { get; init; }
@@ -479,6 +518,7 @@ internal sealed class TaskTemplateRecord
     public string? ProcessAreaLabel { get; init; }
     public required bool IsDepartmentPhaseTask { get; init; }
     public required bool IsRequired { get; init; }
+    public int? DueInDays { get; init; }
     public required int SortOrder { get; init; }
 }
 

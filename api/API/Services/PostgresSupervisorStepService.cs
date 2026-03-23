@@ -62,7 +62,7 @@ internal sealed class PostgresSupervisorStepService : ISupervisorStepService
         }
 
         await EnsureSupervisorAccess(currentUser, workflow.DepartmentId, workflow.WorkflowStatus);
-        return await _workflowRepository.CompleteSupervisorStep(workflowUid, selections);
+        return await _workflowRepository.CompleteSupervisorStep(workflowUid, selections, currentUser.UserId);
     }
 
     // Die Zustaendigkeit wird aus Rollen und den zugewiesenen Abteilungen abgeleitet.

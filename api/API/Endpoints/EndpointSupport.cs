@@ -38,6 +38,7 @@ internal static class EndpointSupport
         IAuthorizationPolicyService authorizationPolicy)
     {
         var shouldRedactAssignments = ShouldRedactTaskAssignments(currentUser, authorizationPolicy);
+        var shouldRedactComments = ShouldRedactTaskComments(currentUser, authorizationPolicy);
         var shouldRedactAssigneeIdentity = ShouldRedactTaskAssigneeIdentity(currentUser, authorizationPolicy);
 
         foreach (var task in workflow.Tasks)
@@ -64,6 +65,33 @@ internal static class EndpointSupport
                         RoleName = workflow.RoleName
                     }
                 });
+            task.CanAddComment = authorizationPolicy.CanAddTaskComment(
+                currentUser,
+                new TaskWithWorkflowDto
+                {
+                    Task = task,
+                    Workflow = new TaskWorkflowContextDto
+                    {
+                        WorkflowId = 0,
+                        WorkflowUid = workflow.Uid,
+                        WorkflowStatus = workflow.WorkflowStatus,
+                        WorkflowLegacyStatus = WorkflowStatusRules.ToLegacyStatus(workflow.WorkflowStatus),
+                        WorkflowCreatedAt = workflow.CreatedAt,
+                        FirstName = workflow.FirstName,
+                        LastName = workflow.LastName,
+                        EmployeeNumber = workflow.EmployeeNumber,
+                        BadgeNumber = workflow.BadgeNumber,
+                        DepartmentId = workflow.DepartmentId,
+                        DepartmentName = workflow.DepartmentName,
+                        RoleId = workflow.RoleId,
+                        RoleName = workflow.RoleName
+                    }
+                });
+
+            if (shouldRedactComments)
+            {
+                task.Comments.Clear();
+            }
 
             if (shouldRedactAssignments)
             {
@@ -95,6 +123,12 @@ internal static class EndpointSupport
         IAuthorizationPolicyService authorizationPolicy)
     {
         task.Task.CanUpdateStatus = authorizationPolicy.CanUpdateTaskStatus(currentUser, task);
+        task.Task.CanAddComment = authorizationPolicy.CanAddTaskComment(currentUser, task);
+        if (ShouldRedactTaskComments(currentUser, authorizationPolicy))
+        {
+            task.Task.Comments.Clear();
+        }
+
         if (ShouldRedactTaskAssignments(currentUser, authorizationPolicy))
         {
             task.Task.Assignments.Clear();
@@ -118,6 +152,13 @@ internal static class EndpointSupport
                 AuthorizationRoles.Hr,
                 AuthorizationRoles.Manager,
                 AuthorizationRoles.Worker);
+    }
+
+    private static bool ShouldRedactTaskComments(
+        CurrentUser currentUser,
+        IAuthorizationPolicyService authorizationPolicy)
+    {
+        return ShouldRedactTaskAssignments(currentUser, authorizationPolicy);
     }
 
     private static bool ShouldRedactTaskAssigneeIdentity(

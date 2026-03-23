@@ -125,9 +125,15 @@ export type EmployeeFormData = {
   lastName: string;
   employeeNumber: number;
   badgeNumber: number;
+  deadlineDate: string;
 };
 
-export type WorkflowCreationPayload = EmployeeFormData & {
+export type WorkflowCreationPayload = {
+  firstName: string;
+  lastName: string;
+  employeeNumber: number;
+  badgeNumber: number;
+  deadlineDate: string | null;
   departmentId: number;
   roleId: number;
 };
@@ -157,10 +163,19 @@ export type WorkflowRuntimeStatus =
   | "in_progress"
   | "waiting_for_supervisor"
   | "waiting_for_department"
-  | "completed";
+  | "completed"
+  | "cancelled";
 
-export type WorkflowTaskStatus = "open" | "ready" | "in_progress" | "blocked" | "done" | "skipped";
+export type WorkflowTaskStatus =
+  | "open"
+  | "ready"
+  | "in_progress"
+  | "blocked"
+  | "done"
+  | "skipped"
+  | "cancelled";
 export type WorkflowTaskArea = string;
+export type WorkflowTaskSlaStatus = "none" | "on_track" | "due_today" | "overdue";
 
 export type WorkflowResponsibilityOption = {
   value: string;
@@ -209,6 +224,7 @@ export type WorkflowSummary = {
   status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
+  deadlineDate: string | null;
   pendingNotifications: number;
   failedNotifications: number;
   requirementSummary: WorkflowRequirementSummary;
@@ -228,6 +244,7 @@ export type WorkflowRequirementSnapshot = {
   iconKey: string;
   inputType: RequirementInputType;
   isRequired: boolean;
+  isVisible: boolean;
   sortOrder: number;
   behavior: RequirementBehavior;
   options: WorkflowRequirementOptionSnapshot[];
@@ -275,6 +292,29 @@ export type WorkflowNotification = {
   sentAt: string | null;
 };
 
+export type WorkflowAuditEntry = {
+  id: number;
+  eventType: string;
+  createdAt: string;
+  taskId: number | null;
+  taskKey: string | null;
+  taskTitle: string | null;
+  actorUserId: number | null;
+  actorUserName: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  detail: string | null;
+};
+
+export type WorkflowTaskComment = {
+  id: number;
+  taskId: number;
+  authorUserId: number | null;
+  authorUserName: string | null;
+  commentText: string;
+  createdAt: string;
+};
+
 export type WorkflowTaskAssignment = {
   id: number;
   assignmentType: "responsibility" | "user";
@@ -310,6 +350,9 @@ export type WorkflowTask = {
   isRequired: boolean;
   sortOrder: number;
   createdAt: string;
+  dueInDays: number | null;
+  dueAt: string | null;
+  slaStatus: WorkflowTaskSlaStatus;
   readyAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -317,8 +360,10 @@ export type WorkflowTask = {
   processArea: WorkflowTaskArea | null;
   isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
+  canAddComment: boolean;
   assignments: WorkflowTaskAssignment[];
   dependencies: WorkflowTaskDependency[];
+  comments: WorkflowTaskComment[];
 };
 
 export type TaskWorkflowContext = {
@@ -355,6 +400,7 @@ export type WorkflowDetail = {
   status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
+  deadlineDate: string | null;
   requirements: WorkflowRequirementSnapshot[];
   requirementSummary: WorkflowRequirementSummary;
   tasks: WorkflowTask[];

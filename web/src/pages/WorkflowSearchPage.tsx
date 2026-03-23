@@ -49,7 +49,7 @@ export default function WorkflowSearchPage() {
     return rows.filter((row) => {
       const matchesDepartment =
         departmentFilter === "all" || String(row.departmentId) === departmentFilter;
-      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.workflowStatus, statusFilter);
+      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.status, statusFilter, row.workflowStatus);
 
       if (!matchesDepartment || !matchesStatus) {
         return false;

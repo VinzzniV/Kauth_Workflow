@@ -40,6 +40,7 @@ SELECT
     r.id,
     r.name,
     w.status,
+    w.deadline_date,
     w.created_at,
     COUNT(n.id) FILTER (WHERE n.status = 'pending') AS pending_notifications,
     COUNT(n.id) FILTER (WHERE n.status = 'failed') AS failed_notifications
@@ -47,7 +48,7 @@ FROM workflows w
 JOIN departments d ON d.id = w.department_id
 JOIN app_roles r ON r.id = w.onboarding_role_id
 LEFT JOIN workflow_notifications n ON n.workflow_id = w.id
-GROUP BY w.id, d.id, d.name, r.id, r.name
+GROUP BY w.id, d.id, d.name, r.id, r.name, w.deadline_date
 ORDER BY w.created_at DESC;";
 
         var workflowRows = new List<(
@@ -62,6 +63,7 @@ ORDER BY w.created_at DESC;";
             int RoleId,
             string RoleName,
             string WorkflowStatus,
+            DateOnly? DeadlineDate,
             DateTime CreatedAt,
             int PendingNotifications,
             int FailedNotifications)>();
@@ -83,9 +85,10 @@ ORDER BY w.created_at DESC;";
                     reader.GetInt32(8),
                     reader.GetString(9),
                     reader.GetString(10),
-                    reader.GetDateTime(11),
-                    reader.GetInt32(12),
-                    reader.GetInt32(13)));
+                    reader.IsDBNull(11) ? null : reader.GetFieldValue<DateOnly>(11),
+                    reader.GetDateTime(12),
+                    reader.GetInt32(13),
+                    reader.GetInt32(14)));
             }
         }
 
@@ -115,6 +118,7 @@ ORDER BY w.created_at DESC;";
                     RoleName = row.RoleName,
                     Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                     WorkflowStatus = workflowStatus,
+                    DeadlineDate = row.DeadlineDate,
                     CreatedAt = row.CreatedAt,
                     PendingNotifications = row.PendingNotifications,
                     FailedNotifications = row.FailedNotifications,
@@ -148,6 +152,7 @@ SELECT
     r.id,
     r.name,
     w.status,
+    w.deadline_date,
     w.created_at
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
@@ -184,7 +189,8 @@ LIMIT 1;";
                 RoleName = reader.GetString(9),
                 Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                 WorkflowStatus = workflowStatus,
-                CreatedAt = reader.GetDateTime(11),
+                DeadlineDate = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateOnly>(11),
+                CreatedAt = reader.GetDateTime(12),
                 Requirements = new List<WorkflowRequirementSnapshotDto>(),
                 RequirementSummary = WorkflowSummaryBuilder.CreateEmptyRequirementSummary(),
                 Tasks = new List<WorkflowTaskDto>(),
@@ -583,6 +589,8 @@ SELECT
     t.icon_key,
     t.status,
     t.is_required,
+    t.due_in_days,
+    t.due_at,
     t.sort_order,
     t.created_at,
     t.ready_at,
@@ -592,6 +600,7 @@ SELECT
     w.id,
     w.uid,
     w.status,
+    w.deadline_date,
     w.created_at,
     w.first_name,
     w.last_name,
@@ -643,48 +652,60 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                     IconKey = reader.GetString(6),
                     Status = reader.GetString(7),
                     IsRequired = reader.GetBoolean(8),
-                    SortOrder = reader.GetInt32(9),
-                    CreatedAt = reader.GetDateTime(10),
-                    ReadyAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
-                    StartedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
-                    CompletedAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
-                    CancelledAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                    DueInDays = reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                    DueAt = ResolveEffectiveTaskDueAt(
+                        reader.IsDBNull(20) ? null : reader.GetFieldValue<DateOnly>(20),
+                        reader.IsDBNull(10) ? null : reader.GetDateTime(10)),
+                    SlaStatus = ResolveTaskSlaStatus(
+                        reader.GetString(7),
+                        ResolveEffectiveTaskDueAt(
+                            reader.IsDBNull(20) ? null : reader.GetFieldValue<DateOnly>(20),
+                            reader.IsDBNull(10) ? null : reader.GetDateTime(10))),
+                    SortOrder = reader.GetInt32(11),
+                    CreatedAt = reader.GetDateTime(12),
+                    ReadyAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
+                    StartedAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                    CompletedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
+                    CancelledAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
                     ProcessArea = ResolveTaskProcessArea(
-                        reader.IsDBNull(27) ? null : reader.GetString(27),
-                        reader.IsDBNull(29) ? null : reader.GetString(29),
-                        reader.IsDBNull(30) ? null : reader.GetString(30)),
-                    IsDepartmentPhaseTask = reader.GetBoolean(28),
+                        reader.IsDBNull(30) ? null : reader.GetString(30),
+                        reader.IsDBNull(32) ? null : reader.GetString(32),
+                        reader.IsDBNull(33) ? null : reader.GetString(33)),
+                    IsDepartmentPhaseTask = reader.GetBoolean(31),
+                    CanAddComment = false,
                     Assignments = new List<WorkflowTaskAssignmentDto>(),
-                    Dependencies = new List<WorkflowTaskDependencyDto>()
+                    Dependencies = new List<WorkflowTaskDependencyDto>(),
+                    Comments = new List<WorkflowTaskCommentDto>()
                 };
 
                 taskById[task.Id] = task;
 
-                var workflowStatus = reader.GetString(17);
+                var workflowStatus = reader.GetString(19);
                 tasks.Add(new TaskWithWorkflowDto
                 {
                     Task = task,
                     Workflow = new TaskWorkflowContextDto
                     {
-                        WorkflowId = reader.GetInt64(15),
-                        WorkflowUid = reader.GetGuid(16),
+                        WorkflowId = reader.GetInt64(17),
+                        WorkflowUid = reader.GetGuid(18),
                         WorkflowStatus = workflowStatus,
                         WorkflowLegacyStatus = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
-                        WorkflowCreatedAt = reader.GetDateTime(18),
-                        FirstName = reader.GetString(19),
-                        LastName = reader.GetString(20),
-                        EmployeeNumber = reader.GetInt32(21),
-                        BadgeNumber = reader.GetInt32(22),
-                        DepartmentId = reader.GetInt32(23),
-                        DepartmentName = reader.GetString(24),
-                        RoleId = reader.GetInt32(25),
-                        RoleName = reader.GetString(26)
+                        WorkflowCreatedAt = reader.GetDateTime(21),
+                        FirstName = reader.GetString(22),
+                        LastName = reader.GetString(23),
+                        EmployeeNumber = reader.GetInt32(24),
+                        BadgeNumber = reader.GetInt32(25),
+                        DepartmentId = reader.GetInt32(26),
+                        DepartmentName = reader.GetString(27),
+                        RoleId = reader.GetInt32(28),
+                        RoleName = reader.GetString(29)
                     }
                 });
             }
         }
 
         await LoadTaskAssignmentsAndDependencies(connection, transaction, taskById);
+        await LoadTaskComments(connection, transaction, taskById);
         return tasks;
     }
 
@@ -805,6 +826,55 @@ ORDER BY d.workflow_task_id, d.id;";
         }
     }
 
+    private static async Task LoadTaskComments(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        IReadOnlyDictionary<long, WorkflowTaskDto> taskById)
+    {
+        if (taskById.Count == 0)
+        {
+            return;
+        }
+
+        const string sql = @"
+SELECT
+    c.id,
+    c.workflow_task_id,
+    c.author_user_id,
+    u.display_name,
+    c.comment_text,
+    c.created_at
+FROM workflow_task_comments c
+LEFT JOIN app_users u ON u.id = c.author_user_id
+WHERE c.workflow_task_id = ANY(@taskIds)
+ORDER BY c.workflow_task_id, c.created_at DESC, c.id DESC;";
+
+        var taskIds = taskById.Keys.ToArray();
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.Add("taskIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = taskIds;
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            var workflowTaskId = reader.GetInt64(1);
+            if (!taskById.TryGetValue(workflowTaskId, out var task))
+            {
+                continue;
+            }
+
+            task.Comments.Add(new WorkflowTaskCommentDto
+            {
+                Id = reader.GetInt64(0),
+                TaskId = workflowTaskId,
+                AuthorUserId = reader.IsDBNull(2) ? null : reader.GetInt64(2),
+                AuthorUserName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                CommentText = reader.GetString(4),
+                CreatedAt = reader.GetDateTime(5)
+            });
+        }
+    }
+
     private static async Task LoadWorkflowTasks(
         NpgsqlConnection connection,
         long workflowId,
@@ -821,12 +891,15 @@ SELECT
     wt.icon_key,
     wt.status,
     wt.is_required,
+    wt.due_in_days,
+    wt.due_at,
     wt.sort_order,
     wt.created_at,
     wt.ready_at,
     wt.started_at,
     wt.completed_at,
     wt.cancelled_at,
+    w.deadline_date,
     COALESCE(wt.process_area_label, tt.process_area_label),
     CASE
         WHEN wt.task_template_id IS NULL AND tt.id IS NOT NULL THEN tt.is_department_phase_task
@@ -835,6 +908,7 @@ SELECT
     template_department.name,
     template_responsibility.responsibility_type
 FROM workflow_tasks wt
+JOIN workflows w ON w.id = wt.workflow_id
 LEFT JOIN task_templates tt
     ON tt.id = wt.task_template_id
     OR (wt.task_template_id IS NULL AND tt.template_key = wt.task_key)
@@ -865,19 +939,30 @@ ORDER BY wt.sort_order, wt.id;";
                     IconKey = reader.GetString(6),
                     Status = reader.GetString(7),
                     IsRequired = reader.GetBoolean(8),
-                    SortOrder = reader.GetInt32(9),
-                    CreatedAt = reader.GetDateTime(10),
-                    ReadyAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
-                    StartedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
-                    CompletedAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
-                    CancelledAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                    DueInDays = reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                    DueAt = ResolveEffectiveTaskDueAt(
+                        reader.IsDBNull(17) ? null : reader.GetFieldValue<DateOnly>(17),
+                        reader.IsDBNull(10) ? null : reader.GetDateTime(10)),
+                    SlaStatus = ResolveTaskSlaStatus(
+                        reader.GetString(7),
+                        ResolveEffectiveTaskDueAt(
+                            reader.IsDBNull(17) ? null : reader.GetFieldValue<DateOnly>(17),
+                            reader.IsDBNull(10) ? null : reader.GetDateTime(10))),
+                    SortOrder = reader.GetInt32(11),
+                    CreatedAt = reader.GetDateTime(12),
+                    ReadyAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
+                    StartedAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                    CompletedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
+                    CancelledAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
                     ProcessArea = ResolveTaskProcessArea(
-                        reader.IsDBNull(15) ? null : reader.GetString(15),
-                        reader.IsDBNull(17) ? null : reader.GetString(17),
-                        reader.IsDBNull(18) ? null : reader.GetString(18)),
-                    IsDepartmentPhaseTask = reader.GetBoolean(16),
+                        reader.IsDBNull(18) ? null : reader.GetString(18),
+                        reader.IsDBNull(20) ? null : reader.GetString(20),
+                        reader.IsDBNull(21) ? null : reader.GetString(21)),
+                    IsDepartmentPhaseTask = reader.GetBoolean(19),
+                    CanAddComment = false,
                     Assignments = new List<WorkflowTaskAssignmentDto>(),
-                    Dependencies = new List<WorkflowTaskDependencyDto>()
+                    Dependencies = new List<WorkflowTaskDependencyDto>(),
+                    Comments = new List<WorkflowTaskCommentDto>()
                 };
 
                 taskById[task.Id] = task;
@@ -891,6 +976,34 @@ ORDER BY wt.sort_order, wt.id;";
         }
 
         await LoadTaskAssignmentsAndDependencies(connection, null, taskById);
+        await LoadTaskComments(connection, null, taskById);
+    }
+
+    private static string ResolveTaskSlaStatus(string taskStatus, DateTime? dueAt)
+    {
+        if (!dueAt.HasValue
+            || TerminalTaskStatuses.Contains(taskStatus))
+        {
+            return "none";
+        }
+
+        var now = DateTime.UtcNow;
+        if (dueAt.Value < now)
+        {
+            return "overdue";
+        }
+
+        return dueAt.Value.Date == now.Date ? "due_today" : "on_track";
+    }
+
+    private static DateTime? ResolveEffectiveTaskDueAt(DateOnly? workflowDeadlineDate, DateTime? taskDueAt)
+    {
+        if (workflowDeadlineDate.HasValue)
+        {
+            return DateTime.SpecifyKind(workflowDeadlineDate.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        }
+
+        return taskDueAt;
     }
 
     private static async Task LoadWorkflowNotifications(

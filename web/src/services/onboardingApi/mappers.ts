@@ -11,6 +11,7 @@ import type {
   RoleRecommendations,
   WorkflowConfig,
   WorkflowDetail,
+  WorkflowAuditEntry,
   WorkflowNotification,
   WorkflowRequirementOptionSnapshot,
   WorkflowRequirementSelectedOption,
@@ -24,6 +25,8 @@ import type {
   WorkflowTaskMetrics,
   WorkflowTask,
   WorkflowTaskArea,
+  WorkflowTaskComment,
+  WorkflowTaskSlaStatus,
   WorkflowTaskAssignment,
   WorkflowTaskDependency,
   WorkflowTaskStatus,
@@ -140,6 +143,7 @@ export type BackendWorkflowSummaryDto = {
   status: string;
   workflowStatus: string;
   createdAt: string;
+  deadlineDate: string | null;
   pendingNotifications: number;
   failedNotifications: number;
   requirementSummary: BackendWorkflowRequirementSummaryDto;
@@ -217,6 +221,7 @@ export type BackendWorkflowRequirementSnapshotDto = {
   iconKey: string | null;
   inputType: "boolean" | "text" | "select" | "multi_select";
   isRequired: boolean;
+  isVisible: boolean;
   sortOrder: number;
   behavior: BackendRequirementBehaviorDto;
   options: BackendWorkflowRequirementOptionSnapshotDto[];
@@ -234,6 +239,29 @@ type BackendWorkflowNotificationDto = {
   lastError: string | null;
   createdAt: string;
   sentAt: string | null;
+};
+
+export type BackendWorkflowAuditEntryDto = {
+  id: number;
+  eventType: string;
+  createdAt: string;
+  taskId: number | null;
+  taskKey: string | null;
+  taskTitle: string | null;
+  actorUserId: number | null;
+  actorUserName: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  detail: string | null;
+};
+
+type BackendWorkflowTaskCommentDto = {
+  id: number;
+  taskId: number;
+  authorUserId: number | null;
+  authorUserName: string | null;
+  commentText: string;
+  createdAt: string;
 };
 
 type BackendWorkflowTaskAssignmentDto = {
@@ -269,6 +297,9 @@ export type BackendWorkflowTaskDto = {
   iconKey: string | null;
   status: string;
   isRequired: boolean;
+  dueInDays: number | null;
+  dueAt: string | null;
+  slaStatus: string;
   sortOrder: number;
   createdAt: string;
   readyAt: string | null;
@@ -278,8 +309,10 @@ export type BackendWorkflowTaskDto = {
   processArea: string | null;
   isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
+  canAddComment: boolean;
   assignments: BackendWorkflowTaskAssignmentDto[];
   dependencies: BackendWorkflowTaskDependencyDto[];
+  comments: BackendWorkflowTaskCommentDto[];
 };
 
 export type BackendWorkflowDetailDto = {
@@ -295,6 +328,7 @@ export type BackendWorkflowDetailDto = {
   status: string;
   workflowStatus: string;
   createdAt: string;
+  deadlineDate: string | null;
   requirements: BackendWorkflowRequirementSnapshotDto[];
   requirementSummary: BackendWorkflowRequirementSummaryDto;
   tasks: BackendWorkflowTaskDto[];
@@ -338,18 +372,12 @@ function toIconKey(iconKey?: string | null): string {
   return coerceIconKey(iconKey);
 }
 
-function normalizeLegacyWorkflowStatus(status: string): string {
-  const normalized = status.trim().toLowerCase();
-  return normalized === "cancelled" ? "completed" : normalized;
-}
-
-function normalizeLegacyTaskStatus(status: string): string {
-  const normalized = status.trim().toLowerCase();
-  return normalized === "cancelled" ? "skipped" : normalized;
+function normalizeStatus(status: string): string {
+  return status.trim().toLowerCase();
 }
 
 function toWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus {
-  const normalized = normalizeLegacyWorkflowStatus(status);
+  const normalized = normalizeStatus(status);
 
   switch (normalized) {
     case "draft":
@@ -357,6 +385,7 @@ function toWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus {
     case "waiting_for_supervisor":
     case "waiting_for_department":
     case "completed":
+    case "cancelled":
       return normalized;
     default:
       return "in_progress";
@@ -364,7 +393,7 @@ function toWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus {
 }
 
 function toWorkflowTaskStatus(status: string): WorkflowTaskStatus {
-  const normalized = normalizeLegacyTaskStatus(status);
+  const normalized = normalizeStatus(status);
 
   switch (normalized) {
     case "open":
@@ -373,6 +402,7 @@ function toWorkflowTaskStatus(status: string): WorkflowTaskStatus {
     case "blocked":
     case "done":
     case "skipped":
+    case "cancelled":
       return normalized;
     default:
       return "open";
@@ -385,6 +415,17 @@ function toWorkflowTaskArea(area: string | null): WorkflowTaskArea | null {
   }
 
   return area.trim();
+}
+
+function toWorkflowTaskSlaStatus(status: string): WorkflowTaskSlaStatus {
+  switch (normalizeStatus(status)) {
+    case "on_track":
+    case "due_today":
+    case "overdue":
+      return normalizeStatus(status) as WorkflowTaskSlaStatus;
+    default:
+      return "none";
+  }
 }
 
 function mapRequirementOption(dto: BackendRequirementOptionDto): RequirementOption {
@@ -505,6 +546,7 @@ export function mapWorkflowRequirement(dto: BackendWorkflowRequirementSnapshotDt
     iconKey: toIconKey(dto.iconKey),
     inputType: dto.inputType,
     isRequired: dto.isRequired,
+    isVisible: dto.isVisible,
     sortOrder: dto.sortOrder,
     behavior: mapRequirementBehavior(dto.behavior),
     options: dto.options.map(mapWorkflowRequirementOption),
@@ -514,6 +556,10 @@ export function mapWorkflowRequirement(dto: BackendWorkflowRequirementSnapshotDt
 
 function mapWorkflowNotification(dto: BackendWorkflowNotificationDto): WorkflowNotification {
   return dto;
+}
+
+export function mapWorkflowAuditEntry(dto: BackendWorkflowAuditEntryDto): WorkflowAuditEntry {
+  return { ...dto };
 }
 
 function mapWorkflowTaskAssignment(dto: BackendWorkflowTaskAssignmentDto): WorkflowTaskAssignment {
@@ -530,19 +576,25 @@ function mapWorkflowTaskDependency(dto: BackendWorkflowTaskDependencyDto): Workf
   };
 }
 
+function mapWorkflowTaskComment(dto: BackendWorkflowTaskCommentDto): WorkflowTaskComment {
+  return { ...dto };
+}
+
 export function mapWorkflowTask(dto: BackendWorkflowTaskDto): WorkflowTask {
   return {
     ...dto,
     iconKey: toIconKey(dto.iconKey),
     status: toWorkflowTaskStatus(dto.status),
+    slaStatus: toWorkflowTaskSlaStatus(dto.slaStatus),
     processArea: toWorkflowTaskArea(dto.processArea),
     assignments: dto.assignments.map(mapWorkflowTaskAssignment),
     dependencies: dto.dependencies.map(mapWorkflowTaskDependency),
+    comments: dto.comments.map(mapWorkflowTaskComment),
   };
 }
 
 export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSummary {
-  const workflowStatus = normalizeLegacyWorkflowStatus(dto.workflowStatus);
+  const workflowStatus = normalizeStatus(dto.workflowStatus);
 
   return {
     uid: dto.uid,
@@ -554,9 +606,10 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
     departmentName: dto.departmentName,
     roleId: dto.roleId,
     roleName: dto.roleName,
-    status: toWorkflowLegacyStatus(workflowStatus),
+    status: toWorkflowLegacyStatus(dto.status),
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
+    deadlineDate: dto.deadlineDate,
     pendingNotifications: dto.pendingNotifications,
     failedNotifications: dto.failedNotifications,
     requirementSummary: mapWorkflowRequirementSummary(dto.requirementSummary),
@@ -567,7 +620,7 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
 }
 
 export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail {
-  const workflowStatus = normalizeLegacyWorkflowStatus(dto.workflowStatus);
+  const workflowStatus = normalizeStatus(dto.workflowStatus);
 
   return {
     uid: dto.uid,
@@ -579,9 +632,10 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
     departmentName: dto.departmentName,
     roleId: dto.roleId,
     roleName: dto.roleName,
-    status: toWorkflowLegacyStatus(workflowStatus),
+    status: toWorkflowLegacyStatus(dto.status),
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
+    deadlineDate: dto.deadlineDate,
     requirements: dto.requirements.map(mapWorkflowRequirement),
     requirementSummary: mapWorkflowRequirementSummary(dto.requirementSummary),
     tasks: dto.tasks.map(mapWorkflowTask),
@@ -592,13 +646,13 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
 }
 
 function mapTaskWorkflowContext(dto: BackendTaskWorkflowContextDto): TaskWorkflowContext {
-  const workflowStatus = normalizeLegacyWorkflowStatus(dto.workflowStatus);
+  const workflowStatus = normalizeStatus(dto.workflowStatus);
 
   return {
     workflowId: dto.workflowId,
     workflowUid: dto.workflowUid,
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
-    workflowLegacyStatus: toWorkflowLegacyStatus(workflowStatus),
+    workflowLegacyStatus: toWorkflowLegacyStatus(dto.workflowLegacyStatus),
     workflowCreatedAt: dto.workflowCreatedAt,
     firstName: dto.firstName,
     lastName: dto.lastName,

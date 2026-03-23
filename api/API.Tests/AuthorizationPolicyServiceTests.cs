@@ -495,6 +495,42 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.False(_sut.CanUpdateTaskAssignment(user, task));
     }
 
+    // --- CanAddTaskComment ---
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Admin)]
+    [InlineData(AuthorizationRoles.Hr)]
+    [InlineData(AuthorizationRoles.Manager)]
+    public void CanAddTaskComment_ReturnsTrue_ForAdminHrAndManager(string roleKey)
+    {
+        var user = CreateUser(roleKey);
+        var task = CreateTaskWithResponsibilityAssignment("hardware_setup", WorkflowStatusRules.InProgress, responsibilityId: 5);
+
+        Assert.True(_sut.CanAddTaskComment(user, task));
+    }
+
+    [Fact]
+    public void CanAddTaskComment_Worker_ReturnsTrue_WithMatchingAssignment()
+    {
+        var user = CreateUserWithResponsibility(AuthorizationRoles.Worker, responsibilityId: 5);
+        var task = CreateTaskWithResponsibilityAssignment("hardware_setup", WorkflowStatusRules.InProgress, responsibilityId: 5);
+
+        Assert.True(_sut.CanAddTaskComment(user, task));
+    }
+
+    [Fact]
+    public void CanAddTaskComment_ReturnsFalse_ForTerminalTask()
+    {
+        var user = CreateUser(AuthorizationRoles.Hr);
+        var task = CreateTaskWithWorkflow(
+            "hardware_setup",
+            WorkflowStatusRules.InProgress,
+            [],
+            taskStatus: "done");
+
+        Assert.False(_sut.CanAddTaskComment(user, task));
+    }
+
     // --- Helpers ---
 
     private static CurrentUser CreateUser(string roleKey, long userId = 1)
@@ -599,22 +635,36 @@ public sealed class AuthorizationPolicyServiceTests
     private static TaskWithWorkflowDto CreateTaskWithWorkflow(
         string taskKey,
         string workflowStatus,
-        List<WorkflowTaskAssignmentDto> assignments)
+        List<WorkflowTaskAssignmentDto> assignments,
+        string taskStatus = "ready")
     {
         var task = new WorkflowTaskDto
         {
             Id = 1,
+            TaskTemplateId = null,
             TaskKey = taskKey,
             Title = taskKey,
             Description = taskKey,
             Category = "test",
             IconKey = "test",
-            Status = "ready",
+            Status = taskStatus,
             IsRequired = true,
+            DueInDays = 3,
+            DueAt = DateTime.UtcNow.AddDays(3),
+            SlaStatus = "on_track",
             SortOrder = 1,
             CreatedAt = DateTime.UtcNow,
+            ReadyAt = null,
+            StartedAt = null,
+            CompletedAt = null,
+            CancelledAt = null,
+            ProcessArea = "IT",
+            IsDepartmentPhaseTask = true,
+            CanUpdateStatus = false,
+            CanAddComment = false,
             Assignments = assignments,
-            Dependencies = []
+            Dependencies = [],
+            Comments = []
         };
 
         var workflow = new TaskWorkflowContextDto

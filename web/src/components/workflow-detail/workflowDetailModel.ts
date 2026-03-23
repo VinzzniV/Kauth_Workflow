@@ -5,7 +5,6 @@ import type {
   WorkflowTaskArea,
 } from "../../types/workflow";
 import {
-  getWorkflowLegacyStatusLabel,
   getWorkflowRuntimeStatusLabel,
   isDepartmentWorkflowPhase as isDepartmentWorkflowPhaseStatus,
   isWorkflowTerminalStatus,
@@ -142,7 +141,7 @@ export function isDepartmentWorkflowPhase(status: WorkflowDetail["workflowStatus
 
 export function toPhaseOwnerArea(workflow: WorkflowDetail): string {
   if (isWorkflowTerminalStatus(workflow.workflowStatus)) {
-    return getWorkflowLegacyStatusLabel(workflow.workflowStatus);
+    return getWorkflowRuntimeStatusLabel(workflow.workflowStatus);
   }
 
   switch (workflow.workflowStatus) {
@@ -201,6 +200,7 @@ export function findCurrentTask(tasks: WorkflowTask[]): WorkflowTask | null {
     blocked: 3,
     done: 4,
     skipped: 5,
+    cancelled: 6,
   };
 
   const activeTasks = tasks.filter((task) => isActiveStatus(task.status));
@@ -270,10 +270,12 @@ export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
     },
     {
       key: "completed",
-      title: "Abgeschlossen",
+      title: workflow.workflowStatus === "cancelled" ? "Abgebrochen" : "Abgeschlossen",
       detail:
         workflow.workflowStatus === "completed"
           ? "Onboarding ist abgeschlossen."
+          : workflow.workflowStatus === "cancelled"
+            ? "Der Vorgang wurde abgebrochen."
           : "Abschluss steht noch aus.",
       state: completedStepState,
     },

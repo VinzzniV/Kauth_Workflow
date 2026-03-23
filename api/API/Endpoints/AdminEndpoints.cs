@@ -51,6 +51,8 @@ internal static class AdminEndpoints
         app.MapPatch("/admin/config/notification-email", async (
             [FromBody] AdminNotificationEmailConfigurationUpdateRequest request,
             INotificationEmailConfigurationService notificationEmailConfigurationService,
+            IWorkflowRepository repository,
+            IWorkflowEmailNotificationSender emailNotificationSender,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -65,7 +67,35 @@ internal static class AdminEndpoints
 
             try
             {
-                return Results.Ok(await notificationEmailConfigurationService.SaveAdminConfiguration(request));
+                var previousConfiguration = await notificationEmailConfigurationService.GetAdminConfiguration();
+                var updatedConfiguration = await notificationEmailConfigurationService.SaveAdminConfiguration(request);
+
+                if (updatedConfiguration.Enabled)
+                {
+                    var shouldReplayTaskReady = updatedConfiguration.NotifyOnTaskReady
+                        && (!previousConfiguration.Enabled || !previousConfiguration.NotifyOnTaskReady);
+                    if (shouldReplayTaskReady)
+                    {
+                        await ReplayDisabledNotifications(
+                            "task_ready",
+                            repository,
+                            emailNotificationSender,
+                            repository.CreateReadyTaskNotifications);
+                    }
+
+                    var shouldReplayWorkflowCompleted = updatedConfiguration.NotifyOnWorkflowCompleted
+                        && (!previousConfiguration.Enabled || !previousConfiguration.NotifyOnWorkflowCompleted);
+                    if (shouldReplayWorkflowCompleted)
+                    {
+                        await ReplayDisabledNotifications(
+                            "workflow_completed",
+                            repository,
+                            emailNotificationSender,
+                            repository.CreateWorkflowCompletionNotifications);
+                    }
+                }
+
+                return Results.Ok(updatedConfiguration);
             }
             catch (InvalidOperationException ex)
             {
@@ -572,5 +602,28 @@ internal static class AdminEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
+    }
+
+    private static async Task ReplayDisabledNotifications(
+        string notificationType,
+        IWorkflowRepository repository,
+        IWorkflowEmailNotificationSender emailNotificationSender,
+        Func<Guid, Task<List<WorkflowNotificationDispatchTarget>>> createNotifications)
+    {
+        var workflowUids = await repository.GetWorkflowUidsWithDisabledNotifications(notificationType);
+        foreach (var workflowUid in workflowUids)
+        {
+            var notificationTargets = await createNotifications(workflowUid);
+            if (notificationTargets.Count == 0)
+            {
+                continue;
+            }
+
+            var dispatchResults = await emailNotificationSender.SendNotificationsAsync(workflowUid, notificationTargets);
+            if (dispatchResults.Count > 0)
+            {
+                await repository.ApplyNotificationDispatchResults(dispatchResults);
+            }
+        }
     }
 }

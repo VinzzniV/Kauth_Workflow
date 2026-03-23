@@ -160,6 +160,23 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             && HasAnyRole(user, AuthorizationRoles.Admin);
     }
 
+    public bool CanAddTaskComment(CurrentUser user, TaskWithWorkflowDto task)
+    {
+        if (WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus)
+            || TerminalTaskStatuses.Contains(task.Task.Status))
+        {
+            return false;
+        }
+
+        if (HasAnyRole(user, AuthorizationRoles.Admin, AuthorizationRoles.Hr, AuthorizationRoles.Manager))
+        {
+            return true;
+        }
+
+        return CanRegularlyEditWorkflow(user, task.Workflow.WorkflowStatus)
+            && MatchesTaskAssignment(user, task);
+    }
+
     private static bool MatchesTaskAssignment(CurrentUser user, TaskWithWorkflowDto task)
     {
         var effectiveResponsibilityIds = user.EffectiveResponsibilities
@@ -186,4 +203,11 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             _ => false
         };
     }
+
+    private static readonly HashSet<string> TerminalTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "done",
+        "skipped",
+        "cancelled"
+    };
 }

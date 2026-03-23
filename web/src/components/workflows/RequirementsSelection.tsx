@@ -113,10 +113,13 @@ export default function RequirementsSelection({
   description = "Wählen Sie aus, welche Zugänge und welche Ausstattung für die neue Person benötigt werden.",
 }: Props) {
   const effectiveSelections = mode === "edit" ? selections : undefined;
-  const visibleRequirements = useMemo(
-    () => getVisibleRequirements(requirements, effectiveSelections),
-    [effectiveSelections, requirements]
-  );
+  const visibleRequirements = useMemo(() => {
+    if (mode === "view") {
+      return requirements.filter((requirement) => ("isVisible" in requirement ? requirement.isVisible : true));
+    }
+
+    return getVisibleRequirements(requirements, effectiveSelections);
+  }, [effectiveSelections, mode, requirements]);
 
   const groupedRequirements = useMemo<RequirementGroup[]>(() => {
     const groups = new Map<string, RequirementEntry[]>();

@@ -5,7 +5,7 @@ namespace API;
 internal sealed partial class PostgresWorkflowRepository
 {
     // Statuswechsel aktualisieren Aufgabe, Abhaengigkeiten und daraus abgeleiteten Workflow-Status in einer Transaktion.
-    public async Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status)
+    public async Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId)
     {
         var normalizedStatus = NormalizeTaskStatus(status);
 
@@ -24,8 +24,14 @@ internal sealed partial class PostgresWorkflowRepository
             return null;
         }
 
-        var (workflowId, currentStatus, _, taskKey) = taskRecord.Value;
+        var (workflowId, currentStatus, _, taskKey, taskTitle) = taskRecord.Value;
         EnsureTaskTransitionAllowed(currentStatus, normalizedStatus);
+
+        if (currentStatus.Equals(normalizedStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            await transaction.CommitAsync();
+            return await GetTaskById(taskId);
+        }
 
         if (taskKey.Equals(SupervisorRequirementTaskKey, StringComparison.OrdinalIgnoreCase)
             && TerminalTaskStatuses.Contains(normalizedStatus))
@@ -41,16 +47,26 @@ internal sealed partial class PostgresWorkflowRepository
         }
 
         await PersistTaskStatus(connection, transaction, taskId, normalizedStatus);
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflowId,
+            taskId,
+            actorUserId,
+            "task_status_changed",
+            currentStatus,
+            normalizedStatus,
+            BuildTaskStatusAuditDetail(taskTitle));
         await SyncPrimaryAssignmentCompletion(connection, transaction, taskId, normalizedStatus);
         await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
-        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId);
+        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
 
         await transaction.CommitAsync();
         return await GetTaskById(taskId);
     }
 
     // Zuweisungen werden ebenfalls transaktional aktualisiert, damit Aufgaben- und Workflow-Sicht konsistent bleiben.
-    public async Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request)
+    public async Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId)
     {
         if (request.AssigneeUserId is null && request.AssigneeResponsibilityId is null)
         {
@@ -77,7 +93,7 @@ internal sealed partial class PostgresWorkflowRepository
             return null;
         }
 
-        var (_, currentStatus, _, _) = taskRecord.Value;
+        var (workflowId, currentStatus, _, _, taskTitle) = taskRecord.Value;
         if (TerminalTaskStatuses.Contains(currentStatus))
         {
             throw new InvalidOperationException("Assignment changes are not allowed for terminal task states.");
@@ -153,7 +169,124 @@ VALUES (
             await insertAssignmentCommand.ExecuteNonQueryAsync();
         }
 
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflowId,
+            taskId,
+            actorUserId,
+            "task_assigned",
+            null,
+            BuildTaskAssignmentAuditValue(
+                assignmentType,
+                storedAssigneeUserId,
+                storedAssigneeResponsibilityId),
+            BuildTaskStatusAuditDetail(taskTitle));
+
         await transaction.CommitAsync();
         return await GetTaskById(taskId);
+    }
+
+    public async Task<TaskWithWorkflowDto?> AddTaskComment(long taskId, string commentText, long actorUserId)
+    {
+        var normalizedComment = NormalizeTaskComment(commentText);
+
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        if (!await TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
+        {
+            return null;
+        }
+
+        var taskRecord = await LoadTaskStateForUpdate(connection, transaction, taskId);
+        if (!taskRecord.HasValue)
+        {
+            return null;
+        }
+
+        var (workflowId, currentStatus, _, _, taskTitle) = taskRecord.Value;
+        var workflowStatus = await LoadWorkflowStatusForUpdate(connection, transaction, workflowId);
+        if (workflowStatus is null)
+        {
+            return null;
+        }
+
+        if (WorkflowStatusRules.IsTerminal(workflowStatus))
+        {
+            throw new InvalidOperationException("Kommentare sind fuer abgeschlossene Workflows nicht mehr erlaubt.");
+        }
+
+        if (TerminalTaskStatuses.Contains(currentStatus))
+        {
+            throw new InvalidOperationException("Kommentare sind fuer beendete Aufgaben nicht mehr erlaubt.");
+        }
+
+        const string sql = @"
+INSERT INTO workflow_task_comments (
+    workflow_task_id,
+    author_user_id,
+    comment_text
+)
+VALUES (
+    @taskId,
+    @actorUserId,
+    @commentText
+);";
+
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
+        {
+            command.Parameters.AddWithValue("taskId", taskId);
+            command.Parameters.AddWithValue("actorUserId", actorUserId);
+            command.Parameters.AddWithValue("commentText", normalizedComment);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflowId,
+            taskId,
+            actorUserId,
+            "task_comment_added",
+            null,
+            null,
+            $"Task: {taskTitle} | {normalizedComment}");
+
+        await transaction.CommitAsync();
+        return await GetTaskById(taskId);
+    }
+
+    private static string NormalizeTaskComment(string commentText)
+    {
+        if (string.IsNullOrWhiteSpace(commentText))
+        {
+            throw new InvalidOperationException("Kommentar darf nicht leer sein.");
+        }
+
+        var normalized = commentText.Trim();
+        if (normalized.Length > 2000)
+        {
+            throw new InvalidOperationException("Kommentar darf maximal 2000 Zeichen haben.");
+        }
+
+        return normalized;
+    }
+
+    private static async Task<string?> LoadWorkflowStatusForUpdate(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = @"
+SELECT status
+FROM workflows
+WHERE id = @workflowId
+FOR UPDATE;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        return await command.ExecuteScalarAsync() as string;
     }
 }

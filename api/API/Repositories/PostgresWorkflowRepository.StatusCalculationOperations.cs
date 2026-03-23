@@ -64,13 +64,13 @@ FOR UPDATE OF w;";
         return await command.ExecuteScalarAsync() is not null;
     }
 
-    private static async Task<(long WorkflowId, string CurrentStatus, bool IsRequired, string TaskKey)?> LoadTaskStateForUpdate(
+    private static async Task<(long WorkflowId, string CurrentStatus, bool IsRequired, string TaskKey, string TaskTitle)?> LoadTaskStateForUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId)
     {
         const string sql = @"
-SELECT workflow_id, status, is_required, task_key
+SELECT workflow_id, status, is_required, task_key, title
 FROM workflow_tasks
 WHERE id = @taskId
 FOR UPDATE;";
@@ -84,7 +84,7 @@ FOR UPDATE;";
             return null;
         }
 
-        return (reader.GetInt64(0), reader.GetString(1), reader.GetBoolean(2), reader.GetString(3));
+        return (reader.GetInt64(0), reader.GetString(1), reader.GetBoolean(2), reader.GetString(3), reader.GetString(4));
     }
 
     private static async Task<bool> AreTaskDependenciesSatisfied(
@@ -126,6 +126,14 @@ WHERE d.workflow_task_id = @taskId
 UPDATE workflow_tasks
 SET
     status = @status,
+    due_at = CASE
+        WHEN @status IN ('ready', 'in_progress', 'done')
+            THEN CASE
+                WHEN due_in_days IS NOT NULL THEN COALESCE(due_at, NOW() + (due_in_days * INTERVAL '1 day'))
+                ELSE due_at
+            END
+        ELSE due_at
+    END,
     ready_at = CASE
         WHEN @status = 'ready' THEN COALESCE(ready_at, NOW())
         WHEN @status IN ('in_progress', 'done') THEN COALESCE(ready_at, NOW())
@@ -261,6 +269,10 @@ ORDER BY d.workflow_task_id, d.id;";
 UPDATE workflow_tasks
 SET
     status = 'ready',
+    due_at = CASE
+        WHEN due_in_days IS NOT NULL THEN COALESCE(due_at, NOW() + (due_in_days * INTERVAL '1 day'))
+        ELSE due_at
+    END,
     ready_at = NOW()
 WHERE id = @taskId;";
 
@@ -289,11 +301,25 @@ WHERE id = @taskId;";
         }
     }
 
-    private static async Task RecalculateAndPersistWorkflowStatus(
+    private async Task RecalculateAndPersistWorkflowStatus(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        long workflowId)
+        long workflowId,
+        long? actorUserId)
     {
+        const string currentWorkflowStatusSql = @"
+SELECT status
+FROM workflows
+WHERE id = @workflowId
+FOR UPDATE;";
+
+        string? currentWorkflowStatus = null;
+        await using (var currentWorkflowStatusCommand = new NpgsqlCommand(currentWorkflowStatusSql, connection, transaction))
+        {
+            currentWorkflowStatusCommand.Parameters.AddWithValue("workflowId", workflowId);
+            currentWorkflowStatus = await currentWorkflowStatusCommand.ExecuteScalarAsync() as string;
+        }
+
         const string taskStatusSql = @"
 SELECT task_key, status, is_required
 FROM workflow_tasks
@@ -342,6 +368,19 @@ WHERE id = @workflowId;";
         updateCommand.Parameters.AddWithValue("status", nextWorkflowStatus);
         updateCommand.Parameters.AddWithValue("workflowId", workflowId);
         await updateCommand.ExecuteNonQueryAsync();
+
+        if (!string.Equals(currentWorkflowStatus, nextWorkflowStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            await InsertAuditEntry(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                actorUserId,
+                "workflow_status_changed",
+                currentWorkflowStatus,
+                nextWorkflowStatus);
+        }
     }
 
     private static string DetermineActiveWorkflowStatus(

@@ -32,6 +32,7 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         var senderEmail = Normalize(request.SenderEmail);
         var frontendBaseUrl = Normalize(request.FrontendBaseUrl) ?? defaults.FrontendBaseUrl;
         var testRecipientEmail = Normalize(request.TestRecipientEmail);
+        var sandboxRedirectEmail = Normalize(request.SandboxRedirectEmail);
 
         if (!Uri.TryCreate(frontendBaseUrl, UriKind.Absolute, out _))
         {
@@ -48,6 +49,11 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             throw new InvalidOperationException("Testempfänger-Mailadresse ist ungültig.");
         }
 
+        if (sandboxRedirectEmail is not null && !NotificationEmailConfigurationValidator.IsValidEmail(sandboxRedirectEmail))
+        {
+            throw new InvalidOperationException("Sandbox-Weiterleitungsadresse ist ungültig.");
+        }
+
         var runtimeCandidate = new NotificationEmailRuntimeConfiguration
         {
             Enabled = request.Enabled,
@@ -58,6 +64,10 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             SenderEmail = senderEmail,
             FrontendBaseUrl = frontendBaseUrl,
             TestRecipientEmail = testRecipientEmail,
+            SandboxRedirectEmail = sandboxRedirectEmail,
+            NotifyOnWorkflowCreated = request.NotifyOnWorkflowCreated,
+            NotifyOnTaskReady = request.NotifyOnTaskReady,
+            NotifyOnWorkflowCompleted = request.NotifyOnWorkflowCompleted,
             SaveToSentItems = defaults.SaveToSentItems,
             HasClientSecret = !string.IsNullOrWhiteSpace(clientSecret),
             LastTestStatus = existingSettings?.LastTestStatus ?? "never",
@@ -82,7 +92,11 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
                 ClientSecret = clientSecret,
                 SenderEmail = senderEmail,
                 FrontendBaseUrl = frontendBaseUrl,
-                TestRecipientEmail = testRecipientEmail
+                TestRecipientEmail = testRecipientEmail,
+                SandboxRedirectEmail = sandboxRedirectEmail,
+                NotifyOnWorkflowCreated = request.NotifyOnWorkflowCreated,
+                NotifyOnTaskReady = request.NotifyOnTaskReady,
+                NotifyOnWorkflowCompleted = request.NotifyOnWorkflowCompleted
             },
             cancellationToken);
 
@@ -115,12 +129,20 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         return Task.FromResult(new AdminNotificationEmailConfigurationDto
         {
             Enabled = runtime.Enabled,
-            Mode = runtime.Enabled ? "enabled" : "disabled",
+            Mode = !runtime.Enabled
+                ? "disabled"
+                : !string.IsNullOrWhiteSpace(runtime.SandboxRedirectEmail)
+                    ? "sandbox"
+                    : "enabled",
             TenantId = runtime.TenantId,
             ClientId = runtime.ClientId,
             SenderEmail = runtime.SenderEmail,
             FrontendBaseUrl = runtime.FrontendBaseUrl,
             TestRecipientEmail = runtime.TestRecipientEmail,
+            SandboxRedirectEmail = runtime.SandboxRedirectEmail,
+            NotifyOnWorkflowCreated = runtime.NotifyOnWorkflowCreated,
+            NotifyOnTaskReady = runtime.NotifyOnTaskReady,
+            NotifyOnWorkflowCompleted = runtime.NotifyOnWorkflowCompleted,
             LastTestStatus = runtime.LastTestStatus,
             LastTestAt = runtime.LastTestAt,
             LastError = runtime.LastError,
@@ -140,6 +162,10 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         var senderEmail = stored?.SenderEmail ?? Normalize(defaults.SenderUserId);
         var frontendBaseUrl = stored?.FrontendBaseUrl ?? defaults.FrontendBaseUrl;
         var testRecipientEmail = stored?.TestRecipientEmail;
+        var sandboxRedirectEmail = Normalize(stored?.SandboxRedirectEmail);
+        var notifyOnWorkflowCreated = stored?.NotifyOnWorkflowCreated ?? true;
+        var notifyOnTaskReady = stored?.NotifyOnTaskReady ?? true;
+        var notifyOnWorkflowCompleted = stored?.NotifyOnWorkflowCompleted ?? true;
 
         return new NotificationEmailRuntimeConfiguration
         {
@@ -151,6 +177,10 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             SenderEmail = senderEmail,
             FrontendBaseUrl = frontendBaseUrl,
             TestRecipientEmail = testRecipientEmail,
+            SandboxRedirectEmail = sandboxRedirectEmail,
+            NotifyOnWorkflowCreated = notifyOnWorkflowCreated,
+            NotifyOnTaskReady = notifyOnTaskReady,
+            NotifyOnWorkflowCompleted = notifyOnWorkflowCompleted,
             SaveToSentItems = defaults.SaveToSentItems,
             HasClientSecret = !string.IsNullOrWhiteSpace(clientSecret),
             LastTestStatus = stored?.LastTestStatus ?? "never",

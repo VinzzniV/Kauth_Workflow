@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
+import WorkflowAuditLog from "../components/workflow-detail/WorkflowAuditLog";
 import WorkflowRequirementsPanel from "../components/workflow-detail/WorkflowRequirementsPanel";
 import WorkflowTaskAreasSection from "../components/workflow-detail/WorkflowTaskAreasSection";
 import {
@@ -24,12 +25,15 @@ import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import {
+  addTaskComment as addTaskCommentApi,
+  getWorkflowAuditLog,
   getWorkflowByUid,
   updateTaskStatus as updateTaskStatusApi,
   updateWorkflowSupervisorStep,
 } from "../services/onboardingApi";
 import type {
   RequirementSelectionState,
+  WorkflowAuditEntry,
   WorkflowDetail,
   WorkflowTask,
 } from "../types/workflow";
@@ -61,9 +65,16 @@ export default function WorkflowDetailPage() {
   const [workflow, setWorkflow] = useState<WorkflowDetail | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [auditEntries, setAuditEntries] = useState<WorkflowAuditEntry[]>([]);
+  const [auditLogError, setAuditLogError] = useState<string | null>(null);
+  const [isLoadingAuditLog, setIsLoadingAuditLog] = useState<boolean>(false);
   const [taskNotice, setTaskNotice] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [savingTaskIds, setSavingTaskIds] = useState<Record<number, boolean>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [savingCommentTaskIds, setSavingCommentTaskIds] = useState<Record<number, boolean>>({});
+  const [commentFeedbackTaskId, setCommentFeedbackTaskId] = useState<number | null>(null);
+  const [commentFeedbackMessage, setCommentFeedbackMessage] = useState<string | null>(null);
   const [requirementSelections, setRequirementSelections] = useState<Record<number, RequirementSelectionState>>({});
   const [requirementsSaveError, setRequirementsSaveError] = useState<string | null>(null);
   const [requirementsSaveNotice, setRequirementsSaveNotice] = useState<string | null>(null);
@@ -79,18 +90,39 @@ export default function WorkflowDetailPage() {
 
     setIsLoading(true);
     setError(null);
+    setAuditLogError(null);
 
     try {
       const workflowData = await getWorkflowByUid(uid);
       setWorkflow(workflowData);
+
+      if (capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration) {
+        setIsLoadingAuditLog(true);
+
+        try {
+          const auditLogData = await getWorkflowAuditLog(uid);
+          setAuditEntries(auditLogData);
+        } catch (auditError) {
+          const message = auditError instanceof Error ? auditError.message : "Audit-Log konnte nicht geladen werden.";
+          setAuditLogError(message);
+          setAuditEntries([]);
+        } finally {
+          setIsLoadingAuditLog(false);
+        }
+      } else {
+        setAuditEntries([]);
+        setIsLoadingAuditLog(false);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Onboarding-Vorgang konnte nicht geladen werden.";
       setError(message);
       setWorkflow(null);
+      setAuditEntries([]);
+      setIsLoadingAuditLog(false);
     } finally {
       setIsLoading(false);
     }
-  }, [uid]);
+  }, [capabilities.canManageAdminConfiguration, capabilities.hasHrRole, capabilities.hasManagerRole, uid]);
 
   useEffect(() => {
     void reload();
@@ -187,8 +219,10 @@ export default function WorkflowDetailPage() {
       return "-";
     }
 
-    if (workflow.workflowStatus === "completed") {
-      return "Der Vorgang ist abgeschlossen";
+    if (isWorkflowTerminalStatus(workflow.workflowStatus)) {
+      return workflow.workflowStatus === "cancelled"
+        ? "Der Vorgang wurde abgebrochen"
+        : "Der Vorgang ist abgeschlossen";
     }
 
     if (isDepartmentWorkflowPhase(workflow.workflowStatus) && activeAreaNames.length > 1) {
@@ -247,6 +281,38 @@ export default function WorkflowDetailPage() {
       }
     },
     [reload]
+  );
+
+  const handleCommentDraftChange = useCallback((taskId: number, value: string) => {
+    setCommentDrafts((current) => ({ ...current, [taskId]: value }));
+  }, []);
+
+  const handleTaskCommentSubmit = useCallback(
+    async (taskId: number) => {
+      const draft = (commentDrafts[taskId] ?? "").trim();
+      if (!draft) {
+        return;
+      }
+
+      setSavingCommentTaskIds((current) => ({ ...current, [taskId]: true }));
+      setCommentFeedbackTaskId(taskId);
+      setCommentFeedbackMessage(null);
+      setTaskError(null);
+      setTaskNotice(null);
+
+      try {
+        await addTaskCommentApi(taskId, draft);
+        await reload();
+        setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
+        setCommentFeedbackMessage("Kommentar wurde gespeichert.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Kommentar konnte nicht gespeichert werden.";
+        setCommentFeedbackMessage(message);
+      } finally {
+        setSavingCommentTaskIds((current) => ({ ...current, [taskId]: false }));
+      }
+    },
+    [commentDrafts, reload]
   );
 
   const setRequirementBoolean = useCallback(
@@ -374,8 +440,8 @@ export default function WorkflowDetailPage() {
               </div>
 
               <div className="action-row">
-                <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.workflowStatus)}`}>
-                  Status: {getWorkflowLegacyStatusLabel(workflow.workflowStatus)}
+                <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.status, workflow.workflowStatus)}`}>
+                  Status: {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
                 </span>
                 <span className="chip">Prozessstand: {toRuntimeStatusLabel(workflow.workflowStatus)}</span>
               </div>
@@ -410,8 +476,16 @@ export default function WorkflowDetailPage() {
                 </article>
 
                 <article className="workflow-detail-kpi">
+                  <p className="workflow-detail-kpi-label">Deadline</p>
+                  <p className="workflow-detail-kpi-value">{formatDate(workflow.deadlineDate)}</p>
+                  <p className="workflow-detail-kpi-note">Optionales Ziel-Datum für den gesamten Vorgang.</p>
+                </article>
+
+                <article className="workflow-detail-kpi">
                   <p className="workflow-detail-kpi-label">Aktueller Status</p>
-                  <p className="workflow-detail-kpi-value">{getWorkflowLegacyStatusLabel(workflow.workflowStatus)}</p>
+                  <p className="workflow-detail-kpi-value">
+                    {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
+                  </p>
                   <p className="workflow-detail-kpi-note">Gesamtstand des Vorgangs.</p>
                 </article>
 
@@ -476,11 +550,25 @@ export default function WorkflowDetailPage() {
               taskError={taskError}
               taskNotice={taskNotice}
               savingTaskIds={savingTaskIds}
+              commentDrafts={commentDrafts}
+              savingCommentTaskIds={savingCommentTaskIds}
+              commentFeedbackTaskId={commentFeedbackTaskId}
+              commentFeedbackMessage={commentFeedbackMessage}
               usesAdminOverride={usesAdminOverride}
               canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
               isReaderOnlyView={isReaderOnlyView}
               onTaskStatusChange={handleTaskStatusChange}
+              onCommentDraftChange={handleCommentDraftChange}
+              onTaskCommentSubmit={handleTaskCommentSubmit}
             />
+
+            {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (
+              <WorkflowAuditLog
+                entries={auditEntries}
+                isLoading={isLoadingAuditLog}
+                error={auditLogError}
+              />
+            ) : null}
           </>
         ) : null}
       </div>

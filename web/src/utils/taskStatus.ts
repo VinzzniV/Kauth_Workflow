@@ -1,6 +1,6 @@
-import type { WorkflowTaskStatus } from "../types/workflow";
+import type { WorkflowTaskSlaStatus, WorkflowTaskStatus } from "../types/workflow";
 
-export type VisibleTaskStatus = "open" | "in_progress" | "done";
+export type VisibleTaskStatus = "open" | "in_progress" | "done" | "cancelled";
 
 export const TASK_STATUS_ORDER: WorkflowTaskStatus[] = [
   "open",
@@ -9,6 +9,7 @@ export const TASK_STATUS_ORDER: WorkflowTaskStatus[] = [
   "blocked",
   "done",
   "skipped",
+  "cancelled",
 ];
 
 const TASK_STATUS_LABELS: Record<WorkflowTaskStatus, string> = {
@@ -18,19 +19,25 @@ const TASK_STATUS_LABELS: Record<WorkflowTaskStatus, string> = {
   blocked: "Offen",
   done: "Erledigt",
   skipped: "Erledigt",
+  cancelled: "Abgebrochen",
 };
 
-export const VISIBLE_TASK_STATUS_ORDER: VisibleTaskStatus[] = ["open", "in_progress", "done"];
+export const VISIBLE_TASK_STATUS_ORDER: VisibleTaskStatus[] = ["open", "in_progress", "done", "cancelled"];
 
 const VISIBLE_TASK_STATUS_LABELS: Record<VisibleTaskStatus, string> = {
   open: "Offen",
   in_progress: "In Bearbeitung",
   done: "Erledigt",
+  cancelled: "Abgebrochen",
 };
 
 export function getVisibleTaskStatus(status: WorkflowTaskStatus): VisibleTaskStatus {
   if (status === "in_progress") {
     return "in_progress";
+  }
+
+  if (status === "cancelled") {
+    return "cancelled";
   }
 
   if (status === "done" || status === "skipped") {
@@ -59,8 +66,10 @@ export function mapVisibleTaskStatusToWorkflowStatus(
       return "in_progress";
     case "done":
       return currentStatus === "blocked" ? "skipped" : "done";
+    case "cancelled":
+      return currentStatus ?? "open";
     default:
-      return "open";
+      return currentStatus ?? "open";
   }
 }
 
@@ -76,6 +85,8 @@ export function getAvailableVisibleTaskStatuses(currentStatus: WorkflowTaskStatu
     case "done":
     case "skipped":
       return ["done"];
+    case "cancelled":
+      return ["cancelled"];
     default:
       return ["open"];
   }
@@ -83,4 +94,19 @@ export function getAvailableVisibleTaskStatuses(currentStatus: WorkflowTaskStatu
 
 export function getTaskStatusClassName(status: WorkflowTaskStatus): string {
   return `task-pill--${status}`;
+}
+
+const TASK_SLA_LABELS: Record<WorkflowTaskSlaStatus, string> = {
+  none: "Keine Frist",
+  on_track: "Im Zeitplan",
+  due_today: "Heute fällig",
+  overdue: "Überfällig",
+};
+
+export function getTaskSlaLabel(status: WorkflowTaskSlaStatus): string {
+  return TASK_SLA_LABELS[status];
+}
+
+export function getTaskSlaClassName(status: WorkflowTaskSlaStatus): string {
+  return `task-sla-pill--${status}`;
 }

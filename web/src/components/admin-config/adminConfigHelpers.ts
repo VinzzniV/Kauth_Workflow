@@ -55,7 +55,14 @@ export function notificationModeLabel(configuration: AdminNotificationEmailConfi
     return "Noch nicht geladen";
   }
 
-  return configuration.enabled ? "Aktiviert" : "Deaktiviert";
+  switch (configuration.mode) {
+    case "sandbox":
+      return "Sandbox";
+    case "enabled":
+      return "Aktiviert";
+    default:
+      return "Deaktiviert";
+  }
 }
 
 export function notificationConfigurationStatusLabel(configuration: AdminNotificationEmailConfiguration | null): string {

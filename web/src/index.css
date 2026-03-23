@@ -862,6 +862,13 @@ h1, h2, h3, h4, p {
   gap: 0.65rem;
 }
 
+.task-card-pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
 .task-card-top h3 {
   margin: 0 0 0.15rem;
   font-size: 0.92rem;
@@ -911,6 +918,17 @@ h1, h2, h3, h4, p {
   margin-top: 0.15rem;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.45rem;
+}
+
+.checkbox-row input {
+  margin: 0;
+}
+
 /* ─── Task Status Pills ─── */
 .task-pill {
   display: inline-flex;
@@ -919,6 +937,30 @@ h1, h2, h3, h4, p {
   padding: 0.2rem 0.55rem;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.task-sla-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.task-sla-pill--on_track {
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
+.task-sla-pill--due_today {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.task-sla-pill--overdue {
+  color: #991b1b;
+  background: #fee2e2;
 }
 
 .task-pill--open {

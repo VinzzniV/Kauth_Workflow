@@ -4,8 +4,10 @@ import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import RequirementIcon from "../components/workflows/RequirementIcon";
+import TaskCommentsSection from "../components/workflows/TaskCommentsSection";
+import TaskSlaPill from "../components/workflows/TaskSlaPill";
 import TaskStatusPill from "../components/workflows/TaskStatusPill";
-import { getMyTasks, updateTaskStatus as updateTaskStatusApi } from "../services/onboardingApi";
+import { addTaskComment as addTaskCommentApi, getMyTasks, updateTaskStatus as updateTaskStatusApi } from "../services/onboardingApi";
 import type { TaskWithWorkflow, WorkflowTaskStatus } from "../types/workflow";
 import {
   getResponsibleResponsibilityFilterOption,
@@ -39,6 +41,10 @@ export default function MyTasksPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | VisibleTaskStatus>("all");
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
   const [savingTaskIds, setSavingTaskIds] = useState<Record<number, boolean>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [savingCommentTaskIds, setSavingCommentTaskIds] = useState<Record<number, boolean>>({});
+  const [commentFeedbackTaskId, setCommentFeedbackTaskId] = useState<number | null>(null);
+  const [commentFeedbackMessage, setCommentFeedbackMessage] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
     return await getMyTasks();
@@ -178,6 +184,39 @@ export default function MyTasksPage() {
     [fetchTasks]
   );
 
+  const handleCommentDraftChange = useCallback((taskId: number, value: string) => {
+    setCommentDrafts((current) => ({ ...current, [taskId]: value }));
+  }, []);
+
+  const handleTaskCommentSubmit = useCallback(
+    async (taskId: number) => {
+      const draft = (commentDrafts[taskId] ?? "").trim();
+      if (!draft) {
+        return;
+      }
+
+      setSavingCommentTaskIds((current) => ({ ...current, [taskId]: true }));
+      setCommentFeedbackTaskId(taskId);
+      setCommentFeedbackMessage(null);
+      setError(null);
+      setNotice(null);
+
+      try {
+        await addTaskCommentApi(taskId, draft);
+        const refreshedTasks = await fetchTasks();
+        setRows(refreshedTasks);
+        setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
+        setCommentFeedbackMessage("Kommentar wurde gespeichert.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Kommentar konnte nicht gespeichert werden.";
+        setCommentFeedbackMessage(message);
+      } finally {
+        setSavingCommentTaskIds((current) => ({ ...current, [taskId]: false }));
+      }
+    },
+    [commentDrafts, fetchTasks]
+  );
+
   return (
     <main className="onboarding-shell">
       <div className="page-container">
@@ -313,7 +352,10 @@ export default function MyTasksPage() {
                               <h3>{row.task.title}</h3>
                               <p className="panel-text">{row.task.description}</p>
                             </div>
-                            <TaskStatusPill status={effectiveStatus} />
+                            <div className="task-card-pill-group">
+                              <TaskSlaPill status={row.task.slaStatus} />
+                              <TaskStatusPill status={effectiveStatus} />
+                            </div>
                           </div>
 
                           <div className="task-card-layout">
@@ -344,6 +386,10 @@ export default function MyTasksPage() {
                                 <div>
                                   <dt>Erstellt</dt>
                                   <dd>{formatDateTime(row.task.createdAt)}</dd>
+                                </div>
+                                <div>
+                                  <dt>Fällig</dt>
+                                  <dd>{row.task.dueAt ? formatDateTime(row.task.dueAt) : "Keine Frist"}</dd>
                                 </div>
                               </dl>
 
@@ -383,6 +429,15 @@ export default function MyTasksPage() {
                                   Diese Aufgabe bleibt offen, bis ihre Abhängigkeiten erfüllt sind.
                                 </p>
                               ) : null}
+
+                              <TaskCommentsSection
+                                task={row.task}
+                                draftValue={commentDrafts[row.task.id] ?? ""}
+                                isSaving={savingCommentTaskIds[row.task.id] === true}
+                                feedbackMessage={commentFeedbackTaskId === row.task.id ? commentFeedbackMessage : null}
+                                onDraftChange={handleCommentDraftChange}
+                                onSubmit={handleTaskCommentSubmit}
+                              />
                             </div>
 
                             <div className="task-icon-side">

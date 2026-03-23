@@ -80,9 +80,9 @@ internal static class RequirementBehaviorEngine
 
             switch (definition.InputType)
             {
-                case "boolean" when answer?.ValueBoolean is null:
+                case "boolean" when definition.IsRequired && answer?.ValueBoolean is null:
                     throw new InvalidOperationException($"Bitte für \"{definition.Title}\" Ja oder Nein auswählen.");
-                case "select" when !HasSelectedOption(answer):
+                case "select" when definition.IsRequired && !HasSelectedOption(answer):
                     if (definition.Behavior.Validation is { Kind: "single_select_required" } selectValidation)
                     {
                         throw new InvalidOperationException(selectValidation.Message);

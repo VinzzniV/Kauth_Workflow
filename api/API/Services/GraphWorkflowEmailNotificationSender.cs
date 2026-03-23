@@ -46,18 +46,47 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         }
 
         var client = CreateGraphClient(configuration);
+        var disabledByType = targets
+            .Where(target => !IsNotificationTypeEnabled(configuration, target.NotificationType))
+            .ToList();
+        var disabledNotificationIds = disabledByType
+            .Select(target => target.NotificationId)
+            .ToHashSet();
+        var enabledTargets = targets
+            .Where(target => !disabledNotificationIds.Contains(target.NotificationId))
+            .ToList();
         var results = new List<NotificationDispatchResult>(targets.Count);
 
-        foreach (var batch in GroupTargetsForDispatch(targets))
+        results.AddRange(CreateDispatchResults(disabledByType, "disabled", success: false, attempted: false, errorMessage: null));
+
+        foreach (var batch in GroupTargetsForDispatch(enabledTargets))
         {
             try
             {
-                var workflowUrl = BuildWorkflowAccessUrl(configuration.FrontendBaseUrl, workflowUid, batch);
+                var isSandbox = !string.IsNullOrWhiteSpace(configuration.SandboxRedirectEmail);
+                var workflowUrl = BuildWorkflowAccessUrl(
+                    configuration.FrontendBaseUrl,
+                    workflowUid,
+                    batch,
+                    allowDemoAccessLink: !isSandbox);
+                var effectiveRecipientEmail = isSandbox
+                    ? configuration.SandboxRedirectEmail!
+                    : batch.PrimaryTarget.TargetEmail;
+                var effectiveRecipientName = isSandbox
+                    ? $"[SANDBOX] {batch.PrimaryTarget.TargetName}"
+                    : batch.PrimaryTarget.TargetName;
+                var subjectPrefix = isSandbox ? $"[TEST -> {batch.PrimaryTarget.TargetEmail}] " : string.Empty;
                 await client
                     .Users[configuration.SenderEmail!]
                     .SendMail
                     .PostAsync(
-                        BuildNotificationMail(batch, workflowUrl, configuration.SaveToSentItems),
+                        BuildNotificationMail(
+                            batch,
+                            workflowUrl,
+                            configuration.SaveToSentItems,
+                            effectiveRecipientEmail,
+                            effectiveRecipientName,
+                            subjectPrefix),
                         cancellationToken: cancellationToken);
 
                 results.AddRange(batch.Targets.Select(target => new NotificationDispatchResult
@@ -206,87 +235,27 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
     private SendMailPostRequestBody BuildNotificationMail(
         NotificationDispatchBatch batch,
         string workflowUrl,
-        bool saveToSentItems)
+        bool saveToSentItems,
+        string recipientEmail,
+        string recipientName,
+        string subjectPrefix)
     {
-        var target = batch.PrimaryTarget;
-        var encodedUrl = System.Net.WebUtility.HtmlEncode(workflowUrl);
-        var encodedName = System.Net.WebUtility.HtmlEncode(target.TargetName);
-
-        string subject;
-        string message;
-
-        if (string.Equals(batch.NotificationType, "task_ready", StringComparison.OrdinalIgnoreCase))
+        var template = batch.NotificationType switch
         {
-            var taskTitles = batch.TaskTitles.Count > 0
-                ? batch.TaskTitles
-                : ["Aufgaben im Onboarding"];
-
-            var encodedTaskList = string.Join(
-                string.Empty,
-                taskTitles.Select(taskTitle =>
-                    $"<li>{System.Net.WebUtility.HtmlEncode(taskTitle)}</li>"));
-
-            subject = taskTitles.Count == 1
-                ? $"Neue Aufgabe für {target.TargetName}"
-                : $"Neue Aufgaben für {target.TargetName}";
-
-            message = $@"
-<p>Hallo {encodedName},</p>
-<p>für Sie wurden im Onboarding-Prozess Aufgaben vorbereitet.</p>
-<p><strong>Aufgaben:</strong></p>
-<ul>{encodedTaskList}</ul>
-<p>Bitte öffnen Sie Ihren Arbeitsbereich über den folgenden Link und bearbeiten Sie den Vorgang.</p>
-<p>
-    <a href=""{encodedUrl}""
-       style=""display:inline-block;padding:12px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-family:Arial,sans-serif;"">
-        Aufgabe öffnen
-    </a>
-</p>
-<p>Falls der Button nicht funktioniert, verwenden Sie bitte diesen Link:</p>
-<p><a href=""{encodedUrl}"">{encodedUrl}</a></p>";
-        }
-        else if (string.Equals(batch.NotificationType, "workflow_completed", StringComparison.OrdinalIgnoreCase))
-        {
-            subject = "Onboarding abgeschlossen";
-            message = $@"
-<p>Hallo {encodedName},</p>
-<p>der von Ihnen gestartete Onboarding-Workflow wurde abgeschlossen.</p>
-<p>Sie können den Vorgang bei Bedarf über den folgenden Link öffnen.</p>
-<p>
-    <a href=""{encodedUrl}""
-       style=""display:inline-block;padding:12px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-family:Arial,sans-serif;"">
-        Workflow öffnen
-    </a>
-</p>
-<p>Falls der Button nicht funktioniert, verwenden Sie bitte diesen Link:</p>
-<p><a href=""{encodedUrl}"">{encodedUrl}</a></p>";
-        }
-        else
-        {
-            subject = $"Neue Aufgaben für {target.TargetName}";
-            message = $@"
-<p>Hallo {encodedName},</p>
-<p>für Sie wurde im Onboarding-Prozess ein neuer Arbeitsschritt vorbereitet.</p>
-<p>Bitte öffnen Sie Ihren Arbeitsbereich über den folgenden Link und bearbeiten Sie den Vorgang.</p>
-<p>
-    <a href=""{encodedUrl}""
-       style=""display:inline-block;padding:12px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-family:Arial,sans-serif;"">
-        Aufgaben öffnen
-    </a>
-</p>
-<p>Falls der Button nicht funktioniert, verwenden Sie bitte diesen Link:</p>
-<p><a href=""{encodedUrl}"">{encodedUrl}</a></p>";
-        }
+            "task_ready" => NotificationEmailTemplateBuilder.BuildTaskReady(recipientName, workflowUrl, batch.TaskTitles),
+            "workflow_completed" => NotificationEmailTemplateBuilder.BuildWorkflowCompleted(recipientName, workflowUrl),
+            _ => NotificationEmailTemplateBuilder.BuildWorkflowCreated(recipientName, workflowUrl)
+        };
 
         return new SendMailPostRequestBody
         {
             Message = new Message
             {
-                Subject = subject,
+                Subject = $"{subjectPrefix}{template.Subject}",
                 Body = new ItemBody
                 {
                     ContentType = BodyType.Html,
-                    Content = message
+                    Content = template.HtmlBody
                 },
                 ToRecipients =
                 [
@@ -294,7 +263,7 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     {
                         EmailAddress = new EmailAddress
                         {
-                            Address = target.TargetEmail
+                            Address = recipientEmail
                         }
                     }
                 ]
@@ -342,7 +311,8 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
     private string BuildWorkflowAccessUrl(
         string frontendBaseUrl,
         Guid workflowUid,
-        NotificationDispatchBatch batch)
+        NotificationDispatchBatch batch,
+        bool allowDemoAccessLink)
     {
         var normalizedBaseUrl = frontendBaseUrl.TrimEnd('/');
         var target = batch.PrimaryTarget;
@@ -356,7 +326,9 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
             _ => $"/workflows/{workflowUid}"
         };
 
-        if (target.RecipientUserId.HasValue && !string.IsNullOrWhiteSpace(target.RecipientIdentityKey))
+        if (allowDemoAccessLink
+            && target.RecipientUserId.HasValue
+            && !string.IsNullOrWhiteSpace(target.RecipientIdentityKey))
         {
             var session = demoSessionStore.CreateSession(
                 target.RecipientUserId.Value,
@@ -405,6 +377,19 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                 };
             })
             .ToList();
+    }
+
+    private static bool IsNotificationTypeEnabled(
+        NotificationEmailRuntimeConfiguration configuration,
+        string notificationType)
+    {
+        return notificationType.Trim().ToLowerInvariant() switch
+        {
+            "workflow_created" => configuration.NotifyOnWorkflowCreated,
+            "task_ready" => configuration.NotifyOnTaskReady,
+            "workflow_completed" => configuration.NotifyOnWorkflowCompleted,
+            _ => true
+        };
     }
 
     private sealed class NotificationDispatchBatch

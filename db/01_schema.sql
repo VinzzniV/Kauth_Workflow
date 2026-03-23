@@ -1,6 +1,8 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DROP TABLE IF EXISTS workflow_notifications CASCADE;
+DROP TABLE IF EXISTS workflow_task_comments CASCADE;
+DROP TABLE IF EXISTS workflow_audit_log CASCADE;
 DROP TABLE IF EXISTS notification_email_settings CASCADE;
 DROP TABLE IF EXISTS task_assignments CASCADE;
 DROP TABLE IF EXISTS workflow_task_dependencies CASCADE;
@@ -68,6 +70,10 @@ CREATE TABLE notification_email_settings (
     sender_email VARCHAR(320),
     frontend_base_url VARCHAR(500) NOT NULL DEFAULT 'http://localhost:5173',
     test_recipient_email VARCHAR(320),
+    sandbox_redirect_email VARCHAR(320),
+    notify_on_workflow_created BOOLEAN NOT NULL DEFAULT TRUE,
+    notify_on_task_ready BOOLEAN NOT NULL DEFAULT TRUE,
+    notify_on_workflow_completed BOOLEAN NOT NULL DEFAULT TRUE,
     last_test_status VARCHAR(16) NOT NULL DEFAULT 'never'
         CHECK (last_test_status IN ('never', 'succeeded', 'failed', 'disabled')),
     last_test_at TIMESTAMPTZ,
@@ -321,6 +327,7 @@ CREATE TABLE workflows (
     last_name VARCHAR(120) NOT NULL,
     employee_number INTEGER NOT NULL,
     badge_number INTEGER NOT NULL,
+    deadline_date DATE,
     status VARCHAR(40) NOT NULL DEFAULT 'draft'
         CHECK (status IN ('draft', 'in_progress', 'waiting_for_supervisor', 'waiting_for_department', 'completed')),
     started_at TIMESTAMPTZ,
@@ -367,6 +374,7 @@ CREATE TABLE task_templates (
     process_area_label VARCHAR(80),
     is_department_phase_task BOOLEAN NOT NULL DEFAULT TRUE,
     is_required BOOLEAN NOT NULL DEFAULT TRUE,
+    due_in_days INTEGER,
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -421,6 +429,8 @@ CREATE TABLE workflow_tasks (
     status VARCHAR(32) NOT NULL DEFAULT 'open'
         CHECK (status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped')),
     is_required BOOLEAN NOT NULL DEFAULT TRUE,
+    due_in_days INTEGER,
+    due_at TIMESTAMPTZ,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     ready_at TIMESTAMPTZ,
@@ -459,6 +469,26 @@ CREATE TABLE task_assignments (
             OR
             (assignment_type = 'responsibility' AND assignee_responsibility_id IS NOT NULL AND assignee_user_id IS NULL)
         )
+);
+
+CREATE TABLE workflow_task_comments (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_task_id BIGINT NOT NULL REFERENCES workflow_tasks(id) ON DELETE CASCADE,
+    author_user_id BIGINT REFERENCES app_users(id) ON DELETE SET NULL,
+    comment_text TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE workflow_audit_log (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    task_id BIGINT REFERENCES workflow_tasks(id) ON DELETE SET NULL,
+    actor_user_id BIGINT REFERENCES app_users(id) ON DELETE SET NULL,
+    event_type VARCHAR(80) NOT NULL,
+    old_value VARCHAR(80),
+    new_value VARCHAR(80),
+    detail TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE workflow_notifications (
@@ -501,7 +531,9 @@ CREATE INDEX idx_workflow_answer_reset_rules_definition
 CREATE INDEX idx_task_template_conditions_template_id ON task_template_conditions(task_template_id);
 CREATE INDEX idx_workflow_tasks_workflow_id ON workflow_tasks(workflow_id);
 CREATE INDEX idx_task_assignments_task_id ON task_assignments(workflow_task_id);
+CREATE INDEX idx_workflow_task_comments_task_id ON workflow_task_comments(workflow_task_id, created_at DESC);
 CREATE UNIQUE INDEX uq_task_assignments_primary_per_task
     ON task_assignments(workflow_task_id)
     WHERE is_primary = TRUE;
+CREATE INDEX idx_workflow_audit_log_workflow_id ON workflow_audit_log(workflow_id, created_at DESC);
 CREATE INDEX idx_workflow_notifications_workflow_id ON workflow_notifications(workflow_id);

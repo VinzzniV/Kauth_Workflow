@@ -9,6 +9,10 @@ internal sealed class StoredNotificationEmailSettings
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
+    public string? SandboxRedirectEmail { get; init; }
+    public required bool NotifyOnWorkflowCreated { get; init; }
+    public required bool NotifyOnTaskReady { get; init; }
+    public required bool NotifyOnWorkflowCompleted { get; init; }
     public required string LastTestStatus { get; init; }
     public DateTime? LastTestAt { get; init; }
     public string? LastError { get; init; }
@@ -24,6 +28,10 @@ internal sealed class NotificationEmailSettingsUpsertModel
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
+    public string? SandboxRedirectEmail { get; init; }
+    public required bool NotifyOnWorkflowCreated { get; init; }
+    public required bool NotifyOnTaskReady { get; init; }
+    public required bool NotifyOnWorkflowCompleted { get; init; }
 }
 
 internal sealed class NotificationEmailRuntimeConfiguration
@@ -36,6 +44,10 @@ internal sealed class NotificationEmailRuntimeConfiguration
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
+    public string? SandboxRedirectEmail { get; init; }
+    public required bool NotifyOnWorkflowCreated { get; init; }
+    public required bool NotifyOnTaskReady { get; init; }
+    public required bool NotifyOnWorkflowCompleted { get; init; }
     public required bool SaveToSentItems { get; init; }
     public required bool HasClientSecret { get; init; }
     public required string LastTestStatus { get; init; }

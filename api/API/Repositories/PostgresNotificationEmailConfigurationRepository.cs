@@ -19,6 +19,10 @@ SELECT
     sender_email,
     frontend_base_url,
     test_recipient_email,
+    sandbox_redirect_email,
+    notify_on_workflow_created,
+    notify_on_task_ready,
+    notify_on_workflow_completed,
     last_test_status,
     last_test_at,
     last_error,
@@ -54,6 +58,10 @@ INSERT INTO notification_email_settings (
     sender_email,
     frontend_base_url,
     test_recipient_email,
+    sandbox_redirect_email,
+    notify_on_workflow_created,
+    notify_on_task_ready,
+    notify_on_workflow_completed,
     last_test_status,
     last_test_at,
     last_error,
@@ -68,6 +76,10 @@ VALUES (
     @senderEmail,
     @frontendBaseUrl,
     @testRecipientEmail,
+    @sandboxRedirectEmail,
+    @notifyOnWorkflowCreated,
+    @notifyOnTaskReady,
+    @notifyOnWorkflowCompleted,
     'never',
     NULL,
     NULL,
@@ -82,6 +94,10 @@ SET
     sender_email = EXCLUDED.sender_email,
     frontend_base_url = EXCLUDED.frontend_base_url,
     test_recipient_email = EXCLUDED.test_recipient_email,
+    sandbox_redirect_email = EXCLUDED.sandbox_redirect_email,
+    notify_on_workflow_created = EXCLUDED.notify_on_workflow_created,
+    notify_on_task_ready = EXCLUDED.notify_on_task_ready,
+    notify_on_workflow_completed = EXCLUDED.notify_on_workflow_completed,
     last_test_status = 'never',
     last_test_at = NULL,
     last_error = NULL,
@@ -94,6 +110,10 @@ RETURNING
     sender_email,
     frontend_base_url,
     test_recipient_email,
+    sandbox_redirect_email,
+    notify_on_workflow_created,
+    notify_on_task_ready,
+    notify_on_workflow_completed,
     last_test_status,
     last_test_at,
     last_error,
@@ -107,6 +127,10 @@ RETURNING
         AddNullableText(command, "senderEmail", settings.SenderEmail);
         command.Parameters.AddWithValue("frontendBaseUrl", settings.FrontendBaseUrl);
         AddNullableText(command, "testRecipientEmail", settings.TestRecipientEmail);
+        AddNullableText(command, "sandboxRedirectEmail", settings.SandboxRedirectEmail);
+        command.Parameters.AddWithValue("notifyOnWorkflowCreated", settings.NotifyOnWorkflowCreated);
+        command.Parameters.AddWithValue("notifyOnTaskReady", settings.NotifyOnTaskReady);
+        command.Parameters.AddWithValue("notifyOnWorkflowCompleted", settings.NotifyOnWorkflowCompleted);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
@@ -154,6 +178,10 @@ RETURNING
     sender_email,
     frontend_base_url,
     test_recipient_email,
+    sandbox_redirect_email,
+    notify_on_workflow_created,
+    notify_on_task_ready,
+    notify_on_workflow_completed,
     last_test_status,
     last_test_at,
     last_error,
@@ -179,10 +207,14 @@ RETURNING
             SenderEmail = reader.IsDBNull(4) ? null : reader.GetString(4),
             FrontendBaseUrl = reader.GetString(5),
             TestRecipientEmail = reader.IsDBNull(6) ? null : reader.GetString(6),
-            LastTestStatus = reader.GetString(7),
-            LastTestAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-            LastError = reader.IsDBNull(9) ? null : reader.GetString(9),
-            UpdatedAt = reader.GetDateTime(10)
+            SandboxRedirectEmail = reader.IsDBNull(7) ? null : reader.GetString(7),
+            NotifyOnWorkflowCreated = reader.GetBoolean(8),
+            NotifyOnTaskReady = reader.GetBoolean(9),
+            NotifyOnWorkflowCompleted = reader.GetBoolean(10),
+            LastTestStatus = reader.GetString(11),
+            LastTestAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
+            LastError = reader.IsDBNull(13) ? null : reader.GetString(13),
+            UpdatedAt = reader.GetDateTime(14)
         };
     }
 

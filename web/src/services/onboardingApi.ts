@@ -4,6 +4,7 @@ import type {
   WorkflowConfig,
   WorkflowCreationPayload,
   WorkflowCreationResponse,
+  WorkflowAuditEntry,
   WorkflowDetail,
   WorkflowRequirementSnapshot,
   WorkflowSummary,
@@ -28,6 +29,7 @@ import type {
 import { getDemoAuthToken, requestJson, setDemoAuthToken } from "./onboardingApi/client";
 import {
   mapTaskWithWorkflow,
+  mapWorkflowAuditEntry,
   mapWorkflowConfig,
   mapWorkflowDetail,
   mapWorkflowRequirement,
@@ -45,6 +47,7 @@ import {
   type BackendMeDto,
   type BackendRoleDto,
   type BackendTaskWithWorkflowDto,
+  type BackendWorkflowAuditEntryDto,
   type BackendWorkflowConfigDto,
   type BackendWorkflowDetailDto,
   type BackendWorkflowRequirementSnapshotDto,
@@ -91,6 +94,10 @@ export async function updateAdminNotificationEmailConfiguration(payload: {
   senderEmail: string | null;
   frontendBaseUrl: string;
   testRecipientEmail: string | null;
+  sandboxRedirectEmail: string | null;
+  notifyOnWorkflowCreated: boolean;
+  notifyOnTaskReady: boolean;
+  notifyOnWorkflowCompleted: boolean;
 }): Promise<AdminNotificationEmailConfiguration> {
   return requestJson<BackendAdminNotificationEmailConfigurationDto>("/admin/config/notification-email", {
     method: "PATCH",
@@ -231,6 +238,11 @@ export async function getWorkflowByUid(uid: string): Promise<WorkflowDetail> {
   return mapWorkflowDetail(data);
 }
 
+export async function getWorkflowAuditLog(uid: string): Promise<WorkflowAuditEntry[]> {
+  const data = await requestJson<BackendWorkflowAuditEntryDto[]>(`/workflows/${encodeURIComponent(uid)}/audit-log`);
+  return data.map(mapWorkflowAuditEntry);
+}
+
 export async function getWorkflows(): Promise<WorkflowSummary[]> {
   const data = await requestJson<BackendWorkflowSummaryDto[]>("/workflows");
   return data.map(mapWorkflowSummary);
@@ -250,6 +262,14 @@ export async function updateTaskStatus(taskId: number, status: WorkflowTaskStatu
   const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeURIComponent(String(taskId))}/status`, {
     method: "PATCH",
     body: { status },
+  });
+  return mapTaskWithWorkflow(data);
+}
+
+export async function addTaskComment(taskId: number, commentText: string): Promise<TaskWithWorkflow> {
+  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeURIComponent(String(taskId))}/comments`, {
+    method: "POST",
+    body: { commentText },
   });
   return mapTaskWithWorkflow(data);
 }

@@ -244,6 +244,10 @@ public sealed class AdminNotificationEmailConfigurationDto
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
+    public string? SandboxRedirectEmail { get; init; }
+    public required bool NotifyOnWorkflowCreated { get; init; }
+    public required bool NotifyOnTaskReady { get; init; }
+    public required bool NotifyOnWorkflowCompleted { get; init; }
     public required string LastTestStatus { get; init; }
     public DateTime? LastTestAt { get; init; }
     public string? LastError { get; init; }
@@ -262,6 +266,10 @@ public sealed class AdminNotificationEmailConfigurationUpdateRequest
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
+    public string? SandboxRedirectEmail { get; init; }
+    public bool NotifyOnWorkflowCreated { get; init; } = true;
+    public bool NotifyOnTaskReady { get; init; } = true;
+    public bool NotifyOnWorkflowCompleted { get; init; } = true;
 }
 
 public sealed class AdminNotificationEmailTestRequest

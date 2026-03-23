@@ -67,14 +67,15 @@ FOR UPDATE;";
         }
     }
 
-    private static async Task<bool> CompleteWorkflowTaskByKey(
+    private async Task<bool> CompleteWorkflowTaskByKey(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
-        string taskKey)
+        string taskKey,
+        long? actorUserId = null)
     {
         const string sql = @"
-SELECT id, status
+SELECT id, status, title
 FROM workflow_tasks
 WHERE workflow_id = @workflowId
   AND task_key = @taskKey
@@ -93,6 +94,7 @@ FOR UPDATE;";
 
         var taskId = reader.GetInt64(0);
         var currentStatus = reader.GetString(1);
+        var taskTitle = reader.GetString(2);
 
         if (currentStatus.Equals("done", StringComparison.OrdinalIgnoreCase))
         {
@@ -108,6 +110,16 @@ FOR UPDATE;";
 
         await PersistTaskStatus(connection, transaction, taskId, "done");
         await SyncPrimaryAssignmentCompletion(connection, transaction, taskId, "done");
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflowId,
+            taskId,
+            actorUserId,
+            "task_status_changed",
+            currentStatus,
+            "done",
+            BuildTaskStatusAuditDetail(taskTitle));
         return true;
     }
 
@@ -119,6 +131,7 @@ FOR UPDATE;";
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
         TaskGenerationStage stage)
     {
+        var workflowDueAt = await LoadWorkflowDueAt(connection, transaction, workflowId);
         var templates = await LoadTaskTemplates(connection, transaction);
         var conditions = await LoadTaskTemplateConditions(connection, transaction);
         var dependencies = await LoadTaskTemplateDependencies(connection, transaction);
@@ -166,6 +179,8 @@ INSERT INTO workflow_tasks (
     is_department_phase_task,
     status,
     is_required,
+    due_in_days,
+    due_at,
     sort_order,
     ready_at
 )
@@ -181,6 +196,12 @@ VALUES (
     @isDepartmentPhaseTask,
     @status,
     @isRequired,
+    @dueInDays,
+    CASE
+        WHEN @workflowDueAt IS NOT NULL THEN @workflowDueAt
+        WHEN @status = 'ready' AND @dueInDays IS NOT NULL THEN NOW() + (@dueInDays * INTERVAL '1 day')
+        ELSE NULL
+    END,
     @sortOrder,
     CASE WHEN @status = 'ready' THEN NOW() ELSE NULL END
 )
@@ -240,6 +261,10 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
                 insertTaskCommand.Parameters.AddWithValue("isDepartmentPhaseTask", template.IsDepartmentPhaseTask);
                 insertTaskCommand.Parameters.AddWithValue("status", status);
                 insertTaskCommand.Parameters.AddWithValue("isRequired", template.IsRequired);
+                insertTaskCommand.Parameters.Add("dueInDays", NpgsqlDbType.Integer).Value =
+                    (object?)template.DueInDays ?? DBNull.Value;
+                insertTaskCommand.Parameters.Add("workflowDueAt", NpgsqlDbType.TimestampTz).Value =
+                    (object?)workflowDueAt ?? DBNull.Value;
                 insertTaskCommand.Parameters.AddWithValue("sortOrder", template.SortOrder);
 
                 var scalar = await insertTaskCommand.ExecuteScalarAsync();
@@ -318,6 +343,30 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
         }
     }
 
+    private static async Task<DateTime?> LoadWorkflowDueAt(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = @"
+SELECT deadline_date
+FROM workflows
+WHERE id = @workflowId
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+
+        var scalar = await command.ExecuteScalarAsync();
+        if (scalar is null || scalar is DBNull)
+        {
+            return null;
+        }
+
+        var deadlineDate = (DateOnly)scalar;
+        return DateTime.SpecifyKind(deadlineDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+    }
+
     private static HashSet<int> GetPostSupervisorTemplateIds(
         IReadOnlyList<TaskTemplateRecord> templates,
         IReadOnlyList<TaskTemplateDependencyRecord> dependencies)
@@ -375,6 +424,7 @@ SELECT
     process_area_label,
     is_department_phase_task,
     is_required,
+    due_in_days,
     sort_order
 FROM task_templates
 WHERE is_active = TRUE
@@ -398,7 +448,8 @@ ORDER BY sort_order, id;";
                 ProcessAreaLabel = reader.IsDBNull(7) ? null : reader.GetString(7),
                 IsDepartmentPhaseTask = reader.GetBoolean(8),
                 IsRequired = reader.GetBoolean(9),
-                SortOrder = reader.GetInt32(10)
+                DueInDays = reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                SortOrder = reader.GetInt32(11)
             });
         }
 

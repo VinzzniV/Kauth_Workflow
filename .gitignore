@@ -13,6 +13,8 @@
 # .NET build and IDE artifacts
 /api/.vs/
 /api/API/.vs/
+/api/**/bin/
+/api/**/obj/
 /api/API/bin/
 /api/API/obj/
 /api/API.Tests/bin/

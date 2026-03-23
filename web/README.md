@@ -58,8 +58,15 @@ API-Basis-URL:
 Beispiel:
 
 ```env
-VITE_API_BASE=http://localhost:8080
+VITE_API_BASE=http://localhost:5001
 ```
+
+Es gibt dafuer eine Vorlage in [`web/.env.example`](/C:/OnBoarding/OnBoarding/web/.env.example).
+
+Auth-Hinweis:
+- Das Frontend verwendet aktuell bewusst Demo-Login gegen die API.
+- Diese Demo-Auth ist fuer Demo/Dev gedacht und kein Produktionsmodell.
+- Die Trennung der Umgebungen ist in [`ENVIRONMENTS.md`](/C:/OnBoarding/OnBoarding/ENVIRONMENTS.md) beschrieben.
 
 Wichtige Befehle:
 

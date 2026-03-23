@@ -16,6 +16,7 @@ const EMPTY_EMPLOYEE: EmployeeFormData = {
   lastName: "",
   employeeNumber: 0,
   badgeNumber: 0,
+  deadlineDate: "",
 };
 
 type UseWorkflowCreationResult = {
@@ -174,6 +175,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
       lastName: formState.employee.lastName.trim(),
       employeeNumber: formState.employee.employeeNumber,
       badgeNumber: formState.employee.badgeNumber,
+      deadlineDate: formState.employee.deadlineDate.trim() || null,
       departmentId: selectedDepartmentId,
       roleId: selectedRoleId,
     };

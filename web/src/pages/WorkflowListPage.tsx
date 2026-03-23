@@ -7,7 +7,7 @@ import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import { getWorkflows } from "../services/onboardingApi";
 import type { WorkflowStatus, WorkflowSummary } from "../types/workflow";
-import { formatDateTime } from "../utils/dateFormat";
+import { formatDate, formatDateTime } from "../utils/dateFormat";
 import {
   getWorkflowLegacyStatusLabel,
   getWorkflowLegacyStatusPillClass,
@@ -73,7 +73,7 @@ export default function WorkflowListPage() {
     const normalizedSearch = search.trim().toLowerCase();
 
     return rows.filter((row) => {
-      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.workflowStatus, statusFilter);
+      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.status, statusFilter, row.workflowStatus);
       const matchesDepartment = departmentFilter === "all" || String(row.departmentId) === departmentFilter;
 
       const matchesResponsibility = (() => {
@@ -221,8 +221,8 @@ export default function WorkflowListPage() {
                 <article key={workflow.uid} className="workflow-card workflow-card-extended">
                   <div className="workflow-card-top">
                     <h3>{workflowDisplayName || "Unbekannter Name"}</h3>
-                    <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.workflowStatus)}`}>
-                      {getWorkflowLegacyStatusLabel(workflow.workflowStatus)}
+                    <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.status, workflow.workflowStatus)}`}>
+                      {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
                     </span>
                   </div>
 
@@ -250,6 +250,10 @@ export default function WorkflowListPage() {
                     <div>
                       <dt>Erstellt</dt>
                       <dd>{formatDateTime(workflow.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Deadline</dt>
+                      <dd>{formatDate(workflow.deadlineDate)}</dd>
                     </div>
                   </dl>
 

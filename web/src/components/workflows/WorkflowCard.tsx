@@ -4,7 +4,7 @@ import {
   getWorkflowLegacyStatusLabel,
   getWorkflowLegacyStatusPillClass,
 } from "../../utils/workflowStatus";
-import { formatDateTime } from "../../utils/dateFormat";
+import { formatDate, formatDateTime } from "../../utils/dateFormat";
 
 type Props = {
   workflow: WorkflowSummary;
@@ -17,8 +17,8 @@ export default function WorkflowCard({ workflow }: Props) {
     <article className="workflow-card">
       <div className="workflow-card-top">
         <h3>{fullName || "Unbekannter Name"}</h3>
-        <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.workflowStatus)}`}>
-          {getWorkflowLegacyStatusLabel(workflow.workflowStatus)}
+        <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.status, workflow.workflowStatus)}`}>
+          {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
         </span>
       </div>
 
@@ -46,6 +46,10 @@ export default function WorkflowCard({ workflow }: Props) {
         <div>
           <dt>Erstellt</dt>
           <dd>{formatDateTime(workflow.createdAt)}</dd>
+        </div>
+        <div>
+          <dt>Deadline</dt>
+          <dd>{formatDate(workflow.deadlineDate)}</dd>
         </div>
       </dl>
 

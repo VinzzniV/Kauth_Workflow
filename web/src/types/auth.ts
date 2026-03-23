@@ -83,12 +83,16 @@ export type AdminResponsibilityOwner = {
 
 export type AdminNotificationEmailConfiguration = {
   enabled: boolean;
-  mode: "enabled" | "disabled";
+  mode: "enabled" | "disabled" | "sandbox";
   tenantId: string | null;
   clientId: string | null;
   senderEmail: string | null;
   frontendBaseUrl: string;
   testRecipientEmail: string | null;
+  sandboxRedirectEmail: string | null;
+  notifyOnWorkflowCreated: boolean;
+  notifyOnTaskReady: boolean;
+  notifyOnWorkflowCompleted: boolean;
   lastTestStatus: "never" | "succeeded" | "failed" | "disabled";
   lastTestAt: string | null;
   lastError: string | null;

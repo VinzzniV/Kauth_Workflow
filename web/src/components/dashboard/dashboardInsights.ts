@@ -108,6 +108,7 @@ async function loadHrInsights(): Promise<DashboardInsights> {
         waiting_for_department: 2,
         in_progress: 3,
         completed: 4,
+        cancelled: 5,
       };
 
       const statusDelta = statusPriority[left.workflowStatus] - statusPriority[right.workflowStatus];
@@ -265,6 +266,7 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
     open: 3,
     done: 4,
     skipped: 5,
+    cancelled: 6,
   };
 
   const queueItems = openTasks

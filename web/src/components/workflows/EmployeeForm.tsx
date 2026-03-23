@@ -6,6 +6,11 @@ type Props = {
 };
 
 export default function EmployeeForm({ value, onChange }: Props) {
+  const currentDate = new Date();
+  const today = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(
+    currentDate.getDate()
+  ).padStart(2, "0")}`;
+
   return (
     <section className="panel">
       <div className="panel-head">
@@ -54,6 +59,17 @@ export default function EmployeeForm({ value, onChange }: Props) {
             onChange={(event) => onChange("badgeNumber", Number(event.target.value || 0))}
             placeholder="60001"
           />
+        </label>
+
+        <label className="field">
+          <span>Deadline</span>
+          <input
+            type="date"
+            min={today}
+            value={value.deadlineDate}
+            onChange={(event) => onChange("deadlineDate", event.target.value)}
+          />
+          <small>Optional. Gilt als Zieltermin für den gesamten Vorgang.</small>
         </label>
       </div>
     </section>

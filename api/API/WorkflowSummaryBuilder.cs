@@ -101,7 +101,8 @@ internal static class WorkflowSummaryBuilder
         {
             totalCount += 1;
 
-            if (!RequirementBehaviorEngine.IsVisible(requirement.Behavior, answersByKey))
+            requirement.IsVisible = RequirementBehaviorEngine.IsVisible(requirement.Behavior, answersByKey);
+            if (!requirement.IsVisible)
             {
                 continue;
             }
