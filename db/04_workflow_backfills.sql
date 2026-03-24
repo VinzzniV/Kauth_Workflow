@@ -276,22 +276,22 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;
 
 -- Legacy-cancelled workflows must be normalized before the global status rollup.
 UPDATE workflow_task_dependencies
-SET required_status = 'skipped'
+SET required_status = 'done'
 WHERE required_status = 'cancelled';
 
 UPDATE task_template_dependencies
-SET required_status = 'skipped'
+SET required_status = 'done'
 WHERE required_status = 'cancelled';
 
 UPDATE workflow_tasks wt
-SET status = 'skipped',
-    cancelled_at = COALESCE(wt.cancelled_at, w.cancelled_at, NOW()),
-    completed_at = NULL
+SET status = 'done',
+    completed_at = COALESCE(wt.completed_at, wt.cancelled_at, w.cancelled_at, NOW()),
+    cancelled_at = NULL
 FROM workflows w
 WHERE wt.workflow_id = w.id
   AND (
       wt.status = 'cancelled'
-      OR (w.status = 'cancelled' AND wt.status NOT IN ('done', 'skipped'))
+      OR (w.status = 'cancelled' AND wt.status <> 'done')
   );
 
 UPDATE workflows
@@ -305,7 +305,7 @@ WITH workflow_rollup AS (
         w.id AS workflow_id,
         w.status AS current_status,
         COUNT(wt.id) AS task_count,
-        COALESCE(BOOL_AND(wt.status IN ('done', 'skipped')), FALSE) AS all_tasks_done,
+        COALESCE(BOOL_AND(wt.status = 'done'), FALSE) AS all_tasks_done,
         COALESCE(BOOL_OR(wt.task_key = 'supervisor_fills_document'), FALSE) AS has_supervisor_task,
         COALESCE(BOOL_OR(wt.task_key = 'supervisor_fills_document' AND wt.status = 'done'), FALSE) AS supervisor_done,
         COALESCE(BOOL_OR(wt.task_key = 'supervisor_fills_document' AND wt.status IN ('ready', 'in_progress')), FALSE) AS supervisor_active,

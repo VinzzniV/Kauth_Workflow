@@ -123,7 +123,7 @@ public sealed class WorkflowSummaryBuilderTests
             CreateTask(1, "supervisor_fills_document", "done", "HR", 10, isDepartmentPhaseTask: false),
             CreateTask(2, "hardware_procure", "open", "IT", 20, isDepartmentPhaseTask: true),
             CreateTask(3, "hardware_setup", "in_progress", "IT", 30, isDepartmentPhaseTask: true),
-            CreateTask(4, "phone_prepare", "skipped", "IT", 40, isDepartmentPhaseTask: true)
+            CreateTask(4, "phone_prepare", "done", "IT", 40, isDepartmentPhaseTask: true)
         };
 
         var summary = WorkflowSummaryBuilder.BuildTaskMetrics(tasks);
@@ -131,16 +131,14 @@ public sealed class WorkflowSummaryBuilderTests
         Assert.Equal(4, summary.Overall.TotalCount);
         Assert.Equal(1, summary.Overall.OpenCount);
         Assert.Equal(1, summary.Overall.InProgressCount);
-        Assert.Equal(1, summary.Overall.DoneCount);
-        Assert.Equal(1, summary.Overall.EndedCount);
+        Assert.Equal(2, summary.Overall.DoneCount);
         Assert.Equal(2, summary.Overall.ActiveCount);
         Assert.Equal(2, summary.Overall.CompletedCount);
 
         Assert.Equal(3, summary.DepartmentPhase.TotalCount);
         Assert.Equal(1, summary.DepartmentPhase.OpenCount);
         Assert.Equal(1, summary.DepartmentPhase.InProgressCount);
-        Assert.Equal(0, summary.DepartmentPhase.DoneCount);
-        Assert.Equal(1, summary.DepartmentPhase.EndedCount);
+        Assert.Equal(1, summary.DepartmentPhase.DoneCount);
         Assert.Equal(2, summary.DepartmentPhase.ActiveCount);
         Assert.Equal(1, summary.DepartmentPhase.CompletedCount);
     }

@@ -8,11 +8,9 @@ public sealed class WorkflowStatusRulesTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData("cancelled")]
     [InlineData("COMPLETED")]
     [InlineData("  completed  ")]
-    [InlineData("  cancelled  ")]
-    public void IsTerminal_ReturnsTrue_ForCompletedAndLegacyCancelled(string status)
+    public void IsTerminal_ReturnsTrue_ForCompleted(string status)
     {
         Assert.True(WorkflowStatusRules.IsTerminal(status));
     }
@@ -22,6 +20,7 @@ public sealed class WorkflowStatusRulesTests
     [InlineData(WorkflowStatusRules.WaitingForSupervisor)]
     [InlineData(WorkflowStatusRules.WaitingForDepartment)]
     [InlineData(WorkflowStatusRules.InProgress)]
+    [InlineData("cancelled")]
     public void IsTerminal_ReturnsFalse_ForActiveStatuses(string status)
     {
         Assert.False(WorkflowStatusRules.IsTerminal(status));

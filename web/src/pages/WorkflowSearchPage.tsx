@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import WorkflowCard from "../components/workflows/WorkflowCard";
 import { getWorkflows } from "../services/onboardingApi";
-import type { WorkflowStatus, WorkflowSummary } from "../types/workflow";
-import { matchesWorkflowLegacyStatusFilter } from "../utils/workflowStatus";
+import type { WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
+
+function buildDepartmentOptions(workflows: WorkflowSummary[]): Array<[number, string]> {
+  const entries = Array.from(
+    new Map(workflows.map((row) => [row.departmentId, row.departmentName])).entries()
+  );
+
+  return entries.sort((left, right) => left[1].localeCompare(right[1], "de"));
+}
 
 export default function WorkflowSearchPage() {
   const [rows, setRows] = useState<WorkflowSummary[]>([]);
@@ -13,62 +20,58 @@ export default function WorkflowSearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>("all");
+  const [departmentOptions, setDepartmentOptions] = useState<Array<[number, string]>>([]);
+  const latestReloadId = useRef(0);
 
   const reload = useCallback(async () => {
+    const reloadId = latestReloadId.current + 1;
+    latestReloadId.current = reloadId;
     setIsLoading(true);
     setError(null);
 
     try {
-      const workflows = await getWorkflows();
+      const workflowsPromise = getWorkflows({
+        status: statusFilter === "all" ? null : statusFilter,
+        departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
+        search,
+      });
+      const workflowsForDepartmentsPromise =
+        departmentFilter === "all"
+          ? workflowsPromise
+          : getWorkflows({
+              status: statusFilter === "all" ? null : statusFilter,
+              search,
+            });
+      const [workflows, workflowsForDepartments] = await Promise.all([
+        workflowsPromise,
+        workflowsForDepartmentsPromise,
+      ]);
+      if (latestReloadId.current !== reloadId) {
+        return;
+      }
       setRows(workflows);
+      setDepartmentOptions(buildDepartmentOptions(workflowsForDepartments));
     } catch (err) {
+      if (latestReloadId.current !== reloadId) {
+        return;
+      }
       const message = err instanceof Error ? err.message : "Onboarding-Suche konnte nicht geladen werden.";
       setError(message);
       setRows([]);
+      setDepartmentOptions([]);
     } finally {
-      setIsLoading(false);
+      if (latestReloadId.current === reloadId) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [departmentFilter, search, statusFilter]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const departmentOptions = useMemo(() => {
-    const entries = Array.from(
-      new Map(rows.map((row) => [row.departmentId, row.departmentName])).entries()
-    );
-
-    return entries.sort((left, right) => left[1].localeCompare(right[1], "de"));
-  }, [rows]);
-
-  const filteredRows = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesDepartment =
-        departmentFilter === "all" || String(row.departmentId) === departmentFilter;
-      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.status, statusFilter, row.workflowStatus);
-
-      if (!matchesDepartment || !matchesStatus) {
-        return false;
-      }
-
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const fullName = `${row.firstName} ${row.lastName}`.trim().toLowerCase();
-      return (
-        fullName.includes(normalizedSearch) ||
-        row.departmentName.toLowerCase().includes(normalizedSearch) ||
-        row.roleName.toLowerCase().includes(normalizedSearch) ||
-        String(row.employeeNumber).includes(normalizedSearch) ||
-        row.uid.toLowerCase().includes(normalizedSearch)
-      );
-    });
-  }, [rows, search, departmentFilter, statusFilter]);
+  const hasActiveFilters = search.trim().length > 0 || departmentFilter !== "all" || statusFilter !== "all";
 
   return (
     <main className="onboarding-shell">
@@ -111,10 +114,13 @@ export default function WorkflowSearchPage() {
               <span>Status</span>
               <select
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as "all" | WorkflowStatus)}
+                onChange={(event) => setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus)}
               >
                 <option value="all">Alle</option>
-                <option value="open">Offen</option>
+                <option value="draft">HR startet</option>
+                <option value="waiting_for_supervisor">Wartet auf Abteilungsleitung</option>
+                <option value="waiting_for_department">Fachbereiche offen</option>
+                <option value="in_progress">Fachbereiche in Bearbeitung</option>
                 <option value="completed">Abgeschlossen</option>
               </select>
             </label>
@@ -131,23 +137,23 @@ export default function WorkflowSearchPage() {
           <EmptyState title="Onboarding-Suche konnte nicht geladen werden." description={error} onAction={reload} actionLabel="Erneut laden" />
         ) : null}
 
-        {!isLoading && !error && rows.length === 0 ? (
+        {!isLoading && !error && rows.length === 0 && !hasActiveFilters ? (
           <EmptyState
             title="Keine Onboardings vorhanden"
             description="Aktuell sind keine Onboarding-Fälle vorhanden."
           />
         ) : null}
 
-        {!isLoading && !error && rows.length > 0 && filteredRows.length === 0 ? (
+        {!isLoading && !error && rows.length === 0 && hasActiveFilters ? (
           <EmptyState
             title="Keine Treffer"
             description="Die aktuelle Suche liefert keine passenden Onboarding-Fälle."
           />
         ) : null}
 
-        {!isLoading && !error && filteredRows.length > 0 ? (
+        {!isLoading && !error && rows.length > 0 ? (
           <section className="workflow-grid" aria-label="Suchergebnisse Onboardings">
-            {filteredRows.map((workflow) => (
+            {rows.map((workflow) => (
               <WorkflowCard key={workflow.uid} workflow={workflow} />
             ))}
           </section>

@@ -46,6 +46,12 @@ internal sealed partial class PostgresWorkflowRepository
                || requestedStatus.Equals("done", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool CanAutoBlockTask(string currentStatus)
+    {
+        return currentStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
+               || currentStatus.Equals("open", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<bool> TryLockWorkflowForTaskStatusUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -146,11 +152,10 @@ SET
     END,
     completed_at = CASE
         WHEN @status = 'done' THEN COALESCE(completed_at, NOW())
-        WHEN @status IN ('open', 'ready', 'in_progress', 'blocked', 'skipped') THEN NULL
+        WHEN @status IN ('open', 'ready', 'in_progress', 'blocked') THEN NULL
         ELSE completed_at
     END,
     cancelled_at = CASE
-        WHEN @status = 'skipped' THEN COALESCE(cancelled_at, NOW())
         WHEN @status IN ('open', 'ready', 'in_progress', 'blocked', 'done') THEN NULL
         ELSE cancelled_at
     END
@@ -283,10 +288,7 @@ WHERE id = @taskId;";
                 continue;
             }
 
-            if (hasUnsatisfiedDependencies
-                && (currentStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
-                    || currentStatus.Equals("in_progress", StringComparison.OrdinalIgnoreCase)
-                    || currentStatus.Equals("open", StringComparison.OrdinalIgnoreCase)))
+            if (hasUnsatisfiedDependencies && CanAutoBlockTask(currentStatus))
             {
                 const string markBlockedSql = @"
 UPDATE workflow_tasks
@@ -343,8 +345,7 @@ WHERE workflow_id = @workflowId;";
         var nextWorkflowStatus = taskStates.Count == 0
             ? "draft"
             : completionRelevantStatuses.All(status =>
-                    status.Equals("done", StringComparison.OrdinalIgnoreCase)
-                    || status.Equals("skipped", StringComparison.OrdinalIgnoreCase))
+                    status.Equals("done", StringComparison.OrdinalIgnoreCase))
                 ? "completed"
                 : DetermineActiveWorkflowStatus(taskStates);
 

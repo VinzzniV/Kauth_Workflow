@@ -71,8 +71,7 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData("cancelled")]
-    public void CanReadWorkflow_ReturnsTrue_ForReader_WhenTerminalOrLegacyCancelled(string status)
+    public void CanReadWorkflow_ReturnsTrue_ForReader_WhenTerminal(string status)
     {
         var user = CreateUser(AuthorizationRoles.Reader);
         Assert.True(_sut.CanReadWorkflow(user, status));
@@ -138,7 +137,6 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData("cancelled")]
     public void CanRegularlyEditWorkflow_ReturnsFalse_ForNonEditableEndStatus(string status)
     {
         var worker = CreateUser(AuthorizationRoles.Worker);
@@ -384,7 +382,6 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData("cancelled")]
     public void CanUpdateTaskStatus_ReturnsFalse_ForNonEditableEndStatus(string workflowStatus)
     {
         var admin = CreateUser(AuthorizationRoles.Admin);
@@ -479,7 +476,6 @@ public sealed class AuthorizationPolicyServiceTests
 
     [Theory]
     [InlineData(WorkflowStatusRules.Completed)]
-    [InlineData("cancelled")]
     public void CanUpdateTaskAssignment_Admin_ReturnsFalse_ForNonEditableEndStatus(string workflowStatus)
     {
         var admin = CreateUser(AuthorizationRoles.Admin);

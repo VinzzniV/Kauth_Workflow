@@ -1,114 +1,107 @@
 // Uebersicht ueber alle sichtbaren Onboarding-Faelle inklusive Filter und abgeleitetem Prozessstand.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
-import { getWorkflows } from "../services/onboardingApi";
-import type { WorkflowStatus, WorkflowSummary } from "../types/workflow";
+import { getWorkflowPage } from "../services/onboardingApi";
+import type {
+  WorkflowResponsibilityOption,
+  WorkflowRuntimeStatus,
+  WorkflowSummary,
+} from "../types/workflow";
 import { formatDate, formatDateTime } from "../utils/dateFormat";
 import {
-  getWorkflowLegacyStatusLabel,
-  getWorkflowLegacyStatusPillClass,
   getWorkflowRuntimeStatusLabel,
-  matchesWorkflowLegacyStatusFilter,
+  getWorkflowRuntimeStatusPillClass,
 } from "../utils/workflowStatus";
+
+const PAGE_SIZE = 20;
 
 export default function WorkflowListPage() {
   const { capabilities } = useCurrentUser();
   const isReaderOnlyView =
     capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
-  const defaultStatusFilter: "all" | WorkflowStatus = isReaderOnlyView ? "all" : "open";
+  const defaultStatusFilter: "all" | WorkflowRuntimeStatus = "all";
 
   const [rows, setRows] = useState<WorkflowSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [pageIndex, setPageIndex] = useState<number>(0);
+  const [departmentOptions, setDepartmentOptions] = useState<Array<[number, string]>>([]);
+  const [responsibilityOptions, setResponsibilityOptions] = useState<WorkflowResponsibilityOption[]>([]);
+  const latestReloadId = useRef(0);
 
   const [search, setSearch] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowStatus>(defaultStatusFilter);
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(defaultStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
 
   // Die Liste laedt alle benoetigten Kartendaten direkt ueber den Listen-Endpoint.
   const reload = useCallback(async () => {
+    const reloadId = latestReloadId.current + 1;
+    latestReloadId.current = reloadId;
     setIsLoading(true);
     setError(null);
 
     try {
-      const workflows = await getWorkflows();
-      setRows(workflows);
+      const pageQuery = {
+        status: statusFilter === "all" ? null : statusFilter,
+        departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
+        search,
+        responsibilityValue: responsibilityFilter === "all" ? null : responsibilityFilter,
+      };
+      const page = await getWorkflowPage(PAGE_SIZE, pageIndex * PAGE_SIZE, pageQuery);
+      if (latestReloadId.current !== reloadId) {
+        return;
+      }
+      setRows(page.items);
+      setTotalCount(page.count);
+      setDepartmentOptions(page.departmentOptions.map((option) => [option.id, option.name]));
+      setResponsibilityOptions(page.responsibilityOptions);
     } catch (err) {
+      if (latestReloadId.current !== reloadId) {
+        return;
+      }
       const message = err instanceof Error ? err.message : "Onboarding-Fälle konnten nicht geladen werden.";
       setError(message);
       setRows([]);
+      setTotalCount(0);
+      setDepartmentOptions([]);
+      setResponsibilityOptions([]);
     } finally {
-      setIsLoading(false);
+      if (latestReloadId.current === reloadId) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [departmentFilter, pageIndex, responsibilityFilter, search, statusFilter]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const departmentOptions = useMemo(() => {
-    const unique = Array.from(new Map(rows.map((row) => [row.departmentId, row.departmentName])).entries());
-    return unique.sort((left, right) => left[1].localeCompare(right[1], "de"));
-  }, [rows]);
+  useEffect(() => {
+    setPageIndex(0);
+  }, [departmentFilter, search, statusFilter]);
 
-  const responsibilityOptions = useMemo(() => {
-    const optionsByValue = new Map<string, { value: string; label: string }>();
-
-    for (const workflow of rows) {
-      for (const option of workflow.responsibilityOptions) {
-        optionsByValue.set(option.value, option);
-      }
+  const totalPages = useMemo(() => {
+    if (totalCount <= 0) {
+      return 1;
     }
 
-    return Array.from(optionsByValue.values()).sort((left, right) => left.label.localeCompare(right.label, "de"));
-  }, [rows]);
+    return Math.ceil(totalCount / PAGE_SIZE);
+  }, [totalCount]);
 
-  // Suche und Filter laufen auf den bereits geladenen Kurz- und Detaildaten.
-  const filteredRows = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return rows.filter((row) => {
-      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.status, statusFilter, row.workflowStatus);
-      const matchesDepartment = departmentFilter === "all" || String(row.departmentId) === departmentFilter;
-
-      const matchesResponsibility = (() => {
-        if (responsibilityFilter === "all") {
-          return true;
-        }
-
-        return row.responsibilityOptions.some((option) => option.value === responsibilityFilter);
-      })();
-
-      if (!matchesStatus || !matchesDepartment || !matchesResponsibility) {
-        return false;
-      }
-
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const fullName = `${row.firstName} ${row.lastName}`.toLowerCase();
-      return (
-        fullName.includes(normalizedSearch) ||
-        String(row.employeeNumber).includes(normalizedSearch) ||
-        row.roleName.toLowerCase().includes(normalizedSearch) ||
-        row.uid.toLowerCase().includes(normalizedSearch)
-      );
-    });
-  }, [rows, search, statusFilter, departmentFilter, responsibilityFilter]);
-
-  const emptyFilterDescription = useMemo(() => {
-    if (isReaderOnlyView && statusFilter === "open") {
-      return "Im Lesemodus sehen Sie nur abgeschlossene Onboardings. Stellen Sie den Status auf Alle oder Abgeschlossen.";
-    }
-
-    return "Die aktuelle Filterkombination liefert keine Onboarding-Fälle.";
-  }, [isReaderOnlyView, statusFilter]);
+  const hasActiveFilters = useMemo(() => {
+    return (
+      search.trim().length > 0 ||
+      statusFilter !== "all" ||
+      departmentFilter !== "all" ||
+      responsibilityFilter !== "all"
+    );
+  }, [departmentFilter, responsibilityFilter, search, statusFilter]);
 
   return (
     <main className="onboarding-shell">
@@ -127,7 +120,7 @@ export default function WorkflowListPage() {
             <p className="next-action-label">Nächste nötige Aktion</p>
             <p className="next-action-text">
               {isReaderOnlyView
-                ? "Im Lesemodus sehen Sie nur abgeschlossene oder abgebrochene Fälle."
+                ? "Im Lesemodus sehen Sie freigegebene Workflow-Stände auf Basis des Backend-Runtime-Status."
                 : "Prüfen Sie zuerst Fälle, die auf Abteilungsleitung oder Fachbereiche warten."}
             </p>
           </div>
@@ -159,17 +152,26 @@ export default function WorkflowListPage() {
               <span>Status</span>
               <select
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as "all" | WorkflowStatus)}
+                onChange={(event) => setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus)}
               >
                 <option value="all">Alle</option>
-                <option value="open">Offen</option>
+                <option value="draft">HR startet</option>
+                <option value="waiting_for_supervisor">Wartet auf Abteilungsleitung</option>
+                <option value="waiting_for_department">Fachbereiche offen</option>
+                <option value="in_progress">Fachbereiche in Bearbeitung</option>
                 <option value="completed">Abgeschlossen</option>
               </select>
             </label>
 
             <label className="field compact">
               <span>Zuständiger Bereich</span>
-              <select value={responsibilityFilter} onChange={(event) => setResponsibilityFilter(event.target.value)}>
+              <select
+                value={responsibilityFilter}
+                onChange={(event) => {
+                  setResponsibilityFilter(event.target.value);
+                  setPageIndex(0);
+                }}
+              >
                 <option value="all">Alle</option>
                 {responsibilityOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -181,6 +183,27 @@ export default function WorkflowListPage() {
 
             <button type="button" className="btn btn-secondary" onClick={reload}>
               Aktualisieren
+            </button>
+          </div>
+          <div className="toolbar-row">
+            <p className="panel-note">
+              Seite {pageIndex + 1} von {totalPages} · {totalCount} Workflow{totalCount === 1 ? "" : "s"}
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
+              disabled={pageIndex === 0 || isLoading}
+            >
+              Vorherige Seite
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setPageIndex((current) => current + 1)}
+              disabled={isLoading || pageIndex + 1 >= totalPages}
+            >
+              Nächste Seite
             </button>
           </div>
         </section>
@@ -196,23 +219,23 @@ export default function WorkflowListPage() {
           />
         ) : null}
 
-        {!isLoading && !error && rows.length === 0 ? (
+        {!isLoading && !error && rows.length === 0 && !hasActiveFilters ? (
           <EmptyState
             title="Keine Onboarding-Fälle vorhanden"
             description="Aktuell sind keine Vorgänge vorhanden. Starten Sie ein neues Onboarding."
           />
         ) : null}
 
-        {!isLoading && !error && rows.length > 0 && filteredRows.length === 0 ? (
+        {!isLoading && !error && rows.length === 0 && hasActiveFilters ? (
           <EmptyState
             title="Keine Treffer"
-            description={emptyFilterDescription}
+            description="Die aktuelle Filterkombination liefert keine Onboarding-Fälle."
           />
         ) : null}
 
-        {!isLoading && !error && filteredRows.length > 0 ? (
+        {!isLoading && !error && rows.length > 0 ? (
           <section className="workflow-grid" aria-label="Liste Onboarding-Fälle">
-            {filteredRows.map((workflow) => {
+            {rows.map((workflow) => {
               const workflowDisplayName = `${workflow.firstName} ${workflow.lastName}`.trim();
               const responsibilities =
                 workflow.responsibilityOptions.map((option) => option.label).join(", ") || "Keine Aufgaben";
@@ -221,8 +244,8 @@ export default function WorkflowListPage() {
                 <article key={workflow.uid} className="workflow-card workflow-card-extended">
                   <div className="workflow-card-top">
                     <h3>{workflowDisplayName || "Unbekannter Name"}</h3>
-                    <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.status, workflow.workflowStatus)}`}>
-                      {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
+                    <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
+                      {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}
                     </span>
                   </div>
 

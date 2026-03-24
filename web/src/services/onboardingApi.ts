@@ -6,7 +6,9 @@ import type {
   WorkflowCreationResponse,
   WorkflowAuditEntry,
   WorkflowDetail,
+  WorkflowPage,
   WorkflowRequirementSnapshot,
+  WorkflowRuntimeStatus,
   WorkflowSummary,
   WorkflowTask,
   WorkflowTaskStatus,
@@ -32,28 +34,32 @@ import {
   mapWorkflowAuditEntry,
   mapWorkflowConfig,
   mapWorkflowDetail,
+  mapWorkflowPage,
   mapWorkflowRequirement,
   mapWorkflowSummary,
   mapWorkflowTask,
-  type BackendAdminDepartmentAssignmentDto,
-  type BackendAdminGroupDto,
-  type BackendAdminNotificationEmailConfigurationDto,
-  type BackendAdminNotificationEmailTestResponseDto,
-  type BackendAdminResponsibilityOwnerDto,
-  type BackendAdminRoleDto,
-  type BackendAdminUserDto,
-  type BackendDemoLoginUserOptionDto,
-  type BackendDepartmentDto,
-  type BackendMeDto,
-  type BackendRoleDto,
-  type BackendTaskWithWorkflowDto,
-  type BackendWorkflowAuditEntryDto,
-  type BackendWorkflowConfigDto,
-  type BackendWorkflowDetailDto,
-  type BackendWorkflowRequirementSnapshotDto,
-  type BackendWorkflowSummaryDto,
-  type BackendWorkflowTaskDto,
 } from "./onboardingApi/mappers";
+import type {
+  BackendAdminDepartmentAssignmentDto,
+  BackendAdminGroupDto,
+  BackendAdminNotificationEmailConfigurationDto,
+  BackendAdminNotificationEmailTestResponseDto,
+  BackendAdminResponsibilityOwnerDto,
+  BackendAdminRoleDto,
+  BackendAdminUserDto,
+  BackendDemoLoginUserOptionDto,
+  BackendDepartmentDto,
+  BackendMeDto,
+  BackendRoleDto,
+  BackendTaskWithWorkflowDto,
+  BackendWorkflowAuditEntryDto,
+  BackendWorkflowConfigDto,
+  BackendWorkflowDetailDto,
+  BackendWorkflowPageDto,
+  BackendWorkflowRequirementSnapshotDto,
+  BackendWorkflowSummaryDto,
+  BackendWorkflowTaskDto,
+} from "./onboardingApi/backendDtos";
 
 type BackendDemoLoginResponseDto = {
   token: string;
@@ -62,6 +68,44 @@ type BackendDemoLoginResponseDto = {
 };
 
 export { getDemoAuthToken, setDemoAuthToken };
+
+export type WorkflowQueryOptions = {
+  status?: WorkflowRuntimeStatus | null;
+  departmentId?: number | null;
+  search?: string | null;
+  responsibilityValue?: string | null;
+};
+
+function buildWorkflowQuery(options: WorkflowQueryOptions & { limit?: number | null; offset?: number | null }): string {
+  const params = new URLSearchParams();
+
+  if (options.status) {
+    params.set("status", options.status);
+  }
+
+  if (typeof options.departmentId === "number") {
+    params.set("department", String(options.departmentId));
+  }
+
+  if (options.search && options.search.trim()) {
+    params.set("search", options.search.trim());
+  }
+
+  if (options.responsibilityValue && options.responsibilityValue.trim()) {
+    params.set("responsibility", options.responsibilityValue.trim());
+  }
+
+  if (typeof options.limit === "number") {
+    params.set("limit", String(options.limit));
+  }
+
+  if (typeof options.offset === "number") {
+    params.set("offset", String(options.offset));
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
 
 export async function getRoles(): Promise<Role[]> {
   return requestJson<BackendRoleDto[]>("/roles");
@@ -238,14 +282,35 @@ export async function getWorkflowByUid(uid: string): Promise<WorkflowDetail> {
   return mapWorkflowDetail(data);
 }
 
-export async function getWorkflowAuditLog(uid: string): Promise<WorkflowAuditEntry[]> {
-  const data = await requestJson<BackendWorkflowAuditEntryDto[]>(`/workflows/${encodeURIComponent(uid)}/audit-log`);
+export async function getWorkflowAuditLog(
+  uid: string,
+  limit = 200,
+  offset = 0
+): Promise<WorkflowAuditEntry[]> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const data = await requestJson<BackendWorkflowAuditEntryDto[]>(
+    `/workflows/${encodeURIComponent(uid)}/audit-log?${params.toString()}`
+  );
   return data.map(mapWorkflowAuditEntry);
 }
 
-export async function getWorkflows(): Promise<WorkflowSummary[]> {
-  const data = await requestJson<BackendWorkflowSummaryDto[]>("/workflows");
+export async function getWorkflows(options: WorkflowQueryOptions = {}): Promise<WorkflowSummary[]> {
+  const data = await requestJson<BackendWorkflowSummaryDto[]>(`/workflows${buildWorkflowQuery(options)}`);
   return data.map(mapWorkflowSummary);
+}
+
+export async function getWorkflowPage(
+  limit: number,
+  offset: number,
+  options: WorkflowQueryOptions = {}
+): Promise<WorkflowPage> {
+  const data = await requestJson<BackendWorkflowPageDto>(
+    `/workflows${buildWorkflowQuery({ ...options, limit, offset })}`
+  );
+  return mapWorkflowPage(data);
 }
 
 export async function getWorkflowTasks(uid: string): Promise<WorkflowTask[]> {

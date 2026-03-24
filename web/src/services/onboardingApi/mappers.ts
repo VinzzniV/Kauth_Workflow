@@ -1,372 +1,71 @@
 import type {
-  Department,
   RequirementBehavior,
   RequirementOption,
   RequirementResetTarget,
   RequirementSingleSelectReset,
   RequirementValidation,
   RequirementVisibilityDependency,
-  Role,
   RoleRequirement,
   RoleRecommendations,
+  TaskWithWorkflow,
+  TaskWorkflowContext,
+  WorkflowAuditEntry,
   WorkflowConfig,
   WorkflowDetail,
-  WorkflowAuditEntry,
   WorkflowNotification,
+  WorkflowPage,
   WorkflowRequirementOptionSnapshot,
   WorkflowRequirementSelectedOption,
-  WorkflowRequirementSummary,
   WorkflowRequirementSnapshot,
+  WorkflowRequirementSummary,
   WorkflowRequirementValue,
   WorkflowRuntimeStatus,
   WorkflowSummary,
-  WorkflowTaskAreaSummary,
-  WorkflowTaskCountSummary,
-  WorkflowTaskMetrics,
   WorkflowTask,
   WorkflowTaskArea,
-  WorkflowTaskComment,
-  WorkflowTaskSlaStatus,
+  WorkflowTaskAreaSummary,
   WorkflowTaskAssignment,
+  WorkflowTaskComment,
+  WorkflowTaskCountSummary,
   WorkflowTaskDependency,
+  WorkflowTaskMetrics,
+  WorkflowTaskSlaStatus,
   WorkflowTaskStatus,
-  TaskWithWorkflow,
-  TaskWorkflowContext,
 } from "../../types/workflow";
-import type {
-  AdminDepartmentAssignment,
-  AdminGroup,
-  AdminNotificationEmailConfiguration,
-  AdminNotificationEmailTestResponse,
-  AdminResponsibilityOwner,
-  AdminRole,
-  AdminUser,
-  DemoLoginUserOption,
-  Me,
-} from "../../types/auth";
 import { coerceIconKey } from "../../utils/iconRegistry";
 import { toWorkflowLegacyStatus } from "../../utils/workflowStatus";
+import type {
+  BackendRequirementBehaviorDto,
+  BackendRequirementDto,
+  BackendRequirementOptionDto,
+  BackendRequirementResetTargetDto,
+  BackendRequirementSingleSelectResetDto,
+  BackendRequirementValidationDto,
+  BackendRequirementVisibilityDependencyDto,
+  BackendRoleRecommendationsDto,
+  BackendTaskWithWorkflowDto,
+  BackendTaskWorkflowContextDto,
+  BackendWorkflowAuditEntryDto,
+  BackendWorkflowConfigDto,
+  BackendWorkflowDetailDto,
+  BackendWorkflowNotificationDto,
+  BackendWorkflowPageDto,
+  BackendWorkflowRequirementOptionSnapshotDto,
+  BackendWorkflowRequirementSelectedOptionDto,
+  BackendWorkflowRequirementSnapshotDto,
+  BackendWorkflowRequirementSummaryDto,
+  BackendWorkflowRequirementValueDto,
+  BackendWorkflowSummaryDto,
+  BackendWorkflowTaskAreaSummaryDto,
+  BackendWorkflowTaskAssignmentDto,
+  BackendWorkflowTaskCommentDto,
+  BackendWorkflowTaskCountSummaryDto,
+  BackendWorkflowTaskDependencyDto,
+  BackendWorkflowTaskDto,
+  BackendWorkflowTaskMetricsDto,
+} from "./backendDtos";
 
-export type BackendDepartmentDto = Department;
-export type BackendRoleDto = Role;
-
-type BackendRequirementOptionDto = {
-  id: number;
-  key: string;
-  value: string;
-  label: string;
-  sortOrder: number;
-  isDefault: boolean;
-};
-
-type BackendRequirementVisibilityDependencyDto = {
-  dependencyKey: string;
-  kind: "boolean_true" | "selected_option_value";
-  expectedValue: string | null;
-  missingResult: boolean;
-};
-
-type BackendRequirementValidationDto = {
-  kind: "text_required" | "single_select_required" | "multi_select_required";
-  message: string;
-};
-
-type BackendRequirementResetTargetDto = {
-  requirementKey: string;
-  clearBoolean: boolean;
-  clearText: boolean;
-  clearNumber: boolean;
-  clearSelectedOption: boolean;
-  clearSelectedOptions: boolean;
-};
-
-type BackendRequirementSingleSelectResetDto = {
-  keepSelectedOptionValues: string[];
-  targets: BackendRequirementResetTargetDto[];
-};
-
-type BackendRequirementBehaviorDto = {
-  visibilityDependencies: BackendRequirementVisibilityDependencyDto[];
-  validation: BackendRequirementValidationDto | null;
-  resetTargetsWhenNotTrue: BackendRequirementResetTargetDto[];
-  singleSelectReset: BackendRequirementSingleSelectResetDto | null;
-};
-
-type BackendRequirementDto = {
-  id: number;
-  key: string;
-  title: string;
-  description: string;
-  category: string;
-  iconKey: string | null;
-  inputType: "boolean" | "text" | "select" | "multi_select";
-  isRequired: boolean;
-  sortOrder: number;
-  behavior: BackendRequirementBehaviorDto;
-  options: BackendRequirementOptionDto[];
-};
-
-type BackendRoleRecommendationDefaultValueDto = {
-  requirementId: number;
-  valueBoolean: boolean | null;
-  valueText: string | null;
-  valueNumber: number | null;
-};
-
-type BackendRoleRecommendationSelectedOptionsDto = {
-  requirementId: number;
-  selectedOptionId: number | null;
-  selectedOptionIds: number[];
-};
-
-type BackendRoleRecommendationsDto = {
-  recommendedRequirementIds: number[];
-  defaultValues: BackendRoleRecommendationDefaultValueDto[];
-  defaultSelectedOptions: BackendRoleRecommendationSelectedOptionsDto[];
-};
-
-export type BackendWorkflowConfigDto = {
-  requirements: BackendRequirementDto[];
-  roleRecommendations: BackendRoleRecommendationsDto;
-};
-
-export type BackendWorkflowSummaryDto = {
-  uid: string;
-  firstName: string;
-  lastName: string;
-  employeeNumber: number;
-  badgeNumber: number;
-  departmentId: number;
-  departmentName: string;
-  roleId: number;
-  roleName: string;
-  status: string;
-  workflowStatus: string;
-  createdAt: string;
-  deadlineDate: string | null;
-  pendingNotifications: number;
-  failedNotifications: number;
-  requirementSummary: BackendWorkflowRequirementSummaryDto;
-  taskMetrics: BackendWorkflowTaskMetricsDto;
-  taskSummary: string;
-  responsibilityOptions: Array<{
-    value: string;
-    label: string;
-  }>;
-};
-
-type BackendWorkflowRequirementSummaryDto = {
-  totalCount: number;
-  visibleCount: number;
-  answeredVisibleCount: number;
-  pendingVisibleCount: number;
-};
-
-type BackendWorkflowTaskCountSummaryDto = {
-  totalCount: number;
-  openCount: number;
-  inProgressCount: number;
-  doneCount: number;
-  endedCount: number;
-  completedCount: number;
-  activeCount: number;
-};
-
-type BackendWorkflowTaskMetricsDto = {
-  overall: BackendWorkflowTaskCountSummaryDto;
-  departmentPhase: BackendWorkflowTaskCountSummaryDto;
-};
-
-type BackendWorkflowTaskAreaSummaryDto = {
-  name: string;
-  isCurrentArea: boolean;
-  counts: BackendWorkflowTaskCountSummaryDto;
-};
-
-type BackendWorkflowRequirementOptionSnapshotDto = {
-  id: number;
-  sourceOptionId: number | null;
-  key: string;
-  value: string;
-  label: string;
-  sortOrder: number;
-};
-
-type BackendWorkflowRequirementSelectedOptionDto = {
-  id: number;
-  key: string;
-  value: string;
-  label: string;
-  sortOrder: number;
-};
-
-type BackendWorkflowRequirementValueDto = {
-  valueBoolean: boolean | null;
-  valueText: string | null;
-  valueNumber: number | null;
-  selectedOptionId: number | null;
-  selectedOptionKey: string | null;
-  selectedOptionValue: string | null;
-  selectedOptionLabel: string | null;
-  selectedOptions: BackendWorkflowRequirementSelectedOptionDto[];
-};
-
-export type BackendWorkflowRequirementSnapshotDto = {
-  workflowRequirementId: number;
-  id: number;
-  key: string;
-  title: string;
-  description: string;
-  category: string;
-  iconKey: string | null;
-  inputType: "boolean" | "text" | "select" | "multi_select";
-  isRequired: boolean;
-  isVisible: boolean;
-  sortOrder: number;
-  behavior: BackendRequirementBehaviorDto;
-  options: BackendWorkflowRequirementOptionSnapshotDto[];
-  value: BackendWorkflowRequirementValueDto;
-};
-
-type BackendWorkflowNotificationDto = {
-  id: number;
-  targetName: string;
-  targetEmail: string;
-  notificationType: string;
-  status: "pending" | "sent" | "failed" | "disabled";
-  attempts: number;
-  recipientUserId: number | null;
-  lastError: string | null;
-  createdAt: string;
-  sentAt: string | null;
-};
-
-export type BackendWorkflowAuditEntryDto = {
-  id: number;
-  eventType: string;
-  createdAt: string;
-  taskId: number | null;
-  taskKey: string | null;
-  taskTitle: string | null;
-  actorUserId: number | null;
-  actorUserName: string | null;
-  oldValue: string | null;
-  newValue: string | null;
-  detail: string | null;
-};
-
-type BackendWorkflowTaskCommentDto = {
-  id: number;
-  taskId: number;
-  authorUserId: number | null;
-  authorUserName: string | null;
-  commentText: string;
-  createdAt: string;
-};
-
-type BackendWorkflowTaskAssignmentDto = {
-  id: number;
-  assignmentType: string;
-  isPrimary: boolean;
-  assigneeUserId: number | null;
-  assigneeUserName: string | null;
-  assigneeUserEmail: string | null;
-  assigneeResponsibilityId: number | null;
-  assigneeResponsibilityKey: string | null;
-  assigneeResponsibilityName: string | null;
-  assigneeResponsibilityType: string | null;
-  assignedAt: string;
-  completedAt: string | null;
-};
-
-type BackendWorkflowTaskDependencyDto = {
-  workflowTaskId: number;
-  dependsOnWorkflowTaskId: number;
-  requiredStatus: string;
-  dependsOnTaskKey: string;
-  dependsOnTitle: string;
-};
-
-export type BackendWorkflowTaskDto = {
-  id: number;
-  taskTemplateId: number | null;
-  taskKey: string;
-  title: string;
-  description: string;
-  category: string;
-  iconKey: string | null;
-  status: string;
-  isRequired: boolean;
-  dueInDays: number | null;
-  dueAt: string | null;
-  slaStatus: string;
-  sortOrder: number;
-  createdAt: string;
-  readyAt: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  cancelledAt: string | null;
-  processArea: string | null;
-  isDepartmentPhaseTask: boolean;
-  canUpdateStatus: boolean;
-  canAddComment: boolean;
-  assignments: BackendWorkflowTaskAssignmentDto[];
-  dependencies: BackendWorkflowTaskDependencyDto[];
-  comments: BackendWorkflowTaskCommentDto[];
-};
-
-export type BackendWorkflowDetailDto = {
-  uid: string;
-  firstName: string;
-  lastName: string;
-  employeeNumber: number;
-  badgeNumber: number;
-  departmentId: number;
-  departmentName: string;
-  roleId: number;
-  roleName: string;
-  status: string;
-  workflowStatus: string;
-  createdAt: string;
-  deadlineDate: string | null;
-  requirements: BackendWorkflowRequirementSnapshotDto[];
-  requirementSummary: BackendWorkflowRequirementSummaryDto;
-  tasks: BackendWorkflowTaskDto[];
-  taskMetrics: BackendWorkflowTaskMetricsDto;
-  taskAreas: BackendWorkflowTaskAreaSummaryDto[];
-  notifications: BackendWorkflowNotificationDto[];
-};
-
-type BackendTaskWorkflowContextDto = {
-  workflowId: number;
-  workflowUid: string;
-  workflowStatus: string;
-  workflowLegacyStatus: string;
-  workflowCreatedAt: string;
-  firstName: string;
-  lastName: string;
-  employeeNumber: number;
-  badgeNumber: number;
-  departmentId: number;
-  departmentName: string;
-  roleId: number;
-  roleName: string;
-};
-
-export type BackendTaskWithWorkflowDto = {
-  task: BackendWorkflowTaskDto;
-  workflow: BackendTaskWorkflowContextDto;
-};
-
-export type BackendDemoLoginUserOptionDto = DemoLoginUserOption;
-export type BackendMeDto = Me;
-export type BackendAdminUserDto = AdminUser;
-export type BackendAdminRoleDto = AdminRole;
-export type BackendAdminGroupDto = AdminGroup;
-export type BackendAdminDepartmentAssignmentDto = AdminDepartmentAssignment;
-export type BackendAdminResponsibilityOwnerDto = AdminResponsibilityOwner;
-export type BackendAdminNotificationEmailConfigurationDto = AdminNotificationEmailConfiguration;
-export type BackendAdminNotificationEmailTestResponseDto = AdminNotificationEmailTestResponse;
+export type * from "./backendDtos";
 
 function toIconKey(iconKey?: string | null): string {
   return coerceIconKey(iconKey);
@@ -385,7 +84,6 @@ function toWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus {
     case "waiting_for_supervisor":
     case "waiting_for_department":
     case "completed":
-    case "cancelled":
       return normalized;
     default:
       return "in_progress";
@@ -401,8 +99,6 @@ function toWorkflowTaskStatus(status: string): WorkflowTaskStatus {
     case "in_progress":
     case "blocked":
     case "done":
-    case "skipped":
-    case "cancelled":
       return normalized;
     default:
       return "open";
@@ -501,7 +197,9 @@ function mapWorkflowRequirementOption(dto: BackendWorkflowRequirementOptionSnaps
   return dto;
 }
 
-function mapWorkflowRequirementSelectedOption(dto: BackendWorkflowRequirementSelectedOptionDto): WorkflowRequirementSelectedOption {
+function mapWorkflowRequirementSelectedOption(
+  dto: BackendWorkflowRequirementSelectedOptionDto
+): WorkflowRequirementSelectedOption {
   return dto;
 }
 
@@ -619,6 +317,17 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
   };
 }
 
+export function mapWorkflowPage(dto: BackendWorkflowPageDto): WorkflowPage {
+  return {
+    items: dto.items.map(mapWorkflowSummary),
+    count: dto.count,
+    offset: dto.offset,
+    limit: dto.limit,
+    departmentOptions: dto.departmentOptions,
+    responsibilityOptions: dto.responsibilityOptions.map((option) => ({ ...option })),
+  };
+}
+
 export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail {
   const workflowStatus = normalizeStatus(dto.workflowStatus);
 
@@ -652,7 +361,6 @@ function mapTaskWorkflowContext(dto: BackendTaskWorkflowContextDto): TaskWorkflo
     workflowId: dto.workflowId,
     workflowUid: dto.workflowUid,
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
-    workflowLegacyStatus: toWorkflowLegacyStatus(dto.workflowLegacyStatus),
     workflowCreatedAt: dto.workflowCreatedAt,
     firstName: dto.firstName,
     lastName: dto.lastName,

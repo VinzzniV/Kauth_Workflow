@@ -68,7 +68,7 @@ export function isInProgressStatus(status: WorkflowTask["status"]): boolean {
 }
 
 export function isDoneStatus(status: WorkflowTask["status"]): boolean {
-  return status === "done" || status === "skipped";
+  return status === "done";
 }
 
 export function isActiveStatus(status: WorkflowTask["status"]): boolean {
@@ -159,34 +159,17 @@ export function toPhaseOwnerArea(workflow: WorkflowDetail): string {
 
 export function toRegularEditingLabel(workflow: WorkflowDetail): string {
   if (isWorkflowTerminalStatus(workflow.workflowStatus)) {
-    return "Keine reguläre Bearbeitung";
+    return "Abgeschlossen";
   }
 
   switch (workflow.workflowStatus) {
     case "draft":
-      return "HR";
+      return "HR-Startphase";
     case "waiting_for_supervisor":
-      return "Zuständige Abteilungsleitung";
+      return "Anforderungsphase";
     case "waiting_for_department":
     case "in_progress":
-      return "Zuständige Fachbereiche";
-    default:
-      return "-";
-  }
-}
-
-export function toReadAccessLabel(workflow: WorkflowDetail): string {
-  if (isWorkflowTerminalStatus(workflow.workflowStatus)) {
-    return "Je nach Rolle";
-  }
-
-  switch (workflow.workflowStatus) {
-    case "draft":
-      return "Admin";
-    case "waiting_for_supervisor":
-    case "waiting_for_department":
-    case "in_progress":
-      return "HR, Admin";
+      return "Fachbereichsphase";
     default:
       return "-";
   }
@@ -199,8 +182,6 @@ export function findCurrentTask(tasks: WorkflowTask[]): WorkflowTask | null {
     open: 2,
     blocked: 3,
     done: 4,
-    skipped: 5,
-    cancelled: 6,
   };
 
   const activeTasks = tasks.filter((task) => isActiveStatus(task.status));
@@ -270,12 +251,10 @@ export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
     },
     {
       key: "completed",
-      title: workflow.workflowStatus === "cancelled" ? "Abgebrochen" : "Abgeschlossen",
+      title: "Abgeschlossen",
       detail:
         workflow.workflowStatus === "completed"
           ? "Onboarding ist abgeschlossen."
-          : workflow.workflowStatus === "cancelled"
-            ? "Der Vorgang wurde abgebrochen."
           : "Abschluss steht noch aus.",
       state: completedStepState,
     },

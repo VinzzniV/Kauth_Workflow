@@ -1,4 +1,4 @@
-import type { WorkflowStatus } from "../types/workflow";
+import type { WorkflowRuntimeStatus, WorkflowStatus } from "../types/workflow";
 
 export type WorkflowRuntimeStatusLabelVariant = "compact" | "action";
 
@@ -16,17 +16,13 @@ function normalizeWorkflowLegacyStatus(status: string): WorkflowStatus | null {
   return null;
 }
 
-function isCancelledWorkflowStatus(status?: string): boolean {
-  return normalizeWorkflowStatus(status ?? "") === "cancelled";
-}
-
 export function toWorkflowLegacyStatus(status: string): WorkflowStatus {
   return normalizeWorkflowLegacyStatus(status) ?? "open";
 }
 
 export function isWorkflowTerminalStatus(status: string): boolean {
   const normalized = normalizeWorkflowStatus(status);
-  return normalized === "completed" || normalized === "cancelled";
+  return normalized === "completed";
 }
 
 export function isDepartmentWorkflowPhase(status: string): boolean {
@@ -34,39 +30,43 @@ export function isDepartmentWorkflowPhase(status: string): boolean {
   return normalized === "waiting_for_department" || normalized === "in_progress";
 }
 
-export function matchesWorkflowLegacyStatusFilter(
+function normalizeWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus | null {
+  const normalized = normalizeWorkflowStatus(status);
+
+  switch (normalized) {
+    case "draft":
+    case "in_progress":
+    case "waiting_for_supervisor":
+    case "waiting_for_department":
+    case "completed":
+      return normalized;
+    default:
+      return null;
+  }
+}
+
+export function matchesWorkflowRuntimeStatusFilter(
   status: string,
-  filter: "all" | WorkflowStatus,
-  workflowStatus?: string
+  filter: "all" | WorkflowRuntimeStatus
 ): boolean {
-  if (isCancelledWorkflowStatus(workflowStatus)) {
-    return filter === "all";
-  }
-
-  return filter === "all" || normalizeWorkflowLegacyStatus(status) === filter;
+  return filter === "all" || normalizeWorkflowRuntimeStatus(status) === filter;
 }
 
-export function getWorkflowLegacyStatusLabel(status: string, workflowStatus?: string): string {
-  const normalized = normalizeWorkflowStatus(status);
-  if (normalized === "cancelled" || isCancelledWorkflowStatus(workflowStatus)) {
-    return "Abgebrochen";
+export function getWorkflowRuntimeStatusPillClass(status: string): string {
+  const runtimeStatus = normalizeWorkflowRuntimeStatus(status);
+
+  switch (runtimeStatus) {
+    case "completed":
+      return "completed";
+    case "draft":
+      return "open";
+    case "waiting_for_supervisor":
+    case "waiting_for_department":
+    case "in_progress":
+      return "running";
+    default:
+      return "running";
   }
-
-  if (normalizeWorkflowLegacyStatus(status) === "completed") {
-    return "Abgeschlossen";
-  }
-
-  return "Offen";
-}
-
-export function getWorkflowLegacyStatusPillClass(status: string, workflowStatus?: string): string {
-  const normalized = normalizeWorkflowStatus(status);
-  if (normalized === "cancelled" || isCancelledWorkflowStatus(workflowStatus)) {
-    return "cancelled";
-  }
-
-  const legacyStatus = normalizeWorkflowLegacyStatus(status);
-  return legacyStatus === "completed" ? legacyStatus : "running";
 }
 
 export function getWorkflowRuntimeStatusLabel(
@@ -84,8 +84,6 @@ export function getWorkflowRuntimeStatusLabel(
       return variant === "action" ? "Fachbereiche bearbeiten Aufgaben" : "Fachbereiche offen";
     case "completed":
       return "Abgeschlossen";
-    case "cancelled":
-      return "Abgebrochen";
     default:
       return status;
   }

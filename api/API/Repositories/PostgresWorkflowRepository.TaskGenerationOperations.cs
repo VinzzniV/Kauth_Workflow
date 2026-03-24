@@ -26,15 +26,30 @@ SELECT EXISTS(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
-        int workflowDepartmentId)
+        int workflowDepartmentId,
+        long actorUserId)
     {
-        await GenerateWorkflowTasks(
+        var generatedTaskCount = await GenerateWorkflowTasks(
             connection,
             transaction,
             workflowId,
             workflowDepartmentId,
             new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase),
             TaskGenerationStage.Initial);
+
+        if (generatedTaskCount > 0)
+        {
+            await InsertAuditEntry(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                actorUserId,
+                "tasks_generated",
+                null,
+                null,
+                $"{generatedTaskCount} Aufgabe(n) initial erstellt");
+        }
 
         await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
 
@@ -123,7 +138,7 @@ FOR UPDATE;";
         return true;
     }
 
-    private static async Task GenerateWorkflowTasks(
+    private static async Task<int> GenerateWorkflowTasks(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -237,6 +252,7 @@ VALUES (
 ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
 
         var createdTasks = new Dictionary<int, CreatedWorkflowTaskRecord>();
+        var generatedTaskCount = 0;
 
         foreach (var template in selectedTemplates)
         {
@@ -275,6 +291,8 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
 
                 workflowTaskId = (long)scalar;
             }
+
+            generatedTaskCount += 1;
 
             createdTasks[template.Id] = new CreatedWorkflowTaskRecord
             {
@@ -341,6 +359,8 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
             insertDependencyCommand.Parameters.AddWithValue("requiredStatus", dependency.RequiredStatus);
             await insertDependencyCommand.ExecuteNonQueryAsync();
         }
+
+        return generatedTaskCount;
     }
 
     private static async Task<DateTime?> LoadWorkflowDueAt(

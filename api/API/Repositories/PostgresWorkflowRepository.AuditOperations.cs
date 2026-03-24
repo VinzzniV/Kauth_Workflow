@@ -5,7 +5,7 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    private async Task InsertAuditEntry(
+    private static async Task InsertAuditEntry(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -47,7 +47,7 @@ VALUES (
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<List<WorkflowAuditEntryDto>> GetWorkflowAuditLog(Guid workflowUid)
+    public async Task<List<WorkflowAuditEntryDto>> GetWorkflowAuditLog(Guid workflowUid, int limit = 200, int offset = 0)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -71,11 +71,14 @@ LEFT JOIN workflow_tasks wt ON wt.id = al.task_id
 LEFT JOIN app_users actor ON actor.id = al.actor_user_id
 WHERE w.uid = @workflowUid
 ORDER BY al.created_at DESC, al.id DESC
-LIMIT 200;";
+LIMIT @limit
+OFFSET @offset;";
 
         var entries = new List<WorkflowAuditEntryDto>();
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("workflowUid", workflowUid);
+        command.Parameters.AddWithValue("limit", limit);
+        command.Parameters.AddWithValue("offset", offset);
 
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -104,13 +107,69 @@ LIMIT 200;";
         return $"Task: {taskTitle}";
     }
 
-    private static string BuildTaskAssignmentAuditValue(
-        string assignmentType,
-        long? assigneeUserId,
-        int? assigneeResponsibilityId)
+    private static async Task<string?> LoadPrimaryTaskAssignmentAuditLabel(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId)
     {
-        return assignmentType.Equals("user", StringComparison.OrdinalIgnoreCase)
-            ? $"user:{assigneeUserId}"
-            : $"responsibility:{assigneeResponsibilityId}";
+        const string sql = @"
+SELECT COALESCE(u.display_name, r.name) AS assignee_label
+FROM task_assignments ta
+LEFT JOIN app_users u ON u.id = ta.assignee_user_id
+LEFT JOIN app_responsibilities r ON r.id = ta.assignee_responsibility_id
+WHERE ta.workflow_task_id = @taskId
+  AND ta.is_primary = TRUE
+ORDER BY ta.id DESC
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("taskId", taskId);
+        return await command.ExecuteScalarAsync() as string;
+    }
+
+    private static async Task<string> LoadAssigneeUserAuditLabel(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long userId)
+    {
+        const string sql = @"
+SELECT display_name
+FROM app_users
+WHERE id = @userId
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("userId", userId);
+
+        var scalar = await command.ExecuteScalarAsync();
+        if (scalar is not string displayName)
+        {
+            throw new InvalidOperationException("Assignee user label could not be resolved.");
+        }
+
+        return displayName;
+    }
+
+    private static async Task<string> LoadAssigneeResponsibilityAuditLabel(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        int responsibilityId)
+    {
+        const string sql = @"
+SELECT name
+FROM app_responsibilities
+WHERE id = @responsibilityId
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
+
+        var scalar = await command.ExecuteScalarAsync();
+        if (scalar is not string responsibilityName)
+        {
+            throw new InvalidOperationException("Assignee responsibility label could not be resolved.");
+        }
+
+        return responsibilityName;
     }
 }

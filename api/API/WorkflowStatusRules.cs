@@ -17,7 +17,7 @@ internal static class WorkflowStatusRules
     public static bool IsTerminal(string workflowStatus)
     {
         var normalized = Normalize(workflowStatus);
-        return normalized == Completed || normalized == "cancelled";
+        return normalized == Completed;
     }
 
     public static bool IsWaitingForSupervisor(string workflowStatus)

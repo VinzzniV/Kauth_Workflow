@@ -1,6 +1,6 @@
 import type { WorkflowTaskSlaStatus, WorkflowTaskStatus } from "../types/workflow";
 
-export type VisibleTaskStatus = "open" | "in_progress" | "done" | "cancelled";
+export type VisibleTaskStatus = "open" | "in_progress" | "done";
 
 export const TASK_STATUS_ORDER: WorkflowTaskStatus[] = [
   "open",
@@ -8,8 +8,6 @@ export const TASK_STATUS_ORDER: WorkflowTaskStatus[] = [
   "in_progress",
   "blocked",
   "done",
-  "skipped",
-  "cancelled",
 ];
 
 const TASK_STATUS_LABELS: Record<WorkflowTaskStatus, string> = {
@@ -18,17 +16,14 @@ const TASK_STATUS_LABELS: Record<WorkflowTaskStatus, string> = {
   in_progress: "In Bearbeitung",
   blocked: "Offen",
   done: "Erledigt",
-  skipped: "Erledigt",
-  cancelled: "Abgebrochen",
 };
 
-export const VISIBLE_TASK_STATUS_ORDER: VisibleTaskStatus[] = ["open", "in_progress", "done", "cancelled"];
+export const VISIBLE_TASK_STATUS_ORDER: VisibleTaskStatus[] = ["open", "in_progress", "done"];
 
 const VISIBLE_TASK_STATUS_LABELS: Record<VisibleTaskStatus, string> = {
   open: "Offen",
   in_progress: "In Bearbeitung",
   done: "Erledigt",
-  cancelled: "Abgebrochen",
 };
 
 export function getVisibleTaskStatus(status: WorkflowTaskStatus): VisibleTaskStatus {
@@ -36,11 +31,7 @@ export function getVisibleTaskStatus(status: WorkflowTaskStatus): VisibleTaskSta
     return "in_progress";
   }
 
-  if (status === "cancelled") {
-    return "cancelled";
-  }
-
-  if (status === "done" || status === "skipped") {
+  if (status === "done") {
     return "done";
   }
 
@@ -65,9 +56,7 @@ export function mapVisibleTaskStatusToWorkflowStatus(
     case "in_progress":
       return "in_progress";
     case "done":
-      return currentStatus === "blocked" ? "skipped" : "done";
-    case "cancelled":
-      return currentStatus ?? "open";
+      return "done";
     default:
       return currentStatus ?? "open";
   }
@@ -79,14 +68,11 @@ export function getAvailableVisibleTaskStatuses(currentStatus: WorkflowTaskStatu
     case "ready":
       return ["open", "in_progress", "done"];
     case "blocked":
-      return ["open", "done"];
+      return ["open"];
     case "in_progress":
       return ["in_progress", "done"];
     case "done":
-    case "skipped":
       return ["done"];
-    case "cancelled":
-      return ["cancelled"];
     default:
       return ["open"];
   }

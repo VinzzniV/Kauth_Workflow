@@ -162,7 +162,6 @@ public sealed class WorkflowTaskCountSummaryDto
     public required int OpenCount { get; init; }
     public required int InProgressCount { get; init; }
     public required int DoneCount { get; init; }
-    public required int EndedCount { get; init; }
     public required int CompletedCount { get; init; }
     public required int ActiveCount { get; init; }
 }
@@ -201,6 +200,16 @@ public sealed class WorkflowListItemDto
     public required WorkflowRequirementSummaryDto RequirementSummary { get; init; }
     public required WorkflowTaskMetricsDto TaskMetrics { get; init; }
     public required string TaskSummary { get; init; }
+    public required List<WorkflowResponsibilityOptionDto> ResponsibilityOptions { get; init; }
+}
+
+public sealed class WorkflowListPageDto
+{
+    public required List<WorkflowListItemDto> Items { get; init; }
+    public required int Count { get; init; }
+    public required int Offset { get; init; }
+    public required int Limit { get; init; }
+    public required List<DepartmentDto> DepartmentOptions { get; init; }
     public required List<WorkflowResponsibilityOptionDto> ResponsibilityOptions { get; init; }
 }
 

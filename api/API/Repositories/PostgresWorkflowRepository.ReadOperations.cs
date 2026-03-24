@@ -11,12 +11,10 @@ internal sealed partial class PostgresWorkflowRepository
         public int OpenTaskCount { get; set; }
         public int InProgressTaskCount { get; set; }
         public int DoneTaskCount { get; set; }
-        public int EndedTaskCount { get; set; }
         public int DepartmentTotalTaskCount { get; set; }
         public int DepartmentOpenTaskCount { get; set; }
         public int DepartmentInProgressTaskCount { get; set; }
         public int DepartmentDoneTaskCount { get; set; }
-        public int DepartmentEndedTaskCount { get; set; }
         public Dictionary<string, WorkflowResponsibilityOptionDto> ResponsibilityOptions { get; } =
             new(StringComparer.Ordinal);
     }
@@ -339,10 +337,6 @@ WHERE wt.workflow_id = ANY(@workflowIds)
             {
                 metadata.InProgressTaskCount += 1;
             }
-            else if (taskStatus.Equals("skipped", StringComparison.OrdinalIgnoreCase))
-            {
-                metadata.EndedTaskCount += 1;
-            }
             else if (taskStatus.Equals("open", StringComparison.OrdinalIgnoreCase)
                 || taskStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
                 || taskStatus.Equals("blocked", StringComparison.OrdinalIgnoreCase))
@@ -361,10 +355,6 @@ WHERE wt.workflow_id = ANY(@workflowIds)
                 else if (taskStatus.Equals("in_progress", StringComparison.OrdinalIgnoreCase))
                 {
                     metadata.DepartmentInProgressTaskCount += 1;
-                }
-                else if (taskStatus.Equals("skipped", StringComparison.OrdinalIgnoreCase))
-                {
-                    metadata.DepartmentEndedTaskCount += 1;
                 }
                 else if (taskStatus.Equals("open", StringComparison.OrdinalIgnoreCase)
                     || taskStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
@@ -397,14 +387,12 @@ WHERE wt.workflow_id = ANY(@workflowIds)
                 metadata.TotalTaskCount,
                 metadata.OpenTaskCount,
                 metadata.InProgressTaskCount,
-                metadata.DoneTaskCount,
-                metadata.EndedTaskCount),
+                metadata.DoneTaskCount),
             DepartmentPhase = WorkflowSummaryBuilder.CreateTaskCountSummary(
                 metadata.DepartmentTotalTaskCount,
                 metadata.DepartmentOpenTaskCount,
                 metadata.DepartmentInProgressTaskCount,
-                metadata.DepartmentDoneTaskCount,
-                metadata.DepartmentEndedTaskCount)
+                metadata.DepartmentDoneTaskCount)
         };
     }
 

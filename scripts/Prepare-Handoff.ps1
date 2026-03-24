@@ -9,14 +9,6 @@ $handoffRoot = Join-Path $repoRoot "handoff"
 $stageRoot = Join-Path $handoffRoot "stage"
 $zipPath = Join-Path $handoffRoot $OutputName
 
-$cleanupTargets = @(
-    ".claude/settings.local.json",
-    "web/.env.local",
-    "web/dist",
-    "api/API.Tests/bin",
-    "api/API.Tests/obj"
-)
-
 $excludeDirectories = @(
     ".git",
     ".claude",
@@ -34,15 +26,6 @@ $excludeFiles = @(
     ".claude/settings.local.json",
     "web/.env.local"
 )
-
-function Remove-TargetIfPresent {
-    param([string]$RelativePath)
-
-    $fullPath = Join-Path $repoRoot $RelativePath
-    if (Test-Path -LiteralPath $fullPath) {
-        Remove-Item -LiteralPath $fullPath -Recurse -Force
-    }
-}
 
 function Ensure-ParentDirectory {
     param([string]$FilePath)
@@ -68,6 +51,13 @@ function Get-RelativePathNormalized {
 function Should-ExcludeDirectory {
     param([string]$RelativePath)
 
+    $segments = $RelativePath.Split("/", [System.StringSplitOptions]::RemoveEmptyEntries)
+    foreach ($segment in $segments) {
+        if ($segment -in @("node_modules", "dist", "bin", "obj")) {
+            return $true
+        }
+    }
+
     foreach ($entry in $excludeDirectories) {
         if ($RelativePath -eq $entry -or $RelativePath.StartsWith("$entry/")) {
             return $true
@@ -80,6 +70,13 @@ function Should-ExcludeDirectory {
 function Should-ExcludeFile {
     param([string]$RelativePath)
 
+    $segments = $RelativePath.Split("/", [System.StringSplitOptions]::RemoveEmptyEntries)
+    foreach ($segment in $segments) {
+        if ($segment -in @("node_modules", "dist", "bin", "obj")) {
+            return $true
+        }
+    }
+
     foreach ($entry in $excludeFiles) {
         if ($RelativePath -eq $entry -or $RelativePath.StartsWith("$entry/")) {
             return $true
@@ -87,10 +84,6 @@ function Should-ExcludeFile {
     }
 
     return $false
-}
-
-foreach ($target in $cleanupTargets) {
-    Remove-TargetIfPresent -RelativePath $target
 }
 
 if (Test-Path -LiteralPath $stageRoot) {

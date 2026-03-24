@@ -411,7 +411,7 @@ CREATE TABLE task_template_dependencies (
     task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
     depends_on_task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
     required_status VARCHAR(32) NOT NULL DEFAULT 'done'
-        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped')),
+        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done')),
     UNIQUE (task_template_id, depends_on_task_template_id)
 );
 
@@ -427,7 +427,7 @@ CREATE TABLE workflow_tasks (
     process_area_label VARCHAR(80),
     is_department_phase_task BOOLEAN NOT NULL DEFAULT TRUE,
     status VARCHAR(32) NOT NULL DEFAULT 'open'
-        CHECK (status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped')),
+        CHECK (status IN ('open', 'ready', 'in_progress', 'blocked', 'done')),
     is_required BOOLEAN NOT NULL DEFAULT TRUE,
     due_in_days INTEGER,
     due_at TIMESTAMPTZ,
@@ -445,7 +445,7 @@ CREATE TABLE workflow_task_dependencies (
     workflow_task_id BIGINT NOT NULL REFERENCES workflow_tasks(id) ON DELETE CASCADE,
     depends_on_workflow_task_id BIGINT NOT NULL REFERENCES workflow_tasks(id) ON DELETE CASCADE,
     required_status VARCHAR(32) NOT NULL DEFAULT 'done'
-        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done', 'skipped')),
+        CHECK (required_status IN ('open', 'ready', 'in_progress', 'blocked', 'done')),
     UNIQUE (workflow_task_id, depends_on_workflow_task_id),
     CHECK (workflow_task_id <> depends_on_workflow_task_id)
 );
@@ -530,6 +530,7 @@ CREATE INDEX idx_workflow_answer_reset_rules_definition
     ON workflow_answer_reset_rules(answer_definition_id);
 CREATE INDEX idx_task_template_conditions_template_id ON task_template_conditions(task_template_id);
 CREATE INDEX idx_workflow_tasks_workflow_id ON workflow_tasks(workflow_id);
+CREATE INDEX idx_workflow_tasks_workflow_task_key ON workflow_tasks(workflow_id, task_key);
 CREATE INDEX idx_task_assignments_task_id ON task_assignments(workflow_task_id);
 CREATE INDEX idx_workflow_task_comments_task_id ON workflow_task_comments(workflow_task_id, created_at DESC);
 CREATE UNIQUE INDEX uq_task_assignments_primary_per_task

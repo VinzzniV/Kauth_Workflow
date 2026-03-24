@@ -6,6 +6,10 @@ import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import RequirementsSelection from "../components/workflows/RequirementsSelection";
 import {
+  applyRequirementBooleanEditorSelection,
+  applyRequirementSingleSelectEditorSelection,
+} from "../utils/requirementEditor";
+import {
   getSupervisorStepWorkflows,
   getWorkflowSupervisorStep,
   updateWorkflowSupervisorStep,
@@ -16,12 +20,9 @@ import type {
   WorkflowSummary,
 } from "../types/workflow";
 import {
-  applyRequirementBooleanSelection,
-  applyRequirementSingleSelectSelection,
   buildRequirementSelections,
   createEmptyRequirementSelection,
   toRequirementSelectionPayload,
-  validateRequirementSelections,
 } from "../utils/requirements";
 import { formatDateTime } from "../utils/dateFormat";
 
@@ -87,7 +88,9 @@ export default function SupervisorStepPage() {
 
   const setRequirementBoolean = useCallback(
     (requirementId: number, value: boolean | null) => {
-      setSelections((current) => applyRequirementBooleanSelection(requirements, current, requirementId, value));
+      setSelections((current) =>
+        applyRequirementBooleanEditorSelection(requirements, current, requirementId, value)
+      );
     },
     [requirements]
   );
@@ -103,7 +106,9 @@ export default function SupervisorStepPage() {
   }, []);
 
   const setRequirementSelectedOption = useCallback((requirementId: number, optionId: number | null) => {
-    setSelections((current) => applyRequirementSingleSelectSelection(requirements, current, requirementId, optionId));
+    setSelections((current) =>
+      applyRequirementSingleSelectEditorSelection(requirements, current, requirementId, optionId)
+    );
   }, [requirements]);
 
   const toggleRequirementSelectedOption = useCallback((requirementId: number, optionId: number) => {
@@ -126,12 +131,6 @@ export default function SupervisorStepPage() {
   const saveChanges = useCallback(async () => {
     if (!selectedWorkflow) {
       setSaveError("Bitte zuerst einen Onboarding-Fall auswählen.");
-      return;
-    }
-
-    const validationError = validateRequirementSelections(requirements, selections);
-    if (validationError) {
-      setSaveError(validationError);
       return;
     }
 
@@ -159,12 +158,8 @@ export default function SupervisorStepPage() {
   }, [reloadAssignedWorkflows, requirements, selections, selectedWorkflow, usesAdminOverride]);
 
   const canSave = useMemo(
-    () =>
-      selectedWorkflow !== null &&
-      requirements.length > 0 &&
-      !isSaving &&
-      validateRequirementSelections(requirements, selections) === null,
-    [selectedWorkflow, requirements, isSaving, selections]
+    () => selectedWorkflow !== null && requirements.length > 0 && !isSaving,
+    [selectedWorkflow, requirements, isSaving]
   );
 
   return (

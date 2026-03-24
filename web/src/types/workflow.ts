@@ -163,17 +163,14 @@ export type WorkflowRuntimeStatus =
   | "in_progress"
   | "waiting_for_supervisor"
   | "waiting_for_department"
-  | "completed"
-  | "cancelled";
+  | "completed";
 
 export type WorkflowTaskStatus =
   | "open"
   | "ready"
   | "in_progress"
   | "blocked"
-  | "done"
-  | "skipped"
-  | "cancelled";
+  | "done";
 export type WorkflowTaskArea = string;
 export type WorkflowTaskSlaStatus = "none" | "on_track" | "due_today" | "overdue";
 
@@ -194,7 +191,6 @@ export type WorkflowTaskCountSummary = {
   openCount: number;
   inProgressCount: number;
   doneCount: number;
-  endedCount: number;
   completedCount: number;
   activeCount: number;
 };
@@ -221,6 +217,7 @@ export type WorkflowSummary = {
   departmentName: string;
   roleId: number;
   roleName: string;
+  // Legacy backend field. Prefer workflowStatus for UI filters and labels.
   status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
@@ -230,6 +227,15 @@ export type WorkflowSummary = {
   requirementSummary: WorkflowRequirementSummary;
   taskMetrics: WorkflowTaskMetrics;
   taskSummary: string;
+  responsibilityOptions: WorkflowResponsibilityOption[];
+};
+
+export type WorkflowPage = {
+  items: WorkflowSummary[];
+  count: number;
+  offset: number;
+  limit: number;
+  departmentOptions: Department[];
   responsibilityOptions: WorkflowResponsibilityOption[];
 };
 
@@ -370,7 +376,6 @@ export type TaskWorkflowContext = {
   workflowId: number;
   workflowUid: string;
   workflowStatus: WorkflowRuntimeStatus;
-  workflowLegacyStatus: WorkflowStatus;
   workflowCreatedAt: string;
   firstName: string;
   lastName: string;
@@ -397,6 +402,7 @@ export type WorkflowDetail = {
   departmentName: string;
   roleId: number;
   roleName: string;
+  // Legacy backend field. Prefer workflowStatus for UI filters and labels.
   status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;

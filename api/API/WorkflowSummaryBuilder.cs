@@ -18,8 +18,7 @@ internal static class WorkflowSummaryBuilder
         int totalCount,
         int openCount,
         int inProgressCount,
-        int doneCount,
-        int endedCount)
+        int doneCount)
     {
         return new WorkflowTaskCountSummaryDto
         {
@@ -27,15 +26,14 @@ internal static class WorkflowSummaryBuilder
             OpenCount = openCount,
             InProgressCount = inProgressCount,
             DoneCount = doneCount,
-            EndedCount = endedCount,
-            CompletedCount = doneCount + endedCount,
+            CompletedCount = doneCount,
             ActiveCount = openCount + inProgressCount
         };
     }
 
     public static WorkflowTaskMetricsDto CreateEmptyTaskMetrics()
     {
-        var emptyCounts = CreateTaskCountSummary(0, 0, 0, 0, 0);
+        var emptyCounts = CreateTaskCountSummary(0, 0, 0, 0);
 
         return new WorkflowTaskMetricsDto
         {
@@ -182,7 +180,7 @@ internal static class WorkflowSummaryBuilder
             return "Keine Aufgaben";
         }
 
-        return $"Offen: {taskMetrics.Overall.ActiveCount} | Erledigt: {taskMetrics.Overall.DoneCount} | Beendet: {taskMetrics.Overall.EndedCount}";
+        return $"Offen: {taskMetrics.Overall.ActiveCount} | Erledigt: {taskMetrics.Overall.DoneCount}";
     }
 
     private static WorkflowTaskCountSummaryDto BuildTaskCountSummary(IEnumerable<WorkflowTaskDto> tasks)
@@ -191,8 +189,6 @@ internal static class WorkflowSummaryBuilder
         var openCount = 0;
         var inProgressCount = 0;
         var doneCount = 0;
-        var endedCount = 0;
-
         foreach (var task in tasks)
         {
             totalCount += 1;
@@ -215,13 +211,9 @@ internal static class WorkflowSummaryBuilder
                 continue;
             }
 
-            if (string.Equals(task.Status, "skipped", StringComparison.OrdinalIgnoreCase))
-            {
-                endedCount += 1;
-            }
         }
 
-        return CreateTaskCountSummary(totalCount, openCount, inProgressCount, doneCount, endedCount);
+        return CreateTaskCountSummary(totalCount, openCount, inProgressCount, doneCount);
     }
 
     private static bool IsOpenTaskStatus(string status)

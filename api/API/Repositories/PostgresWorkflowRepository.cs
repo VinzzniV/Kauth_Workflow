@@ -13,24 +13,21 @@ internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository
         "ready",
         "in_progress",
         "blocked",
-        "done",
-        "skipped"
+        "done"
     };
 
     private static readonly HashSet<string> TerminalTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "done",
-        "skipped"
+        "done"
     };
 
     private static readonly Dictionary<string, HashSet<string>> AllowedTaskTransitions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["open"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "in_progress", "blocked", "done", "skipped" },
-        ["ready"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "in_progress", "blocked", "done", "skipped" },
-        ["in_progress"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "done", "blocked", "skipped" },
-        ["blocked"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "skipped" },
+        ["open"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "in_progress", "blocked", "done" },
+        ["ready"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "in_progress", "blocked", "done" },
+        ["in_progress"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "done", "blocked" },
+        ["blocked"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready" },
         ["done"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-        ["skipped"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
     };
 
     private const string SupervisorRequirementTaskKey = "supervisor_fills_document";
@@ -114,7 +111,7 @@ ORDER BY d.name, r.name;";
     }
 
     // Anforderungen und Rollenempfehlungen bilden die Eingabemaske fuer neue Workflows.
-    public async Task<List<RequirementDto>> GetRequirements(int? roleId = null)
+    public async Task<List<RequirementDto>> GetRequirements()
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -286,13 +283,27 @@ RETURNING id, uid;";
             workflowUid = reader.GetGuid(1);
         }
 
-        await GenerateWorkflowTasks(
+        var generatedTaskCount = await GenerateWorkflowTasks(
             connection,
             transaction,
             workflowId,
             request.DepartmentId,
             new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase),
             TaskGenerationStage.Initial);
+
+        if (generatedTaskCount > 0)
+        {
+            await InsertAuditEntry(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                createdByUserId,
+                "tasks_generated",
+                null,
+                null,
+                $"{generatedTaskCount} Aufgabe(n) initial erstellt");
+        }
 
         await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
         await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, createdByUserId);
@@ -403,7 +414,8 @@ WHERE workflow_id = @workflowId;";
                 connection,
                 transaction,
                 workflowId,
-                workflowDepartmentId);
+                workflowDepartmentId,
+                actorUserId);
         }
         else
         {
@@ -415,7 +427,7 @@ WHERE workflow_id = @workflowId;";
                 actorUserId);
         }
 
-        await GenerateWorkflowTasks(
+        var generatedTaskCount = await GenerateWorkflowTasks(
             connection,
             transaction,
             workflowId,
@@ -423,8 +435,23 @@ WHERE workflow_id = @workflowId;";
             answersByKey,
             TaskGenerationStage.AfterSupervisor);
 
+        if (generatedTaskCount > 0)
+        {
+            await InsertAuditEntry(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                actorUserId,
+                "tasks_generated",
+                null,
+                null,
+                $"{generatedTaskCount} Aufgabe(n) nach Anforderungsauswahl erstellt");
+        }
+
         await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
         await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+        var nextWorkflowStatus = await LoadWorkflowStatusForUpdate(connection, transaction, workflowId);
         await InsertAuditEntry(
             connection,
             transaction,
@@ -433,7 +460,7 @@ WHERE workflow_id = @workflowId;";
             actorUserId,
             "supervisor_step_completed",
             workflowStatus,
-            "completed",
+            nextWorkflowStatus ?? workflowStatus,
             $"Anforderungen gespeichert: {selections.Count}");
 
         await transaction.CommitAsync();

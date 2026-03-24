@@ -41,6 +41,7 @@ Do not force linear flows.
 ## 7. Status must stay consistent
 - Do not map `cancelled` → `completed`
 - Do not hide status differences
+- Do not use `skipped` as task-state workaround; non-needed tasks must not be generated
 
 ---
 

@@ -571,6 +571,160 @@ h1, h2, h3, h4, p {
   font-size: 0.82rem;
 }
 
+/* ─── Admin Workspace ─── */
+.admin-workspace-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-workspace-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.85rem 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
+}
+
+.admin-workspace-tab:hover {
+  border-color: var(--border-strong);
+}
+
+.admin-workspace-tab.active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+
+.admin-workspace-tab-title {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.admin-workspace-tab-note {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.admin-action-grid {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.admin-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, 280px) minmax(0, 1.7fr) minmax(240px, 320px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.admin-organization-sidebar,
+.admin-organization-main,
+.admin-organization-aside {
+  min-width: 0;
+}
+
+.admin-entity-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.admin-entity-switch {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card-muted);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.32rem 0.65rem;
+  cursor: pointer;
+  transition: border-color 100ms ease, background-color 100ms ease, color 100ms ease;
+}
+
+.admin-entity-switch.active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.admin-entity-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.admin-entity-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.16rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.75rem 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
+}
+
+.admin-entity-list-item:hover {
+  border-color: var(--border-strong);
+}
+
+.admin-entity-list-item.active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+
+.admin-entity-list-item strong {
+  font-size: 0.86rem;
+}
+
+.admin-entity-list-item span {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.admin-relation-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-relation-link {
+  display: inline-flex;
+  justify-content: flex-start;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 100ms ease, background-color 100ms ease;
+}
+
+.admin-relation-link:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-card-muted);
+}
+
 /* ─── Next Action Callout ─── */
 .next-action-callout {
   border: 1px solid var(--border);
@@ -988,16 +1142,6 @@ h1, h2, h3, h4, p {
   background: #d1fae5;
 }
 
-.task-pill--skipped {
-  color: #4b5563;
-  background: #f3f4f6;
-}
-
-.task-pill--cancelled {
-  color: #991b1b;
-  background: #fee2e2;
-}
-
 .task-dependency-list {
   margin: 0.5rem 0 0;
   padding-left: 1rem;
@@ -1022,6 +1166,43 @@ h1, h2, h3, h4, p {
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
+}
+
+.task-comments-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.task-comments-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  text-align: right;
+}
+
+.task-comments-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.task-comments-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.task-comments-charcount {
+  white-space: nowrap;
+}
+
+.task-comments-feedback {
+  margin-top: 0.75rem;
 }
 
 /* ─── Workflow Detail KPI Grid ─── */
@@ -1603,6 +1784,13 @@ h1, h2, h3, h4, p {
     flex-direction: column-reverse;
   }
 
+  .task-comments-summary,
+  .task-comments-meta,
+  .task-comments-form-head {
+    align-items: flex-start;
+    text-align: left;
+  }
+
   .task-icon-side {
     width: auto;
     justify-content: flex-start;
@@ -1621,5 +1809,17 @@ h1, h2, h3, h4, p {
   .dashboard-queue-item {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-workspace-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-action-grid {
+    flex-direction: column;
   }
 }

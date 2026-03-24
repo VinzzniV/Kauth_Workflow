@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getWorkflows } from "../services/onboardingApi";
-import type { WorkflowStatus, WorkflowSummary } from "../types/workflow";
-import { matchesWorkflowLegacyStatusFilter } from "../utils/workflowStatus";
+import type { WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
+import { matchesWorkflowRuntimeStatusFilter } from "../utils/workflowStatus";
 
 export type Row = WorkflowSummary;
 
@@ -15,7 +15,7 @@ export function useRows(options: UseRowsOptions = {}) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>("all");
 
   const reload = useCallback(async () => {
     setIsLoading(true);
@@ -41,7 +41,7 @@ export function useRows(options: UseRowsOptions = {}) {
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
-      const matchesStatus = matchesWorkflowLegacyStatusFilter(row.status, statusFilter, row.workflowStatus);
+      const matchesStatus = matchesWorkflowRuntimeStatusFilter(row.workflowStatus, statusFilter);
       const searchText = search.trim().toLowerCase();
 
       if (!searchText) {

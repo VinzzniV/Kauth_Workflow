@@ -206,8 +206,6 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
 
     private static readonly HashSet<string> TerminalTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "done",
-        "skipped",
-        "cancelled"
+        "done"
     };
 }

@@ -3,20 +3,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import WorkflowAuditLog from "../components/workflow-detail/WorkflowAuditLog";
+import WorkflowHeaderPanel from "../components/workflow-detail/WorkflowHeaderPanel";
+import WorkflowProgressSection from "../components/workflow-detail/WorkflowProgressSection";
 import WorkflowRequirementsPanel from "../components/workflow-detail/WorkflowRequirementsPanel";
 import WorkflowTaskAreasSection from "../components/workflow-detail/WorkflowTaskAreasSection";
 import {
   buildProcessSteps,
   buildTasksByArea,
   findCurrentTask,
-  formatDate,
   inferAreaFromTask,
   isDepartmentWorkflowPhase,
   toPhaseOwnerArea,
-  toProcessStepClass,
-  toReadAccessLabel,
   toRegularEditingLabel,
-  toRuntimeStatusLabel,
   toTaskDisplayTitle,
   type ProcessAreaName,
   type ProcessStep,
@@ -24,6 +22,10 @@ import {
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
+import {
+  applyRequirementBooleanEditorSelection,
+  applyRequirementSingleSelectEditorSelection,
+} from "../utils/requirementEditor";
 import {
   addTaskComment as addTaskCommentApi,
   getWorkflowAuditLog,
@@ -38,23 +40,16 @@ import type {
   WorkflowTask,
 } from "../types/workflow";
 import {
-  applyRequirementBooleanSelection,
-  applyRequirementSingleSelectSelection,
   buildRequirementSelections,
   createEmptyRequirementSelection,
   toRequirementSelectionPayload,
-  validateRequirementSelections,
 } from "../utils/requirements";
 import { getResponsibleResponsibilityLabel, getResponsibleUserLabel } from "../utils/taskAssignment";
 import {
   mapVisibleTaskStatusToWorkflowStatus,
   type VisibleTaskStatus,
 } from "../utils/taskStatus";
-import {
-  getWorkflowLegacyStatusLabel,
-  getWorkflowLegacyStatusPillClass,
-  isWorkflowTerminalStatus,
-} from "../utils/workflowStatus";
+import { isWorkflowTerminalStatus } from "../utils/workflowStatus";
 
 export default function WorkflowDetailPage() {
   const { uid = "" } = useParams<{ uid: string }>();
@@ -159,7 +154,6 @@ export default function WorkflowDetailPage() {
 
   const currentTask = useMemo(() => findCurrentTask(sortedTasks), [sortedTasks]);
   const regularEditingText = useMemo(() => (workflow ? toRegularEditingLabel(workflow) : "-"), [workflow]);
-  const readAccessText = useMemo(() => (workflow ? toReadAccessLabel(workflow) : "-"), [workflow]);
   const usesAdminOverride = capabilities.canManageAdminConfiguration && !capabilities.canCreateWorkflow;
   const canEditSupervisorRequirements = useMemo(() => {
     return workflow?.workflowStatus === "waiting_for_supervisor" && capabilities.canManageAdminConfiguration;
@@ -168,9 +162,8 @@ export default function WorkflowDetailPage() {
     if (!workflow || !canEditSupervisorRequirements || isSavingRequirements) {
       return false;
     }
-
-    return validateRequirementSelections(workflow.requirements, requirementSelections) === null;
-  }, [canEditSupervisorRequirements, isSavingRequirements, requirementSelections, workflow]);
+    return true;
+  }, [canEditSupervisorRequirements, isSavingRequirements, workflow]);
 
   const currentArea = useMemo(() => (workflow ? toPhaseOwnerArea(workflow) : "-"), [workflow]);
 
@@ -199,7 +192,7 @@ export default function WorkflowDetailPage() {
 
     if (currentTask) {
       if (isReaderOnlyView) {
-        return inferAreaFromTask(currentTask) ?? regularEditingText;
+        return inferAreaFromTask(currentTask) ?? currentArea;
       }
 
       const responsibility = getResponsibleResponsibilityLabel(currentTask);
@@ -211,8 +204,8 @@ export default function WorkflowDetailPage() {
       return `${responsibility} (${user})`;
     }
 
-    return regularEditingText;
-  }, [activeAreaNames, activeTaskCount, currentTask, isReaderOnlyView, regularEditingText, workflow]);
+    return currentArea;
+  }, [activeAreaNames, activeTaskCount, currentArea, currentTask, isReaderOnlyView, workflow]);
 
   const nextActionText = useMemo(() => {
     if (!workflow) {
@@ -220,9 +213,7 @@ export default function WorkflowDetailPage() {
     }
 
     if (isWorkflowTerminalStatus(workflow.workflowStatus)) {
-      return workflow.workflowStatus === "cancelled"
-        ? "Der Vorgang wurde abgebrochen"
-        : "Der Vorgang ist abgeschlossen";
+      return "Der Vorgang ist abgeschlossen";
     }
 
     if (isDepartmentWorkflowPhase(workflow.workflowStatus) && activeAreaNames.length > 1) {
@@ -322,7 +313,7 @@ export default function WorkflowDetailPage() {
       }
 
       setRequirementSelections((current) =>
-        applyRequirementBooleanSelection(workflow.requirements, current, requirementId, value)
+        applyRequirementBooleanEditorSelection(workflow.requirements, current, requirementId, value)
       );
     },
     [workflow]
@@ -344,7 +335,7 @@ export default function WorkflowDetailPage() {
     }
 
     setRequirementSelections((current) =>
-      applyRequirementSingleSelectSelection(workflow.requirements, current, requirementId, optionId)
+      applyRequirementSingleSelectEditorSelection(workflow.requirements, current, requirementId, optionId)
     );
   }, [workflow]);
 
@@ -367,12 +358,6 @@ export default function WorkflowDetailPage() {
 
   const handleRequirementSave = useCallback(async () => {
     if (!workflow || !canEditSupervisorRequirements) {
-      return;
-    }
-
-    const validationError = validateRequirementSelections(workflow.requirements, requirementSelections);
-    if (validationError) {
-      setRequirementsSaveError(validationError);
       return;
     }
 
@@ -429,106 +414,16 @@ export default function WorkflowDetailPage() {
 
         {!isLoading && !error && workflow ? (
           <>
-            <section className="panel panel-intro">
-              <div className="panel-head">
-                <h2>
-                  {workflow.firstName} {workflow.lastName}
-                </h2>
-                <p>
-                  Neue Person in {workflow.departmentName} | {workflow.roleName}
-                </p>
-              </div>
+            <WorkflowHeaderPanel
+              workflow={workflow}
+              regularEditingText={regularEditingText}
+              nextActionText={nextActionText}
+              currentArea={currentArea}
+              currentOwnerText={currentOwnerText}
+              canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
+            />
 
-              <div className="action-row">
-                <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.status, workflow.workflowStatus)}`}>
-                  Status: {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
-                </span>
-                <span className="chip">Prozessstand: {toRuntimeStatusLabel(workflow.workflowStatus)}</span>
-              </div>
-
-              <p className="panel-note">
-                Reguläre Bearbeitung: {regularEditingText} | Lesend: {readAccessText}
-                {capabilities.canManageAdminConfiguration ? " | Admin kann bei Bedarf eingreifen." : ""}
-              </p>
-
-              <div className="next-action-callout" role="status" aria-live="polite">
-                <p className="next-action-label">Nächste nötige Aktion</p>
-                <p className="next-action-text">{nextActionText}</p>
-              </div>
-
-              <div className="workflow-detail-summary-grid">
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Abteilung</p>
-                  <p className="workflow-detail-kpi-value">{workflow.departmentName}</p>
-                  <p className="workflow-detail-kpi-note">Geplanter Einsatzbereich der neuen Person.</p>
-                </article>
-
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Rolle / Position</p>
-                  <p className="workflow-detail-kpi-value">{workflow.roleName}</p>
-                  <p className="workflow-detail-kpi-note">Hinterlegte Zielposition für das Onboarding.</p>
-                </article>
-
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Startdatum</p>
-                  <p className="workflow-detail-kpi-value">{formatDate(workflow.createdAt)}</p>
-                  <p className="workflow-detail-kpi-note">Onboarding angelegt durch HR.</p>
-                </article>
-
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Deadline</p>
-                  <p className="workflow-detail-kpi-value">{formatDate(workflow.deadlineDate)}</p>
-                  <p className="workflow-detail-kpi-note">Optionales Ziel-Datum für den gesamten Vorgang.</p>
-                </article>
-
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Aktueller Status</p>
-                  <p className="workflow-detail-kpi-value">
-                    {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
-                  </p>
-                  <p className="workflow-detail-kpi-note">Gesamtstand des Vorgangs.</p>
-                </article>
-
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Aktuell zuständiger Bereich</p>
-                  <p className="workflow-detail-kpi-value">{currentArea}</p>
-                  <p className="workflow-detail-kpi-note">Wer diese Workflow-Phase regulär bearbeitet.</p>
-                </article>
-
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Aktuell dran</p>
-                  <p className="workflow-detail-kpi-value">{currentOwnerText}</p>
-                  <p className="workflow-detail-kpi-note">Konkrete Zuständigkeit für die aktuell offenen Aufgaben.</p>
-                </article>
-
-                <article className="workflow-detail-kpi">
-                  <p className="workflow-detail-kpi-label">Offene Aufgaben</p>
-                  <p className="workflow-detail-kpi-value">{workflow.taskMetrics.overall.activeCount}</p>
-                  <p className="workflow-detail-kpi-note">
-                    Offen: {workflow.taskMetrics.overall.openCount} | In Bearbeitung: {workflow.taskMetrics.overall.inProgressCount} | Erledigt: {workflow.taskMetrics.overall.completedCount}
-                  </p>
-                </article>
-              </div>
-            </section>
-
-            <section className="panel panel-muted">
-              <div className="panel-head">
-                <h2>Prozessfortschritt</h2>
-                <p>So weit ist der Onboarding-Vorgang aktuell.</p>
-              </div>
-
-              <ol className="process-step-list" aria-label="Fortschritt Onboarding">
-                {processSteps.map((step) => (
-                  <li key={step.key} className="process-step-item">
-                    <span className={`process-step-state ${toProcessStepClass(step.state)}`} aria-hidden="true" />
-                    <div className="process-step-content">
-                      <p className="process-step-title">{step.title}</p>
-                      <p className="process-step-detail">{step.detail}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
+            <WorkflowProgressSection processSteps={processSteps} />
 
             <WorkflowRequirementsPanel
               workflow={workflow}

@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import type {
   RequirementSelectionState,
+  WorkflowRequirementSnapshot,
 } from "../../types/workflow";
+import { getRequirementEditorVisibleRequirements } from "../../utils/requirementEditor";
 import {
   getRequirementSelection,
-  getVisibleRequirements,
+  hasRequirementSelectionChanges,
   type RequirementEntry,
 } from "../../utils/requirements";
 import { coerceIconKey } from "../../utils/iconRegistry";
@@ -56,6 +58,12 @@ function sortRequirements(requirements: RequirementEntry[]): RequirementEntry[] 
 
 function getRequirementId(requirement: RequirementEntry): number {
   return requirement.id;
+}
+
+function isWorkflowRequirementSnapshotEntry(
+  requirement: RequirementEntry
+): requirement is WorkflowRequirementSnapshot {
+  return "value" in requirement && "isVisible" in requirement;
 }
 
 function getIconKey(requirement: RequirementEntry): string {
@@ -114,11 +122,19 @@ export default function RequirementsSelection({
 }: Props) {
   const effectiveSelections = mode === "edit" ? selections : undefined;
   const visibleRequirements = useMemo(() => {
+    const workflowRequirements = requirements.every(isWorkflowRequirementSnapshotEntry)
+      ? requirements
+      : null;
+
+    if (workflowRequirements && !hasRequirementSelectionChanges(workflowRequirements, effectiveSelections)) {
+      return workflowRequirements.filter((requirement) => requirement.isVisible);
+    }
+
     if (mode === "view") {
       return requirements.filter((requirement) => ("isVisible" in requirement ? requirement.isVisible : true));
     }
 
-    return getVisibleRequirements(requirements, effectiveSelections);
+    return getRequirementEditorVisibleRequirements(requirements, effectiveSelections);
   }, [effectiveSelections, mode, requirements]);
 
   const groupedRequirements = useMemo<RequirementGroup[]>(() => {

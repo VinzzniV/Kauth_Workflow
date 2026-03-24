@@ -10,6 +10,7 @@ internal class Program
         builder.Services.AddOnboardingApiServices(builder.Configuration);
 
         var app = builder.Build();
+        app.ValidateOnboardingStartup();
         app.ConfigureOnboardingApi();
         app.MapOnboardingApiEndpoints();
         app.Run();

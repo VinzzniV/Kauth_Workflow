@@ -108,7 +108,6 @@ async function loadHrInsights(): Promise<DashboardInsights> {
         waiting_for_department: 2,
         in_progress: 3,
         completed: 4,
-        cancelled: 5,
       };
 
       const statusDelta = statusPriority[left.workflowStatus] - statusPriority[right.workflowStatus];
@@ -173,16 +172,13 @@ async function loadManagerInsights(): Promise<DashboardInsights> {
     (count, workflow) => count + workflow.requirementSummary.pendingVisibleCount,
     0
   );
-  const unresolvedWorkflowCount = workflows.filter(
-    (workflow) => workflow.requirementSummary.pendingVisibleCount > 0
-  ).length;
 
   const queueItems = workflows
     .slice()
     .sort((left, right) => toEpoch(left.createdAt) - toEpoch(right.createdAt))
     .slice(0, 5)
     .map((workflow) => {
-      const selectionText = `${workflow.requirementSummary.pendingVisibleCount} offene Auswahlpunkte`;
+      const selectionText = `${workflow.requirementSummary.answeredVisibleCount} von ${workflow.requirementSummary.visibleCount} beantwortet`;
 
       return {
         key: workflow.uid,
@@ -205,8 +201,8 @@ async function loadManagerInsights(): Promise<DashboardInsights> {
       },
       {
         label: "Noch zu bearbeitende Onboardings",
-        value: unresolvedWorkflowCount > 0 ? unresolvedWorkflowCount : workflows.length,
-        note: "Diese Fälle warten noch auf Ihre Rückmeldung.",
+        value: workflows.length,
+        note: "Diese zugewiesenen Fälle warten im Schritt der Abteilungsleitung.",
       },
     ],
     queueTitle: "Offene Onboardings",
@@ -224,6 +220,7 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
   const tasksWithWorkflow = await getMyTasks();
 
   type OpenTaskRecord = {
+    taskId: number;
     workflowUid: string;
     workflowDisplayName: string;
     taskTitle: string;
@@ -242,6 +239,7 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
 
     if (isOpenTask(item.task)) {
       openTasks.push({
+        taskId: item.task.id,
         workflowUid,
         workflowDisplayName,
         taskTitle: item.task.title,
@@ -265,8 +263,6 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
     ready: 2,
     open: 3,
     done: 4,
-    skipped: 5,
-    cancelled: 6,
   };
 
   const queueItems = openTasks
@@ -281,7 +277,7 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
     })
     .slice(0, 6)
     .map((task) => ({
-      key: `${task.workflowUid}:${task.taskTitle}`,
+      key: `${task.workflowUid}:${task.taskId}`,
       title: task.taskTitle,
       detail: `${task.workflowDisplayName} | ${getTaskStatusLabel(task.taskStatus)}`,
       to: "/tasks/my",

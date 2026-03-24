@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { formatDateTime } from "../../utils/dateFormat";
 import type { WorkflowTask } from "../../types/workflow";
 
@@ -18,12 +19,43 @@ export default function TaskCommentsSection({
   onDraftChange,
   onSubmit,
 }: TaskCommentsSectionProps) {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const trimmedDraft = draftValue.trim();
+  const latestComment = task.comments.at(-1) ?? null;
+  const commentCountLabel = `${task.comments.length} Eintrag${task.comments.length === 1 ? "" : "e"} zur Aufgabe.`;
+
+  useEffect(() => {
+    if (trimmedDraft || isSaving || feedbackMessage) {
+      setIsOpen(true);
+    }
+  }, [feedbackMessage, isSaving, trimmedDraft]);
+
   return (
-    <details className="panel panel-muted" name={`task-comments-${task.id}`}>
+    <details
+      className="panel panel-muted"
+      name={`task-comments-${task.id}`}
+      open={isOpen}
+      onToggle={(event) => setIsOpen(event.currentTarget.open)}
+    >
       <summary className="panel-head" style={{ cursor: "pointer", listStyle: "none" }}>
-        <div>
-          <h3>Kommentare / Klärungen</h3>
-          <p>{task.comments.length} Eintrag{task.comments.length === 1 ? "" : "e"} zur Aufgabe.</p>
+        <div className="task-comments-summary">
+          <div>
+            <h3>Kommentare / Klärungen</h3>
+            <p>{commentCountLabel}</p>
+          </div>
+          <div className="task-comments-meta">
+            {latestComment ? (
+              <p className="panel-note">
+                Letzte Aktivität: {latestComment.authorUserName ?? "Unbekannt"} ·{" "}
+                {formatDateTime(latestComment.createdAt)}
+              </p>
+            ) : task.canAddComment ? (
+              <p className="panel-note">Noch keine Kommentare. Rückfragen direkt an der Aufgabe dokumentieren.</p>
+            ) : (
+              <p className="panel-note">Keine Kommentare vorhanden.</p>
+            )}
+            {trimmedDraft ? <span className="chip">Entwurf offen</span> : null}
+          </div>
         </div>
       </summary>
 
@@ -43,12 +75,22 @@ export default function TaskCommentsSection({
         </ol>
       ) : null}
 
-      {feedbackMessage ? <p className="panel-note">{feedbackMessage}</p> : null}
+      {feedbackMessage ? (
+        <p className="panel-note task-comments-feedback" role="status" aria-live="polite">
+          {feedbackMessage}
+        </p>
+      ) : null}
 
       {task.canAddComment ? (
-        <div className="toolbar-row task-actions-row">
-          <label className="field grow">
-            <span>Neuer Kommentar</span>
+        <div className="task-comments-form">
+          <div className="task-comments-form-head">
+            <p className="panel-note">Kommentare sind für alle Beteiligten mit Aufgaben-Zugriff sichtbar.</p>
+            <p className="panel-note task-comments-charcount">{trimmedDraft.length}/2000 Zeichen</p>
+          </div>
+
+          <div className="toolbar-row task-actions-row">
+            <label className="field grow">
+              <span>Neuer Kommentar</span>
             <textarea
               value={draftValue}
               rows={3}
@@ -57,15 +99,16 @@ export default function TaskCommentsSection({
               onChange={(event) => onDraftChange(task.id, event.target.value)}
               placeholder="Blocker, Rückfrage oder Kontext notieren"
             />
-          </label>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={isSaving || !draftValue.trim()}
-            onClick={() => void onSubmit(task.id)}
-          >
-            Kommentar speichern
-          </button>
+            </label>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={isSaving || !trimmedDraft}
+              onClick={() => void onSubmit(task.id)}
+            >
+              {isSaving ? "Speichert..." : "Kommentar speichern"}
+            </button>
+          </div>
         </div>
       ) : null}
     </details>

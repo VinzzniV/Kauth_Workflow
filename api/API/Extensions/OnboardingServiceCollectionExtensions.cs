@@ -10,11 +10,20 @@ internal static class OnboardingServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var corsAllowedOrigins = configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>()
+            ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray()
+            ?? ["http://localhost:5173"];
+
         services.AddControllers();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Onboarding API", Version = "v1" });
+            c.OperationFilter<WorkflowListResponseOperationFilter>();
         });
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();
         services.AddHttpContextAccessor();
@@ -40,8 +49,7 @@ internal static class OnboardingServiceCollectionExtensions
         services.AddCors(options =>
         {
             options.AddPolicy("vite", policy =>
-                policy.WithOrigins("http://localhost:5173",
-                                   "http://172.20.50.35:5173")
+                policy.WithOrigins(corsAllowedOrigins)
                       .AllowAnyHeader()
                       .AllowAnyMethod()
             );

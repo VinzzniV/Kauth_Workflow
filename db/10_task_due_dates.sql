@@ -34,4 +34,4 @@ UPDATE workflow_tasks
 SET due_at = COALESCE(ready_at, created_at) + (due_in_days * INTERVAL '1 day')
 WHERE due_in_days IS NOT NULL
   AND due_at IS NULL
-  AND status IN ('ready', 'in_progress', 'blocked', 'done', 'skipped');
+  AND status IN ('ready', 'in_progress', 'blocked', 'done');

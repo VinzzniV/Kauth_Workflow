@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import type { WorkflowSummary } from "../../types/workflow";
 import {
-  getWorkflowLegacyStatusLabel,
-  getWorkflowLegacyStatusPillClass,
+  getWorkflowRuntimeStatusLabel,
+  getWorkflowRuntimeStatusPillClass,
 } from "../../utils/workflowStatus";
 import { formatDate, formatDateTime } from "../../utils/dateFormat";
 
@@ -17,8 +17,8 @@ export default function WorkflowCard({ workflow }: Props) {
     <article className="workflow-card">
       <div className="workflow-card-top">
         <h3>{fullName || "Unbekannter Name"}</h3>
-        <span className={`status-pill ${getWorkflowLegacyStatusPillClass(workflow.status, workflow.workflowStatus)}`}>
-          {getWorkflowLegacyStatusLabel(workflow.status, workflow.workflowStatus)}
+        <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
+          {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}
         </span>
       </div>
 

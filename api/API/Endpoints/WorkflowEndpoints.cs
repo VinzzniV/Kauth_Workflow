@@ -7,6 +7,50 @@ namespace API;
 
 internal static class WorkflowEndpoints
 {
+    private static readonly HashSet<string> SupportedWorkflowRuntimeStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "draft",
+        "waiting_for_supervisor",
+        "waiting_for_department",
+        "in_progress",
+        "completed"
+    };
+
+    private static bool MatchesWorkflowSearch(WorkflowListItemDto workflow, string normalizedSearch)
+    {
+        var fullName = $"{workflow.FirstName} {workflow.LastName}".Trim().ToLowerInvariant();
+        return fullName.Contains(normalizedSearch, StringComparison.Ordinal)
+            || workflow.DepartmentName.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)
+            || workflow.RoleName.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)
+            || workflow.Uid.ToString().Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)
+            || workflow.EmployeeNumber.ToString().Contains(normalizedSearch, StringComparison.Ordinal);
+    }
+
+    private static List<DepartmentDto> BuildDepartmentOptions(IEnumerable<WorkflowListItemDto> workflows)
+    {
+        return workflows
+            .GroupBy(workflow => workflow.DepartmentId)
+            .Select(group => group.First())
+            .Select(workflow => new DepartmentDto
+            {
+                Id = workflow.DepartmentId,
+                Name = workflow.DepartmentName
+            })
+            .OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<WorkflowResponsibilityOptionDto> BuildResponsibilityOptions(
+        IEnumerable<WorkflowListItemDto> workflows)
+    {
+        return workflows
+            .SelectMany(workflow => workflow.ResponsibilityOptions)
+            .GroupBy(option => option.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     public static IEndpointRouteBuilder MapWorkflowEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/departments", async (
@@ -159,6 +203,12 @@ internal static class WorkflowEndpoints
           .Produces(StatusCodes.Status400BadRequest);
 
         app.MapGet("/workflows", async (
+            [FromQuery] string? status,
+            [FromQuery] int? department,
+            [FromQuery] string? search,
+            [FromQuery] string? responsibility,
+            [FromQuery] int? limit,
+            [FromQuery] int? offset,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -172,21 +222,91 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
+            if (limit.HasValue && limit.Value <= 0)
+            {
+                return Results.BadRequest(new { message = "limit must be greater than 0." });
+            }
+
+            if (offset.HasValue && offset.Value < 0)
+            {
+                return Results.BadRequest(new { message = "offset must be greater than or equal to 0." });
+            }
+
+            var normalizedStatus = string.IsNullOrWhiteSpace(status)
+                ? null
+                : status.Trim().ToLowerInvariant();
+            if (normalizedStatus is not null && !SupportedWorkflowRuntimeStatuses.Contains(normalizedStatus))
+            {
+                return Results.BadRequest(new { message = $"status '{status}' is not supported." });
+            }
+
+            var normalizedSearch = string.IsNullOrWhiteSpace(search)
+                ? null
+                : search.Trim().ToLowerInvariant();
+            var normalizedResponsibility = string.IsNullOrWhiteSpace(responsibility)
+                ? null
+                : responsibility.Trim();
+
             var currentUser = access.User!;
             var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
                 currentUser,
                 repository,
                 authorizationPolicy);
 
-            var workflows = (await repository.GetWorkflows())
+            var visibleWorkflows = (await repository.GetWorkflows())
                 .Where(workflow => EndpointSupport.CanObserveWorkflow(
                     currentUser,
                     workflow.DepartmentId,
                     workflow.WorkflowStatus,
                     observableDepartmentIds,
                     authorizationPolicy))
+                .Where(workflow => normalizedStatus is null
+                    || workflow.WorkflowStatus.Equals(normalizedStatus, StringComparison.OrdinalIgnoreCase))
+                .Where(workflow =>
+                {
+                    if (normalizedSearch is null)
+                    {
+                        return true;
+                    }
+
+                    return MatchesWorkflowSearch(workflow, normalizedSearch);
+                })
                 .ToList();
-            return Results.Ok(workflows);
+
+            var departmentOptions = BuildDepartmentOptions(visibleWorkflows);
+            var departmentFilteredWorkflows = visibleWorkflows
+                .Where(workflow => !department.HasValue || workflow.DepartmentId == department.Value)
+                .ToList();
+            var responsibilityOptions = BuildResponsibilityOptions(departmentFilteredWorkflows);
+            var workflows = departmentFilteredWorkflows
+                .Where(workflow => normalizedResponsibility is null
+                    || workflow.ResponsibilityOptions.Any(option =>
+                        option.Value.Equals(normalizedResponsibility, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            if (!limit.HasValue && !offset.HasValue)
+            {
+                return Results.Ok(workflows);
+            }
+
+            var effectiveOffset = offset ?? 0;
+            var pagedWorkflows = workflows
+                .Skip(effectiveOffset);
+
+            if (limit.HasValue)
+            {
+                pagedWorkflows = pagedWorkflows.Take(limit.Value);
+            }
+
+            return Results.Ok(new WorkflowListPageDto
+            {
+                Items = pagedWorkflows.ToList(),
+                Count = workflows.Count,
+                Offset = effectiveOffset,
+                Limit = limit ?? workflows.Count,
+                DepartmentOptions = departmentOptions,
+                ResponsibilityOptions = responsibilityOptions
+            });
         }).Produces<List<WorkflowListItemDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/workflows/{uid:guid}", async (
@@ -234,6 +354,8 @@ internal static class WorkflowEndpoints
 
         app.MapGet("/workflows/{uid:guid}/audit-log", async (
             Guid uid,
+            [FromQuery] int? limit,
+            [FromQuery] int? offset,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -247,6 +369,16 @@ internal static class WorkflowEndpoints
             if (access.Error is not null)
             {
                 return access.Error;
+            }
+
+            if (limit.HasValue && limit.Value <= 0)
+            {
+                return Results.BadRequest(new { message = "limit must be greater than 0." });
+            }
+
+            if (offset.HasValue && offset.Value < 0)
+            {
+                return Results.BadRequest(new { message = "offset must be greater than or equal to 0." });
             }
 
             var workflow = await repository.GetWorkflowByUid(uid);
@@ -271,8 +403,11 @@ internal static class WorkflowEndpoints
                 return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
             }
 
-            return Results.Ok(await repository.GetWorkflowAuditLog(uid));
+            var effectiveLimit = Math.Min(limit ?? 200, 500);
+            var effectiveOffset = offset ?? 0;
+            return Results.Ok(await repository.GetWorkflowAuditLog(uid, effectiveLimit, effectiveOffset));
         }).Produces<List<WorkflowAuditEntryDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
 

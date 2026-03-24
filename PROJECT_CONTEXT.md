@@ -52,10 +52,11 @@ Flow:
 - No shortcuts
 
 ### Status consistency
-- `completed`, `cancelled`, `skipped` must not be mixed or mapped incorrectly
+- `completed` and `cancelled` must not be mixed or mapped incorrectly
 
 ### Task relevance
 - Once generated → must be treated as required for workflow
+- Tasks that should not exist must not be generated later just to be skipped
 
 ### Hardware logic
 - requested=false → no tasks

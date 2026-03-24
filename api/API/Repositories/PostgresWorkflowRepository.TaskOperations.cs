@@ -99,6 +99,8 @@ internal sealed partial class PostgresWorkflowRepository
             throw new InvalidOperationException("Assignment changes are not allowed for terminal task states.");
         }
 
+        var oldAssigneeLabel = await LoadPrimaryTaskAssignmentAuditLabel(connection, transaction, taskId);
+
         if (request.AssigneeResponsibilityId.HasValue)
         {
             await EnsureAssignableResponsibilityExists(connection, transaction, request.AssigneeResponsibilityId.Value);
@@ -123,6 +125,9 @@ internal sealed partial class PostgresWorkflowRepository
         var storedAssigneeResponsibilityId = assignmentType == "responsibility"
             ? request.AssigneeResponsibilityId
             : null;
+        var newAssigneeLabel = assignmentType == "user"
+            ? await LoadAssigneeUserAuditLabel(connection, transaction, request.AssigneeUserId!.Value)
+            : await LoadAssigneeResponsibilityAuditLabel(connection, transaction, request.AssigneeResponsibilityId!.Value);
 
         const string clearPrimarySql = @"
 UPDATE task_assignments
@@ -176,11 +181,8 @@ VALUES (
             taskId,
             actorUserId,
             "task_assigned",
-            null,
-            BuildTaskAssignmentAuditValue(
-                assignmentType,
-                storedAssigneeUserId,
-                storedAssigneeResponsibilityId),
+            oldAssigneeLabel,
+            newAssigneeLabel,
             BuildTaskStatusAuditDetail(taskTitle));
 
         await transaction.CommitAsync();
@@ -206,7 +208,7 @@ VALUES (
             return null;
         }
 
-        var (workflowId, currentStatus, _, _, taskTitle) = taskRecord.Value;
+        var (workflowId, currentStatus, _, _, _) = taskRecord.Value;
         var workflowStatus = await LoadWorkflowStatusForUpdate(connection, transaction, workflowId);
         if (workflowStatus is null)
         {
@@ -252,7 +254,7 @@ VALUES (
             "task_comment_added",
             null,
             null,
-            $"Task: {taskTitle} | {normalizedComment}");
+            normalizedComment);
 
         await transaction.CommitAsync();
         return await GetTaskById(taskId);
