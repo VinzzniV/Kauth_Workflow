@@ -7,7 +7,7 @@ import RequirementIcon from "../components/workflows/RequirementIcon";
 import TaskCommentsSection from "../components/workflows/TaskCommentsSection";
 import TaskSlaPill from "../components/workflows/TaskSlaPill";
 import TaskStatusPill from "../components/workflows/TaskStatusPill";
-import { addTaskComment as addTaskCommentApi, getMyTasks, updateTaskStatus as updateTaskStatusApi } from "../services/onboardingApi";
+import { addTaskComment as addTaskCommentApi, getMyTasks, updateTaskStatus as updateTaskStatusApi } from "../services/lifecycleApi";
 import type { TaskWithWorkflow, WorkflowTaskStatus } from "../types/workflow";
 import {
   getResponsibleResponsibilityFilterOption,
@@ -218,7 +218,7 @@ export default function MyTasksPage() {
   );
 
   return (
-    <main className="onboarding-shell">
+    <main className="app-shell">
       <div className="page-container">
         <PageHeader
           title="Meine Aufgaben"
@@ -362,7 +362,7 @@ export default function MyTasksPage() {
                             <div className="task-card-content">
                               <dl className="task-meta">
                                 <div>
-                                  <dt>Onboarding-Fall</dt>
+                                  <dt>Vorgang</dt>
                                   <dd>
                                     {workflowDisplayName} ({row.workflow.employeeNumber})
                                   </dd>
@@ -394,7 +394,7 @@ export default function MyTasksPage() {
                               </dl>
 
                               <p className="panel-note">
-                                Onboarding-ID: {workflowUid} | Abhängigkeiten: {row.task.dependencies.length}
+                                Workflow-ID: {workflowUid} | Abhängigkeiten: {row.task.dependencies.length}
                               </p>
 
                               <div className="toolbar-row task-actions-row">

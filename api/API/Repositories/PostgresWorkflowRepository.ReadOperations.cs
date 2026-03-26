@@ -35,6 +35,9 @@ SELECT
     w.badge_number,
     d.id,
     d.name,
+    pt.key,
+    pt.name,
+    pt.requires_target_person,
     r.id,
     r.name,
     w.status,
@@ -44,9 +47,10 @@ SELECT
     COUNT(n.id) FILTER (WHERE n.status = 'failed') AS failed_notifications
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN app_roles r ON r.id = w.onboarding_role_id
+JOIN process_types pt ON pt.id = w.process_type_id
+JOIN app_roles r ON r.id = w.position_role_id
 LEFT JOIN workflow_notifications n ON n.workflow_id = w.id
-GROUP BY w.id, d.id, d.name, r.id, r.name, w.deadline_date
+GROUP BY w.id, d.id, d.name, pt.key, pt.name, pt.requires_target_person, r.id, r.name, w.deadline_date
 ORDER BY w.created_at DESC;";
 
         var workflowRows = new List<(
@@ -58,6 +62,9 @@ ORDER BY w.created_at DESC;";
             int BadgeNumber,
             int DepartmentId,
             string DepartmentName,
+            string ProcessTypeKey,
+            string ProcessTypeName,
+            bool ProcessTypeRequiresTargetPerson,
             int RoleId,
             string RoleName,
             string WorkflowStatus,
@@ -80,18 +87,21 @@ ORDER BY w.created_at DESC;";
                     reader.GetInt32(5),
                     reader.GetInt32(6),
                     reader.GetString(7),
-                    reader.GetInt32(8),
+                    reader.GetString(8),
                     reader.GetString(9),
-                    reader.GetString(10),
-                    reader.IsDBNull(11) ? null : reader.GetFieldValue<DateOnly>(11),
-                    reader.GetDateTime(12),
-                    reader.GetInt32(13),
-                    reader.GetInt32(14)));
+                    reader.GetBoolean(10),
+                    reader.GetInt32(11),
+                    reader.GetString(12),
+                    reader.GetString(13),
+                    reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
+                    reader.GetDateTime(15),
+                    reader.GetInt32(16),
+                    reader.GetInt32(17)));
             }
         }
 
         var workflowIds = workflowRows.Select(row => row.WorkflowId).ToArray();
-        var definitions = await LoadAnswerDefinitionRecords(connection, null);
+        var definitions = await LoadAnswerDefinitionRecords(connection, null, null);
         var requirementSummariesByWorkflowId = await LoadWorkflowRequirementSummaries(connection, workflowIds, definitions);
         var metadataByWorkflowId = await LoadWorkflowListMetadata(connection, workflowIds);
 
@@ -112,6 +122,12 @@ ORDER BY w.created_at DESC;";
                     BadgeNumber = row.BadgeNumber,
                     DepartmentId = row.DepartmentId,
                     DepartmentName = row.DepartmentName,
+                    ProcessType = new WorkflowProcessTypeDto
+                    {
+                        Key = row.ProcessTypeKey,
+                        Name = row.ProcessTypeName,
+                        RequiresTargetPerson = row.ProcessTypeRequiresTargetPerson
+                    },
                     RoleId = row.RoleId,
                     RoleName = row.RoleName,
                     Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
@@ -147,6 +163,9 @@ SELECT
     w.badge_number,
     d.id,
     d.name,
+    pt.key,
+    pt.name,
+    pt.requires_target_person,
     r.id,
     r.name,
     w.status,
@@ -154,7 +173,8 @@ SELECT
     w.created_at
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN app_roles r ON r.id = w.onboarding_role_id
+JOIN process_types pt ON pt.id = w.process_type_id
+JOIN app_roles r ON r.id = w.position_role_id
 WHERE w.uid = @uid
 LIMIT 1;";
 
@@ -172,7 +192,7 @@ LIMIT 1;";
             }
 
             workflowId = reader.GetInt64(0);
-            var workflowStatus = reader.GetString(10);
+            var workflowStatus = reader.GetString(13);
 
             workflow = new WorkflowDetailDto
             {
@@ -183,12 +203,18 @@ LIMIT 1;";
                 BadgeNumber = reader.GetInt32(5),
                 DepartmentId = reader.GetInt32(6),
                 DepartmentName = reader.GetString(7),
-                RoleId = reader.GetInt32(8),
-                RoleName = reader.GetString(9),
+                ProcessType = new WorkflowProcessTypeDto
+                {
+                    Key = reader.GetString(8),
+                    Name = reader.GetString(9),
+                    RequiresTargetPerson = reader.GetBoolean(10)
+                },
+                RoleId = reader.GetInt32(11),
+                RoleName = reader.GetString(12),
                 Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                 WorkflowStatus = workflowStatus,
-                DeadlineDate = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateOnly>(11),
-                CreatedAt = reader.GetDateTime(12),
+                DeadlineDate = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
+                CreatedAt = reader.GetDateTime(15),
                 Requirements = new List<WorkflowRequirementSnapshotDto>(),
                 RequirementSummary = WorkflowSummaryBuilder.CreateEmptyRequirementSummary(),
                 Tasks = new List<WorkflowTaskDto>(),
@@ -308,12 +334,10 @@ LEFT JOIN LATERAL (
 ) selected_assignment ON TRUE
 LEFT JOIN app_responsibilities selected_responsibility
     ON selected_responsibility.id = selected_assignment.assignee_responsibility_id
-WHERE wt.workflow_id = ANY(@workflowIds)
-  AND wt.task_key <> @legacyTaskKey;";
+WHERE wt.workflow_id = ANY(@workflowIds);";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.Add("workflowIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = workflowIds;
-        command.Parameters.AddWithValue("legacyTaskKey", LegacySupervisorHandoverTaskKey);
 
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -571,6 +595,10 @@ SELECT
     t.id,
     t.task_template_id,
     t.task_key,
+    CASE
+        WHEN pt.approval_task_template_key IS NULL THEN FALSE
+        ELSE t.task_key = pt.approval_task_template_key
+    END,
     t.title,
     t.description,
     t.category,
@@ -584,7 +612,6 @@ SELECT
     t.ready_at,
     t.started_at,
     t.completed_at,
-    t.cancelled_at,
     w.id,
     w.uid,
     w.status,
@@ -607,15 +634,15 @@ SELECT
     template_responsibility.responsibility_type
 FROM workflow_tasks t
 JOIN workflows w ON w.id = t.workflow_id
+JOIN process_types pt ON pt.id = w.process_type_id
 JOIN departments d ON d.id = w.department_id
-JOIN app_roles r ON r.id = w.onboarding_role_id
+JOIN app_roles r ON r.id = w.position_role_id
 LEFT JOIN task_templates tt
     ON tt.id = t.task_template_id
     OR (t.task_template_id IS NULL AND tt.template_key = t.task_key)
 LEFT JOIN app_responsibilities template_responsibility ON template_responsibility.id = tt.default_responsibility_id
 LEFT JOIN departments template_department ON template_department.id = template_responsibility.department_id
 WHERE (@taskId IS NULL OR t.id = @taskId)
-  AND t.task_key <> @legacyTaskKey
 ORDER BY w.created_at DESC, t.sort_order, t.id;";
 
         var tasks = new List<TaskWithWorkflowDto>();
@@ -624,7 +651,6 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
         await using (var command = new NpgsqlCommand(sql, connection, transaction))
         {
             command.Parameters.Add("taskId", NpgsqlDbType.Bigint).Value = (object?)taskId ?? DBNull.Value;
-            command.Parameters.AddWithValue("legacyTaskKey", LegacySupervisorHandoverTaskKey);
             await using var reader = await command.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
@@ -634,27 +660,27 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                     Id = reader.GetInt64(0),
                     TaskTemplateId = reader.IsDBNull(1) ? null : reader.GetInt32(1),
                     TaskKey = reader.GetString(2),
-                    Title = reader.GetString(3),
-                    Description = reader.GetString(4),
-                    Category = reader.GetString(5),
-                    IconKey = reader.GetString(6),
-                    Status = reader.GetString(7),
-                    IsRequired = reader.GetBoolean(8),
-                    DueInDays = reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                    IsApprovalTask = reader.GetBoolean(3),
+                    Title = reader.GetString(4),
+                    Description = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                    Category = reader.GetString(6),
+                    IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(7) ? null : reader.GetString(7)),
+                    Status = reader.GetString(8),
+                    IsRequired = reader.GetBoolean(9),
+                    DueInDays = reader.IsDBNull(10) ? null : reader.GetInt32(10),
                     DueAt = ResolveEffectiveTaskDueAt(
                         reader.IsDBNull(20) ? null : reader.GetFieldValue<DateOnly>(20),
-                        reader.IsDBNull(10) ? null : reader.GetDateTime(10)),
+                        reader.IsDBNull(11) ? null : reader.GetDateTime(11)),
                     SlaStatus = ResolveTaskSlaStatus(
-                        reader.GetString(7),
+                        reader.GetString(8),
                         ResolveEffectiveTaskDueAt(
                             reader.IsDBNull(20) ? null : reader.GetFieldValue<DateOnly>(20),
-                            reader.IsDBNull(10) ? null : reader.GetDateTime(10))),
-                    SortOrder = reader.GetInt32(11),
-                    CreatedAt = reader.GetDateTime(12),
-                    ReadyAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
-                    StartedAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
-                    CompletedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
-                    CancelledAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
+                            reader.IsDBNull(11) ? null : reader.GetDateTime(11))),
+                    SortOrder = reader.GetInt32(12),
+                    CreatedAt = reader.GetDateTime(13),
+                    ReadyAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                    StartedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
+                    CompletedAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
                     ProcessArea = ResolveTaskProcessArea(
                         reader.IsDBNull(30) ? null : reader.GetString(30),
                         reader.IsDBNull(32) ? null : reader.GetString(32),
@@ -785,13 +811,11 @@ SELECT
 FROM workflow_task_dependencies d
 JOIN workflow_tasks wt ON wt.id = d.depends_on_workflow_task_id
 WHERE d.workflow_task_id = ANY(@taskIds)
-  AND wt.task_key <> @legacyTaskKey
 ORDER BY d.workflow_task_id, d.id;";
 
         await using (var dependencyCommand = new NpgsqlCommand(dependencySql, connection, transaction))
         {
             dependencyCommand.Parameters.Add("taskIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = taskIds;
-            dependencyCommand.Parameters.AddWithValue("legacyTaskKey", LegacySupervisorHandoverTaskKey);
             await using var reader = await dependencyCommand.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
@@ -873,6 +897,10 @@ SELECT
     wt.id,
     wt.task_template_id,
     wt.task_key,
+    CASE
+        WHEN pt.approval_task_template_key IS NULL THEN FALSE
+        ELSE wt.task_key = pt.approval_task_template_key
+    END,
     wt.title,
     wt.description,
     wt.category,
@@ -886,7 +914,6 @@ SELECT
     wt.ready_at,
     wt.started_at,
     wt.completed_at,
-    wt.cancelled_at,
     w.deadline_date,
     COALESCE(wt.process_area_label, tt.process_area_label),
     CASE
@@ -897,13 +924,13 @@ SELECT
     template_responsibility.responsibility_type
 FROM workflow_tasks wt
 JOIN workflows w ON w.id = wt.workflow_id
+JOIN process_types pt ON pt.id = w.process_type_id
 LEFT JOIN task_templates tt
     ON tt.id = wt.task_template_id
     OR (wt.task_template_id IS NULL AND tt.template_key = wt.task_key)
 LEFT JOIN app_responsibilities template_responsibility ON template_responsibility.id = tt.default_responsibility_id
 LEFT JOIN departments template_department ON template_department.id = template_responsibility.department_id
 WHERE wt.workflow_id = @workflowId
-  AND wt.task_key <> @legacyTaskKey
 ORDER BY wt.sort_order, wt.id;";
 
         var taskById = new Dictionary<long, WorkflowTaskDto>();
@@ -911,7 +938,6 @@ ORDER BY wt.sort_order, wt.id;";
         await using (var command = new NpgsqlCommand(taskSql, connection))
         {
             command.Parameters.AddWithValue("workflowId", workflowId);
-            command.Parameters.AddWithValue("legacyTaskKey", LegacySupervisorHandoverTaskKey);
             await using var reader = await command.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
@@ -921,27 +947,27 @@ ORDER BY wt.sort_order, wt.id;";
                     Id = reader.GetInt64(0),
                     TaskTemplateId = reader.IsDBNull(1) ? null : reader.GetInt32(1),
                     TaskKey = reader.GetString(2),
-                    Title = reader.GetString(3),
-                    Description = reader.GetString(4),
-                    Category = reader.GetString(5),
-                    IconKey = reader.GetString(6),
-                    Status = reader.GetString(7),
-                    IsRequired = reader.GetBoolean(8),
-                    DueInDays = reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                    IsApprovalTask = reader.GetBoolean(3),
+                    Title = reader.GetString(4),
+                    Description = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                    Category = reader.GetString(6),
+                    IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(7) ? null : reader.GetString(7)),
+                    Status = reader.GetString(8),
+                    IsRequired = reader.GetBoolean(9),
+                    DueInDays = reader.IsDBNull(10) ? null : reader.GetInt32(10),
                     DueAt = ResolveEffectiveTaskDueAt(
                         reader.IsDBNull(17) ? null : reader.GetFieldValue<DateOnly>(17),
-                        reader.IsDBNull(10) ? null : reader.GetDateTime(10)),
+                        reader.IsDBNull(11) ? null : reader.GetDateTime(11)),
                     SlaStatus = ResolveTaskSlaStatus(
-                        reader.GetString(7),
+                        reader.GetString(8),
                         ResolveEffectiveTaskDueAt(
                             reader.IsDBNull(17) ? null : reader.GetFieldValue<DateOnly>(17),
-                            reader.IsDBNull(10) ? null : reader.GetDateTime(10))),
-                    SortOrder = reader.GetInt32(11),
-                    CreatedAt = reader.GetDateTime(12),
-                    ReadyAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
-                    StartedAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
-                    CompletedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
-                    CancelledAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
+                            reader.IsDBNull(11) ? null : reader.GetDateTime(11))),
+                    SortOrder = reader.GetInt32(12),
+                    CreatedAt = reader.GetDateTime(13),
+                    ReadyAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                    StartedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
+                    CompletedAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
                     ProcessArea = ResolveTaskProcessArea(
                         reader.IsDBNull(18) ? null : reader.GetString(18),
                         reader.IsDBNull(20) ? null : reader.GetString(20),
@@ -969,29 +995,12 @@ ORDER BY wt.sort_order, wt.id;";
 
     private static string ResolveTaskSlaStatus(string taskStatus, DateTime? dueAt)
     {
-        if (!dueAt.HasValue
-            || TerminalTaskStatuses.Contains(taskStatus))
-        {
-            return "none";
-        }
-
-        var now = DateTime.UtcNow;
-        if (dueAt.Value < now)
-        {
-            return "overdue";
-        }
-
-        return dueAt.Value.Date == now.Date ? "due_today" : "on_track";
+        return TaskDueDateRules.ResolveSlaStatus(taskStatus, dueAt, TerminalTaskStatuses);
     }
 
     private static DateTime? ResolveEffectiveTaskDueAt(DateOnly? workflowDeadlineDate, DateTime? taskDueAt)
     {
-        if (workflowDeadlineDate.HasValue)
-        {
-            return DateTime.SpecifyKind(workflowDeadlineDate.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        }
-
-        return taskDueAt;
+        return TaskDueDateRules.ResolveEffectiveDueAt(workflowDeadlineDate, taskDueAt);
     }
 
     private static async Task LoadWorkflowNotifications(

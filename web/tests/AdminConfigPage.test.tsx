@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminConfigPage from "../src/pages/AdminConfigPage";
-import * as onboardingApi from "../src/services/onboardingApi";
+import * as lifecycleApi from "../src/services/lifecycleApi";
 import { renderWithApp } from "./testUtils";
 import type {
   AdminDepartmentAssignment,
@@ -13,13 +13,14 @@ import type {
 } from "../src/types/auth";
 import type { WorkflowConfig } from "../src/types/workflow";
 
-vi.mock("../src/services/onboardingApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/onboardingApi")>(
-    "../src/services/onboardingApi"
+vi.mock("../src/services/lifecycleApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>(
+    "../src/services/lifecycleApi"
   );
 
   return {
     ...actual,
+    createAdminUser: vi.fn(),
     getAdminDepartmentAssignments: vi.fn(),
     getAdminGroups: vi.fn(),
     getAdminNotificationEmailConfiguration: vi.fn(),
@@ -30,15 +31,16 @@ vi.mock("../src/services/onboardingApi", async () => {
   };
 });
 
-const mockedGetAdminDepartmentAssignments = vi.mocked(onboardingApi.getAdminDepartmentAssignments);
-const mockedGetAdminGroups = vi.mocked(onboardingApi.getAdminGroups);
+const mockedCreateAdminUser = vi.mocked(lifecycleApi.createAdminUser);
+const mockedGetAdminDepartmentAssignments = vi.mocked(lifecycleApi.getAdminDepartmentAssignments);
+const mockedGetAdminGroups = vi.mocked(lifecycleApi.getAdminGroups);
 const mockedGetAdminNotificationEmailConfiguration = vi.mocked(
-  onboardingApi.getAdminNotificationEmailConfiguration
+  lifecycleApi.getAdminNotificationEmailConfiguration
 );
-const mockedGetAdminResponsibilityOwners = vi.mocked(onboardingApi.getAdminResponsibilityOwners);
-const mockedGetAdminRoles = vi.mocked(onboardingApi.getAdminRoles);
-const mockedGetAdminUsers = vi.mocked(onboardingApi.getAdminUsers);
-const mockedGetAdminWorkflowConfig = vi.mocked(onboardingApi.getAdminWorkflowConfig);
+const mockedGetAdminResponsibilityOwners = vi.mocked(lifecycleApi.getAdminResponsibilityOwners);
+const mockedGetAdminRoles = vi.mocked(lifecycleApi.getAdminRoles);
+const mockedGetAdminUsers = vi.mocked(lifecycleApi.getAdminUsers);
+const mockedGetAdminWorkflowConfig = vi.mocked(lifecycleApi.getAdminWorkflowConfig);
 
 function createUser(overrides: Partial<AdminUser> = {}): AdminUser {
   return {
@@ -196,6 +198,7 @@ function mockSuccessfulLoad() {
 
 describe("AdminConfigPage", () => {
   beforeEach(() => {
+    mockedCreateAdminUser.mockReset();
     mockedGetAdminUsers.mockReset();
     mockedGetAdminDepartmentAssignments.mockReset();
     mockedGetAdminResponsibilityOwners.mockReset();
@@ -204,6 +207,14 @@ describe("AdminConfigPage", () => {
     mockedGetAdminRoles.mockReset();
     mockedGetAdminGroups.mockReset();
     mockSuccessfulLoad();
+    mockedCreateAdminUser.mockResolvedValue(
+      createUser({
+        userId: 3,
+        externalKey: "neue.person",
+        displayName: "Neue Person",
+        email: "neue.person@demo.local",
+      })
+    );
   });
 
   it("starts in the overview by default", async () => {
@@ -279,5 +290,38 @@ describe("AdminConfigPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "IT" })[0]!);
 
     expect(await screen.findByText("Abteilung pflegen: IT")).toBeTruthy();
+  });
+
+  it("dispatches a demo-user refresh after creating a new user", async () => {
+    const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
+
+    renderWithApp(<AdminConfigPage />, {
+      roleKeys: ["auth_admin"],
+      route: "/admin/config?section=organization&entity=user",
+    });
+
+    expect(await screen.findByText("Neue Person")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Anzeigename"), {
+      target: { value: "Neue Person" },
+    });
+    fireEvent.change(screen.getByLabelText("Login-E-Mail"), {
+      target: { value: "neue.person@demo.local" },
+    });
+    fireEvent.change(screen.getByLabelText("Anmeldename"), {
+      target: { value: "neue.person" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Person anlegen" }));
+
+    await waitFor(() => {
+      expect(mockedCreateAdminUser).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(dispatchEventSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "demo-users-refresh" }));
+    });
+
+    dispatchEventSpy.mockRestore();
   });
 });

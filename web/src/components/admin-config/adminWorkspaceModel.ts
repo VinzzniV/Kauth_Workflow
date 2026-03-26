@@ -6,7 +6,7 @@ import type {
 } from "../../types/auth";
 import { toNullableNumber, toNullableText } from "./adminConfigHelpers";
 
-export type AdminWorkspaceSection = "overview" | "organization" | "access" | "system";
+export type AdminWorkspaceSection = "overview" | "organization" | "templates" | "answers" | "defaults" | "access" | "system" | "operations";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
 
 export type AdminWorkspaceWarning = {
@@ -22,8 +22,12 @@ export type AdminWorkspaceWarning = {
 export function normalizeAdminWorkspaceSection(value: string | null): AdminWorkspaceSection {
   switch ((value ?? "").trim().toLowerCase()) {
     case "organization":
+    case "templates":
+    case "answers":
+    case "defaults":
     case "access":
     case "system":
+    case "operations":
       return value!.trim().toLowerCase() as AdminWorkspaceSection;
     default:
       return "overview";

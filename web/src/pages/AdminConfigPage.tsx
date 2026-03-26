@@ -2,9 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AdminOrganizationWorkspaceSection } from "../components/admin-config/AdminOrganizationWorkspaceSection";
+import { AdminAnswerDefinitionSection } from "../components/admin-config/AdminAnswerDefinitionSection";
 import { AdminOverviewWorkspaceSection } from "../components/admin-config/AdminOverviewWorkspaceSection";
+import { AdminRoleAnswerDefaultsSection } from "../components/admin-config/AdminRoleAnswerDefaultsSection";
 import { AdminSystemWorkspaceSection } from "../components/admin-config/AdminSystemWorkspaceSection";
+import { AdminTaskTemplateSection } from "../components/admin-config/AdminTaskTemplateSection";
 import { AdminTechnicalAccessSection } from "../components/admin-config/AdminTechnicalAccessSection";
+import { AdminBulkOperationsSection } from "../components/admin-config/AdminBulkOperationsSection";
 import { AdminWorkspaceNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
 import {
   buildAdminOverviewWarnings,
@@ -28,7 +32,7 @@ import {
   getAdminRoles,
   getAdminUsers,
   getAdminWorkflowConfig,
-} from "../services/onboardingApi";
+} from "../services/lifecycleApi";
 import type {
   AdminDepartmentAssignment,
   AdminGroup,
@@ -354,7 +358,7 @@ export default function AdminConfigPage() {
     users.length > 0 || departmentAssignments.length > 0 || responsibilityOwners.length > 0;
 
   return (
-    <main className="onboarding-shell">
+    <main className="app-shell">
       <div className="page-container">
         <PageHeader
           title="Admin-Workspace"
@@ -490,6 +494,29 @@ export default function AdminConfigPage() {
               />
             ) : null}
 
+            {section === "templates" ? (
+              <AdminTaskTemplateSection
+                departments={departmentAssignments}
+                responsibilities={responsibilityOwners}
+                onNotice={setNotice}
+                onError={setError}
+              />
+            ) : null}
+
+            {section === "answers" ? (
+              <AdminAnswerDefinitionSection
+                onNotice={setNotice}
+                onError={setError}
+              />
+            ) : null}
+
+            {section === "defaults" ? (
+              <AdminRoleAnswerDefaultsSection
+                onNotice={setNotice}
+                onError={setError}
+              />
+            ) : null}
+
             {section === "system" ? (
               <AdminSystemWorkspaceSection
                 notificationEmailConfiguration={notificationEmailConfiguration}
@@ -523,6 +550,10 @@ export default function AdminConfigPage() {
                 onSaveNotificationEmailConfiguration={saveNotificationEmailConfiguration}
                 onSendNotificationEmailTest={sendNotificationEmailTest}
               />
+            ) : null}
+
+            {section === "operations" ? (
+              <AdminBulkOperationsSection departments={departmentAssignments} />
             ) : null}
           </>
         ) : null}

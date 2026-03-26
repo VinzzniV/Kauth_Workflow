@@ -164,8 +164,9 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
         await using (var workflowCommand = new NpgsqlCommand(
                          """
                          INSERT INTO workflows (
+                             process_type_id,
                              department_id,
-                             onboarding_role_id,
+                             position_role_id,
                              first_name,
                              last_name,
                              employee_number,
@@ -173,6 +174,7 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
                              status
                          )
                          VALUES (
+                             (SELECT id FROM process_types WHERE key = 'onboarding'),
                              @departmentId,
                              @roleId,
                              'Integration',

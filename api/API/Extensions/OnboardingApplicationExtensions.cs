@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 
 namespace API;
 
-internal static class OnboardingApplicationExtensions
+internal static class LifecycleApplicationExtensions
 {
-    public static WebApplication ConfigureOnboardingApi(this WebApplication app)
+    public static WebApplication ConfigureLifecycleApi(this WebApplication app)
     {
         app.UseExceptionHandler(errorApp =>
         {
@@ -32,7 +32,7 @@ internal static class OnboardingApplicationExtensions
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "RoleTaskPerms API v1");
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Employee Lifecycle API v1");
             c.RoutePrefix = "swagger";
         });
         app.MapControllers();
@@ -40,7 +40,7 @@ internal static class OnboardingApplicationExtensions
         return app;
     }
 
-    public static WebApplication MapOnboardingApiEndpoints(this WebApplication app)
+    public static WebApplication MapLifecycleApiEndpoints(this WebApplication app)
     {
         app.MapAuthEndpoints();
         app.MapAdminEndpoints();

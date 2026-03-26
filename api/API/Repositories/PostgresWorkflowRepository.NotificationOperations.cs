@@ -5,6 +5,110 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
+    public async Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        const string workflowSql = @"
+SELECT w.id, pt.key, pt.name
+FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
+WHERE w.uid = @workflowUid
+LIMIT 1
+FOR UPDATE OF w;";
+
+        long? workflowId = null;
+        string? processTypeKey = null;
+        string? processTypeName = null;
+
+        await using (var workflowCommand = new NpgsqlCommand(workflowSql, connection, transaction))
+        {
+            workflowCommand.Parameters.AddWithValue("workflowUid", workflowUid);
+            await using var reader = await workflowCommand.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                workflowId = reader.GetInt64(0);
+                processTypeKey = reader.GetString(1);
+                processTypeName = reader.GetString(2);
+            }
+        }
+
+        if (!workflowId.HasValue
+            || string.IsNullOrWhiteSpace(processTypeKey)
+            || string.IsNullOrWhiteSpace(processTypeName))
+        {
+            await transaction.RollbackAsync();
+            return [];
+        }
+
+        const string notificationSql = @"
+SELECT
+    n.id,
+    n.recipient_user_id,
+    n.target_name,
+    n.target_email
+FROM workflow_notifications n
+WHERE n.workflow_id = @workflowId
+  AND n.notification_type = 'workflow_created'
+  AND n.status = 'pending'
+ORDER BY n.id;";
+
+        var pendingNotifications = new List<(long NotificationId, long? RecipientUserId, string TargetName, string TargetEmail)>();
+        await using (var notificationCommand = new NpgsqlCommand(notificationSql, connection, transaction))
+        {
+            notificationCommand.Parameters.AddWithValue("workflowId", workflowId.Value);
+            await using var reader = await notificationCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                pendingNotifications.Add((
+                    reader.GetInt64(0),
+                    reader.IsDBNull(1) ? null : reader.GetInt64(1),
+                    reader.GetString(2),
+                    reader.GetString(3)));
+            }
+        }
+
+        var targets = new List<WorkflowNotificationDispatchTarget>(pendingNotifications.Count);
+        foreach (var pendingNotification in pendingNotifications)
+        {
+            string? recipientIdentityKey = null;
+            string? preferredPath = "/workflows";
+
+            if (pendingNotification.RecipientUserId.HasValue)
+            {
+                var recipient = await LoadActiveUserNotificationRecipient(
+                    connection,
+                    transaction,
+                    pendingNotification.RecipientUserId.Value);
+                if (recipient.HasValue)
+                {
+                    recipientIdentityKey = recipient.Value.IdentityKey;
+                    preferredPath = recipient.Value.PreferredPath;
+                }
+            }
+
+            targets.Add(new WorkflowNotificationDispatchTarget
+            {
+                NotificationId = pendingNotification.NotificationId,
+                WorkflowTaskId = null,
+                NotificationType = "workflow_created",
+                ProcessTypeKey = processTypeKey,
+                ProcessTypeName = processTypeName,
+                RecipientUserId = pendingNotification.RecipientUserId,
+                RecipientIdentityKey = recipientIdentityKey,
+                TargetName = pendingNotification.TargetName,
+                TargetEmail = pendingNotification.TargetEmail,
+                TaskTitle = null,
+                PreferredPath = preferredPath
+            });
+        }
+
+        await transaction.CommitAsync();
+        return targets;
+    }
+
     public async Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(Guid workflowUid)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
@@ -32,7 +136,8 @@ FOR UPDATE;";
             return [];
         }
 
-        var targets = await CreateReadyTaskNotifications(connection, transaction, workflowId.Value);
+        var processType = await LoadWorkflowProcessTypeForNotifications(connection, transaction, workflowId.Value);
+        var targets = await CreateReadyTaskNotifications(connection, transaction, workflowId.Value, processType.Key, processType.Name);
         await transaction.CommitAsync();
         return targets;
     }
@@ -44,15 +149,18 @@ FOR UPDATE;";
         await using var transaction = await connection.BeginTransactionAsync();
 
         const string workflowSql = @"
-SELECT id, created_by_user_id, status
-FROM workflows
+SELECT w.id, w.created_by_user_id, w.status, pt.key, pt.name
+FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
 WHERE uid = @workflowUid
 LIMIT 1
-FOR UPDATE;";
+FOR UPDATE OF w;";
 
         long? workflowId = null;
         long? createdByUserId = null;
         string? workflowStatus = null;
+        string? processTypeKey = null;
+        string? processTypeName = null;
 
         await using (var workflowCommand = new NpgsqlCommand(workflowSql, connection, transaction))
         {
@@ -63,12 +171,16 @@ FOR UPDATE;";
                 workflowId = reader.GetInt64(0);
                 createdByUserId = reader.IsDBNull(1) ? null : reader.GetInt64(1);
                 workflowStatus = reader.GetString(2);
+                processTypeKey = reader.GetString(3);
+                processTypeName = reader.GetString(4);
             }
         }
 
         if (!workflowId.HasValue
             || !createdByUserId.HasValue
-            || !string.Equals(workflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(workflowStatus, "completed", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(processTypeKey)
+            || string.IsNullOrWhiteSpace(processTypeName))
         {
             await transaction.RollbackAsync();
             return [];
@@ -102,7 +214,7 @@ LIMIT 1;";
             return [];
         }
 
-        var inserted = await InsertWorkflowNotification(
+        var notificationId = await InsertWorkflowNotification(
             connection,
             transaction,
             workflowId.Value,
@@ -118,9 +230,11 @@ LIMIT 1;";
         [
             new WorkflowNotificationDispatchTarget
             {
-                NotificationId = inserted.NotificationId,
+                NotificationId = notificationId,
                 WorkflowTaskId = null,
                 NotificationType = "workflow_completed",
+                ProcessTypeKey = processTypeKey,
+                ProcessTypeName = processTypeName,
                 RecipientUserId = createdByUserId.Value,
                 RecipientIdentityKey = recipient.Value.IdentityKey,
                 TargetName = recipient.Value.DisplayName,
@@ -256,7 +370,31 @@ LIMIT 1;";
         return (reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), preferredPath);
     }
 
-    private static async Task<WorkflowNotificationDispatchTarget> InsertWorkflowNotification(
+    private static async Task<(string Key, string Name)> LoadWorkflowProcessTypeForNotifications(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = @"
+SELECT pt.key, pt.name
+FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
+WHERE w.id = @workflowId
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            throw new InvalidOperationException("Workflow process type could not be loaded for notifications.");
+        }
+
+        return (reader.GetString(0), reader.GetString(1));
+    }
+
+    private static async Task<long> InsertWorkflowNotification(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -285,7 +423,7 @@ VALUES (
     @notificationType,
     'pending'
 )
-RETURNING id, workflow_task_id, notification_type, target_name, target_email;";
+RETURNING id;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("workflowId", workflowId);
@@ -295,27 +433,18 @@ RETURNING id, workflow_task_id, notification_type, target_name, target_email;";
         command.Parameters.AddWithValue("targetName", targetName);
         command.Parameters.AddWithValue("notificationType", notificationType);
 
-        await using var reader = await command.ExecuteReaderAsync();
-        await reader.ReadAsync();
-        return new WorkflowNotificationDispatchTarget
-        {
-            NotificationId = reader.GetInt64(0),
-            WorkflowTaskId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
-            NotificationType = reader.GetString(2),
-            RecipientUserId = recipientUserId,
-            RecipientIdentityKey = null,
-            TargetName = reader.GetString(3),
-            TargetEmail = reader.GetString(4),
-            TaskTitle = null,
-            PreferredPath = null
-        };
+        var id = await command.ExecuteScalarAsync();
+        return (long)id!;
     }
 
     private static async Task<List<WorkflowNotificationDispatchTarget>> CreateWorkflowNotifications(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
-        int departmentId)
+        int departmentId,
+        bool requiresSupervisorStep,
+        string processTypeKey,
+        string processTypeName)
     {
         var recipients = new Dictionary<long, (string DisplayName, string Email, string IdentityKey, string PreferredPath)>();
 
@@ -337,32 +466,35 @@ RETURNING id, workflow_task_id, notification_type, target_name, target_email;";
             }
         }
 
-        var departmentSelectionAssignment = await ResolveDepartmentRequirementSelectionAssignment(
-            connection,
-            transaction,
-            departmentId);
-
-        if (departmentSelectionAssignment.UserId.HasValue)
+        if (requiresSupervisorStep)
         {
-            var departmentRecipient = await LoadActiveUserNotificationRecipient(
+            var departmentSelectionAssignment = await ResolveDepartmentRequirementSelectionAssignment(
                 connection,
                 transaction,
-                departmentSelectionAssignment.UserId.Value);
+                departmentId);
 
-            if (departmentRecipient.HasValue)
+            if (departmentSelectionAssignment.UserId.HasValue)
             {
-                recipients[departmentRecipient.Value.UserId] = (
-                    departmentRecipient.Value.DisplayName,
-                    departmentRecipient.Value.Email,
-                    departmentRecipient.Value.IdentityKey,
-                    departmentRecipient.Value.PreferredPath);
+                var departmentRecipient = await LoadActiveUserNotificationRecipient(
+                    connection,
+                    transaction,
+                    departmentSelectionAssignment.UserId.Value);
+
+                if (departmentRecipient.HasValue)
+                {
+                    recipients[departmentRecipient.Value.UserId] = (
+                        departmentRecipient.Value.DisplayName,
+                        departmentRecipient.Value.Email,
+                        departmentRecipient.Value.IdentityKey,
+                        departmentRecipient.Value.PreferredPath);
+                }
             }
         }
 
         var targets = new List<WorkflowNotificationDispatchTarget>();
         foreach (var recipient in recipients)
         {
-            targets.Add(await InsertWorkflowNotification(
+            var notificationId = await InsertWorkflowNotification(
                 connection,
                 transaction,
                 workflowId,
@@ -370,20 +502,22 @@ RETURNING id, workflow_task_id, notification_type, target_name, target_email;";
                 recipient.Key,
                 recipient.Value.DisplayName,
                 recipient.Value.Email,
-                "workflow_created"));
+                "workflow_created");
 
-            targets[^1] = new WorkflowNotificationDispatchTarget
+            targets.Add(new WorkflowNotificationDispatchTarget
             {
-                NotificationId = targets[^1].NotificationId,
+                NotificationId = notificationId,
                 WorkflowTaskId = null,
                 NotificationType = "workflow_created",
+                ProcessTypeKey = processTypeKey,
+                ProcessTypeName = processTypeName,
                 RecipientUserId = recipient.Key,
                 RecipientIdentityKey = recipient.Value.IdentityKey,
                 TargetName = recipient.Value.DisplayName,
                 TargetEmail = recipient.Value.Email,
                 TaskTitle = null,
                 PreferredPath = recipient.Value.PreferredPath
-            };
+            });
         }
 
         return targets;
@@ -392,7 +526,9 @@ RETURNING id, workflow_task_id, notification_type, target_name, target_email;";
     private static async Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        long workflowId)
+        long workflowId,
+        string processTypeKey,
+        string processTypeName)
     {
         const string taskSql = @"
 SELECT
@@ -400,12 +536,14 @@ SELECT
     wt.id,
     wt.title
 FROM workflow_tasks wt
+JOIN workflows w ON w.id = wt.workflow_id
+JOIN process_types pt ON pt.id = w.process_type_id
 JOIN task_assignments ta
     ON ta.workflow_task_id = wt.id
    AND ta.is_primary = TRUE
 WHERE wt.workflow_id = @workflowId
   AND wt.status IN ('open', 'ready')
-  AND wt.task_key <> @supervisorTaskKey
+  AND (pt.approval_task_template_key IS NULL OR wt.task_key <> pt.approval_task_template_key)
   AND ta.assignee_user_id IS NOT NULL
   AND (
       (
@@ -439,7 +577,6 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
         await using (var taskCommand = new NpgsqlCommand(taskSql, connection, transaction))
         {
             taskCommand.Parameters.AddWithValue("workflowId", workflowId);
-            taskCommand.Parameters.AddWithValue("supervisorTaskKey", SupervisorRequirementTaskKey);
 
             await using var reader = await taskCommand.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -476,7 +613,7 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
 
             foreach (var recipientTask in recipientTasks)
             {
-                var inserted = await InsertWorkflowNotification(
+                var notificationId = await InsertWorkflowNotification(
                     connection,
                     transaction,
                     workflowId,
@@ -488,9 +625,11 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
 
                 targets.Add(new WorkflowNotificationDispatchTarget
                 {
-                    NotificationId = inserted.NotificationId,
+                    NotificationId = notificationId,
                     WorkflowTaskId = recipientTask.WorkflowTaskId,
                     NotificationType = "task_ready",
+                    ProcessTypeKey = processTypeKey,
+                    ProcessTypeName = processTypeName,
                     RecipientUserId = recipientUserId,
                     RecipientIdentityKey = recipient.Value.IdentityKey,
                     TargetName = recipient.Value.DisplayName,

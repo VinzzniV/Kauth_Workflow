@@ -118,7 +118,7 @@ export default function RequirementsSelection({
   error,
   onRetry,
   title = "Bedarf festlegen",
-  description = "Wählen Sie aus, welche Zugänge und welche Ausstattung für die neue Person benötigt werden.",
+  description = "Wählen Sie aus, welche Zugänge und welche Ausstattung für den Vorgang benötigt werden.",
 }: Props) {
   const effectiveSelections = mode === "edit" ? selections : undefined;
   const visibleRequirements = useMemo(() => {
@@ -175,7 +175,7 @@ export default function RequirementsSelection({
       {!isLoading && !error && requirements.length === 0 ? (
         <EmptyState
           title="Keine Auswahlpunkte hinterlegt"
-          description="Derzeit sind keine Auswahlpunkte für das Onboarding hinterlegt."
+          description="Derzeit sind keine Auswahlpunkte für diesen Vorgang hinterlegt."
         />
       ) : null}
 

@@ -70,16 +70,27 @@ FOR UPDATE OF w;";
         return await command.ExecuteScalarAsync() is not null;
     }
 
-    private static async Task<(long WorkflowId, string CurrentStatus, bool IsRequired, string TaskKey, string TaskTitle)?> LoadTaskStateForUpdate(
+    private static async Task<(long WorkflowId, string CurrentStatus, bool IsRequired, string TaskKey, bool IsApprovalTask, string TaskTitle)?> LoadTaskStateForUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId)
     {
         const string sql = @"
-SELECT workflow_id, status, is_required, task_key, title
-FROM workflow_tasks
-WHERE id = @taskId
-FOR UPDATE;";
+SELECT
+    wt.workflow_id,
+    wt.status,
+    wt.is_required,
+    wt.task_key,
+    CASE
+        WHEN pt.approval_task_template_key IS NULL THEN FALSE
+        ELSE wt.task_key = pt.approval_task_template_key
+    END,
+    wt.title
+FROM workflow_tasks wt
+JOIN workflows w ON w.id = wt.workflow_id
+JOIN process_types pt ON pt.id = w.process_type_id
+WHERE wt.id = @taskId
+FOR UPDATE OF wt;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("taskId", taskId);
@@ -90,7 +101,13 @@ FOR UPDATE;";
             return null;
         }
 
-        return (reader.GetInt64(0), reader.GetString(1), reader.GetBoolean(2), reader.GetString(3), reader.GetString(4));
+        return (
+            reader.GetInt64(0),
+            reader.GetString(1),
+            reader.GetBoolean(2),
+            reader.GetString(3),
+            reader.GetBoolean(4),
+            reader.GetString(5));
     }
 
     private static async Task<bool> AreTaskDependenciesSatisfied(
@@ -104,12 +121,10 @@ SELECT
     COUNT(*) FILTER (WHERE dep.status = d.required_status) AS satisfied_count
 FROM workflow_task_dependencies d
 JOIN workflow_tasks dep ON dep.id = d.depends_on_workflow_task_id
-WHERE d.workflow_task_id = @taskId
-  AND dep.task_key <> @legacyTaskKey;";
+WHERE d.workflow_task_id = @taskId;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("taskId", taskId);
-        command.Parameters.AddWithValue("legacyTaskKey", LegacySupervisorHandoverTaskKey);
 
         await using var reader = await command.ExecuteReaderAsync();
         if (!await reader.ReadAsync())
@@ -132,14 +147,22 @@ WHERE d.workflow_task_id = @taskId
 UPDATE workflow_tasks
 SET
     status = @status,
-    due_at = CASE
-        WHEN @status IN ('ready', 'in_progress', 'done')
-            THEN CASE
-                WHEN due_in_days IS NOT NULL THEN COALESCE(due_at, NOW() + (due_in_days * INTERVAL '1 day'))
-                ELSE due_at
-            END
-        ELSE due_at
-    END,
+    due_at = COALESCE(
+        due_at,
+        CASE
+            WHEN due_in_days IS NOT NULL
+                AND (SELECT w.deadline_date FROM workflows w WHERE w.id = workflow_tasks.workflow_id) IS NOT NULL
+                THEN LEAST(
+                    (SELECT w.deadline_date::timestamp AT TIME ZONE 'UTC'
+                     FROM workflows w
+                     WHERE w.id = workflow_tasks.workflow_id),
+                    created_at + (due_in_days * INTERVAL '1 day'))
+            WHEN due_in_days IS NOT NULL THEN created_at + (due_in_days * INTERVAL '1 day')
+            ELSE (
+                SELECT w.deadline_date::timestamp AT TIME ZONE 'UTC'
+                FROM workflows w
+                WHERE w.id = workflow_tasks.workflow_id)
+        END),
     ready_at = CASE
         WHEN @status = 'ready' THEN COALESCE(ready_at, NOW())
         WHEN @status IN ('in_progress', 'done') THEN COALESCE(ready_at, NOW())
@@ -154,10 +177,6 @@ SET
         WHEN @status = 'done' THEN COALESCE(completed_at, NOW())
         WHEN @status IN ('open', 'ready', 'in_progress', 'blocked') THEN NULL
         ELSE completed_at
-    END,
-    cancelled_at = CASE
-        WHEN @status IN ('open', 'ready', 'in_progress', 'blocked', 'done') THEN NULL
-        ELSE cancelled_at
     END
 WHERE id = @taskId;";
 
@@ -236,11 +255,6 @@ ORDER BY d.workflow_task_id, d.id;";
             await using var reader = await dependencyCommand.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                if (reader.GetString(3).Equals(LegacySupervisorHandoverTaskKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
                 var workflowTaskId = reader.GetInt64(0);
                 if (!dependenciesByTask.TryGetValue(workflowTaskId, out var dependencies))
                 {
@@ -274,10 +288,22 @@ ORDER BY d.workflow_task_id, d.id;";
 UPDATE workflow_tasks
 SET
     status = 'ready',
-    due_at = CASE
-        WHEN due_in_days IS NOT NULL THEN COALESCE(due_at, NOW() + (due_in_days * INTERVAL '1 day'))
-        ELSE due_at
-    END,
+    due_at = COALESCE(
+        due_at,
+        CASE
+            WHEN due_in_days IS NOT NULL
+                AND (SELECT w.deadline_date FROM workflows w WHERE w.id = workflow_tasks.workflow_id) IS NOT NULL
+                THEN LEAST(
+                    (SELECT w.deadline_date::timestamp AT TIME ZONE 'UTC'
+                     FROM workflows w
+                     WHERE w.id = workflow_tasks.workflow_id),
+                    created_at + (due_in_days * INTERVAL '1 day'))
+            WHEN due_in_days IS NOT NULL THEN created_at + (due_in_days * INTERVAL '1 day')
+            ELSE (
+                SELECT w.deadline_date::timestamp AT TIME ZONE 'UTC'
+                FROM workflows w
+                WHERE w.id = workflow_tasks.workflow_id)
+        END),
     ready_at = NOW()
 WHERE id = @taskId;";
 
@@ -309,17 +335,35 @@ WHERE id = @taskId;";
         long workflowId,
         long? actorUserId)
     {
-        const string currentWorkflowStatusSql = @"
-SELECT status
-FROM workflows
-WHERE id = @workflowId
-FOR UPDATE;";
+        const string workflowStatusContextSql = @"
+SELECT
+    w.status,
+    pt.name,
+    pt.requires_supervisor_step,
+    pt.approval_task_template_key
+FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
+WHERE w.id = @workflowId
+FOR UPDATE OF w;";
 
         string? currentWorkflowStatus = null;
-        await using (var currentWorkflowStatusCommand = new NpgsqlCommand(currentWorkflowStatusSql, connection, transaction))
+        string processTypeName = "Workflow";
+        var requiresSupervisorStep = true;
+        string? approvalTaskTemplateKey = null;
+        await using (var workflowStatusContextCommand = new NpgsqlCommand(workflowStatusContextSql, connection, transaction))
         {
-            currentWorkflowStatusCommand.Parameters.AddWithValue("workflowId", workflowId);
-            currentWorkflowStatus = await currentWorkflowStatusCommand.ExecuteScalarAsync() as string;
+            workflowStatusContextCommand.Parameters.AddWithValue("workflowId", workflowId);
+            await using var reader = await workflowStatusContextCommand.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                currentWorkflowStatus = reader.IsDBNull(0) ? null : reader.GetString(0);
+                processTypeName = reader.GetString(1);
+                requiresSupervisorStep = reader.GetBoolean(2);
+                approvalTaskTemplateKey = EnsureApprovalTaskConfiguration(
+                    processTypeName,
+                    requiresSupervisorStep,
+                    reader.IsDBNull(3) ? null : reader.GetString(3));
+            }
         }
 
         const string taskStatusSql = @"
@@ -347,7 +391,7 @@ WHERE workflow_id = @workflowId;";
             : completionRelevantStatuses.All(status =>
                     status.Equals("done", StringComparison.OrdinalIgnoreCase))
                 ? "completed"
-                : DetermineActiveWorkflowStatus(taskStates);
+                : DetermineActiveWorkflowStatus(taskStates, processTypeName, requiresSupervisorStep, approvalTaskTemplateKey);
 
         const string workflowStatusUpdateSql = @"
 UPDATE workflows
@@ -361,8 +405,7 @@ SET
     completed_at = CASE
         WHEN @status = 'completed' THEN COALESCE(completed_at, NOW())
         ELSE NULL
-    END,
-    cancelled_at = NULL
+    END
 WHERE id = @workflowId;";
 
         await using var updateCommand = new NpgsqlCommand(workflowStatusUpdateSql, connection, transaction);
@@ -385,12 +428,23 @@ WHERE id = @workflowId;";
     }
 
     private static string DetermineActiveWorkflowStatus(
-        IReadOnlyList<(string TaskKey, string Status, bool IsRequired)> taskStates)
+        IReadOnlyList<(string TaskKey, string Status, bool IsRequired)> taskStates,
+        string processTypeName,
+        bool requiresSupervisorStep,
+        string? approvalTaskTemplateKey)
     {
+        approvalTaskTemplateKey = EnsureApprovalTaskConfiguration(
+            processTypeName,
+            requiresSupervisorStep,
+            approvalTaskTemplateKey);
+
         var supervisorTask = taskStates.FirstOrDefault(task =>
-            task.TaskKey.Equals(SupervisorRequirementTaskKey, StringComparison.OrdinalIgnoreCase));
+            !string.IsNullOrWhiteSpace(approvalTaskTemplateKey)
+            && task.TaskKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase));
         var departmentTasks = taskStates
-            .Where(task => !task.TaskKey.Equals(SupervisorRequirementTaskKey, StringComparison.OrdinalIgnoreCase))
+            .Where(task =>
+                string.IsNullOrWhiteSpace(approvalTaskTemplateKey)
+                || !task.TaskKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var hasDepartmentTasksInProgress = departmentTasks.Any(task =>
             task.Status.Equals("in_progress", StringComparison.OrdinalIgnoreCase));
@@ -400,7 +454,7 @@ WHERE id = @workflowId;";
             || task.Status.Equals("blocked", StringComparison.OrdinalIgnoreCase)
             || task.Status.Equals("in_progress", StringComparison.OrdinalIgnoreCase));
 
-        if (!string.IsNullOrWhiteSpace(supervisorTask.TaskKey))
+        if (requiresSupervisorStep && !string.IsNullOrWhiteSpace(supervisorTask.TaskKey))
         {
             if (supervisorTask.Status.Equals("ready", StringComparison.OrdinalIgnoreCase)
                 || supervisorTask.Status.Equals("in_progress", StringComparison.OrdinalIgnoreCase))

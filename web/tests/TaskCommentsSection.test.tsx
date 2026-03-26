@@ -22,7 +22,6 @@ function createTask(overrides: Partial<WorkflowTask> = {}): WorkflowTask {
     readyAt: null,
     startedAt: null,
     completedAt: null,
-    cancelledAt: null,
     processArea: "IT",
     isDepartmentPhaseTask: true,
     canUpdateStatus: true,

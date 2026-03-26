@@ -24,7 +24,7 @@ internal sealed partial class PostgresWorkflowRepository
             return null;
         }
 
-        var (workflowId, currentStatus, _, taskKey, taskTitle) = taskRecord.Value;
+        var (workflowId, currentStatus, _, taskKey, isApprovalTask, taskTitle) = taskRecord.Value;
         EnsureTaskTransitionAllowed(currentStatus, normalizedStatus);
 
         if (currentStatus.Equals(normalizedStatus, StringComparison.OrdinalIgnoreCase))
@@ -33,8 +33,7 @@ internal sealed partial class PostgresWorkflowRepository
             return await GetTaskById(taskId);
         }
 
-        if (taskKey.Equals(SupervisorRequirementTaskKey, StringComparison.OrdinalIgnoreCase)
-            && TerminalTaskStatuses.Contains(normalizedStatus))
+        if (isApprovalTask && TerminalTaskStatuses.Contains(normalizedStatus))
         {
             throw new InvalidOperationException(
                 "Die Anforderungen der Abteilungsleitung muessen ueber den Schritt der Abteilungsleitung abgeschlossen werden.");
@@ -93,7 +92,7 @@ internal sealed partial class PostgresWorkflowRepository
             return null;
         }
 
-        var (workflowId, currentStatus, _, _, taskTitle) = taskRecord.Value;
+        var (workflowId, currentStatus, _, _, _, taskTitle) = taskRecord.Value;
         if (TerminalTaskStatuses.Contains(currentStatus))
         {
             throw new InvalidOperationException("Assignment changes are not allowed for terminal task states.");
@@ -208,7 +207,7 @@ VALUES (
             return null;
         }
 
-        var (workflowId, currentStatus, _, _, _) = taskRecord.Value;
+        var (workflowId, currentStatus, _, _, _, _) = taskRecord.Value;
         var workflowStatus = await LoadWorkflowStatusForUpdate(connection, transaction, workflowId);
         if (workflowStatus is null)
         {

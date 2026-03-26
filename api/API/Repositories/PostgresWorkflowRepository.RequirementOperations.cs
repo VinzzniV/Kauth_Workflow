@@ -6,9 +6,10 @@ internal sealed partial class PostgresWorkflowRepository
 {
     private static async Task<List<RequirementDto>> LoadRequirements(
         NpgsqlConnection connection,
-        NpgsqlTransaction? transaction)
+        NpgsqlTransaction? transaction,
+        int? processTypeId)
     {
-        var definitions = await LoadAnswerDefinitionRecords(connection, transaction);
+        var definitions = await LoadAnswerDefinitionRecords(connection, transaction, processTypeId);
 
         return definitions.Values
             .OrderBy(definition => definition.SortOrder)
@@ -44,7 +45,8 @@ internal sealed partial class PostgresWorkflowRepository
 
     private static async Task<Dictionary<int, AnswerDefinitionRecord>> LoadAnswerDefinitionRecords(
         NpgsqlConnection connection,
-        NpgsqlTransaction? transaction)
+        NpgsqlTransaction? transaction,
+        int? processTypeId)
     {
         const string sql = @"
 SELECT
@@ -65,11 +67,14 @@ SELECT
 FROM workflow_answer_definitions d
 LEFT JOIN workflow_answer_options o ON o.answer_definition_id = d.id
 WHERE d.is_active = TRUE
+  AND (@processTypeId IS NULL OR d.process_type_id = @processTypeId)
 ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
 
         var definitions = new Dictionary<int, AnswerDefinitionRecord>();
         await using (var command = new NpgsqlCommand(sql, connection, transaction))
         {
+            command.Parameters.Add("processTypeId", NpgsqlTypes.NpgsqlDbType.Integer).Value =
+                (object?)processTypeId ?? DBNull.Value;
             await using var reader = await command.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
@@ -82,9 +87,9 @@ ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
                         DefinitionId = definitionId,
                         Key = reader.GetString(1),
                         Title = reader.GetString(2),
-                        Description = reader.GetString(3),
+                        Description = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                         Category = reader.GetString(4),
-                        IconKey = reader.GetString(5),
+                        IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
                         InputType = reader.GetString(6),
                         IsRequired = reader.GetBoolean(7),
                         SortOrder = reader.GetInt32(8),
@@ -277,7 +282,8 @@ ORDER BY answer_definition_id, sort_order, id;";
     private static async Task<RoleRecommendationsDto> LoadRoleRecommendations(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
-        int roleId)
+        int roleId,
+        int processTypeId)
     {
         const string sql = @"
 SELECT
@@ -298,6 +304,7 @@ LEFT JOIN app_role_answer_default_options ardo
     AND ardo.answer_definition_id = ard.answer_definition_id
 LEFT JOIN workflow_answer_options o ON o.id = ardo.answer_option_id
 WHERE ard.app_role_id = @roleId
+  AND ard.process_type_id = @processTypeId
 GROUP BY
     ard.answer_definition_id,
     ard.is_recommended,
@@ -310,6 +317,7 @@ ORDER BY ard.sort_order, ard.answer_definition_id;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("roleId", roleId);
+        command.Parameters.AddWithValue("processTypeId", processTypeId);
 
         await using var reader = await command.ExecuteReaderAsync();
 
@@ -368,7 +376,8 @@ ORDER BY ard.sort_order, ard.answer_definition_id;";
     private static async Task<Dictionary<int, RoleDefaultRecord>> LoadRoleDefaultRecords(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        int roleId)
+        int roleId,
+        int processTypeId)
     {
         const string sql = @"
 SELECT
@@ -387,6 +396,7 @@ LEFT JOIN app_role_answer_default_options ardo
     AND ardo.answer_definition_id = ard.answer_definition_id
 LEFT JOIN workflow_answer_options o ON o.id = ardo.answer_option_id
 WHERE ard.app_role_id = @roleId
+  AND ard.process_type_id = @processTypeId
 GROUP BY
     ard.answer_definition_id,
     ard.default_value_boolean,
@@ -399,6 +409,7 @@ ORDER BY ard.sort_order, ard.answer_definition_id;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("roleId", roleId);
+        command.Parameters.AddWithValue("processTypeId", processTypeId);
         await using var reader = await command.ExecuteReaderAsync();
 
         while (await reader.ReadAsync())
@@ -800,9 +811,9 @@ ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
                         Id = definitionId,
                         Key = reader.GetString(1),
                         Title = reader.GetString(2),
-                        Description = reader.GetString(3),
+                        Description = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                         Category = reader.GetString(4),
-                        IconKey = reader.GetString(5),
+                        IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
                         InputType = reader.GetString(6),
                         IsRequired = reader.GetBoolean(7),
                         IsVisible = true,

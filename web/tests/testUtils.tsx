@@ -46,6 +46,10 @@ export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
 export function createWorkflowSummary(overrides: Partial<WorkflowSummary> = {}): WorkflowSummary {
   return {
     uid: "wf-1",
+    processType: {
+      key: "onboarding",
+      name: "Onboarding",
+    },
     firstName: "Alice",
     lastName: "Example",
     employeeNumber: 1001,
@@ -98,6 +102,7 @@ export function createTaskWithWorkflow(
       id: 1,
       taskTemplateId: null,
       taskKey: "hardware_setup",
+      isApprovalTask: false,
       title: "Hardware einrichten",
       description: "Notebook vorbereiten",
       category: "hardware",
@@ -112,7 +117,6 @@ export function createTaskWithWorkflow(
       readyAt: null,
       startedAt: null,
       completedAt: null,
-      cancelledAt: null,
       processArea: "IT",
       isDepartmentPhaseTask: true,
       canUpdateStatus: false,

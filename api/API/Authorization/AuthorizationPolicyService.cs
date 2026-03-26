@@ -3,8 +3,6 @@ namespace API;
 // Zentrale Policy-Schicht fuer Rollen- und Aufgabenfreigaben innerhalb der API.
 internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
 {
-    private const string SupervisorRequirementTaskKey = "supervisor_fills_document";
-
     // Die meisten Regeln lassen sich auf "hat mindestens eine dieser Rollen" reduzieren.
     public bool HasAnyRole(CurrentUser user, params string[] roleKeys)
     {
@@ -135,7 +133,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return false;
         }
 
-        if (task.Task.TaskKey.Equals(SupervisorRequirementTaskKey, StringComparison.OrdinalIgnoreCase))
+        if (task.Task.IsApprovalTask)
         {
             return false;
         }

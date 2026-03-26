@@ -17,8 +17,8 @@ export default function AppLayout({ children }: Props) {
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="sidebar-logo">ON</span>
-          <span className="sidebar-title">Onboarding</span>
+          <span className="sidebar-logo">MP</span>
+          <span className="sidebar-title">Mitarbeiterprozesse</span>
         </div>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">

@@ -52,6 +52,66 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
         Assert.True(canAutoBlock);
     }
 
+    [Fact]
+    public void DetermineActiveWorkflowStatus_ReturnsWaitingForSupervisor_WhenProcessRequiresSupervisorStep()
+    {
+        var status = InvokeDetermineActiveWorkflowStatus(
+            [
+                ("supervisor_fills_document", "ready", true),
+                ("hardware_setup", "blocked", true)
+            ],
+            processTypeName: "Onboarding",
+            requiresSupervisorStep: true,
+            approvalTaskTemplateKey: "supervisor_fills_document");
+
+        Assert.Equal("waiting_for_supervisor", status);
+    }
+
+    [Fact]
+    public void DetermineActiveWorkflowStatus_SkipsWaitingForSupervisor_WhenProcessDoesNotRequireSupervisorStep()
+    {
+        var status = InvokeDetermineActiveWorkflowStatus(
+            [
+                ("supervisor_fills_document", "ready", true),
+                ("hardware_setup", "ready", true)
+            ],
+            processTypeName: "Offboarding",
+            requiresSupervisorStep: false,
+            approvalTaskTemplateKey: null);
+
+        Assert.Equal("waiting_for_department", status);
+    }
+
+    [Fact]
+    public void DetermineActiveWorkflowStatus_UsesConfiguredApprovalTaskKey()
+    {
+        var status = InvokeDetermineActiveWorkflowStatus(
+            [
+                ("department_approval_custom", "in_progress", true),
+                ("hardware_setup", "blocked", true)
+            ],
+            processTypeName: "Abteilungsfreigabe",
+            requiresSupervisorStep: true,
+            approvalTaskTemplateKey: "department_approval_custom");
+
+        Assert.Equal("waiting_for_supervisor", status);
+    }
+
+    [Fact]
+    public void DetermineActiveWorkflowStatus_ReturnsInProgress_WhenDepartmentTaskRunsWithoutSupervisorPhase()
+    {
+        var status = InvokeDetermineActiveWorkflowStatus(
+            [
+                ("hardware_setup", "in_progress", true),
+                ("hardware_handover", "blocked", true)
+            ],
+            processTypeName: "Mutation",
+            requiresSupervisorStep: false,
+            approvalTaskTemplateKey: null);
+
+        Assert.Equal("in_progress", status);
+    }
+
     private static string InvokeNormalizeTaskStatus(string status)
     {
         var method = typeof(PostgresWorkflowRepository).GetMethod(
@@ -80,5 +140,19 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
 
         Assert.NotNull(method);
         return (bool)method!.Invoke(null, [currentStatus])!;
+    }
+
+    private static string InvokeDetermineActiveWorkflowStatus(
+        IReadOnlyList<(string TaskKey, string Status, bool IsRequired)> taskStates,
+        string processTypeName,
+        bool requiresSupervisorStep,
+        string? approvalTaskTemplateKey)
+    {
+        var method = typeof(PostgresWorkflowRepository).GetMethod(
+            "DetermineActiveWorkflowStatus",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(method);
+        return (string)method!.Invoke(null, [taskStates, processTypeName, requiresSupervisorStep, approvalTaskTemplateKey])!;
     }
 }

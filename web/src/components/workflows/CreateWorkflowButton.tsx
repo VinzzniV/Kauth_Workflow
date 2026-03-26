@@ -8,7 +8,7 @@ export default function CreateWorkflowButton({ isLoading, disabled, onSubmit }: 
   return (
     <div className="action-row">
       <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={disabled || isLoading}>
-        {isLoading ? "Onboarding wird gestartet..." : "Onboarding starten"}
+        {isLoading ? "Vorgang wird gestartet..." : "Neuer Vorgang"}
       </button>
     </div>
   );

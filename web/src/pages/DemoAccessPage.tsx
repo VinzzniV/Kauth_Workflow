@@ -47,7 +47,7 @@ export default function DemoAccessPage() {
   }, [navigate, refreshMe, searchParams]);
 
   return (
-    <main className="onboarding-shell">
+    <main className="app-shell">
       <div className="page-container">
         {error ? (
           <EmptyState title="Demo-Zugang nicht möglich" description={error} />

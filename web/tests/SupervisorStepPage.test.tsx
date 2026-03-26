@@ -1,11 +1,11 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SupervisorStepPage from "../src/pages/SupervisorStepPage";
-import * as onboardingApi from "../src/services/onboardingApi";
+import * as lifecycleApi from "../src/services/lifecycleApi";
 import { createRequirementSnapshot, createWorkflowSummary, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/onboardingApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/onboardingApi")>("../src/services/onboardingApi");
+vi.mock("../src/services/lifecycleApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
   return {
     ...actual,
     getSupervisorStepWorkflows: vi.fn(),
@@ -14,8 +14,8 @@ vi.mock("../src/services/onboardingApi", async () => {
   };
 });
 
-const mockedGetSupervisorStepWorkflows = vi.mocked(onboardingApi.getSupervisorStepWorkflows);
-const mockedGetWorkflowSupervisorStep = vi.mocked(onboardingApi.getWorkflowSupervisorStep);
+const mockedGetSupervisorStepWorkflows = vi.mocked(lifecycleApi.getSupervisorStepWorkflows);
+const mockedGetWorkflowSupervisorStep = vi.mocked(lifecycleApi.getWorkflowSupervisorStep);
 
 describe("SupervisorStepPage", () => {
   beforeEach(() => {
@@ -29,7 +29,15 @@ describe("SupervisorStepPage", () => {
         uid: "wf-supervisor",
         firstName: "Lea",
         lastName: "Leitung",
+        processType: { key: "onboarding", name: "Onboarding" },
         workflowStatus: "waiting_for_supervisor",
+      }),
+      createWorkflowSummary({
+        uid: "wf-department",
+        firstName: "Nina",
+        lastName: "Nebenlauf",
+        processType: { key: "offboarding", name: "Offboarding" },
+        workflowStatus: "waiting_for_department",
       }),
     ]);
     mockedGetWorkflowSupervisorStep.mockResolvedValue([
@@ -41,6 +49,8 @@ describe("SupervisorStepPage", () => {
     renderWithApp(<SupervisorStepPage />, { roleKeys: ["auth_manager"] });
 
     expect(await screen.findByText("Lea Leitung")).toBeTruthy();
+    expect(screen.getAllByText("Onboarding").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Nina Nebenlauf")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Angaben öffnen" }));
 

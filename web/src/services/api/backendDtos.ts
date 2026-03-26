@@ -1,9 +1,18 @@
-import type { Department, Role } from "../../types/workflow";
+import type { Department, DerivedAnswer, LinkableWorkflow, ProcessType, Role, WorkflowLink, WorkflowTargetPerson } from "../../types/workflow";
 import type {
   AdminDepartmentAssignment,
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
+  AdminAnswerDefinition,
+  AdminDependencyGraph,
+  AdminDependencyGraphEdge,
+  AdminDependencyGraphNode,
+  AdminRoleAnswerDefault,
+  AdminProcessType,
+  AdminTaskTemplateCondition,
+  AdminTaskTemplateDependency,
+  AdminTaskTemplate,
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
@@ -13,6 +22,7 @@ import type {
 
 export type BackendDepartmentDto = Department;
 export type BackendRoleDto = Role;
+export type BackendProcessTypeDto = ProcessType;
 
 export type BackendRequirementOptionDto = {
   id: number;
@@ -96,6 +106,7 @@ export type BackendWorkflowConfigDto = {
 
 export type BackendWorkflowSummaryDto = {
   uid: string;
+  processType: BackendProcessTypeDto;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -266,6 +277,7 @@ export type BackendWorkflowTaskDto = {
   id: number;
   taskTemplateId: number | null;
   taskKey: string;
+  isApprovalTask: boolean;
   title: string;
   description: string;
   category: string;
@@ -280,7 +292,6 @@ export type BackendWorkflowTaskDto = {
   readyAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
-  cancelledAt: string | null;
   processArea: string | null;
   isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
@@ -292,6 +303,7 @@ export type BackendWorkflowTaskDto = {
 
 export type BackendWorkflowDetailDto = {
   uid: string;
+  processType: BackendProcessTypeDto;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -343,3 +355,17 @@ export type BackendAdminDepartmentAssignmentDto = AdminDepartmentAssignment;
 export type BackendAdminResponsibilityOwnerDto = AdminResponsibilityOwner;
 export type BackendAdminNotificationEmailConfigurationDto = AdminNotificationEmailConfiguration;
 export type BackendAdminNotificationEmailTestResponseDto = AdminNotificationEmailTestResponse;
+
+export type BackendWorkflowLinkDto = WorkflowLink;
+export type BackendLinkableWorkflowDto = LinkableWorkflow;
+export type BackendWorkflowTargetPersonDto = WorkflowTargetPerson;
+export type BackendDerivedAnswerDto = DerivedAnswer;
+export type BackendAdminProcessTypeDto = AdminProcessType;
+export type BackendAdminTaskTemplateDto = AdminTaskTemplate;
+export type BackendAdminTaskTemplateConditionDto = AdminTaskTemplateCondition;
+export type BackendAdminTaskTemplateDependencyDto = AdminTaskTemplateDependency;
+export type BackendAdminDependencyGraphNodeDto = AdminDependencyGraphNode;
+export type BackendAdminDependencyGraphEdgeDto = AdminDependencyGraphEdge;
+export type BackendAdminDependencyGraphDto = AdminDependencyGraph;
+export type BackendAdminAnswerDefinitionDto = AdminAnswerDefinition;
+export type BackendAdminRoleAnswerDefaultDto = AdminRoleAnswerDefault;

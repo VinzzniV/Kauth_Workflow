@@ -1,4 +1,4 @@
-// Ansicht fuer die Abteilungsleitung, um Anforderungen eines neuen Onboardings zu bestaetigen oder zu ergaenzen.
+// Ansicht fuer die Abteilungsleitung, um Anforderungen eines freigabepflichtigen Vorgangs zu bestaetigen oder zu ergaenzen.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
@@ -13,7 +13,7 @@ import {
   getSupervisorStepWorkflows,
   getWorkflowSupervisorStep,
   updateWorkflowSupervisorStep,
-} from "../services/onboardingApi";
+} from "../services/lifecycleApi";
 import type {
   RequirementSelectionState,
   WorkflowRequirementSnapshot,
@@ -49,9 +49,9 @@ export default function SupervisorStepPage() {
 
     try {
       const workflows = await getSupervisorStepWorkflows();
-      setAssignedWorkflows(workflows);
+      setAssignedWorkflows(workflows.filter((workflow) => workflow.workflowStatus === "waiting_for_supervisor"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Liste der Onboarding-Fälle konnte nicht geladen werden.";
+      const message = err instanceof Error ? err.message : "Liste der Vorgänge konnte nicht geladen werden.";
       setQueueError(message);
       setAssignedWorkflows([]);
     } finally {
@@ -130,7 +130,7 @@ export default function SupervisorStepPage() {
 
   const saveChanges = useCallback(async () => {
     if (!selectedWorkflow) {
-      setSaveError("Bitte zuerst einen Onboarding-Fall auswählen.");
+      setSaveError("Bitte zuerst einen Vorgang auswählen.");
       return;
     }
 
@@ -142,8 +142,8 @@ export default function SupervisorStepPage() {
       await updateWorkflowSupervisorStep(selectedWorkflow.uid, toRequirementSelectionPayload(requirements, selections));
       setSaveSuccess(
         usesAdminOverride
-          ? "Auswahl wurde per Admin-Override gespeichert. Der Onboarding-Fall wurde in die nächste Phase überführt."
-          : "Auswahl wurde gespeichert. Der Onboarding-Fall wurde in die nächste Phase überführt."
+          ? "Auswahl wurde per Admin-Override gespeichert. Der Vorgang wurde in die nächste Phase überführt."
+          : "Auswahl wurde gespeichert. Der Vorgang wurde in die nächste Phase überführt."
       );
       setSelectedWorkflow(null);
       setRequirements([]);
@@ -163,17 +163,17 @@ export default function SupervisorStepPage() {
   );
 
   return (
-    <main className="onboarding-shell">
+    <main className="app-shell">
       <div className="page-container">
         <PageHeader
           title="Bedarf festlegen"
-          description="Legen Sie pro Onboarding fest, welche Zugänge und welche Ausstattung benötigt werden."
+          description="Legen Sie pro Vorgang fest, welche Zugänge und welche Ausstattung benötigt werden."
         />
 
         <section className="panel">
           <div className="panel-head">
-            <h2>Offene Onboardings</h2>
-            <p>Hier sehen Sie nur Fälle, die auf die Rückmeldung der Abteilungsleitung warten.</p>
+            <h2>Offene Freigaben</h2>
+            <p>Hier sehen Sie nur Vorgänge, deren Prozesstyp einen Freigabeschritt der Abteilungsleitung enthält.</p>
           </div>
           <div className="next-action-callout">
             <p className="next-action-label">Nächste nötige Aktion</p>
@@ -194,28 +194,34 @@ export default function SupervisorStepPage() {
           </div>
         </section>
 
-        {queueLoading ? <LoadingState title="Zugewiesene Onboarding-Fälle werden geladen..." /> : null}
+        {queueLoading ? <LoadingState title="Zugewiesene Vorgänge werden geladen..." /> : null}
 
         {!queueLoading && queueError ? (
-          <EmptyState title="Liste der Onboarding-Fälle konnte nicht geladen werden." description={queueError} onAction={reloadAssignedWorkflows} actionLabel="Erneut laden" />
+          <EmptyState title="Liste der Vorgänge konnte nicht geladen werden." description={queueError} onAction={reloadAssignedWorkflows} actionLabel="Erneut laden" />
         ) : null}
 
         {!queueLoading && !queueError && assignedWorkflows.length === 0 ? (
           <EmptyState
-            title="Keine zugewiesenen Onboarding-Fälle"
-            description="Aktuell gibt es keine offenen Fälle für die Rückmeldung durch die Abteilungsleitung."
+            title="Keine zugewiesenen Freigaben"
+            description="Aktuell gibt es keine offenen Vorgänge mit Freigabeschritt für die Rückmeldung durch die Abteilungsleitung."
           />
         ) : null}
 
         {!queueLoading && !queueError && assignedWorkflows.length > 0 ? (
-          <section className="workflow-grid" aria-label="Zugewiesene Onboarding-Fälle für Abteilungsleitungen">
+          <section className="workflow-grid" aria-label="Zugewiesene Vorgänge für Abteilungsleitungen">
             {assignedWorkflows.map((workflow) => (
               <article key={workflow.uid} className="workflow-card">
                 <div className="workflow-card-top">
-                  <h3>
-                    {workflow.firstName} {workflow.lastName}
-                  </h3>
-                  <span className="status-pill running">Wartet auf Abteilungsleitung</span>
+                  <div>
+                    <h3>
+                      {workflow.firstName} {workflow.lastName}
+                    </h3>
+                    <p className="panel-note">{workflow.processType.name}</p>
+                  </div>
+                  <div className="stacked-status">
+                    <span className="status-pill status-pill-neutral">{workflow.processType.name}</span>
+                    <span className="status-pill running">Wartet auf Abteilungsleitung</span>
+                  </div>
                 </div>
 
                 <dl className="workflow-meta">
@@ -230,6 +236,10 @@ export default function SupervisorStepPage() {
                   <div>
                     <dt>Stelle</dt>
                     <dd>{workflow.roleName}</dd>
+                  </div>
+                  <div>
+                    <dt>Workflow-ID</dt>
+                    <dd>{workflow.uid}</dd>
                   </div>
                   <div>
                     <dt>Erstellt</dt>
@@ -247,10 +257,10 @@ export default function SupervisorStepPage() {
           </section>
         ) : null}
 
-        {isLoadingStep ? <LoadingState title="Rückmeldung der Abteilungsleitung wird geladen..." /> : null}
+        {isLoadingStep ? <LoadingState title="Freigabeschritt wird geladen..." /> : null}
 
         {!isLoadingStep && stepError ? (
-          <EmptyState title="Rückmeldung der Abteilungsleitung konnte nicht geladen werden." description={stepError} />
+          <EmptyState title="Freigabeschritt konnte nicht geladen werden." description={stepError} />
         ) : null}
 
         {!isLoadingStep && !stepError && selectedWorkflow && requirements.length > 0 ? (

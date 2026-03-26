@@ -1,5 +1,4 @@
 import type { WorkflowDetail } from "../../types/workflow";
-import { getWorkflowRuntimeStatusPillClass } from "../../utils/workflowStatus";
 import { formatDate, toRuntimeStatusLabel } from "./workflowDetailModel";
 
 type WorkflowHeaderPanelProps = {
@@ -26,14 +25,11 @@ export default function WorkflowHeaderPanel({
           {workflow.firstName} {workflow.lastName}
         </h2>
         <p>
-          Neue Person in {workflow.departmentName} | {workflow.roleName}
+          {workflow.processType.name} | {workflow.departmentName} | {workflow.roleName}
         </p>
       </div>
 
       <div className="action-row">
-        <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
-          Status: {toRuntimeStatusLabel(workflow.workflowStatus)}
-        </span>
         <span className="chip">Prozessstand: {toRuntimeStatusLabel(workflow.workflowStatus)}</span>
       </div>
 
@@ -51,19 +47,19 @@ export default function WorkflowHeaderPanel({
         <article className="workflow-detail-kpi">
           <p className="workflow-detail-kpi-label">Abteilung</p>
           <p className="workflow-detail-kpi-value">{workflow.departmentName}</p>
-          <p className="workflow-detail-kpi-note">Geplanter Einsatzbereich der neuen Person.</p>
+          <p className="workflow-detail-kpi-note">Zugehörige Abteilung für diesen Vorgang.</p>
         </article>
 
         <article className="workflow-detail-kpi">
           <p className="workflow-detail-kpi-label">Rolle / Position</p>
           <p className="workflow-detail-kpi-value">{workflow.roleName}</p>
-          <p className="workflow-detail-kpi-note">Hinterlegte Zielposition für das Onboarding.</p>
+          <p className="workflow-detail-kpi-note">Hinterlegte Zielposition für diesen Vorgang.</p>
         </article>
 
         <article className="workflow-detail-kpi">
-          <p className="workflow-detail-kpi-label">Startdatum</p>
+          <p className="workflow-detail-kpi-label">Angelegt am</p>
           <p className="workflow-detail-kpi-value">{formatDate(workflow.createdAt)}</p>
-          <p className="workflow-detail-kpi-note">Onboarding angelegt durch HR.</p>
+          <p className="workflow-detail-kpi-note">Vorgang wurde im System angelegt.</p>
         </article>
 
         <article className="workflow-detail-kpi">

@@ -3,8 +3,8 @@ import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import WorkflowCard from "../components/workflows/WorkflowCard";
-import { getWorkflows } from "../services/onboardingApi";
-import type { WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
+import { getProcessTypes, getWorkflows } from "../services/lifecycleApi";
+import type { ProcessType, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
 
 function buildDepartmentOptions(workflows: WorkflowSummary[]): Array<[number, string]> {
   const entries = Array.from(
@@ -20,8 +20,10 @@ export default function WorkflowSearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [processTypeFilter, setProcessTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>("all");
   const [departmentOptions, setDepartmentOptions] = useState<Array<[number, string]>>([]);
+  const [processTypeOptions, setProcessTypeOptions] = useState<ProcessType[]>([]);
   const latestReloadId = useRef(0);
 
   const reload = useCallback(async () => {
@@ -34,6 +36,7 @@ export default function WorkflowSearchPage() {
       const workflowsPromise = getWorkflows({
         status: statusFilter === "all" ? null : statusFilter,
         departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
+        processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
         search,
       });
       const workflowsForDepartmentsPromise =
@@ -41,50 +44,55 @@ export default function WorkflowSearchPage() {
           ? workflowsPromise
           : getWorkflows({
               status: statusFilter === "all" ? null : statusFilter,
+              processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
               search,
             });
-      const [workflows, workflowsForDepartments] = await Promise.all([
+      const [workflows, workflowsForDepartments, processTypes] = await Promise.all([
         workflowsPromise,
         workflowsForDepartmentsPromise,
+        getProcessTypes(),
       ]);
       if (latestReloadId.current !== reloadId) {
         return;
       }
       setRows(workflows);
       setDepartmentOptions(buildDepartmentOptions(workflowsForDepartments));
+      setProcessTypeOptions(processTypes);
     } catch (err) {
       if (latestReloadId.current !== reloadId) {
         return;
       }
-      const message = err instanceof Error ? err.message : "Onboarding-Suche konnte nicht geladen werden.";
+      const message = err instanceof Error ? err.message : "Vorgangssuche konnte nicht geladen werden.";
       setError(message);
       setRows([]);
       setDepartmentOptions([]);
+      setProcessTypeOptions([]);
     } finally {
       if (latestReloadId.current === reloadId) {
         setIsLoading(false);
       }
     }
-  }, [departmentFilter, search, statusFilter]);
+  }, [departmentFilter, processTypeFilter, search, statusFilter]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const hasActiveFilters = search.trim().length > 0 || departmentFilter !== "all" || statusFilter !== "all";
+  const hasActiveFilters =
+    search.trim().length > 0 || departmentFilter !== "all" || processTypeFilter !== "all" || statusFilter !== "all";
 
   return (
-    <main className="onboarding-shell">
+    <main className="app-shell">
       <div className="page-container">
         <PageHeader
-          title="Onboarding suchen"
-          description="Suchen Sie nach Name, Abteilung, Stelle, Personalnummer oder Onboarding-ID."
+          title="Vorgänge suchen"
+          description="Suchen Sie nach Name, Prozesstyp, Abteilung, Stelle, Personalnummer oder Workflow-ID."
         />
 
         <section className="panel">
           <div className="panel-head">
             <h2>Suche und Filter</h2>
-            <p>Hier finden Sie laufende und abgeschlossene Onboardings ohne die exakte ID kennen zu müssen.</p>
+            <p>Hier finden Sie laufende und abgeschlossene Mitarbeiterprozesse ohne die exakte ID kennen zu müssen.</p>
           </div>
 
           <div className="toolbar-row">
@@ -96,6 +104,18 @@ export default function WorkflowSearchPage() {
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="z. B. Name, Abteilung, Stelle oder ID"
               />
+            </label>
+
+            <label className="field compact">
+              <span>Prozesstyp</span>
+              <select value={processTypeFilter} onChange={(event) => setProcessTypeFilter(event.target.value)}>
+                <option value="all">Alle</option>
+                {processTypeOptions.map((processType) => (
+                  <option key={processType.key} value={processType.key}>
+                    {processType.name}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="field compact">
@@ -131,28 +151,28 @@ export default function WorkflowSearchPage() {
           </div>
         </section>
 
-        {isLoading ? <LoadingState title="Onboardings werden gesucht..." /> : null}
+        {isLoading ? <LoadingState title="Vorgänge werden gesucht..." /> : null}
 
         {!isLoading && error ? (
-          <EmptyState title="Onboarding-Suche konnte nicht geladen werden." description={error} onAction={reload} actionLabel="Erneut laden" />
+          <EmptyState title="Suche konnte nicht geladen werden." description={error} onAction={reload} actionLabel="Erneut laden" />
         ) : null}
 
         {!isLoading && !error && rows.length === 0 && !hasActiveFilters ? (
           <EmptyState
-            title="Keine Onboardings vorhanden"
-            description="Aktuell sind keine Onboarding-Fälle vorhanden."
+            title="Keine Vorgänge vorhanden"
+            description="Aktuell sind keine Mitarbeiterprozesse vorhanden."
           />
         ) : null}
 
         {!isLoading && !error && rows.length === 0 && hasActiveFilters ? (
           <EmptyState
             title="Keine Treffer"
-            description="Die aktuelle Suche liefert keine passenden Onboarding-Fälle."
+            description="Die aktuelle Suche liefert keine passenden Vorgänge."
           />
         ) : null}
 
         {!isLoading && !error && rows.length > 0 ? (
-          <section className="workflow-grid" aria-label="Suchergebnisse Onboardings">
+          <section className="workflow-grid" aria-label="Suchergebnisse Mitarbeiterprozesse">
             {rows.map((workflow) => (
               <WorkflowCard key={workflow.uid} workflow={workflow} />
             ))}

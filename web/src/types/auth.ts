@@ -113,3 +113,101 @@ export type AdminNotificationEmailTestResponse = {
   configuration: AdminNotificationEmailConfiguration;
   result: AdminNotificationEmailTestResult;
 };
+
+export type AdminProcessType = {
+  id: number;
+  key: string;
+  name: string;
+  description: string | null;
+  requiresSupervisorStep: boolean;
+  approvalTaskTemplateKey: string | null;
+  requiresTargetPerson: boolean;
+  iconKey: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  workflowCount: number;
+  answerDefinitionCount: number;
+  taskTemplateCount: number;
+  canActivate: boolean;
+  activationBlockedReason: string | null;
+};
+
+export type AdminTaskTemplate = {
+  id: number;
+  processTypeId: number;
+  templateKey: string;
+  title: string;
+  category: string;
+  description: string;
+  iconKey: string | null;
+  owningDepartmentId: number | null;
+  defaultResponsibilityId: number | null;
+  processAreaLabel: string | null;
+  isDepartmentPhaseTask: boolean;
+  isRequired: boolean;
+  dueInDays: number | null;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  conditionCount: number;
+  dependencyCount: number;
+};
+
+export type AdminTaskTemplateCondition = {
+  id: number;
+  taskTemplateId: number;
+  conditionGroup: number;
+  answerKey: string;
+  operator: "eq" | "neq" | "is_true" | "is_false" | "is_null" | "is_not_null";
+  expectedValueText: string | null;
+  expectedValueBoolean: boolean | null;
+  expectedValueNumber: number | null;
+};
+
+export type AdminTaskTemplateDependency = {
+  id: number;
+  taskTemplateId: number;
+  dependsOnTaskTemplateId: number;
+  dependsOnTemplateTitle: string;
+  requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
+};
+
+export type AdminDependencyGraphNode = {
+  id: number;
+  title: string;
+  category: string;
+};
+
+export type AdminDependencyGraphEdge = {
+  id: number;
+  sourceTemplateId: number;
+  targetTemplateId: number;
+  requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
+};
+
+export type AdminDependencyGraph = {
+  nodes: AdminDependencyGraphNode[];
+  edges: AdminDependencyGraphEdge[];
+};
+
+export type AdminAnswerDefinition = {
+  id: number;
+  processTypeId: number;
+  answerKey: string;
+  title: string;
+  category: string;
+  description: string;
+  iconKey: string | null;
+  inputType: "boolean" | "text" | "select" | "multi_select";
+  isRequired: boolean;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type AdminRoleAnswerDefault = {
+  processTypeId: number;
+  appRoleId: number;
+  answerKey: string;
+  defaultValueText: string | null;
+  defaultValueBoolean: boolean | null;
+};

@@ -6,7 +6,7 @@ import {
   deleteAdminDepartment,
   updateAdminDepartmentAssignment,
   updateAdminResponsibilityOwner,
-} from "../services/onboardingApi";
+} from "../services/lifecycleApi";
 import type { AdminDepartmentAssignment, AdminResponsibilityOwner } from "../types/auth";
 
 type DepartmentDraft = {

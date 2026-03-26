@@ -6,7 +6,7 @@ import {
   getDemoLoginUsers,
   getMe,
   setDemoAuthToken,
-} from "../services/onboardingApi";
+} from "../services/lifecycleApi";
 import type { DemoLoginResponse, DemoLoginUserOption, Me } from "../types/auth";
 
 export type IIdentityProvider = {

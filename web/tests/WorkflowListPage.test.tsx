@@ -1,18 +1,20 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowListPage from "../src/pages/WorkflowListPage";
-import * as onboardingApi from "../src/services/onboardingApi";
+import * as lifecycleApi from "../src/services/lifecycleApi";
 import { createWorkflowSummary, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/onboardingApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/onboardingApi")>("../src/services/onboardingApi");
+vi.mock("../src/services/lifecycleApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
   return {
     ...actual,
+    getProcessTypes: vi.fn(),
     getWorkflowPage: vi.fn(),
   };
 });
 
-const mockedGetWorkflowPage = vi.mocked(onboardingApi.getWorkflowPage);
+const mockedGetProcessTypes = vi.mocked(lifecycleApi.getProcessTypes);
+const mockedGetWorkflowPage = vi.mocked(lifecycleApi.getWorkflowPage);
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -26,7 +28,7 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
-function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof onboardingApi.getWorkflowPage>>> = {}) {
+function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof lifecycleApi.getWorkflowPage>>> = {}) {
   return {
     items: [createWorkflowSummary()],
     count: 1,
@@ -40,7 +42,12 @@ function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof
 
 describe("WorkflowListPage", () => {
   beforeEach(() => {
+    mockedGetProcessTypes.mockReset();
     mockedGetWorkflowPage.mockReset();
+    mockedGetProcessTypes.mockResolvedValue([
+      { key: "onboarding", name: "Onboarding" },
+      { key: "offboarding", name: "Offboarding" },
+    ]);
   });
 
   it("renders workflow cards from the workflow overview endpoint", async () => {
@@ -62,7 +69,34 @@ describe("WorkflowListPage", () => {
 
     expect(await screen.findByText("Mila Muster")).toBeTruthy();
     expect(screen.getByText("Quality Engineer")).toBeTruthy();
+    expect(screen.getAllByText("Onboarding").length).toBeGreaterThan(0);
     expect(screen.getByText("wf-123")).toBeTruthy();
+  });
+
+  it("passes the selected process type filter to the workflow overview endpoint", async () => {
+    mockedGetWorkflowPage
+      .mockResolvedValueOnce(createWorkflowPageResponse())
+      .mockResolvedValueOnce(createWorkflowPageResponse({
+        items: [createWorkflowSummary({
+          uid: "wf-off",
+          processType: { key: "offboarding", name: "Offboarding" },
+        })],
+      }));
+
+    renderWithApp(<WorkflowListPage />, { roleKeys: ["auth_hr"] });
+
+    expect(await screen.findByText("Alice Example")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Prozesstyp" }), {
+      target: { value: "offboarding" },
+    });
+
+    expect(await screen.findByText("Offboarding")).toBeTruthy();
+    expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
+      20,
+      0,
+      expect.objectContaining({ processTypeKey: "offboarding" })
+    );
   });
 
   it("shows departments that are not present on the current page", async () => {
@@ -203,7 +237,7 @@ describe("WorkflowListPage", () => {
       lastName: "Result",
       workflowStatus: "completed",
     });
-    const staleFilteredPage = createDeferred<Awaited<ReturnType<typeof onboardingApi.getWorkflowPage>>>();
+    const staleFilteredPage = createDeferred<Awaited<ReturnType<typeof lifecycleApi.getWorkflowPage>>>();
 
     mockedGetWorkflowPage
       .mockResolvedValueOnce(createWorkflowPageResponse({

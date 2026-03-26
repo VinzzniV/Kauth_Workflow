@@ -1,6 +1,6 @@
 # Web-Frontend
 
-Das Frontend bildet die Oberflaeche fuer den Onboarding-Prozess. Hier liegen Seiten, Rollenlogik, Navigation und der zentrale Zugriff auf die Backend-Endpunkte.
+Das Frontend bildet die Oberflaeche fuer Mitarbeiterprozesse. Hier liegen Seiten, Rollenlogik, Navigation und der zentrale Zugriff auf die Backend-Endpunkte.
 
 ## Wichtige Ordner
 
@@ -17,7 +17,7 @@ Auth- und Rollenlogik des Frontends. Hier wird gesteuert, wer eingeloggt ist und
 Routing-Helfer und Guards. Relevant, wenn sich Sichtbarkeit oder Menuefuehrung aendert.
 
 `src/services/`  
-Zentraler API-Zugriff. Aenderungen an Backend-Endpunkten oder Request-Handling passieren in `onboardingApi.ts`.
+Zentraler API-Zugriff. Aenderungen an Backend-Endpunkten oder Request-Handling passieren in `lifecycleApi.ts`.
 
 `src/types/`  
 Gemeinsame Typen fuer Workflow-, Aufgaben- und Auth-Daten.
@@ -37,7 +37,7 @@ Seitennavigation oder Route-Schutz:
 `src/navigation/`
 
 Backend-Endpunkte, DTO-Mapping, Fetch-Logik:
-`src/services/onboardingApi.ts`
+`src/services/lifecycleApi.ts`
 
 Workflow-Eingaben, Aufgabenanzeige, Dashboard-UI:
 `src/components/workflows/` und `src/components/dashboard/`

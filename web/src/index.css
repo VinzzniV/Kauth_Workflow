@@ -206,7 +206,7 @@ h1, h2, h3, h4, p {
 }
 
 /* ─── Page Shell (used by each page) ─── */
-.onboarding-shell {
+.app-shell {
   min-height: 100vh;
   padding: 2rem 2rem 3rem;
 }
@@ -219,7 +219,7 @@ h1, h2, h3, h4, p {
   gap: 1.25rem;
 }
 
-/* ─── Page Header (replaces old onboarding-header) ─── */
+/* ─── Page Header ─── */
 .page-header {
   padding: 0.25rem 0 0.75rem;
   border-bottom: 1px solid var(--border);
@@ -290,8 +290,8 @@ h1, h2, h3, h4, p {
   color: var(--text-secondary);
 }
 
-/* ─── Old onboarding-header (kept for DemoLoginPage backward compat) ─── */
-.onboarding-header {
+/* ─── Legacy card-like page header container ─── */
+.app-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -313,7 +313,7 @@ h1, h2, h3, h4, p {
   margin-bottom: 0.25rem;
 }
 
-.onboarding-header h1 {
+.app-header h1 {
   font-size: 1.35rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
@@ -514,6 +514,10 @@ h1, h2, h3, h4, p {
   margin-top: 0.15rem;
 }
 
+.dashboard-filter-field {
+  min-width: 15rem;
+}
+
 /* ─── Content Stack ─── */
 .content-stack {
   display: flex;
@@ -543,6 +547,42 @@ h1, h2, h3, h4, p {
 .panel-success {
   background: var(--bg-card-success);
   border-color: #bbf7d0;
+}
+
+/* ─── Prozesstyp-Auswahl ─── */
+.process-type-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.process-type-card {
+  flex: 1 1 160px;
+  min-width: 140px;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.process-type-card:hover {
+  border-color: var(--primary);
+  background: var(--bg-hover, #f5f8ff);
+}
+
+.process-type-card--selected {
+  border-color: var(--primary);
+  background: var(--bg-selected, #eef3ff);
+}
+
+.process-type-card__name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .panel-head {
@@ -885,7 +925,14 @@ h1, h2, h3, h4, p {
   display: flex;
   justify-content: space-between;
   gap: 0.65rem;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.stacked-status {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
 }
 
 .workflow-card h3 {
@@ -933,6 +980,12 @@ h1, h2, h3, h4, p {
   font-size: 0.72rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.status-pill-neutral {
+  color: var(--text-primary);
+  background: var(--bg-card-muted);
+  border: 1px solid var(--border);
 }
 
 .status-pill.running {
@@ -1757,7 +1810,7 @@ h1, h2, h3, h4, p {
     margin-left: 0;
   }
 
-  .onboarding-shell {
+  .app-shell {
     padding: 1rem 0.75rem;
   }
 

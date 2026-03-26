@@ -9,6 +9,42 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- =========================
+-- Process types
+-- =========================
+INSERT INTO process_types (
+    key,
+    name,
+    description,
+    requires_supervisor_step,
+    approval_task_template_key,
+    requires_target_person,
+    icon_key,
+    is_active,
+    sort_order
+)
+VALUES (
+    'onboarding',
+    'Onboarding',
+    'Start eines neuen Mitarbeiters mit Aufgaben fuer HR, Fuehrungskraft und Fachbereiche.',
+    TRUE,
+    'supervisor_fills_document',
+    FALSE,
+    'identitat',
+    TRUE,
+    10
+)
+ON CONFLICT (key) DO UPDATE
+SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    requires_supervisor_step = EXCLUDED.requires_supervisor_step,
+    approval_task_template_key = EXCLUDED.approval_task_template_key,
+    requires_target_person = EXCLUDED.requires_target_person,
+    icon_key = EXCLUDED.icon_key,
+    is_active = EXCLUDED.is_active,
+    sort_order = EXCLUDED.sort_order;
+
+-- =========================
 -- Departments
 -- =========================
 INSERT INTO departments (name)
@@ -437,11 +473,12 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
         ('internal_drive_access_roles', 'Funktion für Laufwerksrechte', 'Zugangsrechte', 'Welche Funktion soll für die Laufwerksrechte berücksichtigt werden?', 'berechtigungen', 'multi_select', FALSE, 22, TRUE),
         ('special_notes', 'Besondere Hinweise', 'Dokumentation', 'Freitext für wichtige Hinweise im Onboarding.', 'identitat', 'text', FALSE, 92, FALSE)
 )
-INSERT INTO workflow_answer_definitions (answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active)
-SELECT answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active
+INSERT INTO workflow_answer_definitions (process_type_id, answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active)
+SELECT (SELECT id FROM process_types WHERE key = 'onboarding'), answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active
 FROM answer_seed
 ON CONFLICT (answer_key) DO UPDATE
 SET
+    process_type_id = EXCLUDED.process_type_id,
     title = EXCLUDED.title,
     category = EXCLUDED.category,
     description = EXCLUDED.description,
@@ -717,6 +754,7 @@ WITH default_seed(role_key, answer_key, is_recommended, is_default, default_valu
         ('position_qa_analyst', 'consense_requested', TRUE, TRUE, TRUE, NULL::text, NULL::numeric, 7)
 )
 INSERT INTO app_role_answer_defaults (
+    process_type_id,
     app_role_id,
     answer_definition_id,
     is_recommended,
@@ -727,6 +765,7 @@ INSERT INTO app_role_answer_defaults (
     sort_order
 )
 SELECT
+    (SELECT id FROM process_types WHERE key = 'onboarding'),
     r.id,
     d.id,
     s.is_recommended,
@@ -740,6 +779,7 @@ JOIN app_roles r ON r.role_key = s.role_key
 JOIN workflow_answer_definitions d ON d.answer_key = s.answer_key
 ON CONFLICT (app_role_id, answer_definition_id) DO UPDATE
 SET
+    process_type_id = EXCLUDED.process_type_id,
     is_recommended = EXCLUDED.is_recommended,
     is_default = EXCLUDED.is_default,
     default_value_boolean = EXCLUDED.default_value_boolean,
@@ -822,6 +862,7 @@ WITH template_seed(
         ('consense_training', 'Spinfire-Schulung planen', 'Schulung', 'Spinfire-Schulung für die neue Person planen und durchführen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 7, 240)
 )
 INSERT INTO task_templates (
+    process_type_id,
     template_key,
     title,
     category,
@@ -837,6 +878,7 @@ INSERT INTO task_templates (
     is_active
 )
 SELECT
+    (SELECT id FROM process_types WHERE key = 'onboarding'),
     s.template_key,
     s.title,
     s.category,
@@ -855,6 +897,7 @@ LEFT JOIN departments d ON d.name = s.owning_department_name
 LEFT JOIN app_responsibilities r ON r.responsibility_key = s.responsibility_key
 ON CONFLICT (template_key) DO UPDATE
 SET
+    process_type_id = EXCLUDED.process_type_id,
     title = EXCLUDED.title,
     category = EXCLUDED.category,
     description = EXCLUDED.description,

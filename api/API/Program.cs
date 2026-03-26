@@ -7,12 +7,12 @@ internal class Program
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddOnboardingApiServices(builder.Configuration);
+        builder.Services.AddLifecycleApiServices(builder.Configuration);
 
         var app = builder.Build();
-        app.ValidateOnboardingStartup();
-        app.ConfigureOnboardingApi();
-        app.MapOnboardingApiEndpoints();
+        app.ValidateLifecycleStartup();
+        app.ConfigureLifecycleApi();
+        app.MapLifecycleApiEndpoints();
         app.Run();
     }
 }

@@ -1,4 +1,5 @@
 import type {
+  ProcessType,
   RequirementBehavior,
   RequirementOption,
   RequirementResetTarget,
@@ -35,6 +36,7 @@ import type {
 import { coerceIconKey } from "../../utils/iconRegistry";
 import { toWorkflowLegacyStatus } from "../../utils/workflowStatus";
 import type {
+  BackendProcessTypeDto,
   BackendRequirementBehaviorDto,
   BackendRequirementDto,
   BackendRequirementOptionDto,
@@ -291,11 +293,16 @@ export function mapWorkflowTask(dto: BackendWorkflowTaskDto): WorkflowTask {
   };
 }
 
+function mapProcessType(dto: BackendProcessTypeDto): ProcessType {
+  return { key: dto.key, name: dto.name, requiresTargetPerson: dto.requiresTargetPerson };
+}
+
 export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSummary {
   const workflowStatus = normalizeStatus(dto.workflowStatus);
 
   return {
     uid: dto.uid,
+    processType: mapProcessType(dto.processType),
     firstName: dto.firstName,
     lastName: dto.lastName,
     employeeNumber: dto.employeeNumber,
@@ -333,6 +340,7 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
 
   return {
     uid: dto.uid,
+    processType: mapProcessType(dto.processType),
     firstName: dto.firstName,
     lastName: dto.lastName,
     employeeNumber: dto.employeeNumber,

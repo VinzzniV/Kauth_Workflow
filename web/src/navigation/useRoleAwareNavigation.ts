@@ -32,26 +32,26 @@ const ACTIONS = {
   dashboard: {
     to: "/",
     label: "Übersicht",
-    description: "Ihr Einstieg in den Onboarding-Ablauf.",
+    description: "Ihr Einstieg in die Mitarbeiterprozesse.",
     feature: "dashboard",
     end: true,
   },
   hrCreate: {
     to: "/create",
-    label: "Onboarding starten",
-    description: "Neue Person für das Onboarding anlegen.",
+    label: "Neuer Vorgang",
+    description: "Einen neuen Mitarbeiterprozess anlegen.",
     feature: "workflowCreate",
   },
-  hrOnboardings: {
+  hrWorkflows: {
     to: "/workflows",
-    label: "Laufende Onboardings",
-    description: "Aktuelle Onboardings und ihren Stand ansehen.",
+    label: "Laufende Vorgänge",
+    description: "Aktuelle Vorgänge und ihren Stand ansehen.",
     feature: "workflowOverview",
   },
   workflowSearch: {
     to: "/search",
     label: "Suche",
-    description: "Onboardings gezielt finden.",
+    description: "Vorgänge gezielt finden.",
     feature: "workflowSearch",
   },
   supervisorInbox: {
@@ -111,7 +111,7 @@ function collectActionKeys(args: {
 
   addKey("dashboard", canAccessFeature("dashboard"));
   addKey("hrCreate", capabilities.hasHrRole && canAccessFeature("workflowCreate"));
-  addKey("hrOnboardings", canAccessFeature("workflowOverview"));
+  addKey("hrWorkflows", canAccessFeature("workflowOverview"));
 
   if (surface === "header") {
     addKey("workflowSearch", canAccessFeature("workflowSearch"));
@@ -164,14 +164,14 @@ export function useRoleAwareNavigation() {
     if (capabilities.dashboardPersona === "hr") {
       return {
         title: "HR-Übersicht",
-        description: "Starten Sie neue Onboardings und behalten Sie laufende Fälle im Blick.",
+        description: "Starten Sie neue Vorgänge und behalten Sie laufende Fälle im Blick.",
       };
     }
 
     if (capabilities.dashboardPersona === "manager") {
       return {
-        title: "Onboardings meiner Mitarbeitenden",
-        description: "Hier bearbeiten Sie offene Anforderungen und beobachten den Fortschritt Ihrer eigenen Onboardings.",
+        title: "Vorgänge meiner Mitarbeitenden",
+        description: "Hier bearbeiten Sie offene Anforderungen und beobachten den Fortschritt Ihrer eigenen Vorgänge.",
       };
     }
 

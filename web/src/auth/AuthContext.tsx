@@ -11,6 +11,8 @@ import type { DemoLoginUserOption, Me } from "../types/auth";
 import { AuthContext } from "./useAuth";
 import type { AuthStatus } from "./useAuth";
 
+const DEMO_USERS_REFRESH_EVENT = "demo-users-refresh";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [currentUser, setCurrentUser] = useState<Me | null>(null);
@@ -108,11 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoginError("Die Sitzung ist nicht mehr gültig. Bitte erneut anmelden.");
     };
 
+    const handleRefreshDemoUsers = () => {
+      void reloadUsers();
+    };
+
     window.addEventListener("demo-auth-invalid", handleInvalidDemoAuth);
+    window.addEventListener(DEMO_USERS_REFRESH_EVENT, handleRefreshDemoUsers);
     return () => {
       window.removeEventListener("demo-auth-invalid", handleInvalidDemoAuth);
+      window.removeEventListener(DEMO_USERS_REFRESH_EVENT, handleRefreshDemoUsers);
     };
-  }, []);
+  }, [reloadUsers]);
 
   const value = useMemo(
     () => ({

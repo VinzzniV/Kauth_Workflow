@@ -16,13 +16,22 @@ export default function WorkflowCard({ workflow }: Props) {
   return (
     <article className="workflow-card">
       <div className="workflow-card-top">
-        <h3>{fullName || "Unbekannter Name"}</h3>
-        <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
-          {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}
-        </span>
+        <div>
+          <h3>{fullName || "Unbekannter Name"}</h3>
+        </div>
+        <div className="stacked-status">
+          <span className="status-pill status-pill-neutral">{workflow.processType.name}</span>
+          <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
+            {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}
+          </span>
+        </div>
       </div>
 
       <dl className="workflow-meta">
+        <div>
+          <dt>Prozesstyp</dt>
+          <dd>{workflow.processType.name}</dd>
+        </div>
         <div>
           <dt>Personalnummer</dt>
           <dd>{workflow.employeeNumber}</dd>
@@ -36,7 +45,7 @@ export default function WorkflowCard({ workflow }: Props) {
           <dd>{workflow.departmentName}</dd>
         </div>
         <div>
-          <dt>Onboarding-ID</dt>
+          <dt>Workflow-ID</dt>
           <dd className="uid-value">{workflow.uid}</dd>
         </div>
         <div>

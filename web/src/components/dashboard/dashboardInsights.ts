@@ -3,11 +3,13 @@ import {
   getAdminGroups,
   getAdminRoles,
   getAdminUsers,
+  getProcessTypes,
   getMyTasks,
   getSupervisorStepWorkflows,
   getWorkflows,
-} from "../../services/onboardingApi";
+} from "../../services/lifecycleApi";
 import type {
+  ProcessType,
   WorkflowSummary,
   WorkflowTask,
 } from "../../types/workflow";
@@ -42,6 +44,10 @@ export type DashboardInsights = {
   queueDescription: string;
   queueItems: DashboardQueueItem[];
   emptyQueueText: string;
+};
+
+export type DashboardInsightsOptions = {
+  processTypeKey?: string | null;
 };
 
 type WorkflowMetrics = {
@@ -94,8 +100,45 @@ function summarizeWorkflows(workflows: WorkflowSummary[]): WorkflowMetrics {
   );
 }
 
-async function loadHrInsights(): Promise<DashboardInsights> {
-  const workflows = await getWorkflows();
+function getSelectedProcessType(processTypes: ProcessType[], processTypeKey?: string | null): ProcessType | null {
+  if (!processTypeKey) {
+    return null;
+  }
+
+  return processTypes.find((processType) => processType.key === processTypeKey) ?? null;
+}
+
+function matchesProcessType(processTypeKey: string | null | undefined, workflow: Pick<WorkflowSummary, "processType">): boolean {
+  if (!processTypeKey) {
+    return true;
+  }
+
+  return workflow.processType.key === processTypeKey;
+}
+
+function getProcessTypeContext(selectedProcessType: ProcessType | null) {
+  if (!selectedProcessType) {
+    return {
+      scopedTitle: "Vorgänge",
+      scopedDescription: "alle sichtbaren Mitarbeiterprozesse",
+      scopedQueueDescription: "Diese Fälle haben aktuell den nächsten Handlungsbedarf.",
+      scopedEmptyQueueText: "Aktuell sind keine Vorgänge vorhanden.",
+    };
+  }
+
+  return {
+    scopedTitle: `Vorgänge (${selectedProcessType.name})`,
+    scopedDescription: `alle sichtbaren Mitarbeiterprozesse vom Typ ${selectedProcessType.name}`,
+    scopedQueueDescription: `Diese Fälle vom Typ ${selectedProcessType.name} haben aktuell den nächsten Handlungsbedarf.`,
+    scopedEmptyQueueText: `Aktuell sind keine Vorgänge vom Typ ${selectedProcessType.name} vorhanden.`,
+  };
+}
+
+async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
+  const processTypes = await getProcessTypes();
+  const selectedProcessType = getSelectedProcessType(processTypes, options.processTypeKey);
+  const processTypeContext = getProcessTypeContext(selectedProcessType);
+  const workflows = await getWorkflows({ processTypeKey: options.processTypeKey ?? null });
   const metrics = summarizeWorkflows(workflows);
   const departmentInProgress = metrics.waitingDepartment + metrics.inProgress;
   const activeWorkflows = workflows
@@ -121,13 +164,15 @@ async function loadHrInsights(): Promise<DashboardInsights> {
 
   return {
     heading: "HR auf einen Blick",
-    summary: "Hier sehen Sie die HR-Startphase, offene Rückläufe und die laufende Bearbeitung in den Fachbereichen.",
-    nextStep: "Starten Sie ein neues Onboarding oder prüfen Sie Fälle in der HR-Startphase und mit offenem Rücklauf.",
+    summary: `Hier sehen Sie die HR-Startphase, offene Rückläufe und die laufende Bearbeitung in den Fachbereichen für ${processTypeContext.scopedDescription}.`,
+    nextStep: selectedProcessType
+      ? `Prüfen Sie zuerst ${selectedProcessType.name}-Fälle in der HR-Startphase und mit offenem Rücklauf.`
+      : "Starten Sie einen neuen Vorgang oder prüfen Sie Fälle in der HR-Startphase und mit offenem Rücklauf.",
     stats: [
       {
-        label: "Offene Onboardings",
+        label: "Offene Vorgänge",
         value: metrics.open,
-        note: "Alle aktuell laufenden Vorgänge.",
+        note: `Alle aktuell laufenden Fälle für ${processTypeContext.scopedDescription}.`,
         statusLabel: "Offen",
         tone: "neutral",
       },
@@ -148,26 +193,29 @@ async function loadHrInsights(): Promise<DashboardInsights> {
       {
         label: "Abgeschlossen",
         value: metrics.completed,
-        note: "Diese Onboardings sind fertig.",
+        note: `Diese Fälle sind abgeschlossen für ${processTypeContext.scopedDescription}.`,
         statusLabel: "abgeschlossen",
         tone: "success",
       },
     ],
-    queueTitle: "Offene Onboardings",
-    queueDescription: "Diese Fälle haben aktuell den nächsten Handlungsbedarf.",
+    queueTitle: processTypeContext.scopedTitle,
+    queueDescription: processTypeContext.scopedQueueDescription,
     queueItems: activeWorkflows.map((workflow) => ({
       key: workflow.uid,
       title: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
-      detail: `${workflow.departmentName} | ${getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action")}`,
+      detail: `${workflow.processType.name} | ${workflow.departmentName} | ${getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action")}`,
       to: `/workflows/${workflow.uid}`,
       actionLabel: "Öffnen",
     })),
-    emptyQueueText: "Es sind noch keine Onboarding-Fälle vorhanden.",
+    emptyQueueText: processTypeContext.scopedEmptyQueueText,
   };
 }
 
-async function loadManagerInsights(): Promise<DashboardInsights> {
-  const workflows = await getSupervisorStepWorkflows();
+async function loadManagerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
+  const processTypes = await getProcessTypes();
+  const selectedProcessType = getSelectedProcessType(processTypes, options.processTypeKey);
+  const processTypeContext = getProcessTypeContext(selectedProcessType);
+  const workflows = (await getSupervisorStepWorkflows()).filter((workflow) => matchesProcessType(options.processTypeKey, workflow));
   const pendingSelections = workflows.reduce(
     (count, workflow) => count + workflow.requirementSummary.pendingVisibleCount,
     0
@@ -191,7 +239,9 @@ async function loadManagerInsights(): Promise<DashboardInsights> {
 
   return {
     heading: "Meine offenen Anforderungen",
-    summary: "Diese Onboardings warten noch auf Ihre Rückmeldung.",
+    summary: selectedProcessType
+      ? `Diese ${selectedProcessType.name}-Vorgänge warten noch auf Ihre Rückmeldung.`
+      : "Diese Vorgänge warten noch auf Ihre Rückmeldung.",
     nextStep: "Öffnen Sie den nächsten offenen Fall und vervollständigen Sie die Angaben.",
     stats: [
       {
@@ -200,15 +250,21 @@ async function loadManagerInsights(): Promise<DashboardInsights> {
         note: "Noch nicht beantwortete Auswahlpunkte.",
       },
       {
-        label: "Noch zu bearbeitende Onboardings",
+        label: "Noch zu bearbeitende Vorgänge",
         value: workflows.length,
-        note: "Diese zugewiesenen Fälle warten im Schritt der Abteilungsleitung.",
+        note: selectedProcessType
+          ? `Diese zugewiesenen ${selectedProcessType.name}-Fälle warten im Schritt der Abteilungsleitung.`
+          : "Diese zugewiesenen Fälle warten im Schritt der Abteilungsleitung.",
       },
     ],
-    queueTitle: "Offene Onboardings",
-    queueDescription: "Bearbeiten Sie zuerst die ältesten offenen Onboardings.",
+    queueTitle: processTypeContext.scopedTitle,
+    queueDescription: selectedProcessType
+      ? `Bearbeiten Sie zuerst die ältesten offenen ${selectedProcessType.name}-Fälle.`
+      : "Bearbeiten Sie zuerst die ältesten offenen Vorgänge.",
     queueItems,
-    emptyQueueText: "Aktuell warten keine Onboardings auf Eingaben durch die Abteilungsleitung.",
+    emptyQueueText: selectedProcessType
+      ? `Aktuell warten keine ${selectedProcessType.name}-Fälle auf Eingaben durch die Abteilungsleitung.`
+      : "Aktuell warten keine Vorgänge auf Eingaben durch die Abteilungsleitung.",
   };
 }
 
@@ -312,13 +368,16 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
   };
 }
 
-async function loadAdminInsights(): Promise<DashboardInsights> {
+async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
+  const processTypesPromise = getProcessTypes();
   const [users, roles, groups, workflows] = await Promise.all([
     getAdminUsers(),
     getAdminRoles(),
     getAdminGroups(),
-    getWorkflows(),
+    getWorkflows({ processTypeKey: options.processTypeKey ?? null }),
   ]);
+  const selectedProcessType = getSelectedProcessType(await processTypesPromise, options.processTypeKey);
+  const processTypeContext = getProcessTypeContext(selectedProcessType);
 
   const activeUsers = users.filter((user) => user.isActive).length;
   const inactiveUsers = users.length - activeUsers;
@@ -358,8 +417,8 @@ async function loadAdminInsights(): Promise<DashboardInsights> {
   if (metrics.waitingSupervisor > 0 || metrics.waitingDepartment > 0) {
     queueItems.push({
       key: "workflow-bottlenecks",
-      title: "Onboarding-Engpässe verfolgen",
-      detail: `${metrics.waitingSupervisor + metrics.waitingDepartment} Onboardings warten auf den nächsten Schritt.`,
+      title: "Prozess-Engpässe verfolgen",
+      detail: `${metrics.waitingSupervisor + metrics.waitingDepartment} Vorgänge warten auf den nächsten Schritt.`,
       to: "/workflows",
       actionLabel: "Übersicht",
     });
@@ -367,8 +426,10 @@ async function loadAdminInsights(): Promise<DashboardInsights> {
 
   return {
     heading: "Verwaltung",
-    summary: "Die wichtigsten Verwaltungs- und Prozesskennzahlen im Überblick.",
-    nextStep: "Prüfen Sie zuerst Stammdaten und Berechtigungen, danach Engpässe im Ablauf.",
+    summary: `Die wichtigsten Verwaltungs- und Prozesskennzahlen im Überblick für ${processTypeContext.scopedDescription}.`,
+    nextStep: selectedProcessType
+      ? `Prüfen Sie zuerst Stammdaten und Berechtigungen, danach Engpässe im Ablauf für ${selectedProcessType.name}.`
+      : "Prüfen Sie zuerst Stammdaten und Berechtigungen, danach Engpässe im Ablauf.",
     stats: [
       {
         label: "Benutzer",
@@ -386,9 +447,9 @@ async function loadAdminInsights(): Promise<DashboardInsights> {
         note: `${groupsWithoutRoles} ohne Rollen`,
       },
       {
-        label: "Onboardings gesamt",
+        label: "Vorgänge gesamt",
         value: metrics.total,
-        note: "Systemweite Prozessanzahl.",
+        note: `Systemweite Prozessanzahl für ${processTypeContext.scopedDescription}.`,
       },
     ],
     queueTitle: "Nächste Schritte in der Verwaltung",
@@ -398,8 +459,11 @@ async function loadAdminInsights(): Promise<DashboardInsights> {
   };
 }
 
-async function loadViewerInsights(): Promise<DashboardInsights> {
-  const workflows = await getWorkflows();
+async function loadViewerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
+  const processTypes = await getProcessTypes();
+  const selectedProcessType = getSelectedProcessType(processTypes, options.processTypeKey);
+  const processTypeContext = getProcessTypeContext(selectedProcessType);
+  const workflows = await getWorkflows({ processTypeKey: options.processTypeKey ?? null });
   const metrics = summarizeWorkflows(workflows);
 
   const queueItems = workflows
@@ -416,13 +480,13 @@ async function loadViewerInsights(): Promise<DashboardInsights> {
 
   return {
     heading: "Übersicht",
-    summary: "Lesender Überblick über den aktuellen Stand aller freigegebenen Onboardings.",
+    summary: `Lesender Überblick über den aktuellen Stand für ${processTypeContext.scopedDescription}.`,
     nextStep: "Nutzen Sie die Übersicht zur Nachverfolgung, ohne Daten zu ändern.",
     stats: [
       {
-        label: "Onboardings gesamt",
+        label: "Vorgänge gesamt",
         value: metrics.total,
-        note: "Alle freigegebenen Lesedaten.",
+        note: `Alle freigegebenen Lesedaten für ${processTypeContext.scopedDescription}.`,
       },
       {
         label: "Offen",
@@ -435,10 +499,12 @@ async function loadViewerInsights(): Promise<DashboardInsights> {
         note: "Bereits abgeschlossen.",
       },
     ],
-    queueTitle: "Aktuelle Onboardings",
-    queueDescription: "Die zuletzt geänderten Onboardings in der Leseansicht.",
+    queueTitle: processTypeContext.scopedTitle,
+    queueDescription: selectedProcessType
+      ? `Die zuletzt geänderten ${selectedProcessType.name}-Vorgänge in der Leseansicht.`
+      : "Die zuletzt geänderten Vorgänge in der Leseansicht.",
     queueItems,
-    emptyQueueText: "Aktuell sind keine Onboardings sichtbar.",
+    emptyQueueText: processTypeContext.scopedEmptyQueueText,
   };
 }
 
@@ -455,18 +521,21 @@ function loadGenericInsights(): DashboardInsights {
   };
 }
 
-export async function loadDashboardInsights(dashboardPersona: DashboardPersona): Promise<DashboardInsights> {
+export async function loadDashboardInsights(
+  dashboardPersona: DashboardPersona,
+  options: DashboardInsightsOptions = {}
+): Promise<DashboardInsights> {
   switch (dashboardPersona) {
     case "admin":
-      return loadAdminInsights();
+      return loadAdminInsights(options);
     case "hr":
-      return loadHrInsights();
+      return loadHrInsights(options);
     case "manager":
-      return loadManagerInsights();
+      return loadManagerInsights(options);
     case "worker":
       return loadWorkerInsights();
     case "reader":
-      return loadViewerInsights();
+      return loadViewerInsights(options);
     default:
       return loadGenericInsights();
   }

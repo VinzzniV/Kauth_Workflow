@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildProcessSteps,
   toPhaseOwnerArea,
   toRegularEditingLabel,
 } from "../src/components/workflow-detail/workflowDetailModel";
@@ -8,6 +9,11 @@ import type { WorkflowDetail } from "../src/types/workflow";
 function createWorkflowDetail(overrides: Partial<WorkflowDetail> = {}): WorkflowDetail {
   return {
     uid: "wf-1",
+    processType: {
+      key: "onboarding",
+      name: "Onboarding",
+      requiresTargetPerson: false,
+    },
     firstName: "Alice",
     lastName: "Example",
     employeeNumber: 1001,
@@ -72,5 +78,45 @@ describe("workflowDetailModel", () => {
     expect(toPhaseOwnerArea(createWorkflowDetail({ workflowStatus: "waiting_for_department" }))).toBe(
       "Fachbereiche"
     );
+  });
+
+  it("omits the supervisor step for process types without approval task", () => {
+    const steps = buildProcessSteps(
+      createWorkflowDetail({
+        processType: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
+        workflowStatus: "waiting_for_department",
+        tasks: [
+          {
+            id: 1,
+            taskTemplateId: null,
+            taskKey: "access_cleanup",
+            isApprovalTask: false,
+            title: "Zugriffe entziehen",
+            description: "Directory und SaaS bereinigen",
+            category: "accounts",
+            iconKey: "shield",
+            status: "open",
+            isRequired: true,
+            sortOrder: 10,
+            createdAt: "2026-03-20T10:00:00.000Z",
+            dueInDays: null,
+            dueAt: null,
+            slaStatus: "none",
+            readyAt: null,
+            startedAt: null,
+            completedAt: null,
+            processArea: "IT",
+            isDepartmentPhaseTask: true,
+            canUpdateStatus: false,
+            canAddComment: false,
+            assignments: [],
+            dependencies: [],
+            comments: [],
+          },
+        ],
+      })
+    );
+
+    expect(steps.map((step) => step.key)).toEqual(["hr-start", "departments", "completed"]);
   });
 });

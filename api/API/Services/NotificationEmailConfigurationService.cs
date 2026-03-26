@@ -159,7 +159,7 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         var tenantId = stored?.TenantId ?? Normalize(defaults.TenantId);
         var clientId = stored?.ClientId ?? Normalize(defaults.ClientId);
         var clientSecret = stored?.ClientSecret ?? Normalize(defaults.ClientSecret);
-        var senderEmail = stored?.SenderEmail ?? Normalize(defaults.SenderUserId);
+        var senderEmail = stored?.SenderEmail ?? Normalize(defaults.SenderEmail);
         var frontendBaseUrl = stored?.FrontendBaseUrl ?? defaults.FrontendBaseUrl;
         var testRecipientEmail = stored?.TestRecipientEmail;
         var sandboxRedirectEmail = Normalize(stored?.SandboxRedirectEmail);

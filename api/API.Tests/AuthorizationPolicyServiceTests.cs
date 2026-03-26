@@ -390,10 +390,14 @@ public sealed class AuthorizationPolicyServiceTests
     }
 
     [Fact]
-    public void CanUpdateTaskStatus_ReturnsFalse_ForSupervisorFillsDocumentTask()
+    public void CanUpdateTaskStatus_ReturnsFalse_ForApprovalTask()
     {
         var admin = CreateUser(AuthorizationRoles.Admin);
-        var task = CreateTaskWithResponsibilityAssignment("supervisor_fills_document", WorkflowStatusRules.WaitingForSupervisor, responsibilityId: 1);
+        var task = CreateTaskWithResponsibilityAssignment(
+            "department_approval_custom",
+            WorkflowStatusRules.WaitingForSupervisor,
+            responsibilityId: 1,
+            isApprovalTask: true);
         Assert.False(_sut.CanUpdateTaskStatus(admin, task));
     }
 
@@ -592,7 +596,8 @@ public sealed class AuthorizationPolicyServiceTests
     private static TaskWithWorkflowDto CreateTaskWithResponsibilityAssignment(
         string taskKey,
         string workflowStatus,
-        int responsibilityId)
+        int responsibilityId,
+        bool isApprovalTask = false)
     {
         var assignment = new WorkflowTaskAssignmentDto
         {
@@ -603,13 +608,14 @@ public sealed class AuthorizationPolicyServiceTests
             AssigneeResponsibilityId = responsibilityId,
             AssignedAt = DateTime.UtcNow
         };
-        return CreateTaskWithWorkflow(taskKey, workflowStatus, [assignment]);
+        return CreateTaskWithWorkflow(taskKey, workflowStatus, [assignment], isApprovalTask: isApprovalTask);
     }
 
     private static TaskWithWorkflowDto CreateTaskWithUserAssignment(
         string taskKey,
         string workflowStatus,
-        long assigneeUserId)
+        long assigneeUserId,
+        bool isApprovalTask = false)
     {
         var assignment = new WorkflowTaskAssignmentDto
         {
@@ -620,25 +626,27 @@ public sealed class AuthorizationPolicyServiceTests
             AssigneeResponsibilityId = null,
             AssignedAt = DateTime.UtcNow
         };
-        return CreateTaskWithWorkflow(taskKey, workflowStatus, [assignment]);
+        return CreateTaskWithWorkflow(taskKey, workflowStatus, [assignment], isApprovalTask: isApprovalTask);
     }
 
-    private static TaskWithWorkflowDto CreateTaskWithNoAssignment(string taskKey, string workflowStatus)
+    private static TaskWithWorkflowDto CreateTaskWithNoAssignment(string taskKey, string workflowStatus, bool isApprovalTask = false)
     {
-        return CreateTaskWithWorkflow(taskKey, workflowStatus, []);
+        return CreateTaskWithWorkflow(taskKey, workflowStatus, [], isApprovalTask: isApprovalTask);
     }
 
     private static TaskWithWorkflowDto CreateTaskWithWorkflow(
         string taskKey,
         string workflowStatus,
         List<WorkflowTaskAssignmentDto> assignments,
-        string taskStatus = "ready")
+        string taskStatus = "ready",
+        bool isApprovalTask = false)
     {
         var task = new WorkflowTaskDto
         {
             Id = 1,
             TaskTemplateId = null,
             TaskKey = taskKey,
+            IsApprovalTask = isApprovalTask,
             Title = taskKey,
             Description = taskKey,
             Category = "test",
@@ -653,7 +661,6 @@ public sealed class AuthorizationPolicyServiceTests
             ReadyAt = null,
             StartedAt = null,
             CompletedAt = null,
-            CancelledAt = null,
             ProcessArea = "IT",
             IsDepartmentPhaseTask = true,
             CanUpdateStatus = false,

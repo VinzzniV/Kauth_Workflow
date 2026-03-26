@@ -80,7 +80,7 @@ export function AdminDepartmentsSection({
       <div className="dashboard-card">
         <div>
           <h2>Neue Abteilung</h2>
-          <p>Legen Sie zusätzliche Abteilungen für das Onboarding an.</p>
+          <p>Legen Sie zusätzliche Abteilungen für Mitarbeiterprozesse an.</p>
         </div>
 
         <label className="field compact">

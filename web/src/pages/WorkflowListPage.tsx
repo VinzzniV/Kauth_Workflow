@@ -1,12 +1,13 @@
-// Uebersicht ueber alle sichtbaren Onboarding-Faelle inklusive Filter und abgeleitetem Prozessstand.
+// Uebersicht ueber alle sichtbaren Vorgaenge inklusive Filter und abgeleitetem Prozessstand.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
-import { getWorkflowPage } from "../services/onboardingApi";
+import { getProcessTypes, getWorkflowPage } from "../services/lifecycleApi";
 import type {
+  ProcessType,
   WorkflowResponsibilityOption,
   WorkflowRuntimeStatus,
   WorkflowSummary,
@@ -31,12 +32,14 @@ export default function WorkflowListPage() {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [pageIndex, setPageIndex] = useState<number>(0);
   const [departmentOptions, setDepartmentOptions] = useState<Array<[number, string]>>([]);
+  const [processTypeOptions, setProcessTypeOptions] = useState<ProcessType[]>([]);
   const [responsibilityOptions, setResponsibilityOptions] = useState<WorkflowResponsibilityOption[]>([]);
   const latestReloadId = useRef(0);
 
   const [search, setSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(defaultStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
+  const [processTypeFilter, setProcessTypeFilter] = useState<string>("all");
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
 
   // Die Liste laedt alle benoetigten Kartendaten direkt ueber den Listen-Endpoint.
@@ -50,33 +53,39 @@ export default function WorkflowListPage() {
       const pageQuery = {
         status: statusFilter === "all" ? null : statusFilter,
         departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
+        processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
         search,
         responsibilityValue: responsibilityFilter === "all" ? null : responsibilityFilter,
       };
-      const page = await getWorkflowPage(PAGE_SIZE, pageIndex * PAGE_SIZE, pageQuery);
+      const [page, processTypes] = await Promise.all([
+        getWorkflowPage(PAGE_SIZE, pageIndex * PAGE_SIZE, pageQuery),
+        getProcessTypes(),
+      ]);
       if (latestReloadId.current !== reloadId) {
         return;
       }
       setRows(page.items);
       setTotalCount(page.count);
       setDepartmentOptions(page.departmentOptions.map((option) => [option.id, option.name]));
+      setProcessTypeOptions(processTypes);
       setResponsibilityOptions(page.responsibilityOptions);
     } catch (err) {
       if (latestReloadId.current !== reloadId) {
         return;
       }
-      const message = err instanceof Error ? err.message : "Onboarding-Fälle konnten nicht geladen werden.";
+      const message = err instanceof Error ? err.message : "Vorgänge konnten nicht geladen werden.";
       setError(message);
       setRows([]);
       setTotalCount(0);
       setDepartmentOptions([]);
+      setProcessTypeOptions([]);
       setResponsibilityOptions([]);
     } finally {
       if (latestReloadId.current === reloadId) {
         setIsLoading(false);
       }
     }
-  }, [departmentFilter, pageIndex, responsibilityFilter, search, statusFilter]);
+  }, [departmentFilter, pageIndex, processTypeFilter, responsibilityFilter, search, statusFilter]);
 
   useEffect(() => {
     void reload();
@@ -84,7 +93,7 @@ export default function WorkflowListPage() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [departmentFilter, search, statusFilter]);
+  }, [departmentFilter, processTypeFilter, search, statusFilter]);
 
   const totalPages = useMemo(() => {
     if (totalCount <= 0) {
@@ -99,22 +108,23 @@ export default function WorkflowListPage() {
       search.trim().length > 0 ||
       statusFilter !== "all" ||
       departmentFilter !== "all" ||
+      processTypeFilter !== "all" ||
       responsibilityFilter !== "all"
     );
-  }, [departmentFilter, responsibilityFilter, search, statusFilter]);
+  }, [departmentFilter, processTypeFilter, responsibilityFilter, search, statusFilter]);
 
   return (
-    <main className="onboarding-shell">
+    <main className="app-shell">
       <div className="page-container">
         <PageHeader
-          title="Onboardings im Überblick"
-          description="Zentrale Übersicht über alle für Sie sichtbaren Onboardings."
+          title="Vorgänge im Überblick"
+          description="Zentrale Übersicht über alle für Sie sichtbaren Mitarbeiterprozesse."
         />
 
         <section className="panel">
           <div className="panel-head">
             <h2>Filter</h2>
-            <p>Filtern Sie nach Abteilung, Stand und zuständigem Bereich.</p>
+            <p>Filtern Sie nach Prozesstyp, Abteilung, Stand und zuständigem Bereich.</p>
           </div>
           <div className="next-action-callout">
             <p className="next-action-label">Nächste nötige Aktion</p>
@@ -134,6 +144,18 @@ export default function WorkflowListPage() {
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="z. B. Name, Stelle oder ID"
               />
+            </label>
+
+            <label className="field compact">
+              <span>Prozesstyp</span>
+              <select value={processTypeFilter} onChange={(event) => setProcessTypeFilter(event.target.value)}>
+                <option value="all">Alle</option>
+                {processTypeOptions.map((processType) => (
+                  <option key={processType.key} value={processType.key}>
+                    {processType.name}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="field compact">
@@ -208,11 +230,11 @@ export default function WorkflowListPage() {
           </div>
         </section>
 
-        {isLoading ? <LoadingState title="Onboarding-Fälle werden geladen..." /> : null}
+        {isLoading ? <LoadingState title="Vorgänge werden geladen..." /> : null}
 
         {!isLoading && error ? (
           <EmptyState
-            title="Onboarding-Fälle konnten nicht geladen werden."
+            title="Vorgänge konnten nicht geladen werden."
             description={error}
             actionLabel="Erneut versuchen"
             onAction={reload}
@@ -221,20 +243,20 @@ export default function WorkflowListPage() {
 
         {!isLoading && !error && rows.length === 0 && !hasActiveFilters ? (
           <EmptyState
-            title="Keine Onboarding-Fälle vorhanden"
-            description="Aktuell sind keine Vorgänge vorhanden. Starten Sie ein neues Onboarding."
+            title="Keine Vorgänge vorhanden"
+            description="Aktuell sind keine Vorgänge vorhanden. Starten Sie einen neuen Prozess."
           />
         ) : null}
 
         {!isLoading && !error && rows.length === 0 && hasActiveFilters ? (
           <EmptyState
             title="Keine Treffer"
-            description="Die aktuelle Filterkombination liefert keine Onboarding-Fälle."
+            description="Die aktuelle Filterkombination liefert keine Vorgänge."
           />
         ) : null}
 
         {!isLoading && !error && rows.length > 0 ? (
-          <section className="workflow-grid" aria-label="Liste Onboarding-Fälle">
+          <section className="workflow-grid" aria-label="Liste Mitarbeiterprozesse">
             {rows.map((workflow) => {
               const workflowDisplayName = `${workflow.firstName} ${workflow.lastName}`.trim();
               const responsibilities =
@@ -251,6 +273,10 @@ export default function WorkflowListPage() {
 
                   <dl className="workflow-meta">
                     <div>
+                      <dt>Prozesstyp</dt>
+                      <dd>{workflow.processType.name}</dd>
+                    </div>
+                    <div>
                       <dt>Personalnummer</dt>
                       <dd>{workflow.employeeNumber}</dd>
                     </div>
@@ -263,7 +289,7 @@ export default function WorkflowListPage() {
                       <dd>{workflow.departmentName}</dd>
                     </div>
                     <div>
-                      <dt>Onboarding-ID</dt>
+                      <dt>Workflow-ID</dt>
                       <dd className="uid-value">{workflow.uid}</dd>
                     </div>
                     <div>

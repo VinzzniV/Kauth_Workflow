@@ -4,11 +4,11 @@ import PageHeader from "../components/layout/PageHeader";
 
 export default function DashboardPage() {
   return (
-    <main className="onboarding-shell">
+    <main className="app-shell">
       <div className="page-container">
         <PageHeader
           title="Übersicht"
-          description="Der nächste sinnvolle Schritt für Ihre Rolle im Onboarding."
+          description="Der nächste sinnvolle Schritt für Ihre Rolle im Mitarbeiterprozess."
         />
 
         <DashboardOverview />

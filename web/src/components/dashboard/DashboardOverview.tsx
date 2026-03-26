@@ -1,7 +1,10 @@
 // Rollenspezifisches Dashboard mit Kennzahlen und dem naechsten sinnvollen Arbeitsschritt.
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
+import { getProcessTypes } from "../../services/lifecycleApi";
+import type { ProcessType } from "../../types/workflow";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
 import type { DashboardStat } from "./dashboardInsights";
@@ -23,7 +26,62 @@ function getStatToneClassName(tone: DashboardStat["tone"]): string {
 export default function DashboardOverview() {
   const { roleLabels } = useCurrentUser();
   const { dashboardActions, secondaryDashboardActions, dashboardContext, dashboardPersona } = useRoleAwareNavigation();
-  const { insights, insightsError, isInsightsLoading, reloadInsights } = useDashboardInsights(dashboardPersona);
+  const supportsProcessTypeFilter =
+    dashboardPersona === "admin" ||
+    dashboardPersona === "hr" ||
+    dashboardPersona === "manager" ||
+    dashboardPersona === "reader";
+  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
+  const [selectedProcessTypeKey, setSelectedProcessTypeKey] = useState<string>("all");
+  const [isProcessTypeLoading, setIsProcessTypeLoading] = useState<boolean>(supportsProcessTypeFilter);
+  const processTypeKey = selectedProcessTypeKey === "all" ? null : selectedProcessTypeKey;
+  const selectedProcessType = processTypes.find((processType) => processType.key === processTypeKey) ?? null;
+  const { insights, insightsError, isInsightsLoading, reloadInsights } = useDashboardInsights(dashboardPersona, processTypeKey);
+
+  useEffect(() => {
+    if (!supportsProcessTypeFilter) {
+      setProcessTypes([]);
+      setSelectedProcessTypeKey("all");
+      setIsProcessTypeLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsProcessTypeLoading(true);
+
+    getProcessTypes()
+      .then((nextProcessTypes) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setProcessTypes(nextProcessTypes);
+        setSelectedProcessTypeKey((current) => {
+          if (current === "all") {
+            return current;
+          }
+
+          return nextProcessTypes.some((processType) => processType.key === current) ? current : "all";
+        });
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setProcessTypes([]);
+        setSelectedProcessTypeKey("all");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsProcessTypeLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [supportsProcessTypeFilter]);
 
   if (dashboardActions.length === 0) {
     return (
@@ -43,15 +101,35 @@ export default function DashboardOverview() {
         </div>
         {roleLabels.length > 0 ? <p className="panel-note dashboard-user-summary">Rolle: {roleLabels.join(", ")}</p> : null}
         <div className="action-row">
+          {supportsProcessTypeFilter && processTypes.length > 1 ? (
+            <label className="field compact dashboard-filter-field">
+              <span>Prozesstyp</span>
+              <select
+                value={selectedProcessTypeKey}
+                onChange={(event) => setSelectedProcessTypeKey(event.target.value)}
+                disabled={isInsightsLoading || isProcessTypeLoading}
+              >
+                <option value="all">Alle</option>
+                {processTypes.map((processType) => (
+                  <option key={processType.key} value={processType.key}>
+                    {processType.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <button
             type="button"
             className="btn btn-secondary"
             onClick={() => void reloadInsights()}
-            disabled={isInsightsLoading}
+            disabled={isInsightsLoading || isProcessTypeLoading}
           >
             {isInsightsLoading ? "Aktualisiere..." : "Übersicht aktualisieren"}
           </button>
         </div>
+        {supportsProcessTypeFilter && selectedProcessType ? (
+          <p className="panel-note">Aktiver Prozesstyp-Filter: {selectedProcessType.name}</p>
+        ) : null}
       </section>
 
       <section className="dashboard-grid" aria-label="Hauptaktionen">
@@ -64,9 +142,9 @@ export default function DashboardOverview() {
         ))}
       </section>
 
-      {isInsightsLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
+      {isInsightsLoading || isProcessTypeLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
 
-      {!isInsightsLoading && insightsError ? (
+      {!isInsightsLoading && !isProcessTypeLoading && insightsError ? (
         <EmptyState
           title="Übersichtsdaten konnten nicht geladen werden."
           description={insightsError}
@@ -77,7 +155,7 @@ export default function DashboardOverview() {
         />
       ) : null}
 
-      {!isInsightsLoading && !insightsError && insights ? (
+      {!isInsightsLoading && !isProcessTypeLoading && !insightsError && insights ? (
         <>
           <section className="panel">
             <div className="panel-head">

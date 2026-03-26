@@ -120,12 +120,15 @@ public sealed class RequirementSelectionInputDto
 
 public sealed class CreateWorkflowRequest
 {
-    public required int DepartmentId { get; init; }
-    public required int RoleId { get; init; }
-    public required string FirstName { get; init; }
-    public required string LastName { get; init; }
-    public required int EmployeeNumber { get; init; }
-    public required int BadgeNumber { get; init; }
+    public required string ProcessTypeKey { get; init; }
+    public int? DepartmentId { get; init; }
+    public int? RoleId { get; init; }
+    public long? TargetPersonId { get; init; }
+    public Guid? SourceWorkflowUid { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public int? EmployeeNumber { get; init; }
+    public int? BadgeNumber { get; init; }
     public DateOnly? DeadlineDate { get; init; }
 }
 
@@ -179,6 +182,13 @@ public sealed class WorkflowTaskAreaSummaryDto
     public required WorkflowTaskCountSummaryDto Counts { get; init; }
 }
 
+public sealed class WorkflowProcessTypeDto
+{
+    public required string Key { get; init; }
+    public required string Name { get; init; }
+    public required bool RequiresTargetPerson { get; init; }
+}
+
 // Zusammenfassungen und Detailmodelle fuer Listen, Aufgaben und Detailseiten.
 public sealed class WorkflowListItemDto
 {
@@ -189,6 +199,7 @@ public sealed class WorkflowListItemDto
     public required int BadgeNumber { get; init; }
     public required int DepartmentId { get; init; }
     public required string DepartmentName { get; init; }
+    public required WorkflowProcessTypeDto ProcessType { get; init; }
     public required int RoleId { get; init; }
     public required string RoleName { get; init; }
     public required string Status { get; init; }
@@ -337,6 +348,7 @@ public sealed class WorkflowTaskDto
     public required long Id { get; init; }
     public int? TaskTemplateId { get; init; }
     public required string TaskKey { get; init; }
+    public bool IsApprovalTask { get; init; }
     public required string Title { get; init; }
     public required string Description { get; init; }
     public required string Category { get; init; }
@@ -351,7 +363,6 @@ public sealed class WorkflowTaskDto
     public DateTime? ReadyAt { get; init; }
     public DateTime? StartedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
-    public DateTime? CancelledAt { get; init; }
     public string? ProcessArea { get; set; }
     public bool IsDepartmentPhaseTask { get; set; }
     public bool CanUpdateStatus { get; set; }
@@ -414,6 +425,7 @@ public sealed class WorkflowDetailDto
     public required int BadgeNumber { get; init; }
     public required int DepartmentId { get; init; }
     public required string DepartmentName { get; init; }
+    public required WorkflowProcessTypeDto ProcessType { get; init; }
     public required int RoleId { get; init; }
     public required string RoleName { get; init; }
     public required string Status { get; init; }
@@ -432,6 +444,8 @@ public sealed class WorkflowNotificationDispatchTarget
 {
     public required long NotificationId { get; init; }
     public required string NotificationType { get; init; }
+    public required string ProcessTypeKey { get; init; }
+    public required string ProcessTypeName { get; init; }
     public long? WorkflowTaskId { get; init; }
     public long? RecipientUserId { get; init; }
     public string? RecipientIdentityKey { get; init; }
@@ -455,6 +469,276 @@ public sealed class WorkflowCreationResult
     public required long WorkflowId { get; init; }
     public required Guid Uid { get; init; }
     public required List<WorkflowNotificationDispatchTarget> NotificationTargets { get; init; }
+}
+
+// Workflow-Verknüpfung: DTOs fuer Links, ableitbare Workflows und abgeleitete Antworten.
+public sealed class WorkflowLinkDto
+{
+    public required long Id { get; init; }
+    public required Guid SourceWorkflowUid { get; init; }
+    public required Guid TargetWorkflowUid { get; init; }
+    public required string LinkType { get; init; }
+    public required string LinkedWorkflowFirstName { get; init; }
+    public required string LinkedWorkflowLastName { get; init; }
+    public required WorkflowProcessTypeDto LinkedWorkflowProcessType { get; init; }
+    public required string LinkedWorkflowStatus { get; init; }
+    public required DateTime LinkedWorkflowCreatedAt { get; init; }
+    public string? Notes { get; init; }
+    public long? CreatedByUserId { get; init; }
+    public string? CreatedByUserName { get; init; }
+    public required DateTime CreatedAt { get; init; }
+}
+
+public sealed class CreateWorkflowLinkRequest
+{
+    public required Guid SourceWorkflowUid { get; init; }
+    public required string LinkType { get; init; }
+    public string? Notes { get; init; }
+}
+
+public sealed class LinkableWorkflowDto
+{
+    public required Guid Uid { get; init; }
+    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required int EmployeeNumber { get; init; }
+    public required string DepartmentName { get; init; }
+    public required string Status { get; init; }
+    public required string WorkflowStatus { get; init; }
+    public required DateTime CreatedAt { get; init; }
+}
+
+public sealed class WorkflowTargetPersonDto
+{
+    public required long PersonId { get; init; }
+    public required string DisplayName { get; init; }
+    public int? DepartmentId { get; init; }
+    public string? DepartmentName { get; init; }
+    public int? RoleId { get; init; }
+    public string? RoleName { get; init; }
+    public int? EmployeeNumber { get; init; }
+    public int? BadgeNumber { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+}
+
+public sealed class DerivedAnswerDto
+{
+    public required string TargetAnswerKey { get; init; }
+    public required string SourceAnswerKey { get; init; }
+    public bool? ValueBoolean { get; init; }
+    public string? ValueText { get; init; }
+    public decimal? ValueNumber { get; init; }
+    public string? SelectedOptionValue { get; init; }
+}
+
+// Admin-Verwaltung: Prozesstypen
+public sealed class AdminProcessTypeDto
+{
+    public required int Id { get; init; }
+    public required string Key { get; init; }
+    public required string Name { get; init; }
+    public string? Description { get; init; }
+    public required bool RequiresSupervisorStep { get; init; }
+    public string? ApprovalTaskTemplateKey { get; init; }
+    public required bool RequiresTargetPerson { get; init; }
+    public string? IconKey { get; init; }
+    public required bool IsActive { get; init; }
+    public required int SortOrder { get; init; }
+    public required int WorkflowCount { get; init; }
+    public required int AnswerDefinitionCount { get; init; }
+    public required int TaskTemplateCount { get; init; }
+    public required bool CanActivate { get; init; }
+    public string? ActivationBlockedReason { get; init; }
+}
+
+public sealed class AdminTaskTemplateDto
+{
+    public required int Id { get; init; }
+    public required int ProcessTypeId { get; init; }
+    public required string TemplateKey { get; init; }
+    public required string Title { get; init; }
+    public required string Category { get; init; }
+    public required string Description { get; init; }
+    public string? IconKey { get; init; }
+    public int? OwningDepartmentId { get; init; }
+    public int? DefaultResponsibilityId { get; init; }
+    public string? ProcessAreaLabel { get; init; }
+    public required bool IsDepartmentPhaseTask { get; init; }
+    public required bool IsRequired { get; init; }
+    public int? DueInDays { get; init; }
+    public required int SortOrder { get; init; }
+    public required bool IsActive { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required int ConditionCount { get; init; }
+    public required int DependencyCount { get; init; }
+}
+
+public sealed class AdminAnswerDefinitionDto
+{
+    public required int Id { get; init; }
+    public required int ProcessTypeId { get; init; }
+    public required string AnswerKey { get; init; }
+    public required string Title { get; init; }
+    public required string Category { get; init; }
+    public required string Description { get; init; }
+    public string? IconKey { get; init; }
+    public required string InputType { get; init; }
+    public required bool IsRequired { get; init; }
+    public required int SortOrder { get; init; }
+    public required bool IsActive { get; init; }
+}
+
+public sealed class AdminTaskTemplateConditionDto
+{
+    public required long Id { get; init; }
+    public required int TaskTemplateId { get; init; }
+    public required int ConditionGroup { get; init; }
+    public required string AnswerKey { get; init; }
+    public required string Operator { get; init; }
+    public string? ExpectedValueText { get; init; }
+    public bool? ExpectedValueBoolean { get; init; }
+    public decimal? ExpectedValueNumber { get; init; }
+}
+
+public sealed class AdminTaskTemplateDependencyDto
+{
+    public required long Id { get; init; }
+    public required int TaskTemplateId { get; init; }
+    public required int DependsOnTaskTemplateId { get; init; }
+    public required string DependsOnTemplateTitle { get; init; }
+    public required string RequiredStatus { get; init; }
+}
+
+public sealed class AdminRoleAnswerDefaultDto
+{
+    public required int ProcessTypeId { get; init; }
+    public required int AppRoleId { get; init; }
+    public required string AnswerKey { get; init; }
+    public string? DefaultValueText { get; init; }
+    public bool? DefaultValueBoolean { get; init; }
+}
+
+public sealed class AdminDependencyGraphNodeDto
+{
+    public required int Id { get; init; }
+    public required string Title { get; init; }
+    public required string Category { get; init; }
+}
+
+public sealed class AdminDependencyGraphEdgeDto
+{
+    public required long Id { get; init; }
+    public required int SourceTemplateId { get; init; }
+    public required int TargetTemplateId { get; init; }
+    public required string RequiredStatus { get; init; }
+}
+
+public sealed class AdminDependencyGraphDto
+{
+    public required List<AdminDependencyGraphNodeDto> Nodes { get; init; }
+    public required List<AdminDependencyGraphEdgeDto> Edges { get; init; }
+}
+
+public sealed class AdminProcessTypeUpdateRequest
+{
+    public string? Name { get; init; }
+    public string? Description { get; init; }
+    public string? IconKey { get; init; }
+    public bool? IsActive { get; init; }
+    public int? SortOrder { get; init; }
+}
+
+public sealed class AdminTaskTemplateUpsertRequest
+{
+    public required int ProcessTypeId { get; init; }
+    public string? TemplateKey { get; init; }
+    public string? Title { get; init; }
+    public string? Category { get; init; }
+    public string? Description { get; init; }
+    public string? IconKey { get; init; }
+    public int? OwningDepartmentId { get; init; }
+    public int? DefaultResponsibilityId { get; init; }
+    public string? ProcessAreaLabel { get; init; }
+    public bool IsDepartmentPhaseTask { get; init; }
+    public bool IsRequired { get; init; }
+    public int? DueInDays { get; init; }
+    public int SortOrder { get; init; }
+    public bool IsActive { get; init; }
+}
+
+public sealed class AdminTaskTemplateConditionCreateRequest
+{
+    public required int ConditionGroup { get; init; }
+    public string? AnswerKey { get; init; }
+    public string? Operator { get; init; }
+    public string? ExpectedValueText { get; init; }
+    public bool? ExpectedValueBoolean { get; init; }
+    public decimal? ExpectedValueNumber { get; init; }
+}
+
+public sealed class AdminTaskTemplateDependencyCreateRequest
+{
+    public required int DependsOnTaskTemplateId { get; init; }
+    public string? RequiredStatus { get; init; }
+}
+
+public sealed class AdminAnswerDefinitionUpsertRequest
+{
+    public required int ProcessTypeId { get; init; }
+    public string? AnswerKey { get; init; }
+    public string? Title { get; init; }
+    public string? Category { get; init; }
+    public string? Description { get; init; }
+    public string? IconKey { get; init; }
+    public string? InputType { get; init; }
+    public bool IsRequired { get; init; }
+    public int SortOrder { get; init; }
+    public bool IsActive { get; init; }
+}
+
+public sealed class AdminRoleAnswerDefaultUpsertItemRequest
+{
+    public required int AppRoleId { get; init; }
+    public string? AnswerKey { get; init; }
+    public string? DefaultValueText { get; init; }
+    public bool? DefaultValueBoolean { get; init; }
+}
+
+public sealed class AdminRoleAnswerDefaultsBulkUpsertRequest
+{
+    public required int ProcessTypeId { get; init; }
+    public required List<AdminRoleAnswerDefaultUpsertItemRequest> Items { get; init; }
+}
+
+// Bulk-Operationen: Massenhafte Workflow-Erstellung fuer Abteilungswechsel o.Ä.
+public sealed class BulkDepartmentChangeRequest
+{
+    public required int SourceDepartmentId { get; init; }
+    public required int TargetDepartmentId { get; init; }
+    public required int TargetRoleId { get; init; }
+    public DateOnly? DeadlineDate { get; init; }
+    public bool DryRun { get; init; }
+}
+
+public sealed class BulkOperationResultDto
+{
+    public required int TotalEmployees { get; init; }
+    public required int CreatedWorkflows { get; init; }
+    public required int SkippedEmployees { get; init; }
+    public required int FailedEmployees { get; init; }
+    public required bool IsDryRun { get; init; }
+    public required List<BulkOperationItemDto> Items { get; init; }
+}
+
+public sealed class BulkOperationItemDto
+{
+    public required long PersonId { get; init; }
+    public required string DisplayName { get; init; }
+    public required string Status { get; init; }
+    public Guid? WorkflowUid { get; init; }
+    public string? ErrorMessage { get; init; }
 }
 
 internal sealed class AnswerDefinitionRecord

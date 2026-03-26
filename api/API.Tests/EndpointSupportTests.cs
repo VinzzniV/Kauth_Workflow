@@ -39,6 +39,12 @@ public sealed class EndpointSupportTests
             BadgeNumber = 2000,
             DepartmentId = 10,
             DepartmentName = "IT",
+            ProcessType = new WorkflowProcessTypeDto
+            {
+                Key = "onboarding",
+                Name = "Onboarding",
+                RequiresTargetPerson = false
+            },
             RoleId = 1,
             RoleName = "Mitarbeiter",
             Status = WorkflowStatusRules.OpenLegacy,
@@ -67,7 +73,6 @@ public sealed class EndpointSupportTests
                     ReadyAt = DateTime.UtcNow,
                     StartedAt = DateTime.UtcNow,
                     CompletedAt = DateTime.UtcNow,
-                    CancelledAt = null,
                     ProcessArea = "IT",
                     IsDepartmentPhaseTask = true,
                     CanUpdateStatus = false,

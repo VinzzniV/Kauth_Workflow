@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { DashboardPersona } from "../../auth/roleModel";
 import { loadDashboardInsights, type DashboardInsights } from "./dashboardInsights";
 
-export function useDashboardInsights(dashboardPersona: DashboardPersona) {
+export function useDashboardInsights(dashboardPersona: DashboardPersona, processTypeKey?: string | null) {
   const [insights, setInsights] = useState<DashboardInsights | null>(null);
   const [isInsightsLoading, setIsInsightsLoading] = useState<boolean>(true);
   const [insightsError, setInsightsError] = useState<string | null>(null);
@@ -12,7 +12,7 @@ export function useDashboardInsights(dashboardPersona: DashboardPersona) {
     setInsightsError(null);
 
     try {
-      const nextInsights = await loadDashboardInsights(dashboardPersona);
+      const nextInsights = await loadDashboardInsights(dashboardPersona, { processTypeKey });
       setInsights(nextInsights);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Übersichtsdaten konnten nicht geladen werden.";
@@ -21,7 +21,7 @@ export function useDashboardInsights(dashboardPersona: DashboardPersona) {
     } finally {
       setIsInsightsLoading(false);
     }
-  }, [dashboardPersona]);
+  }, [dashboardPersona, processTypeKey]);
 
   useEffect(() => {
     void reloadInsights();

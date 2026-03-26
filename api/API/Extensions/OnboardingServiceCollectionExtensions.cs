@@ -4,9 +4,9 @@ using Microsoft.OpenApi;
 
 namespace API;
 
-internal static class OnboardingServiceCollectionExtensions
+internal static class LifecycleServiceCollectionExtensions
 {
-    public static IServiceCollection AddOnboardingApiServices(
+    public static IServiceCollection AddLifecycleApiServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -22,7 +22,7 @@ internal static class OnboardingServiceCollectionExtensions
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Onboarding API", Version = "v1" });
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Employee Lifecycle API", Version = "v1" });
             c.OperationFilter<WorkflowListResponseOperationFilter>();
         });
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();

@@ -139,6 +139,10 @@ export function isDepartmentWorkflowPhase(status: WorkflowDetail["workflowStatus
   return isDepartmentWorkflowPhaseStatus(status);
 }
 
+export function hasSupervisorStep(workflow: WorkflowDetail): boolean {
+  return workflow.workflowStatus === "waiting_for_supervisor" || workflow.tasks.some((task) => task.isApprovalTask);
+}
+
 export function toPhaseOwnerArea(workflow: WorkflowDetail): string {
   if (isWorkflowTerminalStatus(workflow.workflowStatus)) {
     return getWorkflowRuntimeStatusLabel(workflow.workflowStatus);
@@ -206,6 +210,7 @@ export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
   const departmentTaskMetrics = workflow.taskMetrics.departmentPhase;
   const isDepartmentPhase = isDepartmentWorkflowPhase(workflow.workflowStatus);
   const isTerminalWorkflow = isWorkflowTerminalStatus(workflow.workflowStatus);
+  const includesSupervisorStep = hasSupervisorStep(workflow);
   const hrStepState: ProcessStepState = workflow.workflowStatus === "draft" ? "active" : "done";
   const requirementStepState: ProcessStepState =
     workflow.workflowStatus === "waiting_for_supervisor"
@@ -221,7 +226,7 @@ export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
         : "pending";
   const completedStepState: ProcessStepState = isTerminalWorkflow ? "done" : "pending";
 
-  return [
+  const steps: ProcessStep[] = [
     {
       key: "hr-start",
       title: "HR gestartet",
@@ -232,20 +237,13 @@ export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
       state: hrStepState,
     },
     {
-      key: "requirements",
-      title: "Abteilungsleitung wählt Anforderungen",
-      detail:
-        workflow.workflowStatus === "draft"
-          ? "Startet, sobald HR den Vorgang freigibt."
-          : `Beantwortet: ${requirementSummary.answeredVisibleCount} von ${requirementSummary.visibleCount}.`,
-      state: requirementStepState,
-    },
-    {
       key: "departments",
       title: "Fachbereiche bearbeiten Aufgaben",
       detail:
-        workflow.workflowStatus === "draft" || workflow.workflowStatus === "waiting_for_supervisor"
-          ? "Aufgaben für Fachbereiche entstehen erst nach Auswahl der Anforderungen."
+        workflow.workflowStatus === "draft" || (includesSupervisorStep && workflow.workflowStatus === "waiting_for_supervisor")
+          ? includesSupervisorStep
+            ? "Aufgaben für Fachbereiche entstehen erst nach Abschluss der Freigabe."
+            : "Aufgaben für Fachbereiche entstehen nach Abschluss der Startphase."
           : `Offen: ${departmentTaskMetrics.openCount} | In Bearbeitung: ${departmentTaskMetrics.inProgressCount} | Erledigt: ${departmentTaskMetrics.completedCount} von ${departmentTaskMetrics.totalCount}.`,
       state: departmentStepState,
     },
@@ -254,11 +252,25 @@ export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
       title: "Abgeschlossen",
       detail:
         workflow.workflowStatus === "completed"
-          ? "Onboarding ist abgeschlossen."
+          ? "Vorgang ist abgeschlossen."
           : "Abschluss steht noch aus.",
       state: completedStepState,
     },
   ];
+
+  if (includesSupervisorStep) {
+    steps.splice(1, 0, {
+      key: "requirements",
+      title: "Abteilungsleitung bestätigt Anforderungen",
+      detail:
+        workflow.workflowStatus === "draft"
+          ? "Startet, sobald HR den Vorgang freigibt."
+          : `Beantwortet: ${requirementSummary.answeredVisibleCount} von ${requirementSummary.visibleCount}.`,
+      state: requirementStepState,
+    });
+  }
+
+  return steps;
 }
 
 export function buildTasksByArea(

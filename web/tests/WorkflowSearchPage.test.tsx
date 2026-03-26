@@ -1,18 +1,20 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowSearchPage from "../src/pages/WorkflowSearchPage";
-import * as onboardingApi from "../src/services/onboardingApi";
+import * as lifecycleApi from "../src/services/lifecycleApi";
 import { createWorkflowSummary, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/onboardingApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/onboardingApi")>("../src/services/onboardingApi");
+vi.mock("../src/services/lifecycleApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
   return {
     ...actual,
+    getProcessTypes: vi.fn(),
     getWorkflows: vi.fn(),
   };
 });
 
-const mockedGetWorkflows = vi.mocked(onboardingApi.getWorkflows);
+const mockedGetProcessTypes = vi.mocked(lifecycleApi.getProcessTypes);
+const mockedGetWorkflows = vi.mocked(lifecycleApi.getWorkflows);
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -28,7 +30,12 @@ function createDeferred<T>() {
 
 describe("WorkflowSearchPage", () => {
   beforeEach(() => {
+    mockedGetProcessTypes.mockReset();
     mockedGetWorkflows.mockReset();
+    mockedGetProcessTypes.mockResolvedValue([
+      { key: "onboarding", name: "Onboarding" },
+      { key: "offboarding", name: "Offboarding" },
+    ]);
   });
 
   it("keeps other departments selectable after a department filter is applied", async () => {
@@ -75,6 +82,36 @@ describe("WorkflowSearchPage", () => {
 
     expect(await screen.findByText("Alice Example")).toBeTruthy();
     expect(screen.getByRole("option", { name: "Finance" })).toBeTruthy();
+  });
+
+  it("passes the selected process type to the search endpoint", async () => {
+    mockedGetWorkflows
+      .mockResolvedValueOnce([createWorkflowSummary()])
+      .mockResolvedValueOnce([
+        createWorkflowSummary({
+          uid: "wf-off",
+          processType: { key: "offboarding", name: "Offboarding" },
+        }),
+      ])
+      .mockResolvedValueOnce([
+        createWorkflowSummary({
+          uid: "wf-off",
+          processType: { key: "offboarding", name: "Offboarding" },
+        }),
+      ]);
+
+    renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
+
+    expect(await screen.findByText("Alice Example")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Prozesstyp" }), {
+      target: { value: "offboarding" },
+    });
+
+    expect(await screen.findByText("Offboarding")).toBeTruthy();
+    expect(mockedGetWorkflows).toHaveBeenCalledWith(
+      expect.objectContaining({ processTypeKey: "offboarding" })
+    );
   });
 
   it("ignores stale responses when search requests resolve out of order", async () => {

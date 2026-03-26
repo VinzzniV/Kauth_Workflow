@@ -4,10 +4,12 @@ internal interface IWorkflowRepository
 {
     Task<List<DepartmentDto>> GetDepartments();
     Task<List<RoleDto>> GetRoles();
-    Task<List<RequirementDto>> GetRequirements();
-    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId);
+    Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes();
+    Task<List<RequirementDto>> GetRequirements(string? processTypeKey = null);
+    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string? processTypeKey = null);
     Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId);
     Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId);
+    Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid);
     Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(Guid workflowUid);
     Task<List<WorkflowNotificationDispatchTarget>> CreateWorkflowCompletionNotifications(Guid workflowUid);
     Task<List<Guid>> GetWorkflowUidsWithDisabledNotifications(string notificationType);
@@ -21,4 +23,30 @@ internal interface IWorkflowRepository
     Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId);
     Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> AddTaskComment(long taskId, string commentText, long actorUserId);
+    Task<List<WorkflowLinkDto>> GetWorkflowLinks(Guid workflowUid);
+    Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId);
+    Task<bool> DeleteWorkflowLink(Guid workflowUid, long linkId, long actorUserId);
+    Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(string? query, int limit = 20);
+    Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null);
+    Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey);
+    Task<BulkOperationResultDto> BulkCreateDepartmentChangeWorkflows(BulkDepartmentChangeRequest request, long actorUserId);
+    Task<List<AdminProcessTypeDto>> GetAdminProcessTypes();
+    Task<AdminProcessTypeDto?> UpdateProcessType(int processTypeId, AdminProcessTypeUpdateRequest request);
+    Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int processTypeId);
+    Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request);
+    Task<AdminTaskTemplateDto?> UpdateAdminTaskTemplate(int templateId, AdminTaskTemplateUpsertRequest request);
+    Task<bool> DeleteAdminTaskTemplate(int templateId);
+    Task<List<AdminTaskTemplateConditionDto>> GetAdminTaskTemplateConditions(int templateId);
+    Task<AdminTaskTemplateConditionDto> CreateAdminTaskTemplateCondition(int templateId, AdminTaskTemplateConditionCreateRequest request);
+    Task<bool> DeleteAdminTaskTemplateCondition(int templateId, long conditionId);
+    Task<List<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId);
+    Task<AdminTaskTemplateDependencyDto> CreateAdminTaskTemplateDependency(int templateId, AdminTaskTemplateDependencyCreateRequest request);
+    Task<bool> DeleteAdminTaskTemplateDependency(int templateId, long dependencyId);
+    Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int processTypeId);
+    Task<AdminAnswerDefinitionDto> CreateAdminAnswerDefinition(AdminAnswerDefinitionUpsertRequest request);
+    Task<AdminAnswerDefinitionDto?> UpdateAdminAnswerDefinition(int definitionId, AdminAnswerDefinitionUpsertRequest request);
+    Task<bool> DeleteAdminAnswerDefinition(int definitionId);
+    Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int processTypeId);
+    Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request);
+    Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int processTypeId);
 }

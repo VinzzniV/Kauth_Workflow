@@ -1,6 +1,7 @@
 import type { AdminNotificationEmailConfiguration } from "../../types/auth";
 import type { WorkflowConfig } from "../../types/workflow";
 import { AdminNotificationEmailSection } from "./AdminNotificationEmailSection";
+import { AdminProcessTypeSection } from "./AdminProcessTypeSection";
 import { AdminWorkflowConfigurationSection } from "./AdminWorkflowConfigurationSection";
 
 type AdminSystemWorkspaceSectionProps = {
@@ -77,6 +78,8 @@ export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionPr
         onSave={props.onSaveNotificationEmailConfiguration}
         onSendTest={props.onSendNotificationEmailTest}
       />
+
+      <AdminProcessTypeSection />
 
       <AdminWorkflowConfigurationSection workflowConfig={props.workflowConfig} isLoading={props.isLoading} />
     </div>

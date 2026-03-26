@@ -59,9 +59,9 @@ export default function DemoLoginPage() {
     <div className="login-shell">
       <div className="login-container">
         <div className="login-header">
-          <div className="login-logo">ON</div>
-          <h1>Onboarding</h1>
-          <p>Wählen Sie einen Benutzer aus, um sich anzumelden.</p>
+          <div className="login-logo">MP</div>
+          <h1>Mitarbeiterprozesse</h1>
+          <p>Wählen Sie einen Benutzer aus, um sich in die Demo anzumelden.</p>
         </div>
 
         {usersLoading ? <LoadingState title="Benutzer werden geladen..." /> : null}

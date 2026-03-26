@@ -8,8 +8,12 @@ type AdminWorkspaceNavigationProps = {
 const ITEMS: Array<{ key: AdminWorkspaceSection; label: string; description: string }> = [
   { key: "overview", label: "Übersicht", description: "Status, Warnungen und Einstiege" },
   { key: "organization", label: "Organisation", description: "Personen, Abteilungen und Zuständigkeiten" },
+  { key: "templates", label: "Templates", description: "Task-Vorlagen pro Prozesstyp verwalten" },
+  { key: "answers", label: "Answers", description: "Answer Definitions pro Prozesstyp verwalten" },
+  { key: "defaults", label: "Defaults", description: "Rollenbasierte Answer-Defaults verwalten" },
   { key: "access", label: "Rechte & Gruppen", description: "Advanced-Bereich für technische Zugriffe" },
   { key: "system", label: "System", description: "Mail und Workflow-Konfiguration" },
+  { key: "operations", label: "Operationen", description: "Massen-Aktionen wie Abteilungswechsel" },
 ];
 
 export function AdminWorkspaceNavigation({

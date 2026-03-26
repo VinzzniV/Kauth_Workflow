@@ -1,11 +1,11 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MyTasksPage from "../src/pages/MyTasksPage";
-import * as onboardingApi from "../src/services/onboardingApi";
+import * as lifecycleApi from "../src/services/lifecycleApi";
 import { createTaskWithWorkflow, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/onboardingApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/onboardingApi")>("../src/services/onboardingApi");
+vi.mock("../src/services/lifecycleApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
   return {
     ...actual,
     getMyTasks: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock("../src/services/onboardingApi", async () => {
   };
 });
 
-const mockedGetMyTasks = vi.mocked(onboardingApi.getMyTasks);
+const mockedGetMyTasks = vi.mocked(lifecycleApi.getMyTasks);
 
 describe("MyTasksPage", () => {
   beforeEach(() => {

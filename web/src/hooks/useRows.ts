@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getWorkflows } from "../services/onboardingApi";
+import { getWorkflows } from "../services/lifecycleApi";
 import type { WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
 import { matchesWorkflowRuntimeStatusFilter } from "../utils/workflowStatus";
 
@@ -26,7 +26,7 @@ export function useRows(options: UseRowsOptions = {}) {
       setRows(workflows);
       console.info("[workflows] loaded", workflows.length);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Onboarding-Fälle konnten nicht geladen werden.";
+      const message = err instanceof Error ? err.message : "Vorgänge konnten nicht geladen werden.";
       setError(message);
     } finally {
       setIsLoading(false);

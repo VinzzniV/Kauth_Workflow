@@ -1,4 +1,10 @@
 // Gemeinsame Frontend-Typen fuer Workflow-Konfiguration, Laufzeitdaten und Aufgabenansichten.
+export type ProcessType = {
+  key: string;
+  name: string;
+  requiresTargetPerson: boolean;
+};
+
 export type Role = {
   id: number;
   departmentId: number;
@@ -56,7 +62,7 @@ export type RequirementBehavior = {
   singleSelectReset: RequirementSingleSelectReset | null;
 };
 
-// Konfiguration fuer Anforderungen, wie sie bei der Erstellung eines Onboardings verwendet wird.
+// Konfiguration fuer Anforderungen, wie sie bei der Erstellung eines Vorgangs verwendet wird.
 export type RoleRequirement = {
   id: number;
   key: string;
@@ -129,13 +135,16 @@ export type EmployeeFormData = {
 };
 
 export type WorkflowCreationPayload = {
-  firstName: string;
-  lastName: string;
-  employeeNumber: number;
-  badgeNumber: number;
-  deadlineDate: string | null;
-  departmentId: number;
-  roleId: number;
+  processTypeKey: string;
+  departmentId?: number | null;
+  roleId?: number | null;
+  targetPersonId?: number | null;
+  sourceWorkflowUid?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  employeeNumber?: number | null;
+  badgeNumber?: number | null;
+  deadlineDate?: string | null;
 };
 
 // Rueckgabe nach erfolgreichem Start eines neuen Workflows.
@@ -209,6 +218,7 @@ export type WorkflowTaskAreaSummary = {
 // Kompakte Uebersicht fuer Listen und Dashboards.
 export type WorkflowSummary = {
   uid: string;
+  processType: ProcessType;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -240,6 +250,30 @@ export type WorkflowPage = {
 };
 
 // Detailansicht eines Workflows inklusive Antworten, Aufgaben und Benachrichtigungen.
+export type WorkflowDetail = {
+  uid: string;
+  processType: ProcessType;
+  firstName: string;
+  lastName: string;
+  employeeNumber: number;
+  badgeNumber: number;
+  departmentId: number;
+  departmentName: string;
+  roleId: number;
+  roleName: string;
+  // Legacy backend field. Prefer workflowStatus for UI filters and labels.
+  status: WorkflowStatus;
+  workflowStatus: WorkflowRuntimeStatus;
+  createdAt: string;
+  deadlineDate: string | null;
+  requirements: WorkflowRequirementSnapshot[];
+  requirementSummary: WorkflowRequirementSummary;
+  tasks: WorkflowTask[];
+  taskMetrics: WorkflowTaskMetrics;
+  taskAreas: WorkflowTaskAreaSummary[];
+  notifications: WorkflowNotification[];
+};
+
 export type WorkflowRequirementSnapshot = {
   workflowRequirementId: number;
   id: number;
@@ -348,6 +382,7 @@ export type WorkflowTask = {
   id: number;
   taskTemplateId: number | null;
   taskKey: string;
+  isApprovalTask: boolean;
   title: string;
   description: string;
   category: string;
@@ -362,7 +397,6 @@ export type WorkflowTask = {
   readyAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
-  cancelledAt: string | null;
   processArea: WorkflowTaskArea | null;
   isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
@@ -392,30 +426,82 @@ export type TaskWithWorkflow = {
   workflow: TaskWorkflowContext;
 };
 
-export type WorkflowDetail = {
-  uid: string;
-  firstName: string;
-  lastName: string;
-  employeeNumber: number;
-  badgeNumber: number;
-  departmentId: number;
-  departmentName: string;
-  roleId: number;
-  roleName: string;
-  // Legacy backend field. Prefer workflowStatus for UI filters and labels.
-  status: WorkflowStatus;
-  workflowStatus: WorkflowRuntimeStatus;
-  createdAt: string;
-  deadlineDate: string | null;
-  requirements: WorkflowRequirementSnapshot[];
-  requirementSummary: WorkflowRequirementSummary;
-  tasks: WorkflowTask[];
-  taskMetrics: WorkflowTaskMetrics;
-  taskAreas: WorkflowTaskAreaSummary[];
-  notifications: WorkflowNotification[];
-};
-
 export type ApiErrorState = {
   message: string;
   status?: number;
+};
+
+export type WorkflowLink = {
+  id: number;
+  sourceWorkflowUid: string;
+  targetWorkflowUid: string;
+  linkType: string;
+  linkedWorkflowFirstName: string;
+  linkedWorkflowLastName: string;
+  linkedWorkflowProcessType: ProcessType;
+  linkedWorkflowStatus: string;
+  linkedWorkflowCreatedAt: string;
+  notes: string | null;
+  createdByUserId: number | null;
+  createdByUserName: string | null;
+  createdAt: string;
+};
+
+export type LinkableWorkflow = {
+  uid: string;
+  processType: ProcessType;
+  firstName: string;
+  lastName: string;
+  employeeNumber: number;
+  departmentName: string;
+  status: string;
+  workflowStatus: string;
+  createdAt: string;
+};
+
+export type WorkflowTargetPerson = {
+  personId: number;
+  displayName: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  roleId: number | null;
+  roleName: string | null;
+  employeeNumber: number | null;
+  badgeNumber: number | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+export type DerivedAnswer = {
+  targetAnswerKey: string;
+  sourceAnswerKey: string;
+  valueBoolean: boolean | null;
+  valueText: string | null;
+  valueNumber: number | null;
+  selectedOptionValue: string | null;
+};
+
+export type BulkDepartmentChangePayload = {
+  sourceDepartmentId: number;
+  targetDepartmentId: number;
+  targetRoleId: number;
+  deadlineDate?: string | null;
+  dryRun: boolean;
+};
+
+export type BulkOperationResult = {
+  totalEmployees: number;
+  createdWorkflows: number;
+  skippedEmployees: number;
+  failedEmployees: number;
+  isDryRun: boolean;
+  items: BulkOperationItem[];
+};
+
+export type BulkOperationItem = {
+  personId: number;
+  displayName: string;
+  status: string;
+  workflowUid: string | null;
+  errorMessage: string | null;
 };

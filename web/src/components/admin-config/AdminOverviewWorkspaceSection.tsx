@@ -98,6 +98,15 @@ export function AdminOverviewWorkspaceSection({
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("access")}>
             Rechte & Gruppen öffnen
           </button>
+          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("templates")}>
+            Templates öffnen
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("answers")}>
+            Answers öffnen
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("defaults")}>
+            Defaults öffnen
+          </button>
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("system")}>
             Mail-Konfiguration öffnen
           </button>

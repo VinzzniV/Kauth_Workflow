@@ -5,6 +5,14 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
+    private sealed class WorkflowTaskGenerationContext
+    {
+        public required int ProcessTypeId { get; init; }
+        public required string ProcessTypeName { get; init; }
+        public required bool RequiresSupervisorStep { get; init; }
+        public string? ApprovalTaskTemplateKey { get; init; }
+    }
+
     private static async Task<bool> WorkflowHasAnyTasks(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -146,26 +154,36 @@ FOR UPDATE;";
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
         TaskGenerationStage stage)
     {
+        var workflowContext = await LoadWorkflowTaskGenerationContext(connection, transaction, workflowId);
         var workflowDueAt = await LoadWorkflowDueAt(connection, transaction, workflowId);
-        var templates = await LoadTaskTemplates(connection, transaction);
-        var conditions = await LoadTaskTemplateConditions(connection, transaction);
-        var dependencies = await LoadTaskTemplateDependencies(connection, transaction);
+        var templates = await LoadTaskTemplates(connection, transaction, workflowContext.ProcessTypeId);
+        var conditions = await LoadTaskTemplateConditions(connection, transaction, workflowContext.ProcessTypeId);
+        var dependencies = await LoadTaskTemplateDependencies(connection, transaction, workflowContext.ProcessTypeId);
 
         var conditionsByTemplateId = conditions
             .GroupBy(condition => condition.TaskTemplateId)
             .ToDictionary(group => group.Key, group => group.ToList());
 
-        var postSupervisorTemplateIds = GetPostSupervisorTemplateIds(templates, dependencies);
+        var postSupervisorTemplateIds = workflowContext.RequiresSupervisorStep
+            ? GetPostSupervisorTemplateIds(
+                templates,
+                dependencies,
+                workflowContext.ApprovalTaskTemplateKey)
+            : new HashSet<int>();
 
         var selectedTemplates = templates
             .Where(template =>
             {
+                if (!workflowContext.RequiresSupervisorStep)
+                {
+                    return stage == TaskGenerationStage.Initial;
+                }
+
                 var isPostSupervisorTask = postSupervisorTemplateIds.Contains(template.Id);
                 return stage == TaskGenerationStage.Initial
                     ? !isPostSupervisorTask
                     : isPostSupervisorTask;
             })
-            .Where(template => !template.TemplateKey.Equals(LegacySupervisorHandoverTaskKey, StringComparison.OrdinalIgnoreCase))
             .Where(template =>
             {
                 conditionsByTemplateId.TryGetValue(template.Id, out var templateConditions);
@@ -213,8 +231,10 @@ VALUES (
     @isRequired,
     @dueInDays,
     CASE
+        WHEN @workflowDueAt IS NOT NULL AND @dueInDays IS NOT NULL
+            THEN LEAST(@workflowDueAt, NOW() + (@dueInDays * INTERVAL '1 day'))
         WHEN @workflowDueAt IS NOT NULL THEN @workflowDueAt
-        WHEN @status = 'ready' AND @dueInDays IS NOT NULL THEN NOW() + (@dueInDays * INTERVAL '1 day')
+        WHEN @dueInDays IS NOT NULL THEN NOW() + (@dueInDays * INTERVAL '1 day')
         ELSE NULL
     END,
     @sortOrder,
@@ -304,7 +324,8 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
             var assigneeResponsibilityId = template.DefaultResponsibilityId;
             long? assigneeUserId = null;
 
-            if (template.TemplateKey == "supervisor_fills_document")
+            if (!string.IsNullOrWhiteSpace(workflowContext.ApprovalTaskTemplateKey)
+                && template.TemplateKey.Equals(workflowContext.ApprovalTaskTemplateKey, StringComparison.OrdinalIgnoreCase))
             {
                 var supervisorAssignment = await ResolveDepartmentRequirementSelectionAssignment(
                     connection,
@@ -363,6 +384,43 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
         return generatedTaskCount;
     }
 
+    private static async Task<WorkflowTaskGenerationContext> LoadWorkflowTaskGenerationContext(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = @"
+SELECT
+    w.process_type_id,
+    pt.name,
+    pt.requires_supervisor_step,
+    pt.approval_task_template_key
+FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
+WHERE w.id = @workflowId
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            throw new InvalidOperationException("Workflow context could not be loaded for task generation.");
+        }
+
+        return new WorkflowTaskGenerationContext
+        {
+            ProcessTypeId = reader.GetInt32(0),
+            ProcessTypeName = reader.GetString(1),
+            RequiresSupervisorStep = reader.GetBoolean(2),
+            ApprovalTaskTemplateKey = EnsureApprovalTaskConfiguration(
+                reader.GetString(1),
+                reader.GetBoolean(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3))
+        };
+    }
+
     private static async Task<DateTime?> LoadWorkflowDueAt(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -384,20 +442,27 @@ LIMIT 1;";
         }
 
         var deadlineDate = (DateOnly)scalar;
-        return DateTime.SpecifyKind(deadlineDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        return TaskDueDateRules.ToWorkflowDeadlineDueAt(deadlineDate);
     }
 
     private static HashSet<int> GetPostSupervisorTemplateIds(
         IReadOnlyList<TaskTemplateRecord> templates,
-        IReadOnlyList<TaskTemplateDependencyRecord> dependencies)
+        IReadOnlyList<TaskTemplateDependencyRecord> dependencies,
+        string? approvalTaskTemplateKey)
     {
+        if (string.IsNullOrWhiteSpace(approvalTaskTemplateKey))
+        {
+            return new HashSet<int>();
+        }
+
         var supervisorTemplateId = templates
-            .FirstOrDefault(template => template.TemplateKey.Equals(SupervisorRequirementTaskKey, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(template => template.TemplateKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase))
             ?.Id;
 
         if (!supervisorTemplateId.HasValue)
         {
-            return new HashSet<int>();
+            throw new InvalidOperationException(
+                $"Der konfigurierte Approval-Task '{approvalTaskTemplateKey}' existiert nicht unter den aktiven Task-Templates des Prozesstyps.");
         }
 
         var dependentsByTemplateId = dependencies
@@ -430,7 +495,8 @@ LIMIT 1;";
 
     private static async Task<List<TaskTemplateRecord>> LoadTaskTemplates(
         NpgsqlConnection connection,
-        NpgsqlTransaction transaction)
+        NpgsqlTransaction transaction,
+        int processTypeId)
     {
         const string sql = @"
 SELECT
@@ -447,10 +513,12 @@ SELECT
     due_in_days,
     sort_order
 FROM task_templates
-WHERE is_active = TRUE
+WHERE process_type_id = @processTypeId
+  AND is_active = TRUE
 ORDER BY sort_order, id;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("processTypeId", processTypeId);
         await using var reader = await command.ExecuteReaderAsync();
 
         var templates = new List<TaskTemplateRecord>();
@@ -461,9 +529,9 @@ ORDER BY sort_order, id;";
                 Id = reader.GetInt32(0),
                 TemplateKey = reader.GetString(1),
                 Title = reader.GetString(2),
-                Description = reader.GetString(3),
+                Description = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                 Category = reader.GetString(4),
-                IconKey = reader.GetString(5),
+                IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
                 DefaultResponsibilityId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
                 ProcessAreaLabel = reader.IsDBNull(7) ? null : reader.GetString(7),
                 IsDepartmentPhaseTask = reader.GetBoolean(8),
@@ -478,21 +546,25 @@ ORDER BY sort_order, id;";
 
     private static async Task<List<TaskTemplateConditionRecord>> LoadTaskTemplateConditions(
         NpgsqlConnection connection,
-        NpgsqlTransaction transaction)
+        NpgsqlTransaction transaction,
+        int processTypeId)
     {
         const string sql = @"
 SELECT
-    task_template_id,
-    condition_group,
-    answer_key,
-    operator,
-    expected_value_text,
-    expected_value_boolean,
-    expected_value_number
-FROM task_template_conditions
-ORDER BY task_template_id, condition_group, id;";
+    c.task_template_id,
+    c.condition_group,
+    c.answer_key,
+    c.operator,
+    c.expected_value_text,
+    c.expected_value_boolean,
+    c.expected_value_number
+FROM task_template_conditions c
+JOIN task_templates t ON t.id = c.task_template_id
+WHERE t.process_type_id = @processTypeId
+ORDER BY c.task_template_id, c.condition_group, c.id;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("processTypeId", processTypeId);
         await using var reader = await command.ExecuteReaderAsync();
 
         var conditions = new List<TaskTemplateConditionRecord>();
@@ -515,14 +587,18 @@ ORDER BY task_template_id, condition_group, id;";
 
     private static async Task<List<TaskTemplateDependencyRecord>> LoadTaskTemplateDependencies(
         NpgsqlConnection connection,
-        NpgsqlTransaction transaction)
+        NpgsqlTransaction transaction,
+        int processTypeId)
     {
         const string sql = @"
-SELECT task_template_id, depends_on_task_template_id, required_status
-FROM task_template_dependencies
-ORDER BY task_template_id, id;";
+SELECT d.task_template_id, d.depends_on_task_template_id, d.required_status
+FROM task_template_dependencies d
+JOIN task_templates t ON t.id = d.task_template_id
+WHERE t.process_type_id = @processTypeId
+ORDER BY d.task_template_id, d.id;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("processTypeId", processTypeId);
         await using var reader = await command.ExecuteReaderAsync();
 
         var dependencies = new List<TaskTemplateDependencyRecord>();

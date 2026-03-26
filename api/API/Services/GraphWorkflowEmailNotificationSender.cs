@@ -242,9 +242,22 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
     {
         var template = batch.NotificationType switch
         {
-            "task_ready" => NotificationEmailTemplateBuilder.BuildTaskReady(recipientName, workflowUrl, batch.TaskTitles),
-            "workflow_completed" => NotificationEmailTemplateBuilder.BuildWorkflowCompleted(recipientName, workflowUrl),
-            _ => NotificationEmailTemplateBuilder.BuildWorkflowCreated(recipientName, workflowUrl)
+            "task_ready" => NotificationEmailTemplateBuilder.BuildTaskReady(
+                recipientName,
+                workflowUrl,
+                batch.TaskTitles,
+                batch.PrimaryTarget.ProcessTypeKey,
+                batch.PrimaryTarget.ProcessTypeName),
+            "workflow_completed" => NotificationEmailTemplateBuilder.BuildWorkflowCompleted(
+                recipientName,
+                workflowUrl,
+                batch.PrimaryTarget.ProcessTypeKey,
+                batch.PrimaryTarget.ProcessTypeName),
+            _ => NotificationEmailTemplateBuilder.BuildWorkflowCreated(
+                recipientName,
+                workflowUrl,
+                batch.PrimaryTarget.ProcessTypeKey,
+                batch.PrimaryTarget.ProcessTypeName)
         };
 
         return new SendMailPostRequestBody
@@ -284,12 +297,12 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         {
             Message = new Message
             {
-                Subject = "Onboarding Testmail",
+                Subject = "Employee Lifecycle Testmail",
                 Body = new ItemBody
                 {
                     ContentType = BodyType.Html,
                     Content = $@"
-<p>Dies ist eine Testmail aus dem Admin-Bereich der Onboarding-Anwendung.</p>
+<p>Dies ist eine Testmail aus dem Admin-Bereich der Employee-Lifecycle-Anwendung.</p>
 <p>Empfänger: {encodedRecipient}</p>
 <p>Hinterlegte Frontend-Basis-URL: {encodedBaseUrl}</p>"
                 },

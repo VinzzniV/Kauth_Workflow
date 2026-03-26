@@ -256,7 +256,6 @@ public sealed class WorkflowSummaryBuilderTests
             ReadyAt = null,
             StartedAt = null,
             CompletedAt = null,
-            CancelledAt = null,
             ProcessArea = processArea,
             IsDepartmentPhaseTask = isDepartmentPhaseTask,
             CanUpdateStatus = false,

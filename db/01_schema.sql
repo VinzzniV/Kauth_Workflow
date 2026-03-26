@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS task_templates CASCADE;
 DROP TABLE IF EXISTS workflow_answer_selected_options CASCADE;
 DROP TABLE IF EXISTS workflow_answers CASCADE;
 DROP TABLE IF EXISTS workflows CASCADE;
+DROP TABLE IF EXISTS process_types CASCADE;
 DROP TABLE IF EXISTS app_role_answer_default_options CASCADE;
 DROP TABLE IF EXISTS app_role_answer_defaults CASCADE;
 DROP TABLE IF EXISTS workflow_answer_single_select_keep_values CASCADE;
@@ -209,8 +210,25 @@ CREATE TABLE app_group_responsibilities (
     PRIMARY KEY (app_group_id, app_responsibility_id)
 );
 
+CREATE TABLE process_types (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    key VARCHAR(120) NOT NULL UNIQUE,
+    name VARCHAR(180) NOT NULL,
+    description TEXT,
+    requires_supervisor_step BOOLEAN NOT NULL DEFAULT FALSE,
+    approval_task_template_key VARCHAR(120),
+    requires_target_person BOOLEAN NOT NULL DEFAULT FALSE,
+    icon_key VARCHAR(80),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT process_types_supervisor_step_requires_approval_task
+        CHECK (NOT requires_supervisor_step OR approval_task_template_key IS NOT NULL)
+);
+
 CREATE TABLE workflow_answer_definitions (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE RESTRICT,
     answer_key VARCHAR(120) NOT NULL UNIQUE,
     title VARCHAR(180) NOT NULL,
     category VARCHAR(80) NOT NULL DEFAULT 'general',
@@ -219,7 +237,8 @@ CREATE TABLE workflow_answer_definitions (
     input_type VARCHAR(32) NOT NULL CHECK (input_type IN ('boolean', 'text', 'select', 'multi_select')),
     is_required BOOLEAN NOT NULL DEFAULT FALSE,
     sort_order INTEGER NOT NULL DEFAULT 0,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT uq_workflow_answer_definitions_id_process_type UNIQUE (id, process_type_id)
 );
 
 CREATE TABLE workflow_answer_options (
@@ -295,6 +314,7 @@ CREATE TABLE workflow_answer_single_select_keep_values (
 );
 
 CREATE TABLE app_role_answer_defaults (
+    process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE RESTRICT,
     app_role_id INTEGER NOT NULL REFERENCES app_roles(id) ON DELETE CASCADE,
     answer_definition_id INTEGER NOT NULL REFERENCES workflow_answer_definitions(id) ON DELETE CASCADE,
     is_recommended BOOLEAN NOT NULL DEFAULT TRUE,
@@ -303,7 +323,11 @@ CREATE TABLE app_role_answer_defaults (
     default_value_text TEXT,
     default_value_number NUMERIC(12, 2),
     sort_order INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (app_role_id, answer_definition_id)
+    PRIMARY KEY (app_role_id, answer_definition_id),
+    CONSTRAINT fk_app_role_answer_defaults_definition_process_type
+        FOREIGN KEY (answer_definition_id, process_type_id)
+        REFERENCES workflow_answer_definitions(id, process_type_id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE app_role_answer_default_options (
@@ -320,9 +344,11 @@ CREATE TABLE app_role_answer_default_options (
 CREATE TABLE workflows (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     uid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+    process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE RESTRICT,
     department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
-    onboarding_role_id INTEGER NOT NULL REFERENCES app_roles(id) ON DELETE RESTRICT,
+    position_role_id INTEGER NOT NULL REFERENCES app_roles(id) ON DELETE RESTRICT,
     created_by_user_id BIGINT REFERENCES app_users(id) ON DELETE SET NULL,
+    target_person_id BIGINT REFERENCES people(id) ON DELETE RESTRICT,
     first_name VARCHAR(120) NOT NULL,
     last_name VARCHAR(120) NOT NULL,
     employee_number INTEGER NOT NULL,
@@ -332,7 +358,6 @@ CREATE TABLE workflows (
         CHECK (status IN ('draft', 'in_progress', 'waiting_for_supervisor', 'waiting_for_department', 'completed')),
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
-    cancelled_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -364,6 +389,7 @@ CREATE TABLE workflow_answer_selected_options (
 
 CREATE TABLE task_templates (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE RESTRICT,
     template_key VARCHAR(120) NOT NULL UNIQUE,
     title VARCHAR(220) NOT NULL,
     category VARCHAR(80) NOT NULL DEFAULT 'general',
@@ -436,7 +462,6 @@ CREATE TABLE workflow_tasks (
     ready_at TIMESTAMPTZ,
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
-    cancelled_at TIMESTAMPTZ,
     UNIQUE (workflow_id, task_key)
 );
 

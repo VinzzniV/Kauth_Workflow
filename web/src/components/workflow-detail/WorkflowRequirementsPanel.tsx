@@ -3,6 +3,7 @@ import type {
   RequirementSelectionState,
   WorkflowDetail,
 } from "../../types/workflow";
+import { hasSupervisorStep } from "./workflowDetailModel";
 
 type WorkflowRequirementsPanelProps = {
   workflow: WorkflowDetail;
@@ -28,14 +29,16 @@ function getRequirementsDescription(
   }
 
   if (workflow.workflowStatus === "draft") {
-    return "Die Anforderungen werden im nächsten Schritt regulär durch die zuständige Abteilungsleitung festgelegt.";
+    return hasSupervisorStep(workflow)
+      ? "Die Anforderungen werden im nächsten Schritt regulär durch die zuständige Abteilungsleitung festgelegt."
+      : "Die Anforderungen sind die Grundlage für die nachfolgenden Aufgaben dieses Vorgangs.";
   }
 
   if (workflow.workflowStatus === "waiting_for_supervisor") {
     return "In dieser Phase werden die Anforderungen regulär durch die zuständige Abteilungsleitung gepflegt. Diese Ansicht ist nur lesend.";
   }
 
-  return "Gespeicherte Anforderungen dieses Onboardings.";
+  return `Gespeicherte Anforderungen für diesen ${workflow.processType.name}-Vorgang.`;
 }
 
 export default function WorkflowRequirementsPanel({

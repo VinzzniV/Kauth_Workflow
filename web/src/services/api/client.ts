@@ -10,7 +10,7 @@ export type ApiError = Error & {
 };
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
-const DEMO_AUTH_TOKEN_STORAGE_KEY = "onboarding.demo.authToken";
+const DEMO_AUTH_TOKEN_STORAGE_KEY = "lifecycle.demo.authToken";
 
 export function getDemoAuthToken(): string | null {
   if (typeof window === "undefined") {

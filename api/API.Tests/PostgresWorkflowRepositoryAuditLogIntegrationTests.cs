@@ -176,6 +176,152 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
         });
     }
 
+    [Fact(Skip = "Current integration schema enforces NOT NULL on task_templates.icon_key. Fallback remains for legacy records.")]
+    [Trait("Category", "Integration")]
+    public async Task CreateWorkflow_AllowsTaskTemplatesWithNullIconKey()
+    {
+        var connectionString = GetTestConnectionString();
+        var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
+        var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
+        var actorUserId = await LoadUserIdAsync(connectionString, "laura.romankewicz@demo.local");
+        var templateId = 0;
+        var taskKey = string.Empty;
+
+        await WithRepositoryConnectionStringAsync(connectionString, async repository =>
+        {
+            var baselineCreation = await repository.CreateWorkflow(
+                CreateWorkflowRequest(departmentId, roleId),
+                actorUserId);
+
+            try
+            {
+                var baselineWorkflow = await repository.GetWorkflowByUid(baselineCreation.Uid);
+                Assert.NotNull(baselineWorkflow);
+
+                var baselineTask = Assert.Single(
+                    baselineWorkflow!.Tasks,
+                    task => task.TaskTemplateId.HasValue);
+
+                templateId = baselineTask.TaskTemplateId!.Value;
+                taskKey = baselineTask.TaskKey;
+            }
+            finally
+            {
+                await DeleteWorkflowAsync(connectionString, baselineCreation.WorkflowId);
+            }
+        });
+
+        Assert.True(templateId > 0);
+        Assert.False(string.IsNullOrWhiteSpace(taskKey));
+
+        var previousIconKey = await LoadTaskTemplateIconKeyAsync(connectionString, templateId);
+        await UpdateTaskTemplateIconKeyAsync(connectionString, templateId, null);
+
+        try
+        {
+            await WithRepositoryConnectionStringAsync(connectionString, async repository =>
+            {
+                var creation = await repository.CreateWorkflow(
+                    CreateWorkflowRequest(departmentId, roleId),
+                    actorUserId);
+
+                try
+                {
+                    var workflow = await repository.GetWorkflowByUid(creation.Uid);
+                    Assert.NotNull(workflow);
+                    Assert.Contains(workflow!.Tasks, task => task.TaskKey == taskKey);
+                    Assert.Contains(
+                        workflow.Tasks,
+                        task => task.TaskTemplateId == templateId && task.IconKey == "berechtigungen");
+                }
+                finally
+                {
+                    await DeleteWorkflowAsync(connectionString, creation.WorkflowId);
+                }
+            });
+        }
+        finally
+        {
+            await UpdateTaskTemplateIconKeyAsync(connectionString, templateId, previousIconKey);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetWorkflowByUid_LoadsTasksWithProcessAreaLabels()
+    {
+        var connectionString = GetTestConnectionString();
+        var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
+        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var temporaryRoleId = await CreateTemporaryPositionRoleAsync(connectionString, departmentId);
+        var workflow = await CreateManualWorkflowAsync(
+            connectionString,
+            departmentId,
+            temporaryRoleId,
+            "waiting_for_department",
+            actorUserId,
+            temporaryRoleId);
+
+        try
+        {
+            var taskId = await CreateTaskAsync(connectionString, workflow.WorkflowId, "process_area_detail_task", "ready", 10);
+            await UpdateWorkflowTaskPresentationAsync(connectionString, taskId, "arbeitsplatz", null);
+
+            await WithRepositoryConnectionStringAsync(connectionString, async repository =>
+            {
+                var detail = await repository.GetWorkflowByUid(workflow.WorkflowUid);
+
+                Assert.NotNull(detail);
+                var task = Assert.Single(detail!.Tasks, item => item.Id == taskId);
+                Assert.Equal("arbeitsplatz", task.ProcessArea);
+                Assert.Equal("integration", task.IconKey);
+            });
+        }
+        finally
+        {
+            await CleanupManualWorkflowAsync(connectionString, workflow);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetTaskById_LoadsWorkflowDeadlineFromCorrectColumn()
+    {
+        var connectionString = GetTestConnectionString();
+        var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
+        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var temporaryRoleId = await CreateTemporaryPositionRoleAsync(connectionString, departmentId);
+        var workflow = await CreateManualWorkflowAsync(
+            connectionString,
+            departmentId,
+            temporaryRoleId,
+            "waiting_for_department",
+            actorUserId,
+            temporaryRoleId);
+
+        try
+        {
+            var deadlineDate = new DateOnly(2026, 4, 15);
+            var taskId = await CreateTaskAsync(connectionString, workflow.WorkflowId, "process_area_list_task", "ready", 20);
+            await UpdateWorkflowDeadlineDateAsync(connectionString, workflow.WorkflowId, deadlineDate);
+            await UpdateWorkflowTaskPresentationAsync(connectionString, taskId, "it", null);
+
+            await WithRepositoryConnectionStringAsync(connectionString, async repository =>
+            {
+                var taskWithWorkflow = await repository.GetTaskById(taskId);
+
+                Assert.NotNull(taskWithWorkflow);
+                Assert.Equal("it", taskWithWorkflow!.Task.ProcessArea);
+                Assert.NotNull(taskWithWorkflow.Task.DueAt);
+                Assert.Equal(deadlineDate, DateOnly.FromDateTime(taskWithWorkflow.Task.DueAt!.Value));
+            });
+        }
+        finally
+        {
+            await CleanupManualWorkflowAsync(connectionString, workflow);
+        }
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public async Task CompleteSupervisorStep_WritesTasksGeneratedEventForPostSupervisorTasks()
@@ -319,6 +465,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
         return new CreateWorkflowRequest
         {
+            ProcessTypeKey = "onboarding",
             DepartmentId = departmentId,
             RoleId = roleId,
             FirstName = "Audit",
@@ -376,8 +523,9 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
         const string sql = @"
 INSERT INTO workflows (
+    process_type_id,
     department_id,
-    onboarding_role_id,
+    position_role_id,
     created_by_user_id,
     first_name,
     last_name,
@@ -386,6 +534,7 @@ INSERT INTO workflows (
     status
 )
 VALUES (
+    (SELECT id FROM process_types WHERE key = 'onboarding'),
     @departmentId,
     @roleId,
     @createdByUserId,
@@ -596,6 +745,76 @@ VALUES (
             connectionString,
             "SELECT id FROM workflow_answer_definitions WHERE answer_key = @value LIMIT 1;",
             answerKey);
+    }
+
+    private static async Task<int> LoadTaskTemplateIdAsync(string connectionString, string templateKey)
+    {
+        return await LoadIntAsync(
+            connectionString,
+            "SELECT id FROM task_templates WHERE template_key = @value LIMIT 1;",
+            templateKey);
+    }
+
+    private static async Task<string?> LoadTaskTemplateIconKeyAsync(string connectionString, int templateId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "SELECT icon_key FROM task_templates WHERE id = @templateId LIMIT 1;",
+            connection);
+        command.Parameters.AddWithValue("templateId", templateId);
+
+        var scalar = await command.ExecuteScalarAsync();
+        return scalar is DBNull or null ? null : (string)scalar;
+    }
+
+    private static async Task UpdateTaskTemplateIconKeyAsync(string connectionString, int templateId, string? iconKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "UPDATE task_templates SET icon_key = @iconKey WHERE id = @templateId;",
+            connection);
+        command.Parameters.AddWithValue("templateId", templateId);
+        command.Parameters.AddWithValue("iconKey", (object?)iconKey ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task UpdateWorkflowDeadlineDateAsync(string connectionString, long workflowId, DateOnly? deadlineDate)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "UPDATE workflows SET deadline_date = @deadlineDate WHERE id = @workflowId;",
+            connection);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("deadlineDate", (object?)deadlineDate ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task UpdateWorkflowTaskPresentationAsync(
+        string connectionString,
+        long taskId,
+        string? processAreaLabel,
+        string? iconKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            @"
+UPDATE workflow_tasks
+SET process_area_label = @processAreaLabel,
+    icon_key = COALESCE(@iconKey, icon_key)
+WHERE id = @taskId;",
+            connection);
+        command.Parameters.AddWithValue("taskId", taskId);
+        command.Parameters.AddWithValue("processAreaLabel", (object?)processAreaLabel ?? DBNull.Value);
+        command.Parameters.AddWithValue("iconKey", (object?)iconKey ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<int> LoadAnswerOptionIdAsync(
