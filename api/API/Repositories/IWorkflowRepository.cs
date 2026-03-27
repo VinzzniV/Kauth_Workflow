@@ -1,12 +1,34 @@
 namespace API;
 
+internal sealed class WorkflowListQuery
+{
+    public bool ReaderOnly { get; init; }
+    public string? Status { get; init; }
+    public string? ProcessTypeKey { get; init; }
+    public string? Search { get; init; }
+    public int? DepartmentId { get; init; }
+    public string? Responsibility { get; init; }
+    public int? Limit { get; init; }
+    public int Offset { get; init; }
+    public bool IncludeFilterOptions { get; init; }
+}
+
+internal sealed class WorkflowListResult
+{
+    public required List<WorkflowListItemDto> Items { get; init; }
+    public int TotalCount { get; init; }
+    public List<DepartmentDto> DepartmentOptions { get; init; } = new();
+    public List<WorkflowResponsibilityOptionDto> ResponsibilityOptions { get; init; } = new();
+}
+
 internal interface IWorkflowRepository
 {
     Task<List<DepartmentDto>> GetDepartments();
     Task<List<RoleDto>> GetRoles();
-    Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes();
+    Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false);
     Task<List<RequirementDto>> GetRequirements(string? processTypeKey = null);
     Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string? processTypeKey = null);
+    Task<bool> IsManagerCreatableProcessType(string processTypeKey);
     Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId);
     Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId);
     Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid);
@@ -15,6 +37,7 @@ internal interface IWorkflowRepository
     Task<List<Guid>> GetWorkflowUidsWithDisabledNotifications(string notificationType);
     Task ApplyNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results);
     Task<List<WorkflowListItemDto>> GetWorkflows();
+    Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query);
     Task<WorkflowDetailDto?> GetWorkflowByUid(Guid workflowUid);
     Task<List<WorkflowAuditEntryDto>> GetWorkflowAuditLog(Guid workflowUid, int limit = 200, int offset = 0);
     Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId);
@@ -23,9 +46,13 @@ internal interface IWorkflowRepository
     Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId);
     Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> AddTaskComment(long taskId, string commentText, long actorUserId);
+    Task<bool> ArchiveWorkflow(Guid workflowUid, long actorUserId);
+    Task<bool> DeleteDraftWorkflow(Guid workflowUid);
+    Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId);
     Task<List<WorkflowLinkDto>> GetWorkflowLinks(Guid workflowUid);
     Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId);
     Task<bool> DeleteWorkflowLink(Guid workflowUid, long linkId, long actorUserId);
+    Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(string? search, int limit = 20);
     Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(string? query, int limit = 20);
     Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null);
     Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey);

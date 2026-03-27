@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAdminProcessTypes, updateAdminProcessType } from "../../services/lifecycleApi";
+import { getAdminProcessTypes, updateAdminProcessType } from "../../services/adminConfigApi";
 import type { AdminProcessType } from "../../types/auth";
 
 export function AdminProcessTypeSection() {

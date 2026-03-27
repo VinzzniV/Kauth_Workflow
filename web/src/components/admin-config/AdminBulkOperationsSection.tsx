@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { bulkCreateDepartmentChange, getRoles } from "../../services/lifecycleApi";
+import { bulkCreateDepartmentChange } from "../../services/adminConfigApi";
+import { getRoles } from "../../services/lifecycleApi";
 import type { AdminDepartmentAssignment } from "../../types/auth";
 import type { BulkOperationResult, Role } from "../../types/workflow";
 

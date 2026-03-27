@@ -186,6 +186,7 @@ public sealed class WorkflowProcessTypeDto
 {
     public required string Key { get; init; }
     public required string Name { get; init; }
+    public string? Description { get; init; }
     public required bool RequiresTargetPerson { get; init; }
 }
 
@@ -206,6 +207,7 @@ public sealed class WorkflowListItemDto
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
     public DateOnly? DeadlineDate { get; init; }
+    public DateTime? ArchivedAt { get; init; }
     public required int PendingNotifications { get; init; }
     public required int FailedNotifications { get; init; }
     public required WorkflowRequirementSummaryDto RequirementSummary { get; init; }
@@ -219,7 +221,7 @@ public sealed class WorkflowListPageDto
     public required List<WorkflowListItemDto> Items { get; init; }
     public required int Count { get; init; }
     public required int Offset { get; init; }
-    public required int Limit { get; init; }
+    public required int? Limit { get; init; }
     public required List<DepartmentDto> DepartmentOptions { get; init; }
     public required List<WorkflowResponsibilityOptionDto> ResponsibilityOptions { get; init; }
 }
@@ -432,6 +434,8 @@ public sealed class WorkflowDetailDto
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
     public DateOnly? DeadlineDate { get; init; }
+    public DateTime? ArchivedAt { get; init; }
+    public long? TargetPersonId { get; init; }
     public required List<WorkflowRequirementSnapshotDto> Requirements { get; init; }
     public required WorkflowRequirementSummaryDto RequirementSummary { get; set; }
     public required List<WorkflowTaskDto> Tasks { get; init; }
@@ -521,6 +525,23 @@ public sealed class WorkflowTargetPersonDto
     public int? BadgeNumber { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+}
+
+public sealed class CompletedOnboardingSearchResultDto
+{
+    public required Guid WorkflowUid { get; init; }
+    public required long PersonId { get; init; }
+    public required string DisplayName { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required int EmployeeNumber { get; init; }
+    public required int BadgeNumber { get; init; }
+    public int? DepartmentId { get; init; }
+    public string? DepartmentName { get; init; }
+    public int? RoleId { get; init; }
+    public string? RoleName { get; init; }
+    public required DateTime CompletedAt { get; init; }
+    public DateTime? ArchivedAt { get; init; }
 }
 
 public sealed class DerivedAnswerDto
@@ -739,6 +760,35 @@ public sealed class BulkOperationItemDto
     public required string Status { get; init; }
     public Guid? WorkflowUid { get; init; }
     public string? ErrorMessage { get; init; }
+}
+
+// Mitarbeiter-Lifecycle: Personenbezogene Workflow-Historie
+public sealed class PersonWorkflowSummaryDto
+{
+    public required Guid Uid { get; init; }
+    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required string RoleName { get; init; }
+    public required string DepartmentName { get; init; }
+    public required string Status { get; init; }
+    public required string WorkflowStatus { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public DateTime? CompletedAt { get; init; }
+    public DateTime? ArchivedAt { get; init; }
+}
+
+public sealed class PersonWorkflowHistoryDto
+{
+    public required long PersonId { get; init; }
+    public required string DisplayName { get; init; }
+    public int? DepartmentId { get; init; }
+    public string? DepartmentName { get; init; }
+    public int? EmployeeNumber { get; init; }
+    public int? BadgeNumber { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public required List<PersonWorkflowSummaryDto> Workflows { get; init; }
 }
 
 internal sealed class AnswerDefinitionRecord

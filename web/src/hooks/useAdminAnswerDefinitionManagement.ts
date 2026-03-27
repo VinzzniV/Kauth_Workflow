@@ -5,7 +5,7 @@ import {
   getAdminAnswerDefinitions,
   getAdminProcessTypes,
   updateAdminAnswerDefinition,
-} from "../services/lifecycleApi";
+} from "../services/adminConfigApi";
 import type { AdminAnswerDefinition, AdminProcessType } from "../types/auth";
 import { toNullableText } from "../components/admin-config/adminConfigHelpers";
 
@@ -160,6 +160,14 @@ export function useAdminAnswerDefinitionManagement({
   const buildPayload = useCallback(() => {
     if (!selectedProcessTypeId) {
       throw new Error("Bitte zuerst einen Prozesstyp auswählen.");
+    }
+
+    if (!draft.answerKey.trim()) {
+      throw new Error("Answer Key ist erforderlich.");
+    }
+
+    if (!draft.title.trim()) {
+      throw new Error("Titel ist erforderlich.");
     }
 
     const sortOrder = Number(draft.sortOrder);

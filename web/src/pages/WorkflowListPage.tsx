@@ -6,6 +6,8 @@ import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import { getProcessTypes, getWorkflowPage } from "../services/lifecycleApi";
+
+const SEARCH_DEBOUNCE_MS = 400;
 import type {
   ProcessType,
   WorkflowResponsibilityOption,
@@ -37,10 +39,24 @@ export default function WorkflowListPage() {
   const latestReloadId = useRef(0);
 
   const [search, setSearch] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(defaultStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [processTypeFilter, setProcessTypeFilter] = useState<string>("all");
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
+
+  // Debounce search input to avoid a request on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Process types are static – fetch once on mount, not on every filter change.
+  useEffect(() => {
+    getProcessTypes()
+      .then(setProcessTypeOptions)
+      .catch(() => setProcessTypeOptions([]));
+  }, []);
 
   // Die Liste laedt alle benoetigten Kartendaten direkt ueber den Listen-Endpoint.
   const reload = useCallback(async () => {
@@ -54,20 +70,16 @@ export default function WorkflowListPage() {
         status: statusFilter === "all" ? null : statusFilter,
         departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
         processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
-        search,
+        search: debouncedSearch,
         responsibilityValue: responsibilityFilter === "all" ? null : responsibilityFilter,
       };
-      const [page, processTypes] = await Promise.all([
-        getWorkflowPage(PAGE_SIZE, pageIndex * PAGE_SIZE, pageQuery),
-        getProcessTypes(),
-      ]);
+      const page = await getWorkflowPage(PAGE_SIZE, pageIndex * PAGE_SIZE, pageQuery);
       if (latestReloadId.current !== reloadId) {
         return;
       }
       setRows(page.items);
       setTotalCount(page.count);
       setDepartmentOptions(page.departmentOptions.map((option) => [option.id, option.name]));
-      setProcessTypeOptions(processTypes);
       setResponsibilityOptions(page.responsibilityOptions);
     } catch (err) {
       if (latestReloadId.current !== reloadId) {
@@ -78,14 +90,13 @@ export default function WorkflowListPage() {
       setRows([]);
       setTotalCount(0);
       setDepartmentOptions([]);
-      setProcessTypeOptions([]);
       setResponsibilityOptions([]);
     } finally {
       if (latestReloadId.current === reloadId) {
         setIsLoading(false);
       }
     }
-  }, [departmentFilter, pageIndex, processTypeFilter, responsibilityFilter, search, statusFilter]);
+  }, [departmentFilter, pageIndex, processTypeFilter, responsibilityFilter, debouncedSearch, statusFilter]);
 
   useEffect(() => {
     void reload();
@@ -93,7 +104,7 @@ export default function WorkflowListPage() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [departmentFilter, processTypeFilter, search, statusFilter]);
+  }, [departmentFilter, processTypeFilter, debouncedSearch, statusFilter]);
 
   const totalPages = useMemo(() => {
     if (totalCount <= 0) {

@@ -2,6 +2,7 @@
 export type ProcessType = {
   key: string;
   name: string;
+  description?: string | null;
   requiresTargetPerson: boolean;
 };
 
@@ -232,6 +233,7 @@ export type WorkflowSummary = {
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
   deadlineDate: string | null;
+  archivedAt: string | null;
   pendingNotifications: number;
   failedNotifications: number;
   requirementSummary: WorkflowRequirementSummary;
@@ -244,7 +246,7 @@ export type WorkflowPage = {
   items: WorkflowSummary[];
   count: number;
   offset: number;
-  limit: number;
+  limit: number | null;
   departmentOptions: Department[];
   responsibilityOptions: WorkflowResponsibilityOption[];
 };
@@ -266,6 +268,8 @@ export type WorkflowDetail = {
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
   deadlineDate: string | null;
+  archivedAt: string | null;
+  targetPersonId: number | null;
   requirements: WorkflowRequirementSnapshot[];
   requirementSummary: WorkflowRequirementSummary;
   tasks: WorkflowTask[];
@@ -472,6 +476,22 @@ export type WorkflowTargetPerson = {
   lastName: string | null;
 };
 
+export type CompletedOnboardingSearchResult = {
+  workflowUid: string;
+  personId: number;
+  displayName: string;
+  firstName: string;
+  lastName: string;
+  employeeNumber: number;
+  badgeNumber: number;
+  departmentId: number | null;
+  departmentName: string | null;
+  roleId: number | null;
+  roleName: string | null;
+  completedAt: string;
+  archivedAt: string | null;
+};
+
 export type DerivedAnswer = {
   targetAnswerKey: string;
   sourceAnswerKey: string;
@@ -504,4 +524,31 @@ export type BulkOperationItem = {
   status: string;
   workflowUid: string | null;
   errorMessage: string | null;
+};
+
+// Mitarbeiter-Lifecycle: Alle Vorgänge einer Person in chronologischer Reihenfolge.
+export type PersonWorkflowSummary = {
+  uid: string;
+  processType: ProcessType;
+  firstName: string;
+  lastName: string;
+  roleName: string;
+  departmentName: string;
+  status: WorkflowStatus;
+  workflowStatus: WorkflowRuntimeStatus;
+  createdAt: string;
+  completedAt: string | null;
+  archivedAt: string | null;
+};
+
+export type PersonWorkflowHistory = {
+  personId: number;
+  displayName: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  employeeNumber: number | null;
+  badgeNumber: number | null;
+  firstName: string | null;
+  lastName: string | null;
+  workflows: PersonWorkflowSummary[];
 };

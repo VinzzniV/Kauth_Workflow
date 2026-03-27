@@ -153,6 +153,57 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.False(_sut.CanRegularlyEditWorkflow(admin, WorkflowStatusRules.InProgress));
     }
 
+    // --- CanCreateWorkflow ---
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Hr)]
+    [InlineData(AuthorizationRoles.Manager)]
+    [InlineData(AuthorizationRoles.Admin)]
+    public void CanCreateWorkflow_ReturnsTrue_ForHrManagerAndAdmin(string role)
+    {
+        var user = CreateUser(role);
+        Assert.True(_sut.CanCreateWorkflow(user));
+    }
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Worker)]
+    [InlineData(AuthorizationRoles.Reader)]
+    public void CanCreateWorkflow_ReturnsFalse_ForOtherRoles(string role)
+    {
+        var user = CreateUser(role);
+        Assert.False(_sut.CanCreateWorkflow(user));
+    }
+
+    // --- CanCreateWorkflowForProcessType ---
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Hr)]
+    [InlineData(AuthorizationRoles.Admin)]
+    public void CanCreateWorkflowForProcessType_ReturnsTrue_ForHrAndAdmin_RegardlessOfProcessFlag(string role)
+    {
+        var user = CreateUser(role);
+        Assert.True(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: false));
+        Assert.True(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: true));
+    }
+
+    [Fact]
+    public void CanCreateWorkflowForProcessType_ManagerDependsOnProcessFlag()
+    {
+        var user = CreateUser(AuthorizationRoles.Manager);
+        Assert.False(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: false));
+        Assert.True(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: true));
+    }
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Worker)]
+    [InlineData(AuthorizationRoles.Reader)]
+    public void CanCreateWorkflowForProcessType_ReturnsFalse_ForRolesWithoutCreatePermission(string role)
+    {
+        var user = CreateUser(role);
+        Assert.False(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: false));
+        Assert.False(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: true));
+    }
+
     // --- CanCreateOrStartWorkflow ---
 
     [Fact]

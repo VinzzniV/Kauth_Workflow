@@ -52,6 +52,21 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         };
     }
 
+    public bool CanCreateWorkflow(CurrentUser user)
+    {
+        return HasAnyRole(user, AuthorizationRoles.Hr, AuthorizationRoles.Manager, AuthorizationRoles.Admin);
+    }
+
+    public bool CanCreateWorkflowForProcessType(CurrentUser user, bool managerCreatableProcessType)
+    {
+        if (HasAnyRole(user, AuthorizationRoles.Admin, AuthorizationRoles.Hr))
+        {
+            return true;
+        }
+
+        return managerCreatableProcessType && HasAnyRole(user, AuthorizationRoles.Manager);
+    }
+
     public bool CanCreateOrStartWorkflow(CurrentUser user)
     {
         return HasAnyRole(user, AuthorizationRoles.Hr);

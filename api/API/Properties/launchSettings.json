@@ -2,7 +2,9 @@
   "profiles": {
     "API": {
       "commandName": "Project",
+      "applicationUrl": "http://0.0.0.0:5001",
       "environmentVariables": {
+        "ASPNETCORE_URLS": "http://0.0.0.0:5001",
         "CONNECTION_STRING": "Host=localhost;Port=23456;Username=app;Password=app_pw;Database=appdb"
       }
     }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import EmptyState from "../feedback/EmptyState";
+import AdminOrganizationRelationsPanel from "./AdminOrganizationRelationsPanel";
 import type {
   AdminDepartmentAssignment,
   AdminResponsibilityOwner,
@@ -1010,242 +1011,6 @@ export function AdminOrganizationWorkspaceSection({
     );
   }
 
-  function renderRelationsContent() {
-    if (organizationEntity === "user") {
-      if (!selectedUser || !userRelations) {
-        return (
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Wird verwendet in ...</h2>
-              <p>Wählen Sie links eine Person oder legen Sie direkt eine neue an.</p>
-            </div>
-          </section>
-        );
-      }
-
-      return (
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Wird verwendet in ...</h2>
-            <p>Verknüpfte Abteilungen und Zuständigkeiten sind direkt klickbar.</p>
-          </div>
-
-          <div className="content-stack">
-            <div>
-              <h3 className="panel-title">Abteilung</h3>
-              {selectedUser.departmentId ? (
-                <div className="admin-relation-list">
-                  <button
-                    type="button"
-                    className="admin-relation-link"
-                    onClick={() => onSelectOrganizationEntity("department", selectedUser.departmentId)}
-                  >
-                    {selectedUser.departmentName ?? "Unbekannte Abteilung"}
-                  </button>
-                </div>
-              ) : (
-                <p className="panel-note">Keine Abteilung hinterlegt.</p>
-              )}
-            </div>
-
-            <div>
-              <h3 className="panel-title">Als Leitung verwendet</h3>
-              {userRelations.ledDepartments.length > 0 ? (
-                <div className="admin-relation-list">
-                  {userRelations.ledDepartments.map((department) => (
-                    <button
-                      key={`led-department-${department.departmentId}`}
-                      type="button"
-                      className="admin-relation-link"
-                      onClick={() => onSelectOrganizationEntity("department", department.departmentId)}
-                    >
-                      {department.departmentName}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="panel-note">Keine Abteilungen mit dieser Person als Leitung.</p>
-              )}
-            </div>
-
-            <div>
-              <h3 className="panel-title">Als Anforderungsverantwortung verwendet</h3>
-              {userRelations.requirementDepartments.length > 0 ? (
-                <div className="admin-relation-list">
-                  {userRelations.requirementDepartments.map((department) => (
-                    <button
-                      key={`owner-department-${department.departmentId}`}
-                      type="button"
-                      className="admin-relation-link"
-                      onClick={() => onSelectOrganizationEntity("department", department.departmentId)}
-                    >
-                      {department.departmentName}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="panel-note">Keine Abteilungen mit dieser Person als Anforderungsverantwortung.</p>
-              )}
-            </div>
-
-            <div>
-              <h3 className="panel-title">Feste Zuständigkeiten</h3>
-              {userRelations.responsibilities.length > 0 ? (
-                <div className="admin-relation-list">
-                  {userRelations.responsibilities.map((responsibility) => (
-                    <button
-                      key={`responsibility-${responsibility.responsibilityId}`}
-                      type="button"
-                      className="admin-relation-link"
-                      onClick={() =>
-                        onSelectOrganizationEntity("responsibility", responsibility.responsibilityId)
-                      }
-                    >
-                      {responsibility.responsibilityName}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="panel-note">Keine festen Zuständigkeiten auf diese Person.</p>
-              )}
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (organizationEntity === "department") {
-      if (!selectedDepartment || !departmentRelations) {
-        return (
-          <section className="panel">
-            <div className="panel-head">
-              <h2>Verknüpfte Organisation</h2>
-              <p>Wählen Sie links eine Abteilung oder legen Sie direkt eine neue an.</p>
-            </div>
-          </section>
-        );
-      }
-
-      return (
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Verknüpfte Organisation</h2>
-            <p>Personen und Zuständigkeiten dieser Abteilung sind direkt verlinkt.</p>
-          </div>
-
-          <div className="content-stack">
-            <div>
-              <h3 className="panel-title">Personen in dieser Abteilung</h3>
-              {departmentRelations.users.length > 0 ? (
-                <div className="admin-relation-list">
-                  {departmentRelations.users.map((user) => (
-                    <button
-                      key={`department-user-${user.userId}`}
-                      type="button"
-                      className="admin-relation-link"
-                      onClick={() => onSelectOrganizationEntity("user", user.userId)}
-                    >
-                      {user.displayName}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="panel-note">Noch keine Personen dieser Abteilung zugeordnet.</p>
-              )}
-            </div>
-
-            <div>
-              <h3 className="panel-title">Fachliche Zuständigkeiten</h3>
-              {departmentRelations.responsibilities.length > 0 ? (
-                <div className="admin-relation-list">
-                  {departmentRelations.responsibilities.map((responsibility) => (
-                    <button
-                      key={`department-responsibility-${responsibility.responsibilityId}`}
-                      type="button"
-                      className="admin-relation-link"
-                      onClick={() =>
-                        onSelectOrganizationEntity("responsibility", responsibility.responsibilityId)
-                      }
-                    >
-                      {responsibility.responsibilityName}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="panel-note">Keine fachlichen Zuständigkeiten dieser Abteilung zugeordnet.</p>
-              )}
-            </div>
-          </div>
-        </section>
-      );
-    }
-
-    if (!selectedResponsibility || !responsibilityRelations) {
-      return (
-        <section className="panel">
-          <div className="panel-head">
-            <h2>Verknüpfte Organisation</h2>
-            <p>Wählen Sie links eine Zuständigkeit aus, um die Wirkung auf Personen und Abteilungen zu sehen.</p>
-          </div>
-        </section>
-      );
-    }
-
-    return (
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Verknüpfte Organisation</h2>
-          <p>System-Key und verknüpfte Objekte sind im selben Arbeitsbereich erreichbar.</p>
-        </div>
-
-        <div className="content-stack">
-          <div>
-            <h3 className="panel-title">Bereich</h3>
-            {responsibilityRelations.department ? (
-              <div className="admin-relation-list">
-                <button
-                  type="button"
-                  className="admin-relation-link"
-                  onClick={() =>
-                    onSelectOrganizationEntity("department", responsibilityRelations.department!.departmentId)
-                  }
-                >
-                  {responsibilityRelations.department.departmentName}
-                </button>
-              </div>
-            ) : (
-              <p className="panel-note">Kein Bereich fest hinterlegt.</p>
-            )}
-          </div>
-
-          <div>
-            <h3 className="panel-title">Feste Person</h3>
-            {responsibilityRelations.user ? (
-              <div className="admin-relation-list">
-                <button
-                  type="button"
-                  className="admin-relation-link"
-                  onClick={() => onSelectOrganizationEntity("user", responsibilityRelations.user!.userId)}
-                >
-                  {responsibilityRelations.user.displayName}
-                </button>
-              </div>
-            ) : (
-              <p className="panel-note">Keine feste Person hinterlegt.</p>
-            )}
-          </div>
-
-          {selectedResponsibility.systemKey ? (
-            <div>
-              <h3 className="panel-title">System-Key</h3>
-              <p className="panel-note">{selectedResponsibility.systemKey}</p>
-            </div>
-          ) : null}
-        </div>
-      </section>
-    );
-  }
-
   return (
     <div className="content-stack">
       <section className="panel panel-muted">
@@ -1280,7 +1045,18 @@ export function AdminOrganizationWorkspaceSection({
         </section>
 
         <div className="admin-organization-main">{renderMainContent()}</div>
-        <aside className="admin-organization-aside">{renderRelationsContent()}</aside>
+        <aside className="admin-organization-aside">
+          <AdminOrganizationRelationsPanel
+            organizationEntity={organizationEntity}
+            selectedUser={selectedUser}
+            userRelations={userRelations}
+            selectedDepartment={selectedDepartment}
+            departmentRelations={departmentRelations}
+            selectedResponsibility={selectedResponsibility}
+            responsibilityRelations={responsibilityRelations}
+            onSelectOrganizationEntity={onSelectOrganizationEntity}
+          />
+        </aside>
       </div>
     </div>
   );

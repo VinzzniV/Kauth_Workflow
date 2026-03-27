@@ -4,6 +4,9 @@ import { useParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import WorkflowAuditLog from "../components/workflow-detail/WorkflowAuditLog";
 import WorkflowHeaderPanel from "../components/workflow-detail/WorkflowHeaderPanel";
+import WorkflowLinksPanel from "../components/workflow-detail/WorkflowLinksPanel";
+import WorkflowManagementPanel from "../components/workflow-detail/WorkflowManagementPanel";
+import WorkflowNotificationsPanel from "../components/workflow-detail/WorkflowNotificationsPanel";
 import WorkflowProgressSection from "../components/workflow-detail/WorkflowProgressSection";
 import WorkflowRequirementsPanel from "../components/workflow-detail/WorkflowRequirementsPanel";
 import WorkflowTaskAreasSection from "../components/workflow-detail/WorkflowTaskAreasSection";
@@ -31,10 +34,6 @@ import {
   addTaskComment as addTaskCommentApi,
   getWorkflowAuditLog,
   getWorkflowByUid,
-  getWorkflowLinks,
-  createWorkflowLink as createWorkflowLinkApi,
-  deleteWorkflowLink as deleteWorkflowLinkApi,
-  findLinkableWorkflows,
   updateTaskStatus as updateTaskStatusApi,
   updateWorkflowSupervisorStep,
 } from "../services/lifecycleApi";
@@ -42,8 +41,6 @@ import type {
   RequirementSelectionState,
   WorkflowAuditEntry,
   WorkflowDetail,
-  WorkflowLink,
-  LinkableWorkflow,
   WorkflowTask,
 } from "../types/workflow";
 import {
@@ -81,10 +78,6 @@ export default function WorkflowDetailPage() {
   const [requirementsSaveError, setRequirementsSaveError] = useState<string | null>(null);
   const [requirementsSaveNotice, setRequirementsSaveNotice] = useState<string | null>(null);
   const [isSavingRequirements, setIsSavingRequirements] = useState<boolean>(false);
-  const [workflowLinks, setWorkflowLinks] = useState<WorkflowLink[]>([]);
-  const [linkableWorkflows, setLinkableWorkflows] = useState<LinkableWorkflow[]>([]);
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!uid.trim()) {
@@ -120,13 +113,6 @@ export default function WorkflowDetailPage() {
         setIsLoadingAuditLog(false);
       }
 
-      // Verknüpfte Workflows laden
-      try {
-        const links = await getWorkflowLinks(uid);
-        setWorkflowLinks(links);
-      } catch {
-        setWorkflowLinks([]);
-      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Vorgang konnte nicht geladen werden.";
       setError(message);
@@ -151,40 +137,6 @@ export default function WorkflowDetailPage() {
     setRequirementSelections(buildRequirementSelections(workflow.requirements));
   }, [workflow]);
 
-  const handleOpenLinkDialog = useCallback(async () => {
-    if (!workflow) return;
-    setShowLinkDialog(true);
-    setLinkError(null);
-    try {
-      const linkable = await findLinkableWorkflows(workflow.employeeNumber, workflow.uid);
-      setLinkableWorkflows(linkable);
-    } catch {
-      setLinkableWorkflows([]);
-    }
-  }, [workflow]);
-
-  const handleCreateLink = useCallback(async (sourceUid: string) => {
-    if (!uid.trim()) return;
-    setLinkError(null);
-    try {
-      await createWorkflowLinkApi(uid, { sourceWorkflowUid: sourceUid, linkType: "derived_from" });
-      const links = await getWorkflowLinks(uid);
-      setWorkflowLinks(links);
-      setShowLinkDialog(false);
-    } catch (err) {
-      setLinkError(err instanceof Error ? err.message : "Verknüpfung konnte nicht erstellt werden.");
-    }
-  }, [uid]);
-
-  const handleDeleteLink = useCallback(async (linkId: number) => {
-    if (!uid.trim()) return;
-    try {
-      await deleteWorkflowLinkApi(uid, linkId);
-      setWorkflowLinks((prev) => prev.filter((l) => l.id !== linkId));
-    } catch {
-      // silent
-    }
-  }, [uid]);
 
   const sortedTasks = useMemo(() => {
     if (!workflow) {
@@ -208,7 +160,7 @@ export default function WorkflowDetailPage() {
 
   const currentTask = useMemo(() => findCurrentTask(sortedTasks), [sortedTasks]);
   const regularEditingText = useMemo(() => (workflow ? toRegularEditingLabel(workflow) : "-"), [workflow]);
-  const usesAdminOverride = capabilities.canManageAdminConfiguration && !capabilities.canCreateWorkflow;
+  const usesAdminOverride = capabilities.hasAdminRole && !capabilities.hasHrRole && !capabilities.hasManagerRole;
   const canEditSupervisorRequirements = useMemo(() => {
     return workflow?.workflowStatus === "waiting_for_supervisor" && capabilities.canManageAdminConfiguration;
   }, [capabilities.canManageAdminConfiguration, workflow?.workflowStatus]);
@@ -521,95 +473,18 @@ export default function WorkflowDetailPage() {
             />
 
             {capabilities.hasHrRole || capabilities.canManageAdminConfiguration ? (
-              <section className="panel">
-                <div className="panel-head">
-                  <h2>Verknüpfte Vorgänge</h2>
-                  <p>Beziehungen zu anderen Workflows desselben Mitarbeiters.</p>
-                </div>
-                <div className="panel-body">
-                  {workflowLinks.length === 0 && !showLinkDialog ? (
-                    <p className="text-muted">Keine Verknüpfungen vorhanden.</p>
-                  ) : null}
+              <WorkflowLinksPanel uid={uid} workflow={workflow} />
+            ) : null}
 
-                  {workflowLinks.length > 0 ? (
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Prozesstyp</th>
-                          <th>Person</th>
-                          <th>Status</th>
-                          <th>Beziehung</th>
-                          <th>Erstellt</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {workflowLinks.map((link) => (
-                          <tr key={link.id}>
-                            <td>{link.linkedWorkflowProcessType.name}</td>
-                            <td>{link.linkedWorkflowFirstName} {link.linkedWorkflowLastName}</td>
-                            <td>
-                              <span className={`badge badge--${link.linkedWorkflowStatus === "completed" ? "success" : "default"}`}>
-                                {link.linkedWorkflowStatus}
-                              </span>
-                            </td>
-                            <td>{link.linkType === "derived_from" ? "Abgeleitet von" : link.linkType === "supersedes" ? "Ersetzt" : "Verwandt"}</td>
-                            <td>{new Date(link.createdAt).toLocaleDateString("de-DE")}</td>
-                            <td>
-                              <button className="btn btn-sm btn-outline" onClick={() => void handleDeleteLink(link.id)}>
-                                Entfernen
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : null}
+            <WorkflowManagementPanel
+              uid={uid}
+              workflow={workflow}
+              capabilities={capabilities}
+              onReload={reload}
+            />
 
-                  {showLinkDialog ? (
-                    <div style={{ marginTop: "1rem" }}>
-                      {linkError ? <p className="text-error">{linkError}</p> : null}
-                      {linkableWorkflows.length === 0 ? (
-                        <p className="text-muted">Keine verknüpfbaren Vorgänge für diese Personalnummer gefunden.</p>
-                      ) : (
-                        <table className="table">
-                          <thead>
-                            <tr>
-                              <th>Prozesstyp</th>
-                              <th>Person</th>
-                              <th>Status</th>
-                              <th>Erstellt</th>
-                              <th></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {linkableWorkflows.map((lw) => (
-                              <tr key={lw.uid}>
-                                <td>{lw.processType.name}</td>
-                                <td>{lw.firstName} {lw.lastName}</td>
-                                <td>{lw.workflowStatus}</td>
-                                <td>{new Date(lw.createdAt).toLocaleDateString("de-DE")}</td>
-                                <td>
-                                  <button className="btn btn-sm btn-primary" onClick={() => void handleCreateLink(lw.uid)}>
-                                    Verknüpfen
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                      <button className="btn btn-sm btn-outline" style={{ marginTop: "0.5rem" }} onClick={() => setShowLinkDialog(false)}>
-                        Abbrechen
-                      </button>
-                    </div>
-                  ) : (
-                    <button className="btn btn-sm btn-outline" style={{ marginTop: "0.5rem" }} onClick={() => void handleOpenLinkDialog()}>
-                      Vorgang verknüpfen
-                    </button>
-                  )}
-                </div>
-              </section>
+            {capabilities.canManageAdminConfiguration ? (
+              <WorkflowNotificationsPanel notifications={workflow.notifications} />
             ) : null}
 
             {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (

@@ -476,7 +476,7 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
 INSERT INTO workflow_answer_definitions (process_type_id, answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active)
 SELECT (SELECT id FROM process_types WHERE key = 'onboarding'), answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active
 FROM answer_seed
-ON CONFLICT (answer_key) DO UPDATE
+ON CONFLICT (process_type_id, answer_key) DO UPDATE
 SET
     process_type_id = EXCLUDED.process_type_id,
     title = EXCLUDED.title,

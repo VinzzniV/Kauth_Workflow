@@ -12,9 +12,14 @@ type Props = {
 export default function RouteGuard({ feature, children }: Props) {
   const { status, canAccessFeature, defaultRoute } = useCurrentUser();
 
-  // Solange die Session noch nicht aufgeloest ist, trifft der Guard bewusst keine Umleitung.
-  if (status !== "authenticated") {
+  // Waehrend der Initialisierung uebernimmt App.tsx das globale Laden-Feedback.
+  if (status === "loading") {
     return null;
+  }
+
+  // Defensiv: sollte App.tsx schon abfangen, aber kein Blank-Screen bei unauthenticated.
+  if (status !== "authenticated") {
+    return <Navigate to="/" replace />;
   }
 
   if (canAccessFeature(feature)) {

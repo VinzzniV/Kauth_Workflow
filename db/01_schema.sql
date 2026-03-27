@@ -219,6 +219,7 @@ CREATE TABLE process_types (
     approval_task_template_key VARCHAR(120),
     requires_target_person BOOLEAN NOT NULL DEFAULT FALSE,
     icon_key VARCHAR(80),
+    allows_manager_creation BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -229,7 +230,7 @@ CREATE TABLE process_types (
 CREATE TABLE workflow_answer_definitions (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE RESTRICT,
-    answer_key VARCHAR(120) NOT NULL UNIQUE,
+    answer_key VARCHAR(120) NOT NULL,
     title VARCHAR(180) NOT NULL,
     category VARCHAR(80) NOT NULL DEFAULT 'general',
     description TEXT NOT NULL,
@@ -238,6 +239,7 @@ CREATE TABLE workflow_answer_definitions (
     is_required BOOLEAN NOT NULL DEFAULT FALSE,
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT uq_workflow_answer_definitions_process_type_answer_key UNIQUE (process_type_id, answer_key),
     CONSTRAINT uq_workflow_answer_definitions_id_process_type UNIQUE (id, process_type_id)
 );
 
@@ -358,6 +360,7 @@ CREATE TABLE workflows (
         CHECK (status IN ('draft', 'in_progress', 'waiting_for_supervisor', 'waiting_for_department', 'completed')),
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
+    archived_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -410,7 +413,7 @@ CREATE TABLE task_template_conditions (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     task_template_id INTEGER NOT NULL REFERENCES task_templates(id) ON DELETE CASCADE,
     condition_group INTEGER NOT NULL DEFAULT 1,
-    answer_key VARCHAR(120) NOT NULL REFERENCES workflow_answer_definitions(answer_key) ON UPDATE CASCADE ON DELETE RESTRICT,
+    answer_key VARCHAR(120) NOT NULL,
     operator VARCHAR(32) NOT NULL CHECK (operator IN ('eq', 'neq', 'is_true', 'is_false', 'is_null', 'is_not_null')),
     expected_value_text TEXT,
     expected_value_boolean BOOLEAN,
@@ -547,6 +550,7 @@ CREATE INDEX idx_app_user_responsibilities_responsibility ON app_user_responsibi
 CREATE INDEX idx_app_group_responsibilities_responsibility ON app_group_responsibilities(app_responsibility_id);
 CREATE INDEX idx_workflows_uid ON workflows(uid);
 CREATE INDEX idx_workflows_created_at ON workflows(created_at DESC);
+CREATE INDEX idx_workflows_archived_at ON workflows(archived_at) WHERE archived_at IS NOT NULL;
 CREATE INDEX idx_workflow_answers_workflow_id ON workflow_answers(workflow_id);
 CREATE INDEX idx_workflow_answers_key ON workflow_answers(answer_key);
 CREATE INDEX idx_workflow_answer_visibility_rules_definition

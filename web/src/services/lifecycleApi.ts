@@ -1,5 +1,6 @@
 // Zentrale Frontend-Schnittstelle zur Lifecycle-API inklusive Mapping zwischen Backend-DTOs und UI-Typen.
 import type {
+  CompletedOnboardingSearchResult,
   ProcessType,
   RequirementSelectionPayload,
   WorkflowConfig,
@@ -20,21 +21,13 @@ import type {
   LinkableWorkflow,
   WorkflowTargetPerson,
   DerivedAnswer,
-  BulkDepartmentChangePayload,
-  BulkOperationResult,
+  PersonWorkflowHistory,
 } from "../types/workflow";
 import type {
   AdminDepartmentAssignment,
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
-  AdminAnswerDefinition,
-  AdminDependencyGraph,
-  AdminRoleAnswerDefault,
-  AdminProcessType,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
-  AdminTaskTemplate,
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
@@ -52,19 +45,13 @@ import {
   mapWorkflowRequirement,
   mapWorkflowSummary,
   mapWorkflowTask,
+  mapPersonWorkflowHistory,
 } from "./api/mappers";
 import type {
   BackendAdminDepartmentAssignmentDto,
   BackendAdminGroupDto,
   BackendAdminNotificationEmailConfigurationDto,
   BackendAdminNotificationEmailTestResponseDto,
-  BackendAdminAnswerDefinitionDto,
-  BackendAdminDependencyGraphDto,
-  BackendAdminRoleAnswerDefaultDto,
-  BackendAdminProcessTypeDto,
-  BackendAdminTaskTemplateConditionDto,
-  BackendAdminTaskTemplateDependencyDto,
-  BackendAdminTaskTemplateDto,
   BackendAdminResponsibilityOwnerDto,
   BackendAdminRoleDto,
   BackendAdminUserDto,
@@ -84,7 +71,9 @@ import type {
   BackendWorkflowLinkDto,
   BackendLinkableWorkflowDto,
   BackendWorkflowTargetPersonDto,
+  BackendCompletedOnboardingSearchResultDto,
   BackendDerivedAnswerDto,
+  BackendPersonWorkflowHistoryDto,
 } from "./api/backendDtos";
 
 type BackendDemoLoginResponseDto = {
@@ -142,7 +131,7 @@ export async function getRoles(): Promise<Role[]> {
   return requestJson<BackendRoleDto[]>("/roles");
 }
 
-export async function getProcessTypes(): Promise<ProcessType[]> {
+export function getProcessTypes(): Promise<ProcessType[]> {
   return requestJson<BackendProcessTypeDto[]>("/process-types");
 }
 
@@ -319,6 +308,19 @@ export async function createWorkflow(payload: WorkflowCreationPayload): Promise<
   return requestJson<WorkflowCreationResponse>("/workflows", { method: "POST", body: payload });
 }
 
+export async function archiveWorkflow(uid: string): Promise<void> {
+  await requestJson<unknown>(`/workflows/${encodeURIComponent(uid)}/archive`, { method: "POST" });
+}
+
+export async function deleteWorkflow(uid: string): Promise<void> {
+  await requestJson<unknown>(`/workflows/${encodeURIComponent(uid)}`, { method: "DELETE" });
+}
+
+export async function getPersonWorkflowHistory(personId: number): Promise<PersonWorkflowHistory> {
+  const data = await requestJson<BackendPersonWorkflowHistoryDto>(`/people/${encodeURIComponent(String(personId))}/workflows`);
+  return mapPersonWorkflowHistory(data);
+}
+
 export async function getWorkflowByUid(uid: string): Promise<WorkflowDetail> {
   const data = await requestJson<BackendWorkflowDetailDto>(`/workflows/${encodeURIComponent(uid)}`);
   return mapWorkflowDetail(data);
@@ -340,8 +342,8 @@ export async function getWorkflowAuditLog(
 }
 
 export async function getWorkflows(options: WorkflowQueryOptions = {}): Promise<WorkflowSummary[]> {
-  const data = await requestJson<BackendWorkflowSummaryDto[]>(`/workflows${buildWorkflowQuery(options)}`);
-  return data.map(mapWorkflowSummary);
+  const data = await requestJson<BackendWorkflowPageDto>(`/workflows${buildWorkflowQuery(options)}`);
+  return data.items.map(mapWorkflowSummary);
 }
 
 export async function getWorkflowPage(
@@ -471,6 +473,20 @@ export async function searchWorkflowTargetPeople(
   return requestJson<BackendWorkflowTargetPersonDto[]>(`/workflow-target-people?${params.toString()}`);
 }
 
+export async function searchCompletedOnboardings(
+  search?: string,
+  limit = 20
+): Promise<CompletedOnboardingSearchResult[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (search && search.trim()) {
+    params.set("search", search.trim());
+  }
+
+  return requestJson<BackendCompletedOnboardingSearchResultDto[]>(
+    `/workflows/completed-onboardings?${params.toString()}`
+  );
+}
+
 export async function getDerivedAnswers(
   sourceUid: string,
   targetProcessTypeKey: string
@@ -480,242 +496,4 @@ export async function getDerivedAnswers(
     targetProcessTypeKey,
   });
   return requestJson<BackendDerivedAnswerDto[]>(`/workflows/derive-answers?${params.toString()}`);
-}
-
-export async function bulkCreateDepartmentChange(
-  payload: BulkDepartmentChangePayload
-): Promise<BulkOperationResult> {
-  return requestJson<BulkOperationResult>("/admin/bulk/department-change", {
-    method: "POST",
-    body: payload,
-  });
-}
-
-export async function getAdminProcessTypes(): Promise<AdminProcessType[]> {
-  return requestJson<BackendAdminProcessTypeDto[]>("/admin/config/process-types");
-}
-
-export async function updateAdminProcessType(
-  processTypeId: number,
-  payload: {
-    name?: string;
-    description?: string | null;
-    iconKey?: string | null;
-    isActive?: boolean;
-    sortOrder?: number;
-  }
-): Promise<AdminProcessType> {
-  return requestJson<BackendAdminProcessTypeDto>(
-    `/admin/config/process-types/${encodeURIComponent(String(processTypeId))}`,
-    {
-      method: "PATCH",
-      body: payload,
-    }
-  );
-}
-
-export async function getAdminTaskTemplates(processTypeId: number): Promise<AdminTaskTemplate[]> {
-  const params = new URLSearchParams({ processTypeId: String(processTypeId) });
-  return requestJson<BackendAdminTaskTemplateDto[]>(`/admin/config/task-templates?${params.toString()}`);
-}
-
-export async function getAdminDependencyGraph(processTypeId: number): Promise<AdminDependencyGraph> {
-  return requestJson<BackendAdminDependencyGraphDto>(
-    `/admin/config/process-types/${encodeURIComponent(String(processTypeId))}/dependency-graph`
-  );
-}
-
-export async function createAdminTaskTemplate(payload: {
-  processTypeId: number;
-  templateKey: string;
-  title: string;
-  category: string;
-  description: string;
-  iconKey: string | null;
-  owningDepartmentId: number | null;
-  defaultResponsibilityId: number | null;
-  processAreaLabel: string | null;
-  isDepartmentPhaseTask: boolean;
-  isRequired: boolean;
-  dueInDays: number | null;
-  sortOrder: number;
-  isActive: boolean;
-}): Promise<AdminTaskTemplate> {
-  return requestJson<BackendAdminTaskTemplateDto>("/admin/config/task-templates", {
-    method: "POST",
-    body: payload,
-  });
-}
-
-export async function updateAdminTaskTemplate(
-  templateId: number,
-  payload: {
-    processTypeId: number;
-    templateKey: string;
-    title: string;
-    category: string;
-    description: string;
-    iconKey: string | null;
-    owningDepartmentId: number | null;
-    defaultResponsibilityId: number | null;
-    processAreaLabel: string | null;
-    isDepartmentPhaseTask: boolean;
-    isRequired: boolean;
-    dueInDays: number | null;
-    sortOrder: number;
-    isActive: boolean;
-  }
-): Promise<AdminTaskTemplate> {
-  return requestJson<BackendAdminTaskTemplateDto>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}`,
-    {
-      method: "PATCH",
-      body: payload,
-    }
-  );
-}
-
-export async function deleteAdminTaskTemplate(templateId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/config/task-templates/${encodeURIComponent(String(templateId))}`, {
-    method: "DELETE",
-  });
-}
-
-export async function getAdminTaskTemplateConditions(templateId: number): Promise<AdminTaskTemplateCondition[]> {
-  return requestJson<BackendAdminTaskTemplateConditionDto[]>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/conditions`
-  );
-}
-
-export async function createAdminTaskTemplateCondition(
-  templateId: number,
-  payload: {
-    conditionGroup: number;
-    answerKey: string;
-    operator: "eq" | "neq" | "is_true" | "is_false" | "is_null" | "is_not_null";
-    expectedValueText: string | null;
-    expectedValueBoolean: boolean | null;
-    expectedValueNumber: number | null;
-  }
-): Promise<AdminTaskTemplateCondition> {
-  return requestJson<BackendAdminTaskTemplateConditionDto>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/conditions`,
-    {
-      method: "POST",
-      body: payload,
-    }
-  );
-}
-
-export async function deleteAdminTaskTemplateCondition(templateId: number, conditionId: number): Promise<void> {
-  await requestJson<unknown>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/conditions/${encodeURIComponent(String(conditionId))}`,
-    {
-      method: "DELETE",
-    }
-  );
-}
-
-export async function getAdminTaskTemplateDependencies(templateId: number): Promise<AdminTaskTemplateDependency[]> {
-  return requestJson<BackendAdminTaskTemplateDependencyDto[]>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/dependencies`
-  );
-}
-
-export async function createAdminTaskTemplateDependency(
-  templateId: number,
-  payload: {
-    dependsOnTaskTemplateId: number;
-    requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
-  }
-): Promise<AdminTaskTemplateDependency> {
-  return requestJson<BackendAdminTaskTemplateDependencyDto>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/dependencies`,
-    {
-      method: "POST",
-      body: payload,
-    }
-  );
-}
-
-export async function deleteAdminTaskTemplateDependency(templateId: number, dependencyId: number): Promise<void> {
-  await requestJson<unknown>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/dependencies/${encodeURIComponent(String(dependencyId))}`,
-    {
-      method: "DELETE",
-    }
-  );
-}
-
-export async function getAdminAnswerDefinitions(processTypeId: number): Promise<AdminAnswerDefinition[]> {
-  const params = new URLSearchParams({ processTypeId: String(processTypeId) });
-  return requestJson<BackendAdminAnswerDefinitionDto[]>(`/admin/config/answer-definitions?${params.toString()}`);
-}
-
-export async function createAdminAnswerDefinition(payload: {
-  processTypeId: number;
-  answerKey: string;
-  title: string;
-  category: string;
-  description: string;
-  iconKey: string | null;
-  inputType: "boolean" | "text" | "select" | "multi_select";
-  isRequired: boolean;
-  sortOrder: number;
-  isActive: boolean;
-}): Promise<AdminAnswerDefinition> {
-  return requestJson<BackendAdminAnswerDefinitionDto>("/admin/config/answer-definitions", {
-    method: "POST",
-    body: payload,
-  });
-}
-
-export async function updateAdminAnswerDefinition(
-  definitionId: number,
-  payload: {
-    processTypeId: number;
-    answerKey: string;
-    title: string;
-    category: string;
-    description: string;
-    iconKey: string | null;
-    inputType: "boolean" | "text" | "select" | "multi_select";
-    isRequired: boolean;
-    sortOrder: number;
-    isActive: boolean;
-  }
-): Promise<AdminAnswerDefinition> {
-  return requestJson<BackendAdminAnswerDefinitionDto>(
-    `/admin/config/answer-definitions/${encodeURIComponent(String(definitionId))}`,
-    {
-      method: "PATCH",
-      body: payload,
-    }
-  );
-}
-
-export async function deleteAdminAnswerDefinition(definitionId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/config/answer-definitions/${encodeURIComponent(String(definitionId))}`, {
-    method: "DELETE",
-  });
-}
-
-export async function getAdminRoleAnswerDefaults(processTypeId: number): Promise<AdminRoleAnswerDefault[]> {
-  const params = new URLSearchParams({ processTypeId: String(processTypeId) });
-  return requestJson<BackendAdminRoleAnswerDefaultDto[]>(`/admin/config/role-answer-defaults?${params.toString()}`);
-}
-
-export async function updateAdminRoleAnswerDefaults(payload: {
-  processTypeId: number;
-  items: Array<{
-    appRoleId: number;
-    answerKey: string;
-    defaultValueText: string | null;
-    defaultValueBoolean: boolean | null;
-  }>;
-}): Promise<AdminRoleAnswerDefault[]> {
-  return requestJson<BackendAdminRoleAnswerDefaultDto[]>("/admin/config/role-answer-defaults", {
-    method: "PATCH",
-    body: payload,
-  });
 }

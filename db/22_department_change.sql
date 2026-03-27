@@ -68,7 +68,7 @@ SELECT
     (SELECT id FROM process_types WHERE key = 'department_change'),
     s.answer_key, s.title, s.category, s.description, s.icon_key, s.input_type, s.is_required, s.sort_order, TRUE
 FROM answer_seed s
-ON CONFLICT (answer_key) DO UPDATE
+ON CONFLICT (process_type_id, answer_key) DO UPDATE
 SET
     process_type_id = EXCLUDED.process_type_id,
     title           = EXCLUDED.title,

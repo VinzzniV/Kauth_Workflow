@@ -6,29 +6,53 @@ UPDATE task_template_dependencies
 SET required_status = 'done'
 WHERE required_status IN ('skipped', 'cancelled');
 
-UPDATE workflow_tasks
-SET
-    status = 'done',
-    completed_at = COALESCE(completed_at, cancelled_at, NOW()),
-    cancelled_at = NULL
-WHERE status IN ('skipped', 'cancelled');
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'workflow_tasks' AND column_name = 'cancelled_at'
+    ) THEN
+        UPDATE workflow_tasks
+        SET
+            status = 'done',
+            completed_at = COALESCE(completed_at, cancelled_at, NOW()),
+            cancelled_at = NULL
+        WHERE status IN ('skipped', 'cancelled');
 
-UPDATE workflow_tasks wt
-SET
-    status = 'done',
-    completed_at = COALESCE(wt.completed_at, wt.cancelled_at, w.cancelled_at, NOW()),
-    cancelled_at = NULL
-FROM workflows w
-WHERE wt.workflow_id = w.id
-  AND w.status = 'cancelled'
-  AND wt.status <> 'done';
+        UPDATE workflow_tasks wt
+        SET
+            status = 'done',
+            completed_at = COALESCE(wt.completed_at, wt.cancelled_at, w.cancelled_at, NOW()),
+            cancelled_at = NULL
+        FROM workflows w
+        WHERE wt.workflow_id = w.id
+          AND w.status = 'cancelled'
+          AND wt.status <> 'done';
+    ELSE
+        UPDATE workflow_tasks
+        SET status = 'done', completed_at = COALESCE(completed_at, NOW())
+        WHERE status IN ('skipped', 'cancelled');
+    END IF;
+END $$;
 
-UPDATE workflows
-SET
-    status = 'completed',
-    completed_at = COALESCE(completed_at, cancelled_at, NOW()),
-    cancelled_at = NULL
-WHERE status = 'cancelled';
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'workflows' AND column_name = 'cancelled_at'
+    ) THEN
+        UPDATE workflows
+        SET
+            status = 'completed',
+            completed_at = COALESCE(completed_at, cancelled_at, NOW()),
+            cancelled_at = NULL
+        WHERE status = 'cancelled';
+    ELSE
+        UPDATE workflows
+        SET status = 'completed', completed_at = COALESCE(completed_at, NOW())
+        WHERE status = 'cancelled';
+    END IF;
+END $$;
 
 ALTER TABLE workflows
     DROP CONSTRAINT IF EXISTS workflows_status_check;

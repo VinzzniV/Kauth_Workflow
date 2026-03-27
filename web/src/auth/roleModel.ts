@@ -104,7 +104,7 @@ export function deriveRoleCapabilities(rawRoleKeys: string[]): RoleCapabilities 
 
   const hasReadRole = hasAdmin || hasHr || hasManager || hasWorker || hasReader;
   const hasProcessActorRole = hasHr || hasManager || hasWorker;
-  const canCreateWorkflow = hasHr;
+  const canCreateWorkflow = hasHr || hasManager || hasAdmin;
   const canAccessSupervisorStep = hasManager;
   const canAccessTechnicalTasks = hasWorker;
   const canManageAdminConfiguration = hasAdmin;

@@ -1,30 +1,29 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createWorkflow,
-  findLinkableWorkflows,
   getProcessTypes,
   getWorkflowConfig,
-  searchWorkflowTargetPeople,
+  searchCompletedOnboardings,
 } from "../services/lifecycleApi";
 import { useRoles } from "./useRoles";
 import type {
+  CompletedOnboardingSearchResult,
   Department,
   EmployeeFormData,
-  LinkableWorkflow,
   ProcessType,
   Role,
   WorkflowConfig,
-  WorkflowTargetPerson,
 } from "../types/workflow";
 
 type SubmitState = "idle" | "loading" | "success" | "error";
+export type WorkflowCreationStep = "process" | "context" | "review";
 
 type WorkflowStartFormState = {
   processTypeKey: string | null;
   employee: EmployeeFormData;
   departmentId: number | null;
   roleId: number | null;
-  targetPersonSearch: string;
+  completedOnboardingSearch: string;
 };
 
 const EMPTY_EMPLOYEE: EmployeeFormData = {
@@ -36,19 +35,22 @@ const EMPTY_EMPLOYEE: EmployeeFormData = {
 };
 
 type UseWorkflowCreationResult = {
+  currentStep: WorkflowCreationStep;
   processTypes: ProcessType[];
   processTypesLoading: boolean;
   selectedProcessTypeKey: string | null;
+  selectedProcessType: ProcessType | null;
+  requiresTargetPerson: boolean;
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
   selectedDepartment: Department | null;
   selectedRole: Role | null;
-  selectedTargetPerson: WorkflowTargetPerson | null;
-  targetPersonSearch: string;
-  targetPeople: WorkflowTargetPerson[];
-  targetPeopleLoading: boolean;
-  targetPeopleError: string | null;
+  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
+  completedOnboardingSearch: string;
+  completedOnboardings: CompletedOnboardingSearchResult[];
+  completedOnboardingsLoading: boolean;
+  completedOnboardingsError: string | null;
   availableRoles: Role[];
   roles: Role[];
   departments: Department[];
@@ -61,16 +63,18 @@ type UseWorkflowCreationResult = {
   submitError: string | null;
   submitSuccessMessage: string | null;
   createdWorkflowUid: string | null;
-  linkableWorkflows: LinkableWorkflow[];
-  selectedSourceWorkflowUid: string | null;
   setProcessType: (key: string) => void;
+  goToProcessStep: () => void;
+  goToContextStep: () => void;
+  goToReviewStep: () => void;
   setEmployeeField: (field: keyof EmployeeFormData, value: string | number) => void;
   setSelectedDepartment: (departmentId: number | null) => void;
   setSelectedRole: (roleId: number | null) => void;
-  setTargetPersonSearch: (value: string) => void;
-  setSelectedTargetPerson: (person: WorkflowTargetPerson | null) => void;
-  setSelectedSourceWorkflow: (uid: string | null) => void;
+  setCompletedOnboardingSearch: (value: string) => void;
+  setSelectedCompletedOnboarding: (onboarding: CompletedOnboardingSearchResult | null) => void;
   submitWorkflow: () => Promise<void>;
+  canGoToContextStep: boolean;
+  canGoToReviewStep: boolean;
   canSubmit: boolean;
   reloadRoles: () => Promise<void>;
 };
@@ -85,6 +89,7 @@ function hasValidEmployeeData(employee: EmployeeFormData): boolean {
 }
 
 export function useWorkflowCreation(): UseWorkflowCreationResult {
+  const [currentStep, setCurrentStep] = useState<WorkflowCreationStep>("process");
   const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
   const [processTypesLoading, setProcessTypesLoading] = useState(true);
   const [formState, setFormState] = useState<WorkflowStartFormState>({
@@ -92,12 +97,14 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     employee: EMPTY_EMPLOYEE,
     departmentId: null,
     roleId: null,
-    targetPersonSearch: "",
+    completedOnboardingSearch: "",
   });
-  const [selectedTargetPerson, setSelectedTargetPersonState] = useState<WorkflowTargetPerson | null>(null);
-  const [targetPeople, setTargetPeople] = useState<WorkflowTargetPerson[]>([]);
-  const [targetPeopleLoading, setTargetPeopleLoading] = useState(false);
-  const [targetPeopleError, setTargetPeopleError] = useState<string | null>(null);
+  const [selectedCompletedOnboarding, setSelectedCompletedOnboardingState] =
+    useState<CompletedOnboardingSearchResult | null>(null);
+  const [completedOnboardings, setCompletedOnboardings] = useState<CompletedOnboardingSearchResult[]>([]);
+  const [completedOnboardingsLoading, setCompletedOnboardingsLoading] = useState(false);
+  const [completedOnboardingsError, setCompletedOnboardingsError] = useState<string | null>(null);
+  const [debouncedCompletedOnboardingSearch, setDebouncedCompletedOnboardingSearch] = useState("");
   const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig | null>(null);
   const [workflowConfigLoading, setWorkflowConfigLoading] = useState(false);
   const [workflowConfigError, setWorkflowConfigError] = useState<string | null>(null);
@@ -105,8 +112,13 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccessMessage, setSubmitSuccessMessage] = useState<string | null>(null);
   const [createdWorkflowUid, setCreatedWorkflowUid] = useState<string | null>(null);
-  const [linkableWorkflows, setLinkableWorkflows] = useState<LinkableWorkflow[]>([]);
-  const [selectedSourceWorkflowUid, setSelectedSourceWorkflowUid] = useState<string | null>(null);
+
+  const resetSubmissionState = useCallback(() => {
+    setSubmitError(null);
+    setSubmitSuccessMessage(null);
+    setCreatedWorkflowUid(null);
+    setSubmitState((previous) => (previous === "loading" ? previous : "idle"));
+  }, []);
 
   useEffect(() => {
     getProcessTypes()
@@ -136,6 +148,19 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   );
 
   const requiresTargetPerson = selectedProcessType?.requiresTargetPerson ?? false;
+
+  useEffect(() => {
+    if (!requiresTargetPerson) {
+      setDebouncedCompletedOnboardingSearch("");
+      return;
+    }
+
+    const timeoutHandle = window.setTimeout(() => {
+      setDebouncedCompletedOnboardingSearch(formState.completedOnboardingSearch);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutHandle);
+  }, [formState.completedOnboardingSearch, requiresTargetPerson]);
 
   const selectedDepartment = useMemo(
     () =>
@@ -171,61 +196,27 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   }, [roles, selectedDepartmentId]);
 
   useEffect(() => {
-    const employeeNumber = requiresTargetPerson
-      ? selectedTargetPerson?.employeeNumber ?? 0
-      : formState.employee.employeeNumber;
-    const processTypeKey = formState.processTypeKey;
-    if (!processTypeKey || !requiresTargetPerson || employeeNumber <= 0) {
-      setLinkableWorkflows([]);
-      setSelectedSourceWorkflowUid(null);
-      return;
-    }
-
-    let cancelled = false;
-    findLinkableWorkflows(employeeNumber)
-      .then((workflows) => {
-        if (cancelled) {
-          return;
-        }
-
-        setLinkableWorkflows(workflows);
-        if (workflows.length > 0) {
-          setSelectedSourceWorkflowUid(workflows[0].uid);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLinkableWorkflows([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [formState.employee.employeeNumber, formState.processTypeKey, requiresTargetPerson, selectedTargetPerson?.employeeNumber]);
-
-  useEffect(() => {
     if (!requiresTargetPerson) {
-      setTargetPeople([]);
-      setTargetPeopleError(null);
+      setCompletedOnboardings([]);
+      setCompletedOnboardingsError(null);
       return;
     }
 
     let cancelled = false;
-    setTargetPeopleLoading(true);
-    setTargetPeopleError(null);
+    setCompletedOnboardingsLoading(true);
+    setCompletedOnboardingsError(null);
 
-    searchWorkflowTargetPeople(formState.targetPersonSearch)
-      .then((people) => {
+    searchCompletedOnboardings(debouncedCompletedOnboardingSearch)
+      .then((results) => {
         if (cancelled) {
           return;
         }
 
-        setTargetPeople(people);
-        if (selectedTargetPerson) {
-          const refreshed = people.find((person) => person.personId === selectedTargetPerson.personId);
+        setCompletedOnboardings(results);
+        if (selectedCompletedOnboarding) {
+          const refreshed = results.find((result) => result.workflowUid === selectedCompletedOnboarding.workflowUid);
           if (refreshed) {
-            setSelectedTargetPersonState(refreshed);
+            setSelectedCompletedOnboardingState(refreshed);
           }
         }
       })
@@ -234,22 +225,24 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
           return;
         }
 
-        setTargetPeople([]);
-        setTargetPeopleError(err instanceof Error ? err.message : "Zielpersonen konnten nicht geladen werden.");
+        setCompletedOnboardings([]);
+        setCompletedOnboardingsError(
+          err instanceof Error ? err.message : "Abgeschlossene Onboardings konnten nicht geladen werden."
+        );
       })
       .finally(() => {
         if (!cancelled) {
-          setTargetPeopleLoading(false);
+          setCompletedOnboardingsLoading(false);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [formState.targetPersonSearch, requiresTargetPerson, selectedTargetPerson]);
+  }, [debouncedCompletedOnboardingSearch, requiresTargetPerson, selectedCompletedOnboarding]);
 
   const effectiveRoleIdForConfig = requiresTargetPerson
-    ? selectedTargetPerson?.roleId ?? null
+    ? selectedCompletedOnboarding?.roleId ?? null
     : selectedRoleId;
 
   useEffect(() => {
@@ -272,7 +265,9 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
       .catch((err) => {
         if (!cancelled) {
           setWorkflowConfig(null);
-          setWorkflowConfigError(err instanceof Error ? err.message : "Workflow-Konfiguration konnte nicht geladen werden.");
+          setWorkflowConfigError(
+            err instanceof Error ? err.message : "Workflow-Konfiguration konnte nicht geladen werden."
+          );
         }
       })
       .finally(() => {
@@ -287,23 +282,25 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   }, [effectiveRoleIdForConfig, formState.processTypeKey]);
 
   const setProcessType = (key: string) => {
+    resetSubmissionState();
     setFormState((previous) => ({
       ...previous,
       processTypeKey: key,
       departmentId: null,
       roleId: null,
-      targetPersonSearch: "",
+      completedOnboardingSearch: "",
       employee: {
         ...EMPTY_EMPLOYEE,
         deadlineDate: previous.employee.deadlineDate,
       },
     }));
-    setSelectedTargetPersonState(null);
-    setLinkableWorkflows([]);
-    setSelectedSourceWorkflowUid(null);
+    setSelectedCompletedOnboardingState(null);
+    setCompletedOnboardings([]);
+    setCompletedOnboardingsError(null);
   };
 
   const setEmployeeField = (field: keyof EmployeeFormData, value: string | number) => {
+    resetSubmissionState();
     setFormState((previous) => ({
       ...previous,
       employee: {
@@ -314,6 +311,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   };
 
   const setSelectedDepartment = (departmentId: number | null) => {
+    resetSubmissionState();
     setFormState((previous) => {
       const roleStillMatchesDepartment =
         previous.roleId !== null &&
@@ -329,6 +327,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   };
 
   const setSelectedRole = (roleId: number | null) => {
+    resetSubmissionState();
     if (roleId === null) {
       setFormState((previous) => ({
         ...previous,
@@ -349,42 +348,44 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     }));
   };
 
-  const setTargetPersonSearch = (value: string) => {
+  const setCompletedOnboardingSearch = (value: string) => {
+    resetSubmissionState();
     setFormState((previous) => ({
       ...previous,
-      targetPersonSearch: value,
+      completedOnboardingSearch: value,
     }));
   };
 
-  const setSelectedTargetPerson = (person: WorkflowTargetPerson | null) => {
-    setSelectedTargetPersonState(person);
+  const setSelectedCompletedOnboarding = (onboarding: CompletedOnboardingSearchResult | null) => {
+    resetSubmissionState();
+    setSelectedCompletedOnboardingState(onboarding);
     setFormState((previous) => ({
       ...previous,
-      departmentId: person?.departmentId ?? null,
-      roleId: person?.roleId ?? null,
+      departmentId: onboarding?.departmentId ?? null,
+      roleId: onboarding?.roleId ?? null,
       employee: {
         ...previous.employee,
-        firstName: person?.firstName ?? "",
-        lastName: person?.lastName ?? "",
-        employeeNumber: person?.employeeNumber ?? 0,
-        badgeNumber: person?.badgeNumber ?? 0,
+        firstName: onboarding?.firstName ?? "",
+        lastName: onboarding?.lastName ?? "",
+        employeeNumber: onboarding?.employeeNumber ?? 0,
+        badgeNumber: onboarding?.badgeNumber ?? 0,
       },
     }));
   };
 
-  const canSubmit = useMemo(() => {
+  const isContextComplete = useMemo(() => {
     if (!formState.processTypeKey) {
       return false;
     }
 
     if (requiresTargetPerson) {
       return Boolean(
-        selectedTargetPerson &&
-        selectedTargetPerson.departmentId &&
-        selectedTargetPerson.roleId &&
-        selectedTargetPerson.employeeNumber &&
-        selectedTargetPerson.badgeNumber &&
-        !targetPeopleLoading
+        selectedCompletedOnboarding &&
+          selectedCompletedOnboarding.departmentId &&
+          selectedCompletedOnboarding.roleId &&
+          selectedCompletedOnboarding.employeeNumber > 0 &&
+          selectedCompletedOnboarding.badgeNumber > 0 &&
+          !completedOnboardingsLoading
       );
     }
 
@@ -395,17 +396,44 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
 
     return hasValidEmployeeData(formState.employee) && !rolesLoading && !rolesError && metadataIsValid;
   }, [
+    completedOnboardingsLoading,
     formState.employee,
     formState.processTypeKey,
     requiresTargetPerson,
     roles,
     rolesError,
     rolesLoading,
+    selectedCompletedOnboarding,
     selectedDepartmentId,
     selectedRoleId,
-    selectedTargetPerson,
-    targetPeopleLoading,
   ]);
+
+  const canGoToContextStep = formState.processTypeKey !== null;
+  const canGoToReviewStep = isContextComplete;
+  const canSubmit = currentStep === "review" && isContextComplete;
+
+  const goToProcessStep = useCallback(() => {
+    resetSubmissionState();
+    setCurrentStep("process");
+  }, [resetSubmissionState]);
+
+  const goToContextStep = useCallback(() => {
+    if (!formState.processTypeKey) {
+      return;
+    }
+
+    resetSubmissionState();
+    setCurrentStep("context");
+  }, [formState.processTypeKey, resetSubmissionState]);
+
+  const goToReviewStep = useCallback(() => {
+    if (!isContextComplete) {
+      return;
+    }
+
+    resetSubmissionState();
+    setCurrentStep("review");
+  }, [isContextComplete, resetSubmissionState]);
 
   const submitWorkflow = async () => {
     if (!formState.processTypeKey) {
@@ -420,9 +448,9 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
       return;
     }
 
-    if (requiresTargetPerson && !selectedTargetPerson) {
+    if (requiresTargetPerson && !selectedCompletedOnboarding) {
       setSubmitState("error");
-      setSubmitError("Bitte zuerst eine bestehende Zielperson auswählen.");
+      setSubmitError("Bitte zuerst ein abgeschlossenes Onboarding auswählen.");
       return;
     }
 
@@ -434,22 +462,21 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     const processTypeName = selectedProcessType?.name ?? formState.processTypeKey;
 
     const payload =
-      requiresTargetPerson && selectedTargetPerson
+      requiresTargetPerson && selectedCompletedOnboarding
         ? {
             processTypeKey: formState.processTypeKey,
-            targetPersonId: selectedTargetPerson.personId,
-            sourceWorkflowUid: selectedSourceWorkflowUid,
-            firstName: selectedTargetPerson.firstName,
-            lastName: selectedTargetPerson.lastName,
-            employeeNumber: selectedTargetPerson.employeeNumber,
-            badgeNumber: selectedTargetPerson.badgeNumber,
+            targetPersonId: selectedCompletedOnboarding.personId,
+            sourceWorkflowUid: selectedCompletedOnboarding.workflowUid,
+            firstName: selectedCompletedOnboarding.firstName,
+            lastName: selectedCompletedOnboarding.lastName,
+            employeeNumber: selectedCompletedOnboarding.employeeNumber,
+            badgeNumber: selectedCompletedOnboarding.badgeNumber,
             deadlineDate: formState.employee.deadlineDate.trim() || null,
             departmentId: null,
             roleId: null,
           }
         : {
             processTypeKey: formState.processTypeKey,
-            sourceWorkflowUid: selectedSourceWorkflowUid,
             firstName: formState.employee.firstName.trim(),
             lastName: formState.employee.lastName.trim(),
             employeeNumber: formState.employee.employeeNumber,
@@ -465,7 +492,11 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
 
       setSubmitState("success");
       setSubmitSuccessMessage(
-        `${processTypeName} ${response.uid} angelegt.${selectedSourceWorkflowUid ? " Automatisch mit Quell-Vorgang verknüpft." : ""} Nächster Schritt: Der zuständige Prozessschritt kann jetzt im Tool weiterbearbeitet werden.`
+        `${processTypeName} ${response.uid} angelegt.${
+          requiresTargetPerson && selectedCompletedOnboarding
+            ? " Automatisch mit abgeschlossenem Onboarding verknüpft."
+            : ""
+        } Nächster Schritt: Der zuständige Prozessschritt kann jetzt im Tool weiterbearbeitet werden.`
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Vorgang konnte nicht gestartet werden.";
@@ -475,19 +506,22 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   };
 
   return {
+    currentStep,
     processTypes,
     processTypesLoading,
     selectedProcessTypeKey: formState.processTypeKey,
+    selectedProcessType,
+    requiresTargetPerson,
     employee: formState.employee,
     selectedDepartmentId,
     selectedRoleId,
     selectedDepartment,
     selectedRole,
-    selectedTargetPerson,
-    targetPersonSearch: formState.targetPersonSearch,
-    targetPeople,
-    targetPeopleLoading,
-    targetPeopleError,
+    selectedCompletedOnboarding,
+    completedOnboardingSearch: formState.completedOnboardingSearch,
+    completedOnboardings,
+    completedOnboardingsLoading,
+    completedOnboardingsError,
     availableRoles,
     roles,
     departments,
@@ -500,16 +534,18 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     submitError,
     submitSuccessMessage,
     createdWorkflowUid,
-    linkableWorkflows,
-    selectedSourceWorkflowUid,
     setProcessType,
+    goToProcessStep,
+    goToContextStep,
+    goToReviewStep,
     setEmployeeField,
     setSelectedDepartment,
     setSelectedRole,
-    setTargetPersonSearch,
-    setSelectedTargetPerson,
-    setSelectedSourceWorkflow: setSelectedSourceWorkflowUid,
+    setCompletedOnboardingSearch,
+    setSelectedCompletedOnboarding,
     submitWorkflow,
+    canGoToContextStep,
+    canGoToReviewStep,
     canSubmit,
     reloadRoles,
   };

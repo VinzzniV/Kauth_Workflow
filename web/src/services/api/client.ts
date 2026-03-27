@@ -9,7 +9,20 @@ export type ApiError = Error & {
   status?: number;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+function resolveApiBase(): string {
+  const configuredBase = import.meta.env.VITE_API_BASE?.trim();
+  if (configuredBase) {
+    return configuredBase;
+  }
+
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return "/api";
+}
+
+const API_BASE = resolveApiBase();
 const DEMO_AUTH_TOKEN_STORAGE_KEY = "lifecycle.demo.authToken";
 
 export function getDemoAuthToken(): string | null {

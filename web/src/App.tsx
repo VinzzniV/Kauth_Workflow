@@ -15,6 +15,7 @@ import SupervisorStepPage from "./pages/SupervisorStepPage";
 import WorkflowDetailPage from "./pages/WorkflowDetailPage";
 import WorkflowListPage from "./pages/WorkflowListPage";
 import WorkflowSearchPage from "./pages/WorkflowSearchPage";
+import PersonWorkflowHistoryPage from "./pages/PersonWorkflowHistoryPage";
 
 export default function App() {
   const { status } = useAuth();
@@ -105,6 +106,14 @@ export default function App() {
           element={
             <RouteGuard feature="workflowSearch">
               <WorkflowSearchPage />
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/people/:personId"
+          element={
+            <RouteGuard feature="workflowOverview">
+              <PersonWorkflowHistoryPage />
             </RouteGuard>
           }
         />

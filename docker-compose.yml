@@ -40,7 +40,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE: http://localhost:5001
+        VITE_API_BASE: /api
     container_name: rtp_web
     ports:
       - "5173:80"

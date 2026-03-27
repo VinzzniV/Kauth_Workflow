@@ -32,6 +32,8 @@ import type {
   WorkflowTaskMetrics,
   WorkflowTaskSlaStatus,
   WorkflowTaskStatus,
+  PersonWorkflowHistory,
+  PersonWorkflowSummary,
 } from "../../types/workflow";
 import { coerceIconKey } from "../../utils/iconRegistry";
 import { toWorkflowLegacyStatus } from "../../utils/workflowStatus";
@@ -65,6 +67,8 @@ import type {
   BackendWorkflowTaskDependencyDto,
   BackendWorkflowTaskDto,
   BackendWorkflowTaskMetricsDto,
+  BackendPersonWorkflowHistoryDto,
+  BackendPersonWorkflowSummaryDto,
 } from "./backendDtos";
 
 export type * from "./backendDtos";
@@ -294,7 +298,12 @@ export function mapWorkflowTask(dto: BackendWorkflowTaskDto): WorkflowTask {
 }
 
 function mapProcessType(dto: BackendProcessTypeDto): ProcessType {
-  return { key: dto.key, name: dto.name, requiresTargetPerson: dto.requiresTargetPerson };
+  return {
+    key: dto.key,
+    name: dto.name,
+    description: dto.description ?? null,
+    requiresTargetPerson: dto.requiresTargetPerson,
+  };
 }
 
 export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSummary {
@@ -315,6 +324,7 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
     deadlineDate: dto.deadlineDate,
+    archivedAt: dto.archivedAt,
     pendingNotifications: dto.pendingNotifications,
     failedNotifications: dto.failedNotifications,
     requirementSummary: mapWorkflowRequirementSummary(dto.requirementSummary),
@@ -353,6 +363,8 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
     deadlineDate: dto.deadlineDate,
+    archivedAt: dto.archivedAt,
+    targetPersonId: dto.targetPersonId,
     requirements: dto.requirements.map(mapWorkflowRequirement),
     requirementSummary: mapWorkflowRequirementSummary(dto.requirementSummary),
     tasks: dto.tasks.map(mapWorkflowTask),
@@ -392,5 +404,36 @@ export function mapWorkflowConfig(dto: BackendWorkflowConfigDto): WorkflowConfig
   return {
     requirements: dto.requirements.map(mapRequirement),
     roleRecommendations: mapRoleRecommendations(dto.roleRecommendations),
+  };
+}
+
+function mapPersonWorkflowSummary(dto: BackendPersonWorkflowSummaryDto): PersonWorkflowSummary {
+  const workflowStatus = normalizeStatus(dto.workflowStatus);
+  return {
+    uid: dto.uid,
+    processType: mapProcessType(dto.processType),
+    firstName: dto.firstName,
+    lastName: dto.lastName,
+    roleName: dto.roleName,
+    departmentName: dto.departmentName,
+    status: toWorkflowLegacyStatus(dto.status),
+    workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
+    createdAt: dto.createdAt,
+    completedAt: dto.completedAt,
+    archivedAt: dto.archivedAt,
+  };
+}
+
+export function mapPersonWorkflowHistory(dto: BackendPersonWorkflowHistoryDto): PersonWorkflowHistory {
+  return {
+    personId: dto.personId,
+    displayName: dto.displayName,
+    departmentId: dto.departmentId,
+    departmentName: dto.departmentName,
+    employeeNumber: dto.employeeNumber,
+    badgeNumber: dto.badgeNumber,
+    firstName: dto.firstName,
+    lastName: dto.lastName,
+    workflows: dto.workflows.map(mapPersonWorkflowSummary),
   };
 }

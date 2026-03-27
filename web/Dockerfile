@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . ./
-ARG VITE_API_BASE=http://localhost:5001
+ARG VITE_API_BASE=/api
 ENV VITE_API_BASE=$VITE_API_BASE
 RUN npm run build
 

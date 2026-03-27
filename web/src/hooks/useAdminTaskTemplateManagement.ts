@@ -13,7 +13,7 @@ import {
   getAdminTaskTemplateConditions,
   getAdminTaskTemplates,
   updateAdminTaskTemplate,
-} from "../services/lifecycleApi";
+} from "../services/adminConfigApi";
 import type {
   AdminAnswerDefinition,
   AdminDependencyGraph,
@@ -345,6 +345,14 @@ export function useAdminTaskTemplateManagement({
   const buildPayload = useCallback(() => {
     if (!selectedProcessTypeId) {
       throw new Error("Bitte zuerst einen Prozesstyp auswählen.");
+    }
+
+    if (!draft.templateKey.trim()) {
+      throw new Error("Template Key ist erforderlich.");
+    }
+
+    if (!draft.title.trim()) {
+      throw new Error("Titel ist erforderlich.");
     }
 
     const sortOrder = Number(draft.sortOrder);

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { WorkflowDetail } from "../../types/workflow";
 import { formatDate, toRuntimeStatusLabel } from "./workflowDetailModel";
 
@@ -25,12 +26,18 @@ export default function WorkflowHeaderPanel({
           {workflow.firstName} {workflow.lastName}
         </h2>
         <p>
-          {workflow.processType.name} | {workflow.departmentName} | {workflow.roleName}
+          {workflow.departmentName} | {workflow.roleName}
         </p>
       </div>
 
       <div className="action-row">
+        <span className="chip">{workflow.processType.name}</span>
         <span className="chip">Prozessstand: {toRuntimeStatusLabel(workflow.workflowStatus)}</span>
+        {workflow.targetPersonId != null ? (
+          <Link className="btn btn-secondary" to={`/people/${workflow.targetPersonId}`}>
+            Mitarbeiterakte
+          </Link>
+        ) : null}
       </div>
 
       <p className="panel-note">
@@ -44,6 +51,12 @@ export default function WorkflowHeaderPanel({
       </div>
 
       <div className="workflow-detail-summary-grid">
+        <article className="workflow-detail-kpi">
+          <p className="workflow-detail-kpi-label">Prozesstyp</p>
+          <p className="workflow-detail-kpi-value">{workflow.processType.name}</p>
+          <p className="workflow-detail-kpi-note">Zu welchem Mitarbeiterprozess dieser Vorgang gehört.</p>
+        </article>
+
         <article className="workflow-detail-kpi">
           <p className="workflow-detail-kpi-label">Abteilung</p>
           <p className="workflow-detail-kpi-value">{workflow.departmentName}</p>

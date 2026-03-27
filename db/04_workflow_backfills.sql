@@ -283,22 +283,38 @@ UPDATE task_template_dependencies
 SET required_status = 'done'
 WHERE required_status = 'cancelled';
 
-UPDATE workflow_tasks wt
-SET status = 'done',
-    completed_at = COALESCE(wt.completed_at, wt.cancelled_at, w.cancelled_at, NOW()),
-    cancelled_at = NULL
-FROM workflows w
-WHERE wt.workflow_id = w.id
-  AND (
-      wt.status = 'cancelled'
-      OR (w.status = 'cancelled' AND wt.status <> 'done')
-  );
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'workflow_tasks' AND column_name = 'cancelled_at'
+    ) THEN
+        UPDATE workflow_tasks wt
+        SET status = 'done',
+            completed_at = COALESCE(wt.completed_at, wt.cancelled_at, w.cancelled_at, NOW()),
+            cancelled_at = NULL
+        FROM workflows w
+        WHERE wt.workflow_id = w.id
+          AND (
+              wt.status = 'cancelled'
+              OR (w.status = 'cancelled' AND wt.status <> 'done')
+          );
+    END IF;
+END $$;
 
-UPDATE workflows
-SET status = 'completed',
-    completed_at = COALESCE(completed_at, cancelled_at, NOW()),
-    cancelled_at = NULL
-WHERE status = 'cancelled';
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'workflows' AND column_name = 'cancelled_at'
+    ) THEN
+        UPDATE workflows
+        SET status = 'completed',
+            completed_at = COALESCE(completed_at, cancelled_at, NOW()),
+            cancelled_at = NULL
+        WHERE status = 'cancelled';
+    END IF;
+END $$;
 
 WITH workflow_rollup AS (
     SELECT
@@ -343,16 +359,18 @@ SET
     completed_at = CASE
         WHEN s.next_status = 'completed' THEN COALESCE(w.completed_at, NOW())
         ELSE NULL
-    END,
-    cancelled_at = NULL
+    END
 FROM workflow_status_recalc s
 WHERE w.id = s.workflow_id;
 DO $$
 BEGIN
+    -- Only add this FK if the standalone unique constraint on answer_key still exists.
+    -- Migration 30 replaced it with a composite unique (process_type_id, answer_key),
+    -- after which this FK is no longer valid and should not be added.
     IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'fk_task_template_conditions_answer_key'
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_task_template_conditions_answer_key'
+    ) AND EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'workflow_answer_definitions_answer_key_key'
     ) THEN
         ALTER TABLE task_template_conditions
         ADD CONSTRAINT fk_task_template_conditions_answer_key

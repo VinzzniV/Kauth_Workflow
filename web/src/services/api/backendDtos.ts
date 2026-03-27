@@ -1,4 +1,13 @@
-import type { Department, DerivedAnswer, LinkableWorkflow, ProcessType, Role, WorkflowLink, WorkflowTargetPerson } from "../../types/workflow";
+import type {
+  CompletedOnboardingSearchResult,
+  Department,
+  DerivedAnswer,
+  LinkableWorkflow,
+  ProcessType,
+  Role,
+  WorkflowLink,
+  WorkflowTargetPerson,
+} from "../../types/workflow";
 import type {
   AdminDepartmentAssignment,
   AdminGroup,
@@ -119,6 +128,7 @@ export type BackendWorkflowSummaryDto = {
   workflowStatus: string;
   createdAt: string;
   deadlineDate: string | null;
+  archivedAt: string | null;
   pendingNotifications: number;
   failedNotifications: number;
   requirementSummary: BackendWorkflowRequirementSummaryDto;
@@ -134,7 +144,7 @@ export type BackendWorkflowPageDto = {
   items: BackendWorkflowSummaryDto[];
   count: number;
   offset: number;
-  limit: number;
+  limit: number | null;
   departmentOptions: BackendDepartmentDto[];
   responsibilityOptions: Array<{
     value: string;
@@ -316,6 +326,8 @@ export type BackendWorkflowDetailDto = {
   workflowStatus: string;
   createdAt: string;
   deadlineDate: string | null;
+  archivedAt: string | null;
+  targetPersonId: number | null;
   requirements: BackendWorkflowRequirementSnapshotDto[];
   requirementSummary: BackendWorkflowRequirementSummaryDto;
   tasks: BackendWorkflowTaskDto[];
@@ -359,6 +371,7 @@ export type BackendAdminNotificationEmailTestResponseDto = AdminNotificationEmai
 export type BackendWorkflowLinkDto = WorkflowLink;
 export type BackendLinkableWorkflowDto = LinkableWorkflow;
 export type BackendWorkflowTargetPersonDto = WorkflowTargetPerson;
+export type BackendCompletedOnboardingSearchResultDto = CompletedOnboardingSearchResult;
 export type BackendDerivedAnswerDto = DerivedAnswer;
 export type BackendAdminProcessTypeDto = AdminProcessType;
 export type BackendAdminTaskTemplateDto = AdminTaskTemplate;
@@ -369,3 +382,29 @@ export type BackendAdminDependencyGraphEdgeDto = AdminDependencyGraphEdge;
 export type BackendAdminDependencyGraphDto = AdminDependencyGraph;
 export type BackendAdminAnswerDefinitionDto = AdminAnswerDefinition;
 export type BackendAdminRoleAnswerDefaultDto = AdminRoleAnswerDefault;
+
+export type BackendPersonWorkflowSummaryDto = {
+  uid: string;
+  processType: BackendProcessTypeDto;
+  firstName: string;
+  lastName: string;
+  roleName: string;
+  departmentName: string;
+  status: string;
+  workflowStatus: string;
+  createdAt: string;
+  completedAt: string | null;
+  archivedAt: string | null;
+};
+
+export type BackendPersonWorkflowHistoryDto = {
+  personId: number;
+  displayName: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  employeeNumber: number | null;
+  badgeNumber: number | null;
+  firstName: string | null;
+  lastName: string | null;
+  workflows: BackendPersonWorkflowSummaryDto[];
+};

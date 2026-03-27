@@ -566,23 +566,39 @@ h1, h2, h3, h4, p {
   background: var(--bg-card);
   cursor: pointer;
   text-align: left;
+  display: grid;
+  gap: 0.35rem;
   transition: border-color 0.15s, background 0.15s;
 }
 
 .process-type-card:hover {
-  border-color: var(--primary);
-  background: var(--bg-hover, #f5f8ff);
+  border-color: var(--brand);
+  background: #f5f8ff;
 }
 
 .process-type-card--selected {
-  border-color: var(--primary);
-  background: var(--bg-selected, #eef3ff);
+  border-color: var(--brand);
+  background: #eef3ff;
 }
 
 .process-type-card__name {
   font-size: 0.95rem;
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.process-type-card__meta {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.process-type-card__description {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
 }
 
 .panel-head {
@@ -609,6 +625,45 @@ h1, h2, h3, h4, p {
 .panel-note {
   color: var(--text-tertiary);
   font-size: 0.82rem;
+}
+
+.wizard-inline-note {
+  margin-top: 1rem;
+}
+
+.wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.wizard-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+}
+
+.workflow-kv-grid {
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.workflow-kv-grid dt {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+.workflow-kv-grid dd {
+  margin: 0.08rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 /* ─── Admin Workspace ─── */
@@ -1829,6 +1884,14 @@ h1, h2, h3, h4, p {
     width: 100%;
   }
 
+  .wizard-actions {
+    align-items: stretch;
+  }
+
+  .wizard-actions .btn {
+    width: 100%;
+  }
+
   .requirement-layout {
     flex-direction: column-reverse;
   }
@@ -1875,4 +1938,119 @@ h1, h2, h3, h4, p {
   .admin-action-grid {
     flex-direction: column;
   }
+}
+
+/* ─── Override: text-muted fix ─── */
+/* Flowbite sets --color-muted to gray-50 (near-white), which Tailwind v4 */
+/* auto-generates as text-muted — making text near-invisible on white backgrounds. */
+.text-muted {
+  color: var(--text-secondary) !important;
+}
+
+/* ─── Badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.badge--success {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.badge--default {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+
+.badge--error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+/* ─── Form components ─── */
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.45rem 0.65rem;
+  transition: border-color 100ms ease;
+}
+
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: var(--border-strong);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: var(--brand);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ─── Admin tables ─── */
+table.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+table.table thead tr {
+  border-bottom: 2px solid var(--border);
+}
+
+table.table th {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+table.table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+table.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+table.table tbody tr:hover {
+  background: var(--bg-card-muted);
 }

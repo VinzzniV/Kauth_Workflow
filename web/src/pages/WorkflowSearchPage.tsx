@@ -3,28 +3,37 @@ import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import WorkflowCard from "../components/workflows/WorkflowCard";
-import { getProcessTypes, getWorkflows } from "../services/lifecycleApi";
-import type { ProcessType, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
+import { getProcessTypes, getWorkflowPage } from "../services/lifecycleApi";
+import type { Department, ProcessType, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
 
-function buildDepartmentOptions(workflows: WorkflowSummary[]): Array<[number, string]> {
-  const entries = Array.from(
-    new Map(workflows.map((row) => [row.departmentId, row.departmentName])).entries()
-  );
-
-  return entries.sort((left, right) => left[1].localeCompare(right[1], "de"));
-}
+const SEARCH_DEBOUNCE_MS = 400;
+const SEARCH_PAGE_SIZE = 1000;
 
 export default function WorkflowSearchPage() {
   const [rows, setRows] = useState<WorkflowSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [processTypeFilter, setProcessTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>("all");
-  const [departmentOptions, setDepartmentOptions] = useState<Array<[number, string]>>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<Department[]>([]);
   const [processTypeOptions, setProcessTypeOptions] = useState<ProcessType[]>([]);
   const latestReloadId = useRef(0);
+
+  // Debounce search input to avoid a request on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Process types are static – fetch once on mount, not on every filter change.
+  useEffect(() => {
+    getProcessTypes()
+      .then(setProcessTypeOptions)
+      .catch(() => setProcessTypeOptions([]));
+  }, []);
 
   const reload = useCallback(async () => {
     const reloadId = latestReloadId.current + 1;
@@ -33,31 +42,18 @@ export default function WorkflowSearchPage() {
     setError(null);
 
     try {
-      const workflowsPromise = getWorkflows({
+      // Single call – backend returns departmentOptions (without dept filter applied) alongside items.
+      const page = await getWorkflowPage(SEARCH_PAGE_SIZE, 0, {
         status: statusFilter === "all" ? null : statusFilter,
         departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
         processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
-        search,
+        search: debouncedSearch,
       });
-      const workflowsForDepartmentsPromise =
-        departmentFilter === "all"
-          ? workflowsPromise
-          : getWorkflows({
-              status: statusFilter === "all" ? null : statusFilter,
-              processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
-              search,
-            });
-      const [workflows, workflowsForDepartments, processTypes] = await Promise.all([
-        workflowsPromise,
-        workflowsForDepartmentsPromise,
-        getProcessTypes(),
-      ]);
       if (latestReloadId.current !== reloadId) {
         return;
       }
-      setRows(workflows);
-      setDepartmentOptions(buildDepartmentOptions(workflowsForDepartments));
-      setProcessTypeOptions(processTypes);
+      setRows(page.items);
+      setDepartmentOptions(page.departmentOptions);
     } catch (err) {
       if (latestReloadId.current !== reloadId) {
         return;
@@ -66,13 +62,12 @@ export default function WorkflowSearchPage() {
       setError(message);
       setRows([]);
       setDepartmentOptions([]);
-      setProcessTypeOptions([]);
     } finally {
       if (latestReloadId.current === reloadId) {
         setIsLoading(false);
       }
     }
-  }, [departmentFilter, processTypeFilter, search, statusFilter]);
+  }, [departmentFilter, processTypeFilter, debouncedSearch, statusFilter]);
 
   useEffect(() => {
     void reload();
@@ -122,9 +117,9 @@ export default function WorkflowSearchPage() {
               <span>Abteilung</span>
               <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
                 <option value="all">Alle</option>
-                {departmentOptions.map(([departmentId, departmentName]) => (
-                  <option key={departmentId} value={departmentId}>
-                    {departmentName}
+                {departmentOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
                   </option>
                 ))}
               </select>

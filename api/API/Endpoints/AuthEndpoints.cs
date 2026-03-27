@@ -7,10 +7,21 @@ namespace API;
 
 internal static class AuthEndpoints
 {
+    private static bool IsDemoEndpointsEnabled() =>
+        !string.Equals(
+            Environment.GetEnvironmentVariable("DEMO_ENDPOINTS_ENABLED"),
+            "false",
+            StringComparison.OrdinalIgnoreCase);
+
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/auth/demo-users", async (IUserAuthorizationRepository userAuthorizationRepository) =>
         {
+            if (!IsDemoEndpointsEnabled())
+            {
+                return Results.NotFound();
+            }
+
             return Results.Ok(await userAuthorizationRepository.GetDemoLoginUsers());
         }).Produces<List<DemoLoginUserOptionDto>>(StatusCodes.Status200OK);
 
@@ -20,6 +31,11 @@ internal static class AuthEndpoints
             IDemoSessionStore sessionStore,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
+            if (!IsDemoEndpointsEnabled())
+            {
+                return Results.NotFound();
+            }
+
             var username = request.Username?.Trim();
             if (string.IsNullOrWhiteSpace(username))
             {

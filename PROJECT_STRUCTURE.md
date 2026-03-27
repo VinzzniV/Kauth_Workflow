@@ -4,10 +4,7 @@ Diese Uebersicht beschreibt die aktuell vorhandene Struktur des Repositories. Fo
 
 ## Root
 
-`README.md`  
-Schnelleinstieg fuer Stack, Funktionen, wichtige Einstiegspunkte und lokale Startwege.
-
-`PROJECT_STRUCTURE.md`  
+`PROJECT_STRUCTURE.md`
 Diese Detailuebersicht.
 
 `docker-compose.yml`  
@@ -101,8 +98,11 @@ Arbeitsbereich der Abteilungsleitung fuer den Supervisor-Schritt mit bedingten A
 `MyTasksPage.tsx`  
 Persoenlicher Aufgabenarbeitsplatz des Fachbereichs.
 
-`AdminConfigPage.tsx`  
+`AdminConfigPage.tsx`
 Verwaltet Benutzer, Rollen, Gruppen, Abteilungen, Verantwortlichkeiten und Notification-E-Mail-Einstellungen.
+
+`PersonWorkflowHistoryPage.tsx`
+Zeigt alle Workflows einer Person (nach Personen-ID) in chronologischer Reihenfolge.
 
 ### `web/src/components`
 
@@ -120,8 +120,20 @@ Wiederverwendbare Form- und Anzeigekomponenten fuer Rollen-, Anforderungs-, Icon
 
 ### `web/src/services`
 
-`onboardingApi.ts`  
+`lifecycleApi.ts`
 Zentraler HTTP-Client fuer Demo-Auth, Stammdaten, Workflow-, Aufgaben- und Admin-Endpunkte.
+
+`onboardingApi.ts`
+Kompatibilitaets-Re-Export auf `lifecycleApi.ts` fuer alte Importpfade.
+
+`api/backendDtos.ts`
+Rohe Backend-Antworttypen, 1:1 zu den Backend-DTOs.
+
+`api/mappers.ts`
+Transformiert Backend-DTOs in Frontend-Typen.
+
+`api/client.ts`
+Basis-HTTP-Client mit einheitlichem Fehlerhandling.
 
 ### `web/src/hooks`
 

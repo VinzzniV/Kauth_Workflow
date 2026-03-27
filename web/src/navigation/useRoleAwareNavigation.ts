@@ -42,6 +42,12 @@ const ACTIONS = {
     description: "Einen neuen Mitarbeiterprozess anlegen.",
     feature: "workflowCreate",
   },
+  managerCreate: {
+    to: "/create",
+    label: "Änderung starten",
+    description: "Einen Änderungsprozess für Mitarbeitende starten.",
+    feature: "workflowCreate",
+  },
   hrWorkflows: {
     to: "/workflows",
     label: "Laufende Vorgänge",
@@ -111,6 +117,7 @@ function collectActionKeys(args: {
 
   addKey("dashboard", canAccessFeature("dashboard"));
   addKey("hrCreate", capabilities.hasHrRole && canAccessFeature("workflowCreate"));
+  addKey("managerCreate", capabilities.hasManagerRole && !capabilities.hasHrRole && canAccessFeature("workflowCreate"));
   addKey("hrWorkflows", canAccessFeature("workflowOverview"));
 
   if (surface === "header") {
@@ -171,7 +178,7 @@ export function useRoleAwareNavigation() {
     if (capabilities.dashboardPersona === "manager") {
       return {
         title: "Vorgänge meiner Mitarbeitenden",
-        description: "Hier bearbeiten Sie offene Anforderungen und beobachten den Fortschritt Ihrer eigenen Vorgänge.",
+        description: "Starten Sie Änderungen für Ihre Mitarbeitenden, bearbeiten Sie offene Anforderungen und beobachten Sie den Fortschritt.",
       };
     }
 

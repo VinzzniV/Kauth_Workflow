@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace API;
@@ -9,11 +11,12 @@ internal static class LifecycleStartupValidationExtensions
 
     public static WebApplication ValidateLifecycleStartup(this WebApplication app)
     {
-        ValidateRequiredSupervisorConfigurationAsync().GetAwaiter().GetResult();
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        ValidateRequiredSupervisorConfigurationAsync(logger).GetAwaiter().GetResult();
         return app;
     }
 
-    private static async Task ValidateRequiredSupervisorConfigurationAsync()
+    private static async Task ValidateRequiredSupervisorConfigurationAsync(ILogger logger)
     {
         var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -21,9 +24,28 @@ internal static class LifecycleStartupValidationExtensions
             throw new InvalidOperationException("CONNECTION_STRING is not configured.");
         }
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
+        NpgsqlConnection connection;
+        try
+        {
+            connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Startup validation skipped: could not connect to database. " +
+                "The application will start but may not function correctly.");
+            return;
+        }
 
+        await using (connection)
+        {
+            await ValidateSupervisorConfigurationAsync(connection, logger);
+        }
+    }
+
+    private static async Task ValidateSupervisorConfigurationAsync(NpgsqlConnection connection, ILogger logger)
+    {
         const string sql = @"
 SELECT pt.requires_supervisor_step, pt.approval_task_template_key
 FROM process_types pt
@@ -49,6 +71,7 @@ LIMIT 1;";
 
         if (!requiresSupervisorStep)
         {
+            logger.LogInformation("Startup validation passed: supervisor step not required for 'onboarding'.");
             return;
         }
 
@@ -78,5 +101,8 @@ SELECT EXISTS(
             throw new InvalidOperationException(
                 $"Configured approval task template '{approvalTaskTemplateKey}' for process type 'onboarding' is missing in task_templates. Startup aborted.");
         }
+
+        logger.LogInformation(
+            "Startup validation passed: approval task template '{Key}' found.", approvalTaskTemplateKey);
     }
 }

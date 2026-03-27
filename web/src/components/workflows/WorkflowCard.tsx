@@ -18,9 +18,11 @@ export default function WorkflowCard({ workflow }: Props) {
       <div className="workflow-card-top">
         <div>
           <h3>{fullName || "Unbekannter Name"}</h3>
+          <div className="chips-row" aria-label="Prozesstyp">
+            <span className="chip">{workflow.processType.name}</span>
+          </div>
         </div>
         <div className="stacked-status">
-          <span className="status-pill status-pill-neutral">{workflow.processType.name}</span>
           <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
             {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}
           </span>
@@ -28,10 +30,6 @@ export default function WorkflowCard({ workflow }: Props) {
       </div>
 
       <dl className="workflow-meta">
-        <div>
-          <dt>Prozesstyp</dt>
-          <dd>{workflow.processType.name}</dd>
-        </div>
         <div>
           <dt>Personalnummer</dt>
           <dd>{workflow.employeeNumber}</dd>

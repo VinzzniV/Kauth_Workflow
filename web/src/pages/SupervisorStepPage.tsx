@@ -162,6 +162,29 @@ export default function SupervisorStepPage() {
     [selectedWorkflow, requirements, isSaving]
   );
 
+  const workflowGroups = useMemo(() => {
+    const groups = assignedWorkflows.reduce<
+      Array<{ processTypeKey: string; processTypeName: string; workflows: WorkflowSummary[] }>
+    >((current, workflow) => {
+      const existingGroup = current.find((group) => group.processTypeKey === workflow.processType.key);
+      if (existingGroup) {
+        existingGroup.workflows.push(workflow);
+        return current;
+      }
+
+      current.push({
+        processTypeKey: workflow.processType.key,
+        processTypeName: workflow.processType.name,
+        workflows: [workflow],
+      });
+      return current;
+    }, []);
+
+    return groups;
+  }, [assignedWorkflows]);
+
+  const shouldGroupByProcessType = workflowGroups.length > 1;
+
   return (
     <main className="app-shell">
       <div className="page-container">
@@ -208,53 +231,74 @@ export default function SupervisorStepPage() {
         ) : null}
 
         {!queueLoading && !queueError && assignedWorkflows.length > 0 ? (
-          <section className="workflow-grid" aria-label="Zugewiesene Vorgänge für Abteilungsleitungen">
-            {assignedWorkflows.map((workflow) => (
-              <article key={workflow.uid} className="workflow-card">
-                <div className="workflow-card-top">
-                  <div>
-                    <h3>
-                      {workflow.firstName} {workflow.lastName}
-                    </h3>
-                    <p className="panel-note">{workflow.processType.name}</p>
+          <div className={shouldGroupByProcessType ? "task-groups" : undefined}>
+            {(shouldGroupByProcessType ? workflowGroups : [{ processTypeKey: "all", processTypeName: "", workflows: assignedWorkflows }]).map((group) => (
+              <section
+                key={group.processTypeKey}
+                className={shouldGroupByProcessType ? "task-group" : undefined}
+                aria-label={shouldGroupByProcessType ? `Vorgänge für ${group.processTypeName}` : "Zugewiesene Vorgänge für Abteilungsleitungen"}
+              >
+                {shouldGroupByProcessType ? (
+                  <div className="task-group-head">
+                    <div>
+                      <h3>{group.processTypeName}</h3>
+                      <p>{group.workflows.length} offene Freigabe{group.workflows.length === 1 ? "" : "n"}</p>
+                    </div>
+                    <span className="chip">{group.processTypeName}</span>
                   </div>
-                  <div className="stacked-status">
-                    <span className="status-pill status-pill-neutral">{workflow.processType.name}</span>
-                    <span className="status-pill running">Wartet auf Abteilungsleitung</span>
-                  </div>
-                </div>
+                ) : null}
 
-                <dl className="workflow-meta">
-                  <div>
-                    <dt>Personalnummer</dt>
-                    <dd>{workflow.employeeNumber}</dd>
-                  </div>
-                  <div>
-                    <dt>Abteilung</dt>
-                    <dd>{workflow.departmentName}</dd>
-                  </div>
-                  <div>
-                    <dt>Stelle</dt>
-                    <dd>{workflow.roleName}</dd>
-                  </div>
-                  <div>
-                    <dt>Workflow-ID</dt>
-                    <dd>{workflow.uid}</dd>
-                  </div>
-                  <div>
-                    <dt>Erstellt</dt>
-                    <dd>{formatDateTime(workflow.createdAt)}</dd>
-                  </div>
-                </dl>
+                <div className="workflow-grid">
+                  {group.workflows.map((workflow) => (
+                    <article key={workflow.uid} className="workflow-card">
+                      <div className="workflow-card-top">
+                        <div>
+                          <h3>
+                            {workflow.firstName} {workflow.lastName}
+                          </h3>
+                          <div className="chips-row" aria-label="Prozesstyp">
+                            <span className="chip">{workflow.processType.name}</span>
+                          </div>
+                        </div>
+                        <div className="stacked-status">
+                          <span className="status-pill running">Wartet auf Abteilungsleitung</span>
+                        </div>
+                      </div>
 
-                <div className="action-row">
-                  <button type="button" className="btn btn-primary" onClick={() => void loadSupervisorStep(workflow)}>
-                    Angaben öffnen
-                  </button>
+                      <dl className="workflow-meta">
+                        <div>
+                          <dt>Personalnummer</dt>
+                          <dd>{workflow.employeeNumber}</dd>
+                        </div>
+                        <div>
+                          <dt>Abteilung</dt>
+                          <dd>{workflow.departmentName}</dd>
+                        </div>
+                        <div>
+                          <dt>Stelle</dt>
+                          <dd>{workflow.roleName}</dd>
+                        </div>
+                        <div>
+                          <dt>Workflow-ID</dt>
+                          <dd>{workflow.uid}</dd>
+                        </div>
+                        <div>
+                          <dt>Erstellt</dt>
+                          <dd>{formatDateTime(workflow.createdAt)}</dd>
+                        </div>
+                      </dl>
+
+                      <div className="action-row">
+                        <button type="button" className="btn btn-primary" onClick={() => void loadSupervisorStep(workflow)}>
+                          Angaben öffnen
+                        </button>
+                      </div>
+                    </article>
+                  ))}
                 </div>
-              </article>
+              </section>
             ))}
-          </section>
+          </div>
         ) : null}
 
         {isLoadingStep ? <LoadingState title="Freigabeschritt wird geladen..." /> : null}
