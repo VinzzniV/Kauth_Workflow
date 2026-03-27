@@ -7,12 +7,14 @@ import {
   getMe,
   setDemoAuthToken,
 } from "../services/lifecycleApi";
+import { EntraIdentityProvider } from "./EntraIdentityProvider";
 import type { DemoLoginResponse, DemoLoginUserOption, Me } from "../types/auth";
 
 export type IIdentityProvider = {
   readonly providerKind: string;
-  getStoredToken: () => string | null;
+  getStoredToken: () => string | null | Promise<string | null>;
   setStoredToken: (token: string | null) => void;
+  refreshAfterUnauthorized: () => Promise<boolean>;
   getCurrentUser: () => Promise<Me>;
   getLoginOptions: () => Promise<DemoLoginUserOption[]>;
   loginWithUsername: (username: string) => Promise<DemoLoginResponse>;
@@ -22,13 +24,16 @@ export type IIdentityProvider = {
 class DemoIdentityProvider implements IIdentityProvider {
   public readonly providerKind = "demo";
 
-  // Die Demo-Implementierung delegiert alle Aufrufe an den zentralen API-Service.
   public getStoredToken(): string | null {
     return getDemoAuthToken();
   }
 
   public setStoredToken(token: string | null): void {
     setDemoAuthToken(token);
+  }
+
+  public async refreshAfterUnauthorized(): Promise<boolean> {
+    return false;
   }
 
   public getCurrentUser(): Promise<Me> {
@@ -48,6 +53,19 @@ class DemoIdentityProvider implements IIdentityProvider {
   }
 }
 
-// TODO(real-auth): swap this with an Entra/SSO provider implementing
-// the same contract once company auth is introduced.
-export const identityProvider: IIdentityProvider = new DemoIdentityProvider();
+export function getAuthMode(): string {
+  return (import.meta.env.VITE_AUTH_MODE ?? "demo").trim().toLowerCase();
+}
+
+export function isEntraMode(): boolean {
+  return getAuthMode() === "entra";
+}
+
+function createIdentityProvider(): IIdentityProvider {
+  if (isEntraMode()) {
+    return new EntraIdentityProvider();
+  }
+  return new DemoIdentityProvider();
+}
+
+export const identityProvider: IIdentityProvider = createIdentityProvider();

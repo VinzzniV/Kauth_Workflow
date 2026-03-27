@@ -99,17 +99,59 @@ Tool: Claude + Codex
 
 ---
 
-## [F5] Introduce proper auth (ONLY LATE)
-
-Effort: Very High
-Tool: Claude
+# 🟡 FOLLOW-UPS
 
 ---
 
-## [F6] Expand to employee lifecycle platform
+## [P1] Produktive Auth- und Identity-Architektur
 
-Effort: High
-Tool: Claude
+### Status
+Weitgehend umgesetzt.
+
+### Bereits erledigt
+- Demo-Auth in Production deaktiviert
+- Entra-Login fuer Web und API integriert
+- produktive Token-Validierung und `/health` eingebaut
+- Auto-Provisioning fuer Erstlogin umgesetzt
+- Directory-Identities, Directory-Gruppen und Gruppen-Mappings eingefuehrt
+- Admin-UI fuer Directory-Sync, Mappings und Audit aufgebaut
+- Person/Identity-Modell entkoppelt
+- grundlegende Betriebs-Haertung fuer Docker-Prod umgesetzt
+
+### Noch offen / naechste sinnvolle Schritte
+- echte AD/Entra-Gruppen anlegen und produktiv testen
+- Directory-Sync mit realen Gruppen und Mapping-End-to-End pruefen
+- produktive Secret-/Zertifikatsstrategie fuer Graph/Mail haerten
+- Observability/Monitoring im echten Betrieb ergaenzen
+
+### Referenz
+Siehe [`PRODUCTIVE_TARGET_ARCHITECTURE.md`](PRODUCTIVE_TARGET_ARCHITECTURE.md).
+
+### Effort
+Medium
+Tool: Claude + Codex
+
+---
+
+## [P2] Benutzer- und Personendaten sauber trennen
+
+### Status
+Grundlegend umgesetzt.
+
+### Bereits erledigt
+- `people` von lokalem App-User entkoppelt
+- `directory_identity_id` eingefuehrt
+- fachliche Personendaten auf `people` erweitert
+- zentrale Workflow-/Personen-Abfragen auf das neue Modell angepasst
+
+### Noch offen / spaeter pruefen
+- historische Datenmigration auf echter Produktivdatenbank validieren
+- fachliche Nutzung gegen reale Lifecycle-Faelle testen
+- optional spaeter echte `employees`-Entitaet abspalten, falls fachlich noetig
+
+### Effort
+Low
+Tool: Claude + Codex
 
 ---
 

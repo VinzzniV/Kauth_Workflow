@@ -3,6 +3,7 @@ namespace API;
 internal interface IUserAuthorizationRepository
 {
     Task<CurrentUser?> ResolveCurrentUser(ResolvedIdentity identity, CancellationToken cancellationToken = default);
+    Task<CurrentUser?> FindOrCreateFromExternalIdentity(ResolvedIdentity identity, CancellationToken cancellationToken = default);
     Task<List<DemoLoginUserOptionDto>> GetDemoLoginUsers(CancellationToken cancellationToken = default);
     Task<List<AdminUserDto>> GetAdminUsers(CancellationToken cancellationToken = default);
     Task<List<AdminRoleDto>> GetAdminRoles(CancellationToken cancellationToken = default);

@@ -116,3 +116,44 @@ No build artifacts as source of truth.
 
 ## 18. Prefer archive over delete (long-term)
 Protect historical workflows.
+
+---
+
+## 19. Identity source of truth
+- The app is NOT the leading user directory
+- On-prem AD is the leading source
+- Entra ID is the productive auth and integration layer
+- Do not build product logic around local demo identities
+
+---
+
+## 20. No manual user CRUD as default product model
+- Users should not be created manually in the app as the normal path
+- The app may project, map and enrich external identities
+- Local manual overrides must stay the exception, not the base model
+
+---
+
+## 21. Identity != Employee
+- Technical identity and employee master data are different concepts
+- Do not couple employee records 1:1 to local app users
+- Do not resolve productive identity via mutable strings like display name
+
+---
+
+## 22. Groups are the default access model
+- Standard access should come from AD/Entra groups
+- App-specific responsibilities may stay local
+- Roles = access, responsibilities = domain ownership, keep the split strict
+
+---
+
+## 23. Productive auth is now a critical path item
+- Proper auth is NOT a late nice-to-have anymore
+- No production rollout before productive auth, group mapping and secret handling are solved
+
+---
+
+## 24. On-prem hosting still needs modern auth
+- Running on-prem does not justify custom auth shortcuts
+- Use Entra-based login even if API and web are hosted on an internal Docker server

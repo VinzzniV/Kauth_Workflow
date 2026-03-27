@@ -57,7 +57,7 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
         ('ob_has_babtec',           'Babtec-Zugang vorhanden?',     'Programme und Systeme', 'Hat die Person einen aktiven Babtec-User?',                                        'babtec',       'boolean', FALSE, 7),
         ('ob_has_gewatec',          'Gewatec-Zugang vorhanden?',    'Programme und Systeme', 'Hat die Person einen aktiven Gewatec-User?',                                       'gewatec',      'boolean', FALSE, 8),
         ('ob_has_provis',           'Provis-Zugang vorhanden?',     'Programme und Systeme', 'Hat die Person einen aktiven Provis-User?',                                        'berechtigungen', 'boolean', FALSE, 9),
-        ('ob_has_consense',         'Spinfire-Zugang vorhanden?',   'Programme und Systeme', 'Hat die Person einen aktiven Spinfire-User?',                                      'spinfire',     'boolean', FALSE, 10),
+        ('ob_has_consense',         'Consense-Zugang vorhanden?',   'Programme und Systeme', 'Hat die Person einen aktiven Consense-User?',                                      'consense',     'boolean', FALSE, 10),
         ('ob_exit_interview',       'Austrittsgespräch führen?',    'Abschluss',             'Soll ein Austrittsgespräch mit der ausscheidenden Person geführt werden?',          'identitat',    'boolean', TRUE,  11),
         ('ob_knowledge_transfer',   'Wissenstransfer notwendig?',   'Abschluss',             'Muss vor dem Austritt ein strukturierter Wissenstransfer stattfinden?',             'identitat',    'boolean', FALSE, 12)
 )
@@ -188,7 +188,7 @@ WITH template_seed(
         ('ob_babtec_user_disable',  'Babtec-User deaktivieren',              'Fachanwendungen', 'Babtec-Zugang der ausscheidenden Person deaktivieren.',                                                                'babtec',         'QS', 'qs_babtec',      TRUE,  2, 200),
         ('ob_gewatec_user_disable', 'Gewatec-User deaktivieren',             'Fachanwendungen', 'Gewatec-Zugang der ausscheidenden Person deaktivieren.',                                                               'gewatec',        'AV', 'av_gewatec',     TRUE,  2, 210),
         ('ob_provis_user_disable',  'Provis-User deaktivieren',              'Fachanwendungen', 'Provis-Zugang der ausscheidenden Person deaktivieren.',                                                                'berechtigungen', 'AV', 'av_provis',      TRUE,  2, 220),
-        ('ob_consense_user_disable','Spinfire-User deaktivieren',            'Fachanwendungen', 'Spinfire-Zugang der ausscheidenden Person deaktivieren.',                                                              'spinfire',       'QMB','qmb_consense',   TRUE,  2, 230)
+        ('ob_consense_user_disable','Consense-User deaktivieren',            'Fachanwendungen', 'Consense-Zugang der ausscheidenden Person deaktivieren.',                                                              'consense',       'QMB','qmb_consense',   TRUE,  2, 230)
 )
 INSERT INTO task_templates (
     process_type_id,

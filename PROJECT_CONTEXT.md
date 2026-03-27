@@ -10,6 +10,11 @@ Future:
 - offboarding
 - employee changes (name, department, access, hardware, etc.)
 
+Productive direction:
+- app hosted on-prem in Docker
+- identity comes from on-prem AD via Entra sync
+- app maps external identities and groups instead of owning them
+
 ---
 
 ## Core Model
@@ -75,6 +80,12 @@ Frontend → API → DB
 
 Frontend NEVER talks to DB.
 
+Identity and access target:
+- authentication via Microsoft Entra ID
+- backend validates tokens and stays source of truth for authorization
+- app-specific responsibilities remain local
+- employee records must be separated from technical identities
+
 ---
 
 ## Direction
@@ -85,6 +96,9 @@ Move toward:
 - configurable workflows/templates
 - admin-managed data via UI (safe, validated)
 - reuse for multiple process types
+- productive auth and group-based authorization
+- external identity mapping instead of manual in-app user lifecycle
+- admin UI for sync status, group mapping, responsibilities and exceptions
 
 ---
 
@@ -96,6 +110,9 @@ Move toward:
 - move business logic into frontend
 - hardcode new logic unnecessarily
 - introduce large refactors casually
+- treat demo auth as a productive fallback
+- use the app as the primary user directory
+- couple employee identity to mutable display-name matching
 
 ---
 

@@ -12,8 +12,80 @@ internal static class LifecycleStartupValidationExtensions
     public static WebApplication ValidateLifecycleStartup(this WebApplication app)
     {
         var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+        var isProduction = string.Equals(
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Production",
+            StringComparison.OrdinalIgnoreCase);
+
+        var demoActive = LifecycleServiceCollectionExtensions.IsDemoAuthActive();
+        var entraEnabled = LifecycleServiceCollectionExtensions.IsEntraAuthEnabled();
+
+        if (isProduction && !entraEnabled)
+        {
+            logger.LogWarning(
+                "ASPNETCORE_ENVIRONMENT is Production but ENTRA_AUTH_ENABLED is not true. " +
+                "No productive authentication is configured. The application will reject all requests.");
+        }
+
+        if (isProduction && demoActive)
+        {
+            // This should not happen because IsDemoAuthActive() returns false in Production,
+            // but log defensively in case the logic is changed later.
+            logger.LogWarning(
+                "Demo auth is unexpectedly active in Production. This is a security risk.");
+        }
+
+        if (!isProduction && demoActive)
+        {
+            logger.LogInformation("Demo auth endpoints are active (non-production environment).");
+        }
+
+        ValidateEntraConfiguration(logger, isProduction, entraEnabled);
         ValidateRequiredSupervisorConfigurationAsync(logger).GetAwaiter().GetResult();
         return app;
+    }
+
+    private static void ValidateEntraConfiguration(ILogger logger, bool isProduction, bool entraEnabled)
+    {
+        if (!entraEnabled)
+        {
+            return;
+        }
+
+        var tenantId = Environment.GetEnvironmentVariable("ENTRA_TENANT_ID");
+        var clientId = Environment.GetEnvironmentVariable("ENTRA_CLIENT_ID");
+        var audience = Environment.GetEnvironmentVariable("ENTRA_AUDIENCE");
+
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            missing.Add("ENTRA_TENANT_ID");
+        }
+
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            missing.Add("ENTRA_CLIENT_ID");
+        }
+
+        if (string.IsNullOrWhiteSpace(audience))
+        {
+            missing.Add("ENTRA_AUDIENCE");
+        }
+
+        if (missing.Count == 0)
+        {
+            logger.LogInformation("Startup validation passed: Entra auth configuration is present.");
+            return;
+        }
+
+        var message = $"Entra auth is enabled but missing required settings: {string.Join(", ", missing)}.";
+        if (isProduction)
+        {
+            throw new InvalidOperationException($"{message} Startup aborted.");
+        }
+
+        logger.LogWarning("{Message}", message);
     }
 
     private static async Task ValidateRequiredSupervisorConfigurationAsync(ILogger logger)

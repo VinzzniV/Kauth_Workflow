@@ -380,17 +380,21 @@ SELECT EXISTS(
         const string sql = @"
 SELECT
     p.id,
-    u.display_name,
+    COALESCE(
+        NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name), COALESCE(p.last_name, latest.last_name))), ''),
+        u.display_name,
+        'Person #' || p.id::text
+    ) AS display_name,
     COALESCE(latest.department_id, p.department_id, u.department_id) AS department_id,
     d.name AS department_name,
     latest.position_role_id,
     r.name AS role_name,
-    latest.employee_number,
-    latest.badge_number,
-    latest.first_name,
-    latest.last_name
+    COALESCE(latest.employee_number, p.employee_number) AS employee_number,
+    COALESCE(latest.badge_number, p.badge_number) AS badge_number,
+    COALESCE(p.first_name, latest.first_name) AS first_name,
+    COALESCE(p.last_name, latest.last_name) AS last_name
 FROM people p
-JOIN app_users u ON u.id = p.app_user_id
+LEFT JOIN app_users u ON u.id = p.app_user_id
 LEFT JOIN LATERAL (
     SELECT
         w.department_id,
@@ -402,7 +406,16 @@ LEFT JOIN LATERAL (
         w.created_at
     FROM workflows w
     WHERE w.target_person_id = p.id
-       OR (w.employee_number > 0 AND TRIM(w.first_name || ' ' || w.last_name) = u.display_name)
+       OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
+       OR (
+            w.employee_number > 0
+            AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
+                COALESCE(
+                    NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+                    u.display_name,
+                    'Person #' || p.id::text
+                )
+       )
     ORDER BY w.created_at DESC
     LIMIT 1
 ) latest ON TRUE

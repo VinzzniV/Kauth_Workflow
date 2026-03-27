@@ -59,7 +59,7 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
         ('dc_has_babtec',           'Babtec-Zugang anpassen?',         'Programme und Systeme', 'Muss der Babtec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?','babtec',         'boolean', FALSE, 9),
         ('dc_has_gewatec',          'Gewatec-Zugang anpassen?',        'Programme und Systeme', 'Muss der Gewatec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?','gewatec',       'boolean', FALSE, 10),
         ('dc_has_provis',           'Provis-Zugang anpassen?',         'Programme und Systeme', 'Muss der Provis-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?','berechtigungen', 'boolean', FALSE, 11),
-        ('dc_has_consense',         'Spinfire-Zugang anpassen?',       'Programme und Systeme', 'Muss der Spinfire-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?','spinfire',     'boolean', FALSE, 12)
+        ('dc_has_consense',         'Consense-Zugang anpassen?',       'Programme und Systeme', 'Muss der Consense-Zugang fuer die neue Abteilung angepasst oder neu eingerichtet werden?','consense',     'boolean', FALSE, 12)
 )
 INSERT INTO workflow_answer_definitions (
     process_type_id, answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active
@@ -116,7 +116,7 @@ WITH template_seed(
         ('dc_babtec_access_update',     'Babtec-Zugang anpassen',                'Fachanwendungen', 'Babtec-Berechtigungen auf die neue Abteilung umstellen.',                                                      'babtec',         'QS', 'qs_babtec',      TRUE,  3,  200),
         ('dc_gewatec_access_update',    'Gewatec-Zugang anpassen',               'Fachanwendungen', 'Gewatec-Berechtigungen auf die neue Abteilung umstellen.',                                                     'gewatec',        'AV', 'av_gewatec',     TRUE,  3,  210),
         ('dc_provis_access_update',     'Provis-Zugang anpassen',                'Fachanwendungen', 'Provis-Berechtigungen auf die neue Abteilung umstellen.',                                                      'berechtigungen', 'AV', 'av_provis',      TRUE,  3,  220),
-        ('dc_consense_access_update',   'Spinfire-Zugang anpassen',              'Fachanwendungen', 'Spinfire-Berechtigungen auf die neue Abteilung umstellen.',                                                    'spinfire',       'QMB','qmb_consense',   TRUE,  3,  230)
+        ('dc_consense_access_update',   'Consense-Zugang anpassen',              'Fachanwendungen', 'Consense-Berechtigungen auf die neue Abteilung umstellen.',                                                    'consense',       'QMB','qmb_consense',   TRUE,  3,  230)
 )
 INSERT INTO task_templates (
     process_type_id,

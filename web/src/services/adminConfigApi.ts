@@ -1,6 +1,12 @@
 import type {
   AdminAnswerDefinition,
   AdminDependencyGraph,
+  AdminDirectoryGroup,
+  AdminDirectoryGroupRoleMapping,
+  AdminDirectoryIdentity,
+  AdminDirectoryMappingAuditEntry,
+  AdminDirectorySyncResult,
+  AdminDirectorySyncStatus,
   AdminProcessType,
   AdminRoleAnswerDefault,
   AdminTaskTemplate,
@@ -13,12 +19,70 @@ import { getCachedRequest, invalidateCachedRequest } from "./cache";
 import type {
   BackendAdminAnswerDefinitionDto,
   BackendAdminDependencyGraphDto,
+  BackendAdminDirectoryGroupDto,
+  BackendAdminDirectoryGroupRoleMappingDto,
+  BackendAdminDirectoryIdentityDto,
+  BackendAdminDirectoryMappingAuditEntryDto,
+  BackendAdminDirectorySyncResultDto,
+  BackendAdminDirectorySyncStatusDto,
   BackendAdminProcessTypeDto,
   BackendAdminRoleAnswerDefaultDto,
   BackendAdminTaskTemplateConditionDto,
   BackendAdminTaskTemplateDependencyDto,
   BackendAdminTaskTemplateDto,
 } from "./api/backendDtos";
+
+export async function getAdminDirectoryStatus(): Promise<AdminDirectorySyncStatus> {
+  return requestJson<BackendAdminDirectorySyncStatusDto>("/admin/directory/status");
+}
+
+export async function syncAdminDirectory(groupPrefix?: string | null): Promise<AdminDirectorySyncResult> {
+  return requestJson<BackendAdminDirectorySyncResultDto>("/admin/directory/sync", {
+    method: "POST",
+    body: {
+      groupPrefix: groupPrefix ?? null,
+    },
+  });
+}
+
+export async function getAdminDirectoryGroups(): Promise<AdminDirectoryGroup[]> {
+  return requestJson<BackendAdminDirectoryGroupDto[]>("/admin/directory/groups");
+}
+
+export async function getAdminDirectoryIdentities(
+  limit = 100,
+  offset = 0
+): Promise<AdminDirectoryIdentity[]> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return requestJson<BackendAdminDirectoryIdentityDto[]>(`/admin/directory/identities?${params.toString()}`);
+}
+
+export async function getAdminDirectoryAudit(limit = 50): Promise<AdminDirectoryMappingAuditEntry[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return requestJson<BackendAdminDirectoryMappingAuditEntryDto[]>(`/admin/directory/audit?${params.toString()}`);
+}
+
+export async function createAdminDirectoryGroupRoleMapping(payload: {
+  directoryGroupId: number;
+  appRoleId: number;
+  scope?: string | null;
+  scopeDepartmentId?: number | null;
+  isActive?: boolean;
+}): Promise<AdminDirectoryGroupRoleMapping> {
+  return requestJson<BackendAdminDirectoryGroupRoleMappingDto>("/admin/directory/group-mappings", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function deleteAdminDirectoryGroupRoleMapping(mappingId: number): Promise<void> {
+  await requestJson<unknown>(`/admin/directory/group-mappings/${encodeURIComponent(String(mappingId))}`, {
+    method: "DELETE",
+  });
+}
 
 export async function bulkCreateDepartmentChange(
   payload: BulkDepartmentChangePayload

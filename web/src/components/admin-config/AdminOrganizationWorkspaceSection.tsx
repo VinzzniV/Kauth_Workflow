@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { isEntraMode } from "../../auth/IdentityProvider";
 import EmptyState from "../feedback/EmptyState";
 import AdminOrganizationRelationsPanel from "./AdminOrganizationRelationsPanel";
 import type {
@@ -187,6 +188,7 @@ export function AdminOrganizationWorkspaceSection({
   onResponsibilityDraftChange,
   onSaveResponsibilityAssignment,
 }: AdminOrganizationWorkspaceSectionProps) {
+  const externalIdentityMode = isEntraMode();
   const [organizationSearch, setOrganizationSearch] = useState<string>("");
   const [userActivityFilter, setUserActivityFilter] = useState<UserActivityFilter>("all");
   const [userDepartmentFilter, setUserDepartmentFilter] = useState<string>("");
@@ -589,9 +591,19 @@ export function AdminOrganizationWorkspaceSection({
         return (
           <section className="panel">
             <div className="panel-head">
-              <h2>Neue Person</h2>
-              <p>Personen-Stammdaten bleiben hier bewusst getrennt von Rollen und Gruppen.</p>
+              <h2>{externalIdentityMode ? "Neue Ausnahme-Person" : "Neue Person"}</h2>
+              <p>
+                {externalIdentityMode
+                  ? "Identitäten kommen im Regelfall aus Entra. Die manuelle Anlage bleibt nur für Ausnahmen und Übergangsfälle sichtbar."
+                  : "Personen-Stammdaten bleiben hier bewusst getrennt von Rollen und Gruppen."}
+              </p>
             </div>
+
+            {externalIdentityMode ? (
+              <p className="panel-note">
+                Empfehlung: zuerst Verzeichnis-Sync und Gruppen-Mappings im Bereich „Verzeichnis“ nutzen.
+              </p>
+            ) : null}
 
             <div className="form-grid">
               <label className="field">
@@ -670,7 +682,7 @@ export function AdminOrganizationWorkspaceSection({
                 }}
                 disabled={!canCreateUser}
               >
-                {isCreatingUser ? "Anlegen..." : "Person anlegen"}
+                {isCreatingUser ? "Anlegen..." : externalIdentityMode ? "Ausnahme-Person anlegen" : "Person anlegen"}
               </button>
             </div>
           </section>
@@ -681,8 +693,18 @@ export function AdminOrganizationWorkspaceSection({
         <section className="panel">
           <div className="panel-head">
             <h2>Person pflegen: {selectedUser.displayName}</h2>
-            <p>Verknüpfte Organisationsbeziehungen werden rechts kontextbezogen eingeblendet.</p>
+            <p>
+              {externalIdentityMode
+                ? "Lokale Pflege bleibt für Ausnahmen möglich. Verknüpfte Organisationsbeziehungen werden rechts kontextbezogen eingeblendet."
+                : "Verknüpfte Organisationsbeziehungen werden rechts kontextbezogen eingeblendet."}
+            </p>
           </div>
+
+          {externalIdentityMode ? (
+            <p className="panel-note">
+              Im Entra-Modus sollten Login-Identität und Gruppen primär aus dem Verzeichnis kommen. Lokale Änderungen hier nur gezielt einsetzen.
+            </p>
+          ) : null}
 
           <div className="form-grid">
             <label className="field">

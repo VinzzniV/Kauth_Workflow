@@ -213,12 +213,14 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
         }
 
         setCompletedOnboardings(results);
-        if (selectedCompletedOnboarding) {
-          const refreshed = results.find((result) => result.workflowUid === selectedCompletedOnboarding.workflowUid);
-          if (refreshed) {
-            setSelectedCompletedOnboardingState(refreshed);
+        setSelectedCompletedOnboardingState((previous) => {
+          if (!previous) {
+            return previous;
           }
-        }
+
+          const refreshed = results.find((result) => result.workflowUid === previous.workflowUid);
+          return refreshed ?? previous;
+        });
       })
       .catch((err) => {
         if (cancelled) {
@@ -239,7 +241,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     return () => {
       cancelled = true;
     };
-  }, [debouncedCompletedOnboardingSearch, requiresTargetPerson, selectedCompletedOnboarding]);
+  }, [debouncedCompletedOnboardingSearch, requiresTargetPerson]);
 
   const effectiveRoleIdForConfig = requiresTargetPerson
     ? selectedCompletedOnboarding?.roleId ?? null

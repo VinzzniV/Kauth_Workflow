@@ -433,6 +433,72 @@ public sealed class WorkflowEndpointsTests
     }
 
     [Fact]
+    public async Task WorkflowListEndpoint_RestrictsManagerToObservableDepartments()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            RequirementSelectionDepartmentIdsResult = new HashSet<int> { 7 }
+        };
+
+        var app = CreateApp(repository, CreateManagerUserForDepartment(7));
+        var endpoint = GetWorkflowEndpoint(app, "/workflows", HttpMethods.Get);
+        var context = CreateGetRequestContext(app.Services, endpoint, "/workflows", "");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetFilteredWorkflowsCallCount);
+        Assert.NotNull(repository.LastWorkflowListQuery);
+        Assert.Equal(new[] { 7 }, repository.LastWorkflowListQuery!.ObservableDepartmentIds);
+    }
+
+    [Fact]
+    public async Task CompletedOnboardingsEndpoint_RestrictsManagerToObservableDepartments()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            RequirementSelectionDepartmentIdsResult = new HashSet<int> { 7 }
+        };
+
+        var app = CreateApp(repository, CreateManagerUserForDepartment(7));
+        var endpoint = GetWorkflowEndpoint(app, "/workflows/completed-onboardings", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            "/workflows/completed-onboardings",
+            "?search=ada");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.SearchCompletedOnboardingsCallCount);
+        Assert.Equal(new[] { 7 }, repository.LastSearchCompletedOnboardingsDepartmentIds);
+    }
+
+    [Fact]
+    public async Task WorkflowTargetPeopleEndpoint_RestrictsManagerToObservableDepartments()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            RequirementSelectionDepartmentIdsResult = new HashSet<int> { 7 }
+        };
+
+        var app = CreateApp(repository, CreateManagerUserForDepartment(7));
+        var endpoint = GetWorkflowEndpoint(app, "/workflow-target-people", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            "/workflow-target-people",
+            "?query=ada");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.SearchWorkflowTargetPeopleCallCount);
+        Assert.Equal(new[] { 7 }, repository.LastSearchWorkflowTargetPeopleDepartmentIds);
+    }
+
+    [Fact]
     public async Task CreateWorkflowEndpoint_ManagerOnlyRejectsDisallowedProcessTypes()
     {
         var repository = new StubWorkflowRepository
@@ -464,6 +530,117 @@ public sealed class WorkflowEndpointsTests
         Assert.Equal(1, repository.IsManagerCreatableProcessTypeCallCount);
         Assert.Equal("onboarding", repository.LastIsManagerCreatableProcessTypeKey);
         Assert.Equal(0, repository.CreateWorkflowCallCount);
+    }
+
+    [Fact]
+    public async Task CreateWorkflowEndpoint_ManagerRejectsTargetPersonOutsideObservableDepartments()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            IsManagerCreatableProcessTypeResult = true,
+            ActiveProcessTypes =
+            [
+                new WorkflowProcessTypeDto
+                {
+                    Key = "department_change",
+                    Name = "Abteilungswechsel",
+                    RequiresTargetPerson = true
+                }
+            ],
+            RequirementSelectionDepartmentIdsResult = new HashSet<int> { 7 },
+            PersonWorkflowHistory = new PersonWorkflowHistoryDto
+            {
+                PersonId = 55,
+                DisplayName = "Ada Lovelace",
+                DepartmentId = 9,
+                DepartmentName = "Fremd",
+                EmployeeNumber = 1001,
+                BadgeNumber = 2002,
+                FirstName = "Ada",
+                LastName = "Lovelace",
+                Workflows = new List<PersonWorkflowSummaryDto>()
+            }
+        };
+
+        var app = CreateApp(repository, CreateManagerUserForDepartment(7));
+        var endpoint = GetWorkflowEndpoint(app, "/workflows", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/workflows",
+            new CreateWorkflowRequest
+            {
+                ProcessTypeKey = "department_change",
+                TargetPersonId = 55,
+                SourceWorkflowUid = Guid.NewGuid(),
+                FirstName = "Ada",
+                LastName = "Lovelace",
+                EmployeeNumber = 1001,
+                BadgeNumber = 2002
+            });
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+        Assert.Equal(0, repository.CreateWorkflowCallCount);
+        Assert.Equal(1, repository.GetPersonWorkflowHistoryCallCount);
+    }
+
+    [Fact]
+    public async Task CreateWorkflowEndpoint_ManagerAllowsTargetPersonInsideObservableDepartments()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            IsManagerCreatableProcessTypeResult = true,
+            ActiveProcessTypes =
+            [
+                new WorkflowProcessTypeDto
+                {
+                    Key = "department_change",
+                    Name = "Abteilungswechsel",
+                    RequiresTargetPerson = true
+                }
+            ],
+            RequirementSelectionDepartmentIdsResult = new HashSet<int> { 7 },
+            PersonWorkflowHistory = new PersonWorkflowHistoryDto
+            {
+                PersonId = 55,
+                DisplayName = "Ada Lovelace",
+                DepartmentId = 7,
+                DepartmentName = "Eigene Abteilung",
+                EmployeeNumber = 1001,
+                BadgeNumber = 2002,
+                FirstName = "Ada",
+                LastName = "Lovelace",
+                Workflows = new List<PersonWorkflowSummaryDto>()
+            },
+            Workflow = CreateWorkflowDetail(Guid.Parse("11111111-1111-1111-1111-111111111111"))
+        };
+
+        var app = CreateApp(repository, CreateManagerUserForDepartment(7));
+        var endpoint = GetWorkflowEndpoint(app, "/workflows", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/workflows",
+            new CreateWorkflowRequest
+            {
+                ProcessTypeKey = "department_change",
+                TargetPersonId = 55,
+                SourceWorkflowUid = Guid.NewGuid(),
+                FirstName = "Ada",
+                LastName = "Lovelace",
+                EmployeeNumber = 1001,
+                BadgeNumber = 2002
+            });
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status201Created, context.Response.StatusCode);
+        Assert.Equal(1, repository.CreateWorkflowCallCount);
+        Assert.Equal(1, repository.GetPersonWorkflowHistoryCallCount);
     }
 
     [Fact]
@@ -1071,6 +1248,80 @@ public sealed class WorkflowEndpointsTests
         };
     }
 
+    private static CurrentUser CreateManagerUserForDepartment(int departmentId)
+    {
+        return new CurrentUser
+        {
+            UserId = 99,
+            ExternalKey = "manager.user",
+            DisplayName = "Manager User",
+            Email = "manager.user@example.com",
+            IsActive = true,
+            DepartmentId = departmentId,
+            DepartmentName = "Test Department",
+            IdentityProvider = "test",
+            Groups = new List<CurrentUserGroup>(),
+            DirectRoles =
+            [
+                new CurrentUserRole
+                {
+                    RoleId = 1,
+                    RoleKey = AuthorizationRoles.Manager,
+                    RoleName = AuthorizationRoles.Manager,
+                    RoleKind = AuthorizationRoles.SystemRoleKind,
+                    AssignmentSource = "test",
+                    GroupId = null,
+                    GroupKey = null
+                }
+            ],
+            GroupRoles = new List<CurrentUserRole>(),
+            EffectiveRoles =
+            [
+                new CurrentUserRole
+                {
+                    RoleId = 1,
+                    RoleKey = AuthorizationRoles.Manager,
+                    RoleName = AuthorizationRoles.Manager,
+                    RoleKind = AuthorizationRoles.SystemRoleKind,
+                    AssignmentSource = "test",
+                    GroupId = null,
+                    GroupKey = null
+                }
+            ],
+            DirectResponsibilities =
+            [
+                new CurrentUserResponsibility
+                {
+                    ResponsibilityId = 501,
+                    ResponsibilityKey = $"leadership_{departmentId}",
+                    ResponsibilityName = "Department Lead",
+                    ResponsibilityType = "department_lead",
+                    DepartmentId = departmentId,
+                    DepartmentName = "Test Department",
+                    AssignmentSource = "test",
+                    GroupId = null,
+                    GroupKey = null
+                }
+            ],
+            GroupResponsibilities = new List<CurrentUserResponsibility>(),
+            EffectiveResponsibilities =
+            [
+                new CurrentUserResponsibility
+                {
+                    ResponsibilityId = 501,
+                    ResponsibilityKey = $"leadership_{departmentId}",
+                    ResponsibilityName = "Department Lead",
+                    ResponsibilityType = "department_lead",
+                    DepartmentId = departmentId,
+                    DepartmentName = "Test Department",
+                    AssignmentSource = "test",
+                    GroupId = null,
+                    GroupKey = null
+                }
+            ]
+        };
+    }
+
     private sealed class StubUserContext(CurrentUser user) : IUserContext
     {
         public Task<CurrentUser?> GetCurrentUser(CancellationToken cancellationToken = default)
@@ -1092,6 +1343,13 @@ public sealed class WorkflowEndpointsTests
         public List<AdminProcessTypeDto> AdminProcessTypes { get; set; } = new();
         public AdminProcessTypeDto? UpdatedProcessType { get; set; }
         public Exception? UpdateProcessTypeException { get; set; }
+        public WorkflowListResult FilteredWorkflowsResult { get; set; } = new()
+        {
+            Items = new List<WorkflowListItemDto>(),
+            TotalCount = 0
+        };
+        public HashSet<int> RequirementSelectionDepartmentIdsResult { get; set; } = new();
+        public PersonWorkflowHistoryDto? PersonWorkflowHistory { get; set; }
         public bool DeleteWorkflowLinkResult { get; set; }
         public List<WorkflowProcessTypeDto> ActiveProcessTypes { get; set; } = new();
         public int GetWorkflowByUidCallCount { get; private set; }
@@ -1107,13 +1365,21 @@ public sealed class WorkflowEndpointsTests
         public int UpdateProcessTypeCallCount { get; private set; }
         public int GetActiveProcessTypesCallCount { get; private set; }
         public int SearchCompletedOnboardingsCallCount { get; private set; }
+        public int SearchWorkflowTargetPeopleCallCount { get; private set; }
         public int CreateWorkflowCallCount { get; private set; }
         public int IsManagerCreatableProcessTypeCallCount { get; private set; }
         public int GetWorkflowCreatedNotificationDispatchTargetsCallCount { get; private set; }
         public int ApplyNotificationDispatchResultsCallCount { get; private set; }
+        public int GetPersonWorkflowHistoryCallCount { get; private set; }
+        public int GetRequirementSelectionDepartmentIdsCallCount { get; private set; }
+        public int GetFilteredWorkflowsCallCount { get; private set; }
         public bool LastGetActiveProcessTypesManagerOnly { get; private set; }
         public string? LastSearchCompletedOnboardingsSearch { get; private set; }
         public int? LastSearchCompletedOnboardingsLimit { get; private set; }
+        public IReadOnlyCollection<int>? LastSearchCompletedOnboardingsDepartmentIds { get; private set; }
+        public string? LastSearchWorkflowTargetPeopleQuery { get; private set; }
+        public int? LastSearchWorkflowTargetPeopleLimit { get; private set; }
+        public IReadOnlyCollection<int>? LastSearchWorkflowTargetPeopleDepartmentIds { get; private set; }
         public int? LastAuditLogLimit { get; private set; }
         public int? LastAuditLogOffset { get; private set; }
         public string? LastIsManagerCreatableProcessTypeKey { get; private set; }
@@ -1133,6 +1399,7 @@ public sealed class WorkflowEndpointsTests
         public AdminProcessTypeUpdateRequest? LastUpdateProcessTypeRequest { get; private set; }
         public CreateWorkflowRequest? LastCreateWorkflowRequest { get; private set; }
         public long? LastCreateWorkflowUserId { get; private set; }
+        public WorkflowListQuery? LastWorkflowListQuery { get; private set; }
         public bool IsManagerCreatableProcessTypeResult { get; set; } = true;
         public List<CompletedOnboardingSearchResultDto> CompletedOnboardings { get; set; } = new();
         public WorkflowCreationResult WorkflowCreationResult { get; set; } = new()
@@ -1188,7 +1455,12 @@ public sealed class WorkflowEndpointsTests
             return Task.CompletedTask;
         }
         public Task<List<WorkflowListItemDto>> GetWorkflows() => throw new NotSupportedException();
-        public Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query) => throw new NotSupportedException();
+        public Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query)
+        {
+            GetFilteredWorkflowsCallCount += 1;
+            LastWorkflowListQuery = query;
+            return Task.FromResult(FilteredWorkflowsResult);
+        }
 
         public Task<WorkflowDetailDto?> GetWorkflowByUid(Guid workflowUid)
         {
@@ -1204,7 +1476,11 @@ public sealed class WorkflowEndpointsTests
             return Task.FromResult(AuditEntries);
         }
 
-        public Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId) => throw new NotSupportedException();
+        public Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId)
+        {
+            GetRequirementSelectionDepartmentIdsCallCount += 1;
+            return Task.FromResult(RequirementSelectionDepartmentIdsResult);
+        }
         public Task<List<TaskWithWorkflowDto>> GetTasks() => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskById(long taskId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId) => throw new NotSupportedException();
@@ -1235,15 +1511,33 @@ public sealed class WorkflowEndpointsTests
         }
         public Task<bool> ArchiveWorkflow(Guid workflowUid, long actorUserId) => throw new NotSupportedException();
         public Task<bool> DeleteDraftWorkflow(Guid workflowUid) => throw new NotSupportedException();
-        public Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId) => throw new NotSupportedException();
-        public Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(string? search, int limit = 20)
+        public Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId)
+        {
+            GetPersonWorkflowHistoryCallCount += 1;
+            return Task.FromResult(PersonWorkflowHistory);
+        }
+        public Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(
+            string? search,
+            int limit = 20,
+            IReadOnlyCollection<int>? observableDepartmentIds = null)
         {
             SearchCompletedOnboardingsCallCount += 1;
             LastSearchCompletedOnboardingsSearch = search;
             LastSearchCompletedOnboardingsLimit = limit;
+            LastSearchCompletedOnboardingsDepartmentIds = observableDepartmentIds;
             return Task.FromResult(CompletedOnboardings);
         }
-        public Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(string? query, int limit = 20) => throw new NotSupportedException();
+        public Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(
+            string? query,
+            int limit = 20,
+            IReadOnlyCollection<int>? observableDepartmentIds = null)
+        {
+            SearchWorkflowTargetPeopleCallCount += 1;
+            LastSearchWorkflowTargetPeopleQuery = query;
+            LastSearchWorkflowTargetPeopleLimit = limit;
+            LastSearchWorkflowTargetPeopleDepartmentIds = observableDepartmentIds;
+            return Task.FromResult(new List<WorkflowTargetPersonDto>());
+        }
 
         public Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null)
         {
@@ -1366,6 +1660,7 @@ public sealed class WorkflowEndpointsTests
     private sealed class StubUserAuthorizationRepository : IUserAuthorizationRepository
     {
         public Task<CurrentUser?> ResolveCurrentUser(ResolvedIdentity identity, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<CurrentUser?> FindOrCreateFromExternalIdentity(ResolvedIdentity identity, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<DemoLoginUserOptionDto>> GetDemoLoginUsers(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminUserDto>> GetAdminUsers(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminRoleDto>> GetAdminRoles(CancellationToken cancellationToken = default) => throw new NotSupportedException();

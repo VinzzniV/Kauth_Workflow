@@ -17,8 +17,12 @@ export default function AppLayout({ children }: Props) {
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="sidebar-logo">MP</span>
-          <span className="sidebar-title">Mitarbeiterprozesse</span>
+          <img
+            className="sidebar-logo"
+            src="/mitarbeiter_lifecycle_icon.svg"
+            alt="Kauth Onboarding"
+          />
+          <span className="sidebar-title">Kauth Onboarding</span>
         </div>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">

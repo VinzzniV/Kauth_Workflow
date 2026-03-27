@@ -10,6 +10,12 @@ import type {
 } from "../../types/workflow";
 import type {
   AdminDepartmentAssignment,
+  AdminDirectoryGroup,
+  AdminDirectoryGroupRoleMapping,
+  AdminDirectoryIdentity,
+  AdminDirectoryMappingAuditEntry,
+  AdminDirectorySyncResult,
+  AdminDirectorySyncStatus,
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
@@ -367,6 +373,12 @@ export type BackendAdminDepartmentAssignmentDto = AdminDepartmentAssignment;
 export type BackendAdminResponsibilityOwnerDto = AdminResponsibilityOwner;
 export type BackendAdminNotificationEmailConfigurationDto = AdminNotificationEmailConfiguration;
 export type BackendAdminNotificationEmailTestResponseDto = AdminNotificationEmailTestResponse;
+export type BackendAdminDirectoryGroupDto = AdminDirectoryGroup;
+export type BackendAdminDirectoryGroupRoleMappingDto = AdminDirectoryGroupRoleMapping;
+export type BackendAdminDirectoryIdentityDto = AdminDirectoryIdentity;
+export type BackendAdminDirectoryMappingAuditEntryDto = AdminDirectoryMappingAuditEntry;
+export type BackendAdminDirectorySyncStatusDto = AdminDirectorySyncStatus;
+export type BackendAdminDirectorySyncResultDto = AdminDirectorySyncResult;
 
 export type BackendWorkflowLinkDto = WorkflowLink;
 export type BackendLinkableWorkflowDto = LinkableWorkflow;

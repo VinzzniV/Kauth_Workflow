@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 
 namespace API;
 
@@ -361,6 +362,17 @@ LEFT JOIN app_responsibilities ar ON ar.id = sa.assignee_responsibility_id
             conditions.Add("w.status = 'completed'");
         }
 
+        if (query.ObservableDepartmentIds is { Count: > 0 })
+        {
+            conditions.Add("w.department_id = ANY(@observableDepartmentIds)");
+            command.Parameters.Add("observableDepartmentIds", NpgsqlDbType.Array | NpgsqlDbType.Integer).Value =
+                query.ObservableDepartmentIds.ToArray();
+        }
+        else if (query.ObservableDepartmentIds is { Count: 0 })
+        {
+            conditions.Add("FALSE");
+        }
+
         if (query.Status is not null)
         {
             conditions.Add("w.status = @status");
@@ -430,6 +442,7 @@ LEFT JOIN app_responsibilities ar ON ar.id = sa.assignee_responsibility_id
 SELECT
     w.id,
     w.uid,
+    w.process_type_id,
     w.first_name,
     w.last_name,
     w.employee_number,
@@ -454,6 +467,7 @@ WHERE w.uid = @uid
 LIMIT 1;";
 
         long workflowId;
+        int processTypeId;
         WorkflowDetailDto workflow;
 
         await using (var workflowCommand = new NpgsqlCommand(workflowSql, connection))
@@ -467,31 +481,32 @@ LIMIT 1;";
             }
 
             workflowId = reader.GetInt64(0);
-            var workflowStatus = reader.GetString(13);
+            processTypeId = reader.GetInt32(2);
+            var workflowStatus = reader.GetString(14);
 
             workflow = new WorkflowDetailDto
             {
                 Uid = reader.GetGuid(1),
-                FirstName = reader.GetString(2),
-                LastName = reader.GetString(3),
-                EmployeeNumber = reader.GetInt32(4),
-                BadgeNumber = reader.GetInt32(5),
-                DepartmentId = reader.GetInt32(6),
-                DepartmentName = reader.GetString(7),
+                FirstName = reader.GetString(3),
+                LastName = reader.GetString(4),
+                EmployeeNumber = reader.GetInt32(5),
+                BadgeNumber = reader.GetInt32(6),
+                DepartmentId = reader.GetInt32(7),
+                DepartmentName = reader.GetString(8),
                 ProcessType = new WorkflowProcessTypeDto
                 {
-                    Key = reader.GetString(8),
-                    Name = reader.GetString(9),
-                    RequiresTargetPerson = reader.GetBoolean(10)
+                    Key = reader.GetString(9),
+                    Name = reader.GetString(10),
+                    RequiresTargetPerson = reader.GetBoolean(11)
                 },
-                RoleId = reader.GetInt32(11),
-                RoleName = reader.GetString(12),
+                RoleId = reader.GetInt32(12),
+                RoleName = reader.GetString(13),
                 Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                 WorkflowStatus = workflowStatus,
-                DeadlineDate = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
-                CreatedAt = reader.GetDateTime(15),
-                ArchivedAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
-                TargetPersonId = reader.IsDBNull(17) ? null : reader.GetInt64(17),
+                DeadlineDate = reader.IsDBNull(15) ? null : reader.GetFieldValue<DateOnly>(15),
+                CreatedAt = reader.GetDateTime(16),
+                ArchivedAt = reader.IsDBNull(17) ? null : reader.GetDateTime(17),
+                TargetPersonId = reader.IsDBNull(18) ? null : reader.GetInt64(18),
                 Requirements = new List<WorkflowRequirementSnapshotDto>(),
                 RequirementSummary = WorkflowSummaryBuilder.CreateEmptyRequirementSummary(),
                 Tasks = new List<WorkflowTaskDto>(),
@@ -501,7 +516,7 @@ LIMIT 1;";
             };
         }
 
-        await LoadWorkflowRequirements(connection, workflowId, workflow.Requirements);
+        await LoadWorkflowRequirements(connection, workflowId, processTypeId, workflow.Requirements);
         await LoadWorkflowTasks(connection, workflowId, workflow.Tasks);
         await LoadWorkflowNotifications(connection, workflowId, workflow.Notifications);
         workflow.RequirementSummary = WorkflowSummaryBuilder.BuildRequirementSummary(workflow.Requirements);

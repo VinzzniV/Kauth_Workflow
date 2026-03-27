@@ -81,6 +81,73 @@ export type AdminResponsibilityOwner = {
   updatedAt: string | null;
 };
 
+export type AdminDirectoryGroupRoleMapping = {
+  mappingId: number;
+  directoryGroupId: number;
+  appRoleId: number;
+  appRoleKey: string;
+  appRoleName: string;
+  appRoleKind: string;
+  roleDepartmentId: number | null;
+  roleDepartmentName: string | null;
+  scope: string;
+  scopeDepartmentId: number | null;
+  isActive: boolean;
+};
+
+export type AdminDirectoryGroup = {
+  directoryGroupId: number;
+  externalGroupId: string;
+  displayName: string;
+  description: string | null;
+  lastSyncedAt: string | null;
+  memberCount: number;
+  roleMappings: AdminDirectoryGroupRoleMapping[];
+};
+
+export type AdminDirectoryIdentity = {
+  directoryIdentityId: number;
+  entraObjectId: string;
+  userPrincipalName: string;
+  mail: string | null;
+  displayName: string;
+  accountEnabled: boolean;
+  appUserId: number | null;
+  appUserDisplayName: string | null;
+  lastSyncedAt: string | null;
+};
+
+export type AdminDirectorySyncStatus = {
+  lastSyncAt: string | null;
+  lastSyncStatus: string | null;
+  totalGroups: number;
+  totalIdentities: number;
+  totalMappings: number;
+  lastError: string | null;
+  configuredGroupPrefix: string | null;
+};
+
+export type AdminDirectorySyncResult = {
+  status: string;
+  groupsSynced: number;
+  identitiesSynced: number;
+  membershipsSynced: number;
+  errorMessage: string | null;
+  appliedGroupPrefix: string | null;
+};
+
+export type AdminDirectoryMappingAuditEntry = {
+  auditEntryId: number;
+  actorUserId: number | null;
+  actorDisplayName: string | null;
+  eventType: string;
+  entityType: string;
+  detail: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+};
+
 export type AdminNotificationEmailConfiguration = {
   enabled: boolean;
   mode: "enabled" | "disabled" | "sandbox";

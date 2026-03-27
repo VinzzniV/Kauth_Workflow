@@ -7,6 +7,9 @@ Diese Uebersicht beschreibt die aktuell vorhandene Struktur des Repositories. Fo
 `PROJECT_STRUCTURE.md`
 Diese Detailuebersicht.
 
+`PRODUCTIVE_TARGET_ARCHITECTURE.md`
+Sollbild fuer produktive Architektur, Auth, Rollenmodell, Datenmodell und Migrationspfad.
+
 `docker-compose.yml`  
 Startet PostgreSQL, API und das gebaute Web-Frontend gemeinsam.
 
@@ -50,13 +53,13 @@ Globale Styles der Anwendung.
 ### `web/src/auth`
 
 `AuthContext.tsx`  
-Verwaltet Demo-Login, Logout, Session-Wiederherstellung und den globalen Auth-Status.
+Verwaltet aktuell Demo-Login, Logout, Session-Wiederherstellung und den globalen Auth-Status. Produktiv ist hier ein Entra-basiertes Auth-Modell vorgesehen.
 
 `CurrentUserContext.tsx`  
 Leitet Rollen, Labels, Features und Default-Route aus dem angemeldeten Benutzer ab.
 
 `IdentityProvider.ts`  
-Frontend-Abstraktion fuer Demo-Login, `/me` und tab-lokale Token-Speicherung.
+Frontend-Abstraktion fuer Demo-Login, `/me` und tab-lokale Token-Speicherung. Muss langfristig auf produktive Entra-Authentifizierung umgestellt werden.
 
 `roleModel.ts`  
 Rollenkeys, Feature-Matrix und Standardrouten fuer die UI.
@@ -99,7 +102,7 @@ Arbeitsbereich der Abteilungsleitung fuer den Supervisor-Schritt mit bedingten A
 Persoenlicher Aufgabenarbeitsplatz des Fachbereichs.
 
 `AdminConfigPage.tsx`
-Verwaltet Benutzer, Rollen, Gruppen, Abteilungen, Verantwortlichkeiten und Notification-E-Mail-Einstellungen.
+Verwaltet aktuell Benutzer, Rollen, Gruppen, Abteilungen, Verantwortlichkeiten und Notification-E-Mail-Einstellungen. Das Zielbild verschiebt den Fokus weg von User-CRUD hin zu Gruppen-Mapping, Verantwortlichkeiten, Sync-Status und Ausnahmen.
 
 `PersonWorkflowHistoryPage.tsx`
 Zeigt alle Workflows einer Person (nach Personen-ID) in chronologischer Reihenfolge.
@@ -195,10 +198,10 @@ Lokale Startprofile fuer Entwicklung in IDE oder CLI.
 Liefert den aufgeloesten aktuellen Benutzer und den Request-Kontext.
 
 `Identity/`  
-Abstraktion zur Ermittlung der Identitaet aus eingehenden Requests.
+Abstraktion zur Ermittlung der Identitaet aus eingehenden Requests. Aktuell demo-lastig, produktiv auf Entra/OIDC auszurichten.
 
 `Resolvers/`  
-Konkrete Resolver fuer Demo-Header und Demo-Session-Token.
+Konkrete Resolver fuer Demo-Header und Demo-Session-Token. Diese sind Entwicklungs-/Demo-Helfer und kein produktives Zielmodell.
 
 `Sessions/`  
 In-Memory-Speicher fuer Demo-Sessions.
@@ -234,7 +237,7 @@ PostgreSQL-Implementierung fuer Workflow-Lebenszyklus, Anforderungslogik, Aufgab
 Vertrag fuer Benutzer-, Rollen-, Gruppen- und Stammdatenzugriffe.
 
 `PostgresUserAuthorizationRepository.cs`  
-Liest und pflegt Benutzer, Rollen, Gruppen, Abteilungen und Verantwortlichkeiten.
+Liest und pflegt aktuell Benutzer, Rollen, Gruppen, Abteilungen und Verantwortlichkeiten. Produktiv darf die Anwendung Identitaeten und Gruppen nicht primaer selbst besitzen.
 
 `INotificationEmailConfigurationRepository.cs`  
 Vertrag fuer Notification-E-Mail-Konfiguration.
@@ -272,7 +275,7 @@ Vertrag fuer Workflow-Benachrichtigungen.
 Vertrag fuer Testmails.
 
 `GraphWorkflowEmailNotificationSender.cs`  
-Versendet gebuendelte Aufgaben- und Abschlussbenachrichtigungen ueber Microsoft Graph und erzeugt Demo-Zugangslinks.
+Versendet gebuendelte Aufgaben- und Abschlussbenachrichtigungen ueber Microsoft Graph. Demo-Zugangslinks sind nur fuer Demo/Dev akzeptabel und muessen fuer Produktivbetrieb entfallen.
 
 ### Endpunkte in `Program.cs`
 

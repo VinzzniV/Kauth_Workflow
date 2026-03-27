@@ -5,6 +5,8 @@ export {
 } from "./AdminConfigOverviewSections";
 export {
   AdminDepartmentsSection,
+  AdminGroupMappingSection,
+  AdminDirectorySyncSection,
   AdminResponsibilitiesSection,
   AdminTechnicalAccessSection,
   AdminUsersSection,

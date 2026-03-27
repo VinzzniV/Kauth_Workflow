@@ -89,7 +89,8 @@ LIMIT 1;";
         var directRoles = await LoadDirectRoles(connection, userId, cancellationToken);
         var groups = await LoadGroups(connection, userId, cancellationToken);
         var groupRoles = await LoadGroupRoles(connection, userId, cancellationToken);
-        var effectiveRoles = BuildEffectiveRoles(directRoles, groupRoles);
+        var directoryGroupRoles = await LoadDirectoryGroupRoles(connection, userId, cancellationToken);
+        var effectiveRoles = BuildEffectiveRoles(directRoles, groupRoles, directoryGroupRoles);
         var directResponsibilities = await LoadDirectResponsibilities(connection, userId, cancellationToken);
         var groupResponsibilities = await LoadGroupResponsibilities(connection, userId, cancellationToken);
         var effectiveResponsibilities = BuildEffectiveResponsibilities(directResponsibilities, groupResponsibilities);
@@ -112,6 +113,124 @@ LIMIT 1;";
             GroupResponsibilities = groupResponsibilities,
             EffectiveResponsibilities = effectiveResponsibilities
         };
+    }
+
+    // Auto-provisions a new app_users + people record from an external identity (e.g. Entra).
+    // Returns the fully resolved CurrentUser after creation, or null if identity data is insufficient.
+    public async Task<CurrentUser?> FindOrCreateFromExternalIdentity(
+        ResolvedIdentity identity,
+        CancellationToken cancellationToken = default)
+    {
+        var externalKey = Normalize(identity.ExternalKey);
+        if (string.IsNullOrWhiteSpace(externalKey))
+        {
+            return null;
+        }
+
+        var displayName = !string.IsNullOrWhiteSpace(identity.DisplayName)
+            ? identity.DisplayName!.Trim()
+            : externalKey;
+
+        var email = !string.IsNullOrWhiteSpace(identity.Email)
+            ? identity.Email!.Trim()
+            : $"{externalKey}@provisioned.local";
+
+        var entraObjectId = Guid.TryParse(externalKey, out var parsedObjectId)
+            ? parsedObjectId
+            : (Guid?)null;
+
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+
+        const string findExistingSql = @"
+SELECT id
+FROM app_users
+WHERE external_key = @externalKey
+   OR (@entraObjectId IS NOT NULL AND entra_object_id = @entraObjectId)
+   OR LOWER(email) = LOWER(@email)
+ORDER BY CASE
+    WHEN external_key = @externalKey THEN 0
+    WHEN @entraObjectId IS NOT NULL AND entra_object_id = @entraObjectId THEN 1
+    ELSE 2
+END
+LIMIT 1;";
+
+        long? userId = null;
+        await using (var findCmd = new NpgsqlCommand(findExistingSql, connection))
+        {
+            findCmd.Parameters.AddWithValue("externalKey", externalKey);
+            findCmd.Parameters.AddWithValue("email", email);
+            var entraObjectIdParameter = findCmd.Parameters.Add("entraObjectId", NpgsqlDbType.Uuid);
+            entraObjectIdParameter.Value = (object?)entraObjectId ?? DBNull.Value;
+
+            var existingId = await findCmd.ExecuteScalarAsync(cancellationToken);
+            if (existingId is long existingUserId)
+            {
+                userId = existingUserId;
+            }
+        }
+
+        if (userId.HasValue)
+        {
+            const string updateUserSql = @"
+UPDATE app_users
+SET external_key = @externalKey,
+    entra_object_id = COALESCE(@entraObjectId, entra_object_id),
+    display_name = @displayName,
+    email = @email,
+    is_active = TRUE
+WHERE id = @userId;";
+
+            await using var updateCmd = new NpgsqlCommand(updateUserSql, connection);
+            updateCmd.Parameters.AddWithValue("userId", userId.Value);
+            updateCmd.Parameters.AddWithValue("externalKey", externalKey);
+            updateCmd.Parameters.AddWithValue("displayName", displayName);
+            updateCmd.Parameters.AddWithValue("email", email);
+            var entraObjectIdParameter = updateCmd.Parameters.Add("entraObjectId", NpgsqlDbType.Uuid);
+            entraObjectIdParameter.Value = (object?)entraObjectId ?? DBNull.Value;
+            await updateCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        else
+        {
+            const string insertUserSql = @"
+INSERT INTO app_users (external_key, entra_object_id, display_name, email, is_active)
+VALUES (@externalKey, @entraObjectId, @displayName, @email, TRUE)
+RETURNING id;";
+
+            await using var insertCmd = new NpgsqlCommand(insertUserSql, connection);
+            insertCmd.Parameters.AddWithValue("externalKey", externalKey);
+            insertCmd.Parameters.AddWithValue("displayName", displayName);
+            insertCmd.Parameters.AddWithValue("email", email);
+            var entraObjectIdParameter = insertCmd.Parameters.Add("entraObjectId", NpgsqlDbType.Uuid);
+            entraObjectIdParameter.Value = (object?)entraObjectId ?? DBNull.Value;
+
+            var result = await insertCmd.ExecuteScalarAsync(cancellationToken);
+            userId = (long)result!;
+        }
+
+        // INSERT associated people record.
+        const string insertPeopleSql = @"
+INSERT INTO people (app_user_id)
+VALUES (@userId)
+ON CONFLICT (app_user_id) DO NOTHING;";
+
+        await using (var peopleCmd = new NpgsqlCommand(insertPeopleSql, connection))
+        {
+            peopleCmd.Parameters.AddWithValue("userId", userId!.Value);
+            await peopleCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        // Now resolve the full user model with roles/groups/responsibilities.
+        return await ResolveCurrentUser(
+            new ResolvedIdentity
+            {
+                UserId = userId,
+                ExternalKey = identity.ExternalKey,
+                Email = identity.Email,
+                DisplayName = identity.DisplayName,
+                Provider = identity.Provider
+            },
+            cancellationToken);
     }
 
     // Liefert die auswaehlbaren Demo-Benutzer fuer die Login-Seite.
@@ -328,12 +447,70 @@ ORDER BY g.name, r.role_kind, r.name;";
         return groupRoles;
     }
 
+    private static async Task<List<CurrentUserRole>> LoadDirectoryGroupRoles(
+        NpgsqlConnection connection,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+SELECT
+    dg.id,
+    dg.display_name,
+    r.id,
+    r.role_key,
+    r.name,
+    r.role_kind
+FROM directory_identities di
+JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
+JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
+JOIN directory_groups dg ON dg.id = dgm.directory_group_id
+JOIN app_roles r ON r.id = dgrm.app_role_id
+WHERE di.app_user_id = @userId
+  AND dgrm.is_active = TRUE
+  AND r.is_active = TRUE
+  AND r.role_kind = 'system'
+ORDER BY dg.display_name, r.name;";
+
+        // Guard: if directory tables don't exist yet (migration not applied), return empty.
+        try
+        {
+            await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("userId", userId);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var roles = new List<CurrentUserRole>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                roles.Add(new CurrentUserRole
+                {
+                    GroupId = reader.GetInt32(0),
+                    GroupKey = null,
+                    DirectoryGroupName = reader.GetString(1),
+                    RoleId = reader.GetInt32(2),
+                    RoleKey = reader.GetString(3),
+                    RoleName = reader.GetString(4),
+                    RoleKind = reader.GetString(5),
+                    AssignmentSource = "directory_group"
+                });
+            }
+
+            return roles;
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            // Table does not exist yet — migration not applied. Return empty list.
+            return [];
+        }
+    }
+
     private static List<CurrentUserRole> BuildEffectiveRoles(
         IReadOnlyList<CurrentUserRole> directRoles,
-        IReadOnlyList<CurrentUserRole> groupRoles)
+        IReadOnlyList<CurrentUserRole> groupRoles,
+        IReadOnlyList<CurrentUserRole>? directoryGroupRoles = null)
     {
         var effectiveByRoleId = new Dictionary<int, CurrentUserRole>();
 
+        // Priority: direct > app group > directory group.
         foreach (var role in directRoles)
         {
             effectiveByRoleId[role.RoleId] = role;
@@ -344,6 +521,17 @@ ORDER BY g.name, r.role_kind, r.name;";
             if (!effectiveByRoleId.ContainsKey(role.RoleId))
             {
                 effectiveByRoleId[role.RoleId] = role;
+            }
+        }
+
+        if (directoryGroupRoles is not null)
+        {
+            foreach (var role in directoryGroupRoles)
+            {
+                if (!effectiveByRoleId.ContainsKey(role.RoleId))
+                {
+                    effectiveByRoleId[role.RoleId] = role;
+                }
             }
         }
 

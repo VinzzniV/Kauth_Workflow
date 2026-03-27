@@ -1,12 +1,44 @@
 using System.Net;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
 
 namespace API;
 
 internal static class LifecycleServiceCollectionExtensions
 {
+    /// <summary>
+    /// Checks whether demo auth endpoints and resolvers should be active.
+    /// Demo is disabled when DEMO_ENDPOINTS_ENABLED=false OR ASPNETCORE_ENVIRONMENT=Production.
+    /// </summary>
+    internal static bool IsDemoAuthActive()
+    {
+        var explicitlyDisabled = string.Equals(
+            Environment.GetEnvironmentVariable("DEMO_ENDPOINTS_ENABLED"),
+            "false",
+            StringComparison.OrdinalIgnoreCase);
+
+        var isProduction = string.Equals(
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Production",
+            StringComparison.OrdinalIgnoreCase);
+
+        return !explicitlyDisabled && !isProduction;
+    }
+
+    /// <summary>
+    /// Checks whether Entra ID authentication is enabled via ENTRA_AUTH_ENABLED=true.
+    /// </summary>
+    internal static bool IsEntraAuthEnabled()
+    {
+        return string.Equals(
+            Environment.GetEnvironmentVariable("ENTRA_AUTH_ENABLED"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     public static IServiceCollection AddLifecycleApiServices(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -27,12 +59,50 @@ internal static class LifecycleServiceCollectionExtensions
         });
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();
         services.AddHttpContextAccessor();
-        services.AddSingleton<IDemoSessionStore, InMemoryDemoSessionStore>();
-        // Current demo identity chain.
-        // TODO(real-auth): add an Entra/Windows/SSO resolver implementation here
-        // and register it before/alongside demo resolvers.
-        services.AddScoped<IRequestIdentityResolver, DemoSessionTokenIdentityResolver>();
-        services.AddScoped<IRequestIdentityResolver, DemoHeaderIdentityResolver>();
+
+        // Identity resolver chain: Entra first (if enabled), then demo resolvers (if active).
+        // In Production, demo resolvers are never registered.
+        var demoActive = IsDemoAuthActive();
+        var entraEnabled = IsEntraAuthEnabled();
+
+        if (entraEnabled)
+        {
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddMicrosoftIdentityWebApi(
+                    jwtOptions =>
+                    {
+                        var audience = Environment.GetEnvironmentVariable("ENTRA_AUDIENCE");
+                        if (!string.IsNullOrWhiteSpace(audience))
+                        {
+                            jwtOptions.Audience = audience;
+                        }
+                    },
+                    identityOptions =>
+                    {
+                        identityOptions.Instance = "https://login.microsoftonline.com/";
+                        var tenantId = Environment.GetEnvironmentVariable("ENTRA_TENANT_ID");
+                        if (!string.IsNullOrWhiteSpace(tenantId))
+                        {
+                            identityOptions.TenantId = tenantId;
+                        }
+                        var clientId = Environment.GetEnvironmentVariable("ENTRA_CLIENT_ID");
+                        if (!string.IsNullOrWhiteSpace(clientId))
+                        {
+                            identityOptions.ClientId = clientId;
+                        }
+                    });
+
+            services.AddAuthorization();
+            services.AddScoped<IRequestIdentityResolver, EntraTokenIdentityResolver>();
+        }
+
+        if (demoActive)
+        {
+            services.AddSingleton<IDemoSessionStore, InMemoryDemoSessionStore>();
+            services.AddScoped<IRequestIdentityResolver, DemoSessionTokenIdentityResolver>();
+            services.AddScoped<IRequestIdentityResolver, DemoHeaderIdentityResolver>();
+        }
+
         services.AddScoped<IIdentityProvider, IdentityProvider>();
         services.AddScoped<IUserAuthorizationRepository, PostgresUserAuthorizationRepository>();
         services.AddScoped<INotificationEmailConfigurationRepository, PostgresNotificationEmailConfigurationRepository>();
@@ -45,6 +115,11 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<INotificationEmailConfigurationService, NotificationEmailConfigurationService>();
         services.AddScoped<IWorkflowEmailNotificationSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<INotificationEmailTestSender, GraphWorkflowEmailNotificationSender>();
+        services.AddScoped<IDirectorySyncService, EntraDirectorySyncService>();
+        services.AddHttpClient("health", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
 
         services.AddCors(options =>
         {

@@ -1,4 +1,4 @@
-// Verwaltet die Demo-Anmeldung und stellt den globalen Session-Zustand fuer das Frontend bereit.
+// Verwaltet die Anmeldung und stellt den globalen Session-Zustand fuer das Frontend bereit.
 import {
   useCallback,
   useEffect,
@@ -6,7 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { identityProvider } from "./IdentityProvider";
+import { identityProvider, isEntraMode } from "./IdentityProvider";
+import { handleMsalRedirect } from "./EntraIdentityProvider";
 import type { DemoLoginUserOption, Me } from "../types/auth";
 import { AuthContext } from "./useAuth";
 import type { AuthStatus } from "./useAuth";
@@ -21,8 +22,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Laedt die verfuegbaren Demo-Benutzer fuer die Login-Seite.
+  // Laedt die verfuegbaren Demo-Benutzer fuer die Login-Seite (nur im Demo-Modus).
   const reloadUsers = useCallback(async () => {
+    if (isEntraMode()) return;
+
     setUsersLoading(true);
     setUsersError(null);
 
@@ -40,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Baut eine vorhandene Session aus dem gespeicherten Token wieder auf.
   const refreshMe = useCallback(async () => {
-    const token = identityProvider.getStoredToken();
+    const token = await Promise.resolve(identityProvider.getStoredToken());
     if (!token) {
       setCurrentUser(null);
       setStatus("unauthenticated");
@@ -61,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Fuehrt den Demo-Login aus und aktualisiert danach den aktuellen Benutzer.
+  // Fuehrt den Login aus und aktualisiert danach den aktuellen Benutzer.
   const login = useCallback(async (username: string) => {
     setLoginError(null);
 
@@ -73,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus("authenticated");
       return true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Demo-Login fehlgeschlagen.";
+      const message = error instanceof Error ? error.message : "Login fehlgeschlagen.";
       identityProvider.setStoredToken(null);
       setLoginError(message);
       setCurrentUser(null);
@@ -82,12 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Loescht die lokale Session auch dann, wenn der Logout-Call im Demo-Modus fehlschlaegt.
+  // Loescht die lokale Session.
   const logout = useCallback(async () => {
     try {
       await identityProvider.logout();
     } catch {
-      // Ignore network/logout errors for demo sessions.
+      // Ignore network/logout errors.
     } finally {
       identityProvider.setStoredToken(null);
       setCurrentUser(null);
@@ -96,14 +99,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Beim App-Start werden sowohl Login-Optionen als auch eine evtl. bestehende Session geladen.
+  // App-Start: Session wiederherstellen oder Entra-Redirect verarbeiten.
   useEffect(() => {
-    void reloadUsers();
-    void refreshMe();
+    const initialize = async () => {
+      try {
+        if (isEntraMode()) {
+          // Handle the return from a Microsoft login redirect.
+          const account = await handleMsalRedirect();
+          if (account) {
+            // User returned from Entra login — fetch their profile.
+            await refreshMe();
+          } else {
+            setStatus("unauthenticated");
+          }
+        } else {
+          // Demo mode: load demo users and try to restore session.
+          void reloadUsers();
+          await refreshMe();
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Anmeldung konnte nicht initialisiert werden.";
+        setLoginError(message);
+        setCurrentUser(null);
+        setStatus("unauthenticated");
+      }
+    };
+    void initialize();
   }, [refreshMe, reloadUsers]);
 
   useEffect(() => {
-    const handleInvalidDemoAuth = () => {
+    const handleInvalidAuth = () => {
       identityProvider.setStoredToken(null);
       setCurrentUser(null);
       setStatus("unauthenticated");
@@ -114,10 +140,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void reloadUsers();
     };
 
-    window.addEventListener("demo-auth-invalid", handleInvalidDemoAuth);
+    window.addEventListener("auth-invalid", handleInvalidAuth);
+    // Keep backwards compatibility for demo mode event.
+    window.addEventListener("demo-auth-invalid", handleInvalidAuth);
     window.addEventListener(DEMO_USERS_REFRESH_EVENT, handleRefreshDemoUsers);
     return () => {
-      window.removeEventListener("demo-auth-invalid", handleInvalidDemoAuth);
+      window.removeEventListener("auth-invalid", handleInvalidAuth);
+      window.removeEventListener("demo-auth-invalid", handleInvalidAuth);
       window.removeEventListener(DEMO_USERS_REFRESH_EVENT, handleRefreshDemoUsers);
     };
   }, [reloadUsers]);

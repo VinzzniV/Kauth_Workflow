@@ -60,7 +60,7 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
         ('pc_has_babtec',           'Babtec-Zugang anpassen?',             'Programme und Systeme', 'Muessen Babtec-Berechtigungen wegen der neuen Position angepasst werden?',                     'babtec',         'boolean', FALSE, 10),
         ('pc_has_gewatec',          'Gewatec-Zugang anpassen?',            'Programme und Systeme', 'Muessen Gewatec-Berechtigungen wegen der neuen Position angepasst werden?',                    'gewatec',        'boolean', FALSE, 11),
         ('pc_has_provis',           'Provis-Zugang anpassen?',             'Programme und Systeme', 'Muessen Provis-Berechtigungen wegen der neuen Position angepasst werden?',                     'berechtigungen', 'boolean', FALSE, 12),
-        ('pc_has_consense',         'Spinfire-Zugang anpassen?',           'Programme und Systeme', 'Muessen Spinfire-Berechtigungen wegen der neuen Position angepasst werden?',                   'spinfire',       'boolean', FALSE, 13)
+        ('pc_has_consense',         'Consense-Zugang anpassen?',           'Programme und Systeme', 'Muessen Consense-Berechtigungen wegen der neuen Position angepasst werden?',                   'consense',       'boolean', FALSE, 13)
 )
 INSERT INTO workflow_answer_definitions (
     process_type_id, answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active
@@ -111,7 +111,7 @@ WITH template_seed(
         ('pc_babtec_access_update',      'Babtec-Zugang anpassen',              'Fachanwendungen', 'Babtec-Berechtigungen auf die neue Position umstellen.',                                                    'babtec',         'QS', 'qs_babtec',      TRUE, 3, 220),
         ('pc_gewatec_access_update',     'Gewatec-Zugang anpassen',             'Fachanwendungen', 'Gewatec-Berechtigungen auf die neue Position umstellen.',                                                   'gewatec',        'AV', 'av_gewatec',     TRUE, 3, 230),
         ('pc_provis_access_update',      'Provis-Zugang anpassen',              'Fachanwendungen', 'Provis-Berechtigungen auf die neue Position umstellen.',                                                    'berechtigungen', 'AV', 'av_provis',      TRUE, 3, 240),
-        ('pc_consense_access_update',    'Spinfire-Zugang anpassen',            'Fachanwendungen', 'Spinfire-Berechtigungen auf die neue Position umstellen.',                                                  'spinfire',       'QMB','qmb_consense',   TRUE, 3, 250)
+        ('pc_consense_access_update',    'Consense-Zugang anpassen',            'Fachanwendungen', 'Consense-Berechtigungen auf die neue Position umstellen.',                                                  'consense',       'QMB','qmb_consense',   TRUE, 3, 250)
 )
 INSERT INTO task_templates (
     process_type_id,

@@ -474,13 +474,17 @@ ORDER BY created_at, id;";
         const string sql = @"
 SELECT
     p.id,
-    u.display_name,
+    COALESCE(
+        NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name), COALESCE(p.last_name, latest.last_name))), ''),
+        u.display_name,
+        'Person #' || p.id::text
+    ) AS display_name,
     COALESCE(latest.department_id, p.department_id, u.department_id) AS resolved_department_id,
     d.name AS department_name,
-    latest.employee_number,
-    latest.badge_number,
-    latest.first_name,
-    latest.last_name,
+    COALESCE(latest.employee_number, p.employee_number) AS employee_number,
+    COALESCE(latest.badge_number, p.badge_number) AS badge_number,
+    COALESCE(p.first_name, latest.first_name) AS first_name,
+    COALESCE(p.last_name, latest.last_name) AS last_name,
     w.uid,
     pt.key,
     pt.name,
@@ -494,7 +498,7 @@ SELECT
     w.completed_at,
     w.archived_at
 FROM people p
-JOIN app_users u ON u.id = p.app_user_id
+LEFT JOIN app_users u ON u.id = p.app_user_id
 LEFT JOIN LATERAL (
     SELECT
         wl.department_id,
@@ -504,11 +508,14 @@ LEFT JOIN LATERAL (
         wl.last_name
     FROM workflows wl
     WHERE wl.target_person_id = p.id
+       OR (p.employee_number IS NOT NULL AND wl.employee_number = p.employee_number)
     ORDER BY wl.created_at DESC
     LIMIT 1
 ) latest ON TRUE
 LEFT JOIN departments d ON d.id = COALESCE(latest.department_id, p.department_id, u.department_id)
-LEFT JOIN workflows w ON w.target_person_id = p.id
+LEFT JOIN workflows w
+    ON w.target_person_id = p.id
+    OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
 LEFT JOIN process_types pt ON pt.id = w.process_type_id
 LEFT JOIN app_roles r ON r.id = w.position_role_id
 LEFT JOIN departments w_dept ON w_dept.id = w.department_id

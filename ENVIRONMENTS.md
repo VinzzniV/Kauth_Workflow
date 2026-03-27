@@ -49,10 +49,18 @@ Gedacht fuer:
 - reale Workflows
 
 Regeln:
+- Authentifizierung ueber produktive Entra-Integration.
 - Kein Demo-Login.
 - Keine Demo-Seed-Daten und keine `@demo.local`-Adressen.
 - Mailversand nur mit produktiver Konfiguration und ohne Sandbox-Redirect.
 - Secrets und Umgebungswerte kommen aus der Laufzeitumgebung, nicht aus eingecheckten Dateien.
+- Keine Demo-Zugriffslinks in produktiven Benachrichtigungen.
+- Keine Header-basierte Pseudo-Authentifizierung.
+- Benutzer und Gruppen kommen aus dem fuehrenden Verzeichnis, nicht aus manueller In-App-Anlage.
+- Rollen werden bevorzugt aus externen Gruppen abgeleitet; lokale Ausnahmen muessen bewusst und nachvollziehbar sein.
+- Produktivbetrieb braucht TLS, Logging, Monitoring, Backup und einen definierten Migrationsprozess.
+- Der Endpoint `/health` muss im Produktivbetrieb gruen sein und sowohl Datenbank als auch Entra-Erreichbarkeit erfolgreich melden.
+- Wenn `ENTRA_AUTH_ENABLED=true` aktiv ist, muessen `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` und `ENTRA_AUDIENCE` gesetzt sein; fehlende Werte verhindern den Start in Production.
 
 ---
 
@@ -61,3 +69,4 @@ Regeln:
 - `db/02_seed.sql` ist Demo-/Dev-Hilfe, kein Produktions-Setup.
 - [`scripts/Prepare-Handoff.ps1`](scripts/Prepare-Handoff.ps1) muss Handoff-Artefakte ohne Build-/Runtime-Reste erzeugen.
 - Wenn unklar ist, ob eine Einstellung Demo oder Prod betrifft, konservativ bleiben: lieber deaktiviert oder Sandbox statt echter Wirkung.
+- Siehe auch [`PRODUCTIVE_TARGET_ARCHITECTURE.md`](PRODUCTIVE_TARGET_ARCHITECTURE.md) fuer das produktive Zielbild.

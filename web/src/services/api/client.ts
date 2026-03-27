@@ -1,3 +1,5 @@
+import { identityProvider } from "../../auth/IdentityProvider";
+
 type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export type RequestOptions = {
@@ -66,8 +68,8 @@ export function setDemoAuthToken(token: string | null): void {
   window.localStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
 }
 
-function buildRequestHeaders(withJsonBody: boolean): HeadersInit {
-  const token = getDemoAuthToken();
+async function buildRequestHeaders(withJsonBody: boolean): Promise<HeadersInit> {
+  const token = await Promise.resolve(identityProvider.getStoredToken());
 
   return {
     Accept: "application/json",
@@ -92,13 +94,21 @@ function toSafeErrorMessage(status: number, payload: unknown): string {
 }
 
 export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return requestJsonInternal<T>(path, options, true);
+}
+
+async function requestJsonInternal<T>(
+  path: string,
+  options: RequestOptions,
+  canRetryUnauthorized: boolean
+): Promise<T> {
   const { method = "GET", body } = options;
 
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       method,
-      headers: buildRequestHeaders(Boolean(body)),
+      headers: await buildRequestHeaders(Boolean(body)),
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
   } catch (error) {
@@ -113,8 +123,19 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
-      setDemoAuthToken(null);
-      window.dispatchEvent(new Event("demo-auth-invalid"));
+      if (canRetryUnauthorized) {
+        try {
+          const refreshed = await identityProvider.refreshAfterUnauthorized();
+          if (refreshed) {
+            return requestJsonInternal<T>(path, options, false);
+          }
+        } catch {
+          // Fall through to standard invalid-auth handling.
+        }
+      }
+
+      identityProvider.setStoredToken(null);
+      window.dispatchEvent(new Event("auth-invalid"));
     }
 
     const err = new Error(toSafeErrorMessage(response.status, payload)) as ApiError;

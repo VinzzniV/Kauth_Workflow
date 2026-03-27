@@ -59,8 +59,12 @@ export default function DemoLoginPage() {
     <div className="login-shell">
       <div className="login-container">
         <div className="login-header">
-          <div className="login-logo">MP</div>
-          <h1>Mitarbeiterprozesse</h1>
+          <img
+            className="login-logo"
+            src="/mitarbeiter_lifecycle_icon.svg"
+            alt="Kauth Onboarding"
+          />
+          <h1>Kauth Onboarding</h1>
           <p>Wählen Sie einen Benutzer aus, um sich in die Demo anzumelden.</p>
         </div>
 

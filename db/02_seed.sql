@@ -468,7 +468,7 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
         ('tiso_requested', 'Tisoware', 'Programme und Systeme', 'Soll Tisoware für die neue Person bereitgestellt werden?', 'tiso', 'boolean', FALSE, 17, TRUE),
         ('gewatec_requested', 'Gewatec', 'Programme und Systeme', 'Soll ein Gewatec-User für die neue Person angelegt werden?', 'gewatec', 'boolean', FALSE, 18, TRUE),
         ('provis_requested', 'Provis', 'Programme und Systeme', 'Soll ein Provis-User für die neue Person angelegt werden?', 'provis', 'boolean', FALSE, 19, TRUE),
-        ('consense_requested', 'Spinfire', 'Programme und Systeme', 'Soll Spinfire für die neue Person angelegt und eine Schulung eingeplant werden?', 'spinfire', 'boolean', FALSE, 20, TRUE),
+        ('consense_requested', 'Consense-User anlegen?', 'Programme und Systeme', 'Soll fuer die neue Person ein Consense-User angelegt werden?', 'consense', 'boolean', FALSE, 20, TRUE),
         ('internal_drive_access_requested', 'Zugangsrechte internes Laufwerk', 'Zugangsrechte', 'Sollen Zugangsrechte für ein internes Laufwerk vergeben werden?', 'berechtigungen', 'boolean', FALSE, 21, TRUE),
         ('internal_drive_access_roles', 'Funktion für Laufwerksrechte', 'Zugangsrechte', 'Welche Funktion soll für die Laufwerksrechte berücksichtigt werden?', 'berechtigungen', 'multi_select', FALSE, 22, TRUE),
         ('special_notes', 'Besondere Hinweise', 'Dokumentation', 'Freitext für wichtige Hinweise im Onboarding.', 'identitat', 'text', FALSE, 92, FALSE)
@@ -858,8 +858,7 @@ WITH template_seed(
         ('babtec_user_create', 'Babtec-User anlegen', 'Fachanwendungen', 'User in Babtec für die neue Person anlegen.', 'babtec', 'QS', 'qs_babtec', NULL, TRUE, TRUE, 3, 200),
         ('gewatec_user_create', 'Gewatec-User anlegen', 'Fachanwendungen', 'Gewatec-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_gewatec', NULL, TRUE, TRUE, 3, 210),
         ('provis_user_create', 'Provis-User anlegen', 'Fachanwendungen', 'Provis-User für die neue Person anlegen.', 'berechtigungen', 'AV', 'av_provis', NULL, TRUE, TRUE, 3, 220),
-        ('consense_setup', 'Spinfire anlegen', 'Fachanwendungen', 'Spinfire für die neue Person anlegen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 3, 230),
-        ('consense_training', 'Spinfire-Schulung planen', 'Schulung', 'Spinfire-Schulung für die neue Person planen und durchführen.', 'spinfire', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 7, 240)
+        ('consense_setup', 'Consense User anlegen', 'Fachanwendungen', 'Consense-User fuer die neue Person anlegen.', 'consense', 'QMB', 'qmb_consense', NULL, TRUE, TRUE, 3, 230)
 )
 INSERT INTO task_templates (
     process_type_id,
@@ -949,8 +948,7 @@ WITH condition_seed(
         ('gewatec_user_create', 1, 'gewatec_requested', 'is_true', NULL::text, TRUE, NULL::numeric),
         ('provis_user_create', 1, 'provis_requested', 'is_true', NULL::text, TRUE, NULL::numeric),
 
-        ('consense_setup', 1, 'consense_requested', 'is_true', NULL::text, TRUE, NULL::numeric),
-        ('consense_training', 1, 'consense_requested', 'is_true', NULL::text, TRUE, NULL::numeric)
+        ('consense_setup', 1, 'consense_requested', 'is_true', NULL::text, TRUE, NULL::numeric)
 )
 INSERT INTO task_template_conditions (
     task_template_id,
@@ -1014,8 +1012,7 @@ WITH dependency_seed(task_key, depends_on_task_key, required_status) AS (
         ('babtec_user_create', 'supervisor_fills_document', 'done'),
         ('gewatec_user_create', 'supervisor_fills_document', 'done'),
         ('provis_user_create', 'supervisor_fills_document', 'done'),
-        ('consense_setup', 'supervisor_fills_document', 'done'),
-        ('consense_training', 'consense_setup', 'done')
+        ('consense_setup', 'supervisor_fills_document', 'done')
 )
 INSERT INTO task_template_dependencies (task_template_id, depends_on_task_template_id, required_status)
 SELECT

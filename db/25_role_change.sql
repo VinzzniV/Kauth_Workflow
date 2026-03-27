@@ -59,7 +59,7 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
         ('rc_has_babtec',             'Babtec-Zugang anpassen?',             'Programme und Systeme','Muessen Babtec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?',      'babtec',         'boolean', FALSE,9),
         ('rc_has_gewatec',            'Gewatec-Zugang anpassen?',            'Programme und Systeme','Muessen Gewatec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?',     'gewatec',        'boolean', FALSE,10),
         ('rc_has_provis',             'Provis-Zugang anpassen?',             'Programme und Systeme','Muessen Provis-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?',      'berechtigungen', 'boolean', FALSE,11),
-        ('rc_has_consense',           'Spinfire-Zugang anpassen?',           'Programme und Systeme','Muessen Spinfire-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?',    'spinfire',       'boolean', FALSE,12)
+        ('rc_has_consense',           'Consense-Zugang anpassen?',           'Programme und Systeme','Muessen Consense-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?',    'consense',       'boolean', FALSE,12)
 )
 INSERT INTO workflow_answer_definitions (
     process_type_id, answer_key, title, category, description, icon_key, input_type, is_required, sort_order, is_active
@@ -109,7 +109,7 @@ WITH template_seed(
         ('rc_babtec_access_update',       'Babtec-Zugang anpassen',                 'Fachanwendungen', 'Babtec-Rollen oder Berechtigungen an die neue Rolle anpassen.',                                                'babtec',         'QS', 'qs_babtec',      TRUE, 3, 220),
         ('rc_gewatec_access_update',      'Gewatec-Zugang anpassen',                'Fachanwendungen', 'Gewatec-Rollen oder Berechtigungen an die neue Rolle anpassen.',                                               'gewatec',        'AV', 'av_gewatec',     TRUE, 3, 230),
         ('rc_provis_access_update',       'Provis-Zugang anpassen',                 'Fachanwendungen', 'Provis-Rollen oder Berechtigungen an die neue Rolle anpassen.',                                                'berechtigungen', 'AV', 'av_provis',      TRUE, 3, 240),
-        ('rc_consense_access_update',     'Spinfire-Zugang anpassen',               'Fachanwendungen', 'Spinfire-Rollen oder Berechtigungen an die neue Rolle anpassen.',                                              'spinfire',       'QMB','qmb_consense',   TRUE, 3, 250)
+        ('rc_consense_access_update',     'Consense-Zugang anpassen',               'Fachanwendungen', 'Consense-Rollen oder Berechtigungen an die neue Rolle anpassen.',                                              'consense',       'QMB','qmb_consense',   TRUE, 3, 250)
 )
 INSERT INTO task_templates (
     process_type_id,

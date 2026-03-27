@@ -9,6 +9,8 @@ import { AdminSystemWorkspaceSection } from "../components/admin-config/AdminSys
 import { AdminTaskTemplateSection } from "../components/admin-config/AdminTaskTemplateSection";
 import { AdminTechnicalAccessSection } from "../components/admin-config/AdminTechnicalAccessSection";
 import { AdminBulkOperationsSection } from "../components/admin-config/AdminBulkOperationsSection";
+import { AdminDirectorySyncSection } from "../components/admin-config/AdminDirectorySyncSection";
+import { AdminGroupMappingSection } from "../components/admin-config/AdminGroupMappingSection";
 import { AdminWorkspaceNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
 import {
   buildAdminOverviewWarnings,
@@ -25,6 +27,15 @@ import { useAdminNotificationEmailConfiguration } from "../hooks/useAdminNotific
 import { useAdminOrganizationManagement } from "../hooks/useAdminOrganizationManagement";
 import { useAdminUserManagement } from "../hooks/useAdminUserManagement";
 import {
+  createAdminDirectoryGroupRoleMapping,
+  deleteAdminDirectoryGroupRoleMapping,
+  getAdminDirectoryAudit,
+  getAdminDirectoryGroups,
+  getAdminDirectoryIdentities,
+  getAdminDirectoryStatus,
+  syncAdminDirectory,
+} from "../services/adminConfigApi";
+import {
   getAdminDepartmentAssignments,
   getAdminGroups,
   getAdminNotificationEmailConfiguration,
@@ -35,6 +46,10 @@ import {
 } from "../services/lifecycleApi";
 import type {
   AdminDepartmentAssignment,
+  AdminDirectoryGroup,
+  AdminDirectoryIdentity,
+  AdminDirectoryMappingAuditEntry,
+  AdminDirectorySyncStatus,
   AdminGroup,
   AdminResponsibilityOwner,
   AdminRole,
@@ -48,19 +63,33 @@ export default function AdminConfigPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [groups, setGroups] = useState<AdminGroup[]>([]);
+  const [directoryGroups, setDirectoryGroups] = useState<AdminDirectoryGroup[]>([]);
+  const [directoryIdentities, setDirectoryIdentities] = useState<AdminDirectoryIdentity[]>([]);
+  const [directoryAuditEntries, setDirectoryAuditEntries] = useState<AdminDirectoryMappingAuditEntry[]>([]);
+  const [directoryStatus, setDirectoryStatus] = useState<AdminDirectorySyncStatus | null>(null);
   const [departmentAssignments, setDepartmentAssignments] = useState<AdminDepartmentAssignment[]>([]);
   const [responsibilityOwners, setResponsibilityOwners] = useState<AdminResponsibilityOwner[]>([]);
   const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLoadingTechnicalAccess, setIsLoadingTechnicalAccess] = useState<boolean>(false);
+  const [isLoadingDirectory, setIsLoadingDirectory] = useState<boolean>(false);
+  const [isSyncingDirectory, setIsSyncingDirectory] = useState<boolean>(false);
+  const [savingDirectoryGroupId, setSavingDirectoryGroupId] = useState<number | null>(null);
+  const [deletingDirectoryMappingId, setDeletingDirectoryMappingId] = useState<number | null>(null);
   const [hasLoadedTechnicalAccess, setHasLoadedTechnicalAccess] = useState<boolean>(false);
+  const [hasLoadedDirectory, setHasLoadedDirectory] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const hasLoadedTechnicalAccessRef = useRef<boolean>(false);
+  const hasLoadedDirectoryRef = useRef<boolean>(false);
 
   useEffect(() => {
     hasLoadedTechnicalAccessRef.current = hasLoadedTechnicalAccess;
   }, [hasLoadedTechnicalAccess]);
+
+  useEffect(() => {
+    hasLoadedDirectoryRef.current = hasLoadedDirectory;
+  }, [hasLoadedDirectory]);
 
   const section = normalizeAdminWorkspaceSection(searchParams.get("section"));
   const organizationEntity = normalizeAdminOrganizationEntity(searchParams.get("entity"));
@@ -121,6 +150,37 @@ export default function AdminConfigPage() {
     }
   }, []);
 
+  const loadDirectoryData = useCallback(async () => {
+    setIsLoadingDirectory(true);
+    setError(null);
+
+    try {
+      const [statusData, groupsData, identitiesData, auditData, rolesData] = await Promise.all([
+        getAdminDirectoryStatus(),
+        getAdminDirectoryGroups(),
+        getAdminDirectoryIdentities(25, 0),
+        getAdminDirectoryAudit(20),
+        getAdminRoles(),
+      ]);
+
+      setDirectoryStatus(statusData);
+      setDirectoryGroups(groupsData);
+      setDirectoryIdentities(identitiesData);
+      setDirectoryAuditEntries(auditData);
+      setRoles(rolesData);
+      setHasLoadedDirectory(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Verzeichnisdaten konnten nicht geladen werden.";
+      setError(message);
+      setDirectoryStatus(null);
+      setDirectoryGroups([]);
+      setDirectoryIdentities([]);
+      setDirectoryAuditEntries([]);
+    } finally {
+      setIsLoadingDirectory(false);
+    }
+  }, []);
+
   const reload = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -143,6 +203,10 @@ export default function AdminConfigPage() {
       if (hasLoadedTechnicalAccessRef.current) {
         await loadTechnicalAccess();
       }
+
+      if (hasLoadedDirectoryRef.current) {
+        await loadDirectoryData();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Stammdaten konnten nicht geladen werden.";
       setError(message);
@@ -151,10 +215,14 @@ export default function AdminConfigPage() {
       setResponsibilityOwners([]);
       setWorkflowConfig(null);
       setNotificationEmailConfiguration(null);
+      setDirectoryStatus(null);
+      setDirectoryGroups([]);
+      setDirectoryIdentities([]);
+      setDirectoryAuditEntries([]);
     } finally {
       setIsLoading(false);
     }
-  }, [loadTechnicalAccess, setNotificationEmailConfiguration]);
+  }, [loadDirectoryData, loadTechnicalAccess, setNotificationEmailConfiguration]);
 
   useEffect(() => {
     void reload();
@@ -167,6 +235,14 @@ export default function AdminConfigPage() {
 
     void loadTechnicalAccess();
   }, [hasLoadedTechnicalAccess, loadTechnicalAccess, section]);
+
+  useEffect(() => {
+    if (section !== "directory" || hasLoadedDirectory) {
+      return;
+    }
+
+    void loadDirectoryData();
+  }, [hasLoadedDirectory, loadDirectoryData, section]);
 
   const {
     userFormError,
@@ -354,8 +430,83 @@ export default function AdminConfigPage() {
     [updateWorkspace]
   );
 
+  const handleSyncDirectory = useCallback(async (groupPrefix: string | null) => {
+    setIsSyncingDirectory(true);
+    setNotice(null);
+    setError(null);
+
+    try {
+      const result = await syncAdminDirectory(groupPrefix);
+      await loadDirectoryData();
+      if (result.status === "failed") {
+        setError(result.errorMessage ?? "Verzeichnis-Sync fehlgeschlagen.");
+      } else {
+        setNotice(
+          `Verzeichnis-Sync ${result.status === "partial" ? "teilweise" : "erfolgreich"}: ${result.groupsSynced} Gruppen, ${result.identitiesSynced} Identitäten, ${result.membershipsSynced} Mitgliedschaften.${result.appliedGroupPrefix ? ` Filter: ${result.appliedGroupPrefix}.` : " Ohne Filter."}`
+        );
+        if (result.errorMessage) {
+          setError(result.errorMessage);
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Verzeichnis-Sync konnte nicht gestartet werden.";
+      setError(message);
+    } finally {
+      setIsSyncingDirectory(false);
+    }
+  }, [loadDirectoryData]);
+
+  const handleCreateDirectoryMapping = useCallback(
+    async (directoryGroupId: number, appRoleId: number) => {
+      setSavingDirectoryGroupId(directoryGroupId);
+      setNotice(null);
+      setError(null);
+
+      try {
+        const mapping = await createAdminDirectoryGroupRoleMapping({
+          directoryGroupId,
+          appRoleId,
+          scope: "global",
+          isActive: true,
+        });
+        await loadDirectoryData();
+        setNotice(`Mapping gespeichert: ${mapping.appRoleName} wurde der Verzeichnisgruppe zugeordnet.`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Mapping konnte nicht gespeichert werden.";
+        setError(message);
+      } finally {
+        setSavingDirectoryGroupId(null);
+      }
+    },
+    [loadDirectoryData]
+  );
+
+  const handleDeleteDirectoryMapping = useCallback(
+    async (mappingId: number) => {
+      setDeletingDirectoryMappingId(mappingId);
+      setNotice(null);
+      setError(null);
+
+      try {
+        await deleteAdminDirectoryGroupRoleMapping(mappingId);
+        await loadDirectoryData();
+        setNotice("Mapping wurde entfernt.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Mapping konnte nicht entfernt werden.";
+        setError(message);
+      } finally {
+        setDeletingDirectoryMappingId(null);
+      }
+    },
+    [loadDirectoryData]
+  );
+
   const hasAnyData =
-    users.length > 0 || departmentAssignments.length > 0 || responsibilityOwners.length > 0;
+    users.length > 0
+    || departmentAssignments.length > 0
+    || responsibilityOwners.length > 0
+    || directoryGroups.length > 0
+    || directoryIdentities.length > 0;
 
   return (
     <main className="app-shell">
@@ -372,8 +523,8 @@ export default function AdminConfigPage() {
         ) : null}
 
         {!isLoading && error && hasAnyData ? (
-          <section className="panel">
-            <p className="panel-text">{error}</p>
+          <section className="panel panel-error" role="alert">
+            <p className="panel-text text-error">{error}</p>
           </section>
         ) : null}
 
@@ -492,6 +643,29 @@ export default function AdminConfigPage() {
                 onSaveUserGroups={saveUserGroups}
                 onSaveGroupRoles={saveGroupRoles}
               />
+            ) : null}
+
+            {section === "directory" ? (
+              <div className="content-stack">
+                <AdminDirectorySyncSection
+                  status={directoryStatus}
+                  identities={directoryIdentities}
+                  auditEntries={directoryAuditEntries}
+                  isLoading={isLoadingDirectory}
+                  isSyncing={isSyncingDirectory}
+                  onSync={handleSyncDirectory}
+                />
+
+                <AdminGroupMappingSection
+                  groups={directoryGroups}
+                  roles={sortedRoles}
+                  isLoading={isLoadingDirectory}
+                  savingGroupId={savingDirectoryGroupId}
+                  deletingMappingId={deletingDirectoryMappingId}
+                  onCreateMapping={handleCreateDirectoryMapping}
+                  onDeleteMapping={handleDeleteDirectoryMapping}
+                />
+              </div>
             ) : null}
 
             {section === "templates" ? (

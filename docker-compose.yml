@@ -29,6 +29,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       CONNECTION_STRING: Host=db;Port=5432;Database=appdb;Username=app;Password=app_pw
       ASPNETCORE_ENVIRONMENT: Development
+      DEMO_ENDPOINTS_ENABLED: "true"
     ports:
       - "5001:8080"
     depends_on:

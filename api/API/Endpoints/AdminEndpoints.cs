@@ -8,6 +8,7 @@ internal static class AdminEndpoints
     {
         app.MapAdminRuntimeConfigEndpoints();
         app.MapAdminOrgEndpoints();
+        app.MapAdminDirectorySyncEndpoints();
         app.MapAdminProcessConfigEndpoints();
         app.MapAdminAnswerConfigEndpoints();
         return app;

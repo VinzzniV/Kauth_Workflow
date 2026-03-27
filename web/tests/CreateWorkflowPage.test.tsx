@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CreateWorkflowPage from "../src/pages/CreateWorkflowPage";
 import * as lifecycleApi from "../src/services/lifecycleApi";
@@ -25,6 +25,7 @@ const mockedGetDepartments = vi.mocked(lifecycleApi.getDepartments);
 
 describe("CreateWorkflowPage", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     mockedGetProcessTypes.mockReset();
     mockedGetWorkflowConfig.mockReset();
     mockedSearchCompletedOnboardings.mockReset();
@@ -142,6 +143,30 @@ describe("CreateWorkflowPage", () => {
     expect(await screen.findByText("Schritt 2: Bestehende Person wählen")).toBeTruthy();
     expect(screen.getByText("Abgeschlossenes Onboarding auswählen")).toBeTruthy();
     expect(screen.queryByText("Daten der neuen Person")).toBeNull();
+  });
+
+  it("does not refetch completed onboardings endlessly after selecting a person", async () => {
+    mockedGetProcessTypes.mockResolvedValue([
+      {
+        key: "department_change",
+        name: "Abteilungswechsel",
+        description: "Bestehende Person in eine neue Abteilung verschieben.",
+        requiresTargetPerson: true,
+      },
+    ]);
+
+    renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_manager"] });
+
+    expect(await screen.findByText("Änderung starten")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
+    expect(await screen.findByText("Schritt 2: Bestehende Person wählen")).toBeTruthy();
+
+    await waitFor(() => expect(mockedSearchCompletedOnboardings).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("radio"));
+
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+    await waitFor(() => expect(mockedSearchCompletedOnboardings).toHaveBeenCalledTimes(1));
   });
 
   it("resets stale context when the process type changes", async () => {

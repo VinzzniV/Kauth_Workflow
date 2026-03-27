@@ -8,83 +8,89 @@ namespace API;
 internal static class AuthEndpoints
 {
     private static bool IsDemoEndpointsEnabled() =>
-        !string.Equals(
-            Environment.GetEnvironmentVariable("DEMO_ENDPOINTS_ENABLED"),
-            "false",
-            StringComparison.OrdinalIgnoreCase);
+        LifecycleServiceCollectionExtensions.IsDemoAuthActive();
 
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/auth/demo-users", async (IUserAuthorizationRepository userAuthorizationRepository) =>
+        var demoEnabled = IsDemoEndpointsEnabled();
+        var entraEnabled = LifecycleServiceCollectionExtensions.IsEntraAuthEnabled();
+        var authMode = (entraEnabled, demoEnabled) switch
         {
-            if (!IsDemoEndpointsEnabled())
-            {
-                return Results.NotFound();
-            }
+            (true, true) => "dual",
+            (true, false) => "entra",
+            _ => "demo"
+        };
 
-            return Results.Ok(await userAuthorizationRepository.GetDemoLoginUsers());
-        }).Produces<List<DemoLoginUserOptionDto>>(StatusCodes.Status200OK);
-
-        app.MapPost("/auth/demo-login", async (
-            [FromBody] DemoLoginRequest request,
-            IUserAuthorizationRepository userAuthorizationRepository,
-            IDemoSessionStore sessionStore,
-            IAuthorizationPolicyService authorizationPolicy) =>
+        app.MapGet("/auth/provider-info", () => Results.Ok(new
         {
-            if (!IsDemoEndpointsEnabled())
-            {
-                return Results.NotFound();
-            }
+            mode = authMode,
+            entraEnabled,
+            demoEnabled
+        }));
 
-            var username = request.Username?.Trim();
-            if (string.IsNullOrWhiteSpace(username))
-            {
-                return Results.BadRequest(new { message = "username is required." });
-            }
-
-            var currentUser = await userAuthorizationRepository.ResolveCurrentUser(new ResolvedIdentity
-            {
-                UserId = null,
-                ExternalKey = username,
-                Provider = "demo-login"
-            });
-
-            if (currentUser is null || !currentUser.IsActive)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorizationPolicy.CanReadAllowedViews(currentUser))
-            {
-                return Results.BadRequest(new { message = "Selected user has no application role for this demo." });
-            }
-
-            var identityKey = !string.IsNullOrWhiteSpace(currentUser.ExternalKey)
-                ? currentUser.ExternalKey!
-                : currentUser.Email;
-
-            var session = sessionStore.CreateSession(currentUser.UserId, identityKey);
-
-            return Results.Ok(new DemoLoginResponse
-            {
-                Token = session.Token,
-                ExpiresAtUtc = session.ExpiresAtUtc,
-                User = EndpointSupport.ToMeDto(currentUser)
-            });
-        }).Produces<DemoLoginResponse>(StatusCodes.Status200OK)
-          .Produces(StatusCodes.Status400BadRequest)
-          .Produces(StatusCodes.Status401Unauthorized);
-
-        app.MapPost("/auth/demo-logout", (HttpContext httpContext, IDemoSessionStore sessionStore) =>
+        if (demoEnabled)
         {
-            var token = EndpointSupport.ExtractBearerToken(httpContext.Request.Headers.Authorization.FirstOrDefault());
-            if (!string.IsNullOrWhiteSpace(token))
+            app.MapGet("/auth/demo-users", async (IUserAuthorizationRepository userAuthorizationRepository) =>
             {
-                sessionStore.RevokeSession(token);
-            }
+                return Results.Ok(await userAuthorizationRepository.GetDemoLoginUsers());
+            }).Produces<List<DemoLoginUserOptionDto>>(StatusCodes.Status200OK);
 
-            return Results.NoContent();
-        }).Produces(StatusCodes.Status204NoContent);
+            app.MapPost("/auth/demo-login", async (
+                [FromBody] DemoLoginRequest request,
+                IUserAuthorizationRepository userAuthorizationRepository,
+                IDemoSessionStore sessionStore,
+                IAuthorizationPolicyService authorizationPolicy) =>
+            {
+                var username = request.Username?.Trim();
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    return Results.BadRequest(new { message = "username is required." });
+                }
+
+                var currentUser = await userAuthorizationRepository.ResolveCurrentUser(new ResolvedIdentity
+                {
+                    UserId = null,
+                    ExternalKey = username,
+                    Provider = "demo-login"
+                });
+
+                if (currentUser is null || !currentUser.IsActive)
+                {
+                    return Results.Unauthorized();
+                }
+
+                if (!authorizationPolicy.CanReadAllowedViews(currentUser))
+                {
+                    return Results.BadRequest(new { message = "Selected user has no application role for this demo." });
+                }
+
+                var identityKey = !string.IsNullOrWhiteSpace(currentUser.ExternalKey)
+                    ? currentUser.ExternalKey!
+                    : currentUser.Email;
+
+                var session = sessionStore.CreateSession(currentUser.UserId, identityKey);
+
+                return Results.Ok(new DemoLoginResponse
+                {
+                    Token = session.Token,
+                    ExpiresAtUtc = session.ExpiresAtUtc,
+                    User = EndpointSupport.ToMeDto(currentUser)
+                });
+            }).Produces<DemoLoginResponse>(StatusCodes.Status200OK)
+              .Produces(StatusCodes.Status400BadRequest)
+              .Produces(StatusCodes.Status401Unauthorized);
+
+            app.MapPost("/auth/demo-logout", (HttpContext httpContext, IDemoSessionStore sessionStore) =>
+            {
+                var token = EndpointSupport.ExtractBearerToken(httpContext.Request.Headers.Authorization.FirstOrDefault());
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    sessionStore.RevokeSession(token);
+                }
+
+                return Results.NoContent();
+            }).Produces(StatusCodes.Status204NoContent);
+        }
 
         app.MapGet("/me", async (IUserContext userContext) =>
         {

@@ -9,13 +9,13 @@ namespace API;
 internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotificationSender, INotificationEmailTestSender
 {
     private readonly INotificationEmailConfigurationService configurationService;
-    private readonly IDemoSessionStore demoSessionStore;
+    private readonly IDemoSessionStore? demoSessionStore;
     private readonly ILogger<GraphWorkflowEmailNotificationSender> logger;
 
     public GraphWorkflowEmailNotificationSender(
         INotificationEmailConfigurationService configurationService,
-        IDemoSessionStore demoSessionStore,
-        ILogger<GraphWorkflowEmailNotificationSender> logger)
+        ILogger<GraphWorkflowEmailNotificationSender> logger,
+        IDemoSessionStore? demoSessionStore = null)
     {
         this.configurationService = configurationService;
         this.demoSessionStore = demoSessionStore;
@@ -64,11 +64,12 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
             try
             {
                 var isSandbox = !string.IsNullOrWhiteSpace(configuration.SandboxRedirectEmail);
+                var demoActive = LifecycleServiceCollectionExtensions.IsDemoAuthActive();
                 var workflowUrl = BuildWorkflowAccessUrl(
                     configuration.FrontendBaseUrl,
                     workflowUid,
                     batch,
-                    allowDemoAccessLink: !isSandbox);
+                    allowDemoAccessLink: demoActive && !isSandbox);
                 var effectiveRecipientEmail = isSandbox
                     ? configuration.SandboxRedirectEmail!
                     : batch.PrimaryTarget.TargetEmail;
@@ -340,6 +341,7 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         };
 
         if (allowDemoAccessLink
+            && demoSessionStore is not null
             && target.RecipientUserId.HasValue
             && !string.IsNullOrWhiteSpace(target.RecipientIdentityKey))
         {

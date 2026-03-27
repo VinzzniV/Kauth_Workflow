@@ -3,6 +3,7 @@ import type { AdminDepartmentAssignment, AdminUser } from "../../types/auth";
 import { roleDisplayName } from "./adminConfigHelpers";
 
 type AdminUsersSectionProps = {
+  isExternalIdentityMode: boolean;
   sortedUsers: AdminUser[];
   sortedDepartments: AdminDepartmentAssignment[];
   selectedUserId: number | null;
@@ -43,6 +44,7 @@ type AdminUsersSectionProps = {
 };
 
 export function AdminUsersSection({
+  isExternalIdentityMode,
   sortedUsers,
   sortedDepartments,
   selectedUserId,
@@ -85,13 +87,30 @@ export function AdminUsersSection({
     <section className="panel">
       <div className="panel-head">
         <h2>Personen</h2>
-        <p>Pflegen Sie Name, Login-E-Mail, optionale Benachrichtigungs-Mail, Anmeldename, Abteilung und Aktiv-Status oder legen Sie neue Personen an.</p>
+        <p>
+          {isExternalIdentityMode
+            ? "Personen und Logins werden im Regelfall extern verwaltet. Lokale Benutzerpflege bleibt nur für Ausnahmen und Übergangsfälle sichtbar."
+            : "Pflegen Sie Name, Login-E-Mail, optionale Benachrichtigungs-Mail, Anmeldename, Abteilung und Aktiv-Status oder legen Sie neue Personen an."}
+        </p>
       </div>
+
+      {isExternalIdentityMode ? (
+        <section className="panel panel-muted">
+          <div className="panel-head">
+            <h2>Extern verwaltete Identitäten</h2>
+            <p>Bei aktivem Entra-Modus sollten Benutzerkonten primär aus dem Verzeichnis kommen. Manuelle Anlage ist nur für Ausnahmen gedacht.</p>
+          </div>
+        </section>
+      ) : null}
 
       <div className="dashboard-card">
         <div>
-          <h2>Neue Person</h2>
-          <p>Die Login-E-Mail bleibt eindeutig. Für Demo-Mails kann zusätzlich eine separate Benachrichtigungs-Mail gepflegt werden, die auch bei mehreren Personen identisch sein darf.</p>
+          <h2>{isExternalIdentityMode ? "Neue Ausnahme-Person" : "Neue Person"}</h2>
+          <p>
+            {isExternalIdentityMode
+              ? "Nur verwenden, wenn eine Person bewusst lokal gepflegt werden muss. Standardfall bleibt die Synchronisierung aus dem Verzeichnis."
+              : "Die Login-E-Mail bleibt eindeutig. Für Demo-Mails kann zusätzlich eine separate Benachrichtigungs-Mail gepflegt werden, die auch bei mehreren Personen identisch sein darf."}
+          </p>
         </div>
 
         <label className="field compact">
@@ -168,7 +187,7 @@ export function AdminUsersSection({
           }}
           disabled={isCreatingUser || newUserDisplayNameDraft.trim().length === 0 || newUserEmailDraft.trim().length === 0}
         >
-          {isCreatingUser ? "Anlegen..." : "Person anlegen"}
+          {isCreatingUser ? "Anlegen..." : isExternalIdentityMode ? "Ausnahme-Person anlegen" : "Person anlegen"}
         </button>
       </div>
 

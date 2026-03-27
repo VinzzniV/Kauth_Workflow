@@ -2,6 +2,7 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth/useAuth";
 import { useCurrentUser } from "./auth/useCurrentUser";
+import { isEntraMode } from "./auth/IdentityProvider";
 import LoadingState from "./components/feedback/LoadingState";
 import AppLayout from "./components/layout/AppLayout";
 import RouteGuard from "./navigation/RouteGuard";
@@ -10,6 +11,7 @@ import CreateWorkflowPage from "./pages/CreateWorkflowPage";
 import DashboardPage from "./pages/DashboardPage";
 import DemoAccessPage from "./pages/DemoAccessPage";
 import DemoLoginPage from "./pages/DemoLoginPage";
+import EntraLoginPage from "./pages/EntraLoginPage";
 import MyTasksPage from "./pages/MyTasksPage";
 import SupervisorStepPage from "./pages/SupervisorStepPage";
 import WorkflowDetailPage from "./pages/WorkflowDetailPage";
@@ -22,7 +24,8 @@ export default function App() {
   const { defaultRoute } = useCurrentUser();
   const location = useLocation();
 
-  if (location.pathname === "/demo/access") {
+  // Demo access page is only available in demo mode.
+  if (!isEntraMode() && location.pathname === "/demo/access") {
     return (
       <Routes>
         <Route path="/demo/access" element={<DemoAccessPage />} />
@@ -45,7 +48,9 @@ export default function App() {
   }
 
   if (status === "unauthenticated") {
-    return <DemoLoginPage />;
+    // In Entra mode, the EntraLoginPage handles the Microsoft redirect flow.
+    // In demo mode, the classic DemoLoginPage is shown.
+    return isEntraMode() ? <EntraLoginPage /> : <DemoLoginPage />;
   }
 
   // Alle Fachseiten laufen innerhalb desselben Layouts und werden ueber Feature-Guards abgesichert.

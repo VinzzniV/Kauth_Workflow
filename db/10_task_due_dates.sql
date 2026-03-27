@@ -12,7 +12,6 @@ SET due_in_days = CASE template_key
     WHEN 'supervisor_fills_document' THEN 2
     WHEN 'hardware_procure' THEN 5
     WHEN 'hardware_handover' THEN 1
-    WHEN 'consense_training' THEN 7
     ELSE 3
 END
 WHERE due_in_days IS NULL;

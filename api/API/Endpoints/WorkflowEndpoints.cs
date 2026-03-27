@@ -66,6 +66,27 @@ internal static class WorkflowEndpoints
                     return Results.BadRequest(new { message = requestValidationError });
                 }
 
+                var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
+                    currentUser,
+                    repository,
+                    authorizationPolicy);
+
+                if (observableDepartmentIds is not null && request.TargetPersonId.HasValue)
+                {
+                    var targetPersonHistory = await repository.GetPersonWorkflowHistory(request.TargetPersonId.Value);
+                    if (targetPersonHistory is null)
+                    {
+                        return Results.BadRequest(new { message = "Die angegebene Zielperson wurde nicht gefunden." });
+                    }
+
+                    if (!targetPersonHistory.DepartmentId.HasValue
+                        || !observableDepartmentIds.Contains(targetPersonHistory.DepartmentId.Value))
+                    {
+                        return EndpointSupport.Forbidden(
+                            "Die ausgewählte Zielperson liegt außerhalb Ihrer freigegebenen Abteilungen.");
+                    }
+                }
+
                 if (request.DeadlineDate.HasValue
                     && request.DeadlineDate.Value < DateOnly.FromDateTime(DateTime.Today))
                 {
@@ -184,7 +205,11 @@ internal static class WorkflowEndpoints
                 Responsibility = normalizedResponsibility,
                 Limit = limit,
                 Offset = effectiveOffset,
-                IncludeFilterOptions = isPaged
+                IncludeFilterOptions = isPaged,
+                ObservableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
+                    currentUser,
+                    repository,
+                    authorizationPolicy)
             };
 
             var result = await repository.GetFilteredWorkflows(query);
@@ -417,6 +442,18 @@ internal static class WorkflowEndpoints
             if (history is null)
             {
                 return Results.NotFound(new { message = "Person nicht gefunden." });
+            }
+
+            var currentUser = access.User!;
+            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
+                currentUser,
+                repository,
+                authorizationPolicy);
+
+            if (observableDepartmentIds is not null
+                && (!history.DepartmentId.HasValue || !observableDepartmentIds.Contains(history.DepartmentId.Value)))
+            {
+                return EndpointSupport.Forbidden("Die Person liegt außerhalb Ihrer freigegebenen Abteilungen.");
             }
 
             return Results.Ok(history);

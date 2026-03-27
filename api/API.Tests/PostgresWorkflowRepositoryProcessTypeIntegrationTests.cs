@@ -87,6 +87,37 @@ public sealed class PostgresWorkflowRepositoryProcessTypeIntegrationTests
         }
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetWorkflowByUid_LoadsOnlyRequirementsForWorkflowProcessType()
+    {
+        var connectionString = GetTestConnectionString();
+        var primaryProcessType = await CreateTemporaryProcessTypeAsync(connectionString, isActive: true);
+        var foreignProcessType = await CreateTemporaryProcessTypeAsync(connectionString, isActive: true);
+        var primaryAnswerKey = $"pt_answer_primary_{primaryProcessType.Suffix}";
+        var foreignAnswerKey = $"pt_answer_foreign_{foreignProcessType.Suffix}";
+        await InsertAnswerDefinitionAsync(connectionString, primaryProcessType.Id, primaryAnswerKey);
+        await InsertAnswerDefinitionAsync(connectionString, foreignProcessType.Id, foreignAnswerKey);
+        var workflow = await InsertWorkflowAsync(connectionString, primaryProcessType.Id, primaryProcessType.Suffix);
+
+        try
+        {
+            var loaded = await WithRepositoryConnectionStringAsync(
+                connectionString,
+                repository => repository.GetWorkflowByUid(workflow.Uid));
+
+            Assert.NotNull(loaded);
+            Assert.Contains(loaded!.Requirements, requirement => requirement.Key == primaryAnswerKey);
+            Assert.DoesNotContain(loaded.Requirements, requirement => requirement.Key == foreignAnswerKey);
+        }
+        finally
+        {
+            await CleanupWorkflowAsync(connectionString, workflow.Id);
+            await CleanupTemporaryProcessTypeAsync(connectionString, primaryProcessType.Id, primaryProcessType.Suffix);
+            await CleanupTemporaryProcessTypeAsync(connectionString, foreignProcessType.Id, foreignProcessType.Suffix);
+        }
+    }
+
     private static string GetTestConnectionString()
     {
         return Environment.GetEnvironmentVariable("ONBOARDING_TEST_CONNECTION_STRING")
@@ -114,7 +145,8 @@ public sealed class PostgresWorkflowRepositoryProcessTypeIntegrationTests
     private static async Task<TemporaryProcessType> CreateTemporaryProcessTypeAsync(
         string connectionString,
         bool requiresSupervisorStep = false,
-        string? approvalTaskTemplateKey = null)
+        string? approvalTaskTemplateKey = null,
+        bool isActive = false)
     {
         var suffix = Guid.NewGuid().ToString("N");
 
@@ -140,7 +172,7 @@ public sealed class PostgresWorkflowRepositoryProcessTypeIntegrationTests
                 @requiresSupervisorStep,
                 @approvalTaskTemplateKey,
                 FALSE,
-                FALSE,
+                @isActive,
                 9999
             )
             RETURNING id;
@@ -150,6 +182,7 @@ public sealed class PostgresWorkflowRepositoryProcessTypeIntegrationTests
         command.Parameters.AddWithValue("name", $"Integration Process {suffix}");
         command.Parameters.AddWithValue("description", "Integration test process type");
         command.Parameters.AddWithValue("requiresSupervisorStep", requiresSupervisorStep);
+        command.Parameters.AddWithValue("isActive", isActive);
         command.Parameters.AddWithValue(
             "approvalTaskTemplateKey",
             string.IsNullOrWhiteSpace(approvalTaskTemplateKey) ? DBNull.Value : approvalTaskTemplateKey);
@@ -200,6 +233,86 @@ public sealed class PostgresWorkflowRepositoryProcessTypeIntegrationTests
         command.Parameters.AddWithValue("processTypeId", processTypeId);
         command.Parameters.AddWithValue("answerKey", answerKey);
         await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<TemporaryWorkflow> InsertWorkflowAsync(string connectionString, int processTypeId, string suffix)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        int roleId;
+        int departmentId;
+
+        await using (var contextCommand = new NpgsqlCommand(
+            """
+            SELECT r.id, r.department_id
+            FROM app_roles r
+            WHERE r.role_kind = 'position'
+              AND r.is_active = TRUE
+            ORDER BY r.id
+            LIMIT 1;
+            """,
+            connection))
+        {
+            await using var reader = await contextCommand.ExecuteReaderAsync();
+
+            if (!await reader.ReadAsync())
+            {
+                throw new InvalidOperationException("No active position role exists for integration test workflow creation.");
+            }
+
+            roleId = reader.GetInt32(0);
+            departmentId = reader.GetInt32(1);
+        }
+
+        var employeeNumber = 700000 + Math.Abs(suffix.GetHashCode(StringComparison.Ordinal)) % 100000;
+        var badgeNumber = employeeNumber + 100000;
+
+        await using var workflowCommand = new NpgsqlCommand(
+            """
+            INSERT INTO workflows (
+                process_type_id,
+                department_id,
+                position_role_id,
+                created_by_user_id,
+                first_name,
+                last_name,
+                employee_number,
+                badge_number,
+                status
+            )
+            VALUES (
+                @processTypeId,
+                @departmentId,
+                @roleId,
+                NULL,
+                'Integration',
+                @lastName,
+                @employeeNumber,
+                @badgeNumber,
+                'waiting_for_supervisor'
+            )
+            RETURNING id, uid;
+            """,
+            connection);
+        workflowCommand.Parameters.AddWithValue("processTypeId", processTypeId);
+        workflowCommand.Parameters.AddWithValue("departmentId", departmentId);
+        workflowCommand.Parameters.AddWithValue("roleId", roleId);
+        workflowCommand.Parameters.AddWithValue("lastName", $"Workflow {suffix}");
+        workflowCommand.Parameters.AddWithValue("employeeNumber", employeeNumber);
+        workflowCommand.Parameters.AddWithValue("badgeNumber", badgeNumber);
+
+        await using var workflowReader = await workflowCommand.ExecuteReaderAsync();
+        if (!await workflowReader.ReadAsync())
+        {
+            throw new InvalidOperationException("Temporary workflow could not be created.");
+        }
+
+        return new TemporaryWorkflow
+        {
+            Id = workflowReader.GetInt64(0),
+            Uid = workflowReader.GetGuid(1)
+        };
     }
 
     private static async Task InsertTaskTemplateAsync(string connectionString, int processTypeId, string templateKey)
@@ -263,9 +376,30 @@ public sealed class PostgresWorkflowRepositoryProcessTypeIntegrationTests
         await command.ExecuteNonQueryAsync();
     }
 
+    private static async Task CleanupWorkflowAsync(string connectionString, long workflowId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            DELETE FROM workflows
+            WHERE id = @workflowId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        await command.ExecuteNonQueryAsync();
+    }
+
     private sealed class TemporaryProcessType
     {
         public required int Id { get; init; }
         public required string Suffix { get; init; }
+    }
+
+    private sealed class TemporaryWorkflow
+    {
+        public required long Id { get; init; }
+        public required Guid Uid { get; init; }
     }
 }

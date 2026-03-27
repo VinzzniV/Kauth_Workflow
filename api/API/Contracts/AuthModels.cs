@@ -24,9 +24,16 @@ public sealed class CurrentUserRole
     public required string RoleKey { get; init; }
     public required string RoleName { get; init; }
     public required string RoleKind { get; init; }
+    /// <summary>
+    /// How this role was assigned: "direct", "group" (app group), or "directory_group" (Entra group mapping).
+    /// </summary>
     public required string AssignmentSource { get; init; }
     public int? GroupId { get; init; }
     public string? GroupKey { get; init; }
+    /// <summary>
+    /// When AssignmentSource is "directory_group", the display name of the Entra group that granted this role.
+    /// </summary>
+    public string? DirectoryGroupName { get; init; }
 }
 
 public sealed class CurrentUserResponsibility

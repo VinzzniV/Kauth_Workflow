@@ -12,6 +12,7 @@ const ITEMS: Array<{ key: AdminWorkspaceSection; label: string; description: str
   { key: "answers", label: "Answers", description: "Answer Definitions pro Prozesstyp verwalten" },
   { key: "defaults", label: "Defaults", description: "Rollenbasierte Answer-Defaults verwalten" },
   { key: "access", label: "Rechte & Gruppen", description: "Advanced-Bereich für technische Zugriffe" },
+  { key: "directory", label: "Verzeichnis", description: "Entra-Sync und Gruppen-Mappings" },
   { key: "system", label: "System", description: "Mail und Workflow-Konfiguration" },
   { key: "operations", label: "Operationen", description: "Massen-Aktionen wie Abteilungswechsel" },
 ];

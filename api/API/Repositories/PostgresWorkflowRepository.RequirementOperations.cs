@@ -757,6 +757,7 @@ ON CONFLICT (workflow_answer_id, answer_option_id) DO NOTHING;";
     private static async Task LoadWorkflowRequirements(
         NpgsqlConnection connection,
         long workflowId,
+        int processTypeId,
         List<WorkflowRequirementSnapshotDto> requirements)
     {
         var behaviorsByDefinitionId = await LoadRequirementBehaviors(connection, null);
@@ -788,6 +789,7 @@ LEFT JOIN workflow_answers a
     ON a.workflow_id = @workflowId
     AND a.answer_definition_id = d.id
 WHERE d.is_active = TRUE
+  AND d.process_type_id = @processTypeId
 ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
 
         var requirementById = new Dictionary<int, WorkflowRequirementSnapshotDto>();
@@ -795,6 +797,7 @@ ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
         await using (var command = new NpgsqlCommand(sql, connection))
         {
             command.Parameters.AddWithValue("workflowId", workflowId);
+            command.Parameters.AddWithValue("processTypeId", processTypeId);
             await using var reader = await command.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())

@@ -11,6 +11,7 @@ internal sealed class WorkflowListQuery
     public int? Limit { get; init; }
     public int Offset { get; init; }
     public bool IncludeFilterOptions { get; init; }
+    public IReadOnlyCollection<int>? ObservableDepartmentIds { get; init; }
 }
 
 internal sealed class WorkflowListResult
@@ -52,8 +53,14 @@ internal interface IWorkflowRepository
     Task<List<WorkflowLinkDto>> GetWorkflowLinks(Guid workflowUid);
     Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId);
     Task<bool> DeleteWorkflowLink(Guid workflowUid, long linkId, long actorUserId);
-    Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(string? search, int limit = 20);
-    Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(string? query, int limit = 20);
+    Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(
+        string? search,
+        int limit = 20,
+        IReadOnlyCollection<int>? observableDepartmentIds = null);
+    Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(
+        string? query,
+        int limit = 20,
+        IReadOnlyCollection<int>? observableDepartmentIds = null);
     Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null);
     Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey);
     Task<BulkOperationResultDto> BulkCreateDepartmentChangeWorkflows(BulkDepartmentChangeRequest request, long actorUserId);

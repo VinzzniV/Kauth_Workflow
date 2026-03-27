@@ -80,7 +80,16 @@ internal static class WorkflowMasterDataEndpoints
                 return access.Error;
             }
 
-            var completedOnboardings = await repository.SearchCompletedOnboardings(search, limit ?? 20);
+            var currentUser = access.User!;
+            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
+                currentUser,
+                repository,
+                authorizationPolicy);
+
+            var completedOnboardings = await repository.SearchCompletedOnboardings(
+                search,
+                limit ?? 20,
+                observableDepartmentIds);
             return Results.Ok(completedOnboardings);
         }).Produces<List<CompletedOnboardingSearchResultDto>>(StatusCodes.Status200OK);
 
@@ -100,7 +109,16 @@ internal static class WorkflowMasterDataEndpoints
                 return access.Error;
             }
 
-            var people = await repository.SearchWorkflowTargetPeople(query, limit ?? 20);
+            var currentUser = access.User!;
+            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
+                currentUser,
+                repository,
+                authorizationPolicy);
+
+            var people = await repository.SearchWorkflowTargetPeople(
+                query,
+                limit ?? 20,
+                observableDepartmentIds);
             return Results.Ok(people);
         }).Produces<List<WorkflowTargetPersonDto>>(StatusCodes.Status200OK);
 
