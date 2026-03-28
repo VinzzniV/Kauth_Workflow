@@ -51,9 +51,15 @@ export default function PersonWorkflowHistoryPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link to="/search">Vorgänge suchen</Link>
+          <span className="breadcrumb-separator" aria-hidden="true">/</span>
+          <span>Personenverlauf</span>
+        </nav>
+
         <PageHeader
           title={displayName}
-          description="Alle Vorgänge dieser Person in chronologischer Reihenfolge."
+          description="Bisherige Vorgänge dieser Person schnell nachvollziehen und einordnen."
         />
 
         {isLoading ? <LoadingState title="Mitarbeiterakte wird geladen..." /> : null}

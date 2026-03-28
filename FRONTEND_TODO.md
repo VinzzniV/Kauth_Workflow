@@ -1,794 +1,1104 @@
-# FRONTEND TODO
+# FRONTEND_TODO.md
+
+## Working Rules for AI
+
+Before starting any task:
+1. Read `PROJECT_CONTEXT.md`, `DECISIONS.md`, `ENGINEERING_RULES.md`
+2. Focus on frontend only unless explicitly required otherwise
+3. Preserve business behavior
+4. Do not move business logic from backend into frontend
+5. Prefer simplification over adding more UI
+6. Reduce noise before adding new elements
+7. Show affected files first
+8. Verify changes after implementation
+
+General frontend rule:
+- No “marketing text”
+- No decorative explanation blocks without real guidance value
+- Each page must have one clear primary purpose
+- Each panel/card must be one of:
+  - action
+  - status
+  - configuration
+  - warning
 
 ---
 
-## 1. Zielbild
-
-Das Frontend soll wirken wie professionelle interne Enterprise-Software: vertrauenswürdig, klar strukturiert, in wenigen Sekunden bedienbar ohne Handbuch. Es richtet sich an drei Nutzergruppen mit sehr unterschiedlichen Aufgaben (HR, Abteilungsleitung, Fachbereich) und muss für jede Gruppe eine klare, reibungslose Bedienung bieten.
-
-**Konkrete Zielmerkmale:**
-- Navigation sofort verständlich durch Icons + Label
-- Transientes Feedback (Speichern, Fehler) immer sichtbar, unabhängig von Scroll-Position
-- Keine technischen Interna in user-facing Views
-- Konsistente Zustände: Laden, Leer, Fehler, Erfolg — immer klar erkennbar
-- Jede Seite hat einen klaren primären Handlungspfad
-- Kein unnötiges Rauschen durch Systeminformationen, die Nutzer nicht brauchen
+# 🔴 MUST
 
 ---
 
-## 2. Arbeitsregeln für KI-Umsetzung
+## [DONE] [FE-D1] Redesign Admin information architecture around admin tasks
 
-Diese Regeln gelten für **alle** Implementierungen in diesem Projekt:
+### Problem
+The admin area is currently too dense, too technical, too text-heavy, and too close to the internal data model.
 
-1. **Bestehende Patterns lesen, bevor du implementierst.** Neue Patterns nur einführen, wenn ein bestehender Task das explizit vorsieht.
-2. **Keine spontanen Refactors.** Wenn beim Implementieren ein Fehler oder eine Verbesserung auffällt, die nicht im Task steht: notieren, aber nicht umsetzen.
-3. **Keine riesigen Scopes.** Ein Task = eine klar abgegrenzte Änderung. Lieber enger als breiter.
-4. **CSS-Klassen nicht umbenennen ohne Auftrag.** Die globalen Klassen (`.panel`, `.btn`, `.field` etc.) sind vielfach verwendet. Umbenennen ohne vollständige Suche bricht die UI.
-5. **Bestehende Komponenten erweitern, nicht duplizieren.** Vor jeder neuen Komponente prüfen, ob eine bestehende erweiterbar ist.
-6. **Keine Business-Logik ins Frontend.** Validierungsregeln, Prozesslogik und Rollenregeln bleiben im Backend. Frontend nur für Darstellung und UI-State.
-7. **Kein neues State Management einführen.** React Query für Server State, React useState/useReducer für UI State — so bleibt es.
-8. **Betroffene Dateien benennen, bevor du änderst.**
-9. **Verifizierung am Ende:** Build läuft, keine TypeScript-Fehler, Änderung ist visuell nachvollziehbar.
-10. **Sprache der UI ist Deutsch.** Neue Labels, Titel, Fehlermeldungen auf Deutsch schreiben.
+### Goal
+Restructure the admin area around admin goals instead of internal structures.
+
+### Required outcome
+Admin navigation and landing area must feel like:
+- people
+- departments / responsibilities
+- workflow templates / answers / defaults
+- rights / groups / directory
+- notification / system
+- bulk changes
+
+Instead of vague conceptual groupings such as:
+- “high impact”
+- “broad impact”
+- “recommended start”
+- “technical areas”
+
+### Suggested scope
+- `web/src/pages/AdminConfigPage.tsx`
+- `web/src/components/admin-config/AdminWorkspaceNavigation.tsx`
+- `web/src/components/admin-config/AdminOverviewWorkspaceSection.tsx`
+
+### Constraints
+- do not redesign the whole app
+- do not add more explanation text
+- keep routing and section behavior intact unless needed
+- focus on structure and language first
+
+### Acceptance criteria
+- admin landing page feels task-oriented, not conceptual
+- categories are clearer and more professional
+- obvious filler wording is removed
+- users can understand where to go without reading long text blocks
+
+### Reasoning effort
+High
+
+### Best tool
+Claude for structure, Codex for implementation
+
+### Implementation plan (ready for Codex)
+
+Apply steps in order — Step 1 first, TypeScript will flag all remaining consumer errors.
+
+**Affected files:**
+- `web/src/components/admin-config/adminWorkspaceModel.ts`
+- `web/src/components/admin-config/AdminWorkspaceNavigation.tsx`
+- `web/src/pages/AdminConfigPage.tsx`
+- `web/src/components/admin-config/AdminOverviewWorkspaceSection.tsx`
+- `web/src/styles/admin.css`
 
 ---
 
-## 3. Prioritäten
+#### Step 1 — `adminWorkspaceModel.ts`
 
-- **P0** = Kritisch / blockiert Enterprise-Qualitätseindruck / technische Schuld mit sofortigem UX-Schaden
-- **P1** = Hoher Nutzen / starke UX- oder UI-Verbesserung / wichtige Konsistenz
-- **P2** = Qualitätsverbesserung / Feinschliff / technische Konsistenz
-- **P3** = Optional / Langfristperspektive
+**1a. Shrink `AdminWorkspaceSectionMeta` type** — remove 6 fields:
+
+Remove: `groupDescription`, `audienceLabel`, `audienceDescription`, `cautionLabel`, `cautionDescription`, `impactLabel`
+
+New type:
+```ts
+export type AdminWorkspaceSectionMeta = {
+  key: AdminWorkspaceSection;
+  label: string;
+  description: string;
+  group: AdminWorkspaceSectionGroup;
+  groupLabel: string;
+};
+```
+
+**1b. Replace the entire `ADMIN_WORKSPACE_SECTION_META` array:**
+
+```ts
+export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
+  {
+    key: "overview",
+    label: "Übersicht",
+    description: "Gesamtzustand prüfen und offene Punkte angehen.",
+    group: "start",
+    groupLabel: "Einstieg",
+  },
+  {
+    key: "organization",
+    label: "Organisation",
+    description: "Personen, Abteilungen und Zuständigkeiten pflegen.",
+    group: "start",
+    groupLabel: "Einstieg",
+  },
+  {
+    key: "templates",
+    label: "Aufgabenvorlagen",
+    description: "Aufgabenlogik für neue Vorgänge steuern.",
+    group: "configuration",
+    groupLabel: "Vorlagen & Felder",
+  },
+  {
+    key: "answers",
+    label: "Antwortfelder",
+    description: "Eingabefelder und Antwortlogik pflegen.",
+    group: "configuration",
+    groupLabel: "Vorlagen & Felder",
+  },
+  {
+    key: "defaults",
+    label: "Standardwerte",
+    description: "Vorauswahlen für Rollen und Bereiche setzen.",
+    group: "configuration",
+    groupLabel: "Vorlagen & Felder",
+  },
+  {
+    key: "access",
+    label: "Zugriffe & Gruppen",
+    description: "Rechte, Gruppen und Ausnahmen verwalten.",
+    group: "technical",
+    groupLabel: "Rechte & Verzeichnis",
+  },
+  {
+    key: "directory",
+    label: "Entra-Verzeichnis",
+    description: "Entra-Gruppen synchronisieren und Rollen verknüpfen.",
+    group: "technical",
+    groupLabel: "Rechte & Verzeichnis",
+  },
+  {
+    key: "system",
+    label: "Benachrichtigungen & System",
+    description: "E-Mail-Versand und Systemeinstellungen konfigurieren.",
+    group: "technical",
+    groupLabel: "Rechte & Verzeichnis",
+  },
+  {
+    key: "operations",
+    label: "Massenänderungen",
+    description: "Serienaktionen mit breiter Wirkung ausführen.",
+    group: "sensitive",
+    groupLabel: "Massenänderungen",
+  },
+];
+```
+
+Note: `AdminWorkspaceSectionGroup` union type stays unchanged (`"start" | "configuration" | "technical" | "sensitive"`).
 
 ---
 
-## 4. Task-Liste
+#### Step 2 — `AdminWorkspaceNavigation.tsx`
+
+**2a. Remove the intro paragraph** inside `panel-head`:
+```tsx
+// REMOVE:
+<p>Wählen Sie den Bereich nach Zweck und Wirkung. Fachliche Pflege startet meist in Organisation, technische und breit wirksame Änderungen sind bewusst separat gruppiert.</p>
+```
+Result:
+```tsx
+<div className="panel-head">
+  <h2>Administrationsbereiche</h2>
+</div>
+```
+
+**2b. Remove the group description paragraph** inside the group map:
+```tsx
+// REMOVE:
+<p>{groupItems[0].groupDescription}</p>
+```
+Result:
+```tsx
+<div className="admin-workspace-group-head">
+  <h3>{groupItems[0].groupLabel}</h3>
+</div>
+```
+
+**2c. Remove the kicker span** from each tab button:
+```tsx
+// REMOVE:
+<span className="admin-workspace-tab-kicker">{item.impactLabel}</span>
+```
+Each tab button then renders only:
+```tsx
+<span className="admin-workspace-tab-title">{item.label}</span>
+<span className="admin-workspace-tab-note">{item.description}</span>
+```
 
 ---
 
-### [erledigt] [P0] Icons in die Sidebar-Navigation einführen
+#### Step 3 — `AdminConfigPage.tsx`
 
-**Ziel**
-Jeder Navigations-Link in der Sidebar erhält ein passendes SVG-Icon links vom Label. Desktop-Sidebar und Mobile Drawer erhalten dieselben Icons.
+Replace the entire spotlight panel (the `{!isLoading ? (...) : null}` block at lines ~542–563 that renders `.admin-workspace-spotlight`) with a minimal panel header:
 
-**Warum**
-Die Sidebar hat ausschließlich Textlinks ohne jede visuelle Differenzierung. Das ist der auffälligste Qualitätsunterschied zu echter Enterprise-Software (Jira, ServiceNow, SAP Fiori, Notion, Linear — alle haben Icons). Text-only wirkt wie eine Entwickler-Debug-Seite. Icons reduzieren außerdem die kognitive Last: Nutzer erfassen die Navigation schneller, ohne jeden Text zu lesen.
+```tsx
+// OLD — remove this entire block:
+{!isLoading ? (
+  <section className={`panel ${section === "operations" ? "panel-caution" : "panel-muted"}`}>
+    <div className="admin-workspace-spotlight">
+      <div className="admin-workspace-spotlight-main">
+        <p className="admin-workspace-spotlight-eyebrow">Aktueller Arbeitsbereich</p>
+        <h2>{sectionMeta.label}</h2>
+        <p>{sectionMeta.description}</p>
+      </div>
+      <div className="admin-workspace-spotlight-grid">
+        <article className="admin-workspace-spotlight-card">
+          <h3>{sectionMeta.audienceLabel}</h3>
+          <p>{sectionMeta.audienceDescription}</p>
+        </article>
+        <article className="admin-workspace-spotlight-card admin-workspace-spotlight-card--caution">
+          <h3>{sectionMeta.cautionLabel}</h3>
+          <p>{sectionMeta.cautionDescription}</p>
+        </article>
+      </div>
+    </div>
+  </section>
+) : null}
 
-**Betroffene Bereiche**
-- `web/src/components/layout/AppLayout.tsx` — NavLink-Rendering für Desktop und Mobile Drawer
-- `web/src/navigation/useRoleAwareNavigation.ts` — NavItem-Typ erweitern um `icon`-Feld
-- `web/src/styles/base.css` — `.sidebar-link`-Klasse für Icon + Label Alignment
+// NEW — replace with:
+{!isLoading ? (
+  <section className={`panel ${section === "operations" ? "panel-caution" : "panel-muted"}`}>
+    <div className="panel-head">
+      <h2>{sectionMeta.label}</h2>
+      <p>{sectionMeta.description}</p>
+    </div>
+  </section>
+) : null}
+```
 
-**Umsetzungshinweise**
-- Den `NavItem`-Typ in `useRoleAwareNavigation.ts` um ein `icon`-Feld erweitern (z. B. als `ReactNode` oder als Icon-Key-String)
-- Einfachste Lösung: Inline-SVG-Icons als ReactNode direkt im NavItem. Keine externe Icon-Library nötig.
-- Empfohlene Icons (Heroicons-Stil, 20x20 stroke):
-  - Dashboard / Übersicht: Home-Icon
-  - Neuer Vorgang / Änderung starten: Plus-Kreis-Icon
-  - Laufende Vorgänge: List-Bullet-Icon
-  - Vorgänge suchen: Lupe-Icon
-  - Anforderungen Abteilungsleitung: Check-Badge-Icon
-  - Meine Aufgaben: Clipboard-List-Icon
-  - Administration: Cog-6-Tooth-Icon
-- Icons im `.sidebar-link` links vom Label platzieren: `display: flex; align-items: center; gap: 0.6rem;`
-- Icon-Größe: 18px × 18px, `flex-shrink: 0`
-- Active-State: Icon erbt die Brand-Farbe des aktiven Links automatisch über `color`-Inheritance, wenn Icons als `currentColor` definiert sind
-- Desktop-Sidebar und Mobile Drawer nutzen denselben `headerNavItems`-Array — die Änderung wirkt auf beide automatisch
+The `panel-caution` conditional for `operations` is preserved.
 
-**Definition of Done**
-- Alle Navigations-Links haben ein Icon links vom Label
-- Icons sind konsistent in Größe und Stil
-- Active State: Icon ist visuell anders als inactive (Farbe reicht)
-- Mobile Drawer zeigt dieselben Icons
-- Kein Desktop-Regressionsbruch
-- TypeScript-Fehlerfreiheit
+---
 
-**Empfohlene KI**
+#### Step 4 — `AdminOverviewWorkspaceSection.tsx`
+
+Three text-only removals, no structural or prop changes:
+
+**4a.** Remove the description `<p>` from panel "Administrationsübersicht":
+```tsx
+// REMOVE:
+<p>Hier sehen Sie zuerst den Gesamtzustand, priorisieren Warnhinweise und springen dann gezielt in den passenden Bereich.</p>
+```
+
+**4b.** In panel "Empfohlene Wege" — rename heading and remove description:
+```tsx
+// OLD:
+<h2>Empfohlene Wege</h2>
+<p>Diese Einstiege helfen neuen Admins, erst fachlich sauber zu arbeiten und technische Änderungen bewusst nur bei Bedarf zu öffnen.</p>
+
+// NEW:
+<h2>Schnellzugriff</h2>
+```
+
+**4c.** Remove the description `<p>` from panel "Zuerst prüfen":
+```tsx
+// REMOVE:
+<p>Leere oder ungültige Zuordnungen werden hier gesammelt, damit neue Admins priorisiert mit echten Lücken starten können.</p>
+```
+
+---
+
+#### Step 5 — `admin.css`
+
+**5a. Delete spotlight-only rules entirely** (only used by `AdminConfigPage`, which no longer renders them after Step 3):
+```css
+/* DELETE — lines 92–120: */
+.admin-workspace-spotlight { ... }
+.admin-workspace-spotlight-main { ... }
+.admin-workspace-spotlight-main h2 { ... }
+.admin-workspace-spotlight-main p { ... }
+.admin-workspace-spotlight-eyebrow { ... }
+```
+
+**5b. Split the 5 comma-selector rules** (lines 122–156) — remove the `admin-workspace-spotlight-*` selector from each, keep only the `admin-guidance-*` half (still used by `AdminBulkOperationsSection`, `AdminDirectorySyncSection`, `AdminTechnicalAccessSection`):
+
+```css
+/* Keep only: */
+.admin-guidance-grid { ... }
+.admin-guidance-card { ... }
+.admin-guidance-card--caution { ... }
+.admin-guidance-card h3 { ... }
+.admin-guidance-card p { ... }
+```
+
+**5c. Delete two now-dead rules:**
+```css
+/* DELETE — <p> inside group-head is removed in Step 2b: */
+.admin-workspace-group-head p { ... }
+
+/* DELETE — kicker <span> is removed in Step 2c: */
+.admin-workspace-tab-kicker { ... }
+```
+
+---
+
+#### Verification
+
+Run `npm run build` — must compile with no TypeScript errors. The removed type fields were only referenced in `AdminWorkspaceNavigation.tsx` (Steps 2b/2c) and `AdminConfigPage.tsx` (Step 3). No other file references them.
+
+---
+
+## [DONE] [FE-D2] Remove weak/filler wording across the frontend
+
+### Problem
+Many parts of the frontend still use descriptive text that feels like documentation, marketing, or internal commentary instead of direct UX guidance.
+
+### Goal
+Make all user-facing wording shorter, clearer, and more professional.
+
+### Target areas
+- page descriptions
+- card subtitles
+- helper texts
+- admin landing texts
+- section intros
+- button labels
+- warning/hint panels
+
+### Rules
+- if text only repeats what the UI already shows, remove it
+- if text sounds like explanation of the obvious, remove it
+- if text sounds motivational or decorative, remove it
+- only keep text that reduces user uncertainty
+
+### Suggested scope
+Entire frontend, with priority on:
+- admin screens
+- dashboard
+- wizard
+- workflow detail
+- task screens
+
+### Acceptance criteria
+- less text overall
+- stronger clarity
+- more direct language
+- fewer redundant descriptions
+
+### Reasoning effort
+Medium
+
+### Best tool
 Codex
 
-**Reasoning Effort**
-medium
-
-**Task-Größe**
-mittel
-
-**Risiken / Hinweise**
-- Nicht versehentlich den Icon-Stil des Sidebar-Logos (`sidebar-logo`) verändern
-- Darauf achten, dass `aria-hidden="true"` auf den Icon-SVGs gesetzt wird — der Linktext bleibt der Screen-Reader-Text
-- Mobile Drawer und Desktop Sidebar rendern die Links aus demselben Array — einmal ändern reicht, kein Duplikat nötig
-
 ---
 
-### [P0] Toast-Notification-System für transientes Feedback einführen
+## [DONE] [FE-D3] Simplify admin landing page cards and hierarchy
 
-**Ziel**
-Ein globales Toast/Snackbar-System erstellen, das transiente Feedback-Meldungen (Erfolg, Fehler nach Mutations) am Bildschirmrand fixiert anzeigt, unabhängig von der Scroll-Position der Seite.
+### Problem
+The admin overview currently feels overloaded and over-labelled. Cards contain too much framing language and not enough direct meaning.
 
-**Warum**
-Aktuell erscheint Feedback nach Aktionen (Task-Status gespeichert, Kommentar gespeichert, Anforderungen gespeichert) als `panel-note` innerhalb des Seitencontents. Auf der WorkflowDetailPage, MyTasksPage und SupervisorStepPage kann das Feedback komplett außerhalb des Viewports sein, wenn der Nutzer zu einem tiefer liegenden Element scrollt, eine Aktion ausführt und dann auf Rückmeldung wartet. Das ist ein echter UX-Bruch.
+### Goal
+Make the admin landing page calm, direct, and scannable.
 
-**Betroffene Bereiche**
-- `web/src/components/feedback/` — neue Datei `ToastProvider.tsx` erstellen
-- `web/src/main.tsx` — ToastProvider in die Context-Provider-Chain einbinden
-- `web/src/pages/WorkflowDetailPage.tsx` — taskNotice, taskError, requirementsSaveNotice, requirementsSaveError durch Toast-Calls ersetzen
-- `web/src/pages/MyTasksPage.tsx` — notice, actionError durch Toast-Calls ersetzen
-- `web/src/pages/SupervisorStepPage.tsx` — falls dort ähnliches Feedback existiert
+### Required outcome
+- fewer card groups
+- fewer labels
+- stronger hierarchy
+- no pseudo-strategic wording
+- clearer split between:
+  - where to start
+  - what is risky
+  - what is operational
+  - what is system-level
 
-**Umsetzungshinweise**
-- `ToastProvider.tsx`: React Context + useState für eine Liste aktiver Toasts
-- Toast-Item: `{ id: string; message: string; type: "success" | "error" | "info"; }`
-- Toasts auto-dismiss nach 4 Sekunden (Erfolg) / 6 Sekunden (Fehler)
-- Manuelles Schließen per X-Button
-- Positionierung: `position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 500;`
-- Maximal 3 Toasts gleichzeitig sichtbar (älteste zuerst raus)
-- `useToast()` Hook exportieren: `const { showSuccess, showError } = useToast()`
-- CSS in `web/src/styles/utilities.css` hinzufügen (`.toast-container`, `.toast`, `.toast-success`, `.toast-error`)
-- Transition: `opacity` + `transform: translateY` für sanftes Ein-/Ausblenden
-- Für Screen Reader: `role="status"` und `aria-live="polite"` auf dem Container
-- Die bisherigen `taskNotice`/`taskError` States und deren Render-Logik aus den Pages entfernen, sobald Toast verwendet wird
+### Suggested scope
+- `web/src/components/admin-config/AdminOverviewWorkspaceSection.tsx`
+- related admin CSS
 
-**Definition of Done**
-- Nach Mutation (Erfolg oder Fehler) erscheint ein Toast am unteren rechten Bildschirmrand
-- Toast ist auch bei gescrollter Seite sichtbar
-- Toast schließt sich nach 4-6 Sekunden automatisch
-- Manuelles Schließen funktioniert
-- Keine inline `panel-note`-Feedback-Reste mehr in WorkflowDetailPage und MyTasksPage für transiente Aktionsmeldungen
-- TypeScript-Fehlerfreiheit
+### Constraints
+- do not add more cards
+- do not add more help text
+- remove unnecessary wrappers where possible
 
-**Empfohlene KI**
+### Acceptance criteria
+- users can scan the admin landing page quickly
+- cards look more consistent
+- the page no longer feels over-explained
+
+### Reasoning effort
+Medium
+
+### Best tool
 Codex
 
-**Reasoning Effort**
-medium
-
-**Task-Größe**
-mittel
-
-**Risiken / Hinweise**
-- Nicht alle `panel-note`-Elemente entfernen — manche sind permanente Hinweise (z. B. "Es werden nur Aufgaben angezeigt, die Ihrer fachlichen Zuständigkeit zugeordnet sind"), keine Feedback-Meldungen
-- Den `z-index` nicht zu hoch setzen — muss unter Confirmation-Dialog-Backdrop bleiben (ConfirmationDialogProvider)
-- Nur transiente Mutations-Meldungen migrieren, keine statischen Hinweistexte
-
 ---
 
-### [P0] Duplizierte Task-Interaction-Logik in Hook extrahieren + MyTasksPage auf Mutations umstellen
+## [DONE] [FE-D4] Refactor oversized admin workspace components
 
-**Ziel**
-Die fast identische Task-Status- und Kommentar-Logik aus `WorkflowDetailPage` und `MyTasksPage` in einen gemeinsamen Hook `useTaskInteraction` extrahieren. Gleichzeitig `MyTasksPage` auf React Query Mutations umstellen (statt direkter API-Calls + manuellem refetch).
+### Problem
+Large admin workspace files are too big to maintain cleanly and are hard to evolve without UX regressions.
 
-**Warum**
-Folgende State-Variablen und Handler existieren fast 1:1 in beiden Pages:
-- `savingTaskIds`, `commentDrafts`, `savingCommentTaskIds`, `commentFeedbackTaskId`, `commentFeedbackMessage`
-- `handleStatusChange`, `handleCommentDraftChange`, `handleTaskCommentSubmit`
+### Goal
+Split oversized admin components by user task, not by arbitrary code chunks.
 
-Dazu nutzt `MyTasksPage` direkte API-Funktionen (`updateTaskStatusApi`, `addTaskCommentApi`) und dann manuelles `myTasksQuery.refetch()`, während `WorkflowDetailPage` React Query Mutations nutzt. Dieselbe Operation, zwei völlig verschiedene Patterns. Das ist technische Schuld, die bei der nächsten Änderung an Task-Logik teuer wird.
+### Priority targets
+- `web/src/components/admin-config/AdminOrganizationWorkspaceSection.tsx`
+- `web/src/pages/AdminConfigPage.tsx`
 
-**Betroffene Bereiche**
-- Neue Datei: `web/src/hooks/useTaskInteraction.ts`
-- `web/src/pages/WorkflowDetailPage.tsx` — Hook einbinden, eigene Logik entfernen
-- `web/src/pages/MyTasksPage.tsx` — Hook einbinden, direkte API-Calls + manuelles refetch ersetzen
-- `web/src/services/mutations/workflowMutations.ts` — prüfen ob MyTasksPage-kompatible Mutations bereits existieren oder hinzugefügt werden müssen
+### Rules
+- split by admin task / section responsibility
+- no behavior changes
+- no large style redesign in same step
+- keep props and flow understandable
 
-**Umsetzungshinweise**
-- `useTaskInteraction(queryKeyToInvalidate?: QueryKey)` erstellt:
-  - Status: `savingTaskIds`, `commentDrafts`, `savingCommentTaskIds`
-  - Handler: `handleStatusChange(taskId, status, currentStatus)`, `handleCommentDraftChange(taskId, value)`, `handleTaskCommentSubmit(taskId)`
-  - Toast-Feedback direkt über `useToast()` (setzt P0 Toast-Task voraus — falls Toast noch nicht existiert, temporär als Rückgabewert `feedbackMessage` mitgeben)
-- WorkflowDetailPage und MyTasksPage den Hook einbinden und die duplizierten State-Blöcke ersetzen
-- MyTasksPage: Statt `updateTaskStatusApi(taskId, nextStatus)` + `myTasksQuery.refetch()` → Mutation aus `workflowMutations.ts` verwenden + React Query cache invalidation
-- Der Hook sollte keinen spezifischen Query-Key kennen müssen — die Invalidierungsstrategie per Parameter oder Callback übergeben
+### Acceptance criteria
+- smaller components
+- clearer responsibilities
+- easier future UX improvements
 
-**Definition of Done**
-- `useTaskInteraction`-Hook existiert in `web/src/hooks/`
-- WorkflowDetailPage und MyTasksPage nutzen den Hook
-- MyTasksPage nutzt React Query Mutations (kein direkter API-Call mehr)
-- Kein manuelles `.refetch()` nach Mutations in MyTasksPage
-- TypeScript-Fehlerfreiheit, Build grün
+### Reasoning effort
+Medium
 
-**Empfohlene KI**
+### Best tool
 Codex
 
-**Reasoning Effort**
-high
+---
 
-**Task-Größe**
-mittel
-
-**Risiken / Hinweise**
-- Der Hook muss mit beiden Pages kompatibel sein: WorkflowDetailPage hat eine einzelne UID, MyTasksPage hat keine feste UID (Tasks aus verschiedenen Workflows)
-- Nicht versehentlich die `commentFeedbackTaskId`-Logik entfernen — diese steuert, welchem Task das Feedback zugeordnet wird. Erst wenn Toast vorhanden ist, ist das obsolet.
-- Schrittweise: erst Hook erstellen + in einer Page testen, dann die zweite
+# 🟠 SHOULD
 
 ---
 
-### [P0] AppLayout: Duplikation zwischen Desktop-Sidebar und Mobile Drawer entfernen
+## [DONE] [FE-S1] Tighten dashboard consistency and reduce remaining noise
 
-**Ziel**
-Den duplizierten JSX-Block (User-Section + Logout-Button in `sidebar-footer`) aus `AppLayout.tsx` in eine interne Komponente oder ein Fragment extrahieren.
+### Problem
+Dashboard is much better now, but still not fully calm and system-like.
 
-**Warum**
-In `AppLayout.tsx` ist der Sidebar-Footer (Benutzeranzeige + Abmelden-Button, ca. 25 Zeilen JSX) exakt zweimal vorhanden: einmal in der `<aside className="sidebar">` und einmal in der `<aside className="mobile-nav-drawer">`. Jede Änderung an der Benutzeranzeige muss manuell doppelt gemacht werden — klassische Copy-Paste-Schuld.
+### Goal
+Refine the dashboard so it feels more like a professional operational overview.
 
-**Betroffene Bereiche**
-- `web/src/components/layout/AppLayout.tsx`
+### Focus
+- reduce remaining text noise
+- check visual spacing and card consistency
+- ensure “next action” dominates clearly
+- make stat cards more uniform
+- verify no unnecessary heading/subheading clutter remains
 
-**Umsetzungshinweise**
-- Interne `SidebarFooter`-Komponente (nicht exportiert) direkt in der Datei definieren
-- Oder: Inline-Fragment mit JSX-Variable `const sidebarFooter = (...)`
-- Sowohl Desktop-Sidebar als auch Mobile Drawer nutzen dann dieselbe Instanz/Komponente
-- Keine Props ändern, keine externe Komponente erstellen, keine Umstrukturierung des Layouts
-
-**Definition of Done**
-- Der Sidebar-Footer-JSX existiert nur noch einmal im Datei-Code
-- Desktop-Sidebar und Mobile Drawer zeigen weiterhin denselben Footer
-- Kein Regressionsbruch
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Sehr einfacher Task, kaum Risiken
-- Darauf achten, dass beide `ref`-Attribute (mobileMenuButtonRef, mobileCloseButtonRef) im richtigen Element bleiben
-
----
-
-### [P0] Technische Daten aus user-facing Views entfernen
-
-**Ziel**
-Zwei konkrete Stellen, an denen rohe System-Daten an Endnutzer exponiert werden, bereinigen.
-
-**Warum**
-Abteilungsmitarbeiter auf MyTasksPage sehen: `"Workflow-ID: abc-123 | Abhängigkeiten: 0"` als Fußnote unter jedem Task-Item. Das ist Entwickler-Debug-Output, kein nutzbares UI-Element. Gleiches Problem in Wizard-Step 2: `"5 Anforderungen geladen, 2 Vorbelegungen für Onboarding vorbereitet."` — diese Zeile sagt einem HR-Mitarbeiter nichts Verwertbares.
-
-**Betroffene Bereiche**
-- `web/src/pages/MyTasksPage.tsx` — Zeile mit `Workflow-ID: {workflowUid} | Abhängigkeiten: {row.task.dependencies.length}` entfernen
-- `web/src/pages/CreateWorkflowPage.tsx` — Die `panel-muted`-Sektion "Prozesskonfiguration" mit dem Anforderungs-Count in Step 2 entfernen oder durch eine nutzerfreundliche Aussage ersetzen
-
-**Umsetzungshinweise**
-- **MyTasksPage**: Den `<p className="panel-note">Workflow-ID: ... | Abhängigkeiten: ...</p>`-Block vollständig entfernen. Der Workflow-Link (als separate P1-Aufgabe) ersetzt den nutzbaren Teil davon.
-- **CreateWorkflowPage Wizard Step 2**: Die ganze `<section className="panel panel-muted">` mit h3 "Prozesskonfiguration" entfernen. Diese Sektion zeigt Systemmetadaten, die für HR/Manager nicht relevant sind. Der Wizard führt die Person — sie muss nicht wissen, wie viele Anforderungen intern geladen wurden.
-- **Optional**: Falls ein anderer nutzbarer Hinweis in Step 2 sinnvoll ist (z. B. "Für diesen Prozesstyp sind bereits Vorbelegungen für Ihre Rolle hinterlegt"), kann ein einfacher Satz ohne System-Counts ersetzt werden.
-
-**Definition of Done**
-- "Workflow-ID / Abhängigkeiten"-Zeile nicht mehr in MyTasksPage sichtbar
-- "Prozesskonfiguration"-Sektion in Wizard Step 2 nicht mehr vorhanden
-- Kein TypeScript-Fehler, kein Build-Break
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Nur diese zwei spezifischen Stellen entfernen. Nicht pauschal alle `panel-note`-Elemente prüfen oder entfernen.
-
----
-
-### [P1] "Freigabeschritt fehlt"-Rausch-Panel auf WorkflowDetailPage entfernen
-
-**Ziel**
-Den informationslosen Panel-Block `"Dieser Prozesstyp hat keinen separaten Schritt für die Abteilungsleitung"` auf der WorkflowDetailPage entfernen.
-
-**Warum**
-Dieser Panel erscheint auf der WorkflowDetailPage für alle Prozesstypen ohne Supervisor-Step. Er erklärt dem Nutzer das Fehlen eines Features, das er nie angefordert hat und dessen Fehlen für ihn keine Relevanz hat. Das ist UI-Rauschen, das die Seite länger macht, ohne Information zu liefern. Enterprise-Software zeigt keine leeren Zustände von Features, die nicht existieren.
-
-**Betroffene Bereiche**
-- `web/src/pages/WorkflowDetailPage.tsx` — den bedingten Render-Block mit `"Freigabeschritt"` Panel entfernen
-
-**Umsetzungshinweise**
-- Den Block `{!hasSupervisorStep(workflow) && workflow.workflowStatus !== "waiting_for_supervisor" ? (<section className="panel panel-muted">...</section>) : null}` vollständig entfernen
-- Kein Ersatz nötig — der Panel hat keinen informativen Wert für den Nutzer
-
-**Definition of Done**
-- Der "Freigabeschritt"-Panel erscheint nicht mehr auf Prozesstypen ohne Supervisor-Step
-- Wenn ein Prozesstyp einen Supervisor-Step hat, wird dieser weiterhin korrekt gerendert
-- Kein TypeScript-Fehler
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Nur den leeren Zustand entfernen. Den tatsächlichen `WorkflowRequirementsPanel` für Prozesstypen MIT Supervisor-Step nicht anfassen.
-
----
-
-### [P1] Direkter Workflow-Link aus Tasks in MyTasksPage
-
-**Ziel**
-Jede Aufgabe in der MyTasksPage erhält einen direkten Link zur Vorgangs-Detailseite des zugehörigen Workflows.
-
-**Warum**
-Ein Fachbereichsmitarbeiter sieht seine Aufgaben in der MyTasksPage, möchte aber oft den Gesamtkontext eines Vorgangs sehen (welche anderen Aufgaben laufen, was ist der aktuelle Stand, wer ist zuständig). Aktuell gibt es keinen direkten Weg von der Aufgabe zur Vorgangsseite — der Nutzer müsste die Workflow-UID kopieren, zur Suche navigieren, eintippen. Das ist inakzeptable Reibung.
-
-**Betroffene Bereiche**
-- `web/src/pages/MyTasksPage.tsx` — Task-Card-Render-Block
-- `web/src/styles/workflow.css` oder `utilities.css` — ggf. minimales Styling für den Link
-
-**Umsetzungshinweise**
-- In der Task-Card einen Link `<Link to={`/workflows/${workflowUid}`}>Zum Vorgang</Link>` hinzufügen
-- Platzierung: In der `task-meta`-Sektion als zusätzlicher `<div>` mit `<dt>Vorgang</dt><dd><Link...></dd>`, oder als separater sekundärer Button unterhalb der Meta-Informationen
-- Label: "Zum Vorgang" oder "Vorgangsdetails öffnen"
-- Styling: `.btn .btn-secondary` (klein) oder als reiner Text-Link mit Unterline
-- Die `workflowUid` ist bereits als `row.workflow.workflowUid` verfügbar — kein API-Aufruf nötig
-
-**Definition of Done**
-- Jede Aufgabe in MyTasksPage hat einen klickbaren Link zur Vorgangs-Detailseite
-- Der Link navigiert korrekt zu `/workflows/{workflowUid}`
-- Kein visueller Bruch mit dem restlichen Task-Card-Layout
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Auf die Platzierung achten — der Task-Card ist bereits informationsdicht. Der Link sollte nicht prominent sein, sondern als sekundäre Aktion wahrnehmbar.
-
----
-
-### [P1] "Zum Vorgang"-Link nach erfolgreicher Workflow-Erstellung
-
-**Ziel**
-Nach erfolgreicher Erstellung eines Workflows in der CreateWorkflowPage erscheint neben "Zur Übersicht" auch ein Link "Zum neuen Vorgang", der direkt zur Detailseite des erstellten Workflows führt.
-
-**Warum**
-Nach dem Anlegen eines Vorgangs möchte der HR-Mitarbeiter in 90% der Fälle sofort den neuen Vorgang prüfen — nicht erst zur Übersichtsliste navigieren und ihn dort suchen. `createdWorkflowUid` wird bereits vom Hook zurückgegeben, aber nicht für Navigation genutzt.
-
-**Betroffene Bereiche**
-- `web/src/pages/CreateWorkflowPage.tsx` — der Submit-Success-Block in Step 3 (Review)
-
-**Umsetzungshinweise**
-- Im Success-Panel neben dem bestehenden `<Link to="/workflows">Zur Übersicht</Link>` einen weiteren Link hinzufügen:
-  `<Link to={`/workflows/${createdWorkflowUid}`}>Zum neuen Vorgang</Link>`
-- Der neue Link erhält die primäre Button-Klasse (`.btn.btn-primary`), "Zur Übersicht" erhält die sekundäre (`.btn.btn-secondary`)
-- Der Link soll nur erscheinen wenn `createdWorkflowUid` vorhanden ist (ist bereits der Fall durch bestehende Bedingung)
-
-**Definition of Done**
-- Nach erfolgreicher Erstellung erscheint "Zum neuen Vorgang"-Button
-- Link navigiert korrekt zur Workflow-Detailseite
-- "Zur Übersicht"-Button bleibt als sekundäre Option
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Minimale Änderung. Keine Logik-Änderungen nötig.
-
----
-
-### [P1] Breadcrumb-Navigation auf WorkflowDetailPage und PersonWorkflowHistoryPage
-
-**Ziel**
-WorkflowDetailPage und PersonWorkflowHistoryPage erhalten eine einfache Breadcrumb-Navigation, die den Rückweg zur Liste ermöglicht.
-
-**Warum**
-Detail-Seiten haben keine Back-Navigation außer dem Browser-Back-Button. Enterprise-Software nutzt Breadcrumbs als primäre Navigationshilfe auf Detail-Seiten. Ohne Breadcrumbs muss der Nutzer in der Sidebar zur Listenansicht klicken oder den Browser-Zurück-Button nutzen — beides ist Umweg-Navigation.
-
-**Betroffene Bereiche**
-- `web/src/components/layout/PageHeader.tsx` — optional: Breadcrumb-Prop hinzufügen
-- `web/src/pages/WorkflowDetailPage.tsx`
-- `web/src/pages/PersonWorkflowHistoryPage.tsx`
-- `web/src/styles/base.css` oder `utilities.css` — Breadcrumb-CSS
-
-**Umsetzungshinweise**
-- Einfaches Breadcrumb-Pattern: `Laufende Vorgänge / Vorgangsdetails`
-- Der erste Teil ist ein `<Link to="/workflows">Laufende Vorgänge</Link>`, der zweite ist plain text
-- Platzierung: Direkt oberhalb des `<PageHeader>`, als eigenes `<nav aria-label="Breadcrumb">` Element
-- CSS: `.breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.5rem; }` — Trenner als `›` oder `/` zwischen den Items
-- Keine komplexe Breadcrumb-Komponente nötig — inline JSX in der Page reicht
-- WorkflowDetailPage: `Laufende Vorgänge / Vorgangsdetails`
-- PersonWorkflowHistoryPage: `Vorgänge suchen / Personenverlauf` (je nach Einstiegskontext)
-
-**Definition of Done**
-- WorkflowDetailPage zeigt Breadcrumb mit Link zurück zur Workflow-Liste
-- PersonWorkflowHistoryPage zeigt Breadcrumb
-- Links funktionieren korrekt
-- Breadcrumb ist visuell konsistent (kleine Schrift, gedämpfte Farbe)
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Kein komplexes Routing-Tracking nötig. Einfache statische Links reichen für diese Pages.
-- Nicht für alle Pages gleichzeitig einführen — die zwei genannten Pages sind die dringendsten.
-
----
-
-### [P1] Semantische Feedback-Panel-Klassen konsistent einführen
-
-**Ziel**
-Die Klasse `panel-muted` wird derzeit für Informationshinweise, Validierungsfehler, Review-Zusammenfassungen und Ruhezustände gleichermaßen verwendet. Klare semantische Varianten (`panel-warning`, `panel-error`) einführen und die bestehenden Stellen konsistent zuordnen.
-
-**Warum**
-`panel-muted` hat keine Bedeutung mehr — es ist ein catch-all für "nicht primär". Wenn Validierungsfehler, neutrale Hinweise und Warnungen visuell gleich aussehen, verliert der Nutzer die Orientierung über die Wichtigkeit einer Meldung. `panel-success` existiert bereits korrekt. Es fehlen `panel-warning` (Achtung, aber kein Fehler) und `panel-error` (Fehler, Handlung nötig).
-
-**Betroffene Bereiche**
-- `web/src/styles/base.css` oder `workflow.css` — CSS-Definitionen für `.panel-warning`, `.panel-error`
-- `web/src/pages/CreateWorkflowPage.tsx` — Validierungsfehler-Panels
-- `web/src/pages/WorkflowDetailPage.tsx` — Fehler-Panels
-- `web/src/pages/MyTasksPage.tsx` — Fehler-Panels
-- Ggf. weitere Pages mit `panel-muted` für fehlerhafte Zustände
-
-**Umsetzungshinweise**
-- CSS-Definitionen:
-  - `.panel-warning { background: #fffbeb; border-color: #d97706; }` — für Warnungen (z.B. fehlende Kontextdaten, unvollständige Zielperson)
-  - `.panel-error { background: #fef2f2; border-color: #dc2626; }` — für Fehler (Validation-Errors, Laden fehlgeschlagen im inline-Kontext)
-  - `panel-muted` bleibt für neutrale/sekundäre Informationsinhalte
-- In CreateWorkflowPage: Validierungslisten (contextStepIssues, processStepIssues) und Fehlermeldungen `panel-warning` statt `panel-muted`
-- `submitError`-Block in Review-Step: `panel-error` statt `panel-muted`
-- Erfolgsmeldungen (bereits `panel-success`): bleiben
-- Neutrale Review-Zusammenfassungen (Übersicht in Step 3): bleiben `panel-muted`
-
-**Definition of Done**
-- Validierungsfehler und submit errors werden visuell anders dargestellt als neutrale Informationen
-- CSS-Klassen `.panel-warning` und `.panel-error` sind definiert
-- Keine bestehenden `panel-success`-Instanzen verändert
-- Build grün, kein Regressionsbruch
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-medium
-
-**Task-Größe**
-mittel
-
-**Risiken / Hinweise**
-- Nicht pauschal alle `panel-muted`-Stellen ersetzen — nur die, die semantisch Fehler oder Warnungen sind
-- Zuerst CSS definieren, dann gezielt ersetzen. Nicht von hinten anfangen.
-- Die Farbwerte an die bestehenden Design-Tokens anlehnen (`--warning`, `--danger`, `--success`)
-
----
-
-### [P1] Dashboard UI: Entwickler-Labels entfernen, "Schnellzugriff"-Bereich verbessern
-
-**Ziel**
-Drei spezifische Stellen im Dashboard bereinigen, die entwicklerfacing sind oder unnötig Platz belegen.
-
-**Warum**
-- Der Abschnitt "Sekundäre Navigation" (Überschrift eines Panels ganz unten) ist Entwicklerjargon — Nutzer verstehen das nicht als UI-Konzept
-- "Rolle: HR, Admin" wird als `panel-note` im Support-Panel angezeigt — diese Information ist bereits in der Sidebar (Benutzeranzeige mit Rolle). Dopplung ohne Nutzen.
-- Der "Übersicht aktualisieren"-Button ist schwer zu finden, da er im Side-Panel unter dem Prozesstyp-Filter steht
-
-**Betroffene Bereiche**
+### Suggested scope
 - `web/src/components/dashboard/DashboardOverview.tsx`
+- `web/src/components/dashboard/dashboardInsights.ts`
+- related dashboard styles
 
-**Umsetzungshinweise**
-- "Sekundäre Navigation" Panel: Den Abschnittstitel von "Sekundäre Navigation" in einen nutzerorientierten Begriff umbenennen, z.B. "Weitere Bereiche" oder ganz ohne Titel als implizite Linkliste
-- "Rolle: X"-`panel-note` im Support-Panel entfernen (die Rolle ist bereits in der Sidebar sichtbar)
-- "Übersicht aktualisieren"-Button: Behalten, aber Positionierung prüfen — ggf. als sekundären Link direkt im primary Panel oder als Icon-Button im Panel-Head
+### Acceptance criteria
+- clearer scanning
+- less explanation, more action
+- more visual consistency between cards/sections
 
-**Definition of Done**
-- Kein "Sekundäre Navigation"-Entwickler-Label mehr im Dashboard
-- Kein doppelter Rollen-Hinweis im Dashboard
-- Aktualisieren-Funktion weiterhin zugänglich
+### Reasoning effort
+Medium
 
-**Empfohlene KI**
+### Best tool
 Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Minimale Änderungen. Keine Logik anfassen.
-- Die `secondaryDashboardActions`-Render-Logik bleibt, nur der Label ändert sich.
 
 ---
 
-### [P2] Loading Skeleton States für Workflow-Liste und Task-Liste
+## [DONE] [FE-S2] Simplify process-type cards in workflow creation
 
-**Ziel**
-Auf WorkflowListPage und MyTasksPage werden während des Ladens Skeleton-Platzhalter angezeigt, die die ungefähre Struktur der Karten/Listen simulieren, statt nur Ladetext zu zeigen.
+### Problem
+The wizard is improved, but process-type cards are still too text-heavy and visually busy.
 
-**Warum**
-Text-basiertes Laden ("Vorgänge werden geladen...") fühlt sich statisch an. Skeleton-States reduzieren die wahrgenommene Ladezeit, weil der Nutzer sieht, dass etwas passiert und sich die UI aufbaut. Das ist ein signifikanter Qualitätsunterschied zwischen Prototyp und Enterprise-Software.
+### Goal
+Make process selection faster to scan and easier to decide.
 
-**Betroffene Bereiche**
-- Neue Datei: `web/src/components/feedback/SkeletonCard.tsx`
-- `web/src/pages/WorkflowListPage.tsx` — LoadingState ersetzen
-- `web/src/pages/MyTasksPage.tsx` — LoadingState ersetzen
-- `web/src/styles/utilities.css` — Skeleton-Animation CSS
+### Required outcome
+- process cards should emphasize:
+  - process name
+  - whether it applies to new or existing person (if needed)
+  - one short useful description
+- remove or reduce secondary wording
+- stronger selected state
+- better visual balance across cards
 
-**Umsetzungshinweise**
-- CSS-Animation für Skeleton: `@keyframes skeleton-shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }` mit einem linearen Gradient (grau → heller grau → grau)
-- `.skeleton-line { height: 0.85rem; border-radius: 4px; background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.4s infinite; }`
-- `SkeletonCard`-Komponente: Simuliert eine Karte mit 2-3 Skeleton-Lines in verschiedenen Breiten (z.B. 60%, 40%, 80%)
-- WorkflowListPage: Im Lade-State statt `<LoadingState>` 6-8 `<SkeletonCard>`-Instanzen in einem `.workflow-grid` rendern
-- MyTasksPage: Im Lade-State 4-5 `<SkeletonCard>`-Instanzen in einem Stack rendern
-- Die `LoadingState`-Komponente für andere Stellen (z.B. Dashboard) nicht ersetzen — dort ist der Text-Loader akzeptabel
+### Suggested scope
+- `web/src/pages/CreateWorkflowPage.tsx`
+- related workflow styles
 
-**Definition of Done**
-- WorkflowListPage zeigt Skeleton-Cards beim Laden
-- MyTasksPage zeigt Skeleton-Cards beim Laden
-- Skeleton-Shimmer-Animation läuft flüssig
-- Kein visueller Bruch nach dem Laden
+### Acceptance criteria
+- process cards are easier to compare
+- less reading required
+- wizard feels lighter
 
-**Empfohlene KI**
+### Reasoning effort
+Medium
+
+### Best tool
 Codex
-
-**Reasoning Effort**
-medium
-
-**Task-Größe**
-mittel
-
-**Risiken / Hinweise**
-- Skeletons sollen ungefähr die Form der echten Karten simulieren, müssen aber nicht pixelgenau sein
-- Darauf achten, dass `aria-busy="true"` am Container-Element gesetzt wird während das Laden läuft
-- Nicht für alle Seiten gleichzeitig einführen — zuerst WorkflowListPage, dann MyTasksPage
 
 ---
 
-### [P2] Konsistente Mutations-Verwendung in MyTasksPage (React Query)
+## [DONE] [FE-S3] Further improve workflow task-area prioritization
 
-**Ziel**
-MyTasksPage nutzt für Statusänderungen und Kommentare direkte Service-Funktionen + manuelles `refetch()`. Das soll auf React Query Mutations umgestellt werden, konsistent mit WorkflowDetailPage.
+### Problem
+Task areas are improved, but still need stronger prioritization inside open sections.
 
-**Warum**
-Direkte API-Calls + manuelles `refetch()` umgehen React Querys Cache-Logik. Wenn die Cache-Invalidierungsstrategie sich ändert (z. B. optimistic updates, shared query keys), muss MyTasksPage separat angepasst werden. Inkonsistente Patterns kosten Wartungsaufwand.
+### Goal
+Make relevant work stand out faster.
 
-**Betroffene Bereiche**
-- `web/src/services/mutations/workflowMutations.ts` — prüfen ob `useUpdateTaskStatus` und `useAddTaskComment` für MyTasksPage nutzbar sind (sie sind derzeit an eine Workflow-UID gebunden)
+### Possible improvements
+- stronger visual distinction for current area
+- compact rendering for completed tasks
+- clearer separation between actionable and informational tasks
+- optional sticky or stronger “next action” anchor inside workflow detail
+
+### Suggested scope
+- `web/src/components/workflow-detail/WorkflowTaskAreasSection.tsx`
+- `web/src/components/workflow-detail/workflowDetailModel.ts`
+- related styles
+
+### Acceptance criteria
+- less scanning effort inside workflow detail
+- easier identification of relevant tasks
+
+### Reasoning effort
+Medium
+
+### Best tool
+Codex
+
+---
+
+## [DONE] [FE-S4] Standardize page headers across frontend
+
+### Problem
+Page headers are too generic and contribute to inconsistent top-of-page rhythm.
+
+### Goal
+Make page headers more consistent and more intentional.
+
+### Required outcome
+- title usage becomes more consistent
+- page description only exists when it adds real value
+- spacing and rhythm at page start feel more unified
+
+### Suggested scope
+- `web/src/components/layout/PageHeader.tsx`
+- all page usages
+
+### Constraints
+- do not force every page to have a description
+- do not add decorative copy
+
+### Acceptance criteria
+- more consistent page openings
+- less header noise
+
+### Reasoning effort
+Medium
+
+### Best tool
+Codex
+
+---
+
+## [DONE] [FE-S5] Review and simplify My Tasks page hierarchy
+
+### Problem
+The “Meine Aufgaben” page still contains explanation blocks and filter framing that may be heavier than needed.
+
+### Goal
+Make task work feel direct and operational.
+
+### Focus
+- reduce explanatory top text
+- keep filters compact
+- ensure users reach actionable task groups quickly
+- avoid duplicate “next action” messaging if obvious from grouping
+
+### Suggested scope
 - `web/src/pages/MyTasksPage.tsx`
 
-**Umsetzungshinweise**
-- Falls `useUpdateTaskStatus(uid)` einen fixen UID braucht, der in MyTasksPage nicht bekannt ist: Den Mutation-Hook auf eine UID-agnostische Variante erweitern oder eine neue Mutation ohne Workflow-UID-Binding erstellen
-- MyTasksPage: `updateTaskStatusApi` und `addTaskCommentApi` direkt-Aufrufe durch Mutations ersetzen
-- Manuelles `myTasksQuery.refetch()` nach Mutations durch `queryClient.invalidateQueries` ersetzen
-- Dieser Task baut auf dem `useTaskInteraction`-Hook-Task auf — wenn der zuerst fertig ist, löst sich dieser Task teilweise von selbst
+### Acceptance criteria
+- less top-heavy layout
+- stronger focus on actual tasks
 
-**Definition of Done**
-- Keine direkten `Api`-Funktionsaufrufe mehr in MyTasksPage für Mutations
-- React Query Mutation + Invalidation wird genutzt
-- Verhalten aus Nutzerperspektive identisch
+### Reasoning effort
+Low
 
-**Empfohlene KI**
+### Best tool
 Codex
-
-**Reasoning Effort**
-medium
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Abhängig von P0-Task "useTaskInteraction". Wenn dieser Task zuerst erledigt wird, kann dieser Task übersprungen werden.
-- Sorgfältig prüfen welche QueryKeys invalidiert werden sollen — falsches Invalidieren kann zu unnötigen Loads führen
 
 ---
 
-### [P2] Page-Beschreibungen auf nutzerorientierte Sprache umschreiben
+## [DONE] [FE-S6] Review Workflow List vs Workflow Search separation again
 
-**Ziel**
-Die Untertexte der `PageHeader`-Komponente auf allen Pages werden von technisch-beschreibenden Strings in echte Nutzer-Kontext-Sätze umgeschrieben.
+### Problem
+Both pages still risk conceptual overlap.
 
-**Warum**
-Aktuell lesen sich viele Beschreibungen wie Datenbankfeld-Dokumentation:
-- "Zentraler Überblick über Person, Prozesstyp, Prozessstand, Zuständigkeiten und offene Aufgaben." (WorkflowDetailPage)
-- "Filtern und suchen Sie nach aktiven und abgeschlossenen Vorgängen." (WorkflowSearchPage)
+### Goal
+Make the difference between browsing and searching clearly visible in structure and wording.
 
-Enterprise-Software schreibt Beschreibungen als Kontext für den Nutzer: Was wird er hier tun? Was hilft ihm das?
-
-**Betroffene Bereiche**
-- `web/src/pages/WorkflowDetailPage.tsx` — pageDescription
-- `web/src/pages/WorkflowListPage.tsx` — pageDescription
-- `web/src/pages/WorkflowSearchPage.tsx` — pageDescription
-- `web/src/pages/MyTasksPage.tsx` — pageDescription
-- `web/src/pages/AdminConfigPage.tsx` — falls Beschreibungen vorhanden
-- `web/src/pages/PersonWorkflowHistoryPage.tsx` — pageDescription
-
-**Umsetzungshinweise**
-- Schreibregel: Beschreibung beantwortet "Was kann ich hier tun und warum hilft mir das?"
-- Beispiele:
-  - WorkflowDetailPage: "Prozessstand, Aufgaben und Zuständigkeiten eines einzelnen Vorgangs auf einen Blick."
-  - MyTasksPage: "Alle Aufgaben, die Ihrer fachlichen Zuständigkeit zugeordnet sind – gefiltert nach Status und Bereich."
-  - WorkflowListPage: "Aktive Vorgänge nach Status, Abteilung und Prozesstyp filtern und direkt öffnen."
-- Kurz halten: max. 1 Satz, max. 80-90 Zeichen
-- Keine technischen Begriffe wie "Prozessstand", "Zuständigkeiten", "Vorgangs-UID" in Beschreibungen
-
-**Definition of Done**
-- Alle genannten Pages haben nutzerorientierte Beschreibungen
-- Kein Satz liest sich wie eine Datenbankdokumentation
-- Kein TypeScript-Fehler
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-low
-
-**Task-Größe**
-klein
-
-**Risiken / Hinweise**
-- Sehr einfacher Task, kein Risiko
-- Keine Logik-Änderungen, nur String-Änderungen
-
----
-
-### [P2] Filter-Toolbar Responsivität verbessern (MyTasksPage, WorkflowListPage)
-
-**Ziel**
-Die Filter-Toolbars auf MyTasksPage und WorkflowListPage brechen bei mittleren Bildschirmbreiten (900–1200px) schlecht um. Das Layout soll auf mittleren Breiten sinnvoll komprimiert werden, ohne alle Filter unsichtbar zu machen.
-
-**Warum**
-`.toolbar-row` ist ein einfacher Flex-Container. Bei 4-5 Filter-Elementen + Button auf 1000px Breite ist das Ergebnis entweder Overflow oder ungleichmäßiges Wrapping. Das ist ein konkretes Usability-Problem auf Laptop-Bildschirmen, die eine häufige Arbeitsumgebung für interne Tools sind.
-
-**Betroffene Bereiche**
-- `web/src/styles/utilities.css` oder `base.css` — `.toolbar-row`-Klasse und ggf. responsive Varianten
-- `web/src/pages/MyTasksPage.tsx`
+### Suggested scope
 - `web/src/pages/WorkflowListPage.tsx`
+- `web/src/pages/WorkflowSearchPage.tsx`
+- navigation labels
 
-**Umsetzungshinweise**
-- `.toolbar-row` auf CSS Grid umstellen mit `grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))` oder expliziten Column-Definitionen
-- Der Such-Input soll breiter sein als die Dropdowns: `.grow`-Klasse nutzen oder explizit `grid-column: span 2` auf dem Such-Feld
-- Auf kleinen Breiten (<600px) alle Felder in eine Spalte
-- Kein JavaScript-Breakpoint-Handling nötig — rein CSS
+### Acceptance criteria
+- clearer difference in user intent
+- less duplicated feeling
 
-**Definition of Done**
-- Filter-Toolbar auf 1000px-Breite sieht sauber aus (kein unkontrolliertes Wrapping)
-- Auf <600px alle Filter untereinander gestapelt
-- Kein visueller Regressionsbruch auf Desktop
+### Reasoning effort
+High
 
-**Empfohlene KI**
-Codex
+### Best tool
+Claude for scoping, Codex for implementation
 
-**Reasoning Effort**
-low
+### Scoping analysis
 
-**Task-Größe**
-klein
+**Core distinction (functional, invisible to users today):**
+- List (`/workflows`): Always loads results, paginated (20/page), has Responsibility filter, has operational callout
+- Search (`/search`): Only loads when a filter is active, up to 1000 results, no Responsibility filter, empty by default
 
-**Risiken / Hinweise**
-- Nicht beide Pages gleichzeitig verändern ohne zu verifizieren — erst eine, dann die andere
-- `.toolbar-row` wird möglicherweise an anderen Stellen im Codebase genutzt — zuerst prüfen, welche anderen Komponenten diese Klasse verwenden (`grep -r "toolbar-row"`)
+**Root causes of overlap:**
+1. List page has a free-text input ("Schnellfilter") — looks identical to Search page's "Suche" input
+2. List page panel heading is "Arbeitsüberblick" — sounds like a second dashboard, not a filter view
+3. Search page panel has `<h2>Globale Suche</h2>` — redundant with the page title "Vorgänge gezielt suchen"
+4. The `next-action-callout` on the List page mixes monitoring intent into a browsing/filtering page
 
----
+**Navigation labels:** Already correct — "Laufende Vorgänge" vs "Vorgänge suchen". No nav changes needed.
 
-### [P2] WorkflowDetailPage: Requirement-Editor-State in Custom Hook auslagern
+### Implementation plan (ready for Codex)
 
-**Ziel**
-Die Requirement-Editor-Logik in `WorkflowDetailPage.tsx` (ca. 80-100 Zeilen State + Handler für Requirement-Selektion) in einen eigenen Hook `useRequirementEditor` auslagern.
+**Affected files:**
+- `web/src/pages/WorkflowListPage.tsx`
+- `web/src/pages/WorkflowSearchPage.tsx`
 
-**Warum**
-WorkflowDetailPage hat 15+ State-Variablen und über 10 Handler-Funktionen. Der Requirement-Editor-Anteil ist ein klar abgrenzbares Thema: `requirementSelections`, `requirementsSaveError`, `requirementsSaveNotice`, `isSavingRequirements`, `setRequirementBoolean`, `setRequirementText`, `setRequirementSelectedOption`, `toggleRequirementSelectedOption`, `handleRequirementSave`. Das kann ohne Funktionsverlust extrahiert werden.
-
-**Betroffene Bereiche**
-- Neue Datei: `web/src/hooks/useRequirementEditor.ts`
-- `web/src/pages/WorkflowDetailPage.tsx`
-
-**Umsetzungshinweise**
-- Der Hook nimmt `workflow: WorkflowDetail | null` und `capabilities` (oder spezifisch: `canEditSupervisorRequirements: boolean`) als Parameter
-- Gibt zurück: `requirementSelections`, `isSavingRequirements`, `canSaveSupervisorRequirements`, alle Handler + `handleRequirementSave`
-- Den `updateSupervisorStepMutation`-Aufruf innerhalb des Hooks verwalten
-- WorkflowDetailPage bindet den Hook ein und destructurt die Rückgabewerte
-
-**Definition of Done**
-- `useRequirementEditor.ts` existiert und enthält die extrahierte Logik
-- WorkflowDetailPage ist merklich kürzer (ca. 80-100 Zeilen weniger)
-- Requirement-Editor-Funktionalität bleibt identisch
-- TypeScript-Fehlerfreiheit
-
-**Empfohlene KI**
-Codex
-
-**Reasoning Effort**
-medium
-
-**Task-Größe**
-mittel
-
-**Risiken / Hinweise**
-- Dieser Task setzt voraus, dass der `useTaskInteraction`-Hook (P0) bereits umgesetzt ist, damit beide Extractions konsistent sind
-- Nicht die Mutations oder Query-Hooks innerhalb des neuen Hooks umbenennen oder refactoren — nur verschieben
+No routing, no data fetching, no component logic changes. Wording and structure only.
 
 ---
 
-### [P3] CSS-Scoping-Strategie evaluieren und Migrationsplan erstellen
+#### Step 1 — `WorkflowListPage.tsx`
 
-**Ziel**
-Die aktuelle Architektur aus globalen CSS-Klassen (`.panel`, `.btn`, `.field`, `.toolbar-row`, `.workflow-card`, ...) evaluieren und einen Migrationsplan für eine scoped CSS-Strategie erstellen.
+**1a. Remove the `next-action-callout` block** (lines ~189–201).
 
-**Warum**
-Globale CSS-Klassen ohne Scoping skalieren schlecht. Jede Klasse wie `.panel` wirkt auf alle Stellen im Codebase gleichzeitig. Tailwind-Utilities sind bereits importiert — eine konsequentere Nutzung von Tailwind-Komponenten oder CSS Modules würde die Wartbarkeit verbessern. Das ist kein akutes Problem, wird aber bei weiterem Wachstum relevant.
+The "next action" pattern belongs to the dashboard. Its presence here makes the List page feel like a secondary dashboard rather than an operational filter view. Remove entirely:
+```tsx
+// REMOVE this block:
+<div className="next-action-callout">
+  <p className="next-action-label">Nächste nötige Aktion</p>
+  <p className="next-action-text">
+    {isReaderOnlyView
+      ? "Freigegebene Workflow-Stände verfolgen."
+      : "Fälle mit offener Abteilungsleitung oder Fachbereichen zuerst prüfen."}
+  </p>
+</div>
+```
 
-**Betroffene Bereiche**
-- `web/src/styles/` (alle CSS-Dateien)
-- `web/src/components/` (alle Komponenten)
+Also remove the `isReaderOnlyView` variable and its `useCurrentUser` import if no longer used after this removal. Check: `isReaderOnlyView` is only used in the callout — so also remove:
+```tsx
+// REMOVE if no longer referenced:
+const isReaderOnlyView =
+  capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
+```
+And remove the `useCurrentUser` import line if `capabilities` is no longer used.
 
-**Umsetzungshinweise**
-- Zuerst: Bestandsaufnahme aller globalen Klassen und wo sie genutzt werden
-- Optionen bewerten: Tailwind-Komponenten-Layer (`@layer components { .panel {...} }`), CSS Modules, oder Beibehaltung mit strikterem BEM-Naming
-- Empfehlung: Tailwind `@layer components` für wiederverwendbare Komponenten-Klassen (`.panel`, `.btn`, `.field`) — damit bleiben sie nutzbar, werden aber als bewusstes Design-System-Element behandelt
-- Migration in Wellen: zuerst neue Komponenten, dann nach und nach bestehende
-- **Kein sofortiger Umbau**, sondern einen Entscheidungs-ADR erstellen
+**1b. Rename the filter panel heading:**
+```tsx
+// OLD:
+<h2>Arbeitsüberblick</h2>
 
-**Definition of Done**
-- Entscheidung dokumentiert
-- Klarer Migrationsplan vorhanden
-- (Die eigentliche Migration ist ein separater, sehr großer Task)
+// NEW:
+<h2>Vorgänge filtern</h2>
+```
 
-**Empfohlene KI**
-Claude
+**1c. Rename the text filter label and update placeholder:**
+```tsx
+// OLD:
+<span>Schnellfilter</span>
+...
+placeholder="z. B. Name, Stelle oder ID im aktuellen Überblick"
 
-**Reasoning Effort**
-high
+// NEW:
+<span>Suche in dieser Ansicht</span>
+...
+placeholder="Name, Stelle oder Personalnummer"
+```
 
-**Task-Größe**
-klein (nur Analyse und Plan)
+This signals that the text input narrows the current paginated view — not a global lookup.
 
-**Risiken / Hinweise**
-- Kein Code-Change in diesem Task. Nur Analyse und Entscheidung.
-- Eine vorschnelle Migration des gesamten CSS würde Wochen dauern und ist riskant — der Plan muss inkrementell sein
+**1d. Update the cross-link label:**
+```tsx
+// OLD:
+<Link className="btn btn-secondary" to="/search">
+  Zur globalen Suche
+</Link>
+
+// NEW:
+<Link className="btn btn-secondary" to="/search">
+  Gezielt suchen
+</Link>
+```
 
 ---
 
-### [P3] Skip-Link für Tastatur-Navigation
+#### Step 2 — `WorkflowSearchPage.tsx`
 
-**Ziel**
-Einen "Zum Hauptinhalt springen"-Link am Anfang des DOM einfügen, der für Tastaturnutzer sichtbar wird beim Fokus.
+**2a. Change the PageHeader title:**
+```tsx
+// OLD:
+<PageHeader title="Vorgänge gezielt suchen" />
 
-**Warum**
-Ohne Skip-Link müssen Tastaturnutzer bei jedem Seitenwechsel die gesamte Sidebar-Navigation durchtabben, bevor sie zum Inhalt gelangen. Das ist eine Grundanforderung für Accessibility (WCAG 2.1 AA, Erfolgskriterium 2.4.1).
+// NEW:
+<PageHeader title="Vorgangssuche" />
+```
 
-**Betroffene Bereiche**
-- `web/src/components/layout/AppLayout.tsx`
+**2b. Remove the redundant panel `<h2>`:**
+```tsx
+// OLD:
+<div className="panel-head">
+  <h2>Globale Suche</h2>
+</div>
+
+// REMOVE the entire panel-head div — the page title already establishes context.
+```
+
+**2c. Update the `panel-note` to signal the key behavioral difference:**
+```tsx
+// OLD:
+<p className="panel-note">
+  Suche nach Name, Personalnummer oder Workflow-ID.
+</p>
+
+// NEW:
+<p className="panel-note">
+  Findet Vorgänge unabhängig vom Status. Suche nach Name, Personalnummer oder Workflow-ID.
+</p>
+```
+
+"Unabhängig vom Status" is the key phrase: it tells users why they'd come here instead of the List page.
+
+**2d. Update the cross-link label:**
+```tsx
+// OLD:
+<Link className="btn btn-secondary" to="/workflows">
+  Zum Arbeitsüberblick
+</Link>
+
+// NEW:
+<Link className="btn btn-secondary" to="/workflows">
+  Zum Überblick
+</Link>
+```
+
+---
+
+#### Verification
+
+- `npm run build` must pass with no TypeScript errors.
+- Check that `isReaderOnlyView` and `useCurrentUser` are fully removed from `WorkflowListPage.tsx` if unused.
+- No routing changes, no data changes, no component additions.
+
+---
+
+# 🟡 FUTURE
+
+---
+
+## [DONE] [FE-F1] Build a lightweight frontend UX system / page grammar
+
+### Goal
+Define and apply consistent frontend rules for:
+- page starts
+- card types
+- panel types
+- warnings
+- actions
+- descriptions
+- empty states
+
+### Why
+The app now has enough screens that consistency must become explicit, not implicit.
+
+### Acceptance criteria
+- reusable UI grammar exists
+- future pages become easier to build consistently
+
+### Reasoning effort
+High
+
+### Best tool
+Claude for design, Codex for implementation
+
+### Design (by Claude) + Implementation plan (for Codex)
+
+---
+
+#### Design analysis
+
+The app already has a well-structured CSS/component foundation. The grammar is mostly implicit — patterns exist but no single place defines them. The gaps are:
+
+1. **No reference document** — future developers guess when to use `panel` vs `panel-muted`, or when to use `EmptyState` vs a manual panel.
+2. **`panel-intro` is a dead class** — CSS is identical to `.panel`. Used in 2 files with no semantic effect. Should be eliminated.
+3. **`app-header` is unused** — legacy CSS block, no TSX file uses it. Should be deleted.
+4. **`EmptyState.description` is required** — forces redundant text in self-explanatory empty states.
+5. **`LoadingState` has a filler default description** — "Bitte warten Sie einen kurzen Moment." is noise.
+6. **Three card types exist but are unnamed** — metric card, list item card, selection card. Their rules are implicit.
+
+The grammar lives in a comment block at the top of `components.css`. No new file needed. This is a reference, not prose documentation.
+
+---
+
+#### The grammar (source of truth, write as comment in components.css)
+
+```
+ * ═══════════════════════════════════════════════════════════════════
+ * PAGE GRAMMAR — reference for building new pages consistently
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * PAGE SHELL
+ *   <main className="app-shell">
+ *     <div className="page-container">
+ *       <PageHeader title="..." />       ← always present, description optional
+ *       ...panels...
+ *     </div>
+ *   </main>
+ *
+ * PANELS  (structural sections of a page)
+ *   .panel              → action or configuration content (default)
+ *   .panel-muted        → secondary, context, or status content
+ *   .panel-success / .panel-warning / .panel-caution / .panel-error
+ *                       → system feedback only, not structural
+ *   Rule: each panel has exactly one purpose: action | status | config | warning
+ *   Rule: every panel with a heading uses .panel-head inside
+ *
+ * FEEDBACK COMPONENTS
+ *   <LoadingState title="..." />
+ *     → use for any async loading, one per visible operation
+ *   <EmptyState title="..." />
+ *     → use for empty or error states; description only if title alone is unclear
+ *   <EmptyState ... actionLabel onAction />
+ *     → use when the error is retryable
+ *   Toast (via useToast)
+ *     → transient feedback after a user action (save, delete)
+ *   .panel-error inline
+ *     → persistent error inside an active form
+ *
+ * CARD TYPES  (inside grids, not standalone sections)
+ *   Metric card:    .dashboard-stat-card   label / value / optional chip
+ *   List item:      .dashboard-queue-item  title / detail / optional action
+ *   Selection card: .process-type-card     interactive choice, name + description
+ *
+ * BUTTONS
+ *   .btn-primary    → primary action, one per section maximum
+ *   .btn-secondary  → secondary actions, navigation, toolbar buttons
+ *   .btn-ghost      → destructive or low-priority actions
+ *
+ * FORMS
+ *   System A: .field (label wraps input)
+ *     → pages, wizard steps, filter toolbars
+ *   System B: .form-input / .form-select / .form-textarea
+ *     → admin-config components only
+ * ═══════════════════════════════════════════════════════════════════
+```
+
+---
+
+#### Implementation plan (ready for Codex)
+
+**Affected files:**
+- `web/src/styles/components.css`
 - `web/src/styles/base.css`
+- `web/src/components/feedback/EmptyState.tsx`
+- `web/src/components/feedback/LoadingState.tsx`
+- `web/src/pages/CreateWorkflowPage.tsx`
+- `web/src/components/workflow-detail/WorkflowHeaderPanel.tsx`
 
-**Umsetzungshinweise**
-- `<a href="#main-content" className="skip-link">Zum Hauptinhalt springen</a>` als erstes Child in AppLayout, vor dem Mobile-Topbar
-- Das `<main>`-Element (`.app-shell`) mit `id="main-content"` auszeichnen
-- CSS: `.skip-link` ist standardmäßig `position: absolute; transform: translateY(-100%); opacity: 0;` und bei `:focus-visible` sichtbar und positioniert
+Apply in this order.
 
-**Definition of Done**
-- Bei Tab-Navigation erscheint Skip-Link als erste fokussierbare Element
-- Link führt korrekt zu `#main-content`
-- Auf normalen Bildschirmen unsichtbar
+---
 
-**Empfohlene KI**
+##### Step 1 — `components.css`: add grammar comment block
+
+At the very top of `components.css`, before `@layer components {`, insert the full grammar comment block exactly as written in the design above.
+
+---
+
+##### Step 2 — `components.css`: remove `.panel-intro`
+
+Find and delete this CSS rule (it is identical to `.panel { background: var(--bg-card) }` — it adds nothing):
+
+```css
+/* DELETE: */
+.panel-intro {
+  background: var(--bg-card);
+}
+```
+
+---
+
+##### Step 3 — `base.css`: remove `.app-header` CSS block
+
+The `.app-header` block (and its children: `.eyebrow`, `.app-header h1`, `.header-description`, `.header-nav`, `.header-controls`, `.header-userbox`, `.header-user-name`, `.header-user-meta`, `.header-logout`) is not used in any TSX file. Delete the entire block.
+
+The comment line `/* ─── Legacy card-like page header container ─── */` goes with it.
+
+---
+
+##### Step 4 — `CreateWorkflowPage.tsx`: replace `panel-intro`
+
+Find the one use of `panel panel-intro` and replace with just `panel`:
+
+```tsx
+// OLD:
+<section className="panel panel-intro">
+
+// NEW:
+<section className="panel">
+```
+
+---
+
+##### Step 5 — `WorkflowHeaderPanel.tsx`: replace `panel-intro`
+
+Same change — the one use in this file:
+
+```tsx
+// OLD:
+<section className="panel panel-intro">
+
+// NEW:
+<section className="panel">
+```
+
+---
+
+##### Step 6 — `EmptyState.tsx`: make `description` optional
+
+```tsx
+// OLD:
+type Props = {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+export default function EmptyState({ title, description, actionLabel, onAction }: Props) {
+  return (
+    <section className="panel panel-muted" role="status" aria-live="polite">
+      <h3 className="panel-title">{title}</h3>
+      <p className="panel-text">{description}</p>
+      ...
+
+// NEW:
+type Props = {
+  title: string;
+  description?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+export default function EmptyState({ title, description, actionLabel, onAction }: Props) {
+  return (
+    <section className="panel panel-muted" role="status" aria-live="polite">
+      <h3 className="panel-title">{title}</h3>
+      {description ? <p className="panel-text">{description}</p> : null}
+      ...
+```
+
+Do NOT update any call sites — existing descriptions are all meaningful and stay as-is.
+
+---
+
+##### Step 7 — `LoadingState.tsx`: remove filler default description
+
+```tsx
+// OLD:
+type Props = {
+  title?: string;
+  description?: string;
+};
+
+export default function LoadingState({
+  title = "Daten werden geladen...",
+  description = "Bitte warten Sie einen kurzen Moment.",
+}: Props) {
+  return (
+    <section className="panel panel-muted" role="status" aria-live="polite">
+      <div className="loading-row">
+        <span className="loading-dot" />
+        <div>
+          <h3 className="panel-title">{title}</h3>
+          <p className="panel-text">{description}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// NEW:
+type Props = {
+  title?: string;
+  description?: string;
+};
+
+export default function LoadingState({
+  title = "Daten werden geladen...",
+  description,
+}: Props) {
+  return (
+    <section className="panel panel-muted" role="status" aria-live="polite">
+      <div className="loading-row">
+        <span className="loading-dot" />
+        <div>
+          <h3 className="panel-title">{title}</h3>
+          {description ? <p className="panel-text">{description}</p> : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+```
+
+Call sites that explicitly pass a `description` prop are unaffected. Sites that relied on the default filler text will now show no description — which is the correct behavior.
+
+---
+
+##### Verification
+
+Run `npm run build` — must compile with no TypeScript errors.
+
+Check: no file references `.panel-intro` or `.app-header` after the change (grep for both).
+
+No behavior changes expected — all changes are structural cleanup or making optional props optional.
+
+---
+
+## [DONE] [FE-F2] Introduce stronger responsive behavior for dense admin screens
+
+### Goal
+Improve responsive handling of complex admin/configuration layouts.
+
+### Focus
+- stacked layouts
+- filter/tool rows
+- section spacing
+- card grids on smaller widths
+
+### Reasoning effort
+Medium
+
+### Best tool
 Codex
 
-**Reasoning Effort**
-low
+---
 
-**Task-Größe**
-klein
+## [DONE] [FE-F3] Improve accessibility and semantic consistency
 
-**Risiken / Hinweise**
-- Minimale Änderungen. Kein Risiko.
+### Goal
+Strengthen accessibility in:
+- headings
+- tabs
+- navigation
+- collapse controls
+- status communication
+- focus states
+
+### Reasoning effort
+Medium
+
+### Best tool
+Codex
+
+---
+
+# ✅ DONE CHECKLIST
+
+Before marking a frontend task as done:
+
+- [ ] Only relevant frontend files changed
+- [ ] No backend business logic moved into frontend
+- [ ] No new filler/marketing text introduced
+- [ ] Primary page purpose became clearer
+- [ ] Visual noise was reduced, not increased
+- [ ] Verification was shown
+- [ ] No oversized component became even larger

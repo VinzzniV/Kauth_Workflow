@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { CurrentUserContext } from "../src/auth/useCurrentUser";
 import { canAccessFeature, deriveRoleCapabilities, toRoleLabel } from "../src/auth/roleModel";
+import { ToastProvider } from "../src/components/feedback/ToastProvider";
 import type { TaskWithWorkflow, WorkflowRequirementSnapshot, WorkflowSummary, WorkflowTask } from "../src/types/workflow";
 
 type RenderOptions = {
@@ -13,6 +15,16 @@ type RenderOptions = {
 export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
   const roleKeys = options.roleKeys ?? ["auth_hr"];
   const capabilities = deriveRoleCapabilities(roleKeys);
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
   const currentUser = {
     username: "tester",
     displayName: "Test User",
@@ -22,24 +34,28 @@ export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
   };
 
   return render(
-    <MemoryRouter initialEntries={[options.route ?? "/"]}>
-      <CurrentUserContext.Provider
-        value={{
-          status: "authenticated",
-          currentUser,
-          displayName: currentUser.displayName,
-          roles: currentUser.roles,
-          roleLabels: currentUser.roles.map(toRoleLabel),
-          groups: currentUser.groups,
-          capabilities,
-          defaultRoute: "/",
-          canAccessFeature: (feature) => canAccessFeature(capabilities, feature),
-          refreshCurrentUser: async () => undefined,
-        }}
-      >
-        {ui}
-      </CurrentUserContext.Provider>
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[options.route ?? "/"]}>
+          <CurrentUserContext.Provider
+            value={{
+              status: "authenticated",
+              currentUser,
+              displayName: currentUser.displayName,
+              roles: currentUser.roles,
+              roleLabels: currentUser.roles.map(toRoleLabel),
+              groups: currentUser.groups,
+              capabilities,
+              defaultRoute: "/",
+              canAccessFeature: (feature) => canAccessFeature(capabilities, feature),
+              refreshCurrentUser: async () => undefined,
+            }}
+          >
+            {ui}
+          </CurrentUserContext.Provider>
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 }
 

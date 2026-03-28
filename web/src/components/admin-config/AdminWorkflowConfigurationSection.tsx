@@ -18,10 +18,7 @@ export function AdminWorkflowConfigurationSection({
     <section className="panel">
       <div className="panel-head">
         <h2>Workflow-Konfiguration</h2>
-        <p>
-          Diese Ansicht zeigt den aktuell wirksamen Konfigurationsstand für Anforderungen und Rollenempfehlungen. Aufgabenvorlagen,
-          Abhängigkeiten, Generierungsbedingungen und Prozessbereichslogik sind weiterhin code- bzw. SQL-gesteuert und hier nicht editierbar.
-        </p>
+        <p>Aktuellen Konfigurationsstand für Anforderungen und Rollenempfehlungen anzeigen.</p>
       </div>
 
       {isLoading ? (
@@ -48,7 +45,7 @@ export function AdminWorkflowConfigurationSection({
                 <h2>Rollenempfehlungen</h2>
                 <p>{recommendedRequirementCount}</p>
               </div>
-              <p className="panel-note">Empfohlene Anforderungen mit hinterlegten Rollen-Defaults.</p>
+              <p className="panel-note">Mit Rollen-Defaults.</p>
             </article>
 
             <article className="dashboard-card">
@@ -56,14 +53,14 @@ export function AdminWorkflowConfigurationSection({
                 <h2>Konfigurierbarkeit</h2>
                 <p>Read-only</p>
               </div>
-              <p className="panel-note">Transparenz im Admin, aber keine Pflege von Templates und Ablaufregeln.</p>
+              <p className="panel-note">Keine Bearbeitung in diesem Bereich.</p>
             </article>
           </div>
 
           <div className="dashboard-card">
             <div>
               <h2>Aktive Anforderungen</h2>
-              <p>Auszug der aktuell geladenen Anforderungen aus der Workflow-Konfiguration.</p>
+              <p>Auszug der geladenen Anforderungen.</p>
             </div>
 
             {requirementPreview.length === 0 ? (

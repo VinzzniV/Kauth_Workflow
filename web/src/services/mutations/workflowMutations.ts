@@ -11,6 +11,30 @@ import {
 import { queryKeys } from "../queryKeys";
 import type { RequirementSelectionPayload, WorkflowTaskStatus } from "../../types/workflow";
 
+type TaskMutationVariables = {
+  workflowUid: string;
+  taskId: number;
+};
+
+type UpdateTaskStatusVariables = TaskMutationVariables & {
+  status: WorkflowTaskStatus;
+};
+
+type AddTaskCommentVariables = TaskMutationVariables & {
+  text: string;
+};
+
+function invalidateWorkflowTaskQueries(
+  invalidateQueries: ReturnType<typeof useQueryClient>["invalidateQueries"],
+  workflowUid: string
+) {
+  if (workflowUid.trim()) {
+    invalidateQueries({ queryKey: queryKeys.workflows.tasks(workflowUid) });
+    invalidateQueries({ queryKey: queryKeys.workflows.detail(workflowUid) });
+    invalidateQueries({ queryKey: queryKeys.workflows.auditLog(workflowUid, 50, 0) });
+  }
+}
+
 export function useArchiveWorkflow() {
   const queryClient = useQueryClient();
 
@@ -37,16 +61,14 @@ export function useDeleteWorkflow() {
   });
 }
 
-export function useUpdateTaskStatus(workflowUid: string) {
+export function useUpdateTaskStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ taskId, status }: { taskId: number; status: WorkflowTaskStatus }) =>
+    mutationFn: ({ taskId, status }: UpdateTaskStatusVariables) =>
       updateTaskStatus(taskId, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.tasks(workflowUid) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.detail(workflowUid) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.auditLog(workflowUid, 50, 0) });
+    onSuccess: (_, { workflowUid }) => {
+      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid);
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
@@ -54,15 +76,13 @@ export function useUpdateTaskStatus(workflowUid: string) {
   });
 }
 
-export function useAddTaskComment(workflowUid: string) {
+export function useAddTaskComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ taskId, text }: { taskId: number; text: string }) => addTaskComment(taskId, text),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.tasks(workflowUid) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.detail(workflowUid) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.auditLog(workflowUid, 50, 0) });
+    mutationFn: ({ taskId, text }: AddTaskCommentVariables) => addTaskComment(taskId, text),
+    onSuccess: (_, { workflowUid }) => {
+      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid);
       queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
     },
   });

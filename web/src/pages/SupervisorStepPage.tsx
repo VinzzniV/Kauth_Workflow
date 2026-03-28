@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
+import { useToast } from "../components/feedback/ToastProvider";
 import PageHeader from "../components/layout/PageHeader";
 import RequirementsSelection from "../components/workflows/RequirementsSelection";
 import {
@@ -38,9 +39,8 @@ export default function SupervisorStepPage() {
   const [isLoadingStep, setIsLoadingStep] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [stepError, setStepError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const usesAdminOverride = capabilities.canManageAdminConfiguration;
+  const { showError, showSuccess } = useToast();
 
   // Zuerst wird die Queue der zugewiesenen Faelle geladen.
   const reloadAssignedWorkflows = useCallback(async () => {
@@ -67,8 +67,6 @@ export default function SupervisorStepPage() {
   const loadSupervisorStep = useCallback(async (workflow: WorkflowSummary) => {
     setIsLoadingStep(true);
     setStepError(null);
-    setSaveError(null);
-    setSaveSuccess(null);
 
     try {
       const data = await getWorkflowSupervisorStep(workflow.uid);
@@ -130,17 +128,15 @@ export default function SupervisorStepPage() {
 
   const saveChanges = useCallback(async () => {
     if (!selectedWorkflow) {
-      setSaveError("Bitte zuerst einen Vorgang auswählen.");
+      showError("Bitte zuerst einen Vorgang auswählen.");
       return;
     }
 
     setIsSaving(true);
-    setSaveError(null);
-    setSaveSuccess(null);
 
     try {
       await updateWorkflowSupervisorStep(selectedWorkflow.uid, toRequirementSelectionPayload(requirements, selections));
-      setSaveSuccess(
+      showSuccess(
         usesAdminOverride
           ? "Auswahl wurde per Admin-Override gespeichert. Der Vorgang wurde in die nächste Phase überführt."
           : "Auswahl wurde gespeichert. Der Vorgang wurde in die nächste Phase überführt."
@@ -151,11 +147,11 @@ export default function SupervisorStepPage() {
       await reloadAssignedWorkflows();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Auswahl konnte nicht gespeichert werden.";
-      setSaveError(message);
+      showError(message);
     } finally {
       setIsSaving(false);
     }
-  }, [reloadAssignedWorkflows, requirements, selections, selectedWorkflow, usesAdminOverride]);
+  }, [reloadAssignedWorkflows, requirements, selections, selectedWorkflow, showError, showSuccess, usesAdminOverride]);
 
   const canSave = useMemo(
     () => selectedWorkflow !== null && requirements.length > 0 && !isSaving,
@@ -188,25 +184,20 @@ export default function SupervisorStepPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader
-          title="Bedarf festlegen"
-          description="Legen Sie pro Vorgang fest, welche Zugänge und welche Ausstattung benötigt werden."
-        />
+        <PageHeader title="Bedarf festlegen" />
 
         <section className="panel">
           <div className="panel-head">
             <h2>Offene Freigaben</h2>
-            <p>Hier sehen Sie nur Vorgänge, deren Prozesstyp einen Freigabeschritt der Abteilungsleitung enthält.</p>
           </div>
           <div className="next-action-callout">
             <p className="next-action-label">Nächste nötige Aktion</p>
-            <p className="next-action-text">Öffnen Sie den ältesten offenen Fall und schließen Sie die Angaben ab.</p>
+            <p className="next-action-text">Ältesten offenen Fall bearbeiten.</p>
           </div>
 
           {usesAdminOverride ? (
             <p className="panel-note">
-              Admin-Override aktiv. Die reguläre Bearbeitung dieses Schritts liegt fachlich bei der zuständigen
-              Abteilungsleitung.
+              Admin-Override aktiv. Fachlich bleibt dieser Schritt bei der Abteilungsleitung.
             </p>
           ) : null}
 
@@ -226,7 +217,7 @@ export default function SupervisorStepPage() {
         {!queueLoading && !queueError && assignedWorkflows.length === 0 ? (
           <EmptyState
             title="Keine zugewiesenen Freigaben"
-            description="Aktuell gibt es keine offenen Vorgänge mit Freigabeschritt für die Rückmeldung durch die Abteilungsleitung."
+            description="Aktuell sind keine Freigaben offen."
           />
         ) : null}
 
@@ -322,23 +313,10 @@ export default function SupervisorStepPage() {
               title={`Bedarf festlegen: ${selectedWorkflow.firstName} ${selectedWorkflow.lastName}`}
               description={
                 usesAdminOverride
-                  ? "Admin-Override: Nach dem Speichern entstehen die Aufgaben für die beteiligten Bereiche automatisch."
-                  : "Nach dem Speichern entstehen die Aufgaben für die beteiligten Bereiche automatisch."
+                  ? "Admin-Override: Aufgaben werden nach dem Speichern automatisch erzeugt."
+                  : "Aufgaben werden nach dem Speichern automatisch erzeugt."
               }
             />
-
-            {saveError ? (
-              <section className="panel panel-muted">
-                <p className="panel-text">{saveError}</p>
-              </section>
-            ) : null}
-
-            {saveSuccess ? (
-              <section className="panel panel-success">
-                <p className="panel-text">{saveSuccess}</p>
-              </section>
-            ) : null}
-
             <section className="panel">
               <div className="action-row">
                 <button type="button" className="btn btn-primary" disabled={!canSave} onClick={saveChanges}>

@@ -43,7 +43,7 @@ export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionPr
       <section className="panel panel-muted">
         <div className="panel-head">
           <h2>System</h2>
-          <p>Mail-Konfiguration bleibt editierbar. Workflow-Konfiguration wird nur lesend angezeigt und bleibt bewusst von Organisationsdaten getrennt.</p>
+          <p>Mailversand bearbeiten, Workflow-Konfiguration nur lesen.</p>
         </div>
       </section>
 

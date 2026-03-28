@@ -35,11 +35,9 @@ export type DashboardQueueItem = {
 
 export type DashboardInsights = {
   heading: string;
-  summary: string;
   nextStep: string;
   stats: DashboardStat[];
   queueTitle: string;
-  queueDescription: string;
   queueItems: DashboardQueueItem[];
   emptyQueueText: string;
 };
@@ -111,16 +109,12 @@ function getProcessTypeContext(selectedProcessType: ProcessType | null) {
   if (!selectedProcessType) {
     return {
       scopedTitle: "Vorgänge",
-      scopedDescription: "alle sichtbaren Mitarbeiterprozesse",
-      scopedQueueDescription: "Diese Fälle haben aktuell den nächsten Handlungsbedarf.",
       scopedEmptyQueueText: "Aktuell sind keine Vorgänge vorhanden.",
     };
   }
 
   return {
     scopedTitle: `Vorgänge (${selectedProcessType.name})`,
-    scopedDescription: `alle sichtbaren Mitarbeiterprozesse vom Typ ${selectedProcessType.name}`,
-    scopedQueueDescription: `Diese Fälle vom Typ ${selectedProcessType.name} haben aktuell den nächsten Handlungsbedarf.`,
     scopedEmptyQueueText: `Aktuell sind keine Vorgänge vom Typ ${selectedProcessType.name} vorhanden.`,
   };
 }
@@ -154,42 +148,40 @@ async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<D
 
   return {
     heading: "HR auf einen Blick",
-    summary: `Hier sehen Sie die HR-Startphase, offene Rückläufe und die laufende Bearbeitung in den Fachbereichen für ${processTypeContext.scopedDescription}.`,
     nextStep: selectedProcessType
-      ? `Prüfen Sie zuerst ${selectedProcessType.name}-Fälle in der HR-Startphase und mit offenem Rücklauf.`
-      : "Starten Sie einen neuen Vorgang oder prüfen Sie Fälle in der HR-Startphase und mit offenem Rücklauf.",
+      ? `${selectedProcessType.name}-Fälle in Startphase und Rücklauf prüfen.`
+      : "Startphase und Rückläufe prüfen.",
     stats: [
       {
         label: "Offene Vorgänge",
         value: metrics.open,
-        note: `Alle aktuell laufenden Fälle für ${processTypeContext.scopedDescription}.`,
+        note: "laufend",
         statusLabel: "Offen",
         tone: "neutral",
       },
       {
         label: "Wartet auf Abteilungsleitung",
         value: metrics.waitingSupervisor,
-        note: "Hier fehlen noch Angaben der Abteilungsleitung.",
+        note: "Rückmeldung fehlt",
         statusLabel: "wartet auf Abteilungsleitung",
         tone: "attention",
       },
       {
         label: "In Bearbeitung in den Fachbereichen",
         value: departmentInProgress,
-        note: "Diese Fälle werden aktuell in den Bereichen bearbeitet.",
+        note: "in Fachbereichen",
         statusLabel: "in Bearbeitung",
         tone: "progress",
       },
       {
         label: "Abgeschlossen",
         value: metrics.completed,
-        note: `Diese Fälle sind abgeschlossen für ${processTypeContext.scopedDescription}.`,
+        note: "fertig",
         statusLabel: "abgeschlossen",
         tone: "success",
       },
     ],
     queueTitle: processTypeContext.scopedTitle,
-    queueDescription: processTypeContext.scopedQueueDescription,
     queueItems: activeWorkflows.map((workflow) => ({
       key: workflow.uid,
       title: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
@@ -228,28 +220,22 @@ async function loadManagerInsights(options: DashboardInsightsOptions = {}): Prom
 
   return {
     heading: "Meine offenen Anforderungen",
-    summary: selectedProcessType
-      ? `Diese ${selectedProcessType.name}-Vorgänge warten noch auf Ihre Rückmeldung.`
-      : "Diese Vorgänge warten noch auf Ihre Rückmeldung.",
-    nextStep: "Öffnen Sie den nächsten offenen Fall und vervollständigen Sie die Angaben.",
+    nextStep: "Nächsten offenen Fall bearbeiten.",
     stats: [
       {
         label: "Offene Anforderungen",
         value: pendingSelections,
-        note: "Noch nicht beantwortete Auswahlpunkte.",
+        note: "offene Auswahlpunkte",
       },
       {
         label: "Noch zu bearbeitende Vorgänge",
         value: workflows.length,
         note: selectedProcessType
-          ? `Diese zugewiesenen ${selectedProcessType.name}-Fälle warten im Schritt der Abteilungsleitung.`
-          : "Diese zugewiesenen Fälle warten im Schritt der Abteilungsleitung.",
+          ? `${selectedProcessType.name}-Fälle`
+          : "im Leitungs-Schritt",
       },
     ],
     queueTitle: processTypeContext.scopedTitle,
-    queueDescription: selectedProcessType
-      ? `Bearbeiten Sie zuerst die ältesten offenen ${selectedProcessType.name}-Fälle.`
-      : "Bearbeiten Sie zuerst die ältesten offenen Vorgänge.",
     queueItems,
     emptyQueueText: selectedProcessType
       ? `Aktuell warten keine ${selectedProcessType.name}-Fälle auf Eingaben durch die Abteilungsleitung.`
@@ -331,27 +317,25 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
 
   return {
     heading: "Meine Aufgaben",
-    summary: "Hier sehen Sie sofort, was in Ihren Fachbereichen offen ist, was bereits läuft und was erledigt ist.",
-    nextStep: "Bearbeiten Sie zuerst offene Aufgaben und führen Sie begonnene Aufgaben zu Ende.",
+    nextStep: "Blockierte und laufende Aufgaben zuerst prüfen.",
     stats: [
       {
         label: "Meine offenen Aufgaben",
         value: openTaskCount,
-        note: "Noch nicht erledigte Aufgaben.",
+        note: "offen",
       },
       {
         label: "In Bearbeitung",
         value: inProgressTaskCount,
-        note: "Aktuell laufende Aufgaben.",
+        note: "läuft",
       },
       {
         label: "Erledigt",
         value: doneTaskCount,
-        note: "Bereits erledigte Aufgaben.",
+        note: "erledigt",
       },
     ],
-    queueTitle: "Als Nächstes",
-    queueDescription: "Beginnen Sie mit blockierten oder bereits laufenden Aufgaben.",
+    queueTitle: "Danach relevant",
     queueItems,
     emptyQueueText: "Aktuell sind keine offenen Aufgaben vorhanden.",
   };
@@ -365,7 +349,6 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
     getWorkflows({ processTypeKey: options.processTypeKey ?? null }),
   ]);
   const selectedProcessType = options.selectedProcessType ?? null;
-  const processTypeContext = getProcessTypeContext(selectedProcessType);
 
   const activeUsers = users.filter((user) => user.isActive).length;
   const inactiveUsers = users.length - activeUsers;
@@ -376,7 +359,7 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
     {
       key: "admin-config",
       title: "Stammdaten und Rechte pflegen",
-      detail: "Verwaltung von Personen, Rollen, Gruppen und Zuständigkeiten.",
+      detail: "Personen, Rollen, Gruppen und Zuständigkeiten.",
       to: "/admin/config",
       actionLabel: "Verwaltung",
     },
@@ -414,20 +397,19 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
 
   return {
     heading: "Verwaltung",
-    summary: `Die wichtigsten Verwaltungs- und Prozesskennzahlen im Überblick für ${processTypeContext.scopedDescription}.`,
     nextStep: selectedProcessType
-      ? `Prüfen Sie zuerst Stammdaten und Berechtigungen, danach Engpässe im Ablauf für ${selectedProcessType.name}.`
-      : "Prüfen Sie zuerst Stammdaten und Berechtigungen, danach Engpässe im Ablauf.",
+      ? `Stammdaten, Rechte und Engpässe für ${selectedProcessType.name} prüfen.`
+      : "Stammdaten, Rechte und Engpässe prüfen.",
     stats: [
       {
         label: "Benutzer",
         value: users.length,
-        note: `${activeUsers} aktiv / ${inactiveUsers} inaktiv`,
+        note: `${activeUsers} aktiv, ${inactiveUsers} inaktiv`,
       },
       {
         label: "Rollen",
         value: roles.length,
-        note: "Anzahl hinterlegter Rollen.",
+        note: "hinterlegt",
       },
       {
         label: "Gruppen",
@@ -437,11 +419,10 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
       {
         label: "Vorgänge gesamt",
         value: metrics.total,
-        note: `Systemweite Prozessanzahl für ${processTypeContext.scopedDescription}.`,
+        note: "gesamt",
       },
     ],
-    queueTitle: "Nächste Schritte in der Verwaltung",
-    queueDescription: "Kurzliste der wichtigsten Prüfpunkte.",
+    queueTitle: "Danach relevant",
     queueItems,
     emptyQueueText: "Es sind aktuell keine administrativen Prüfpunkte vorhanden.",
   };
@@ -467,29 +448,25 @@ async function loadViewerInsights(options: DashboardInsightsOptions = {}): Promi
 
   return {
     heading: "Übersicht",
-    summary: `Lesender Überblick über den aktuellen Stand für ${processTypeContext.scopedDescription}.`,
-    nextStep: "Nutzen Sie die Übersicht zur Nachverfolgung, ohne Daten zu ändern.",
+    nextStep: "Aktuellen Stand prüfen.",
     stats: [
       {
         label: "Vorgänge gesamt",
         value: metrics.total,
-        note: `Alle freigegebenen Lesedaten für ${processTypeContext.scopedDescription}.`,
+        note: "freigegeben",
       },
       {
         label: "Offen",
         value: metrics.open,
-        note: "Noch nicht abgeschlossen.",
+        note: "noch offen",
       },
       {
         label: "Abgeschlossen",
         value: metrics.completed,
-        note: "Bereits abgeschlossen.",
+        note: "fertig",
       },
     ],
     queueTitle: processTypeContext.scopedTitle,
-    queueDescription: selectedProcessType
-      ? `Die zuletzt geänderten ${selectedProcessType.name}-Vorgänge in der Leseansicht.`
-      : "Die zuletzt geänderten Vorgänge in der Leseansicht.",
     queueItems,
     emptyQueueText: processTypeContext.scopedEmptyQueueText,
   };
@@ -498,11 +475,9 @@ async function loadViewerInsights(options: DashboardInsightsOptions = {}): Promi
 function loadGenericInsights(): DashboardInsights {
   return {
     heading: "Übersicht",
-    summary: "Hier sehen Sie den nächsten sinnvollen Schritt für Ihre Rolle.",
-    nextStep: "Wählen Sie einen freigegebenen Bereich aus den Hauptaktionen.",
+    nextStep: "Freigegebenen Bereich wählen.",
     stats: [],
-    queueTitle: "Nächste Schritte",
-    queueDescription: "Keine weiteren rollenspezifischen Werte verfügbar.",
+    queueTitle: "Danach relevant",
     queueItems: [],
     emptyQueueText: "Keine rollenspezifischen Aufgaben vorhanden.",
   };

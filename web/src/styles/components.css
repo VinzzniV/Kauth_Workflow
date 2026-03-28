@@ -1,3 +1,54 @@
+/*
+ * ==================================================================
+ * PAGE GRAMMAR - reference for building new pages consistently
+ * ==================================================================
+ *
+ * PAGE SHELL
+ *   <main className="app-shell">
+ *     <div className="page-container">
+ *       <PageHeader title="..." />       <- always present, description optional
+ *       ...panels...
+ *     </div>
+ *   </main>
+ *
+ * PANELS  (structural sections of a page)
+ *   .panel              -> action or configuration content (default)
+ *   .panel-muted        -> secondary, context, or status content
+ *   .panel-success / .panel-warning / .panel-caution / .panel-error
+ *                       -> system feedback only, not structural
+ *   Rule: each panel has exactly one purpose: action | status | config | warning
+ *   Rule: every panel with a heading uses .panel-head inside
+ *
+ * FEEDBACK COMPONENTS
+ *   <LoadingState title="..." />
+ *     -> use for any async loading, one per visible operation
+ *   <EmptyState title="..." />
+ *     -> use for empty or error states; description only if title alone is unclear
+ *   <EmptyState ... actionLabel onAction />
+ *     -> use when the error is retryable
+ *   Toast (via useToast)
+ *     -> transient feedback after a user action (save, delete)
+ *   .panel-error inline
+ *     -> persistent error inside an active form
+ *
+ * CARD TYPES  (inside grids, not standalone sections)
+ *   Metric card:    .dashboard-stat-card   label / value / optional chip
+ *   List item:      .dashboard-queue-item  title / detail / optional action
+ *   Selection card: .process-type-card     interactive choice, name + description
+ *
+ * BUTTONS
+ *   .btn-primary    -> primary action, one per section maximum
+ *   .btn-secondary  -> secondary actions, navigation, toolbar buttons
+ *   .btn-ghost      -> destructive or low-priority actions
+ *
+ * FORMS
+ *   System A: .field (label wraps input)
+ *     -> pages, wizard steps, filter toolbars
+ *   System B: .form-input / .form-select / .form-textarea
+ *     -> admin-config components only
+ * ==================================================================
+ */
+@layer components {
 .content-stack {
   display: flex;
   flex-direction: column;
@@ -24,14 +75,19 @@
   border-color: #bbf7d0;
 }
 
+.panel-warning {
+  background: #fffbeb;
+  border-color: var(--warning);
+}
+
 .panel-caution {
   background: #fff7ed;
   border-color: #fdba74;
 }
 
 .panel-error {
-  background: #fff1f2;
-  border-color: #fecdd3;
+  background: #fef2f2;
+  border-color: var(--danger);
 }
 
 .confirmation-dialog-backdrop {
@@ -145,7 +201,7 @@
 .panel-head h2,
 .panel-title {
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -163,6 +219,12 @@
 
 .text-error {
   color: #b42318;
+}
+
+.panel-warning .panel-text,
+.panel-warning .panel-note,
+.panel-warning .panel-head p {
+  color: #92400e;
 }
 
 .panel-error .panel-text,
@@ -210,273 +272,6 @@
   overflow-wrap: anywhere;
 }
 
-/* ─── Admin Workspace ─── */
-.admin-workspace-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-}
-
-.admin-workspace-groups {
-  display: grid;
-  gap: 1rem;
-}
-
-.admin-workspace-group {
-  display: grid;
-  gap: 0.7rem;
-}
-
-.admin-workspace-group-head {
-  display: flex;
-  flex-direction: column;
-  gap: 0.18rem;
-}
-
-.admin-workspace-group-head h3 {
-  font-size: 0.83rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
-}
-
-.admin-workspace-tab {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  padding: 0.85rem 0.9rem;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
-}
-
-.admin-workspace-tab:hover {
-  border-color: var(--border-strong);
-}
-
-.admin-workspace-tab:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.admin-workspace-tab.active {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-  box-shadow: inset 0 0 0 1px var(--brand);
-}
-
-.admin-workspace-tab-title {
-  font-size: 0.9rem;
-  font-weight: 650;
-  color: var(--text-primary);
-}
-
-.admin-workspace-tab-note {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.admin-action-grid {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-}
-
-.admin-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.85rem;
-}
-
-.admin-overview-card {
-  display: grid;
-  gap: 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  padding: 1rem;
-  box-shadow: var(--shadow-sm);
-}
-
-.admin-overview-card--caution {
-  border-color: #fdba74;
-  background: #fff7ed;
-}
-
-.admin-overview-card-head {
-  display: grid;
-  gap: 0.28rem;
-}
-
-.admin-overview-card-head h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.admin-overview-card-head p {
-  font-size: 0.84rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.admin-overview-actions {
-  justify-content: flex-start;
-  flex-wrap: wrap;
-}
-
-.admin-guidance-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.8rem;
-}
-
-.admin-guidance-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.55);
-  padding: 0.85rem 0.95rem;
-}
-
-.admin-guidance-card--caution {
-  border-color: #fdba74;
-  background: rgba(255, 247, 237, 0.9);
-}
-
-.admin-guidance-card h3 {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.28rem;
-}
-
-.admin-guidance-card p {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.admin-workspace-grid {
-  display: grid;
-  grid-template-columns: minmax(250px, 280px) minmax(0, 1.7fr) minmax(240px, 320px);
-  gap: 1rem;
-  align-items: start;
-}
-
-.admin-organization-sidebar,
-.admin-organization-main,
-.admin-organization-aside {
-  min-width: 0;
-}
-
-.admin-entity-switcher {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-bottom: 0.85rem;
-}
-
-.admin-entity-switch {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-card-muted);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.32rem 0.65rem;
-  cursor: pointer;
-  transition: border-color 100ms ease, background-color 100ms ease, color 100ms ease;
-}
-
-.admin-entity-switch.active {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-  color: var(--brand);
-}
-
-.admin-entity-switch:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.admin-entity-list {
-  display: grid;
-  gap: 0.55rem;
-  margin-top: 0.85rem;
-}
-
-.admin-entity-list-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.16rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  padding: 0.75rem 0.8rem;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
-}
-
-.admin-entity-list-item:hover {
-  border-color: var(--border-strong);
-}
-
-.admin-entity-list-item.active {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-  box-shadow: inset 0 0 0 1px var(--brand);
-}
-
-.admin-entity-list-item:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.admin-entity-list-item strong {
-  font-size: 0.86rem;
-}
-
-.admin-entity-list-item span {
-  font-size: 0.76rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-.admin-relation-list {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.admin-relation-link {
-  display: inline-flex;
-  justify-content: flex-start;
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 500;
-  padding: 0.45rem 0.6rem;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 100ms ease, background-color 100ms ease;
-}
-
-.admin-relation-link:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-card-muted);
-}
-
 /* ─── Next Action Callout ─── */
 .next-action-callout {
   border: 1px solid var(--border);
@@ -501,6 +296,17 @@
   color: var(--text-primary);
 }
 
+.next-action-link {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.next-action-link:hover {
+  color: var(--brand-hover);
+}
+
 /* ─── Forms ─── */
 .form-grid {
   display: grid;
@@ -508,6 +314,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/*
+ * Formular-System A: .field (Label + Input zusammen)
+ * Nutzung: Pages, Wizard, Filter-Toolbars.
+ * Das <label>-Element bekommt die Klasse "field", Input/Select wird als Kind gerendert.
+ * Beispiel: <label className="field"><span>Label</span><input .../></label>
+ * Nicht fuer Admin-Config-Komponenten verwenden, dort System B nutzen.
+ */
 .field {
   display: flex;
   flex-direction: column;
@@ -586,6 +399,29 @@
   margin-bottom: 0.75rem;
 }
 
+.toolbar-row-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+}
+
+.toolbar-row-filters > .field,
+.toolbar-row-filters > .btn {
+  min-width: 0;
+}
+
+.toolbar-row-filters > .field {
+  margin: 0;
+}
+
+.toolbar-row-filters > .field.grow {
+  grid-column: span 2;
+}
+
+.toolbar-row-filters > .btn {
+  width: 100%;
+}
+
 /* ─── Role Selection ─── */
 .role-grid {
   display: grid;
@@ -640,4 +476,66 @@
   animation: pulse 900ms ease-in-out infinite;
 }
 
-/* ─── Workflow Grid & Cards ─── */
+/* ─── Action Row ─── */
+.action-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0.5rem 0.85rem;
+  transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-card-muted);
+}
+
+.btn-ghost {
+  color: var(--text-secondary);
+  border-color: var(--border);
+  background: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-card-muted);
+  border-color: var(--border-strong);
+}
+}

@@ -33,97 +33,103 @@ export function AdminOverviewWorkspaceSection({
   onOpenOrganization,
   onOpenSection,
 }: AdminOverviewWorkspaceSectionProps) {
+  const technicalAccessSummary = hasLoadedTechnicalAccess
+    ? `${roleCount} Rollen | ${groupCount} Gruppen`
+    : "Rollen und Gruppen bei Bedarf laden";
+  const notificationSummary = `${notificationModeLabel(notificationEmailConfiguration)} | ${notificationConfigurationStatusLabel(notificationEmailConfiguration)}`;
+
   return (
     <div className="content-stack">
       <section className="panel">
         <div className="panel-head">
-          <h2>Administrationsübersicht</h2>
-          <p>Hier sehen Sie zuerst den Gesamtzustand, priorisieren Warnhinweise und springen dann gezielt in den passenden Bereich.</p>
+          <h2>Bereiche</h2>
         </div>
 
-        <div className="dashboard-grid" aria-label="Administrationsübersicht Kennzahlen">
-          <article className="dashboard-card">
-            <h2>Personen</h2>
-            <p>{userCount} gepflegte Personen</p>
+        <div className="admin-overview-grid" aria-label="Bereiche der Administration">
+          <article className="admin-overview-card">
+            <div className="admin-overview-card-head">
+              <h3>Organisation</h3>
+              <p>{userCount} Personen | {departmentCount} Abteilungen | {responsibilityCount} Zuständigkeiten</p>
+            </div>
+            <div className="action-row admin-overview-actions">
+              <button type="button" className="btn btn-primary" onClick={() => onOpenOrganization("user", null)}>
+                Personen
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenOrganization("department", null)}>
+                Abteilungen
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenOrganization("responsibility", null)}>
+                Zuständigkeiten
+              </button>
+            </div>
           </article>
 
-          <article className="dashboard-card">
-            <h2>Abteilungen</h2>
-            <p>{departmentCount} gepflegte Abteilungen</p>
+          <article className="admin-overview-card">
+            <div className="admin-overview-card-head">
+              <h3>Vorlagen & Felder</h3>
+              <p>Aufgabenvorlagen, Antwortfelder und Standardwerte</p>
+            </div>
+            <div className="action-row admin-overview-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("templates")}>
+                Aufgabenvorlagen
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("answers")}>
+                Antwortfelder
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("defaults")}>
+                Standardwerte
+              </button>
+            </div>
           </article>
 
-          <article className="dashboard-card">
-            <h2>Fachliche Zuständigkeiten</h2>
-            <p>{responsibilityCount} gepflegte Zuständigkeiten</p>
+          <article className="admin-overview-card">
+            <div className="admin-overview-card-head">
+              <h3>Rechte & Verzeichnis</h3>
+              <p>{technicalAccessSummary}</p>
+            </div>
+            <div className="action-row admin-overview-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("access")}>
+                Zugriffe & Gruppen
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("directory")}>
+                Entra-Verzeichnis
+              </button>
+            </div>
           </article>
 
-          <article className="dashboard-card">
-            <h2>Rechte & Gruppen</h2>
-            <p>
-              {hasLoadedTechnicalAccess
-                ? `${roleCount} Rollen | ${groupCount} Gruppen`
-                : "Wird bei Bedarf geladen"}
-            </p>
+          <article className="admin-overview-card">
+            <div className="admin-overview-card-head">
+              <h3>Benachrichtigungen & System</h3>
+              <p>{notificationSummary}</p>
+            </div>
+            <div className="action-row admin-overview-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("system")}>
+                System öffnen
+              </button>
+            </div>
           </article>
 
-          <article className="dashboard-card">
-            <h2>E-Mail-Konfiguration</h2>
-            <p>{notificationModeLabel(notificationEmailConfiguration)}</p>
-            <p className="panel-note">{notificationConfigurationStatusLabel(notificationEmailConfiguration)}</p>
+          <article className="admin-overview-card admin-overview-card--caution">
+            <div className="admin-overview-card-head">
+              <h3>Massenänderungen</h3>
+              <p>{warningCount === 0 ? "Keine offenen Warnungen" : `${warningCount} offene Warnungen`}</p>
+            </div>
+            <div className="action-row admin-overview-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("operations")}>
+                Massenänderungen
+              </button>
+            </div>
           </article>
-
-          <article className="dashboard-card">
-            <h2>Warnungen</h2>
-            <p>{warningCount === 0 ? "Keine offenen Warnungen" : `${warningCount} Warnhinweise`}</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="panel panel-muted">
-        <div className="panel-head">
-          <h2>Empfohlene Wege</h2>
-          <p>Diese Einstiege helfen neuen Admins, erst fachlich sauber zu arbeiten und technische Änderungen bewusst nur bei Bedarf zu öffnen.</p>
-        </div>
-
-        <div className="action-row admin-action-grid">
-          <button type="button" className="btn btn-primary" onClick={() => onOpenOrganization("user", null)}>
-            Neue Person
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenOrganization("department", null)}>
-            Neue Abteilung
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenOrganization("user", null)}>
-            Organisation öffnen
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("access")}>
-            Zugriffe & Gruppen prüfen
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("directory")}>
-            Entra-Verzeichnis prüfen
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("templates")}>
-            Aufgabenlogik öffnen
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("answers")}>
-            Antwortlogik öffnen
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("defaults")}>
-            Standardwerte öffnen
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("system")}>
-            Benachrichtigungen prüfen
-          </button>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Zuerst prüfen</h2>
-          <p>Leere oder ungültige Zuordnungen werden hier gesammelt, damit neue Admins priorisiert mit echten Lücken starten können.</p>
+          <h2>Warnungen</h2>
         </div>
 
         {warnings.length === 0 ? (
-          <p className="panel-note">Aktuell sind keine strukturellen Warnhinweise vorhanden.</p>
+          <p className="panel-note">Keine offenen Warnungen.</p>
         ) : (
           <div className="dashboard-grid" aria-label="Warnhinweise der Administration">
             {warnings.map((warning) => (

@@ -1,3 +1,4 @@
+@layer components {
 .workflow-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -103,6 +104,36 @@
 }
 
 /* ─── Task Groups ─── */
+.task-groups-controls {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-bottom: -0.25rem;
+}
+
+.btn-text {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.btn-text:hover {
+  color: var(--brand);
+}
+
+.btn-text:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .task-groups {
   display: flex;
   flex-direction: column;
@@ -116,6 +147,20 @@
   background: var(--bg-card);
 }
 
+.task-group--current {
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.14);
+}
+
+.task-group--done {
+  opacity: 0.7;
+}
+
+.task-group--compact {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
 .task-group-head {
   display: flex;
   align-items: center;
@@ -124,11 +169,61 @@
   margin-bottom: 0.65rem;
 }
 
+.task-group-head--collapsible {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.task-group-head--collapsible[aria-expanded="true"] {
+  margin-bottom: 0.65rem;
+}
+
+.task-group-head-copy {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.task-group-head--collapsible:hover {
+  color: var(--brand);
+}
+
+.task-group-head--collapsible:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.task-group-chevron {
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+  transform: rotate(-90deg);
+}
+
+.task-group-chevron--open {
+  transform: rotate(0deg);
+}
+
+.task-group-count {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .task-group-head h2,
 .task-group-head h3 {
   margin: 0;
   font-size: 0.92rem;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .task-group-head p {
@@ -156,6 +251,17 @@
   gap: 0.6rem;
 }
 
+.task-card--active {
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.task-card--done {
+  opacity: 0.6;
+  background: var(--bg-card-muted);
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
 .task-card-top {
   display: flex;
   align-items: flex-start;
@@ -174,6 +280,12 @@
   margin: 0 0 0.15rem;
   font-size: 0.92rem;
   font-weight: 600;
+}
+
+.task-card-done-note {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
 }
 
 .task-card-layout {
@@ -213,6 +325,23 @@
 .task-meta dd {
   margin: 0.06rem 0 0;
   font-size: 0.85rem;
+}
+
+.task-meta-link {
+  color: var(--brand);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.task-meta-link:hover {
+  color: var(--brand-hover);
+}
+
+.task-meta-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .task-actions-row {
@@ -469,11 +598,38 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.workflow-area-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.workflow-area-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .workflow-area-card.current {
   border-color: var(--brand);
   box-shadow: inset 0 0 0 1px var(--brand-soft);
+  background:
+    linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(255, 255, 255, 0.98)),
+    var(--bg-card);
+}
+
+.workflow-area-card-eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand);
 }
 
 .workflow-area-card-head {
@@ -665,7 +821,7 @@
 .requirement-group-head h3 {
   font-size: 0.92rem;
   margin: 0;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .requirement-group-head p {
@@ -883,68 +1039,6 @@
   color: var(--brand);
   font-weight: 600;
 }
-
-/* ─── Action Row ─── */
-.action-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-/* ─── Buttons ─── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  font-weight: 600;
-  font-size: 0.85rem;
-  text-decoration: none;
-  cursor: pointer;
-  padding: 0.5rem 0.85rem;
-  transition: background-color 100ms ease, border-color 100ms ease;
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.btn-primary {
-  background: var(--brand);
-  color: #fff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--brand-hover);
-}
-
-.btn-secondary {
-  background: var(--bg-card);
-  border-color: var(--border);
-  color: var(--text-primary);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  background: var(--bg-card-muted);
-}
-
-.btn-ghost {
-  color: var(--text-secondary);
-  border-color: var(--border);
-  background: transparent;
-}
-
-.btn-ghost:hover:not(:disabled) {
-  background: var(--bg-card-muted);
-  border-color: var(--border-strong);
 }
 
 /* ─── Animations ─── */

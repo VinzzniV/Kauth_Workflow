@@ -1,19 +1,20 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MyTasksPage from "../src/pages/MyTasksPage";
-import * as lifecycleApi from "../src/services/lifecycleApi";
+import * as taskApi from "../src/services/taskApi";
 import { createTaskWithWorkflow, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/lifecycleApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
+vi.mock("../src/services/taskApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/taskApi")>("../src/services/taskApi");
   return {
     ...actual,
     getMyTasks: vi.fn(),
     updateTaskStatus: vi.fn(),
+    addTaskComment: vi.fn(),
   };
 });
 
-const mockedGetMyTasks = vi.mocked(lifecycleApi.getMyTasks);
+const mockedGetMyTasks = vi.mocked(taskApi.getMyTasks);
 
 describe("MyTasksPage", () => {
   beforeEach(() => {

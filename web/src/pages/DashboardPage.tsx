@@ -6,10 +6,7 @@ export default function DashboardPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader
-          title="Übersicht"
-          description="Der nächste sinnvolle Schritt für Ihre Rolle im Mitarbeiterprozess."
-        />
+        <PageHeader title="Übersicht" />
 
         <DashboardOverview />
       </div>

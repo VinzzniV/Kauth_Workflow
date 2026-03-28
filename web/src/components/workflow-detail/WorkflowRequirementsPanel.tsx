@@ -9,8 +9,6 @@ type WorkflowRequirementsPanelProps = {
   workflow: WorkflowDetail;
   canEditSupervisorRequirements: boolean;
   requirementSelections: Record<number, RequirementSelectionState>;
-  requirementsSaveError: string | null;
-  requirementsSaveNotice: string | null;
   isSavingRequirements: boolean;
   canSaveSupervisorRequirements: boolean;
   onToggleBoolean: (requirementId: number, value: boolean | null) => void;
@@ -45,8 +43,6 @@ export default function WorkflowRequirementsPanel({
   workflow,
   canEditSupervisorRequirements,
   requirementSelections,
-  requirementsSaveError,
-  requirementsSaveNotice,
   isSavingRequirements,
   canSaveSupervisorRequirements,
   onToggleBoolean,
@@ -74,9 +70,6 @@ export default function WorkflowRequirementsPanel({
         title="Anforderungen"
         description={getRequirementsDescription(workflow, canEditSupervisorRequirements)}
       />
-
-      {requirementsSaveError ? <p className="panel-note">{requirementsSaveError}</p> : null}
-      {requirementsSaveNotice ? <p className="panel-note">{requirementsSaveNotice}</p> : null}
 
       {canEditSupervisorRequirements ? (
         <div className="action-row">

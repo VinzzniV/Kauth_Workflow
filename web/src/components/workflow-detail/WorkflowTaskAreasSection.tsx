@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TaskStatusPill from "../workflows/TaskStatusPill";
 import TaskCommentsSection from "../workflows/TaskCommentsSection";
 import TaskSlaPill from "../workflows/TaskSlaPill";
@@ -11,6 +12,8 @@ import {
 } from "../../utils/taskStatus";
 import {
   formatDateTime,
+  compareAreaGroupsForDisplay,
+  compareTasksForDisplay,
   toAreaStatus,
   toAreaStatusLabel,
   toAreaStatusNote,
@@ -20,13 +23,9 @@ import {
 
 type WorkflowTaskAreasSectionProps = {
   tasksByArea: ProcessAreaGroup[];
-  taskError: string | null;
-  taskNotice: string | null;
   savingTaskIds: Record<number, boolean>;
   commentDrafts: Record<number, string>;
   savingCommentTaskIds: Record<number, boolean>;
-  commentFeedbackTaskId: number | null;
-  commentFeedbackMessage: string | null;
   usesAdminOverride: boolean;
   canManageAdminConfiguration: boolean;
   isReaderOnlyView: boolean;
@@ -41,13 +40,9 @@ function getAreaStatusClass(status: ReturnType<typeof toAreaStatus>): string {
 
 export default function WorkflowTaskAreasSection({
   tasksByArea,
-  taskError,
-  taskNotice,
   savingTaskIds,
   commentDrafts,
   savingCommentTaskIds,
-  commentFeedbackTaskId,
-  commentFeedbackMessage,
   usesAdminOverride,
   canManageAdminConfiguration,
   isReaderOnlyView,
@@ -55,23 +50,80 @@ export default function WorkflowTaskAreasSection({
   onCommentDraftChange,
   onTaskCommentSubmit,
 }: WorkflowTaskAreasSectionProps) {
+  const groupRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const orderedGroups = useMemo(
+    () =>
+      tasksByArea
+        .map((group) => ({
+          ...group,
+          tasks: group.tasks.slice().sort(compareTasksForDisplay),
+        }))
+        .sort(compareAreaGroupsForDisplay),
+    [tasksByArea]
+  );
+
+  const initialExpanded = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const group of orderedGroups) {
+      map[group.name] = group.isCurrentArea || toAreaStatus(group) !== "done";
+    }
+    return map;
+  }, [orderedGroups]);
+
+  const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>(initialExpanded);
+
+  useEffect(() => {
+    setExpandedAreas((current) => {
+      const next: Record<string, boolean> = {};
+      for (const group of orderedGroups) {
+        next[group.name] = current[group.name] ?? initialExpanded[group.name] ?? false;
+        if (group.isCurrentArea) {
+          next[group.name] = true;
+        }
+      }
+      return next;
+    });
+  }, [initialExpanded, orderedGroups]);
+
+  const toggleArea = useCallback((name: string) => {
+    setExpandedAreas((prev) => ({ ...prev, [name]: !prev[name] }));
+  }, []);
+
+  const scrollToArea = useCallback((name: string) => {
+    setExpandedAreas((prev) => ({ ...prev, [name]: true }));
+    requestAnimationFrame(() => {
+      groupRefs.current[name]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
+  const expandAll = useCallback(() => {
+    setExpandedAreas(Object.fromEntries(orderedGroups.map((g) => [g.name, true])));
+  }, [orderedGroups]);
+
+  const collapseAll = useCallback(() => {
+    setExpandedAreas(Object.fromEntries(orderedGroups.map((g) => [g.name, false])));
+  }, [orderedGroups]);
+
   return (
     <section className="content-stack">
       <section className="panel">
         <div className="panel-head">
           <h2>Aufgaben nach Bereich</h2>
-          <p>Hier bearbeiten Sie den aktuellen Vorgang nach Zuständigkeiten. Der Bereichsüberblick bleibt direkt darüber sichtbar.</p>
         </div>
 
-        {taskError ? <p className="panel-note">{taskError}</p> : null}
-        {taskNotice ? <p className="panel-note">{taskNotice}</p> : null}
-
         <div className="workflow-area-grid" aria-label="Status nach Bereich">
-          {tasksByArea.map((group) => {
+          {orderedGroups.map((group) => {
             const status = toAreaStatus(group);
 
             return (
-              <article key={`overview-${group.name}`} className={`workflow-area-card ${group.isCurrentArea ? "current" : ""}`}>
+              <button
+                key={`overview-${group.name}`}
+                type="button"
+                className={`workflow-area-card ${group.isCurrentArea ? "current" : ""}`}
+                onClick={() => scrollToArea(group.name)}
+              >
+                {group.isCurrentArea ? <p className="workflow-area-card-eyebrow">Jetzt relevant</p> : null}
                 <div className="workflow-area-card-head">
                   <h3>{group.name}</h3>
                   <span className={getAreaStatusClass(status)}>{toAreaStatusLabel(status)}</span>
@@ -80,119 +132,141 @@ export default function WorkflowTaskAreasSection({
                   {group.totalCount} Aufgabe{group.totalCount === 1 ? "" : "n"}
                 </p>
                 <p className="workflow-area-card-note">{toAreaStatusNote(group)}</p>
-              </article>
+              </button>
             );
           })}
         </div>
 
+        <div className="task-groups-controls">
+          <button type="button" className="btn-text" onClick={expandAll}>Alle aufklappen</button>
+          <button type="button" className="btn-text" onClick={collapseAll}>Alle zuklappen</button>
+        </div>
+
         <div className="task-groups" aria-label="Aufgaben nach Bereich">
-          {tasksByArea.map((group) => {
+          {orderedGroups.map((group, index) => {
             const status = toAreaStatus(group);
+            const isExpanded = expandedAreas[group.name] ?? false;
+            const isDone = status === "done";
+            const contentId = `workflow-task-group-${index}`;
 
             return (
-              <section key={group.name} className="task-group">
-                <header className="task-group-head">
-                  <h3>{group.name}{group.isCurrentArea ? " · aktuell dran" : ""}</h3>
-                  <p>
-                    {group.totalCount} Aufgabe{group.totalCount === 1 ? "" : "n"} | Offen: {group.openCount} | In
-                    Bearbeitung: {group.inProgressCount} | Erledigt: {group.completedCount}
-                  </p>
-                </header>
-
-                <div className="action-row">
-                  <span className={getAreaStatusClass(status)}>{toAreaStatusLabel(status)}</span>
+              <section
+                key={group.name}
+                className={`task-group${isDone ? " task-group--done" : ""}${isDone && !isExpanded ? " task-group--compact" : ""}${group.isCurrentArea ? " task-group--current" : ""}`}
+                ref={(el) => { groupRefs.current[group.name] = el; }}
+              >
+                <div className="task-group-head">
+                  <button
+                    type="button"
+                    className="task-group-head task-group-head--collapsible"
+                    aria-controls={contentId}
+                    aria-label={`${group.name} ${isExpanded ? "zuklappen" : "aufklappen"}`}
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleArea(group.name)}
+                  >
+                    <svg className={`task-group-chevron${isExpanded ? " task-group-chevron--open" : ""}`} viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true">
+                      <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
+                    </svg>
+                    <div className="task-group-head-copy">
+                      <h3>{group.name}</h3>
+                      {group.isCurrentArea ? <p>Jetzt relevant</p> : null}
+                    </div>
+                    <span className={getAreaStatusClass(status)}>{toAreaStatusLabel(status)}</span>
+                    <span className="task-group-count">
+                      {group.openCount > 0 ? `${group.openCount} offen` : `${group.completedCount}/${group.totalCount} erledigt`}
+                    </span>
+                  </button>
                 </div>
 
-                {group.tasks.length === 0 ? (
-                  <p className="panel-note">Für diesen Bereich sind aktuell keine Aufgaben vorhanden.</p>
-                ) : (
-                  <ul className="task-list">
-                    {group.tasks.map((task) => {
-                      const visibleStatus = getVisibleTaskStatus(task.status);
-                      const availableStatuses = getAvailableVisibleTaskStatuses(task.status);
-                      const isSavingTask = savingTaskIds[task.id] === true;
-                      const canChangeTaskStatus =
-                        canManageAdminConfiguration && task.canUpdateStatus && availableStatuses.length > 1;
-
-                      const commentFeedback = commentFeedbackTaskId === task.id ? commentFeedbackMessage : null;
-                      return (
-                        <li key={task.id} className="task-card">
-                          <div className="task-card-top">
-                            <div>
-                              <h3>{toTaskDisplayTitle(task)}</h3>
-                              <p className="panel-text">{task.description}</p>
-                            </div>
-                            <div className="task-card-pill-group">
-                              <TaskSlaPill status={task.slaStatus} />
-                              <TaskStatusPill status={task.status} />
-                            </div>
-                          </div>
-
-                          <dl className="task-meta">
-                            <div>
-                              <dt>Zuständiger Bereich</dt>
-                              <dd>{getResponsibleResponsibilityLabel(task)}</dd>
-                            </div>
-                            {!isReaderOnlyView ? (
-                              <div>
-                                <dt>Verantwortliche Person</dt>
-                                <dd>{getResponsibleUserLabel(task)}</dd>
+                {isExpanded ? (
+                  <div id={contentId}>
+                    {group.tasks.length === 0 ? (
+                      <p className="panel-note">Für diesen Bereich sind aktuell keine Aufgaben vorhanden.</p>
+                    ) : (
+                      <ul className="task-list">
+                        {group.tasks.map((task) => {
+                          const isTaskDone = task.status === "done";
+                          const visibleStatus = getVisibleTaskStatus(task.status);
+                          const availableStatuses = getAvailableVisibleTaskStatuses(task.status);
+                          const isSavingTask = savingTaskIds[task.id] === true;
+                          const canChangeTaskStatus =
+                            canManageAdminConfiguration && task.canUpdateStatus && availableStatuses.length > 1;
+                          return (
+                            <li key={task.id} className={`task-card${isTaskDone ? " task-card--done" : ""}${!isTaskDone ? " task-card--active" : ""}`}>
+                              <div className="task-card-top">
+                                <div>
+                                  <h3>{toTaskDisplayTitle(task)}</h3>
+                                  {!isTaskDone ? <p className="panel-text">{task.description}</p> : null}
+                                  {isTaskDone ? <p className="task-card-done-note">Erledigte Aufgabe</p> : null}
+                                </div>
+                                <div className="task-card-pill-group">
+                                  <TaskSlaPill status={task.slaStatus} />
+                                  <TaskStatusPill status={task.status} />
+                                </div>
                               </div>
-                            ) : null}
-                            <div>
-                              <dt>Erstellt</dt>
-                              <dd>{formatDateTime(task.createdAt)}</dd>
-                            </div>
-                            <div>
-                              <dt>Fällig</dt>
-                              <dd>{task.dueAt ? formatDateTime(task.dueAt) : "Keine Frist"}</dd>
-                            </div>
-                          </dl>
 
-                          {isReaderOnlyView ? (
-                            <p className="panel-note">Interne Zuweisungsdetails sind für Leser ausgeblendet.</p>
-                          ) : null}
+                              {!isTaskDone ? (
+                                <dl className="task-meta">
+                                  <div>
+                                    <dt>Zuständiger Bereich</dt>
+                                    <dd>{getResponsibleResponsibilityLabel(task)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Verantwortliche Person</dt>
+                                    <dd>{getResponsibleUserLabel(task)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Erstellt</dt>
+                                    <dd>{formatDateTime(task.createdAt)}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Fällig</dt>
+                                    <dd>{task.dueAt ? formatDateTime(task.dueAt) : "Keine Frist"}</dd>
+                                  </div>
+                                </dl>
+                              ) : null}
 
-                          {canChangeTaskStatus ? (
-                            <div className="toolbar-row task-actions-row">
-                              <label className="field compact">
-                                <span>{usesAdminOverride ? "Status (Admin-Override)" : "Status"}</span>
-                                <select
-                                  value={visibleStatus}
-                                  disabled={isSavingTask}
-                                  onChange={(event) =>
-                                    void onTaskStatusChange(
-                                      task.id,
-                                      event.target.value as VisibleTaskStatus,
-                                      task.status
-                                    )
-                                  }
-                                >
-                                  {availableStatuses.map((taskStatus) => (
-                                    <option key={taskStatus} value={taskStatus}>
-                                      {getVisibleTaskStatusLabel(taskStatus)}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                          ) : null}
+                              {canChangeTaskStatus ? (
+                                <div className="toolbar-row task-actions-row">
+                                  <label className="field compact">
+                                    <span>{usesAdminOverride ? "Status (Admin-Override)" : "Status"}</span>
+                                    <select
+                                      value={visibleStatus}
+                                      disabled={isSavingTask}
+                                      onChange={(event) =>
+                                        void onTaskStatusChange(
+                                          task.id,
+                                          event.target.value as VisibleTaskStatus,
+                                          task.status
+                                        )
+                                      }
+                                    >
+                                      {availableStatuses.map((taskStatus) => (
+                                        <option key={taskStatus} value={taskStatus}>
+                                          {getVisibleTaskStatusLabel(taskStatus)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                </div>
+                              ) : null}
 
-                          {!isReaderOnlyView ? (
-                            <TaskCommentsSection
-                              task={task}
-                              draftValue={commentDrafts[task.id] ?? ""}
-                              isSaving={savingCommentTaskIds[task.id] === true}
-                              feedbackMessage={commentFeedback}
-                              onDraftChange={onCommentDraftChange}
-                              onSubmit={onTaskCommentSubmit}
-                            />
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                              {!isReaderOnlyView && !isTaskDone ? (
+                                <TaskCommentsSection
+                                  task={task}
+                                  draftValue={commentDrafts[task.id] ?? ""}
+                                  isSaving={savingCommentTaskIds[task.id] === true}
+                                  onDraftChange={onCommentDraftChange}
+                                  onSubmit={onTaskCommentSubmit}
+                                />
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
               </section>
             );
           })}

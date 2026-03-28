@@ -61,17 +61,17 @@ export function AdminTechnicalAccessSection({
       <section className="panel">
         <div className="panel-head">
           <h2>Zugriffe & Gruppen</h2>
-          <p>Dieser Bereich ist für Login-Rechte, Gruppen und Ausnahmen gedacht und wird bewusst nur bei Bedarf geladen.</p>
+          <p>Login-Rechte, Gruppen und Ausnahmen verwalten.</p>
         </div>
 
         <div className="admin-guidance-grid">
           <article className="admin-guidance-card">
             <h3>Wann passt dieser Bereich?</h3>
-            <p>Wenn eine Person zusätzliche Zugriffe braucht oder Gruppenrechte gezielt nachgezogen werden sollen.</p>
+            <p>Für Einzelrechte und Gruppenpflege.</p>
           </article>
           <article className="admin-guidance-card admin-guidance-card--caution">
             <h3>Worauf achten?</h3>
-            <p>Direkte Rollen wirken sofort. Gruppenrollen wirken meist für mehrere Personen gleichzeitig und sollten bewusst eingesetzt werden.</p>
+            <p>Direkte Rollen wirken sofort. Gruppenrollen betreffen mehrere Personen.</p>
           </article>
         </div>
 
@@ -106,7 +106,7 @@ export function AdminTechnicalAccessSection({
           <section className="panel">
             <div className="panel-head">
               <h2>Direkte Rollen: {selectedUser.displayName}</h2>
-              <p>Nur für gezielte Ausnahmen oder ergänzende Einzelrechte verwenden.</p>
+              <p>Nur für Ausnahmen.</p>
             </div>
 
             <div className="chips-row" aria-label="Rollen Auswahl">
@@ -142,7 +142,7 @@ export function AdminTechnicalAccessSection({
           <section className="panel">
             <div className="panel-head">
               <h2>Gruppen für {selectedUser.displayName}</h2>
-              <p>Bevorzugt für wiederkehrende Zugriffe, damit Rechte nicht einzeln nachgepflegt werden müssen.</p>
+              <p>Für wiederkehrende Zugriffe.</p>
             </div>
 
             <div className="chips-row" aria-label="Gruppen Auswahl">
@@ -180,7 +180,7 @@ export function AdminTechnicalAccessSection({
       {!isLoadingTechnicalAccess && !selectedUser ? (
         <EmptyState
           title="Person auswählen"
-          description="Wählen Sie hier zuerst eine Person, wenn Sie Einzelrechte oder Gruppenzuordnungen prüfen möchten."
+          description="Person für Einzelrechte oder Gruppen auswählen."
         />
       ) : null}
 
@@ -188,7 +188,7 @@ export function AdminTechnicalAccessSection({
         <section className="panel">
           <div className="panel-head">
             <h2>Gruppenrollen</h2>
-            <p>Änderungen hier wirken für alle Mitglieder der gewählten Gruppe und sind deshalb bewusst separat geführt.</p>
+            <p>Wirkt für alle Mitglieder der gewählten Gruppe.</p>
           </div>
 
           <label className="field compact">

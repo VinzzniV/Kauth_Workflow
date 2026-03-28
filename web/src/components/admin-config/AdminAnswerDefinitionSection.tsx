@@ -50,17 +50,14 @@ export function AdminAnswerDefinitionSection({
       <section className="panel panel-muted">
         <div className="panel-head">
           <h2>Antwortfelder</h2>
-          <p>
-            Verwalten Sie Antwortfelder pro Prozesstyp. Eingabetyp und Schlüssel definieren die
-            Grundlage für Bedingungen, Standardwerte und Prozessantworten.
-          </p>
+          <p>Antwortfelder pro Prozesstyp verwalten.</p>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
           <h2>Prozesstyp & Übersicht</h2>
-          <p>Zuerst Prozesstyp wählen, dann Antwortfelder filtern, anlegen oder bearbeiten.</p>
+          <p>Prozesstyp wählen und Antwortfelder bearbeiten.</p>
         </div>
         <div className="panel-body">
           <div style={{ display: "flex", gap: "1rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1rem" }}>
@@ -144,7 +141,7 @@ export function AdminAnswerDefinitionSection({
       <section className="panel">
         <div className="panel-head">
           <h2>{panelTitle}</h2>
-          <p>Alle Felder werden direkt am Antwortfeld gepflegt und pro Prozesstyp verwaltet.</p>
+          <p>Felder direkt am Antwortfeld pflegen.</p>
         </div>
 
         {!selectedProcessTypeId ? (

@@ -1,9 +1,8 @@
 // Uebersicht ueber alle sichtbaren Vorgaenge inklusive Filter und abgeleitetem Prozessstand.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
-import LoadingState from "../components/feedback/LoadingState";
+import SkeletonCard from "../components/feedback/SkeletonCard";
 import PageHeader from "../components/layout/PageHeader";
 import type { WorkflowQueryOptions } from "../services/workflowApi";
 import { useProcessTypes } from "../services/queries/processTypeQueries";
@@ -48,10 +47,7 @@ function parsePageIndex(value: string | null): number {
 }
 
 export default function WorkflowListPage() {
-  const { capabilities } = useCurrentUser();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isReaderOnlyView =
-    capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
   const initialSearch = searchParams.get("q") ?? "";
   const initialStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
   const initialDepartmentFilter = searchParams.get("dept") ?? "all";
@@ -180,33 +176,21 @@ export default function WorkflowListPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader
-          title="Laufende Vorgänge"
-          description="Behalten Sie laufende Mitarbeiterprozesse im Blick, priorisieren Sie offene Arbeit und springen Sie direkt in die Bearbeitung."
-        />
+        <PageHeader title="Laufende Vorgänge" />
 
         <section className="panel">
           <div className="panel-head">
-            <h2>Arbeitsüberblick</h2>
-            <p>Diese Seite ist Ihr operativer Überblick für laufende Vorgänge. Für die gezielte Recherche einzelner Fälle nutzen Sie die globale Suche.</p>
-          </div>
-          <div className="next-action-callout">
-            <p className="next-action-label">Nächste nötige Aktion</p>
-            <p className="next-action-text">
-              {isReaderOnlyView
-                ? "Im Lesemodus sehen Sie freigegebene Workflow-Stände auf Basis des Backend-Runtime-Status."
-                : "Prüfen Sie zuerst Fälle, die auf Abteilungsleitung oder Fachbereiche warten."}
-            </p>
+            <h2>Laufende Vorgänge filtern</h2>
           </div>
           <div className="action-row">
             <Link className="btn btn-secondary" to="/search">
-              Zur globalen Suche
+              Zur gezielten Suche
             </Link>
           </div>
 
-          <div className="toolbar-row">
+          <div className="toolbar-row toolbar-row-filters">
             <label className="field compact grow">
-              <span>Schnellfilter</span>
+              <span>Suche im Überblick</span>
               <input
                 type="text"
                 value={search}
@@ -214,7 +198,7 @@ export default function WorkflowListPage() {
                   setSearch(event.target.value);
                   setPageIndex(0);
                 }}
-                placeholder="z. B. Name, Stelle oder ID im aktuellen Überblick"
+                placeholder="z. B. Name, Stelle oder ID in den laufenden Vorgängen"
               />
             </label>
 
@@ -303,7 +287,7 @@ export default function WorkflowListPage() {
           </div>
           <div className="toolbar-row">
             <p className="panel-note">
-              Seite {pageIndex + 1} von {totalPages} · {totalCount} Einträge im Überblick
+              Seite {pageIndex + 1} von {totalPages} · {totalCount} Einträge
             </p>
             <button
               type="button"
@@ -324,7 +308,13 @@ export default function WorkflowListPage() {
           </div>
         </section>
 
-        {isLoading ? <LoadingState title="Vorgänge werden geladen..." /> : null}
+        {isLoading ? (
+          <section className="workflow-grid" aria-label="Vorgänge werden geladen">
+            {Array.from({ length: 8 }, (_, index) => (
+              <SkeletonCard key={`workflow-skeleton-${index}`} variant="workflow" />
+            ))}
+          </section>
+        ) : null}
 
         {!isLoading && error ? (
           <EmptyState
@@ -340,14 +330,14 @@ export default function WorkflowListPage() {
         {!isLoading && !error && rows.length === 0 && !hasActiveFilters ? (
           <EmptyState
             title="Keine laufenden Vorgänge vorhanden"
-            description="Aktuell liegen keine Vorgänge im operativen Überblick vor. Für einen bestimmten Fall nutzen Sie die Suche oder starten Sie einen neuen Prozess."
+            description="Aktuell sind keine laufenden Vorgänge vorhanden."
           />
         ) : null}
 
         {!isLoading && !error && rows.length === 0 && hasActiveFilters ? (
           <EmptyState
             title="Keine Treffer"
-            description="Die aktuelle Filterkombination liefert keine passenden Vorgänge im laufenden Überblick."
+            description="Die aktuelle Filterkombination liefert keine passenden Vorgänge."
           />
         ) : null}
 

@@ -1,7 +1,21 @@
+@layer components {
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 0.85rem;
+}
+
+.dashboard-top-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-refresh-row {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .dashboard-priority-shell {
@@ -15,6 +29,8 @@
   background:
     radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 38%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  display: grid;
+  gap: 1rem;
 }
 
 .dashboard-priority-summary {
@@ -160,7 +176,7 @@
 /* ─── Dashboard Stats ─── */
 .dashboard-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.75rem;
 }
 
@@ -169,9 +185,17 @@
   border-radius: var(--radius-md);
   background: var(--bg-card);
   padding: 0.85rem;
+  display: grid;
+  gap: 0.4rem;
+  align-content: start;
+  min-height: 9rem;
+}
+
+.dashboard-stat-card-head {
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
 }
 
 .dashboard-stat-chip {
@@ -208,6 +232,7 @@
 .dashboard-stat-label {
   color: var(--text-secondary);
   font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .dashboard-stat-value {
@@ -220,6 +245,7 @@
 .dashboard-stat-note {
   color: var(--text-tertiary);
   font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 /* ─── Dashboard Queue ─── */
@@ -237,7 +263,7 @@
   background: var(--bg-card);
   padding: 0.75rem 0.85rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
 }
@@ -266,6 +292,7 @@
 
 .dashboard-filter-field {
   min-width: 15rem;
+}
 }
 
 /* ─── Content Stack ─── */

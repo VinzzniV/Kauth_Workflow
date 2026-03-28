@@ -6,7 +6,6 @@ type TaskCommentsSectionProps = {
   task: WorkflowTask;
   draftValue: string;
   isSaving: boolean;
-  feedbackMessage: string | null;
   onDraftChange: (taskId: number, value: string) => void;
   onSubmit: (taskId: number) => Promise<void>;
 };
@@ -15,7 +14,6 @@ export default function TaskCommentsSection({
   task,
   draftValue,
   isSaving,
-  feedbackMessage,
   onDraftChange,
   onSubmit,
 }: TaskCommentsSectionProps) {
@@ -25,10 +23,10 @@ export default function TaskCommentsSection({
   const commentCountLabel = `${task.comments.length} Eintrag${task.comments.length === 1 ? "" : "e"} zur Aufgabe.`;
 
   useEffect(() => {
-    if (trimmedDraft || isSaving || feedbackMessage) {
+    if (trimmedDraft || isSaving) {
       setIsOpen(true);
     }
-  }, [feedbackMessage, isSaving, trimmedDraft]);
+  }, [isSaving, trimmedDraft]);
 
   return (
     <details
@@ -73,12 +71,6 @@ export default function TaskCommentsSection({
             </li>
           ))}
         </ol>
-      ) : null}
-
-      {feedbackMessage ? (
-        <p className="panel-note task-comments-feedback" role="status" aria-live="polite">
-          {feedbackMessage}
-        </p>
       ) : null}
 
       {task.canAddComment ? (

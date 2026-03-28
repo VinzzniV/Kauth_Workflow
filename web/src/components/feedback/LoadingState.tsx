@@ -5,7 +5,7 @@ type Props = {
 
 export default function LoadingState({
   title = "Daten werden geladen...",
-  description = "Bitte warten Sie einen kurzen Moment.",
+  description,
 }: Props) {
   return (
     <section className="panel panel-muted" role="status" aria-live="polite">
@@ -13,7 +13,7 @@ export default function LoadingState({
         <span className="loading-dot" />
         <div>
           <h3 className="panel-title">{title}</h3>
-          <p className="panel-text">{description}</p>
+          {description ? <p className="panel-text">{description}</p> : null}
         </div>
       </div>
     </section>

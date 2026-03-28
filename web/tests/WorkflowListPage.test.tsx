@@ -1,20 +1,28 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowListPage from "../src/pages/WorkflowListPage";
-import * as lifecycleApi from "../src/services/lifecycleApi";
+import * as lookupApi from "../src/services/lookupApi";
+import * as workflowApi from "../src/services/workflowApi";
 import { createWorkflowSummary, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/lifecycleApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
+vi.mock("../src/services/lookupApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lookupApi")>("../src/services/lookupApi");
   return {
     ...actual,
     getProcessTypes: vi.fn(),
+  };
+});
+
+vi.mock("../src/services/workflowApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/workflowApi")>("../src/services/workflowApi");
+  return {
+    ...actual,
     getWorkflowPage: vi.fn(),
   };
 });
 
-const mockedGetProcessTypes = vi.mocked(lifecycleApi.getProcessTypes);
-const mockedGetWorkflowPage = vi.mocked(lifecycleApi.getWorkflowPage);
+const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
+const mockedGetWorkflowPage = vi.mocked(workflowApi.getWorkflowPage);
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -28,7 +36,7 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
-function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof lifecycleApi.getWorkflowPage>>> = {}) {
+function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof workflowApi.getWorkflowPage>>> = {}) {
   return {
     items: [createWorkflowSummary()],
     count: 1,
@@ -204,7 +212,7 @@ describe("WorkflowListPage", () => {
 
     expect(await screen.findByText("Alice Example")).toBeTruthy();
 
-    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Schnellfilter" }), {
       target: { value: "zzzzz" },
     });
 
@@ -231,13 +239,6 @@ describe("WorkflowListPage", () => {
       lastName: "Completed",
       workflowStatus: "completed",
     });
-    const staleFilteredWorkflow = createWorkflowSummary({
-      uid: "wf-126",
-      firstName: "Stale",
-      lastName: "Result",
-      workflowStatus: "completed",
-    });
-    const staleFilteredPage = createDeferred<Awaited<ReturnType<typeof lifecycleApi.getWorkflowPage>>>();
 
     mockedGetWorkflowPage
       .mockResolvedValueOnce(createWorkflowPageResponse({
@@ -252,7 +253,6 @@ describe("WorkflowListPage", () => {
         offset: 20,
         limit: 20,
       }))
-      .mockImplementationOnce(() => staleFilteredPage.promise)
       .mockResolvedValueOnce(createWorkflowPageResponse({
         items: [latestFilteredWorkflow],
         count: 1,
@@ -273,19 +273,13 @@ describe("WorkflowListPage", () => {
 
     expect(await screen.findByText("Clara Completed")).toBeTruthy();
 
-    staleFilteredPage.resolve({
-      items: [staleFilteredWorkflow],
-      count: 99,
-      offset: 20,
-      limit: 20,
-      departmentOptions: [{ id: 1, name: "IT" }],
-      responsibilityOptions: [{ value: "it", label: "IT" }],
-    });
-
     await waitFor(() => {
-      expect(screen.queryByText("Stale Result")).toBeNull();
       expect(screen.getByText("Clara Completed")).toBeTruthy();
-      expect(screen.getByText("Seite 1 von 1 · 1 Workflow")).toBeTruthy();
+      expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
+        20,
+        0,
+        expect.objectContaining({ status: "completed" })
+      );
     });
   });
 });

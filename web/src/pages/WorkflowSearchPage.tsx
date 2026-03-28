@@ -112,23 +112,19 @@ export default function WorkflowSearchPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader
-          title="Vorgänge gezielt suchen"
-          description="Finden Sie einzelne Vorgänge gezielt über Namen, Personalnummern, Workflow-IDs und weitere Merkmale."
-        />
+        <PageHeader title="Vorgänge gezielt suchen" />
 
         <section className="panel">
           <div className="panel-head">
-            <h2>Globale Suche</h2>
-            <p>Nutzen Sie diese Seite, wenn Sie einen bestimmten Fall recherchieren, auch wenn Sie nur Teile der Informationen kennen. Für den täglichen Arbeitsüberblick nutzen Sie die laufenden Vorgänge.</p>
+            <h2>Suche starten</h2>
           </div>
           <div className="action-row">
             <Link className="btn btn-secondary" to="/workflows">
-              Zum Arbeitsüberblick
+              Zum Überblick laufender Vorgänge
             </Link>
           </div>
           <p className="panel-note">
-            Suchbeispiele: Name einer Person, Personalnummer, Workflow-ID oder Kombinationen mit Prozesstyp und Status.
+            Bekannte Person, Personalnummer oder Workflow-ID gezielt finden.
           </p>
 
           <div className="toolbar-row">
@@ -219,7 +215,7 @@ export default function WorkflowSearchPage() {
           <section className="panel panel-muted">
             <div className="panel-head">
               <h2>Suche starten</h2>
-              <p>Geben Sie einen Suchbegriff ein oder schränken Sie die Suche über Filter ein, um gezielt passende Vorgänge zu finden.</p>
+              <p>Suchbegriff oder Filter setzen, dann Ergebnisse laden.</p>
             </div>
           </section>
         ) : null}
@@ -235,7 +231,7 @@ export default function WorkflowSearchPage() {
           <>
             <section className="panel panel-muted">
               <p className="panel-note">
-                {rows.length} Treffer in der globalen Suche
+                {rows.length} Treffer in der Suche
               </p>
             </section>
             <section className="workflow-grid" aria-label="Suchergebnisse Mitarbeiterprozesse">

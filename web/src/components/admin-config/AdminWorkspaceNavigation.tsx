@@ -60,7 +60,6 @@ export function AdminWorkspaceNavigation({
     <section className="panel panel-muted">
       <div className="panel-head">
         <h2>Administrationsbereiche</h2>
-        <p>Wählen Sie den Bereich nach Zweck und Wirkung. Fachliche Pflege startet meist in Organisation, technische und breit wirksame Änderungen sind bewusst separat gruppiert.</p>
       </div>
 
       <div className="admin-workspace-groups" aria-label="Admin-Bereiche">
@@ -74,7 +73,6 @@ export function AdminWorkspaceNavigation({
             <section key={group} className="admin-workspace-group">
               <div className="admin-workspace-group-head">
                 <h3>{groupItems[0].groupLabel}</h3>
-                <p>{groupItems[0].groupDescription}</p>
               </div>
 
               <div className="admin-workspace-nav" role="tablist" aria-label={`${groupItems[0].groupLabel} auswählen`}>
@@ -96,7 +94,6 @@ export function AdminWorkspaceNavigation({
                     }}
                     onClick={() => onSelectSection(item.key)}
                   >
-                    <span className="admin-workspace-tab-kicker">{item.impactLabel}</span>
                     <span className="admin-workspace-tab-title">{item.label}</span>
                     <span className="admin-workspace-tab-note">{item.description}</span>
                   </button>

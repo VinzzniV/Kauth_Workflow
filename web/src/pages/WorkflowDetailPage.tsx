@@ -1,6 +1,6 @@
 // Detailansicht fuer einen einzelnen Vorgang mit Prozessstand, Antworten und Aufgaben.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useCallback, useMemo } from "react";
+import { Link, useParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import WorkflowAuditLog from "../components/workflow-detail/WorkflowAuditLog";
 import WorkflowHeaderPanel from "../components/workflow-detail/WorkflowHeaderPanel";
@@ -11,11 +11,6 @@ import WorkflowProgressSection from "../components/workflow-detail/WorkflowProgr
 import WorkflowRequirementsPanel from "../components/workflow-detail/WorkflowRequirementsPanel";
 import WorkflowTaskAreasSection from "../components/workflow-detail/WorkflowTaskAreasSection";
 import {
-  useAddTaskComment,
-  useUpdateSupervisorStep,
-  useUpdateTaskStatus,
-} from "../services/mutations/workflowMutations";
-import {
   useWorkflowAuditLog,
   useWorkflowDetail,
   useWorkflowTasks,
@@ -24,7 +19,6 @@ import {
   buildProcessSteps,
   buildTasksByArea,
   findCurrentTask,
-  hasSupervisorStep,
   inferAreaFromTask,
   isDepartmentWorkflowPhase,
   toPhaseOwnerArea,
@@ -36,22 +30,11 @@ import {
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
-import {
-  applyRequirementBooleanEditorSelection,
-  applyRequirementSingleSelectEditorSelection,
-} from "../utils/requirementEditor";
-import type { RequirementSelectionState, WorkflowDetail, WorkflowTask } from "../types/workflow";
-import {
-  buildRequirementSelections,
-  createEmptyRequirementSelection,
-  toRequirementSelectionPayload,
-} from "../utils/requirements";
+import type { WorkflowDetail, WorkflowTask } from "../types/workflow";
 import { getResponsibleResponsibilityLabel, getResponsibleUserLabel } from "../utils/taskAssignment";
-import {
-  mapVisibleTaskStatusToWorkflowStatus,
-  type VisibleTaskStatus,
-} from "../utils/taskStatus";
 import { isWorkflowTerminalStatus } from "../utils/workflowStatus";
+import { useTaskInteraction } from "../hooks/useTaskInteraction";
+import { useRequirementEditor } from "../hooks/useRequirementEditor";
 
 export default function WorkflowDetailPage() {
   const { uid = "" } = useParams<{ uid: string }>();
@@ -60,24 +43,17 @@ export default function WorkflowDetailPage() {
     capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
   const canViewAuditLog =
     capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration;
-
-  const [taskNotice, setTaskNotice] = useState<string | null>(null);
-  const [taskError, setTaskError] = useState<string | null>(null);
-  const [savingTaskIds, setSavingTaskIds] = useState<Record<number, boolean>>({});
-  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const [savingCommentTaskIds, setSavingCommentTaskIds] = useState<Record<number, boolean>>({});
-  const [commentFeedbackTaskId, setCommentFeedbackTaskId] = useState<number | null>(null);
-  const [commentFeedbackMessage, setCommentFeedbackMessage] = useState<string | null>(null);
-  const [requirementSelections, setRequirementSelections] = useState<Record<number, RequirementSelectionState>>({});
-  const [requirementsSaveError, setRequirementsSaveError] = useState<string | null>(null);
-  const [requirementsSaveNotice, setRequirementsSaveNotice] = useState<string | null>(null);
-  const [isSavingRequirements, setIsSavingRequirements] = useState<boolean>(false);
+  const {
+    savingTaskIds,
+    commentDrafts,
+    savingCommentTaskIds,
+    handleStatusChange,
+    handleCommentDraftChange,
+    handleTaskCommentSubmit,
+  } = useTaskInteraction();
   const workflowDetailQuery = useWorkflowDetail(uid);
   const workflowTasksQuery = useWorkflowTasks(uid);
   const workflowAuditLogQuery = useWorkflowAuditLog(uid, 50, 0, canViewAuditLog);
-  const updateTaskStatusMutation = useUpdateTaskStatus(uid);
-  const addTaskCommentMutation = useAddTaskComment(uid);
-  const updateSupervisorStepMutation = useUpdateSupervisorStep(uid);
   const workflow = useMemo<WorkflowDetail | null>(() => {
     const baseWorkflow = workflowDetailQuery.data ?? null;
     if (!baseWorkflow) {
@@ -117,16 +93,6 @@ export default function WorkflowDetailPage() {
     ]);
   }, [canViewAuditLog, workflowAuditLogQuery, workflowDetailQuery, workflowTasksQuery]);
 
-  useEffect(() => {
-    if (!workflow) {
-      setRequirementSelections({});
-      return;
-    }
-
-    setRequirementSelections(buildRequirementSelections(workflow.requirements));
-  }, [workflow]);
-
-
   const sortedTasks = useMemo(() => {
     if (!workflow) {
       return [] as WorkflowTask[];
@@ -153,12 +119,20 @@ export default function WorkflowDetailPage() {
   const canEditSupervisorRequirements = useMemo(() => {
     return workflow?.workflowStatus === "waiting_for_supervisor" && capabilities.canManageAdminConfiguration;
   }, [capabilities.canManageAdminConfiguration, workflow?.workflowStatus]);
-  const canSaveSupervisorRequirements = useMemo(() => {
-    if (!workflow || !canEditSupervisorRequirements || isSavingRequirements) {
-      return false;
-    }
-    return true;
-  }, [canEditSupervisorRequirements, isSavingRequirements, workflow]);
+  const {
+    requirementSelections,
+    isSavingRequirements,
+    canSaveSupervisorRequirements,
+    setRequirementBoolean,
+    setRequirementText,
+    setRequirementSelectedOption,
+    toggleRequirementSelectedOption,
+    handleRequirementSave,
+  } = useRequirementEditor({
+    workflowUid: uid,
+    workflow,
+    canEditSupervisorRequirements,
+  });
 
   const currentArea = useMemo(() => (workflow ? toPhaseOwnerArea(workflow) : "-"), [workflow]);
 
@@ -192,10 +166,6 @@ export default function WorkflowDetailPage() {
 
       const responsibility = getResponsibleResponsibilityLabel(currentTask);
       const user = getResponsibleUserLabel(currentTask);
-      if (user === "Direkte Personenzuordnung ausgeblendet") {
-        return responsibility;
-      }
-
       return `${responsibility} (${user})`;
     }
 
@@ -244,133 +214,6 @@ export default function WorkflowDetailPage() {
     return "Nächsten Prozessschritt prüfen";
   }, [activeAreaNames.length, activeTaskCount, currentTask, workflow]);
 
-  const handleTaskStatusChange = useCallback(
-    async (taskId: number, status: VisibleTaskStatus, currentStatus: WorkflowTask["status"]) => {
-      const nextStatus = mapVisibleTaskStatusToWorkflowStatus(status, currentStatus);
-      if (nextStatus === currentStatus) {
-        return;
-      }
-
-      setSavingTaskIds((current) => ({ ...current, [taskId]: true }));
-      setTaskNotice(null);
-      setTaskError(null);
-
-      try {
-        await updateTaskStatusMutation.mutateAsync({ taskId, status: nextStatus });
-        setTaskNotice("Aufgabenstatus wurde gespeichert.");
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Aufgabenstatus konnte nicht aktualisiert werden.";
-        setTaskError(message);
-      } finally {
-        setSavingTaskIds((current) => ({ ...current, [taskId]: false }));
-      }
-    },
-    [updateTaskStatusMutation]
-  );
-
-  const handleCommentDraftChange = useCallback((taskId: number, value: string) => {
-    setCommentDrafts((current) => ({ ...current, [taskId]: value }));
-  }, []);
-
-  const handleTaskCommentSubmit = useCallback(
-    async (taskId: number) => {
-      const draft = (commentDrafts[taskId] ?? "").trim();
-      if (!draft) {
-        return;
-      }
-
-      setSavingCommentTaskIds((current) => ({ ...current, [taskId]: true }));
-      setCommentFeedbackTaskId(taskId);
-      setCommentFeedbackMessage(null);
-      setTaskError(null);
-      setTaskNotice(null);
-
-      try {
-        await addTaskCommentMutation.mutateAsync({ taskId, text: draft });
-        setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
-        setCommentFeedbackMessage("Kommentar wurde gespeichert.");
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Kommentar konnte nicht gespeichert werden.";
-        setCommentFeedbackMessage(message);
-      } finally {
-        setSavingCommentTaskIds((current) => ({ ...current, [taskId]: false }));
-      }
-    },
-    [addTaskCommentMutation, commentDrafts]
-  );
-
-  const setRequirementBoolean = useCallback(
-    (requirementId: number, value: boolean | null) => {
-      if (!workflow) {
-        return;
-      }
-
-      setRequirementSelections((current) =>
-        applyRequirementBooleanEditorSelection(workflow.requirements, current, requirementId, value)
-      );
-    },
-    [workflow]
-  );
-
-  const setRequirementText = useCallback((requirementId: number, value: string) => {
-    setRequirementSelections((current) => ({
-      ...current,
-      [requirementId]: {
-        ...(current[requirementId] ?? createEmptyRequirementSelection()),
-        valueText: value,
-      },
-    }));
-  }, []);
-
-  const setRequirementSelectedOption = useCallback((requirementId: number, optionId: number | null) => {
-    if (!workflow) {
-      return;
-    }
-
-    setRequirementSelections((current) =>
-      applyRequirementSingleSelectEditorSelection(workflow.requirements, current, requirementId, optionId)
-    );
-  }, [workflow]);
-
-  const toggleRequirementSelectedOption = useCallback((requirementId: number, optionId: number) => {
-    setRequirementSelections((current) => {
-      const existing = current[requirementId] ?? createEmptyRequirementSelection();
-      const isActive = existing.selectedOptionIds.includes(optionId);
-
-      return {
-        ...current,
-        [requirementId]: {
-          ...existing,
-          selectedOptionIds: isActive
-            ? existing.selectedOptionIds.filter((id) => id !== optionId)
-            : [...existing.selectedOptionIds, optionId],
-        },
-      };
-    });
-  }, []);
-
-  const handleRequirementSave = useCallback(async () => {
-    if (!workflow || !canEditSupervisorRequirements) {
-      return;
-    }
-
-    setIsSavingRequirements(true);
-    setRequirementsSaveError(null);
-    setRequirementsSaveNotice(null);
-
-    try {
-      await updateSupervisorStepMutation.mutateAsync(
-        toRequirementSelectionPayload(workflow.requirements, requirementSelections)
-      );
-      setRequirementsSaveNotice("Anforderungen wurden per Admin-Override gespeichert.");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Anforderungen konnten nicht gespeichert werden.";
-      setRequirementsSaveError(message);
-    } finally {
-      setIsSavingRequirements(false);
-    }
-  }, [canEditSupervisorRequirements, requirementSelections, updateSupervisorStepMutation, workflow]);
-
   const processSteps = useMemo<ProcessStep[]>(() => {
     if (!workflow) {
       return [] as ProcessStep[];
@@ -387,10 +230,13 @@ export default function WorkflowDetailPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader
-          title="Vorgangsdetails"
-          description="Zentraler Überblick über Person, Prozesstyp, Prozessstand, Zuständigkeiten und offene Aufgaben."
-        />
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link to="/workflows">Laufende Vorgänge</Link>
+          <span className="breadcrumb-separator" aria-hidden="true">/</span>
+          <span>Vorgangsdetails</span>
+        </nav>
+
+        <PageHeader title="Vorgangsdetails" />
 
         {isLoading ? <LoadingState title="Vorgang wird geladen..." /> : null}
 
@@ -411,15 +257,12 @@ export default function WorkflowDetailPage() {
               nextActionText={nextActionText}
               currentArea={currentArea}
               currentOwnerText={currentOwnerText}
-              canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
             />
 
             <WorkflowRequirementsPanel
               workflow={workflow}
               canEditSupervisorRequirements={canEditSupervisorRequirements}
               requirementSelections={requirementSelections}
-              requirementsSaveError={requirementsSaveError}
-              requirementsSaveNotice={requirementsSaveNotice}
               isSavingRequirements={isSavingRequirements}
               canSaveSupervisorRequirements={canSaveSupervisorRequirements}
               onToggleBoolean={setRequirementBoolean}
@@ -429,30 +272,19 @@ export default function WorkflowDetailPage() {
               onSave={handleRequirementSave}
             />
 
-            {!hasSupervisorStep(workflow) && workflow.workflowStatus !== "waiting_for_supervisor" ? (
-              <section className="panel panel-muted">
-                <div className="panel-head">
-                  <h2>Freigabeschritt</h2>
-                  <p>Dieser Prozesstyp hat keinen separaten Schritt für die Abteilungsleitung.</p>
-                </div>
-              </section>
-            ) : null}
-
             <WorkflowTaskAreasSection
               tasksByArea={tasksByArea}
-              taskError={taskError}
-              taskNotice={taskNotice}
               savingTaskIds={savingTaskIds}
               commentDrafts={commentDrafts}
               savingCommentTaskIds={savingCommentTaskIds}
-              commentFeedbackTaskId={commentFeedbackTaskId}
-              commentFeedbackMessage={commentFeedbackMessage}
               usesAdminOverride={usesAdminOverride}
               canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
               isReaderOnlyView={isReaderOnlyView}
-              onTaskStatusChange={handleTaskStatusChange}
+              onTaskStatusChange={(taskId, status, currentStatus) =>
+                handleStatusChange({ taskId, workflowUid: uid, status, currentStatus })
+              }
               onCommentDraftChange={handleCommentDraftChange}
-              onTaskCommentSubmit={handleTaskCommentSubmit}
+              onTaskCommentSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid: uid })}
             />
 
             <section className="workflow-detail-secondary-stack">

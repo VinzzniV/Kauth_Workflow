@@ -69,17 +69,14 @@ export function AdminTaskTemplateSection({
       <section className="panel panel-muted">
         <div className="panel-head">
           <h2>Aufgabenvorlagen</h2>
-          <p>
-            Verwalten Sie Vorlagen pro Prozesstyp. Änderungen betreffen die Konfiguration für neue
-            Workflows, nicht bereits erzeugte Workflow-Tasks.
-          </p>
+          <p>Vorlagen pro Prozesstyp verwalten. Änderungen gelten nur für neue Vorgänge.</p>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
           <h2>Prozesstyp & Übersicht</h2>
-          <p>Zuerst Prozesstyp wählen, dann Vorlagen filtern, anlegen oder bearbeiten.</p>
+          <p>Prozesstyp wählen und Vorlagen bearbeiten.</p>
         </div>
         <div className="panel-body">
           <div style={{ display: "flex", gap: "1rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1rem" }}>
@@ -163,11 +160,7 @@ export function AdminTaskTemplateSection({
       <section className="panel">
         <div className="panel-head">
           <h2>Dependency-Graph</h2>
-          <p>
-            Interaktive Übersicht aller Abhängigkeiten zwischen Aufgabenvorlagen des ausgewählten Prozesstyps.
-            Verbindung erstellen per Drag von Quelle zu Ziel, löschen per Klick auf die Kante.
-            Ein Klick auf einen Knoten öffnet das Detailpanel.
-          </p>
+          <p>Abhängigkeiten zwischen Aufgabenvorlagen.</p>
         </div>
         <div className="panel-body">
           {!selectedProcessTypeId ? (
@@ -200,10 +193,7 @@ export function AdminTaskTemplateSection({
       <section className="panel">
         <div className="panel-head">
           <h2>{panelTitle}</h2>
-          <p>
-            Alle Felder werden direkt auf der Aufgabenvorlage gepflegt. Die Zuordnung bleibt strikt am
-            ausgewählten Prozesstyp.
-          </p>
+          <p>Felder direkt an der Aufgabenvorlage pflegen.</p>
         </div>
 
         {!selectedProcessTypeId ? (

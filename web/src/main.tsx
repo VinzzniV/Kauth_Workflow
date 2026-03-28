@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./auth/AuthContext";
 import { CurrentUserProvider } from "./auth/CurrentUserContext";
 import { ConfirmationDialogProvider } from "./components/feedback/ConfirmationDialogProvider";
+import { ToastProvider } from "./components/feedback/ToastProvider";
 import App from "./App";
 import { queryClient } from "./services/queryClient";
 import "./index.css";
@@ -14,11 +15,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CurrentUserProvider>
-          <ConfirmationDialogProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
-          </ConfirmationDialogProvider>
+          <ToastProvider>
+            <ConfirmationDialogProvider>
+              <BrowserRouter>
+                <App />
+              </BrowserRouter>
+            </ConfirmationDialogProvider>
+          </ToastProvider>
         </CurrentUserProvider>
       </AuthProvider>
     </QueryClientProvider>

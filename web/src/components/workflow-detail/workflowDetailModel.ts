@@ -95,6 +95,30 @@ export function toAreaStatus(group: ProcessAreaGroup): "none" | "open" | "in_pro
   return "done";
 }
 
+export function compareAreaGroupsForDisplay(left: ProcessAreaGroup, right: ProcessAreaGroup): number {
+  if (left.isCurrentArea !== right.isCurrentArea) {
+    return left.isCurrentArea ? -1 : 1;
+  }
+
+  const statusPriority: Record<ReturnType<typeof toAreaStatus>, number> = {
+    in_progress: 0,
+    open: 1,
+    none: 2,
+    done: 3,
+  };
+  const statusDelta = statusPriority[toAreaStatus(left)] - statusPriority[toAreaStatus(right)];
+  if (statusDelta !== 0) {
+    return statusDelta;
+  }
+
+  const openDelta = right.openCount - left.openCount;
+  if (openDelta !== 0) {
+    return openDelta;
+  }
+
+  return left.name.localeCompare(right.name, "de");
+}
+
 export function toAreaStatusLabel(status: ReturnType<typeof toAreaStatus>): string {
   if (status === "none") {
     return "Noch kein Schritt";
@@ -133,6 +157,27 @@ export function toAreaStatusNote(group: ProcessAreaGroup): string {
 
 export function toTaskDisplayTitle(task: WorkflowTask): string {
   return task.title;
+}
+
+export function compareTasksForDisplay(left: WorkflowTask, right: WorkflowTask): number {
+  const statusPriority: Record<WorkflowTask["status"], number> = {
+    in_progress: 0,
+    ready: 1,
+    open: 2,
+    blocked: 3,
+    done: 4,
+  };
+  const statusDelta = statusPriority[left.status] - statusPriority[right.status];
+  if (statusDelta !== 0) {
+    return statusDelta;
+  }
+
+  const sortOrderDelta = left.sortOrder - right.sortOrder;
+  if (sortOrderDelta !== 0) {
+    return sortOrderDelta;
+  }
+
+  return left.id - right.id;
 }
 
 export function isDepartmentWorkflowPhase(status: WorkflowDetail["workflowStatus"]): boolean {

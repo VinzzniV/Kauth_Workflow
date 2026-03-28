@@ -60,8 +60,37 @@ export default function AppLayout({ children }: Props) {
     return activeItem?.label ?? "Navigation";
   }, [headerNavItems, location.pathname]);
 
+  const sidebarFooter = (
+    <div className="sidebar-footer">
+      {currentUser ? (
+        <div className="sidebar-user">
+          <div className="sidebar-user-avatar">
+            {currentUser.displayName.charAt(0).toUpperCase()}
+          </div>
+          <div className="sidebar-user-info">
+            <p className="sidebar-user-name">{currentUser.displayName}</p>
+            {roleLabels.length > 0 ? <p className="sidebar-user-role">{roleLabels.join(", ")}</p> : null}
+          </div>
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="sidebar-logout-btn"
+        onClick={() => {
+          void logout();
+        }}
+      >
+        Abmelden
+      </button>
+    </div>
+  );
+
   return (
     <div className="app-layout">
+      <a href="#main-content" className="skip-link">
+        Zum Hauptinhalt springen
+      </a>
+
       <div className="mobile-topbar">
         <div className="mobile-topbar-brand">
           <img
@@ -123,28 +152,7 @@ export default function AppLayout({ children }: Props) {
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          {currentUser ? (
-            <div className="sidebar-user">
-              <div className="sidebar-user-avatar">
-                {currentUser.displayName.charAt(0).toUpperCase()}
-              </div>
-              <div className="sidebar-user-info">
-                <p className="sidebar-user-name">{currentUser.displayName}</p>
-                {roleLabels.length > 0 ? <p className="sidebar-user-role">{roleLabels.join(", ")}</p> : null}
-              </div>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            className="sidebar-logout-btn"
-            onClick={() => {
-              void logout();
-            }}
-          >
-            Abmelden
-          </button>
-        </div>
+        {sidebarFooter}
       </aside>
 
       <aside
@@ -190,31 +198,12 @@ export default function AppLayout({ children }: Props) {
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          {currentUser ? (
-            <div className="sidebar-user">
-              <div className="sidebar-user-avatar">
-                {currentUser.displayName.charAt(0).toUpperCase()}
-              </div>
-              <div className="sidebar-user-info">
-                <p className="sidebar-user-name">{currentUser.displayName}</p>
-                {roleLabels.length > 0 ? <p className="sidebar-user-role">{roleLabels.join(", ")}</p> : null}
-              </div>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            className="sidebar-logout-btn"
-            onClick={() => {
-              void logout();
-            }}
-          >
-            Abmelden
-          </button>
-        </div>
+        {sidebarFooter}
       </aside>
 
-      <div className="main-area">{children}</div>
+      <div className="main-area" id="main-content" tabIndex={-1}>
+        {children}
+      </div>
     </div>
   );
 }

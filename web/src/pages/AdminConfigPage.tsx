@@ -1,16 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
-import { AdminOrganizationWorkspaceSection } from "../components/admin-config/AdminOrganizationWorkspaceSection";
-import { AdminAnswerDefinitionSection } from "../components/admin-config/AdminAnswerDefinitionSection";
-import { AdminOverviewWorkspaceSection } from "../components/admin-config/AdminOverviewWorkspaceSection";
-import { AdminRoleAnswerDefaultsSection } from "../components/admin-config/AdminRoleAnswerDefaultsSection";
-import { AdminSystemWorkspaceSection } from "../components/admin-config/AdminSystemWorkspaceSection";
-import { AdminTaskTemplateSection } from "../components/admin-config/AdminTaskTemplateSection";
-import { AdminTechnicalAccessSection } from "../components/admin-config/AdminTechnicalAccessSection";
-import { AdminBulkOperationsSection } from "../components/admin-config/AdminBulkOperationsSection";
-import { AdminDirectorySyncSection } from "../components/admin-config/AdminDirectorySyncSection";
-import { AdminGroupMappingSection } from "../components/admin-config/AdminGroupMappingSection";
+import { AdminConfigWorkspaceContent } from "../components/admin-config/AdminConfigWorkspaceContent";
 import { AdminWorkspaceNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
 import {
   getAdminWorkspaceSectionMeta,
@@ -378,8 +369,6 @@ export default function AdminConfigPage() {
 
   const workspaceSelectedUser =
     section === "organization" && organizationEntity === "user" && selectedEntityId ? selectedUser : null;
-  const workspaceSelectedUserId =
-    section === "organization" && organizationEntity === "user" ? selectedEntityId : null;
 
   const warnings = useMemo(
     () =>
@@ -522,10 +511,7 @@ export default function AdminConfigPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader
-          title="Administration"
-          description="Verwalten Sie Organisation, Rechte und Systemeinstellungen in klar getrennten Arbeitsbereichen. Fachliche Pflege startet in Organisation, technische und breit wirksame Änderungen bleiben bewusst separat geführt."
-        />
+        <PageHeader title="Administration" />
 
         {!isLoading && notice ? (
           <section className="panel panel-success">
@@ -541,23 +527,9 @@ export default function AdminConfigPage() {
 
         {!isLoading ? (
           <section className={`panel ${section === "operations" ? "panel-caution" : "panel-muted"}`}>
-            <div className="admin-workspace-spotlight">
-              <div className="admin-workspace-spotlight-main">
-                <p className="admin-workspace-spotlight-eyebrow">Aktueller Arbeitsbereich</p>
-                <h2>{sectionMeta.label}</h2>
-                <p>{sectionMeta.description}</p>
-              </div>
-
-              <div className="admin-workspace-spotlight-grid">
-                <article className="admin-workspace-spotlight-card">
-                  <h3>{sectionMeta.audienceLabel}</h3>
-                  <p>{sectionMeta.audienceDescription}</p>
-                </article>
-                <article className="admin-workspace-spotlight-card admin-workspace-spotlight-card--caution">
-                  <h3>{sectionMeta.cautionLabel}</h3>
-                  <p>{sectionMeta.cautionDescription}</p>
-                </article>
-              </div>
+            <div className="panel-head">
+              <h2>{sectionMeta.label}</h2>
+              <p>{sectionMeta.description}</p>
             </div>
           </section>
         ) : null}
@@ -582,32 +554,19 @@ export default function AdminConfigPage() {
               aria-labelledby={getAdminSectionTabId(section)}
               className="content-stack"
             >
-            {section === "overview" ? (
-              <AdminOverviewWorkspaceSection
-                departmentCount={departmentAssignments.length}
-                userCount={users.length}
-                responsibilityCount={responsibilityOwners.length}
-                warningCount={warnings.length}
-                hasLoadedTechnicalAccess={hasLoadedTechnicalAccess}
-                roleCount={roles.length}
-                groupCount={groups.length}
-                notificationEmailConfiguration={notificationEmailConfiguration}
-                warnings={warnings}
-                onOpenOrganization={handleOpenOrganization}
-                onOpenSection={handleSelectSection}
-              />
-            ) : null}
-
-            {section === "organization" ? (
-              <AdminOrganizationWorkspaceSection
+              <AdminConfigWorkspaceContent
+                section={section}
                 organizationEntity={organizationEntity}
                 selectedEntityId={selectedEntityId}
+                users={users}
+                departmentAssignments={departmentAssignments}
+                responsibilityOwners={responsibilityOwners}
                 sortedUsers={sortedUsers}
                 sortedDepartments={sortedDepartments}
                 sortedResponsibilities={sortedResponsibilities}
                 eligibleSupervisorUsers={eligibleSupervisorUsers}
-                selectedUser={workspaceSelectedUser}
-                selectedUserId={workspaceSelectedUserId}
+                selectedUser={selectedUser}
+                workspaceSelectedUser={workspaceSelectedUser}
                 userDisplayNameDraft={userDisplayNameDraft}
                 userEmailDraft={userEmailDraft}
                 userNotificationEmailDraft={userNotificationEmailDraft}
@@ -632,7 +591,45 @@ export default function AdminConfigPage() {
                 deletingDepartmentId={deletingDepartmentId}
                 savingDepartmentId={savingDepartmentId}
                 savingResponsibilityId={savingResponsibilityId}
-                onSelectOrganizationEntity={handleOpenOrganization}
+                hasLoadedTechnicalAccess={hasLoadedTechnicalAccess}
+                isLoadingTechnicalAccess={isLoadingTechnicalAccess}
+                isLoadingDirectory={isLoadingDirectory}
+                isSyncingDirectory={isSyncingDirectory}
+                savingDirectoryGroupId={savingDirectoryGroupId}
+                deletingDirectoryMappingId={deletingDirectoryMappingId}
+                selectedUserRoleIds={selectedUserRoleIds}
+                selectedUserGroupIds={selectedUserGroupIds}
+                selectedGroupId={selectedGroupId}
+                selectedGroup={selectedGroup}
+                selectedGroupRoleIds={selectedGroupRoleIds}
+                sortedRoles={sortedRoles}
+                groups={groups}
+                directoryGroups={directoryGroups}
+                directoryIdentities={directoryIdentities}
+                directoryAuditEntries={directoryAuditEntries}
+                directoryStatus={directoryStatus}
+                notificationEmailConfiguration={notificationEmailConfiguration}
+                notificationEnabledDraft={notificationEnabledDraft}
+                notificationTenantIdDraft={notificationTenantIdDraft}
+                notificationClientIdDraft={notificationClientIdDraft}
+                notificationClientSecretDraft={notificationClientSecretDraft}
+                notificationSenderEmailDraft={notificationSenderEmailDraft}
+                notificationFrontendBaseUrlDraft={notificationFrontendBaseUrlDraft}
+                notificationTestRecipientDraft={notificationTestRecipientDraft}
+                notificationSandboxRedirectDraft={notificationSandboxRedirectDraft}
+                notificationNotifyOnWorkflowCreatedDraft={notificationNotifyOnWorkflowCreatedDraft}
+                notificationNotifyOnTaskReadyDraft={notificationNotifyOnTaskReadyDraft}
+                notificationNotifyOnWorkflowCompletedDraft={notificationNotifyOnWorkflowCompletedDraft}
+                isSavingNotificationEmailConfiguration={isSavingNotificationEmailConfiguration}
+                isSendingNotificationEmailTest={isSendingNotificationEmailTest}
+                hasNotificationEmailDraftChanges={hasNotificationEmailDraftChanges}
+                workflowConfig={workflowConfig}
+                warnings={warnings}
+                isSavingUserRoles={isSavingUserRoles}
+                isSavingUserGroups={isSavingUserGroups}
+                isSavingGroupRoles={isSavingGroupRoles}
+                onOpenOrganization={handleOpenOrganization}
+                onSelectSection={handleSelectSection}
                 onSelectUser={selectUser}
                 onNewUserDisplayNameChange={setNewUserDisplayNameDraft}
                 onNewUserEmailChange={setNewUserEmailDraft}
@@ -660,26 +657,6 @@ export default function AdminConfigPage() {
                   setResponsibilityDrafts((current) => ({ ...current, [responsibilityId]: draft }))
                 }
                 onSaveResponsibilityAssignment={saveResponsibilityAssignment}
-              />
-            ) : null}
-
-            {section === "access" ? (
-              <AdminTechnicalAccessSection
-                isTechnicalAccessOpen={true}
-                isLoadingTechnicalAccess={isLoadingTechnicalAccess}
-                sortedUsers={sortedUsers}
-                selectedUser={selectedUser}
-                selectedUserRoleIds={selectedUserRoleIds}
-                selectedUserGroupIds={selectedUserGroupIds}
-                selectedGroupId={selectedGroupId}
-                selectedGroup={selectedGroup}
-                selectedGroupRoleIds={selectedGroupRoleIds}
-                sortedRoles={sortedRoles}
-                groups={groups}
-                isSavingUserRoles={isSavingUserRoles}
-                isSavingUserGroups={isSavingUserGroups}
-                isSavingGroupRoles={isSavingGroupRoles}
-                onSelectUser={selectUser}
                 onToggleUserRole={toggleUserRole}
                 onToggleUserGroup={toggleUserGroup}
                 onSelectGroup={selectGroup}
@@ -687,74 +664,11 @@ export default function AdminConfigPage() {
                 onSaveUserRoles={saveUserRoles}
                 onSaveUserGroups={saveUserGroups}
                 onSaveGroupRoles={saveGroupRoles}
-              />
-            ) : null}
-
-            {section === "directory" ? (
-              <div className="content-stack">
-                <AdminDirectorySyncSection
-                  status={directoryStatus}
-                  identities={directoryIdentities}
-                  auditEntries={directoryAuditEntries}
-                  isLoading={isLoadingDirectory}
-                  isSyncing={isSyncingDirectory}
-                  onSync={handleSyncDirectory}
-                />
-
-                <AdminGroupMappingSection
-                  groups={directoryGroups}
-                  roles={sortedRoles}
-                  isLoading={isLoadingDirectory}
-                  savingGroupId={savingDirectoryGroupId}
-                  deletingMappingId={deletingDirectoryMappingId}
-                  onCreateMapping={handleCreateDirectoryMapping}
-                  onDeleteMapping={handleDeleteDirectoryMapping}
-                />
-              </div>
-            ) : null}
-
-            {section === "templates" ? (
-              <AdminTaskTemplateSection
-                departments={departmentAssignments}
-                responsibilities={responsibilityOwners}
+                onSyncDirectory={handleSyncDirectory}
+                onCreateDirectoryMapping={handleCreateDirectoryMapping}
+                onDeleteDirectoryMapping={handleDeleteDirectoryMapping}
                 onNotice={setNotice}
                 onError={setError}
-              />
-            ) : null}
-
-            {section === "answers" ? (
-              <AdminAnswerDefinitionSection
-                onNotice={setNotice}
-                onError={setError}
-              />
-            ) : null}
-
-            {section === "defaults" ? (
-              <AdminRoleAnswerDefaultsSection
-                onNotice={setNotice}
-                onError={setError}
-              />
-            ) : null}
-
-            {section === "system" ? (
-              <AdminSystemWorkspaceSection
-                notificationEmailConfiguration={notificationEmailConfiguration}
-                notificationEnabledDraft={notificationEnabledDraft}
-                notificationTenantIdDraft={notificationTenantIdDraft}
-                notificationClientIdDraft={notificationClientIdDraft}
-                notificationClientSecretDraft={notificationClientSecretDraft}
-                notificationSenderEmailDraft={notificationSenderEmailDraft}
-                notificationFrontendBaseUrlDraft={notificationFrontendBaseUrlDraft}
-                notificationTestRecipientDraft={notificationTestRecipientDraft}
-                notificationSandboxRedirectDraft={notificationSandboxRedirectDraft}
-                notificationNotifyOnWorkflowCreatedDraft={notificationNotifyOnWorkflowCreatedDraft}
-                notificationNotifyOnTaskReadyDraft={notificationNotifyOnTaskReadyDraft}
-                notificationNotifyOnWorkflowCompletedDraft={notificationNotifyOnWorkflowCompletedDraft}
-                isSavingNotificationEmailConfiguration={isSavingNotificationEmailConfiguration}
-                isSendingNotificationEmailTest={isSendingNotificationEmailTest}
-                isLoading={isLoading}
-                hasNotificationEmailDraftChanges={hasNotificationEmailDraftChanges}
-                workflowConfig={workflowConfig}
                 onNotificationEnabledChange={setNotificationEnabledDraft}
                 onNotificationTenantIdChange={setNotificationTenantIdDraft}
                 onNotificationClientIdChange={setNotificationClientIdDraft}
@@ -769,11 +683,6 @@ export default function AdminConfigPage() {
                 onSaveNotificationEmailConfiguration={saveNotificationEmailConfiguration}
                 onSendNotificationEmailTest={sendNotificationEmailTest}
               />
-            ) : null}
-
-            {section === "operations" ? (
-              <AdminBulkOperationsSection departments={departmentAssignments} />
-            ) : null}
             </section>
           </>
         ) : null}

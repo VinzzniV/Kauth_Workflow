@@ -33,17 +33,14 @@ export function AdminRoleAnswerDefaultsSection({
       <section className="panel panel-muted">
         <div className="panel-head">
           <h2>Standardwerte für Antwortfelder</h2>
-          <p>
-            Pflegen Sie Standardwerte pro Prozesstyp, Antwortfeld und Rolle in einer Matrix.
-            Gespeichert wird gesammelt per Bulk-Update.
-          </p>
+          <p>Standardwerte pro Prozesstyp, Antwortfeld und Rolle pflegen.</p>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
           <h2>Prozesstyp & Matrix</h2>
-          <p>Wählen Sie zuerst einen Prozesstyp. Danach erscheinen die aktiven Rollen als Spalten.</p>
+          <p>Prozesstyp wählen, dann Matrix bearbeiten.</p>
         </div>
         <div className="panel-body">
           <div style={{ display: "flex", gap: "1rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1rem" }}>

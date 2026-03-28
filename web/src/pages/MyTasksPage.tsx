@@ -1,15 +1,15 @@
 // Arbeitsliste fuer Fachbereiche. Hier werden persoenliche oder verantwortungsbezogene Aufgaben gepflegt.
 import { useCallback, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import EmptyState from "../components/feedback/EmptyState";
-import LoadingState from "../components/feedback/LoadingState";
+import SkeletonCard from "../components/feedback/SkeletonCard";
 import PageHeader from "../components/layout/PageHeader";
 import RequirementIcon from "../components/workflows/RequirementIcon";
 import TaskCommentsSection from "../components/workflows/TaskCommentsSection";
 import TaskSlaPill from "../components/workflows/TaskSlaPill";
 import TaskStatusPill from "../components/workflows/TaskStatusPill";
-import { addTaskComment as addTaskCommentApi, updateTaskStatus as updateTaskStatusApi } from "../services/taskApi";
 import { useMyTasks } from "../services/queries/workflowQueries";
-import type { TaskWithWorkflow, WorkflowTaskStatus } from "../types/workflow";
+import type { TaskWithWorkflow } from "../types/workflow";
 import {
   getResponsibleResponsibilityFilterOption,
   getResponsibleResponsibilityFilterValue,
@@ -20,12 +20,12 @@ import {
   getAvailableVisibleTaskStatuses,
   getVisibleTaskStatus,
   getVisibleTaskStatusLabel,
-  mapVisibleTaskStatusToWorkflowStatus,
   TASK_STATUS_ORDER,
   VISIBLE_TASK_STATUS_ORDER,
   type VisibleTaskStatus,
 } from "../utils/taskStatus";
 import { formatDateTime } from "../utils/dateFormat";
+import { useTaskInteraction } from "../hooks/useTaskInteraction";
 
 function toTaskStateKey(workflowUid: string, taskId: number): string {
   return `${workflowUid}:${taskId}`;
@@ -33,32 +33,28 @@ function toTaskStateKey(workflowUid: string, taskId: number): string {
 
 export default function MyTasksPage() {
   const myTasksQuery = useMyTasks();
-  const [notice, setNotice] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
+  const {
+    savingTaskIds,
+    commentDrafts,
+    savingCommentTaskIds,
+    handleStatusChange,
+    handleCommentDraftChange,
+    handleTaskCommentSubmit,
+  } = useTaskInteraction();
   const [search, setSearch] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | VisibleTaskStatus>("all");
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
-  const [savingTaskIds, setSavingTaskIds] = useState<Record<number, boolean>>({});
-  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const [savingCommentTaskIds, setSavingCommentTaskIds] = useState<Record<number, boolean>>({});
-  const [commentFeedbackTaskId, setCommentFeedbackTaskId] = useState<number | null>(null);
-  const [commentFeedbackMessage, setCommentFeedbackMessage] = useState<string | null>(null);
   const rows: TaskWithWorkflow[] = myTasksQuery.data ?? [];
   const isLoading = myTasksQuery.isLoading;
   const isRefreshing = myTasksQuery.isFetching;
-  const error =
-    actionError ??
-    (myTasksQuery.error instanceof Error
-      ? myTasksQuery.error.message
-      : myTasksQuery.error
-        ? "Aufgaben konnten nicht geladen werden."
-        : null);
+  const error = myTasksQuery.error instanceof Error
+    ? myTasksQuery.error.message
+    : myTasksQuery.error
+      ? "Aufgaben konnten nicht geladen werden."
+      : null;
 
   const reload = useCallback(async () => {
-    setNotice(null);
-    setActionError(null);
     await myTasksQuery.refetch();
   }, [myTasksQuery]);
 
@@ -147,83 +143,19 @@ export default function MyTasksPage() {
 
     return groups;
   }, [filteredRows]);
-
-  const handleStatusChange = useCallback(
-    async (taskId: number, status: VisibleTaskStatus, currentStatus: WorkflowTaskStatus) => {
-      const nextStatus = mapVisibleTaskStatusToWorkflowStatus(status, currentStatus);
-      if (nextStatus === currentStatus) {
-        return;
-      }
-
-      setSavingTaskIds((current) => ({ ...current, [taskId]: true }));
-      setNotice(null);
-      setActionError(null);
-
-      try {
-        await updateTaskStatusApi(taskId, nextStatus);
-        await myTasksQuery.refetch();
-        setNotice("Aufgabenstatus wurde gespeichert.");
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Aufgabenstatus konnte nicht aktualisiert werden.";
-        setActionError(message);
-      } finally {
-        setSavingTaskIds((current) => ({ ...current, [taskId]: false }));
-      }
-    },
-    [myTasksQuery]
-  );
-
-  const handleCommentDraftChange = useCallback((taskId: number, value: string) => {
-    setCommentDrafts((current) => ({ ...current, [taskId]: value }));
-  }, []);
-
-  const handleTaskCommentSubmit = useCallback(
-    async (taskId: number) => {
-      const draft = (commentDrafts[taskId] ?? "").trim();
-      if (!draft) {
-        return;
-      }
-
-      setSavingCommentTaskIds((current) => ({ ...current, [taskId]: true }));
-      setCommentFeedbackTaskId(taskId);
-      setCommentFeedbackMessage(null);
-      setActionError(null);
-      setNotice(null);
-
-      try {
-        await addTaskCommentApi(taskId, draft);
-        await myTasksQuery.refetch();
-        setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
-        setCommentFeedbackMessage("Kommentar wurde gespeichert.");
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Kommentar konnte nicht gespeichert werden.";
-        setCommentFeedbackMessage(message);
-      } finally {
-        setSavingCommentTaskIds((current) => ({ ...current, [taskId]: false }));
-      }
-    },
-    [commentDrafts, myTasksQuery]
-  );
+  const visibleGroups = useMemo(() => groupedRows.filter((group) => group.items.length > 0), [groupedRows]);
 
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader
-          title="Meine Aufgaben"
-          description="Hier sehen Sie nur die offenen und laufenden Aufgaben Ihrer fachlichen Zuständigkeiten."
-        />
+        <PageHeader title="Meine Aufgaben" />
 
-        <section className="panel">
+        <section className="panel panel-muted">
           <div className="panel-head">
-            <h2>Aufgabenfilter</h2>
-            <p>Filtern Sie nach Abteilung, Status und zuständigem Bereich.</p>
-          </div>
-          <div className="next-action-callout">
-            <p className="next-action-label">Nächste nötige Aktion</p>
-            <p className="next-action-text">Bearbeiten Sie zuerst blockierte und bereits laufende Aufgaben.</p>
+            <h2>Filter</h2>
           </div>
 
-          <div className="toolbar-row">
+          <div className="toolbar-row toolbar-row-filters">
             <label className="field compact grow">
               <span>Suche</span>
               <input
@@ -277,12 +209,15 @@ export default function MyTasksPage() {
               {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
             </button>
           </div>
-
-          <p className="panel-note">Es werden nur Aufgaben angezeigt, die Ihrer fachlichen Zuständigkeit zugeordnet sind.</p>
-          {notice ? <p className="panel-note">{notice}</p> : null}
         </section>
 
-        {isLoading ? <LoadingState title="Aufgaben werden geladen..." /> : null}
+        {isLoading ? (
+          <section className="skeleton-stack-list" aria-label="Aufgaben werden geladen">
+            {Array.from({ length: 5 }, (_, index) => (
+              <SkeletonCard key={`task-skeleton-${index}`} variant="task" />
+            ))}
+          </section>
+        ) : null}
 
         {!isLoading && error ? (
           <EmptyState
@@ -296,7 +231,7 @@ export default function MyTasksPage() {
         {!isLoading && !error && rows.length === 0 ? (
           <EmptyState
             title="Keine Aufgaben vorhanden"
-            description="Aktuell liegen keine zugewiesenen Aufgaben für Ihre fachlichen Zuständigkeiten vor."
+            description="Aktuell sind keine Aufgaben zugeordnet."
           />
         ) : null}
 
@@ -309,7 +244,7 @@ export default function MyTasksPage() {
 
         {!isLoading && !error && filteredRows.length > 0 ? (
           <div className="task-groups" aria-label="Aufgaben nach Status">
-            {groupedRows.map((group) => (
+            {visibleGroups.map((group) => (
               <section key={group.status} className="task-group">
                 <header className="task-group-head">
                   <h2>{getVisibleTaskStatusLabel(group.status)}</h2>
@@ -317,126 +252,125 @@ export default function MyTasksPage() {
                     {group.items.length} Aufgabe{group.items.length === 1 ? "" : "n"}
                   </p>
                 </header>
+                <ul className="task-list">
+                  {group.items.map((row) => {
+                    const workflowUid = row.workflow.workflowUid;
+                    const statusKey = toTaskStateKey(workflowUid, row.task.id);
+                    const workflowDisplayName =
+                      `${row.workflow.firstName} ${row.workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
+                    const effectiveStatus = row.task.status;
+                    const visibleStatus = getVisibleTaskStatus(effectiveStatus);
+                    const availableStatuses = getAvailableVisibleTaskStatuses(effectiveStatus);
+                    const isSavingTask = savingTaskIds[row.task.id] === true;
+                    const canChangeStatus = row.task.canUpdateStatus && availableStatuses.length > 1;
 
-                {group.items.length === 0 ? (
-                  <p className="panel-note">Keine Aufgaben in dieser Statusgruppe.</p>
-                ) : (
-                  <ul className="task-list">
-                    {group.items.map((row) => {
-                      const workflowUid = row.workflow.workflowUid;
-                      const statusKey = toTaskStateKey(workflowUid, row.task.id);
-                      const workflowDisplayName =
-                        `${row.workflow.firstName} ${row.workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
-                      const effectiveStatus = row.task.status;
-                      const visibleStatus = getVisibleTaskStatus(effectiveStatus);
-                      const availableStatuses = getAvailableVisibleTaskStatuses(effectiveStatus);
-                      const isSavingTask = savingTaskIds[row.task.id] === true;
-                      const canChangeStatus = row.task.canUpdateStatus && availableStatuses.length > 1;
-
-                      return (
-                        <li key={statusKey} className="task-card">
-                          <div className="task-card-top">
-                            <div>
-                              <h3>{row.task.title}</h3>
-                              <p className="panel-text">{row.task.description}</p>
-                            </div>
-                            <div className="task-card-pill-group">
-                              <TaskSlaPill status={row.task.slaStatus} />
-                              <TaskStatusPill status={effectiveStatus} />
-                            </div>
+                    return (
+                      <li key={statusKey} className="task-card">
+                        <div className="task-card-top">
+                          <div>
+                            <h3>{row.task.title}</h3>
+                            <p className="panel-text">{row.task.description}</p>
                           </div>
+                          <div className="task-card-pill-group">
+                            <TaskSlaPill status={row.task.slaStatus} />
+                            <TaskStatusPill status={effectiveStatus} />
+                          </div>
+                        </div>
 
-                          <div className="task-card-layout">
-                            <div className="task-card-content">
-                              <dl className="task-meta">
-                                <div>
-                                  <dt>Vorgang</dt>
-                                  <dd>
-                                    {workflowDisplayName} ({row.workflow.employeeNumber})
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt>Abteilung</dt>
-                                  <dd>{row.workflow.departmentName}</dd>
-                                </div>
-                                <div>
-                                  <dt>Stelle</dt>
-                                  <dd>{row.workflow.roleName}</dd>
-                                </div>
-                                <div>
-                                  <dt>Zuständiger Bereich</dt>
-                                  <dd>{getResponsibleResponsibilityLabel(row.task)}</dd>
-                                </div>
-                                <div>
-                                  <dt>Verantwortliche Person</dt>
-                                  <dd>{getResponsibleUserLabel(row.task)}</dd>
-                                </div>
-                                <div>
-                                  <dt>Erstellt</dt>
-                                  <dd>{formatDateTime(row.task.createdAt)}</dd>
-                                </div>
-                                <div>
-                                  <dt>Fällig</dt>
-                                  <dd>{row.task.dueAt ? formatDateTime(row.task.dueAt) : "Keine Frist"}</dd>
-                                </div>
-                              </dl>
-
-                              <p className="panel-note">
-                                Workflow-ID: {workflowUid} | Abhängigkeiten: {row.task.dependencies.length}
-                              </p>
-
-                              <div className="toolbar-row task-actions-row">
-                                {canChangeStatus ? (
-                                  <label className="field compact">
-                                    <span>Status</span>
-                                    <select
-                                      value={visibleStatus}
-                                      disabled={isSavingTask}
-                                      onChange={(event) =>
-                                        void handleStatusChange(
-                                          row.task.id,
-                                          event.target.value as VisibleTaskStatus,
-                                          row.task.status
-                                        )
-                                      }
-                                    >
-                                      {availableStatuses.map((status) => (
-                                        <option key={status} value={status}>
-                                          {getVisibleTaskStatusLabel(status)}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                ) : (
-                                  <p className="panel-note">Für diese Aufgabe ist aktuell kein Statuswechsel möglich.</p>
-                                )}
+                        <div className="task-card-layout">
+                          <div className="task-card-content">
+                            <dl className="task-meta">
+                              <div>
+                                <dt>Vorgang</dt>
+                                <dd>
+                                  {workflowDisplayName} ({row.workflow.employeeNumber})
+                                </dd>
                               </div>
+                              <div>
+                                <dt>Abteilung</dt>
+                                <dd>{row.workflow.departmentName}</dd>
+                              </div>
+                              <div>
+                                <dt>Stelle</dt>
+                                <dd>{row.workflow.roleName}</dd>
+                              </div>
+                              <div>
+                                <dt>Zuständiger Bereich</dt>
+                                <dd>{getResponsibleResponsibilityLabel(row.task)}</dd>
+                              </div>
+                              <div>
+                                <dt>Verantwortliche Person</dt>
+                                <dd>{getResponsibleUserLabel(row.task)}</dd>
+                              </div>
+                              <div>
+                                <dt>Erstellt</dt>
+                                <dd>{formatDateTime(row.task.createdAt)}</dd>
+                              </div>
+                              <div>
+                                <dt>Fällig</dt>
+                                <dd>{row.task.dueAt ? formatDateTime(row.task.dueAt) : "Keine Frist"}</dd>
+                              </div>
+                              <div>
+                                <dt>Vorgangsdetails</dt>
+                                <dd>
+                                  <Link className="task-meta-link" to={`/workflows/${workflowUid}`}>
+                                    Zum Vorgang
+                                  </Link>
+                                </dd>
+                              </div>
+                            </dl>
 
-                              {effectiveStatus === "blocked" ? (
-                                <p className="panel-note">
-                                  Diese Aufgabe bleibt offen, bis ihre Abhängigkeiten erfüllt sind.
-                                </p>
-                              ) : null}
-
-                              <TaskCommentsSection
-                                task={row.task}
-                                draftValue={commentDrafts[row.task.id] ?? ""}
-                                isSaving={savingCommentTaskIds[row.task.id] === true}
-                                feedbackMessage={commentFeedbackTaskId === row.task.id ? commentFeedbackMessage : null}
-                                onDraftChange={handleCommentDraftChange}
-                                onSubmit={handleTaskCommentSubmit}
-                              />
+                            <div className="toolbar-row task-actions-row">
+                              {canChangeStatus ? (
+                                <label className="field compact">
+                                  <span>Status</span>
+                                  <select
+                                    value={visibleStatus}
+                                    disabled={isSavingTask}
+                                    onChange={(event) =>
+                                      void handleStatusChange({
+                                        taskId: row.task.id,
+                                        workflowUid,
+                                        status: event.target.value as VisibleTaskStatus,
+                                        currentStatus: row.task.status,
+                                      })
+                                    }
+                                  >
+                                    {availableStatuses.map((status) => (
+                                      <option key={status} value={status}>
+                                        {getVisibleTaskStatusLabel(status)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ) : (
+                                <p className="panel-note">Für diese Aufgabe ist aktuell kein Statuswechsel möglich.</p>
+                              )}
                             </div>
 
-                            <div className="task-icon-side">
-                              <RequirementIcon iconKey={row.task.iconKey} title={row.task.title} size="md" />
-                            </div>
+                            {effectiveStatus === "blocked" ? (
+                              <p className="panel-note">
+                                Aufgabe bleibt offen, bis ihre Abhängigkeiten erfüllt sind.
+                              </p>
+                            ) : null}
+
+                            <TaskCommentsSection
+                              task={row.task}
+                              draftValue={commentDrafts[row.task.id] ?? ""}
+                              isSaving={savingCommentTaskIds[row.task.id] === true}
+                              onDraftChange={handleCommentDraftChange}
+                              onSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid })}
+                            />
                           </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+
+                          <div className="task-icon-side">
+                            <RequirementIcon iconKey={row.task.iconKey} title={row.task.title} size="md" />
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               </section>
             ))}
           </div>
