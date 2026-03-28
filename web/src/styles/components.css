@@ -32,9 +32,10 @@
  *     -> persistent error inside an active form
  *
  * CARD TYPES  (inside grids, not standalone sections)
- *   Metric card:    .dashboard-stat-card   label / value / optional chip
- *   List item:      .dashboard-queue-item  title / detail / optional action
- *   Selection card: .process-type-card     interactive choice, name + description
+ *   Primary Card:   .card-primary
+ *   List Card:      .card-list
+ *   Stat Card:      .card-stat
+ *   Selection item: .selection-list-item   interactive choice, title + meta
  *
  * BUTTONS
  *   .btn-primary    -> primary action, one per section maximum
@@ -55,6 +56,82 @@
   gap: 1.25rem;
 }
 
+.section-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.card-primary,
+.card-list,
+.card-stat {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.card-primary {
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-list {
+  padding: 0.85rem;
+}
+
+.card-stat {
+  padding: 0.85rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+}
+
+.dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.dashboard-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.dashboard-card h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dashboard-card p {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.dashboard-stat-card {
+  display: grid;
+  gap: 0.3rem;
+  align-content: start;
+}
+
+.workflow-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.workflow-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 /* ─── Panels ─── */
 .panel {
   background: var(--bg-card);
@@ -72,22 +149,22 @@
 
 .panel-success {
   background: var(--bg-card-success);
-  border-color: #bbf7d0;
+  border-color: var(--border-success);
 }
 
 .panel-warning {
-  background: #fffbeb;
-  border-color: var(--warning);
+  background: var(--bg-card-warning);
+  border-color: var(--border-warning);
 }
 
 .panel-caution {
-  background: #fff7ed;
-  border-color: #fdba74;
+  background: var(--bg-card-caution);
+  border-color: var(--border-caution);
 }
 
 .panel-error {
-  background: #fef2f2;
-  border-color: var(--danger);
+  background: var(--bg-card-error);
+  border-color: var(--border-danger-strong);
 }
 
 .confirmation-dialog-backdrop {
@@ -97,7 +174,7 @@
   display: grid;
   place-items: center;
   padding: 1.25rem;
-  background: rgba(15, 23, 42, 0.42);
+  background: var(--surface-backdrop);
   backdrop-filter: blur(4px);
 }
 
@@ -106,7 +183,7 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.24);
+  box-shadow: var(--shadow-lg);
   padding: 1.15rem 1.25rem;
 }
 
@@ -132,25 +209,28 @@
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-card);
+  color: var(--text-primary);
   cursor: pointer;
   text-align: left;
   display: grid;
   gap: 0.6rem;
   align-content: start;
+  opacity: 0.76;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .process-type-card:hover {
   border-color: var(--brand);
-  background: #f5f8ff;
+  background: var(--brand-soft);
   box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
 .process-type-card--selected {
   border-color: var(--brand);
-  background: #eef3ff;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.16), var(--shadow-sm);
+  background: var(--brand-soft-strong);
+  box-shadow: 0 0 0 1px var(--brand-ring), var(--shadow-md);
+  opacity: 1;
 }
 
 .process-type-card__head {
@@ -171,7 +251,7 @@
   width: fit-content;
   padding: 0.18rem 0.55rem;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.1);
+  background: var(--brand-soft);
   font-size: 0.74rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -182,6 +262,10 @@
   font-size: 0.84rem;
   line-height: 1.45;
   color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .process-type-card__selection {
@@ -189,6 +273,49 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--brand);
+}
+
+.wizard-choice-list {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.wizard-choice-card {
+  padding: 0.9rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-muted);
+  display: grid;
+  gap: 0.35rem;
+  cursor: pointer;
+  opacity: 0.72;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, opacity 0.15s, transform 0.15s;
+}
+
+.wizard-choice-card:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.wizard-choice-card--selected {
+  border-color: var(--brand);
+  background: var(--brand-soft-strong);
+  box-shadow: 0 0 0 1px var(--brand-ring), var(--shadow-md);
+  opacity: 1;
+}
+
+.wizard-choice-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wizard-choice-card__meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
 }
 
 .panel-head {
@@ -200,37 +327,39 @@
 
 .panel-head h2,
 .panel-title {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
 .panel-head p,
 .panel-text {
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .panel-note {
   color: var(--text-tertiary);
-  font-size: 0.82rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .text-error {
-  color: #b42318;
+  color: var(--text-danger);
 }
 
 .panel-warning .panel-text,
 .panel-warning .panel-note,
 .panel-warning .panel-head p {
-  color: #92400e;
+  color: var(--text-warning);
 }
 
 .panel-error .panel-text,
 .panel-error .panel-note,
 .panel-error .panel-head p {
-  color: #b42318;
+  color: var(--text-danger);
 }
 
 .wizard-inline-note {
@@ -328,13 +457,15 @@
 }
 
 .field-invalid span {
-  color: #b42318;
+  color: var(--text-danger);
 }
 
 .field span {
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 600;
   color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .field input,
@@ -356,8 +487,8 @@
 
 .field-invalid input,
 .field-invalid select {
-  border-color: #fda29b;
-  background: #fff5f5;
+  border-color: var(--border-danger-strong);
+  background: var(--bg-card-error);
 }
 
 .field input:focus,
@@ -378,7 +509,7 @@
 
 .field-error {
   font-size: 0.78rem;
-  color: #b42318;
+  color: var(--text-danger);
   line-height: 1.4;
 }
 
@@ -397,6 +528,70 @@
   flex-wrap: wrap;
   gap: 0.65rem;
   margin-bottom: 0.75rem;
+}
+
+.selection-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.selection-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.16rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 0.8rem 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
+}
+
+.selection-list-item:hover {
+  border-color: var(--border-strong);
+}
+
+.selection-list-item--active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+
+.selection-list-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.selection-list-item__title {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.selection-list-item__meta {
+  font-size: 0.77rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.master-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.master-detail-sidebar,
+.master-detail-main {
+  min-width: 0;
+}
+
+.master-detail-main > .panel .action-row,
+.master-detail-main > .dashboard-card .action-row,
+.master-detail-main > .card-primary .action-row,
+.master-detail-main > .card-list .action-row {
+  margin-top: 0.85rem;
 }
 
 .toolbar-row-filters {

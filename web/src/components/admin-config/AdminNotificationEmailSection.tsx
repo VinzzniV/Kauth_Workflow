@@ -131,7 +131,7 @@ export function AdminNotificationEmailSection({
       </div>
 
       <div className="dashboard-grid" aria-label="Mailversand Status">
-        <article className="dashboard-card">
+        <article className="dashboard-stat-card card-stat">
           <div>
             <h2>Aktueller Modus</h2>
             <p>{notificationModeLabel(notificationEmailConfiguration)}</p>
@@ -152,7 +152,7 @@ export function AdminNotificationEmailSection({
           ) : null}
         </article>
 
-        <article className="dashboard-card">
+        <article className="dashboard-stat-card card-stat">
           <div>
             <h2>Letzter Test</h2>
             <p>{notificationTestStatusLabel(notificationEmailConfiguration)}</p>
@@ -162,7 +162,7 @@ export function AdminNotificationEmailSection({
           </p>
         </article>
 
-        <article className="dashboard-card">
+        <article className="dashboard-stat-card card-stat">
           <div>
             <h2>Secret-Status</h2>
             <p>{notificationEmailConfiguration?.hasClientSecret ? "Hinterlegt" : "Fehlt"}</p>
@@ -173,7 +173,7 @@ export function AdminNotificationEmailSection({
         </article>
       </div>
 
-      <div className="dashboard-card">
+      <div className="dashboard-card card-primary">
         <div>
           <h2>Mail-Einstellungen</h2>
           <p>Konfigurieren Sie die für Microsoft Graph benötigten Felder. Ein gespeichertes Client Secret wird aus Sicherheitsgründen nicht zurück an die UI übertragen.</p>

@@ -185,7 +185,7 @@ async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<D
     queueItems: activeWorkflows.map((workflow) => ({
       key: workflow.uid,
       title: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
-      detail: `${workflow.processType.name} | ${workflow.departmentName} | ${getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action")}`,
+      detail: getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action"),
       to: `/workflows/${workflow.uid}`,
       actionLabel: "Öffnen",
     })),
@@ -212,7 +212,7 @@ async function loadManagerInsights(options: DashboardInsightsOptions = {}): Prom
       return {
         key: workflow.uid,
         title: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
-        detail: `${workflow.departmentName} | ${selectionText}`,
+        detail: selectionText,
         to: "/supervisor",
         actionLabel: "Zur Auswahl",
       };
@@ -310,7 +310,7 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
     .map((task) => ({
       key: `${task.workflowUid}:${task.taskId}`,
       title: task.taskTitle,
-      detail: `${task.workflowDisplayName} | ${getTaskStatusLabel(task.taskStatus)}`,
+      detail: getTaskStatusLabel(task.taskStatus),
       to: "/tasks/my",
       actionLabel: "Aufgaben",
     }));
@@ -359,7 +359,7 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
     {
       key: "admin-config",
       title: "Stammdaten und Rechte pflegen",
-      detail: "Personen, Rollen, Gruppen und Zuständigkeiten.",
+      detail: "Pflege offen",
       to: "/admin/config",
       actionLabel: "Verwaltung",
     },
@@ -369,7 +369,7 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
     queueItems.push({
       key: "groups-without-roles",
       title: "Gruppen ohne Rollen prüfen",
-      detail: `${groupsWithoutRoles} Gruppe(n) haben aktuell keine Rollen.`,
+      detail: `${groupsWithoutRoles} ohne Rollen`,
       to: "/admin/config",
       actionLabel: "Gruppen",
     });
@@ -379,7 +379,7 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
     queueItems.push({
       key: "inactive-users",
       title: "Inaktive Benutzer verifizieren",
-      detail: `${inactiveUsers} Benutzer sind deaktiviert.`,
+      detail: `${inactiveUsers} inaktiv`,
       to: "/admin/config",
       actionLabel: "Benutzer",
     });
@@ -389,7 +389,7 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
     queueItems.push({
       key: "workflow-bottlenecks",
       title: "Prozess-Engpässe verfolgen",
-      detail: `${metrics.waitingSupervisor + metrics.waitingDepartment} Vorgänge warten auf den nächsten Schritt.`,
+      detail: `${metrics.waitingSupervisor + metrics.waitingDepartment} warten`,
       to: "/workflows",
       actionLabel: "Übersicht",
     });
@@ -441,7 +441,7 @@ async function loadViewerInsights(options: DashboardInsightsOptions = {}): Promi
     .map((workflow) => ({
       key: workflow.uid,
       title: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
-      detail: `${workflow.departmentName} | ${getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action")}`,
+      detail: getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action"),
       to: `/workflows/${workflow.uid}`,
       actionLabel: "Ansehen",
     }));

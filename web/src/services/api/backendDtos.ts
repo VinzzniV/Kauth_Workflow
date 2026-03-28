@@ -4,6 +4,7 @@ import type {
   DerivedAnswer,
   LinkableWorkflow,
   ProcessType,
+  RelatedWorkflowSummary,
   Role,
   WorkflowLink,
   WorkflowTargetPerson,
@@ -382,6 +383,7 @@ export type BackendAdminDirectorySyncResultDto = AdminDirectorySyncResult;
 
 export type BackendWorkflowLinkDto = WorkflowLink;
 export type BackendLinkableWorkflowDto = LinkableWorkflow;
+export type BackendRelatedWorkflowSummaryDto = RelatedWorkflowSummary;
 export type BackendWorkflowTargetPersonDto = WorkflowTargetPerson;
 export type BackendCompletedOnboardingSearchResultDto = CompletedOnboardingSearchResult;
 export type BackendDerivedAnswerDto = DerivedAnswer;

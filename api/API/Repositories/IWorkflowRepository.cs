@@ -51,6 +51,7 @@ internal interface IWorkflowRepository
     Task<bool> DeleteDraftWorkflow(Guid workflowUid);
     Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId);
     Task<List<WorkflowLinkDto>> GetWorkflowLinks(Guid workflowUid);
+    Task<List<RelatedWorkflowSummaryDto>> GetRelatedWorkflows(Guid workflowUid);
     Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId);
     Task<bool> DeleteWorkflowLink(Guid workflowUid, long linkId, long actorUserId);
     Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(

@@ -11,7 +11,6 @@ import { useWorkflowCreation, type WorkflowCreationStep } from "../hooks/useWork
 type StepDefinition = {
   key: WorkflowCreationStep;
   title: string;
-  detail: string;
 };
 
 export default function CreateWorkflowPage() {
@@ -64,9 +63,6 @@ export default function CreateWorkflowPage() {
   const isHrEntry = capabilities.hasHrRole || capabilities.hasAdminRole;
   const pageTitle = isHrEntry ? "Neuer Vorgang" : "Änderung starten";
   const contextStepTitle = requiresTargetPerson ? "Bestehende Person wählen" : "Neue Person erfassen";
-  const contextStepDetail = requiresTargetPerson
-    ? "Abgeschlossenes Onboarding und Zielperson auswählen."
-    : "Stammdaten, Abteilung und Stelle erfassen.";
   const reviewPersonLabel = requiresTargetPerson ? "Zielperson" : "Neue Person";
   const reviewDepartmentLabel = requiresTargetPerson ? "Aktuelle Abteilung" : "Abteilung";
   const reviewRoleLabel = requiresTargetPerson ? "Aktuelle Stelle" : "Stelle";
@@ -123,17 +119,14 @@ export default function CreateWorkflowPage() {
     {
       key: "process",
       title: "Vorgang wählen",
-      detail: "Welcher Prozess soll gestartet werden?",
     },
     {
       key: "context",
       title: contextStepTitle,
-      detail: contextStepDetail,
     },
     {
       key: "review",
       title: "Prüfen und anlegen",
-      detail: "Auswahl prüfen und erstellen.",
     },
   ];
 
@@ -144,21 +137,18 @@ export default function CreateWorkflowPage() {
       <div className="page-container">
         <PageHeader title={pageTitle} />
 
-        <ol className="process-step-list">
+        <ol className="wizard-stepper">
           {steps.map((step, index) => {
             const stateClass =
               index < currentStepIndex
-                ? "process-step-state process-step-state-done"
+                ? "wizard-stepper__item wizard-stepper__item--done"
                 : index === currentStepIndex
-                  ? "process-step-state process-step-state-active"
-                  : "process-step-state process-step-state-pending";
+                  ? "wizard-stepper__item wizard-stepper__item--active"
+                  : "wizard-stepper__item wizard-stepper__item--pending";
 
             return (
-              <li key={step.key} className="process-step-item" aria-current={index === currentStepIndex ? "step" : undefined}>
-                <span className={stateClass} aria-hidden="true" />
-                <div className="process-step-content">
-                  <p className="process-step-title">{step.title}</p>
-                </div>
+              <li key={step.key} className={stateClass} aria-current={index === currentStepIndex ? "step" : undefined}>
+                <p className="wizard-stepper__title">{step.title}</p>
               </li>
             );
           })}
@@ -184,7 +174,7 @@ export default function CreateWorkflowPage() {
                     (() => {
                       const isSelected = selectedProcessTypeKey === processType.key;
                       const processContextLabel = processType.requiresTargetPerson ? "Bestehende Person" : "Neue Person";
-                      const processDescription = processType.description?.trim() || "Keine Zusatzbeschreibung";
+                      const processDescription = processType.description?.trim() || processContextLabel;
 
                       return (
                         <button
@@ -347,10 +337,6 @@ export default function CreateWorkflowPage() {
                     <div>
                       <dt>Kontext</dt>
                       <dd>{requiresTargetPerson ? "Bestehende Person" : "Neue Person"}</dd>
-                    </div>
-                    <div>
-                      <dt>Beschreibung</dt>
-                      <dd>{selectedProcessType?.description?.trim() || "Keine Beschreibung hinterlegt."}</dd>
                     </div>
                   </dl>
                 </div>

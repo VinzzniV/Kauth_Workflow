@@ -132,7 +132,7 @@ export function DependencyGraphEditor({
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: "#475569",
+        color: "var(--graph-edge-open)",
       },
     }));
   }, [graph.edges]);
@@ -153,11 +153,10 @@ export function DependencyGraphEditor({
       style={{
         position: "relative",
         height: "34rem",
-        border: "1px solid rgba(148, 163, 184, 0.35)",
+        border: "1px solid var(--graph-surface-border)",
         borderRadius: "1rem",
         overflow: "hidden",
-        background:
-          "radial-gradient(circle at top left, rgba(240, 253, 250, 0.9), rgba(248, 250, 252, 0.95) 45%, rgba(255, 255, 255, 1))",
+        background: "var(--graph-surface-background)",
       }}
     >
       <ReactFlow
@@ -231,12 +230,12 @@ export function DependencyGraphEditor({
           }
         }}
       >
-        <Background gap={18} size={1} color="rgba(148, 163, 184, 0.22)" />
+        <Background gap={18} size={1} color="var(--graph-grid-color)" />
         <MiniMap
           pannable
           zoomable
-          nodeColor={(node) => (Number(node.id) === selectedTemplateId ? "#0f766e" : "#94a3b8")}
-          style={{ background: "rgba(255, 255, 255, 0.9)" }}
+          nodeColor={(node) => (Number(node.id) === selectedTemplateId ? "var(--graph-edge-done)" : "var(--graph-edge-open)")}
+          style={{ background: "var(--graph-minimap-background)" }}
         />
         <Controls showInteractive={false} />
       </ReactFlow>
@@ -266,7 +265,7 @@ export function DependencyGraphEditor({
             right: "1rem",
             top: "1rem",
             width: "22rem",
-            boxShadow: "0 16px 32px rgba(15, 23, 42, 0.2)",
+            boxShadow: "var(--graph-overlay-shadow)",
             zIndex: 20,
           }}
         >

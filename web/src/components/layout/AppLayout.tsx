@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
+import { useTheme } from "../../theme/ThemeProvider";
 
 type Props = {
   children: ReactNode;
@@ -13,6 +14,7 @@ export default function AppLayout({ children }: Props) {
   const { logout } = useAuth();
   const { currentUser, roleLabels } = useCurrentUser();
   const { headerNavItems } = useRoleAwareNavigation();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const mobileMenuId = useId();
   const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -60,6 +62,9 @@ export default function AppLayout({ children }: Props) {
     return activeItem?.label ?? "Navigation";
   }, [headerNavItems, location.pathname]);
 
+  const nextThemeLabel = theme === "dark" ? "Light Mode" : "Dark Mode";
+  const activeThemeLabel = theme === "dark" ? "Dunkel" : "Hell";
+
   const sidebarFooter = (
     <div className="sidebar-footer">
       {currentUser ? (
@@ -73,6 +78,14 @@ export default function AppLayout({ children }: Props) {
           </div>
         </div>
       ) : null}
+      <button
+        type="button"
+        className="theme-toggle-btn theme-toggle-btn--sidebar"
+        aria-label={`Theme wechseln. Aktuell ${activeThemeLabel}.`}
+        onClick={toggleTheme}
+      >
+        {nextThemeLabel}
+      </button>
       <button
         type="button"
         className="sidebar-logout-btn"
@@ -103,21 +116,31 @@ export default function AppLayout({ children }: Props) {
             <span className="mobile-topbar-current">{activeNavLabel}</span>
           </div>
         </div>
-        <button
-          type="button"
-          className="mobile-menu-button"
-          aria-expanded={isMobileNavOpen}
-          aria-controls={mobileMenuId}
-          aria-label={isMobileNavOpen ? "Navigation schließen" : "Navigation öffnen"}
-          ref={mobileMenuButtonRef}
-          onClick={() => {
-            setIsMobileNavOpen((current) => !current);
-          }}
-        >
-          <span className="mobile-menu-button-line" />
-          <span className="mobile-menu-button-line" />
-          <span className="mobile-menu-button-line" />
-        </button>
+        <div className="mobile-topbar-actions">
+          <button
+            type="button"
+            className="theme-toggle-btn theme-toggle-btn--mobile"
+            aria-label={`Theme wechseln. Aktuell ${activeThemeLabel}.`}
+            onClick={toggleTheme}
+          >
+            {theme === "dark" ? "Hell" : "Dunkel"}
+          </button>
+          <button
+            type="button"
+            className="mobile-menu-button"
+            aria-expanded={isMobileNavOpen}
+            aria-controls={mobileMenuId}
+            aria-label={isMobileNavOpen ? "Navigation schließen" : "Navigation öffnen"}
+            ref={mobileMenuButtonRef}
+            onClick={() => {
+              setIsMobileNavOpen((current) => !current);
+            }}
+          >
+            <span className="mobile-menu-button-line" />
+            <span className="mobile-menu-button-line" />
+            <span className="mobile-menu-button-line" />
+          </button>
+        </div>
       </div>
 
       <div

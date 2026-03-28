@@ -8,20 +8,26 @@ import { ConfirmationDialogProvider } from "./components/feedback/ConfirmationDi
 import { ToastProvider } from "./components/feedback/ToastProvider";
 import App from "./App";
 import { queryClient } from "./services/queryClient";
+import { ThemeProvider } from "./theme/ThemeProvider";
+import { applyThemeToDocument, resolveInitialTheme } from "./theme/theme";
 import "./index.css";
+
+applyThemeToDocument(resolveInitialTheme());
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CurrentUserProvider>
-          <ToastProvider>
-            <ConfirmationDialogProvider>
-              <BrowserRouter>
-                <App />
-              </BrowserRouter>
-            </ConfirmationDialogProvider>
-          </ToastProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ConfirmationDialogProvider>
+                <BrowserRouter>
+                  <App />
+                </BrowserRouter>
+              </ConfirmationDialogProvider>
+            </ToastProvider>
+          </ThemeProvider>
         </CurrentUserProvider>
       </AuthProvider>
     </QueryClientProvider>

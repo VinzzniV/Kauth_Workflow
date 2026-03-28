@@ -463,6 +463,14 @@ export type LinkableWorkflow = {
   createdAt: string;
 };
 
+export type RelatedWorkflowSummary = {
+  uid: string;
+  processType: ProcessType;
+  workflowStatus: WorkflowRuntimeStatus;
+  createdAt: string;
+  departmentId: number;
+};
+
 export type WorkflowTargetPerson = {
   personId: number;
   displayName: string;

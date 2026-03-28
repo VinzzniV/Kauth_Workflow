@@ -37,7 +37,6 @@ export default function AdminOrganizationRelationsPanel({
         <section className="panel">
           <div className="panel-head">
             <h2>Wird verwendet in ...</h2>
-            <p>Wählen Sie links eine Person oder legen Sie direkt eine neue an.</p>
           </div>
         </section>
       );
@@ -47,7 +46,6 @@ export default function AdminOrganizationRelationsPanel({
       <section className="panel">
         <div className="panel-head">
           <h2>Wird verwendet in ...</h2>
-          <p>Verknüpfte Abteilungen und Zuständigkeiten sind direkt klickbar.</p>
         </div>
 
         <div className="content-stack">
@@ -140,7 +138,6 @@ export default function AdminOrganizationRelationsPanel({
         <section className="panel">
           <div className="panel-head">
             <h2>Verknüpfte Organisation</h2>
-            <p>Wählen Sie links eine Abteilung oder legen Sie direkt eine neue an.</p>
           </div>
         </section>
       );
@@ -150,7 +147,6 @@ export default function AdminOrganizationRelationsPanel({
       <section className="panel">
         <div className="panel-head">
           <h2>Verknüpfte Organisation</h2>
-          <p>Personen und Zuständigkeiten dieser Abteilung sind direkt verlinkt.</p>
         </div>
 
         <div className="content-stack">
@@ -205,7 +201,6 @@ export default function AdminOrganizationRelationsPanel({
       <section className="panel">
         <div className="panel-head">
           <h2>Verknüpfte Organisation</h2>
-          <p>Wählen Sie links eine Zuständigkeit aus, um die Wirkung auf Personen und Abteilungen zu sehen.</p>
         </div>
       </section>
     );
@@ -215,7 +210,6 @@ export default function AdminOrganizationRelationsPanel({
     <section className="panel">
       <div className="panel-head">
         <h2>Verknüpfte Organisation</h2>
-        <p>System-Key und verknüpfte Objekte sind im selben Arbeitsbereich erreichbar.</p>
       </div>
 
       <div className="content-stack">

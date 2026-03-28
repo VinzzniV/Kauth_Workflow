@@ -241,7 +241,7 @@ export default function SupervisorStepPage() {
 
                 <div className="workflow-grid">
                   {group.workflows.map((workflow) => (
-                    <article key={workflow.uid} className="workflow-card">
+                    <article key={workflow.uid} className="workflow-card card-list">
                       <div className="workflow-card-top">
                         <div>
                           <h3>

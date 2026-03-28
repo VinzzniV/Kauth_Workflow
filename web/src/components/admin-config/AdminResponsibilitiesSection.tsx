@@ -41,7 +41,7 @@ export function AdminResponsibilitiesSection({
 
       <div className="dashboard-grid" aria-label="Fachliche Zuständigkeiten">
         {sortedResponsibilities.map((item) => (
-          <article key={item.responsibilityId} className="dashboard-card">
+          <article key={item.responsibilityId} className="dashboard-card card-list">
             <div>
               <h2>{item.responsibilityName}</h2>
               <p>

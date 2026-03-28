@@ -13,39 +13,39 @@ function getStatusStyle(status: DependencyGraphEdgeData["requiredStatus"]) {
   switch (status) {
     case "done":
       return {
-        stroke: "#0f766e",
-        labelBg: "rgba(204, 251, 241, 0.96)",
-        labelBorder: "rgba(15, 118, 110, 0.4)",
-        labelText: "#115e59",
+        stroke: "var(--graph-edge-done)",
+        labelBg: "var(--graph-edge-done-bg)",
+        labelBorder: "var(--graph-edge-done-border)",
+        labelText: "var(--graph-edge-done-text)",
       };
     case "ready":
       return {
-        stroke: "#0ea5e9",
-        labelBg: "rgba(224, 242, 254, 0.96)",
-        labelBorder: "rgba(14, 165, 233, 0.4)",
-        labelText: "#0369a1",
+        stroke: "var(--graph-edge-ready)",
+        labelBg: "var(--graph-edge-ready-bg)",
+        labelBorder: "var(--graph-edge-ready-border)",
+        labelText: "var(--graph-edge-ready-text)",
       };
     case "in_progress":
       return {
-        stroke: "#f59e0b",
-        labelBg: "rgba(254, 243, 199, 0.96)",
-        labelBorder: "rgba(245, 158, 11, 0.4)",
-        labelText: "#92400e",
+        stroke: "var(--graph-edge-in-progress)",
+        labelBg: "var(--graph-edge-in-progress-bg)",
+        labelBorder: "var(--graph-edge-in-progress-border)",
+        labelText: "var(--graph-edge-in-progress-text)",
       };
     case "blocked":
       return {
-        stroke: "#ef4444",
-        labelBg: "rgba(254, 226, 226, 0.96)",
-        labelBorder: "rgba(239, 68, 68, 0.4)",
-        labelText: "#991b1b",
+        stroke: "var(--graph-edge-blocked)",
+        labelBg: "var(--graph-edge-blocked-bg)",
+        labelBorder: "var(--graph-edge-blocked-border)",
+        labelText: "var(--graph-edge-blocked-text)",
       };
     case "open":
     default:
       return {
-        stroke: "#64748b",
-        labelBg: "rgba(241, 245, 249, 0.98)",
-        labelBorder: "rgba(100, 116, 139, 0.4)",
-        labelText: "#334155",
+        stroke: "var(--graph-edge-open)",
+        labelBg: "var(--graph-edge-open-bg)",
+        labelBorder: "var(--graph-edge-open-border)",
+        labelText: "var(--graph-edge-open-text)",
       };
   }
 }
@@ -100,7 +100,7 @@ export function DependencyGraphEdge({
             fontWeight: 700,
             letterSpacing: "0.02em",
             textTransform: "uppercase",
-            boxShadow: "0 4px 14px rgba(15, 23, 42, 0.12)",
+            boxShadow: "var(--graph-chip-shadow)",
             backdropFilter: "blur(2px)",
           }}
           className="nodrag nopan"

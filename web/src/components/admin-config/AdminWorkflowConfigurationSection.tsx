@@ -11,14 +11,13 @@ export function AdminWorkflowConfigurationSection({
 }: AdminWorkflowConfigurationSectionProps) {
   const requirementCount = workflowConfig?.requirements.length ?? 0;
   const requiredRequirementCount = workflowConfig?.requirements.filter((requirement) => requirement.isRequired).length ?? 0;
-  const recommendedRequirementCount = workflowConfig?.roleRecommendations.recommendedRequirementIds.length ?? 0;
+  const defaultRequirementCount = workflowConfig?.roleRecommendations.recommendedRequirementIds.length ?? 0;
   const requirementPreview = workflowConfig?.requirements.slice(0, 8) ?? [];
 
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Workflow-Konfiguration</h2>
-        <p>Aktuellen Konfigurationsstand für Anforderungen und Rollenempfehlungen anzeigen.</p>
       </div>
 
       {isLoading ? (
@@ -32,7 +31,7 @@ export function AdminWorkflowConfigurationSection({
       {!isLoading && workflowConfig ? (
         <>
           <div className="dashboard-grid" aria-label="Workflow-Konfiguration">
-            <article className="dashboard-card">
+            <article className="dashboard-stat-card card-stat">
               <div>
                 <h2>Anforderungen</h2>
                 <p>{requirementCount}</p>
@@ -40,24 +39,23 @@ export function AdminWorkflowConfigurationSection({
               <p className="panel-note">Davon Pflichtfelder: {requiredRequirementCount}</p>
             </article>
 
-            <article className="dashboard-card">
+            <article className="dashboard-stat-card card-stat">
               <div>
-                <h2>Rollenempfehlungen</h2>
-                <p>{recommendedRequirementCount}</p>
+                <h2>Defaults</h2>
+                <p>{defaultRequirementCount}</p>
               </div>
-              <p className="panel-note">Mit Rollen-Defaults.</p>
             </article>
 
-            <article className="dashboard-card">
+            <article className="dashboard-stat-card card-stat">
               <div>
-                <h2>Konfigurierbarkeit</h2>
-                <p>Read-only</p>
+                <h2>Status</h2>
+                <p>Nur Ansicht</p>
               </div>
               <p className="panel-note">Keine Bearbeitung in diesem Bereich.</p>
             </article>
           </div>
 
-          <div className="dashboard-card">
+          <div className="dashboard-card card-primary">
             <div>
               <h2>Aktive Anforderungen</h2>
               <p>Auszug der geladenen Anforderungen.</p>
@@ -78,7 +76,7 @@ export function AdminWorkflowConfigurationSection({
                     </div>
 
                     <p className="panel-note">
-                      Kategorie: {requirement.category} | Pflicht: {requirement.isRequired ? "Ja" : "Nein"} | Optionen: {requirement.options.length}
+                      {requirement.category} | {requirement.isRequired ? "Pflicht" : "Optional"} | {requirement.options.length} Optionen
                     </p>
                   </article>
                 ))}

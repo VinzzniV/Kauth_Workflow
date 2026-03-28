@@ -17,14 +17,20 @@ export type AdminWorkspaceSection =
   | "system"
   | "operations";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
-export type AdminWorkspaceSectionGroup = "start" | "configuration" | "technical" | "sensitive";
+export type AdminWorkspaceArea = "organization" | "configuration" | "access" | "system";
 
 export type AdminWorkspaceSectionMeta = {
   key: AdminWorkspaceSection;
   label: string;
   description: string;
-  group: AdminWorkspaceSectionGroup;
-  groupLabel: string;
+  area: AdminWorkspaceArea | null;
+};
+
+export type AdminWorkspaceAreaMeta = {
+  key: AdminWorkspaceArea;
+  label: string;
+  defaultSection: AdminWorkspaceSection;
+  sections: AdminWorkspaceSection[];
 };
 
 export type AdminWorkspaceWarning = {
@@ -42,64 +48,82 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     key: "overview",
     label: "Übersicht",
     description: "Gesamtzustand prüfen und offene Punkte angehen.",
-    group: "start",
-    groupLabel: "Einstieg",
+    area: null,
   },
   {
     key: "organization",
     label: "Organisation",
     description: "Personen, Abteilungen und Zuständigkeiten pflegen.",
-    group: "start",
-    groupLabel: "Einstieg",
+    area: "organization",
   },
   {
     key: "templates",
     label: "Aufgabenvorlagen",
     description: "Aufgabenlogik für neue Vorgänge steuern.",
-    group: "configuration",
-    groupLabel: "Vorlagen & Felder",
+    area: "configuration",
   },
   {
     key: "answers",
     label: "Antwortfelder",
     description: "Eingabefelder und Antwortlogik pflegen.",
-    group: "configuration",
-    groupLabel: "Vorlagen & Felder",
+    area: "configuration",
   },
   {
     key: "defaults",
     label: "Standardwerte",
     description: "Vorauswahlen für Rollen und Bereiche setzen.",
-    group: "configuration",
-    groupLabel: "Vorlagen & Felder",
+    area: "configuration",
   },
   {
     key: "access",
     label: "Zugriffe & Gruppen",
     description: "Rechte, Gruppen und Ausnahmen verwalten.",
-    group: "technical",
-    groupLabel: "Rechte & Verzeichnis",
+    area: "access",
   },
   {
     key: "directory",
     label: "Entra-Verzeichnis",
     description: "Entra-Gruppen synchronisieren und Rollen verknüpfen.",
-    group: "technical",
-    groupLabel: "Rechte & Verzeichnis",
+    area: "access",
   },
   {
     key: "system",
     label: "Benachrichtigungen & System",
     description: "E-Mail-Versand und Systemeinstellungen konfigurieren.",
-    group: "technical",
-    groupLabel: "Rechte & Verzeichnis",
+    area: "system",
   },
   {
     key: "operations",
     label: "Massenänderungen",
     description: "Serienaktionen mit breiter Wirkung ausführen.",
-    group: "sensitive",
-    groupLabel: "Massenänderungen",
+    area: "system",
+  },
+];
+
+export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
+  {
+    key: "organization",
+    label: "Organisation",
+    defaultSection: "organization",
+    sections: ["organization"],
+  },
+  {
+    key: "configuration",
+    label: "Vorlagen & Felder",
+    defaultSection: "templates",
+    sections: ["templates", "answers", "defaults"],
+  },
+  {
+    key: "access",
+    label: "Rechte & Zugriff",
+    defaultSection: "access",
+    sections: ["access", "directory"],
+  },
+  {
+    key: "system",
+    label: "System",
+    defaultSection: "system",
+    sections: ["system", "operations"],
   },
 ];
 
@@ -108,6 +132,22 @@ export function getAdminWorkspaceSectionMeta(section: AdminWorkspaceSection): Ad
     ADMIN_WORKSPACE_SECTION_META.find((entry) => entry.key === section)
     ?? ADMIN_WORKSPACE_SECTION_META[0]
   );
+}
+
+export function getAdminWorkspaceArea(section: AdminWorkspaceSection): AdminWorkspaceArea | null {
+  return getAdminWorkspaceSectionMeta(section).area;
+}
+
+export function getAdminWorkspaceAreaMeta(area: AdminWorkspaceArea): AdminWorkspaceAreaMeta {
+  return (
+    ADMIN_WORKSPACE_AREA_META.find((entry) => entry.key === area)
+    ?? ADMIN_WORKSPACE_AREA_META[0]
+  );
+}
+
+export function getAdminWorkspaceSectionsForArea(area: AdminWorkspaceArea): AdminWorkspaceSectionMeta[] {
+  const areaMeta = getAdminWorkspaceAreaMeta(area);
+  return areaMeta.sections.map((section) => getAdminWorkspaceSectionMeta(section));
 }
 
 export function normalizeAdminWorkspaceSection(value: string | null): AdminWorkspaceSection {

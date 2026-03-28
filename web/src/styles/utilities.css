@@ -26,7 +26,7 @@
 .skeleton-pill {
   display: block;
   border-radius: 999px;
-  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background: linear-gradient(90deg, var(--skeleton-start) 25%, var(--skeleton-mid) 50%, var(--skeleton-start) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s linear infinite;
 }
@@ -99,9 +99,9 @@
   padding: 0.85rem 0.95rem;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--surface-glass);
   color: var(--text-primary);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-lg);
   opacity: 1;
   transform: translateY(0);
   transition: opacity 220ms ease, transform 220ms ease;
@@ -114,18 +114,18 @@
 }
 
 .toast-success {
-  border-color: #86efac;
-  background: rgba(240, 253, 244, 0.98);
+  border-color: var(--status-success-border);
+  background: var(--surface-glass-success);
 }
 
 .toast-error {
-  border-color: #fda4af;
-  background: rgba(255, 241, 242, 0.98);
+  border-color: var(--status-danger-border);
+  background: var(--surface-glass-error);
 }
 
 .toast-info {
-  border-color: #bfdbfe;
-  background: rgba(239, 246, 255, 0.98);
+  border-color: var(--status-info-border);
+  background: var(--surface-glass-info);
 }
 
 .toast-message {
@@ -150,7 +150,7 @@
 }
 
 .toast-close:hover {
-  background: rgba(15, 23, 42, 0.08);
+  background: var(--surface-hover-subtle);
 }
 
 .toast-close:focus-visible {
@@ -160,12 +160,8 @@
 
 /* ─── Responsive ─── */
 @media (max-width: 1200px) {
-  .admin-workspace-grid {
+  .master-detail-layout {
     grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-  }
-
-  .admin-organization-aside {
-    grid-column: 1 / -1;
   }
 
   .admin-overview-grid,
@@ -193,8 +189,23 @@
     gap: 1rem;
     padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.96);
+    background: var(--surface-overlay);
     backdrop-filter: blur(16px);
+  }
+
+  .mobile-topbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-shrink: 0;
+  }
+
+  .theme-toggle-btn--mobile {
+    width: auto;
+    min-width: 4.8rem;
+    min-height: 46px;
+    padding: 0.5rem 0.8rem;
+    box-shadow: var(--theme-toggle-shadow);
   }
 
   .mobile-topbar-brand {
@@ -274,7 +285,7 @@
     position: fixed;
     inset: 0;
     z-index: 129;
-    background: rgba(17, 24, 39, 0.4);
+    background: var(--surface-backdrop);
     opacity: 0;
     pointer-events: none;
     transition: opacity 140ms ease;
@@ -295,7 +306,7 @@
     width: min(88vw, 340px);
     background: var(--bg-card);
     border-left: 1px solid var(--border);
-    box-shadow: -16px 0 32px rgba(15, 23, 42, 0.12);
+    box-shadow: -16px 0 32px rgba(2, 6, 23, 0.22);
     display: flex;
     flex-direction: column;
     transform: translateX(100%);
@@ -413,12 +424,12 @@
     grid-template-columns: 1fr;
   }
 
-  .admin-workspace-grid {
+  .master-detail-layout {
     grid-template-columns: 1fr;
   }
 
-  .admin-workspace-group {
-    gap: 0.55rem;
+  .admin-workspace-subnav {
+    align-items: stretch;
   }
 
   .admin-entity-switcher {
@@ -431,6 +442,7 @@
   }
 
   .admin-workspace-tab,
+  .admin-workspace-subtab,
   .admin-overview-card,
   .admin-guidance-card {
     padding: 0.8rem 0.85rem;
@@ -482,21 +494,21 @@
 }
 
 .badge--success {
-  background: #d1fae5;
-  color: #065f46;
-  border-color: #a7f3d0;
+  background: var(--badge-success-bg);
+  color: var(--badge-success-text);
+  border-color: var(--badge-success-border);
 }
 
 .badge--default {
-  background: #f3f4f6;
-  color: #374151;
-  border-color: #e5e7eb;
+  background: var(--badge-default-bg);
+  color: var(--badge-default-text);
+  border-color: var(--badge-default-border);
 }
 
 .badge--error {
-  background: #fee2e2;
-  color: #991b1b;
-  border-color: #fca5a5;
+  background: var(--badge-error-bg);
+  color: var(--badge-error-text);
+  border-color: var(--badge-error-border);
 }
 
 /* ─── Form components ─── */

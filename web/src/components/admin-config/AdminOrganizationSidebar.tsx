@@ -15,6 +15,8 @@ import {
   responsibilityTypeLabel,
 } from "./adminConfigHelpers";
 import { ADMIN_ORGANIZATION_ENTITY_LABELS } from "./adminOrganizationTypes";
+import SectionHeader from "../ui/SectionHeader";
+import SelectionListItem from "../ui/SelectionListItem";
 
 type UserActivityFilter = "all" | "active" | "inactive";
 type ValidityFilter = "all" | "valid" | "invalid";
@@ -248,23 +250,19 @@ export function AdminOrganizationSidebar({
       }
 
       return (
-        <div className="admin-entity-list" aria-label="Personenliste">
+        <div className="selection-list" aria-label="Personenliste">
           {filteredUsers.map((user) => (
-            <button
+            <SelectionListItem
               key={user.userId}
-              type="button"
-              className={`admin-entity-list-item ${selectedEntityId === user.userId ? "active" : ""}`}
+              active={selectedEntityId === user.userId}
+              title={user.displayName}
+              meta={user.email}
+              secondaryMeta={`${user.departmentName ?? "Keine Abteilung"} | ${user.isActive ? "Aktiv" : "Inaktiv"}`}
               onClick={() => {
                 onSelectUser(user);
                 onSelectOrganizationEntity("user", user.userId);
               }}
-            >
-              <strong>{user.displayName}</strong>
-              <span>{user.email}</span>
-              <span>
-                {user.departmentName ?? "Keine Abteilung"} | {user.isActive ? "Aktiv" : "Inaktiv"}
-              </span>
-            </button>
+            />
           ))}
         </div>
       );
@@ -276,18 +274,16 @@ export function AdminOrganizationSidebar({
       }
 
       return (
-        <div className="admin-entity-list" aria-label="Abteilungsliste">
+        <div className="selection-list" aria-label="Abteilungsliste">
           {filteredDepartments.map((department) => (
-            <button
+            <SelectionListItem
               key={department.departmentId}
-              type="button"
-              className={`admin-entity-list-item ${selectedEntityId === department.departmentId ? "active" : ""}`}
+              active={selectedEntityId === department.departmentId}
+              title={department.departmentName}
+              meta={`Leitung: ${department.departmentLeadDisplayName ?? "nicht festgelegt"}`}
+              secondaryMeta={`Anforderung: ${department.requirementOwnerDisplayName ?? "nicht festgelegt"}`}
               onClick={() => onSelectOrganizationEntity("department", department.departmentId)}
-            >
-              <strong>{department.departmentName}</strong>
-              <span>Leitung: {department.departmentLeadDisplayName ?? "nicht festgelegt"}</span>
-              <span>Anforderung: {department.requirementOwnerDisplayName ?? "nicht festgelegt"}</span>
-            </button>
+            />
           ))}
         </div>
       );
@@ -298,31 +294,27 @@ export function AdminOrganizationSidebar({
     }
 
     return (
-      <div className="admin-entity-list" aria-label="Zuständigkeitsliste">
+      <div className="selection-list" aria-label="Zuständigkeitsliste">
         {filteredResponsibilities.map((responsibility) => (
-          <button
+          <SelectionListItem
             key={responsibility.responsibilityId}
-            type="button"
-            className={`admin-entity-list-item ${selectedEntityId === responsibility.responsibilityId ? "active" : ""}`}
+            active={selectedEntityId === responsibility.responsibilityId}
+            title={responsibility.responsibilityName}
+            meta={`${responsibilityAreaLabel(responsibility)} | ${responsibilityTypeLabel(responsibility)}`}
+            secondaryMeta={`Person: ${responsibility.appUserDisplayName ?? "keine feste Person"}`}
             onClick={() => onSelectOrganizationEntity("responsibility", responsibility.responsibilityId)}
-          >
-            <strong>{responsibility.responsibilityName}</strong>
-            <span>
-              {responsibilityAreaLabel(responsibility)} | {responsibilityTypeLabel(responsibility)}
-            </span>
-            <span>Person: {responsibility.appUserDisplayName ?? "keine feste Person"}</span>
-          </button>
+          />
         ))}
       </div>
     );
   }
 
   return (
-    <section className="panel admin-organization-sidebar">
-      <div className="panel-head">
-        <h2>{ADMIN_ORGANIZATION_ENTITY_LABELS[organizationEntity]}</h2>
-        <p>Ein primäres Objekt bleibt im Fokus, die Liste links bleibt stabil.</p>
-      </div>
+    <section className="panel admin-organization-sidebar master-detail-sidebar">
+      <SectionHeader
+        title={ADMIN_ORGANIZATION_ENTITY_LABELS[organizationEntity]}
+        description="Ein primäres Objekt bleibt im Fokus, die Liste links bleibt stabil."
+      />
 
       <div className="admin-entity-switcher" role="group" aria-label="Organisationsobjekte">
         {(["user", "department", "responsibility"] as const).map((entity) => (

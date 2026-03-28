@@ -5,21 +5,9 @@ import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation"
 import { useProcessTypes } from "../../services/queries/processTypeQueries";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
-import type { DashboardStat } from "./dashboardInsights";
+import Card from "../ui/Card";
+import SectionHeader from "../ui/SectionHeader";
 import { useDashboardInsights } from "./useDashboardInsights";
-
-function getStatToneClassName(tone: DashboardStat["tone"]): string {
-  switch (tone) {
-    case "attention":
-      return "dashboard-stat-chip attention";
-    case "progress":
-      return "dashboard-stat-chip progress";
-    case "success":
-      return "dashboard-stat-chip success";
-    default:
-      return "dashboard-stat-chip neutral";
-  }
-}
 
 export default function DashboardOverview() {
   const { dashboardActions, dashboardContext, dashboardPersona } = useRoleAwareNavigation();
@@ -79,11 +67,9 @@ export default function DashboardOverview() {
 
       {!isInsightsLoading && !isProcessTypeLoading && !insightsError && insights ? (
         <>
-          <section className="panel dashboard-priority-panel">
+          <section className="dashboard-priority-panel">
             <div className="dashboard-top-row">
-              <div className="panel-head">
-                <h2>{dashboardContext.title}</h2>
-              </div>
+              <SectionHeader title={dashboardContext.title} />
               {supportsProcessTypeFilter && processTypes.length > 1 ? (
                 <label className="field compact dashboard-filter-field">
                   <span>Prozesstyp</span>
@@ -104,64 +90,45 @@ export default function DashboardOverview() {
             </div>
 
             {priorityItem ? (
-              <div className="next-action-callout">
-                <p className="next-action-label">Jetzt prüfen</p>
-                <Link to={priorityItem.to} className="next-action-text next-action-link">
-                  {insights.nextStep}
-                </Link>
-              </div>
-            ) : (
-              <div className="next-action-callout">
-                <p className="next-action-label">Jetzt prüfen</p>
-                <p className="next-action-text">{insights.nextStep}</p>
-              </div>
-            )}
-
-            {priorityItem ? (
-              <article className="dashboard-priority-card">
+              <Link to={priorityItem.to} className="dashboard-priority-card dashboard-priority-card--action card-primary">
                 <div>
-                  <p className="dashboard-priority-title">{priorityItem.title}</p>
-                  <p className="dashboard-priority-detail">{priorityItem.detail}</p>
+                  <p className="dashboard-priority-kicker">Jetzt prüfen</p>
+                  <p className="dashboard-priority-title">{insights.nextStep}</p>
+                  <p className="dashboard-priority-detail">{priorityItem.title}</p>
                 </div>
-                <Link to={priorityItem.to} className="btn btn-primary">
-                  {priorityItem.actionLabel}
-                </Link>
-              </article>
+                <span className="dashboard-priority-action">{priorityItem.actionLabel}</span>
+              </Link>
             ) : (
-              <p className="panel-note">{insights.emptyQueueText}</p>
+              <article className="dashboard-priority-card card-primary">
+                <div>
+                  <p className="dashboard-priority-kicker">Jetzt prüfen</p>
+                  <p className="dashboard-priority-title">{insights.nextStep}</p>
+                  <p className="dashboard-priority-detail">{insights.emptyQueueText}</p>
+                </div>
+              </article>
             )}
           </section>
 
           {insights.stats.length > 0 ? (
-            <section className="panel">
-              <div className="panel-head">
-                <h2>Kennzahlen</h2>
-              </div>
+            <section className="section-stack">
+              <SectionHeader title="Kennzahlen" />
               <div className="dashboard-stats-grid" aria-label="Rollenspezifische Übersicht">
                 {insights.stats.map((stat) => (
-                  <article key={stat.label} className="dashboard-stat-card">
-                    <div className="dashboard-stat-card-head">
-                      <p className="dashboard-stat-label">{stat.label}</p>
-                      {stat.statusLabel ? (
-                        <span className={getStatToneClassName(stat.tone)}>{stat.statusLabel}</span>
-                      ) : null}
-                    </div>
+                  <Card key={stat.label} variant="stat" className="dashboard-stat-card">
+                    <p className="dashboard-stat-label">{stat.label}</p>
                     <p className="dashboard-stat-value">{stat.value}</p>
-                    <p className="dashboard-stat-note">{stat.note}</p>
-                  </article>
+                  </Card>
                 ))}
               </div>
             </section>
           ) : null}
 
           {secondaryQueueItems.length > 0 ? (
-            <section className="panel panel-muted dashboard-queue">
-              <div className="panel-head">
-                <h2>{insights.queueTitle}</h2>
-              </div>
+            <section className="section-stack dashboard-queue">
+              <SectionHeader title={insights.queueTitle} />
               <ul className="dashboard-queue-list">
                 {secondaryQueueItems.map((item) => (
-                  <li key={item.key} className="dashboard-queue-item">
+                  <Card key={item.key} as="li" variant="list" className="dashboard-queue-item">
                     <div>
                       <p className="dashboard-queue-title">{item.title}</p>
                       <p className="dashboard-queue-detail">{item.detail}</p>
@@ -169,7 +136,7 @@ export default function DashboardOverview() {
                     <Link to={item.to} className="btn btn-secondary">
                       {item.actionLabel}
                     </Link>
-                  </li>
+                  </Card>
                 ))}
               </ul>
             </section>

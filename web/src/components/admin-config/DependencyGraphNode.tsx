@@ -14,10 +14,10 @@ export type DependencyGraphNodeData = {
 
 export function DependencyGraphNode({ data }: NodeProps) {
   const nodeData = data as DependencyGraphNodeData;
-  const borderColor = nodeData.isSelected ? "rgba(15, 118, 110, 0.9)" : "rgba(148, 163, 184, 0.65)";
+  const borderColor = nodeData.isSelected ? "var(--graph-node-border-selected)" : "var(--graph-node-border)";
   const background = nodeData.isSelected
-    ? "linear-gradient(180deg, rgba(240, 253, 250, 1), rgba(255, 255, 255, 0.98))"
-    : "linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98))";
+    ? "var(--graph-node-background-selected)"
+    : "var(--graph-node-background)";
 
   return (
     <>
@@ -25,7 +25,7 @@ export function DependencyGraphNode({ data }: NodeProps) {
         type="target"
         position={Position.Top}
         isConnectable
-        style={{ background: "#0f766e", width: 10, height: 10, border: "2px solid white" }}
+        style={{ background: "var(--graph-node-handle)", width: 10, height: 10, border: "2px solid var(--graph-handle-border)" }}
       />
       <div
         style={{
@@ -34,8 +34,8 @@ export function DependencyGraphNode({ data }: NodeProps) {
           border: `1px solid ${borderColor}`,
           background,
           boxShadow: data.isSelected
-            ? "0 0 0 3px rgba(15, 118, 110, 0.14), 0 18px 34px rgba(15, 23, 42, 0.12)"
-            : "0 12px 26px rgba(15, 23, 42, 0.08)",
+            ? "var(--graph-node-shadow-selected)"
+            : "var(--graph-node-shadow)",
           overflow: "hidden",
         }}
       >
@@ -45,8 +45,8 @@ export function DependencyGraphNode({ data }: NodeProps) {
             alignItems: "center",
             gap: "0.75rem",
             padding: "0.9rem 1rem 0.75rem",
-            borderBottom: "1px solid rgba(226, 232, 240, 0.9)",
-            background: "linear-gradient(135deg, rgba(236, 254, 255, 0.95), rgba(248, 250, 252, 0.75))",
+            borderBottom: "1px solid var(--graph-node-header-border)",
+            background: "var(--graph-node-header-background)",
           }}
         >
           <RequirementIcon iconKey={nodeData.iconKey ?? "berechtigungen"} title={nodeData.title} size="md" />
@@ -55,7 +55,7 @@ export function DependencyGraphNode({ data }: NodeProps) {
               style={{
                 fontSize: "0.95rem",
                 lineHeight: 1.2,
-                color: "#0f172a",
+                color: "var(--graph-node-title)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
@@ -81,27 +81,27 @@ export function DependencyGraphNode({ data }: NodeProps) {
               style={{
                 padding: "0.55rem 0.65rem",
                 borderRadius: "0.75rem",
-                background: "rgba(241, 245, 249, 0.9)",
-                border: "1px solid rgba(226, 232, 240, 0.95)",
+                background: "var(--graph-node-metric-background)",
+                border: "1px solid var(--graph-node-metric-border)",
               }}
             >
               <div className="text-muted" style={{ fontSize: "0.72rem" }}>
                 Bedingungen
               </div>
-              <strong style={{ fontSize: "1rem", color: "#0f172a" }}>{nodeData.conditionCount}</strong>
+              <strong style={{ fontSize: "1rem", color: "var(--graph-node-title)" }}>{nodeData.conditionCount}</strong>
             </div>
             <div
               style={{
                 padding: "0.55rem 0.65rem",
                 borderRadius: "0.75rem",
-                background: "rgba(241, 245, 249, 0.9)",
-                border: "1px solid rgba(226, 232, 240, 0.95)",
+                background: "var(--graph-node-metric-background)",
+                border: "1px solid var(--graph-node-metric-border)",
               }}
             >
               <div className="text-muted" style={{ fontSize: "0.72rem" }}>
                 Abhängigkeiten
               </div>
-              <strong style={{ fontSize: "1rem", color: "#0f172a" }}>{nodeData.dependencyCount}</strong>
+              <strong style={{ fontSize: "1rem", color: "var(--graph-node-title)" }}>{nodeData.dependencyCount}</strong>
             </div>
           </div>
         </div>
@@ -110,7 +110,7 @@ export function DependencyGraphNode({ data }: NodeProps) {
         type="source"
         position={Position.Bottom}
         isConnectable
-        style={{ background: "#0f766e", width: 10, height: 10, border: "2px solid white" }}
+        style={{ background: "var(--graph-node-handle)", width: 10, height: 10, border: "2px solid var(--graph-handle-border)" }}
       />
     </>
   );

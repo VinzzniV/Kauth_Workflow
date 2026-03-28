@@ -77,7 +77,7 @@ export function AdminDepartmentsSection({
         <p>Pflegen Sie je Abteilung die Abteilungsleitung und die anforderungsverantwortliche Person. Zur Auswahl stehen nur aktive Personen mit Manager-Rolle.</p>
       </div>
 
-      <div className="dashboard-card">
+      <div className="dashboard-card card-primary">
         <div>
           <h2>Neue Abteilung</h2>
           <p>Legen Sie zusätzliche Abteilungen für Mitarbeiterprozesse an.</p>
@@ -123,7 +123,7 @@ export function AdminDepartmentsSection({
             && savingDepartmentId !== department.departmentId;
 
           return (
-            <article key={department.departmentId} className="dashboard-card">
+            <article key={department.departmentId} className="dashboard-card card-list">
               <div>
                 <h2>{department.departmentName}</h2>
                 <p>Zuletzt gespeichert: {formatTimestamp(department.updatedAt)}</p>

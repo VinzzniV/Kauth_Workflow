@@ -89,6 +89,67 @@ ORDER BY wl.created_at DESC;";
         return links;
     }
 
+    public async Task<List<RelatedWorkflowSummaryDto>> GetRelatedWorkflows(Guid workflowUid)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+WITH base_workflow AS (
+    SELECT
+        w.uid,
+        w.target_person_id,
+        w.employee_number
+    FROM workflows w
+    WHERE w.uid = @uid
+    LIMIT 1
+)
+SELECT
+    related.uid,
+    related.status,
+    related.created_at,
+    related.department_id,
+    pt.key,
+    pt.name,
+    pt.requires_target_person
+FROM base_workflow base
+JOIN workflows related
+    ON related.uid <> base.uid
+   AND (
+        (base.target_person_id IS NOT NULL AND related.target_person_id = base.target_person_id)
+        OR (
+            related.employee_number = base.employee_number
+            AND (base.target_person_id IS NULL OR related.target_person_id IS NULL)
+        )
+   )
+JOIN process_types pt ON pt.id = related.process_type_id
+ORDER BY related.created_at DESC;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@uid", workflowUid);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var workflows = new List<RelatedWorkflowSummaryDto>();
+        while (await reader.ReadAsync())
+        {
+            workflows.Add(new RelatedWorkflowSummaryDto
+            {
+                Uid = reader.GetGuid(0),
+                WorkflowStatus = reader.GetString(1),
+                CreatedAt = reader.GetDateTime(2),
+                DepartmentId = reader.GetInt32(3),
+                ProcessType = new WorkflowProcessTypeDto
+                {
+                    Key = reader.GetString(4),
+                    Name = reader.GetString(5),
+                    RequiresTargetPerson = reader.GetBoolean(6)
+                }
+            });
+        }
+
+        return workflows;
+    }
+
     public async Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());

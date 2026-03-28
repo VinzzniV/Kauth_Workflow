@@ -1,108 +1,66 @@
-import { useMemo, useRef } from "react";
 import {
-  ADMIN_WORKSPACE_SECTION_META,
+  ADMIN_WORKSPACE_AREA_META,
+  getAdminWorkspaceArea,
+  getAdminWorkspaceSectionsForArea,
   type AdminWorkspaceSection,
-  type AdminWorkspaceSectionGroup,
 } from "./adminWorkspaceModel";
 
 type AdminWorkspaceNavigationProps = {
   section: AdminWorkspaceSection;
   onSelectSection: (section: AdminWorkspaceSection) => void;
-  getPanelId: (section: AdminWorkspaceSection) => string;
-  getTabId: (section: AdminWorkspaceSection) => string;
 };
-
-const GROUP_ORDER: AdminWorkspaceSectionGroup[] = ["start", "configuration", "technical", "sensitive"];
 
 export function AdminWorkspaceNavigation({
   section,
   onSelectSection,
-  getPanelId,
-  getTabId,
 }: AdminWorkspaceNavigationProps) {
-  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const orderedSections = useMemo(
-    () =>
-      GROUP_ORDER.flatMap((group) =>
-        ADMIN_WORKSPACE_SECTION_META.filter((item) => item.group === group).map((item) => item.key)
-      ),
-    []
-  );
-
-  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, currentSection: AdminWorkspaceSection) => {
-    const currentIndex = orderedSections.indexOf(currentSection);
-    if (currentIndex === -1) {
-      return;
-    }
-
-    let nextSection: AdminWorkspaceSection | null = null;
-
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      nextSection = orderedSections[(currentIndex + 1) % orderedSections.length];
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      nextSection = orderedSections[(currentIndex - 1 + orderedSections.length) % orderedSections.length];
-    } else if (event.key === "Home") {
-      nextSection = orderedSections[0];
-    } else if (event.key === "End") {
-      nextSection = orderedSections[orderedSections.length - 1];
-    }
-
-    if (!nextSection) {
-      return;
-    }
-
-    event.preventDefault();
-    onSelectSection(nextSection);
-    tabRefs.current[nextSection]?.focus();
-  };
+  const activeArea = getAdminWorkspaceArea(section);
 
   return (
-    <section className="panel panel-muted">
-      <div className="panel-head">
-        <h2>Administrationsbereiche</h2>
-      </div>
+    <nav className="admin-workspace-nav" aria-label="Arbeitsbereiche">
+      {ADMIN_WORKSPACE_AREA_META.map((area) => (
+        <button
+          key={area.key}
+          type="button"
+          className={`admin-workspace-tab ${activeArea === area.key ? "active" : ""}`}
+          aria-pressed={activeArea === area.key}
+          onClick={() => onSelectSection(area.defaultSection)}
+        >
+          <span className="admin-workspace-tab-title">{area.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
 
-      <div className="admin-workspace-groups" aria-label="Admin-Bereiche">
-        {GROUP_ORDER.map((group) => {
-          const groupItems = ADMIN_WORKSPACE_SECTION_META.filter((item) => item.group === group);
-          if (groupItems.length === 0) {
-            return null;
-          }
+export function AdminWorkspaceSubNavigation({
+  section,
+  onSelectSection,
+}: AdminWorkspaceNavigationProps) {
+  const activeArea = getAdminWorkspaceArea(section);
 
-          return (
-            <section key={group} className="admin-workspace-group">
-              <div className="admin-workspace-group-head">
-                <h3>{groupItems[0].groupLabel}</h3>
-              </div>
+  if (!activeArea) {
+    return null;
+  }
 
-              <div className="admin-workspace-nav" role="tablist" aria-label={`${groupItems[0].groupLabel} auswählen`}>
-                {groupItems.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className={`admin-workspace-tab ${section === item.key ? "active" : ""}`}
-                    id={getTabId(item.key)}
-                    role="tab"
-                    aria-selected={section === item.key}
-                    aria-controls={getPanelId(item.key)}
-                    tabIndex={section === item.key ? 0 : -1}
-                    ref={(element) => {
-                      tabRefs.current[item.key] = element;
-                    }}
-                    onKeyDown={(event) => {
-                      handleTabKeyDown(event, item.key);
-                    }}
-                    onClick={() => onSelectSection(item.key)}
-                  >
-                    <span className="admin-workspace-tab-title">{item.label}</span>
-                    <span className="admin-workspace-tab-note">{item.description}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
-    </section>
+  const sections = getAdminWorkspaceSectionsForArea(activeArea);
+  if (sections.length <= 1) {
+    return null;
+  }
+
+  return (
+    <nav className="admin-workspace-subnav" aria-label="Bereich wechseln">
+      {sections.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className={`admin-workspace-subtab ${section === item.key ? "active" : ""}`}
+          aria-pressed={section === item.key}
+          onClick={() => onSelectSection(item.key)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
   );
 }

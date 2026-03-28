@@ -30,10 +30,7 @@ export default function TargetPersonSelection({
     <section className="panel">
       <div className="panel-head">
         <h2>Abgeschlossenes Onboarding auswählen</h2>
-        <p>
-          Wählen Sie das abgeschlossene Onboarding für {processTypeName}. Person, Kontext und Quell-Vorgang werden dabei
-          gemeinsam übernommen.
-        </p>
+        <p>Onboarding für {processTypeName} wählen.</p>
       </div>
 
       <label className="field">
@@ -54,30 +51,32 @@ export default function TargetPersonSelection({
       ) : null}
 
       {!isLoading && completedOnboardings.length > 0 ? (
-        <div style={{ marginTop: "1rem", display: "grid", gap: "0.75rem" }}>
+        <div className="wizard-choice-list">
           {completedOnboardings.map((onboarding) => (
+            (() => {
+              const isSelected = selectedWorkflowUid === onboarding.workflowUid;
+
+              return (
             <label
               key={onboarding.workflowUid}
-              className="panel panel-muted"
-              style={{ cursor: "pointer", display: "grid", gap: "0.35rem" }}
+              className={`wizard-choice-card${isSelected ? " wizard-choice-card--selected" : ""}`}
             >
-              <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span className="wizard-choice-card__head">
                 <input
                   type="radio"
                   name="completedOnboarding"
-                  checked={selectedWorkflowUid === onboarding.workflowUid}
+                  checked={isSelected}
                   onChange={() => onSelectOnboarding(onboarding)}
                 />
                 <strong>{onboarding.displayName}</strong>
               </span>
-              <span className="text-muted">
-                {onboarding.departmentName ?? "Keine Abteilung"} | {onboarding.roleName ?? "Keine Stelle"} |
-                Personalnummer: {onboarding.employeeNumber}
-              </span>
-              <span className="text-muted">
-                Onboarding abgeschlossen am {formatDateTime(onboarding.completedAt)}
+              <span className="wizard-choice-card__meta">
+                {onboarding.departmentName ?? "Keine Abteilung"} | {onboarding.roleName ?? "Keine Stelle"} |{" "}
+                {formatDateTime(onboarding.completedAt)}
               </span>
             </label>
+              );
+            })()
           ))}
         </div>
       ) : null}

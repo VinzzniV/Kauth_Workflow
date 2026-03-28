@@ -2,6 +2,7 @@ import type {
   CompletedOnboardingSearchResult,
   DerivedAnswer,
   LinkableWorkflow,
+  RelatedWorkflowSummary,
   RequirementSelectionPayload,
   WorkflowAuditEntry,
   WorkflowConfig,
@@ -21,6 +22,7 @@ import type {
   BackendCompletedOnboardingSearchResultDto,
   BackendDerivedAnswerDto,
   BackendLinkableWorkflowDto,
+  BackendRelatedWorkflowSummaryDto,
   BackendWorkflowAuditEntryDto,
   BackendWorkflowConfigDto,
   BackendWorkflowDetailDto,
@@ -175,6 +177,10 @@ export async function updateWorkflowSupervisorStep(
 
 export async function getWorkflowLinks(uid: string): Promise<WorkflowLink[]> {
   return requestJson<BackendWorkflowLinkDto[]>(`/workflows/${encodeURIComponent(uid)}/links`);
+}
+
+export async function getRelatedWorkflows(uid: string): Promise<RelatedWorkflowSummary[]> {
+  return requestJson<BackendRelatedWorkflowSummaryDto[]>(`/workflows/${encodeURIComponent(uid)}/related`);
 }
 
 export async function createWorkflowLink(

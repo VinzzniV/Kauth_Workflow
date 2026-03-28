@@ -84,6 +84,8 @@ export default function WorkflowSearchPage() {
           : workflowSearchQuery.error || processTypesQuery.error || departmentsQuery.error
             ? "Vorgangssuche konnte nicht geladen werden."
             : null;
+  const hasAdvancedFilters = departmentFilter !== "all" || processTypeFilter !== "all" || statusFilter !== "all";
+  const advancedFilterCount = [departmentFilter, processTypeFilter, statusFilter].filter((value) => value !== "all").length;
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -127,7 +129,7 @@ export default function WorkflowSearchPage() {
             Bekannte Person, Personalnummer oder Workflow-ID gezielt finden.
           </p>
 
-          <div className="toolbar-row">
+          <div className="toolbar-row workflow-filter-bar">
             <label className="field compact grow">
               <span>Suche</span>
               <input
@@ -136,45 +138,6 @@ export default function WorkflowSearchPage() {
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="z. B. Name, Abteilung, Stelle oder ID"
               />
-            </label>
-
-            <label className="field compact">
-              <span>Prozesstyp</span>
-              <select value={processTypeFilter} onChange={(event) => setProcessTypeFilter(event.target.value)}>
-                <option value="all">Alle</option>
-                {processTypeOptions.map((processType) => (
-                  <option key={processType.key} value={processType.key}>
-                    {processType.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field compact">
-              <span>Abteilung</span>
-              <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
-                <option value="all">Alle</option>
-                {departmentOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field compact">
-              <span>Status</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus)}
-              >
-                <option value="all">Alle</option>
-                <option value="draft">HR startet</option>
-                <option value="waiting_for_supervisor">Wartet auf Abteilungsleitung</option>
-                <option value="waiting_for_department">Fachbereiche offen</option>
-                <option value="in_progress">Fachbereiche in Bearbeitung</option>
-                <option value="completed">Abgeschlossen</option>
-              </select>
             </label>
 
             <button
@@ -192,6 +155,52 @@ export default function WorkflowSearchPage() {
               {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
             </button>
           </div>
+
+          <details className="workflow-filter-details" open={hasAdvancedFilters}>
+            <summary>
+              Weitere Filter{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
+            </summary>
+            <div className="toolbar-row toolbar-row-filters workflow-filter-bar workflow-filter-bar--details">
+              <label className="field compact">
+                <span>Prozesstyp</span>
+                <select value={processTypeFilter} onChange={(event) => setProcessTypeFilter(event.target.value)}>
+                  <option value="all">Alle</option>
+                  {processTypeOptions.map((processType) => (
+                    <option key={processType.key} value={processType.key}>
+                      {processType.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field compact">
+                <span>Abteilung</span>
+                <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+                  <option value="all">Alle</option>
+                  {departmentOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field compact">
+                <span>Status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus)}
+                >
+                  <option value="all">Alle</option>
+                  <option value="draft">HR startet</option>
+                  <option value="waiting_for_supervisor">Wartet auf Abteilungsleitung</option>
+                  <option value="waiting_for_department">Fachbereiche offen</option>
+                  <option value="in_progress">Fachbereiche in Bearbeitung</option>
+                  <option value="completed">Abgeschlossen</option>
+                </select>
+              </label>
+            </div>
+          </details>
         </section>
 
         {isLoading ? <LoadingState title="Vorgänge werden gesucht..." /> : null}

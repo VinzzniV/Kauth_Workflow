@@ -40,13 +40,6 @@ type AdminSystemWorkspaceSectionProps = {
 export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionProps) {
   return (
     <div className="content-stack">
-      <section className="panel panel-muted">
-        <div className="panel-head">
-          <h2>System</h2>
-          <p>Mailversand bearbeiten, Workflow-Konfiguration nur lesen.</p>
-        </div>
-      </section>
-
       <AdminNotificationEmailSection
         notificationEmailConfiguration={props.notificationEmailConfiguration}
         notificationEnabledDraft={props.notificationEnabledDraft}

@@ -513,6 +513,15 @@ public sealed class LinkableWorkflowDto
     public required DateTime CreatedAt { get; init; }
 }
 
+public sealed class RelatedWorkflowSummaryDto
+{
+    public required Guid Uid { get; init; }
+    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required string WorkflowStatus { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required int DepartmentId { get; init; }
+}
+
 public sealed class WorkflowTargetPersonDto
 {
     public required long PersonId { get; init; }

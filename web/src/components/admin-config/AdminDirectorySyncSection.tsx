@@ -61,24 +61,10 @@ export function AdminDirectorySyncSection({
     <section className="panel">
       <div className="panel-head">
         <h2>Verzeichnis-Synchronisierung</h2>
-        <p>
-          Holt Gruppen und Identitäten aus Entra in die Anwendung. Rollen-Zuordnungen werden danach auf Basis dieser Daten ausgewertet.
-        </p>
-      </div>
-
-      <div className="admin-guidance-grid">
-        <article className="admin-guidance-card">
-          <h3>Wann passt dieser Bereich?</h3>
-          <p>Wenn neue Gruppen oder Identitäten aus Entra übernommen oder bestehende Zuordnungen kontrolliert werden sollen.</p>
-        </article>
-        <article className="admin-guidance-card admin-guidance-card--caution">
-          <h3>Worauf achten?</h3>
-          <p>Nutzen Sie einen Gruppenfilter für schrittweise Prüfungen. Große Läufe und neue Gruppen-Mappings wirken auf spätere Logins vieler Personen.</p>
-        </article>
       </div>
 
       <div className="dashboard-grid" aria-label="Verzeichnisstatus">
-        <article className="dashboard-card">
+        <article className="dashboard-card card-list">
           <h2>Letzter Lauf</h2>
           <p>{formatTimestamp(status?.lastSyncAt ?? null)}</p>
           <span className={statusBadgeClass(status?.lastSyncStatus ?? null)}>
@@ -86,17 +72,17 @@ export function AdminDirectorySyncSection({
           </span>
         </article>
 
-        <article className="dashboard-card">
+        <article className="dashboard-card card-list">
           <h2>Gruppen</h2>
           <p>{status?.totalGroups ?? 0} synchronisiert</p>
         </article>
 
-        <article className="dashboard-card">
+        <article className="dashboard-card card-list">
           <h2>Identitäten</h2>
           <p>{status?.totalIdentities ?? 0} übernommen</p>
         </article>
 
-        <article className="dashboard-card">
+        <article className="dashboard-card card-list">
           <h2>Gruppen-Rollen-Zuordnungen</h2>
           <p>{status?.totalMappings ?? 0} aktiv</p>
         </article>
@@ -152,7 +138,6 @@ export function AdminDirectorySyncSection({
         <>
           <div className="panel-head" style={{ marginTop: "1rem" }}>
             <h2>Zuletzt übernommene Identitäten</h2>
-            <p>Die Liste zeigt die ersten synchronisierten Verzeichnisobjekte inklusive Verknüpfung zur App-Person.</p>
           </div>
 
           <table className="table">
@@ -191,7 +176,6 @@ export function AdminDirectorySyncSection({
         <>
           <div className="panel-head" style={{ marginTop: "1rem" }}>
             <h2>Änderungsprotokoll</h2>
-            <p>Zeigt die jüngsten Mapping-Änderungen für Nachvollziehbarkeit und Betrieb.</p>
           </div>
 
           <table className="table">

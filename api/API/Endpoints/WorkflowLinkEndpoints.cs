@@ -53,6 +53,58 @@ internal static class WorkflowLinkEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
 
+        app.MapGet("/workflows/{uid:guid}/related", async (
+            Guid uid,
+            IWorkflowRepository repository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanAccessWorkflowOverview,
+                "Workflow overview access is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var workflow = await repository.GetWorkflowByUid(uid);
+            if (workflow is null)
+            {
+                return Results.NotFound(new { message = "Workflow not found." });
+            }
+
+            var currentUser = access.User!;
+            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
+                currentUser,
+                repository,
+                authorizationPolicy);
+
+            if (!EndpointSupport.CanObserveWorkflow(
+                currentUser,
+                workflow.DepartmentId,
+                workflow.WorkflowStatus,
+                observableDepartmentIds,
+                authorizationPolicy))
+            {
+                return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
+            }
+
+            var relatedWorkflows = await repository.GetRelatedWorkflows(uid);
+            var visibleRelatedWorkflows = relatedWorkflows
+                .Where(related => EndpointSupport.CanObserveWorkflow(
+                    currentUser,
+                    related.DepartmentId,
+                    related.WorkflowStatus,
+                    observableDepartmentIds,
+                    authorizationPolicy))
+                .ToList();
+
+            return Results.Ok(visibleRelatedWorkflows);
+        }).Produces<List<RelatedWorkflowSummaryDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
         app.MapPost("/workflows/{uid:guid}/links", async (
             Guid uid,
             [FromBody] CreateWorkflowLinkRequest request,

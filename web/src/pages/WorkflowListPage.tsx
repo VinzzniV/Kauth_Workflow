@@ -15,7 +15,7 @@ import type {
   WorkflowRuntimeStatus,
   WorkflowSummary,
 } from "../types/workflow";
-import { formatDate, formatDateTime } from "../utils/dateFormat";
+import { formatDate } from "../utils/dateFormat";
 import {
   getWorkflowRuntimeStatusLabel,
   getWorkflowRuntimeStatusPillClass,
@@ -172,6 +172,8 @@ export default function WorkflowListPage() {
       responsibilityFilter !== "all"
     );
   }, [departmentFilter, processTypeFilter, responsibilityFilter, search, statusFilter]);
+  const hasAdvancedFilters = departmentFilter !== "all" || processTypeFilter !== "all" || responsibilityFilter !== "all";
+  const advancedFilterCount = [departmentFilter, processTypeFilter, responsibilityFilter].filter((value) => value !== "all").length;
 
   return (
     <main className="app-shell">
@@ -188,7 +190,7 @@ export default function WorkflowListPage() {
             </Link>
           </div>
 
-          <div className="toolbar-row toolbar-row-filters">
+          <div className="toolbar-row toolbar-row-filters workflow-filter-bar">
             <label className="field compact grow">
               <span>Suche im Überblick</span>
               <input
@@ -203,6 +205,41 @@ export default function WorkflowListPage() {
             </label>
 
             <label className="field compact">
+              <span>Status</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus);
+                  setPageIndex(0);
+                }}
+              >
+                <option value="all">Alle</option>
+                <option value="draft">HR startet</option>
+                <option value="waiting_for_supervisor">Wartet auf Abteilungsleitung</option>
+                <option value="waiting_for_department">Fachbereiche offen</option>
+                <option value="in_progress">Fachbereiche in Bearbeitung</option>
+                <option value="completed">Abgeschlossen</option>
+              </select>
+            </label>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                void Promise.all([workflowListQuery.refetch(), processTypesQuery.refetch()]);
+              }}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
+            </button>
+          </div>
+
+          <details className="workflow-filter-details" open={hasAdvancedFilters}>
+            <summary>
+              Weitere Filter{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
+            </summary>
+            <div className="toolbar-row toolbar-row-filters workflow-filter-bar workflow-filter-bar--details">
+              <label className="field compact">
               <span>Prozesstyp</span>
               <select
                 value={processTypeFilter}
@@ -239,24 +276,6 @@ export default function WorkflowListPage() {
             </label>
 
             <label className="field compact">
-              <span>Status</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => {
-                  setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus);
-                  setPageIndex(0);
-                }}
-              >
-                <option value="all">Alle</option>
-                <option value="draft">HR startet</option>
-                <option value="waiting_for_supervisor">Wartet auf Abteilungsleitung</option>
-                <option value="waiting_for_department">Fachbereiche offen</option>
-                <option value="in_progress">Fachbereiche in Bearbeitung</option>
-                <option value="completed">Abgeschlossen</option>
-              </select>
-            </label>
-
-            <label className="field compact">
               <span>Zuständiger Bereich</span>
               <select
                 value={responsibilityFilter}
@@ -273,18 +292,8 @@ export default function WorkflowListPage() {
                 ))}
               </select>
             </label>
-
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                void Promise.all([workflowListQuery.refetch(), processTypesQuery.refetch()]);
-              }}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
-            </button>
-          </div>
+            </div>
+          </details>
           <div className="toolbar-row">
             <p className="panel-note">
               Seite {pageIndex + 1} von {totalPages} · {totalCount} Einträge
@@ -345,27 +354,22 @@ export default function WorkflowListPage() {
           <section className="workflow-grid" aria-label="Liste Mitarbeiterprozesse">
             {rows.map((workflow) => {
               const workflowDisplayName = `${workflow.firstName} ${workflow.lastName}`.trim();
-              const responsibilities =
-                workflow.responsibilityOptions.map((option) => option.label).join(", ") || "Keine Aufgaben";
 
               return (
-                <article key={workflow.uid} className="workflow-card workflow-card-extended">
+                <article key={workflow.uid} className="workflow-card workflow-card-extended card-list">
                   <div className="workflow-card-top">
-                    <h3>{workflowDisplayName || "Unbekannter Name"}</h3>
+                    <div>
+                      <h3>{workflowDisplayName || "Unbekannter Name"}</h3>
+                      <div className="chips-row" aria-label="Prozesstyp">
+                        <span className="chip">{workflow.processType.name}</span>
+                      </div>
+                    </div>
                     <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
                       {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}
                     </span>
                   </div>
 
                   <dl className="workflow-meta">
-                    <div>
-                      <dt>Prozesstyp</dt>
-                      <dd>{workflow.processType.name}</dd>
-                    </div>
-                    <div>
-                      <dt>Personalnummer</dt>
-                      <dd>{workflow.employeeNumber}</dd>
-                    </div>
                     <div>
                       <dt>Stelle</dt>
                       <dd>{workflow.roleName}</dd>
@@ -375,25 +379,14 @@ export default function WorkflowListPage() {
                       <dd>{workflow.departmentName}</dd>
                     </div>
                     <div>
-                      <dt>Workflow-ID</dt>
-                      <dd className="uid-value">{workflow.uid}</dd>
-                    </div>
-                    <div>
-                      <dt>Aktueller Stand</dt>
-                      <dd>{getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}</dd>
-                    </div>
-                    <div>
-                      <dt>Erstellt</dt>
-                      <dd>{formatDateTime(workflow.createdAt)}</dd>
+                      <dt>Personalnummer</dt>
+                      <dd>{workflow.employeeNumber}</dd>
                     </div>
                     <div>
                       <dt>Deadline</dt>
                       <dd>{formatDate(workflow.deadlineDate)}</dd>
                     </div>
                   </dl>
-
-                  <p className="panel-note">Aufgaben: {workflow.taskSummary}</p>
-                  <p className="panel-note">Zuständigkeiten: {responsibilities}</p>
 
                   <div className="action-row">
                     <Link className="btn btn-secondary" to={`/workflows/${workflow.uid}`}>

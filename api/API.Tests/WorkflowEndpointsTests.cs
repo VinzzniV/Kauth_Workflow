@@ -248,6 +248,89 @@ public sealed class WorkflowEndpointsTests
     }
 
     [Fact]
+    public async Task GetRelatedWorkflowsEndpoint_PassesWorkflowUidToRepository()
+    {
+        var workflowUid = Guid.NewGuid();
+        var repository = new StubWorkflowRepository
+        {
+            Workflow = CreateWorkflowDetail(workflowUid),
+            RelatedWorkflows = new List<RelatedWorkflowSummaryDto>()
+        };
+
+        var app = CreateApp(repository);
+        var endpoint = GetWorkflowEndpoint(app, "/workflows/{uid:guid}/related", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            $"/workflows/{workflowUid}/related",
+            "",
+            ("uid", workflowUid));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetRelatedWorkflowsCallCount);
+        Assert.Equal(workflowUid, repository.LastGetRelatedWorkflowsWorkflowUid);
+    }
+
+    [Fact]
+    public async Task GetRelatedWorkflowsEndpoint_FiltersInvisibleRelatedWorkflowsForManager()
+    {
+        var workflowUid = Guid.NewGuid();
+        var repository = new StubWorkflowRepository
+        {
+            Workflow = CreateWorkflowDetail(workflowUid),
+            RelatedWorkflows = new List<RelatedWorkflowSummaryDto>
+            {
+                new()
+                {
+                    Uid = Guid.NewGuid(),
+                    WorkflowStatus = "draft",
+                    CreatedAt = DateTime.UtcNow,
+                    DepartmentId = 1,
+                    ProcessType = new WorkflowProcessTypeDto
+                    {
+                        Key = "onboarding",
+                        Name = "Onboarding",
+                        RequiresTargetPerson = true
+                    }
+                },
+                new()
+                {
+                    Uid = Guid.NewGuid(),
+                    WorkflowStatus = "draft",
+                    CreatedAt = DateTime.UtcNow.AddDays(-1),
+                    DepartmentId = 2,
+                    ProcessType = new WorkflowProcessTypeDto
+                    {
+                        Key = "offboarding",
+                        Name = "Offboarding",
+                        RequiresTargetPerson = true
+                    }
+                }
+            }
+        };
+
+        var app = CreateApp(repository, CreateManagerUserForDepartment(1));
+        var endpoint = GetWorkflowEndpoint(app, "/workflows/{uid:guid}/related", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            $"/workflows/{workflowUid}/related",
+            "",
+            ("uid", workflowUid));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        context.Response.Body.Position = 0;
+        using var reader = new StreamReader(context.Response.Body, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+        Assert.Contains("Onboarding", body);
+        Assert.DoesNotContain("Offboarding", body);
+    }
+
+    [Fact]
     public async Task DeriveAnswersEndpoint_RejectsInvalidSourceUid()
     {
         var repository = new StubWorkflowRepository();
@@ -1337,6 +1420,7 @@ public sealed class WorkflowEndpointsTests
         public List<RoleDto> Roles { get; set; } = new();
         public WorkflowLinkDto? CreatedWorkflowLink { get; set; }
         public List<WorkflowLinkDto> WorkflowLinks { get; set; } = new();
+        public List<RelatedWorkflowSummaryDto> RelatedWorkflows { get; set; } = new();
         public List<LinkableWorkflowDto> LinkableWorkflows { get; set; } = new();
         public List<DerivedAnswerDto> DerivedAnswers { get; set; } = new();
         public BulkOperationResultDto? BulkOperationResult { get; set; }
@@ -1357,6 +1441,7 @@ public sealed class WorkflowEndpointsTests
         public int GetRolesCallCount { get; private set; }
         public int CreateWorkflowLinkCallCount { get; private set; }
         public int GetWorkflowLinksCallCount { get; private set; }
+        public int GetRelatedWorkflowsCallCount { get; private set; }
         public int FindLinkableWorkflowsCallCount { get; private set; }
         public int GetDerivedAnswersCallCount { get; private set; }
         public int DeleteWorkflowLinkCallCount { get; private set; }
@@ -1386,6 +1471,7 @@ public sealed class WorkflowEndpointsTests
         public Guid? LastCreateWorkflowLinkTargetWorkflowUid { get; private set; }
         public CreateWorkflowLinkRequest? LastCreateWorkflowLinkRequest { get; private set; }
         public long? LastCreateWorkflowLinkActorUserId { get; private set; }
+        public Guid? LastGetRelatedWorkflowsWorkflowUid { get; private set; }
         public int? LastFindLinkableWorkflowsEmployeeNumber { get; private set; }
         public Guid? LastFindLinkableWorkflowsExcludeUid { get; private set; }
         public Guid? LastGetDerivedAnswersSourceWorkflowUid { get; private set; }
@@ -1490,6 +1576,13 @@ public sealed class WorkflowEndpointsTests
         {
             GetWorkflowLinksCallCount += 1;
             return Task.FromResult(WorkflowLinks);
+        }
+
+        public Task<List<RelatedWorkflowSummaryDto>> GetRelatedWorkflows(Guid workflowUid)
+        {
+            GetRelatedWorkflowsCallCount += 1;
+            LastGetRelatedWorkflowsWorkflowUid = workflowUid;
+            return Task.FromResult(RelatedWorkflows);
         }
 
         public Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId)

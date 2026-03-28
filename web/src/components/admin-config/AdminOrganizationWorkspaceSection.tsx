@@ -266,14 +266,7 @@ export function AdminOrganizationWorkspaceSection({
 
   return (
     <div className="content-stack">
-      <section className="panel panel-muted">
-        <div className="panel-head">
-          <h2>Organisation</h2>
-          <p>Personen, Abteilungen und fachliche Zuständigkeiten werden hier als zusammenhängendes Modell gepflegt.</p>
-        </div>
-      </section>
-
-      <div className="admin-workspace-grid">
+      <div className="master-detail-layout">
         <AdminOrganizationSidebar
           organizationEntity={organizationEntity}
           selectedEntityId={selectedEntityId}
@@ -285,7 +278,7 @@ export function AdminOrganizationWorkspaceSection({
           onSelectUser={onSelectUser}
         />
 
-        <div className="admin-organization-main">
+        <div className="content-stack admin-organization-main master-detail-main">
           {organizationEntity === "user" ? (
             <AdminOrganizationUserEditor
               sortedDepartments={sortedDepartments}
@@ -359,9 +352,7 @@ export function AdminOrganizationWorkspaceSection({
               onSaveResponsibilityAssignment={onSaveResponsibilityAssignment}
             />
           ) : null}
-        </div>
 
-        <aside className="admin-organization-aside">
           <AdminOrganizationRelationsPanel
             organizationEntity={organizationEntity}
             selectedUser={selectedUser}
@@ -372,7 +363,7 @@ export function AdminOrganizationWorkspaceSection({
             responsibilityRelations={responsibilityRelations}
             onSelectOrganizationEntity={onSelectOrganizationEntity}
           />
-        </aside>
+        </div>
       </div>
     </div>
   );

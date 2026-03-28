@@ -1,4 +1,4 @@
-// Detailansicht fuer einen einzelnen Vorgang mit Prozessstand, Antworten und Aufgaben.
+// Detailansicht fuer einen einzelnen Vorgang mit Antworten, Aufgaben und Verwaltungsinformationen.
 import { useCallback, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
@@ -7,7 +7,6 @@ import WorkflowHeaderPanel from "../components/workflow-detail/WorkflowHeaderPan
 import WorkflowLinksPanel from "../components/workflow-detail/WorkflowLinksPanel";
 import WorkflowManagementPanel from "../components/workflow-detail/WorkflowManagementPanel";
 import WorkflowNotificationsPanel from "../components/workflow-detail/WorkflowNotificationsPanel";
-import WorkflowProgressSection from "../components/workflow-detail/WorkflowProgressSection";
 import WorkflowRequirementsPanel from "../components/workflow-detail/WorkflowRequirementsPanel";
 import WorkflowTaskAreasSection from "../components/workflow-detail/WorkflowTaskAreasSection";
 import {
@@ -16,7 +15,6 @@ import {
   useWorkflowTasks,
 } from "../services/queries/workflowQueries";
 import {
-  buildProcessSteps,
   buildTasksByArea,
   findCurrentTask,
   inferAreaFromTask,
@@ -25,7 +23,6 @@ import {
   toRegularEditingLabel,
   toTaskDisplayTitle,
   type ProcessAreaName,
-  type ProcessStep,
 } from "../components/workflow-detail/workflowDetailModel";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
@@ -214,14 +211,6 @@ export default function WorkflowDetailPage() {
     return "Nächsten Prozessschritt prüfen";
   }, [activeAreaNames.length, activeTaskCount, currentTask, workflow]);
 
-  const processSteps = useMemo<ProcessStep[]>(() => {
-    if (!workflow) {
-      return [] as ProcessStep[];
-    }
-
-    return buildProcessSteps(workflow);
-  }, [workflow]);
-
   const tasksByArea = useMemo(
     () => (workflow ? buildTasksByArea(sortedTasks, workflow.taskAreas) : []),
     [sortedTasks, workflow]
@@ -288,11 +277,7 @@ export default function WorkflowDetailPage() {
             />
 
             <section className="workflow-detail-secondary-stack">
-              <WorkflowProgressSection processSteps={processSteps} processTypeName={workflow.processType.name} />
-
-              {capabilities.hasHrRole || capabilities.canManageAdminConfiguration ? (
-                <WorkflowLinksPanel uid={uid} workflow={workflow} />
-              ) : null}
+              <WorkflowLinksPanel uid={uid} />
 
               <WorkflowManagementPanel
                 uid={uid}

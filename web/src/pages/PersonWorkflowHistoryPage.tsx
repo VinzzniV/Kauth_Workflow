@@ -122,7 +122,7 @@ export default function PersonWorkflowHistoryPage() {
                   {history.workflows.map((workflow) => {
                     const name = `${workflow.firstName} ${workflow.lastName}`.trim();
                     return (
-                      <article key={workflow.uid} className="workflow-card">
+                      <article key={workflow.uid} className="workflow-card card-list">
                         <div className="workflow-card-top">
                           <h3>{name || displayName}</h3>
                           <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>

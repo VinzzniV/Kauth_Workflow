@@ -14,15 +14,6 @@ import {
   formatDateTime as formatDateTimeValue,
 } from "../../utils/dateFormat";
 
-export type ProcessStepState = "done" | "active" | "pending";
-
-export type ProcessStep = {
-  key: string;
-  title: string;
-  detail: string;
-  state: ProcessStepState;
-};
-
 export type ProcessAreaName = WorkflowTaskArea;
 
 export type ProcessAreaGroup = {
@@ -45,18 +36,6 @@ export function formatDateTime(value: string | null): string {
 
 export function toRuntimeStatusLabel(status: WorkflowDetail["workflowStatus"]): string {
   return getWorkflowRuntimeStatusLabel(status);
-}
-
-export function toProcessStepClass(state: ProcessStepState): string {
-  if (state === "done") {
-    return "process-step-state-done";
-  }
-
-  if (state === "active") {
-    return "process-step-state-active";
-  }
-
-  return "process-step-state-pending";
 }
 
 export function isOpenStatus(status: WorkflowTask["status"]): boolean {
@@ -248,74 +227,6 @@ export function findCurrentTask(tasks: WorkflowTask[]): WorkflowTask | null {
 
       return left.sortOrder - right.sortOrder || left.id - right.id;
     })[0];
-}
-
-export function buildProcessSteps(workflow: WorkflowDetail): ProcessStep[] {
-  const requirementSummary = workflow.requirementSummary;
-  const departmentTaskMetrics = workflow.taskMetrics.departmentPhase;
-  const isDepartmentPhase = isDepartmentWorkflowPhase(workflow.workflowStatus);
-  const isTerminalWorkflow = isWorkflowTerminalStatus(workflow.workflowStatus);
-  const includesSupervisorStep = hasSupervisorStep(workflow);
-  const hrStepState: ProcessStepState = workflow.workflowStatus === "draft" ? "active" : "done";
-  const requirementStepState: ProcessStepState =
-    workflow.workflowStatus === "waiting_for_supervisor"
-      ? "active"
-      : isDepartmentPhase || isTerminalWorkflow
-        ? "done"
-        : "pending";
-  const departmentStepState: ProcessStepState =
-    isDepartmentPhase
-      ? "active"
-      : isTerminalWorkflow
-        ? "done"
-        : "pending";
-  const completedStepState: ProcessStepState = isTerminalWorkflow ? "done" : "pending";
-
-  const steps: ProcessStep[] = [
-    {
-      key: "hr-start",
-      title: "HR gestartet",
-      detail:
-        workflow.workflowStatus === "draft"
-          ? "HR prüft die Stammdaten und startet den Vorgang."
-          : `Start am ${formatDateTime(workflow.createdAt)}.`,
-      state: hrStepState,
-    },
-    {
-      key: "departments",
-      title: "Fachbereiche bearbeiten Aufgaben",
-      detail:
-        workflow.workflowStatus === "draft" || (includesSupervisorStep && workflow.workflowStatus === "waiting_for_supervisor")
-          ? includesSupervisorStep
-            ? "Aufgaben für Fachbereiche entstehen erst nach Abschluss der Freigabe."
-            : "Aufgaben für Fachbereiche entstehen nach Abschluss der Startphase."
-          : `Offen: ${departmentTaskMetrics.openCount} | In Bearbeitung: ${departmentTaskMetrics.inProgressCount} | Erledigt: ${departmentTaskMetrics.completedCount} von ${departmentTaskMetrics.totalCount}.`,
-      state: departmentStepState,
-    },
-    {
-      key: "completed",
-      title: "Abgeschlossen",
-      detail:
-        workflow.workflowStatus === "completed"
-          ? "Vorgang ist abgeschlossen."
-          : "Abschluss steht noch aus.",
-      state: completedStepState,
-    },
-  ];
-
-  if (includesSupervisorStep) {
-    steps.splice(1, 0, {
-      key: "requirements",
-      title: "Abteilungsleitung bestätigt Anforderungen",
-      detail:
-        workflow.workflowStatus === "draft"
-          ? "Startet, sobald HR den Vorgang freigibt."
-          : `Beantwortet: ${requirementSummary.answeredVisibleCount} von ${requirementSummary.visibleCount}.`,
-      state: requirementStepState,
-    });
-  }
-
-  return steps;
 }
 
 export function buildTasksByArea(

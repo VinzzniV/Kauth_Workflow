@@ -5,6 +5,8 @@ import type {
   AdminWorkspaceSection,
   AdminWorkspaceWarning,
 } from "./adminWorkspaceModel";
+import Card from "../ui/Card";
+import SectionHeader from "../ui/SectionHeader";
 
 type AdminOverviewWorkspaceSectionProps = {
   departmentCount: number;
@@ -36,104 +38,99 @@ export function AdminOverviewWorkspaceSection({
   const technicalAccessSummary = hasLoadedTechnicalAccess
     ? `${roleCount} Rollen | ${groupCount} Gruppen`
     : "Rollen und Gruppen bei Bedarf laden";
-  const notificationSummary = `${notificationModeLabel(notificationEmailConfiguration)} | ${notificationConfigurationStatusLabel(notificationEmailConfiguration)}`;
+  const notificationSummary = `${notificationModeLabel(notificationEmailConfiguration)} | ${notificationConfigurationStatusLabel(notificationEmailConfiguration)} | ${warningCount} Warnungen`;
 
   return (
     <div className="content-stack">
       <section className="panel">
-        <div className="panel-head">
-          <h2>Bereiche</h2>
-        </div>
+        <SectionHeader title="Arbeitsbereiche" />
 
         <div className="admin-overview-grid" aria-label="Bereiche der Administration">
-          <article className="admin-overview-card">
-            <div className="admin-overview-card-head">
-              <h3>Organisation</h3>
-              <p>{userCount} Personen | {departmentCount} Abteilungen | {responsibilityCount} Zuständigkeiten</p>
-            </div>
+          <Card variant="primary" className="admin-overview-card">
+            <SectionHeader
+              title="Organisation"
+              description={`${userCount} Personen | ${departmentCount} Abteilungen | ${responsibilityCount} Zuständigkeiten`}
+              className="admin-overview-card-head"
+              headingTag="h3"
+            />
             <div className="action-row admin-overview-actions">
               <button type="button" className="btn btn-primary" onClick={() => onOpenOrganization("user", null)}>
                 Personen
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenOrganization("department", null)}>
+              <button type="button" className="btn btn-ghost" onClick={() => onOpenOrganization("department", null)}>
                 Abteilungen
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenOrganization("responsibility", null)}>
+              <button type="button" className="btn btn-ghost" onClick={() => onOpenOrganization("responsibility", null)}>
                 Zuständigkeiten
               </button>
             </div>
-          </article>
+          </Card>
 
-          <article className="admin-overview-card">
-            <div className="admin-overview-card-head">
-              <h3>Vorlagen & Felder</h3>
-              <p>Aufgabenvorlagen, Antwortfelder und Standardwerte</p>
-            </div>
+          <Card variant="primary" className="admin-overview-card">
+            <SectionHeader
+              title="Vorlagen & Felder"
+              description="Vorlagen | Felder | Standardwerte"
+              className="admin-overview-card-head"
+              headingTag="h3"
+            />
             <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("templates")}>
+              <button type="button" className="btn btn-primary" onClick={() => onOpenSection("templates")}>
                 Aufgabenvorlagen
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("answers")}>
+              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("answers")}>
                 Antwortfelder
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("defaults")}>
+              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("defaults")}>
                 Standardwerte
               </button>
             </div>
-          </article>
+          </Card>
 
-          <article className="admin-overview-card">
-            <div className="admin-overview-card-head">
-              <h3>Rechte & Verzeichnis</h3>
-              <p>{technicalAccessSummary}</p>
-            </div>
+          <Card variant="primary" className="admin-overview-card">
+            <SectionHeader
+              title="Rechte & Zugriff"
+              description={technicalAccessSummary}
+              className="admin-overview-card-head"
+              headingTag="h3"
+            />
             <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("access")}>
+              <button type="button" className="btn btn-primary" onClick={() => onOpenSection("access")}>
                 Zugriffe & Gruppen
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("directory")}>
+              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("directory")}>
                 Entra-Verzeichnis
               </button>
             </div>
-          </article>
+          </Card>
 
-          <article className="admin-overview-card">
-            <div className="admin-overview-card-head">
-              <h3>Benachrichtigungen & System</h3>
-              <p>{notificationSummary}</p>
-            </div>
+          <Card variant="primary" className="admin-overview-card">
+            <SectionHeader
+              title="System"
+              description={notificationSummary}
+              className="admin-overview-card-head"
+              headingTag="h3"
+            />
             <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("system")}>
-                System öffnen
+              <button type="button" className="btn btn-primary" onClick={() => onOpenSection("system")}>
+                Benachrichtigungen
               </button>
-            </div>
-          </article>
-
-          <article className="admin-overview-card admin-overview-card--caution">
-            <div className="admin-overview-card-head">
-              <h3>Massenänderungen</h3>
-              <p>{warningCount === 0 ? "Keine offenen Warnungen" : `${warningCount} offene Warnungen`}</p>
-            </div>
-            <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("operations")}>
+              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("operations")}>
                 Massenänderungen
               </button>
             </div>
-          </article>
+          </Card>
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Warnungen</h2>
-        </div>
+      <section className="section-stack">
+        <SectionHeader title="Warnungen" />
 
         {warnings.length === 0 ? (
           <p className="panel-note">Keine offenen Warnungen.</p>
         ) : (
           <div className="dashboard-grid" aria-label="Warnhinweise der Administration">
             {warnings.map((warning) => (
-              <article key={warning.key} className="dashboard-card">
+              <Card key={warning.key} variant="list" className="dashboard-card">
                 <h2>{warning.title}</h2>
                 <p>{warning.detail}</p>
                 <div className="action-row">
@@ -154,7 +151,7 @@ export function AdminOverviewWorkspaceSection({
                     {warning.actionLabel}
                   </button>
                 </div>
-              </article>
+              </Card>
             ))}
           </div>
         )}

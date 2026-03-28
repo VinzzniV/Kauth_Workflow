@@ -12,25 +12,274 @@
   --bg-card: #ffffff;
   --bg-card-muted: #f3f4f6;
   --bg-card-success: #f0fdf4;
+  --bg-card-warning: #fffbeb;
+  --bg-card-caution: #fff7ed;
+  --bg-card-error: #fef2f2;
   --text-primary: #111827;
   --text-secondary: #6b7280;
   --text-tertiary: #9ca3af;
+  --text-danger: #b42318;
+  --text-warning: #92400e;
+  --text-success: #065f46;
+  --text-info: #1e40af;
   --brand: #2563eb;
   --brand-hover: #1d4ed8;
   --brand-soft: #eff6ff;
+  --brand-soft-strong: #e8f0ff;
+  --brand-ring: rgba(37, 99, 235, 0.22);
+  --brand-border-soft: rgba(37, 99, 235, 0.18);
+  --brand-border-strong: rgba(37, 99, 235, 0.28);
   --border: #e5e7eb;
   --border-strong: #d1d5db;
+  --border-success: #bbf7d0;
+  --border-warning: #fcd34d;
+  --border-caution: #fdba74;
+  --border-danger: #fecaca;
+  --border-danger-strong: #fda29b;
+  --border-info: #bfdbfe;
   --focus-ring: rgba(37, 99, 235, 0.35);
   --danger: #dc2626;
   --success: #059669;
   --warning: #d97706;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.08);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --sidebar-width: 260px;
+  --surface-hover-subtle: rgba(15, 23, 42, 0.08);
+  --surface-backdrop: rgba(15, 23, 42, 0.42);
+  --surface-overlay: rgba(255, 255, 255, 0.96);
+  --surface-glass: rgba(255, 255, 255, 0.98);
+  --surface-glass-success: rgba(240, 253, 244, 0.98);
+  --surface-glass-error: rgba(255, 241, 242, 0.98);
+  --surface-glass-info: rgba(239, 246, 255, 0.98);
+  --skeleton-start: #e5e7eb;
+  --skeleton-mid: #f3f4f6;
+  --login-card-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 252, 0.98));
+  --login-card-border: rgba(15, 23, 42, 0.08);
+  --login-card-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  --login-error-bg: rgba(255, 241, 242, 0.95);
+  --login-error-border: rgba(190, 24, 93, 0.18);
+  --login-error-text: #9f1239;
+  --login-provider-bg: #ffffff;
+  --login-provider-border: rgba(15, 23, 42, 0.12);
+  --login-provider-text: #111827;
+  --login-provider-hover-bg: #f8fafc;
+  --login-provider-hover-border: rgba(15, 23, 42, 0.18);
+  --dashboard-priority-gradient: radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  --dashboard-priority-ring: 0 0 0 1px rgba(37, 99, 235, 0.14), var(--shadow-md);
+  --badge-success-bg: #d1fae5;
+  --badge-success-text: #065f46;
+  --badge-success-border: #a7f3d0;
+  --badge-default-bg: #f3f4f6;
+  --badge-default-text: #374151;
+  --badge-default-border: #e5e7eb;
+  --badge-error-bg: #fee2e2;
+  --badge-error-text: #991b1b;
+  --badge-error-border: #fca5a5;
+  --status-success-bg: #d1fae5;
+  --status-success-text: #065f46;
+  --status-success-border: #a7f3d0;
+  --status-info-bg: #dbeafe;
+  --status-info-text: #1e40af;
+  --status-info-border: #bfdbfe;
+  --status-warning-bg: #fef3c7;
+  --status-warning-text: #92400e;
+  --status-warning-border: #fcd34d;
+  --status-danger-bg: #fee2e2;
+  --status-danger-text: #991b1b;
+  --status-danger-border: #fca5a5;
+  --status-neutral-bg: #f3f4f6;
+  --status-neutral-text: #374151;
+  --status-neutral-border: #d1d5db;
+  --status-ready-bg: #cffafe;
+  --status-ready-text: #0e7490;
+  --status-ready-border: #a5f3fc;
+  --theme-toggle-bg: var(--bg-card);
+  --theme-toggle-border: var(--border);
+  --theme-toggle-text: var(--text-primary);
+  --theme-toggle-hover-bg: var(--bg-card-muted);
+  --theme-toggle-hover-border: var(--border-strong);
+  --theme-toggle-shadow: var(--shadow-sm);
+  --graph-edge-done: #0f766e;
+  --graph-edge-ready: #0ea5e9;
+  --graph-edge-in-progress: #f59e0b;
+  --graph-edge-blocked: #ef4444;
+  --graph-edge-open: #64748b;
+  --graph-edge-done-bg: rgba(204, 251, 241, 0.96);
+  --graph-edge-ready-bg: rgba(224, 242, 254, 0.96);
+  --graph-edge-in-progress-bg: rgba(254, 243, 199, 0.96);
+  --graph-edge-blocked-bg: rgba(254, 226, 226, 0.96);
+  --graph-edge-open-bg: rgba(241, 245, 249, 0.98);
+  --graph-edge-done-border: rgba(15, 118, 110, 0.4);
+  --graph-edge-ready-border: rgba(14, 165, 233, 0.4);
+  --graph-edge-in-progress-border: rgba(245, 158, 11, 0.4);
+  --graph-edge-blocked-border: rgba(239, 68, 68, 0.4);
+  --graph-edge-open-border: rgba(100, 116, 139, 0.4);
+  --graph-edge-done-text: #115e59;
+  --graph-edge-ready-text: #0369a1;
+  --graph-edge-in-progress-text: #92400e;
+  --graph-edge-blocked-text: #991b1b;
+  --graph-edge-open-text: #334155;
+  --graph-surface-border: rgba(148, 163, 184, 0.35);
+  --graph-surface-background: radial-gradient(circle at top left, rgba(240, 253, 250, 0.9), rgba(248, 250, 252, 0.95) 45%, rgba(255, 255, 255, 1));
+  --graph-grid-color: rgba(148, 163, 184, 0.22);
+  --graph-minimap-background: rgba(255, 255, 255, 0.9);
+  --graph-node-border-selected: rgba(15, 118, 110, 0.9);
+  --graph-node-border: rgba(148, 163, 184, 0.65);
+  --graph-node-background-selected: linear-gradient(180deg, rgba(240, 253, 250, 1), rgba(255, 255, 255, 0.98));
+  --graph-node-background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  --graph-node-shadow-selected: 0 0 0 3px rgba(15, 118, 110, 0.14), 0 18px 34px rgba(15, 23, 42, 0.12);
+  --graph-node-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+  --graph-node-header-border: rgba(226, 232, 240, 0.9);
+  --graph-node-header-background: linear-gradient(135deg, rgba(236, 254, 255, 0.95), rgba(248, 250, 252, 0.75));
+  --graph-node-metric-background: rgba(241, 245, 249, 0.9);
+  --graph-node-metric-border: rgba(226, 232, 240, 0.95);
+  --graph-node-title: #0f172a;
+  --graph-node-handle: #0f766e;
+  --graph-handle-border: #ffffff;
+  --graph-chip-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  --graph-overlay-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+}
 
+:root[data-theme="dark"] {
+  color: #e5eef8;
+  background: #0b1220;
+  --bg-body: #0b1220;
+  --bg-card: #101a2a;
+  --bg-card-muted: #162235;
+  --bg-card-success: #102117;
+  --bg-card-warning: #2b2311;
+  --bg-card-caution: #302112;
+  --bg-card-error: #2a171a;
+  --text-primary: #e5eef8;
+  --text-secondary: #9db0c7;
+  --text-tertiary: #7f93ac;
+  --text-danger: #fca5a5;
+  --text-warning: #fbbf24;
+  --text-success: #6ee7b7;
+  --text-info: #93c5fd;
+  --brand: #60a5fa;
+  --brand-hover: #93c5fd;
+  --brand-soft: #132742;
+  --brand-soft-strong: #183457;
+  --brand-ring: rgba(96, 165, 250, 0.24);
+  --brand-border-soft: rgba(96, 165, 250, 0.22);
+  --brand-border-strong: rgba(96, 165, 250, 0.36);
+  --border: #243247;
+  --border-strong: #33465f;
+  --border-success: #1f5b45;
+  --border-warning: #7c5a11;
+  --border-caution: #8a5a1d;
+  --border-danger: #7f2d38;
+  --border-danger-strong: #9e3946;
+  --border-info: #2c5f8f;
+  --focus-ring: rgba(96, 165, 250, 0.45);
+  --danger: #f87171;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --shadow-sm: 0 4px 18px rgba(2, 6, 23, 0.22);
+  --shadow-md: 0 10px 32px rgba(2, 6, 23, 0.32);
+  --shadow-lg: 0 24px 60px rgba(2, 6, 23, 0.45);
+  --surface-hover-subtle: rgba(148, 163, 184, 0.14);
+  --surface-backdrop: rgba(2, 6, 23, 0.62);
+  --surface-overlay: rgba(11, 18, 32, 0.92);
+  --surface-glass: rgba(15, 23, 42, 0.92);
+  --surface-glass-success: rgba(16, 33, 23, 0.96);
+  --surface-glass-error: rgba(42, 23, 26, 0.96);
+  --surface-glass-info: rgba(19, 39, 66, 0.96);
+  --skeleton-start: #223046;
+  --skeleton-mid: #2b3a55;
+  --login-card-gradient: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(11, 18, 32, 0.98));
+  --login-card-border: rgba(96, 165, 250, 0.14);
+  --login-card-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+  --login-error-bg: rgba(62, 23, 34, 0.92);
+  --login-error-border: rgba(248, 113, 113, 0.28);
+  --login-error-text: #fecdd3;
+  --login-provider-bg: #132033;
+  --login-provider-border: rgba(148, 163, 184, 0.2);
+  --login-provider-text: #e5eef8;
+  --login-provider-hover-bg: #18283d;
+  --login-provider-hover-border: rgba(148, 163, 184, 0.3);
+  --dashboard-priority-gradient: radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 38%), linear-gradient(180deg, rgba(16, 26, 42, 0.98), rgba(11, 18, 32, 0.98));
+  --dashboard-priority-ring: 0 0 0 1px rgba(96, 165, 250, 0.2), var(--shadow-md);
+  --badge-success-bg: #153525;
+  --badge-success-text: #86efac;
+  --badge-success-border: #256243;
+  --badge-default-bg: #1d293b;
+  --badge-default-text: #cbd5e1;
+  --badge-default-border: #344256;
+  --badge-error-bg: #3a1f25;
+  --badge-error-text: #fca5a5;
+  --badge-error-border: #7f3a47;
+  --status-success-bg: #153525;
+  --status-success-text: #86efac;
+  --status-success-border: #256243;
+  --status-info-bg: #152f4f;
+  --status-info-text: #93c5fd;
+  --status-info-border: #2c5f8f;
+  --status-warning-bg: #3a2f16;
+  --status-warning-text: #fcd34d;
+  --status-warning-border: #7c5a11;
+  --status-danger-bg: #3a1f25;
+  --status-danger-text: #fca5a5;
+  --status-danger-border: #7f3a47;
+  --status-neutral-bg: #1d293b;
+  --status-neutral-text: #cbd5e1;
+  --status-neutral-border: #344256;
+  --status-ready-bg: #133542;
+  --status-ready-text: #67e8f9;
+  --status-ready-border: #15576a;
+  --theme-toggle-bg: #132033;
+  --theme-toggle-border: rgba(148, 163, 184, 0.2);
+  --theme-toggle-text: #e5eef8;
+  --theme-toggle-hover-bg: #18283d;
+  --theme-toggle-hover-border: rgba(148, 163, 184, 0.3);
+  --theme-toggle-shadow: 0 12px 24px rgba(2, 6, 23, 0.24);
+  --graph-edge-done: #2dd4bf;
+  --graph-edge-ready: #38bdf8;
+  --graph-edge-in-progress: #fbbf24;
+  --graph-edge-blocked: #f87171;
+  --graph-edge-open: #94a3b8;
+  --graph-edge-done-bg: rgba(45, 212, 191, 0.16);
+  --graph-edge-ready-bg: rgba(56, 189, 248, 0.16);
+  --graph-edge-in-progress-bg: rgba(251, 191, 36, 0.16);
+  --graph-edge-blocked-bg: rgba(248, 113, 113, 0.16);
+  --graph-edge-open-bg: rgba(148, 163, 184, 0.16);
+  --graph-edge-done-border: rgba(45, 212, 191, 0.36);
+  --graph-edge-ready-border: rgba(56, 189, 248, 0.36);
+  --graph-edge-in-progress-border: rgba(251, 191, 36, 0.36);
+  --graph-edge-blocked-border: rgba(248, 113, 113, 0.36);
+  --graph-edge-open-border: rgba(148, 163, 184, 0.28);
+  --graph-edge-done-text: #99f6e4;
+  --graph-edge-ready-text: #bae6fd;
+  --graph-edge-in-progress-text: #fde68a;
+  --graph-edge-blocked-text: #fecaca;
+  --graph-edge-open-text: #e2e8f0;
+  --graph-surface-border: rgba(71, 85, 105, 0.55);
+  --graph-surface-background: radial-gradient(circle at top left, rgba(20, 35, 52, 0.98), rgba(12, 18, 29, 0.98) 45%, rgba(8, 13, 22, 1));
+  --graph-grid-color: rgba(148, 163, 184, 0.14);
+  --graph-minimap-background: rgba(11, 18, 32, 0.92);
+  --graph-node-border-selected: rgba(45, 212, 191, 0.75);
+  --graph-node-border: rgba(71, 85, 105, 0.8);
+  --graph-node-background-selected: linear-gradient(180deg, rgba(15, 33, 33, 0.98), rgba(11, 18, 32, 0.98));
+  --graph-node-background: linear-gradient(180deg, rgba(16, 26, 42, 0.98), rgba(11, 18, 32, 0.98));
+  --graph-node-shadow-selected: 0 0 0 3px rgba(45, 212, 191, 0.16), 0 18px 34px rgba(2, 6, 23, 0.35);
+  --graph-node-shadow: 0 12px 26px rgba(2, 6, 23, 0.28);
+  --graph-node-header-border: rgba(51, 65, 85, 0.9);
+  --graph-node-header-background: linear-gradient(135deg, rgba(20, 35, 52, 0.95), rgba(16, 26, 42, 0.8));
+  --graph-node-metric-background: rgba(22, 34, 53, 0.95);
+  --graph-node-metric-border: rgba(51, 65, 85, 0.9);
+  --graph-node-title: #e2e8f0;
+  --graph-node-handle: #2dd4bf;
+  --graph-handle-border: #0f172a;
+  --graph-chip-shadow: 0 4px 14px rgba(2, 6, 23, 0.28);
+  --graph-overlay-shadow: 0 16px 32px rgba(2, 6, 23, 0.34);
+}
+
+:root {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -187,6 +436,35 @@ h1, h2, h3, h4, p {
   gap: 0.65rem;
 }
 
+.theme-toggle-btn {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--theme-toggle-border);
+  border-radius: var(--radius-sm);
+  background: var(--theme-toggle-bg);
+  color: var(--theme-toggle-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 100ms ease, border-color 100ms ease, box-shadow 100ms ease, color 100ms ease;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--theme-toggle-hover-bg);
+  border-color: var(--theme-toggle-hover-border);
+  box-shadow: var(--theme-toggle-shadow);
+}
+
+.theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.theme-toggle-btn--sidebar {
+  justify-self: stretch;
+}
+
 .sidebar-user {
   display: flex;
   align-items: center;
@@ -313,20 +591,20 @@ h1, h2, h3, h4, p {
 }
 
 .page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   margin: 0;
 }
 
 .page-description {
   margin-top: 0.25rem;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   color: var(--text-secondary);
-  max-width: 60ch;
-  line-height: 1.5;
+  max-width: 56ch;
+  line-height: 1.45;
 }
 
 /* ─── Login Page (DemoLoginPage, unauthenticated) ─── */
@@ -348,10 +626,10 @@ h1, h2, h3, h4, p {
 }
 
 .login-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 252, 0.98));
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: var(--login-card-gradient);
+  border: 1px solid var(--login-card-border);
   border-radius: 22px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--login-card-shadow);
   padding: 2rem 2rem 1.5rem;
 }
 
@@ -388,9 +666,9 @@ h1, h2, h3, h4, p {
 
 .login-error {
   border-radius: 14px;
-  border: 1px solid rgba(190, 24, 93, 0.18);
-  background: rgba(255, 241, 242, 0.95);
-  color: #9f1239;
+  border: 1px solid var(--login-error-border);
+  background: var(--login-error-bg);
+  color: var(--login-error-text);
   padding: 0.85rem 1rem;
   font-size: 0.9rem;
 }
@@ -406,15 +684,15 @@ h1, h2, h3, h4, p {
 }
 
 .login-button-microsoft {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  color: #111827;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  background: var(--login-provider-bg);
+  border: 1px solid var(--login-provider-border);
+  color: var(--login-provider-text);
+  box-shadow: var(--shadow-md);
 }
 
 .login-button-microsoft:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.18);
+  background: var(--login-provider-hover-bg);
+  border-color: var(--login-provider-hover-border);
   transform: translateY(-1px);
 }
 

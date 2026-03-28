@@ -38,19 +38,11 @@ export default function RoleSelection({
     return roles.filter((role) => role.departmentId === selectedDepartmentId && role.isActive);
   }, [roles, selectedDepartmentId]);
 
-  const selectedDepartmentName = useMemo(
-    () => departments.find((department) => department.id === selectedDepartmentId)?.name ?? null,
-    [departments, selectedDepartmentId]
-  );
-
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Stelle und Abteilung</h2>
-        <p>
-          Abteilung und Stelle werden als Stammdaten gespeichert. Der konkrete Bedarf wird später von der
-          Abteilungsleitung festgelegt.
-        </p>
+        <p>Abteilung und Stelle festlegen.</p>
       </div>
 
       {isLoading ? (
@@ -107,12 +99,6 @@ export default function RoleSelection({
               {roleError ? <small className="field-error">{roleError}</small> : null}
             </label>
           </div>
-
-          <p className="panel-note metadata-note">
-            {selectedDepartmentName
-              ? `Verfügbare Stellen in ${selectedDepartmentName}: ${visibleRoles.length}`
-              : "Bitte zuerst eine Abteilung auswählen."}
-          </p>
         </>
       ) : null}
     </section>

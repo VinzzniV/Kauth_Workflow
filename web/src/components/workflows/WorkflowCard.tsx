@@ -4,7 +4,8 @@ import {
   getWorkflowRuntimeStatusLabel,
   getWorkflowRuntimeStatusPillClass,
 } from "../../utils/workflowStatus";
-import { formatDate, formatDateTime } from "../../utils/dateFormat";
+import { formatDate } from "../../utils/dateFormat";
+import Card from "../ui/Card";
 
 type Props = {
   workflow: WorkflowSummary;
@@ -14,7 +15,7 @@ export default function WorkflowCard({ workflow }: Props) {
   const fullName = `${workflow.firstName} ${workflow.lastName}`.trim();
 
   return (
-    <article className="workflow-card">
+    <Card variant="list" className="workflow-card">
       <div className="workflow-card-top">
         <div>
           <h3>{fullName || "Unbekannter Name"}</h3>
@@ -31,10 +32,6 @@ export default function WorkflowCard({ workflow }: Props) {
 
       <dl className="workflow-meta">
         <div>
-          <dt>Personalnummer</dt>
-          <dd>{workflow.employeeNumber}</dd>
-        </div>
-        <div>
           <dt>Stelle</dt>
           <dd>{workflow.roleName}</dd>
         </div>
@@ -43,16 +40,8 @@ export default function WorkflowCard({ workflow }: Props) {
           <dd>{workflow.departmentName}</dd>
         </div>
         <div>
-          <dt>Workflow-ID</dt>
-          <dd className="uid-value">{workflow.uid}</dd>
-        </div>
-        <div>
-          <dt>Hinweise</dt>
-          <dd>Offen: {workflow.pendingNotifications} / Fehler: {workflow.failedNotifications}</dd>
-        </div>
-        <div>
-          <dt>Erstellt</dt>
-          <dd>{formatDateTime(workflow.createdAt)}</dd>
+          <dt>Personalnummer</dt>
+          <dd>{workflow.employeeNumber}</dd>
         </div>
         <div>
           <dt>Deadline</dt>
@@ -63,6 +52,6 @@ export default function WorkflowCard({ workflow }: Props) {
       <Link className="btn btn-secondary" to={`/workflows/${workflow.uid}`}>
         Öffnen
       </Link>
-    </article>
+    </Card>
   );
 }

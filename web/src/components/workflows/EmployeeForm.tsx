@@ -16,7 +16,6 @@ export default function EmployeeForm({ value, onChange, fieldErrors }: Props) {
     <section className="panel">
       <div className="panel-head">
         <h2>Daten der neuen Person</h2>
-        <p>Erfassen Sie die Stammdaten für die neue Person.</p>
       </div>
 
       <div className="form-grid">
@@ -74,7 +73,6 @@ export default function EmployeeForm({ value, onChange, fieldErrors }: Props) {
             value={value.deadlineDate}
             onChange={(event) => onChange("deadlineDate", event.target.value)}
           />
-          <small>Optional. Gilt als Zieltermin für den gesamten Vorgang.</small>
         </label>
       </div>
     </section>
