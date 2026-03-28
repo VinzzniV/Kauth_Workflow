@@ -1,5 +1,5 @@
 // Arbeitsliste fuer Fachbereiche. Hier werden persoenliche oder verantwortungsbezogene Aufgaben gepflegt.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
@@ -7,7 +7,8 @@ import RequirementIcon from "../components/workflows/RequirementIcon";
 import TaskCommentsSection from "../components/workflows/TaskCommentsSection";
 import TaskSlaPill from "../components/workflows/TaskSlaPill";
 import TaskStatusPill from "../components/workflows/TaskStatusPill";
-import { addTaskComment as addTaskCommentApi, getMyTasks, updateTaskStatus as updateTaskStatusApi } from "../services/lifecycleApi";
+import { addTaskComment as addTaskCommentApi, updateTaskStatus as updateTaskStatusApi } from "../services/taskApi";
+import { useMyTasks } from "../services/queries/workflowQueries";
 import type { TaskWithWorkflow, WorkflowTaskStatus } from "../types/workflow";
 import {
   getResponsibleResponsibilityFilterOption,
@@ -31,10 +32,9 @@ function toTaskStateKey(workflowUid: string, taskId: number): string {
 }
 
 export default function MyTasksPage() {
-  const [rows, setRows] = useState<TaskWithWorkflow[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const myTasksQuery = useMyTasks();
   const [notice, setNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [search, setSearch] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -45,32 +45,22 @@ export default function MyTasksPage() {
   const [savingCommentTaskIds, setSavingCommentTaskIds] = useState<Record<number, boolean>>({});
   const [commentFeedbackTaskId, setCommentFeedbackTaskId] = useState<number | null>(null);
   const [commentFeedbackMessage, setCommentFeedbackMessage] = useState<string | null>(null);
+  const rows: TaskWithWorkflow[] = myTasksQuery.data ?? [];
+  const isLoading = myTasksQuery.isLoading;
+  const isRefreshing = myTasksQuery.isFetching;
+  const error =
+    actionError ??
+    (myTasksQuery.error instanceof Error
+      ? myTasksQuery.error.message
+      : myTasksQuery.error
+        ? "Aufgaben konnten nicht geladen werden."
+        : null);
 
-  const fetchTasks = useCallback(async () => {
-    return await getMyTasks();
-  }, []);
-
-  // Laedt die aktuelle Aufgabenliste und setzt alle Filterhinweise zurueck.
   const reload = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     setNotice(null);
-
-    try {
-      const tasks = await fetchTasks();
-      setRows(tasks);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Aufgaben konnten nicht geladen werden.";
-      setError(message);
-      setRows([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchTasks]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    setActionError(null);
+    await myTasksQuery.refetch();
+  }, [myTasksQuery]);
 
   const departmentOptions = useMemo(() => {
     const entries = Array.from(
@@ -167,21 +157,20 @@ export default function MyTasksPage() {
 
       setSavingTaskIds((current) => ({ ...current, [taskId]: true }));
       setNotice(null);
-      setError(null);
+      setActionError(null);
 
       try {
         await updateTaskStatusApi(taskId, nextStatus);
-        const refreshedTasks = await fetchTasks();
-        setRows(refreshedTasks);
+        await myTasksQuery.refetch();
         setNotice("Aufgabenstatus wurde gespeichert.");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Aufgabenstatus konnte nicht aktualisiert werden.";
-        setError(message);
+        setActionError(message);
       } finally {
         setSavingTaskIds((current) => ({ ...current, [taskId]: false }));
       }
     },
-    [fetchTasks]
+    [myTasksQuery]
   );
 
   const handleCommentDraftChange = useCallback((taskId: number, value: string) => {
@@ -198,13 +187,12 @@ export default function MyTasksPage() {
       setSavingCommentTaskIds((current) => ({ ...current, [taskId]: true }));
       setCommentFeedbackTaskId(taskId);
       setCommentFeedbackMessage(null);
-      setError(null);
+      setActionError(null);
       setNotice(null);
 
       try {
         await addTaskCommentApi(taskId, draft);
-        const refreshedTasks = await fetchTasks();
-        setRows(refreshedTasks);
+        await myTasksQuery.refetch();
         setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
         setCommentFeedbackMessage("Kommentar wurde gespeichert.");
       } catch (err) {
@@ -214,7 +202,7 @@ export default function MyTasksPage() {
         setSavingCommentTaskIds((current) => ({ ...current, [taskId]: false }));
       }
     },
-    [commentDrafts, fetchTasks]
+    [commentDrafts, myTasksQuery]
   );
 
   return (
@@ -285,8 +273,8 @@ export default function MyTasksPage() {
               </select>
             </label>
 
-            <button type="button" className="btn btn-secondary" onClick={reload}>
-              Aktualisieren
+            <button type="button" className="btn btn-secondary" onClick={() => void reload()} disabled={isRefreshing}>
+              {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
             </button>
           </div>
 

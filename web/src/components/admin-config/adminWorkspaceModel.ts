@@ -17,6 +17,21 @@ export type AdminWorkspaceSection =
   | "system"
   | "operations";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
+export type AdminWorkspaceSectionGroup = "start" | "configuration" | "technical" | "sensitive";
+
+export type AdminWorkspaceSectionMeta = {
+  key: AdminWorkspaceSection;
+  label: string;
+  description: string;
+  group: AdminWorkspaceSectionGroup;
+  groupLabel: string;
+  groupDescription: string;
+  audienceLabel: string;
+  cautionLabel: string;
+  audienceDescription: string;
+  cautionDescription: string;
+  impactLabel: string;
+};
 
 export type AdminWorkspaceWarning = {
   key: string;
@@ -27,6 +42,133 @@ export type AdminWorkspaceWarning = {
   targetId?: number | null;
   targetSection?: AdminWorkspaceSection;
 };
+
+export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
+  {
+    key: "overview",
+    label: "Übersicht",
+    description: "Status prüfen, Warnhinweise klären und in den passenden Bereich springen.",
+    group: "start",
+    groupLabel: "Empfohlener Start",
+    groupDescription: "Hilft beim Einstieg und bei der täglichen Orientierung.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Hinweis",
+    audienceDescription: "Wenn Sie zuerst verstehen wollen, wo Konfigurationslücken oder offene Aufgaben liegen.",
+    cautionDescription: "Hier werden Hinweise gebündelt, aber noch keine Stammdaten geändert.",
+    impactLabel: "Start hier",
+  },
+  {
+    key: "organization",
+    label: "Organisation",
+    description: "Personen, Abteilungen und Zuständigkeiten fachlich pflegen.",
+    group: "start",
+    groupLabel: "Empfohlener Start",
+    groupDescription: "Hilft beim Einstieg und bei der täglichen Orientierung.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn sich Ansprechpersonen, Bereiche oder fachliche Verantwortungen ändern.",
+    cautionDescription: "Login-Rechte und Gruppen bleiben bewusst getrennt und gehören in den Bereich Zugriffe & Gruppen.",
+    impactLabel: "Häufig genutzt",
+  },
+  {
+    key: "templates",
+    label: "Aufgabenvorlagen",
+    description: "Aufgabenlogik für neue Vorgänge pro Prozesstyp steuern.",
+    group: "configuration",
+    groupLabel: "Fachliche Konfiguration",
+    groupDescription: "Steuert, wie neue Vorgänge vorbereitet und vorausgefüllt werden.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn Aufbau, Reihenfolge oder Standardzuständigkeiten neuer Aufgaben angepasst werden sollen.",
+    cautionDescription: "Änderungen wirken auf neue Vorgänge und sollten mit dem betroffenen Fachbereich abgestimmt sein.",
+    impactLabel: "Neue Vorgänge",
+  },
+  {
+    key: "answers",
+    label: "Antwortfelder",
+    description: "Eingaben und Antwortlogik für neue Vorgänge pflegen.",
+    group: "configuration",
+    groupLabel: "Fachliche Konfiguration",
+    groupDescription: "Steuert, wie neue Vorgänge vorbereitet und vorausgefüllt werden.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn neue Eingabefelder benötigt werden oder bestehende Antwortlogik angepasst werden soll.",
+    cautionDescription: "Feldänderungen können Vorlagen und Standardwerte beeinflussen.",
+    impactLabel: "Abhängigkeiten prüfen",
+  },
+  {
+    key: "defaults",
+    label: "Standardwerte",
+    description: "Vorauswahlen für Rollen und Bereiche pflegen.",
+    group: "configuration",
+    groupLabel: "Fachliche Konfiguration",
+    groupDescription: "Steuert, wie neue Vorgänge vorbereitet und vorausgefüllt werden.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn bestimmte Rollen oder Bereiche bei neuen Vorgängen automatisch vorbelegt werden sollen.",
+    cautionDescription: "Die Wirkung zeigt sich oft erst in Kombination mit Antwortfeldern und Vorlagen.",
+    impactLabel: "Vorbelegung",
+  },
+  {
+    key: "access",
+    label: "Zugriffe & Gruppen",
+    description: "Direkte Rechte und Gruppenpflege für Ausnahmen und Berechtigungen.",
+    group: "technical",
+    groupLabel: "Technische Bereiche",
+    groupDescription: "Greifen tiefer in Login, Rechte und Systemverhalten ein.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn Rollen, Gruppen oder individuelle Zugriffe bewusst angepasst werden müssen.",
+    cautionDescription: "Direkte Rollen wirken sofort; Gruppenänderungen betreffen oft mehrere Personen gleichzeitig.",
+    impactLabel: "Wirkt sofort",
+  },
+  {
+    key: "directory",
+    label: "Entra-Verzeichnis",
+    description: "Synchronisierung und Gruppenverknüpfungen mit Entra betreiben.",
+    group: "technical",
+    groupLabel: "Technische Bereiche",
+    groupDescription: "Greifen tiefer in Login, Rechte und Systemverhalten ein.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn Identitäten oder Gruppen aus Entra aktualisiert oder Rollen über Gruppen verknüpft werden sollen.",
+    cautionDescription: "Gruppen-Rollen-Verknüpfungen gelten für alle Mitglieder der betroffenen Gruppe beim nächsten Login.",
+    impactLabel: "Breite Wirkung",
+  },
+  {
+    key: "system",
+    label: "Benachrichtigungen & System",
+    description: "Benachrichtigungen und prozessnahe Systemeinstellungen prüfen.",
+    group: "technical",
+    groupLabel: "Technische Bereiche",
+    groupDescription: "Greifen tiefer in Login, Rechte und Systemverhalten ein.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn Mailversand, Testempfänger oder prozessnahe Einstellungen kontrolliert werden müssen.",
+    cautionDescription: "Aktiver Mailversand ohne Sandbox kann reale Empfänger erreichen.",
+    impactLabel: "Systemweit",
+  },
+  {
+    key: "operations",
+    label: "Massenänderungen",
+    description: "Serienaktionen mit großer Reichweite bewusst ausführen.",
+    group: "sensitive",
+    groupLabel: "Besonders wirkstark",
+    groupDescription: "Sollte nur mit aktuellem Kontext und klarer Freigabe genutzt werden.",
+    audienceLabel: "Geeignet für",
+    cautionLabel: "Vorsicht bei",
+    audienceDescription: "Wenn eine fachlich geprüfte Serienaktion für viele Personen wirklich notwendig ist.",
+    cautionDescription: "Diese Aktionen erzeugen oder verändern viele Datensätze auf einmal und brauchen eine aktuelle Vorschau.",
+    impactLabel: "Hohe Wirkung",
+  },
+];
+
+export function getAdminWorkspaceSectionMeta(section: AdminWorkspaceSection): AdminWorkspaceSectionMeta {
+  return (
+    ADMIN_WORKSPACE_SECTION_META.find((entry) => entry.key === section)
+    ?? ADMIN_WORKSPACE_SECTION_META[0]
+  );
+}
 
 export function normalizeAdminWorkspaceSection(value: string | null): AdminWorkspaceSection {
   switch ((value ?? "").trim().toLowerCase()) {

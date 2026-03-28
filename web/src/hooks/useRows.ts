@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getWorkflows } from "../services/lifecycleApi";
+import { getWorkflows } from "../services/workflowApi";
 import type { WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
 import { matchesWorkflowRuntimeStatusFilter } from "../utils/workflowStatus";
 

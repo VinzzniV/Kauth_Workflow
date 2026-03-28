@@ -1,19 +1,26 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./auth/AuthContext";
 import { CurrentUserProvider } from "./auth/CurrentUserContext";
+import { ConfirmationDialogProvider } from "./components/feedback/ConfirmationDialogProvider";
 import App from "./App";
+import { queryClient } from "./services/queryClient";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <CurrentUserProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </CurrentUserProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <CurrentUserProvider>
+          <ConfirmationDialogProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </ConfirmationDialogProvider>
+        </CurrentUserProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );

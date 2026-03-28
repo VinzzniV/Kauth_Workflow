@@ -10,5 +10,13 @@ export default function TaskSlaPill({ status }: Props) {
     return null;
   }
 
-  return <span className={`task-sla-pill ${getTaskSlaClassName(status)}`}>{getTaskSlaLabel(status)}</span>;
+  return (
+    <span
+      className={`task-sla-pill ${getTaskSlaClassName(status)}`}
+      aria-label={`Friststatus: ${getTaskSlaLabel(status)}`}
+      title={`Friststatus: ${getTaskSlaLabel(status)}`}
+    >
+      {getTaskSlaLabel(status)}
+    </span>
+  );
 }

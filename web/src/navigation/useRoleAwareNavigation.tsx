@@ -1,11 +1,12 @@
 // Baut aus den Rollen des aktuellen Benutzers die sichtbare Navigation und den Dashboard-Kontext auf.
-import { useMemo } from "react";
+import { createElement, type ReactNode, useMemo } from "react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import type { AppFeature, DashboardPersona, RoleCapabilities } from "../auth/roleModel";
 
 export type HeaderNavItem = {
   to: string;
   label: string;
+  icon: ReactNode;
   end?: boolean;
 };
 
@@ -20,6 +21,7 @@ type NavActionDefinition = {
   label: string;
   description: string;
   feature: AppFeature;
+  icon: ReactNode;
   end?: boolean;
 };
 
@@ -28,12 +30,150 @@ type NavigationContext = {
   description: string;
 };
 
+type IconProps = {
+  className?: string;
+};
+
+function HomeIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M3.75 10.5 12 4.5l8.25 6v8.25a.75.75 0 0 1-.75.75h-4.5v-5.25a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75v5.25H4.5a.75.75 0 0 1-.75-.75V10.5Z" />
+    </svg>
+  );
+}
+
+function PlusCircleIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M12 8.5v7" />
+      <path d="M8.5 12h7" />
+    </svg>
+  );
+}
+
+function ListBulletIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M8.25 6.75h11.25" />
+      <path d="M8.25 12h11.25" />
+      <path d="M8.25 17.25h11.25" />
+      <circle cx="4.5" cy="6.75" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="17.25" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function MagnifyingGlassIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <circle cx="11" cy="11" r="5.5" />
+      <path d="m15 15 4.25 4.25" />
+    </svg>
+  );
+}
+
+function CheckBadgeIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="m9.1 11.9 1.8 1.8 4-4" />
+      <path d="M9.75 4.75A2.25 2.25 0 0 1 12 3.5a2.25 2.25 0 0 1 2.25 1.25 2.25 2.25 0 0 0 2.66 1.17 2.25 2.25 0 0 1 2.77 2 2.25 2.25 0 0 0 1.57 2.45 2.25 2.25 0 0 1 0 3.26 2.25 2.25 0 0 0-1.57 2.45 2.25 2.25 0 0 1-2.77 2 2.25 2.25 0 0 0-2.66 1.17A2.25 2.25 0 0 1 12 20.5a2.25 2.25 0 0 1-2.25-1.25 2.25 2.25 0 0 0-2.66-1.17 2.25 2.25 0 0 1-2.77-2 2.25 2.25 0 0 0-1.57-2.45 2.25 2.25 0 0 1 0-3.26 2.25 2.25 0 0 0 1.57-2.45 2.25 2.25 0 0 1 2.77-2 2.25 2.25 0 0 0 2.66-1.17Z" />
+    </svg>
+  );
+}
+
+function ClipboardListIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M9 4.75h6" />
+      <path d="M9.75 3.75h4.5a1.5 1.5 0 0 1 1.5 1.5v.5h1a1.75 1.75 0 0 1 1.75 1.75v10.75A1.75 1.75 0 0 1 16.75 20H7.25A1.75 1.75 0 0 1 5.5 18.25V7.5A1.75 1.75 0 0 1 7.25 5.75h1v-.5a1.5 1.5 0 0 1 1.5-1.5Z" />
+      <path d="M9 10h6" />
+      <path d="M9 13.5h6" />
+      <path d="M9 17h3.5" />
+    </svg>
+  );
+}
+
+function CogIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="2.75" />
+      <path d="M19.25 12a7.24 7.24 0 0 0-.08-1.05l1.72-1.34-1.75-3.03-2.08.84a7.38 7.38 0 0 0-1.82-1.05l-.33-2.21H9.09l-.33 2.21c-.65.23-1.26.58-1.82 1.05l-2.08-.84-1.75 3.03 1.72 1.34A7.24 7.24 0 0 0 4.75 12c0 .36.03.71.08 1.05l-1.72 1.34 1.75 3.03 2.08-.84c.56.47 1.17.82 1.82 1.05l.33 2.21h3.82l.33-2.21c.65-.23 1.26-.58 1.82-1.05l2.08.84 1.75-3.03-1.72-1.34c.05-.34.08-.69.08-1.05Z" />
+    </svg>
+  );
+}
+
 const ACTIONS = {
   dashboard: {
     to: "/",
     label: "Übersicht",
     description: "Ihr Einstieg in die Mitarbeiterprozesse.",
     feature: "dashboard",
+    icon: createElement(HomeIcon),
     end: true,
   },
   hrCreate: {
@@ -41,42 +181,49 @@ const ACTIONS = {
     label: "Neuer Vorgang",
     description: "Einen neuen Mitarbeiterprozess anlegen.",
     feature: "workflowCreate",
+    icon: createElement(PlusCircleIcon),
   },
   managerCreate: {
     to: "/create",
     label: "Änderung starten",
     description: "Einen Änderungsprozess für Mitarbeitende starten.",
     feature: "workflowCreate",
+    icon: createElement(PlusCircleIcon),
   },
   hrWorkflows: {
     to: "/workflows",
     label: "Laufende Vorgänge",
-    description: "Aktuelle Vorgänge und ihren Stand ansehen.",
+    description: "Laufende Vorgänge steuern und offene Arbeit priorisieren.",
     feature: "workflowOverview",
+    icon: createElement(ListBulletIcon),
   },
   workflowSearch: {
     to: "/search",
-    label: "Suche",
-    description: "Vorgänge gezielt finden.",
+    label: "Vorgänge suchen",
+    description: "Vorgänge gezielt über Namen, IDs und Filter finden.",
     feature: "workflowSearch",
+    icon: createElement(MagnifyingGlassIcon),
   },
   supervisorInbox: {
     to: "/supervisor",
     label: "Anforderungen der Abteilungsleitung",
     description: "Offene Anforderungen als Abteilungsleitung bearbeiten.",
     feature: "supervisorStep",
+    icon: createElement(CheckBadgeIcon),
   },
   departmentTasks: {
     to: "/tasks/my",
     label: "Meine Aufgaben",
     description: "Offene Aufgaben Ihrer Fachbereiche bearbeiten.",
     feature: "technicalTasks",
+    icon: createElement(ClipboardListIcon),
   },
   adminConfig: {
     to: "/admin/config",
-    label: "Verwaltung",
-    description: "Stammdaten, Rollen und Gruppen pflegen.",
+    label: "Administration",
+    description: "Organisation, Rechte und Systemeinstellungen pflegen.",
     feature: "adminConfig",
+    icon: createElement(CogIcon),
   },
 } satisfies Record<string, NavActionDefinition>;
 
@@ -96,6 +243,7 @@ function toHeaderNavItem(actionKey: ActionKey): HeaderNavItem {
   return {
     to: action.to,
     label: action.label,
+    icon: action.icon,
     end: "end" in action ? action.end : undefined,
   };
 }
@@ -164,7 +312,7 @@ export function useRoleAwareNavigation() {
     if (capabilities.dashboardPersona === "admin") {
       return {
         title: "Verwaltung",
-        description: "Hier pflegen Sie Stammdaten, Zuständigkeiten und Berechtigungen.",
+        description: "Hier pflegen Sie Organisation, Zuständigkeiten, Berechtigungen und Systemeinstellungen.",
       };
     }
 

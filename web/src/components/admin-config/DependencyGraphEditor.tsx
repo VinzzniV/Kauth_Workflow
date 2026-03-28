@@ -15,6 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { AdminDependencyGraph, AdminTaskTemplate } from "../../types/auth";
+import { useConfirmationDialog } from "../feedback/ConfirmationDialogProvider";
 import { DependencyGraphEdge } from "./DependencyGraphEdge";
 import { DependencyGraphNode, type DependencyGraphNodeData } from "./DependencyGraphNode";
 
@@ -54,6 +55,7 @@ export function DependencyGraphEditor({
   onCreateDependency,
   onDeleteDependency,
 }: DependencyGraphEditorProps) {
+  const confirm = useConfirmationDialog();
   const [pendingConnection, setPendingConnection] = useState<{ sourceTemplateId: number; targetTemplateId: number } | null>(null);
   const [pendingRequiredStatus, setPendingRequiredStatus] = useState<"open" | "ready" | "in_progress" | "blocked" | "done">("done");
   const [layoutVersion, setLayoutVersion] = useState(0);
@@ -205,16 +207,21 @@ export function DependencyGraphEditor({
             return;
           }
 
-          if (typeof window !== "undefined") {
-            const shouldDelete = window.confirm("Abhängigkeit wirklich löschen?");
+          void (async () => {
+            const shouldDelete = await confirm({
+              title: "Abhängigkeit löschen?",
+              description: "Die Verbindung zwischen den beiden Aufgabenvorlagen wird entfernt.",
+              confirmLabel: "Abhängigkeit löschen",
+              tone: "danger",
+            });
             if (!shouldDelete) {
               return;
             }
-          }
 
-          void onDeleteDependency(dependencyId).catch(() => {
-            // Fehler kommt bereits als Notice/Error aus dem Hook.
-          });
+            void onDeleteDependency(dependencyId).catch(() => {
+              // Fehler kommt bereits als Notice/Error aus dem Hook.
+            });
+          })();
         }}
         proOptions={{ hideAttribution: true }}
         onNodeClick={(_, node) => {

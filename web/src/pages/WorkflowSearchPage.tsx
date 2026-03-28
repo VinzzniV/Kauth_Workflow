@@ -1,26 +1,43 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
 import WorkflowCard from "../components/workflows/WorkflowCard";
-import { getProcessTypes, getWorkflowPage } from "../services/lifecycleApi";
+import type { WorkflowQueryOptions } from "../services/workflowApi";
+import { useDepartments } from "../services/queries/roleQueries";
+import { useProcessTypes } from "../services/queries/processTypeQueries";
+import { useWorkflowList } from "../services/queries/workflowQueries";
 import type { Department, ProcessType, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
 
 const SEARCH_DEBOUNCE_MS = 400;
 const SEARCH_PAGE_SIZE = 1000;
+const WORKFLOW_STATUS_FILTERS: Array<"all" | WorkflowRuntimeStatus> = [
+  "all",
+  "draft",
+  "waiting_for_supervisor",
+  "waiting_for_department",
+  "in_progress",
+  "completed",
+];
+
+function parseWorkflowStatusFilter(value: string | null): "all" | WorkflowRuntimeStatus {
+  return WORKFLOW_STATUS_FILTERS.includes(value as "all" | WorkflowRuntimeStatus)
+    ? (value as "all" | WorkflowRuntimeStatus)
+    : "all";
+}
 
 export default function WorkflowSearchPage() {
-  const [rows, setRows] = useState<WorkflowSummary[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState<string>("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSearch = searchParams.get("q") ?? "";
+  const initialDepartmentFilter = searchParams.get("dept") ?? "all";
+  const initialProcessTypeFilter = searchParams.get("type") ?? "all";
+  const initialStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
+  const [search, setSearch] = useState<string>(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [processTypeFilter, setProcessTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>("all");
-  const [departmentOptions, setDepartmentOptions] = useState<Department[]>([]);
-  const [processTypeOptions, setProcessTypeOptions] = useState<ProcessType[]>([]);
-  const latestReloadId = useRef(0);
+  const [departmentFilter, setDepartmentFilter] = useState<string>(initialDepartmentFilter);
+  const [processTypeFilter, setProcessTypeFilter] = useState<string>(initialProcessTypeFilter);
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(initialStatusFilter);
 
   // Debounce search input to avoid a request on every keystroke.
   useEffect(() => {
@@ -28,67 +45,91 @@ export default function WorkflowSearchPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Process types are static – fetch once on mount, not on every filter change.
   useEffect(() => {
-    getProcessTypes()
-      .then(setProcessTypeOptions)
-      .catch(() => setProcessTypeOptions([]));
-  }, []);
+    const nextSearch = searchParams.get("q") ?? "";
+    const nextDepartmentFilter = searchParams.get("dept") ?? "all";
+    const nextProcessTypeFilter = searchParams.get("type") ?? "all";
+    const nextStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
 
-  const reload = useCallback(async () => {
-    const reloadId = latestReloadId.current + 1;
-    latestReloadId.current = reloadId;
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Single call – backend returns departmentOptions (without dept filter applied) alongside items.
-      const page = await getWorkflowPage(SEARCH_PAGE_SIZE, 0, {
-        status: statusFilter === "all" ? null : statusFilter,
-        departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
-        processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
-        search: debouncedSearch,
-      });
-      if (latestReloadId.current !== reloadId) {
-        return;
-      }
-      setRows(page.items);
-      setDepartmentOptions(page.departmentOptions);
-    } catch (err) {
-      if (latestReloadId.current !== reloadId) {
-        return;
-      }
-      const message = err instanceof Error ? err.message : "Vorgangssuche konnte nicht geladen werden.";
-      setError(message);
-      setRows([]);
-      setDepartmentOptions([]);
-    } finally {
-      if (latestReloadId.current === reloadId) {
-        setIsLoading(false);
-      }
-    }
-  }, [departmentFilter, processTypeFilter, debouncedSearch, statusFilter]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    setSearch((current) => (current === nextSearch ? current : nextSearch));
+    setDepartmentFilter((current) => (current === nextDepartmentFilter ? current : nextDepartmentFilter));
+    setProcessTypeFilter((current) => (current === nextProcessTypeFilter ? current : nextProcessTypeFilter));
+    setStatusFilter((current) => (current === nextStatusFilter ? current : nextStatusFilter));
+  }, [searchParams]);
 
   const hasActiveFilters =
     search.trim().length > 0 || departmentFilter !== "all" || processTypeFilter !== "all" || statusFilter !== "all";
+  const searchQueryOptions = useMemo<WorkflowQueryOptions>(() => ({
+    status: statusFilter === "all" ? null : statusFilter,
+    departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
+    processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
+    search: debouncedSearch,
+  }), [departmentFilter, debouncedSearch, processTypeFilter, statusFilter]);
+  const processTypesQuery = useProcessTypes();
+  const departmentsQuery = useDepartments();
+  const workflowSearchQuery = useWorkflowList(searchQueryOptions, 0, SEARCH_PAGE_SIZE, hasActiveFilters);
+  const processTypeOptions: ProcessType[] = processTypesQuery.data ?? [];
+  const departmentOptions: Department[] = departmentsQuery.data ?? [];
+  const rows: WorkflowSummary[] = workflowSearchQuery.data?.items ?? [];
+  const isLoading = workflowSearchQuery.isLoading;
+  const isRefreshing =
+    workflowSearchQuery.isFetching || processTypesQuery.isFetching || departmentsQuery.isFetching;
+  const error =
+    workflowSearchQuery.error instanceof Error
+      ? workflowSearchQuery.error.message
+      : processTypesQuery.error instanceof Error
+        ? processTypesQuery.error.message
+        : departmentsQuery.error instanceof Error
+          ? departmentsQuery.error.message
+          : workflowSearchQuery.error || processTypesQuery.error || departmentsQuery.error
+            ? "Vorgangssuche konnte nicht geladen werden."
+            : null;
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (search.trim().length > 0) {
+      nextParams.set("q", search);
+    }
+
+    if (departmentFilter !== "all") {
+      nextParams.set("dept", departmentFilter);
+    }
+
+    if (processTypeFilter !== "all") {
+      nextParams.set("type", processTypeFilter);
+    }
+
+    if (statusFilter !== "all") {
+      nextParams.set("status", statusFilter);
+    }
+
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [departmentFilter, processTypeFilter, search, searchParams, setSearchParams, statusFilter]);
 
   return (
     <main className="app-shell">
       <div className="page-container">
         <PageHeader
-          title="Vorgänge suchen"
-          description="Suchen Sie nach Name, Prozesstyp, Abteilung, Stelle, Personalnummer oder Workflow-ID."
+          title="Vorgänge gezielt suchen"
+          description="Finden Sie einzelne Vorgänge gezielt über Namen, Personalnummern, Workflow-IDs und weitere Merkmale."
         />
 
         <section className="panel">
           <div className="panel-head">
-            <h2>Suche und Filter</h2>
-            <p>Hier finden Sie laufende und abgeschlossene Mitarbeiterprozesse ohne die exakte ID kennen zu müssen.</p>
+            <h2>Globale Suche</h2>
+            <p>Nutzen Sie diese Seite, wenn Sie einen bestimmten Fall recherchieren, auch wenn Sie nur Teile der Informationen kennen. Für den täglichen Arbeitsüberblick nutzen Sie die laufenden Vorgänge.</p>
           </div>
+          <div className="action-row">
+            <Link className="btn btn-secondary" to="/workflows">
+              Zum Arbeitsüberblick
+            </Link>
+          </div>
+          <p className="panel-note">
+            Suchbeispiele: Name einer Person, Personalnummer, Workflow-ID oder Kombinationen mit Prozesstyp und Status.
+          </p>
 
           <div className="toolbar-row">
             <label className="field compact grow">
@@ -140,8 +181,19 @@ export default function WorkflowSearchPage() {
               </select>
             </label>
 
-            <button type="button" className="btn btn-secondary" onClick={reload}>
-              Aktualisieren
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                void Promise.all([
+                  workflowSearchQuery.refetch(),
+                  processTypesQuery.refetch(),
+                  departmentsQuery.refetch(),
+                ]);
+              }}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
             </button>
           </div>
         </section>
@@ -149,29 +201,49 @@ export default function WorkflowSearchPage() {
         {isLoading ? <LoadingState title="Vorgänge werden gesucht..." /> : null}
 
         {!isLoading && error ? (
-          <EmptyState title="Suche konnte nicht geladen werden." description={error} onAction={reload} actionLabel="Erneut laden" />
-        ) : null}
-
-        {!isLoading && !error && rows.length === 0 && !hasActiveFilters ? (
           <EmptyState
-            title="Keine Vorgänge vorhanden"
-            description="Aktuell sind keine Mitarbeiterprozesse vorhanden."
+            title="Suche konnte nicht geladen werden."
+            description={error}
+            onAction={() => {
+              void Promise.all([
+                workflowSearchQuery.refetch(),
+                processTypesQuery.refetch(),
+                departmentsQuery.refetch(),
+              ]);
+            }}
+            actionLabel="Erneut laden"
           />
         ) : null}
 
-        {!isLoading && !error && rows.length === 0 && hasActiveFilters ? (
+        {!isLoading && !error && !hasActiveFilters ? (
+          <section className="panel panel-muted">
+            <div className="panel-head">
+              <h2>Suche starten</h2>
+              <p>Geben Sie einen Suchbegriff ein oder schränken Sie die Suche über Filter ein, um gezielt passende Vorgänge zu finden.</p>
+            </div>
+          </section>
+        ) : null}
+
+        {!isLoading && !error && hasActiveFilters && rows.length === 0 ? (
           <EmptyState
             title="Keine Treffer"
             description="Die aktuelle Suche liefert keine passenden Vorgänge."
           />
         ) : null}
 
-        {!isLoading && !error && rows.length > 0 ? (
-          <section className="workflow-grid" aria-label="Suchergebnisse Mitarbeiterprozesse">
+        {!isLoading && !error && hasActiveFilters && rows.length > 0 ? (
+          <>
+            <section className="panel panel-muted">
+              <p className="panel-note">
+                {rows.length} Treffer in der globalen Suche
+              </p>
+            </section>
+            <section className="workflow-grid" aria-label="Suchergebnisse Mitarbeiterprozesse">
             {rows.map((workflow) => (
               <WorkflowCard key={workflow.uid} workflow={workflow} />
             ))}
-          </section>
+            </section>
+          </>
         ) : null}
       </div>
     </main>

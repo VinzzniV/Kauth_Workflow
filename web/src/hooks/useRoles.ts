@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDepartments, getRoles } from "../services/lifecycleApi";
+import { getDepartments, getRoles } from "../services/lookupApi";
 import type { Department, Role } from "../types/workflow";
 
 type UseRolesResult = {

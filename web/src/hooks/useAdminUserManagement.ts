@@ -5,6 +5,7 @@ import {
   toNullableText,
   toggleId,
 } from "../components/admin-config/adminConfigHelpers";
+import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
 import {
   createAdminUser,
   deleteAdminUser,
@@ -13,7 +14,7 @@ import {
   updateAdminUserGroups,
   updateAdminUserMasterData,
   updateAdminUserRoles,
-} from "../services/lifecycleApi";
+} from "../services/adminApi";
 import type { AdminGroup, AdminUser } from "../types/auth";
 
 const DEMO_USERS_REFRESH_EVENT = "demo-users-refresh";
@@ -39,6 +40,8 @@ export function useAdminUserManagement({
   onNotice,
   onError,
 }: UseAdminUserManagementOptions) {
+  const confirm = useConfirmationDialog();
+
   const notifyDemoUsersChanged = useCallback(() => {
     if (typeof window === "undefined") {
       return;
@@ -228,7 +231,13 @@ export function useAdminUserManagement({
   ]);
 
   const removeUser = useCallback(async (user: AdminUser) => {
-    if (typeof window !== "undefined" && !window.confirm(`Person "${user.displayName}" wirklich löschen?`)) {
+    const shouldDelete = await confirm({
+      title: "Person löschen?",
+      description: `Die Person "${user.displayName}" wird dauerhaft entfernt. Rollen- und Gruppenzuordnungen gehen dabei verloren.`,
+      confirmLabel: "Person löschen",
+      tone: "danger",
+    });
+    if (!shouldDelete) {
       return;
     }
 
@@ -250,7 +259,7 @@ export function useAdminUserManagement({
     } finally {
       setDeletingUserId(null);
     }
-  }, [notifyDemoUsersChanged, onError, onNotice, reload, selectedUserId]);
+  }, [confirm, notifyDemoUsersChanged, onError, onNotice, reload, selectedUserId]);
 
   const saveUserRoles = useCallback(async () => {
     if (!selectedUser) {

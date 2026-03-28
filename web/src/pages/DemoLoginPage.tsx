@@ -62,9 +62,9 @@ export default function DemoLoginPage() {
           <img
             className="login-logo"
             src="/mitarbeiter_lifecycle_icon.svg"
-            alt="Kauth Onboarding"
+            alt="Kauth Mitarbeiterprozesse"
           />
-          <h1>Kauth Onboarding</h1>
+          <h1>Kauth Mitarbeiterprozesse</h1>
           <p>Wählen Sie einen Benutzer aus, um sich in die Demo anzumelden.</p>
         </div>
 

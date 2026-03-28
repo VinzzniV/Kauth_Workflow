@@ -118,7 +118,6 @@ export async function updateAdminProcessType(
   );
   // Invalidate both caches so the next fetch reflects the updated process type.
   invalidateCachedRequest("admin-process-types");
-  invalidateCachedRequest("process-types");
   return result;
 }
 

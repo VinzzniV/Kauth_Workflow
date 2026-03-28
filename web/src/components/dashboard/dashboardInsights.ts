@@ -3,11 +3,9 @@ import {
   getAdminGroups,
   getAdminRoles,
   getAdminUsers,
-  getProcessTypes,
-  getMyTasks,
-  getSupervisorStepWorkflows,
-  getWorkflows,
-} from "../../services/lifecycleApi";
+} from "../../services/adminApi";
+import { getMyTasks } from "../../services/taskApi";
+import { getSupervisorStepWorkflows, getWorkflows } from "../../services/workflowApi";
 import type {
   ProcessType,
   WorkflowSummary,
@@ -48,6 +46,7 @@ export type DashboardInsights = {
 
 export type DashboardInsightsOptions = {
   processTypeKey?: string | null;
+  selectedProcessType?: ProcessType | null;
 };
 
 type WorkflowMetrics = {
@@ -100,14 +99,6 @@ function summarizeWorkflows(workflows: WorkflowSummary[]): WorkflowMetrics {
   );
 }
 
-function getSelectedProcessType(processTypes: ProcessType[], processTypeKey?: string | null): ProcessType | null {
-  if (!processTypeKey) {
-    return null;
-  }
-
-  return processTypes.find((processType) => processType.key === processTypeKey) ?? null;
-}
-
 function matchesProcessType(processTypeKey: string | null | undefined, workflow: Pick<WorkflowSummary, "processType">): boolean {
   if (!processTypeKey) {
     return true;
@@ -135,8 +126,7 @@ function getProcessTypeContext(selectedProcessType: ProcessType | null) {
 }
 
 async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const processTypes = await getProcessTypes();
-  const selectedProcessType = getSelectedProcessType(processTypes, options.processTypeKey);
+  const selectedProcessType = options.selectedProcessType ?? null;
   const processTypeContext = getProcessTypeContext(selectedProcessType);
   const workflows = await getWorkflows({ processTypeKey: options.processTypeKey ?? null });
   const metrics = summarizeWorkflows(workflows);
@@ -212,8 +202,7 @@ async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<D
 }
 
 async function loadManagerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const processTypes = await getProcessTypes();
-  const selectedProcessType = getSelectedProcessType(processTypes, options.processTypeKey);
+  const selectedProcessType = options.selectedProcessType ?? null;
   const processTypeContext = getProcessTypeContext(selectedProcessType);
   const workflows = (await getSupervisorStepWorkflows()).filter((workflow) => matchesProcessType(options.processTypeKey, workflow));
   const pendingSelections = workflows.reduce(
@@ -369,14 +358,13 @@ async function loadWorkerInsights(): Promise<DashboardInsights> {
 }
 
 async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const processTypesPromise = getProcessTypes();
   const [users, roles, groups, workflows] = await Promise.all([
     getAdminUsers(),
     getAdminRoles(),
     getAdminGroups(),
     getWorkflows({ processTypeKey: options.processTypeKey ?? null }),
   ]);
-  const selectedProcessType = getSelectedProcessType(await processTypesPromise, options.processTypeKey);
+  const selectedProcessType = options.selectedProcessType ?? null;
   const processTypeContext = getProcessTypeContext(selectedProcessType);
 
   const activeUsers = users.filter((user) => user.isActive).length;
@@ -460,8 +448,7 @@ async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promis
 }
 
 async function loadViewerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const processTypes = await getProcessTypes();
-  const selectedProcessType = getSelectedProcessType(processTypes, options.processTypeKey);
+  const selectedProcessType = options.selectedProcessType ?? null;
   const processTypeContext = getProcessTypeContext(selectedProcessType);
   const workflows = await getWorkflows({ processTypeKey: options.processTypeKey ?? null });
   const metrics = summarizeWorkflows(workflows);

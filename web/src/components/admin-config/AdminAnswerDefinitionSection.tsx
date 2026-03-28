@@ -40,19 +40,19 @@ export function AdminAnswerDefinitionSection({
   });
 
   const panelTitle = isCreatingNew
-    ? "Neue Answer Definition"
+    ? "Neues Antwortfeld"
     : selectedDefinition
-      ? `Answer Definition bearbeiten: ${selectedDefinition.title}`
-      : "Answer Definition auswählen";
+      ? `Antwortfeld bearbeiten: ${selectedDefinition.title}`
+      : "Antwortfeld auswählen";
 
   return (
     <div className="content-stack">
       <section className="panel panel-muted">
         <div className="panel-head">
-          <h2>Answer Definitions</h2>
+          <h2>Antwortfelder</h2>
           <p>
-            Verwalten Sie Anforderungen pro Prozesstyp. Der Input-Typ und der Key definieren die
-            Grundlage für Bedingungen, Defaults und Workflow-Antworten.
+            Verwalten Sie Antwortfelder pro Prozesstyp. Eingabetyp und Schlüssel definieren die
+            Grundlage für Bedingungen, Standardwerte und Prozessantworten.
           </p>
         </div>
       </section>
@@ -60,7 +60,7 @@ export function AdminAnswerDefinitionSection({
       <section className="panel">
         <div className="panel-head">
           <h2>Prozesstyp & Übersicht</h2>
-          <p>Zuerst Prozesstyp wählen, dann Answer Definitions filtern, anlegen oder bearbeiten.</p>
+          <p>Zuerst Prozesstyp wählen, dann Antwortfelder filtern, anlegen oder bearbeiten.</p>
         </div>
         <div className="panel-body">
           <div style={{ display: "flex", gap: "1rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1rem" }}>
@@ -87,14 +87,14 @@ export function AdminAnswerDefinitionSection({
               disabled={!selectedProcessTypeId || isLoadingDefinitions || isSaving || isDeleting}
               onClick={startCreatingDefinition}
             >
-              Neue Answer Definition
+              Neues Antwortfeld
             </button>
           </div>
 
-          {isLoadingDefinitions ? <p className="panel-note">Answer Definitions werden geladen...</p> : null}
+          {isLoadingDefinitions ? <p className="panel-note">Antwortfelder werden geladen...</p> : null}
 
           {!isLoadingDefinitions && selectedProcessTypeId && definitions.length === 0 ? (
-            <p className="panel-note">Für diesen Prozesstyp sind noch keine Answer Definitions vorhanden.</p>
+            <p className="panel-note">Für diesen Prozesstyp sind noch keine Antwortfelder vorhanden.</p>
           ) : null}
 
           {!isLoadingDefinitions && definitions.length > 0 ? (
@@ -144,18 +144,18 @@ export function AdminAnswerDefinitionSection({
       <section className="panel">
         <div className="panel-head">
           <h2>{panelTitle}</h2>
-          <p>Alle Felder werden direkt auf der Answer Definition gepflegt und pro Prozesstyp verwaltet.</p>
+          <p>Alle Felder werden direkt am Antwortfeld gepflegt und pro Prozesstyp verwaltet.</p>
         </div>
 
         {!selectedProcessTypeId ? (
           <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p>
         ) : !isCreatingNew && !selectedDefinition ? (
-          <p className="panel-note">Bitte links eine Answer Definition auswählen oder eine neue anlegen.</p>
+          <p className="panel-note">Bitte links ein Antwortfeld auswählen oder ein neues anlegen.</p>
         ) : (
           <div className="panel-body">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
               <label>
-                <span className="form-label">Answer-Key</span>
+                <span className="form-label">Antwort-Key</span>
                 <input
                   className="form-input"
                   value={draft.answerKey}
@@ -256,7 +256,7 @@ export function AdminAnswerDefinitionSection({
                   disabled={isSaving || isDeleting}
                   onClick={() => void createDefinition()}
                 >
-                  {isSaving ? "Wird angelegt..." : "Answer Definition anlegen"}
+                  {isSaving ? "Wird angelegt..." : "Antwortfeld anlegen"}
                 </button>
               ) : (
                 <button
@@ -275,7 +275,7 @@ export function AdminAnswerDefinitionSection({
                 disabled={!selectedDefinition || isCreatingNew || isSaving || isDeleting}
                 onClick={() => void removeDefinition()}
               >
-                {isDeleting ? "Wird gelöscht..." : "Answer Definition löschen"}
+                {isDeleting ? "Wird gelöscht..." : "Antwortfeld löschen"}
               </button>
             </div>
           </div>

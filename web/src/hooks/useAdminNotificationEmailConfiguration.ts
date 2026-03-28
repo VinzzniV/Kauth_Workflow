@@ -3,7 +3,7 @@ import { toNullableText } from "../components/admin-config/adminConfigHelpers";
 import {
   sendAdminNotificationEmailTest,
   updateAdminNotificationEmailConfiguration,
-} from "../services/lifecycleApi";
+} from "../services/adminApi";
 import type { AdminNotificationEmailConfiguration } from "../types/auth";
 
 type UseAdminNotificationEmailConfigurationOptions = {

@@ -1,36 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
 import type { DashboardPersona } from "../../auth/roleModel";
-import { loadDashboardInsights, type DashboardInsights } from "./dashboardInsights";
+import type { ProcessType } from "../../types/workflow";
+import { useDashboardInsightsQuery } from "../../services/queries/dashboardQueries";
 
-export function useDashboardInsights(dashboardPersona: DashboardPersona, processTypeKey?: string | null) {
-  const [insights, setInsights] = useState<DashboardInsights | null>(null);
-  const [isInsightsLoading, setIsInsightsLoading] = useState<boolean>(true);
-  const [insightsError, setInsightsError] = useState<string | null>(null);
-
-  const reloadInsights = useCallback(async () => {
-    setIsInsightsLoading(true);
-    setInsightsError(null);
-
-    try {
-      const nextInsights = await loadDashboardInsights(dashboardPersona, { processTypeKey });
-      setInsights(nextInsights);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Übersichtsdaten konnten nicht geladen werden.";
-      setInsights(null);
-      setInsightsError(message);
-    } finally {
-      setIsInsightsLoading(false);
-    }
-  }, [dashboardPersona, processTypeKey]);
-
-  useEffect(() => {
-    void reloadInsights();
-  }, [reloadInsights]);
+export function useDashboardInsights(
+  dashboardPersona: DashboardPersona,
+  processTypeKey?: string | null,
+  selectedProcessType?: ProcessType | null
+) {
+  const query = useDashboardInsightsQuery(dashboardPersona, processTypeKey, selectedProcessType);
 
   return {
-    insights,
-    insightsError,
-    isInsightsLoading,
-    reloadInsights,
+    insights: query.data ?? null,
+    insightsError: query.error instanceof Error ? query.error.message : query.error ? "Übersichtsdaten konnten nicht geladen werden." : null,
+    isInsightsLoading: query.isLoading,
+    reloadInsights: query.refetch,
   };
 }

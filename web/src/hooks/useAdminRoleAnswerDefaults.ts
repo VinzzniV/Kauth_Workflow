@@ -5,7 +5,7 @@ import {
   getAdminRoleAnswerDefaults,
   updateAdminRoleAnswerDefaults,
 } from "../services/adminConfigApi";
-import { getAdminRoles } from "../services/lifecycleApi";
+import { getAdminRoles } from "../services/adminApi";
 import type {
   AdminAnswerDefinition,
   AdminProcessType,

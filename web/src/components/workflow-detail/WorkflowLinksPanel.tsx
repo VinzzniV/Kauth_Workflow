@@ -4,7 +4,7 @@ import {
   deleteWorkflowLink,
   findLinkableWorkflows,
   getWorkflowLinks,
-} from "../../services/lifecycleApi";
+} from "../../services/workflowApi";
 import type { LinkableWorkflow, WorkflowDetail, WorkflowLink } from "../../types/workflow";
 
 interface WorkflowLinksPanelProps {

@@ -25,10 +25,10 @@ export default function EntraLoginPage() {
           <div className="login-header">
             <img
               src="/mitarbeiter_lifecycle_icon.svg"
-              alt="Mitarbeiter-Lifecycle"
+              alt="Kauth Mitarbeiterprozesse"
               className="login-logo"
             />
-            <h1>Mitarbeiter-Lifecycle</h1>
+            <h1>Kauth Mitarbeiterprozesse</h1>
             <p className="login-subtitle">
               Bitte melden Sie sich mit Ihrem Unternehmenskonto an.
             </p>

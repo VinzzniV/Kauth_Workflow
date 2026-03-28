@@ -1,11 +1,13 @@
 // Uebersicht ueber alle sichtbaren Vorgaenge inklusive Filter und abgeleitetem Prozessstand.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
-import { getProcessTypes, getWorkflowPage } from "../services/lifecycleApi";
+import type { WorkflowQueryOptions } from "../services/workflowApi";
+import { useProcessTypes } from "../services/queries/processTypeQueries";
+import { useWorkflowList } from "../services/queries/workflowQueries";
 
 const SEARCH_DEBOUNCE_MS = 400;
 import type {
@@ -21,29 +23,50 @@ import {
 } from "../utils/workflowStatus";
 
 const PAGE_SIZE = 20;
+const WORKFLOW_STATUS_FILTERS: Array<"all" | WorkflowRuntimeStatus> = [
+  "all",
+  "draft",
+  "waiting_for_supervisor",
+  "waiting_for_department",
+  "in_progress",
+  "completed",
+];
+
+function parseWorkflowStatusFilter(value: string | null): "all" | WorkflowRuntimeStatus {
+  return WORKFLOW_STATUS_FILTERS.includes(value as "all" | WorkflowRuntimeStatus)
+    ? (value as "all" | WorkflowRuntimeStatus)
+    : "all";
+}
+
+function parsePageIndex(value: string | null): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 2) {
+    return 0;
+  }
+
+  return Math.floor(parsed) - 1;
+}
 
 export default function WorkflowListPage() {
   const { capabilities } = useCurrentUser();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isReaderOnlyView =
     capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
-  const defaultStatusFilter: "all" | WorkflowRuntimeStatus = "all";
+  const initialSearch = searchParams.get("q") ?? "";
+  const initialStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
+  const initialDepartmentFilter = searchParams.get("dept") ?? "all";
+  const initialProcessTypeFilter = searchParams.get("type") ?? "all";
+  const initialResponsibilityFilter = searchParams.get("resp") ?? "all";
+  const initialPageIndex = parsePageIndex(searchParams.get("page"));
 
-  const [rows, setRows] = useState<WorkflowSummary[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState<number>(0);
-  const [pageIndex, setPageIndex] = useState<number>(0);
-  const [departmentOptions, setDepartmentOptions] = useState<Array<[number, string]>>([]);
-  const [processTypeOptions, setProcessTypeOptions] = useState<ProcessType[]>([]);
-  const [responsibilityOptions, setResponsibilityOptions] = useState<WorkflowResponsibilityOption[]>([]);
-  const latestReloadId = useRef(0);
+  const [pageIndex, setPageIndex] = useState<number>(initialPageIndex);
 
-  const [search, setSearch] = useState<string>("");
+  const [search, setSearch] = useState<string>(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(defaultStatusFilter);
-  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [processTypeFilter, setProcessTypeFilter] = useState<string>("all");
-  const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(initialStatusFilter);
+  const [departmentFilter, setDepartmentFilter] = useState<string>(initialDepartmentFilter);
+  const [processTypeFilter, setProcessTypeFilter] = useState<string>(initialProcessTypeFilter);
+  const [responsibilityFilter, setResponsibilityFilter] = useState<string>(initialResponsibilityFilter);
 
   // Debounce search input to avoid a request on every keystroke.
   useEffect(() => {
@@ -51,60 +74,90 @@ export default function WorkflowListPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Process types are static – fetch once on mount, not on every filter change.
   useEffect(() => {
-    getProcessTypes()
-      .then(setProcessTypeOptions)
-      .catch(() => setProcessTypeOptions([]));
-  }, []);
+    const nextSearch = searchParams.get("q") ?? "";
+    const nextStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
+    const nextDepartmentFilter = searchParams.get("dept") ?? "all";
+    const nextProcessTypeFilter = searchParams.get("type") ?? "all";
+    const nextResponsibilityFilter = searchParams.get("resp") ?? "all";
+    const nextPageIndex = parsePageIndex(searchParams.get("page"));
+
+    setSearch((current) => (current === nextSearch ? current : nextSearch));
+    setStatusFilter((current) => (current === nextStatusFilter ? current : nextStatusFilter));
+    setDepartmentFilter((current) => (current === nextDepartmentFilter ? current : nextDepartmentFilter));
+    setProcessTypeFilter((current) => (current === nextProcessTypeFilter ? current : nextProcessTypeFilter));
+    setResponsibilityFilter((current) => (current === nextResponsibilityFilter ? current : nextResponsibilityFilter));
+    setPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (search.trim().length > 0) {
+      nextParams.set("q", search);
+    }
+
+    if (statusFilter !== "all") {
+      nextParams.set("status", statusFilter);
+    }
+
+    if (departmentFilter !== "all") {
+      nextParams.set("dept", departmentFilter);
+    }
+
+    if (processTypeFilter !== "all") {
+      nextParams.set("type", processTypeFilter);
+    }
+
+    if (responsibilityFilter !== "all") {
+      nextParams.set("resp", responsibilityFilter);
+    }
+
+    if (pageIndex > 0) {
+      nextParams.set("page", String(pageIndex + 1));
+    }
+
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    departmentFilter,
+    pageIndex,
+    processTypeFilter,
+    responsibilityFilter,
+    search,
+    searchParams,
+    setSearchParams,
+    statusFilter,
+  ]);
 
   // Die Liste laedt alle benoetigten Kartendaten direkt ueber den Listen-Endpoint.
-  const reload = useCallback(async () => {
-    const reloadId = latestReloadId.current + 1;
-    latestReloadId.current = reloadId;
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const pageQuery = {
-        status: statusFilter === "all" ? null : statusFilter,
-        departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
-        processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
-        search: debouncedSearch,
-        responsibilityValue: responsibilityFilter === "all" ? null : responsibilityFilter,
-      };
-      const page = await getWorkflowPage(PAGE_SIZE, pageIndex * PAGE_SIZE, pageQuery);
-      if (latestReloadId.current !== reloadId) {
-        return;
-      }
-      setRows(page.items);
-      setTotalCount(page.count);
-      setDepartmentOptions(page.departmentOptions.map((option) => [option.id, option.name]));
-      setResponsibilityOptions(page.responsibilityOptions);
-    } catch (err) {
-      if (latestReloadId.current !== reloadId) {
-        return;
-      }
-      const message = err instanceof Error ? err.message : "Vorgänge konnten nicht geladen werden.";
-      setError(message);
-      setRows([]);
-      setTotalCount(0);
-      setDepartmentOptions([]);
-      setResponsibilityOptions([]);
-    } finally {
-      if (latestReloadId.current === reloadId) {
-        setIsLoading(false);
-      }
-    }
-  }, [departmentFilter, pageIndex, processTypeFilter, responsibilityFilter, debouncedSearch, statusFilter]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  useEffect(() => {
-    setPageIndex(0);
-  }, [departmentFilter, processTypeFilter, debouncedSearch, statusFilter]);
+  const pageQuery = useMemo<WorkflowQueryOptions>(() => ({
+    status: statusFilter === "all" ? null : statusFilter,
+    departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
+    processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
+    search: debouncedSearch,
+    responsibilityValue: responsibilityFilter === "all" ? null : responsibilityFilter,
+  }), [departmentFilter, debouncedSearch, processTypeFilter, responsibilityFilter, statusFilter]);
+  const processTypesQuery = useProcessTypes();
+  const workflowListQuery = useWorkflowList(pageQuery, pageIndex, PAGE_SIZE);
+  const processTypeOptions: ProcessType[] = processTypesQuery.data ?? [];
+  const rows: WorkflowSummary[] = workflowListQuery.data?.items ?? [];
+  const totalCount = workflowListQuery.data?.count ?? 0;
+  const departmentOptions: Array<[number, string]> =
+    workflowListQuery.data?.departmentOptions.map((option) => [option.id, option.name]) ?? [];
+  const responsibilityOptions: WorkflowResponsibilityOption[] =
+    workflowListQuery.data?.responsibilityOptions ?? [];
+  const isLoading = workflowListQuery.isLoading;
+  const isRefreshing = workflowListQuery.isFetching || processTypesQuery.isFetching;
+  const error =
+    workflowListQuery.error instanceof Error
+      ? workflowListQuery.error.message
+      : processTypesQuery.error instanceof Error
+        ? processTypesQuery.error.message
+        : workflowListQuery.error || processTypesQuery.error
+          ? "Vorgänge konnten nicht geladen werden."
+          : null;
 
   const totalPages = useMemo(() => {
     if (totalCount <= 0) {
@@ -128,14 +181,14 @@ export default function WorkflowListPage() {
     <main className="app-shell">
       <div className="page-container">
         <PageHeader
-          title="Vorgänge im Überblick"
-          description="Zentrale Übersicht über alle für Sie sichtbaren Mitarbeiterprozesse."
+          title="Laufende Vorgänge"
+          description="Behalten Sie laufende Mitarbeiterprozesse im Blick, priorisieren Sie offene Arbeit und springen Sie direkt in die Bearbeitung."
         />
 
         <section className="panel">
           <div className="panel-head">
-            <h2>Filter</h2>
-            <p>Filtern Sie nach Prozesstyp, Abteilung, Stand und zuständigem Bereich.</p>
+            <h2>Arbeitsüberblick</h2>
+            <p>Diese Seite ist Ihr operativer Überblick für laufende Vorgänge. Für die gezielte Recherche einzelner Fälle nutzen Sie die globale Suche.</p>
           </div>
           <div className="next-action-callout">
             <p className="next-action-label">Nächste nötige Aktion</p>
@@ -145,21 +198,35 @@ export default function WorkflowListPage() {
                 : "Prüfen Sie zuerst Fälle, die auf Abteilungsleitung oder Fachbereiche warten."}
             </p>
           </div>
+          <div className="action-row">
+            <Link className="btn btn-secondary" to="/search">
+              Zur globalen Suche
+            </Link>
+          </div>
 
           <div className="toolbar-row">
             <label className="field compact grow">
-              <span>Suche</span>
+              <span>Schnellfilter</span>
               <input
                 type="text"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="z. B. Name, Stelle oder ID"
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPageIndex(0);
+                }}
+                placeholder="z. B. Name, Stelle oder ID im aktuellen Überblick"
               />
             </label>
 
             <label className="field compact">
               <span>Prozesstyp</span>
-              <select value={processTypeFilter} onChange={(event) => setProcessTypeFilter(event.target.value)}>
+              <select
+                value={processTypeFilter}
+                onChange={(event) => {
+                  setProcessTypeFilter(event.target.value);
+                  setPageIndex(0);
+                }}
+              >
                 <option value="all">Alle</option>
                 {processTypeOptions.map((processType) => (
                   <option key={processType.key} value={processType.key}>
@@ -171,7 +238,13 @@ export default function WorkflowListPage() {
 
             <label className="field compact">
               <span>Abteilung</span>
-              <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+              <select
+                value={departmentFilter}
+                onChange={(event) => {
+                  setDepartmentFilter(event.target.value);
+                  setPageIndex(0);
+                }}
+              >
                 <option value="all">Alle</option>
                 {departmentOptions.map(([id, name]) => (
                   <option key={id} value={id}>
@@ -185,7 +258,10 @@ export default function WorkflowListPage() {
               <span>Status</span>
               <select
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus)}
+                onChange={(event) => {
+                  setStatusFilter(event.target.value as "all" | WorkflowRuntimeStatus);
+                  setPageIndex(0);
+                }}
               >
                 <option value="all">Alle</option>
                 <option value="draft">HR startet</option>
@@ -214,19 +290,26 @@ export default function WorkflowListPage() {
               </select>
             </label>
 
-            <button type="button" className="btn btn-secondary" onClick={reload}>
-              Aktualisieren
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                void Promise.all([workflowListQuery.refetch(), processTypesQuery.refetch()]);
+              }}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
             </button>
           </div>
           <div className="toolbar-row">
             <p className="panel-note">
-              Seite {pageIndex + 1} von {totalPages} · {totalCount} Workflow{totalCount === 1 ? "" : "s"}
+              Seite {pageIndex + 1} von {totalPages} · {totalCount} Einträge im Überblick
             </p>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-              disabled={pageIndex === 0 || isLoading}
+              disabled={pageIndex === 0 || isRefreshing}
             >
               Vorherige Seite
             </button>
@@ -234,7 +317,7 @@ export default function WorkflowListPage() {
               type="button"
               className="btn btn-secondary"
               onClick={() => setPageIndex((current) => current + 1)}
-              disabled={isLoading || pageIndex + 1 >= totalPages}
+              disabled={isRefreshing || pageIndex + 1 >= totalPages}
             >
               Nächste Seite
             </button>
@@ -248,21 +331,23 @@ export default function WorkflowListPage() {
             title="Vorgänge konnten nicht geladen werden."
             description={error}
             actionLabel="Erneut versuchen"
-            onAction={reload}
+            onAction={() => {
+              void Promise.all([workflowListQuery.refetch(), processTypesQuery.refetch()]);
+            }}
           />
         ) : null}
 
         {!isLoading && !error && rows.length === 0 && !hasActiveFilters ? (
           <EmptyState
-            title="Keine Vorgänge vorhanden"
-            description="Aktuell sind keine Vorgänge vorhanden. Starten Sie einen neuen Prozess."
+            title="Keine laufenden Vorgänge vorhanden"
+            description="Aktuell liegen keine Vorgänge im operativen Überblick vor. Für einen bestimmten Fall nutzen Sie die Suche oder starten Sie einen neuen Prozess."
           />
         ) : null}
 
         {!isLoading && !error && rows.length === 0 && hasActiveFilters ? (
           <EmptyState
             title="Keine Treffer"
-            description="Die aktuelle Filterkombination liefert keine Vorgänge."
+            description="Die aktuelle Filterkombination liefert keine passenden Vorgänge im laufenden Überblick."
           />
         ) : null}
 

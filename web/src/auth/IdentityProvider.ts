@@ -6,7 +6,7 @@ import {
   getDemoLoginUsers,
   getMe,
   setDemoAuthToken,
-} from "../services/lifecycleApi";
+} from "../services/authApi";
 import { EntraIdentityProvider } from "./EntraIdentityProvider";
 import type { DemoLoginResponse, DemoLoginUserOption, Me } from "../types/auth";
 

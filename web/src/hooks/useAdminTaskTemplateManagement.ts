@@ -23,6 +23,7 @@ import type {
   AdminTaskTemplateDependency,
 } from "../types/auth";
 import { toNullableNumber, toNullableText } from "../components/admin-config/adminConfigHelpers";
+import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
 
 type TemplateDraft = {
   templateKey: string;
@@ -113,6 +114,7 @@ export function useAdminTaskTemplateManagement({
   onNotice,
   onError,
 }: UseAdminTaskTemplateManagementOptions) {
+  const confirm = useConfirmationDialog();
   const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
   const [selectedProcessTypeId, setSelectedProcessTypeId] = useState<number | null>(null);
   const [templates, setTemplates] = useState<AdminTaskTemplate[]>([]);
@@ -489,7 +491,13 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    if (typeof window !== "undefined" && !window.confirm(`Task-Template "${selectedTemplate.title}" wirklich löschen?`)) {
+    const shouldDelete = await confirm({
+      title: "Aufgabenvorlage löschen?",
+      description: `Die Vorlage "${selectedTemplate.title}" wird aus der Konfiguration entfernt. Bestehende Workflow-Tasks bleiben bestehen, neue Vorgänge nutzen sie dann nicht mehr.`,
+      confirmLabel: "Aufgabenvorlage löschen",
+      tone: "danger",
+    });
+    if (!shouldDelete) {
       return;
     }
 
@@ -520,7 +528,7 @@ export function useAdminTaskTemplateManagement({
     } finally {
       setIsDeleting(false);
     }
-  }, [onError, onNotice, selectedTemplate]);
+  }, [confirm, onError, onNotice, selectedTemplate]);
 
   const addCondition = useCallback(async () => {
     if (!selectedTemplate) {

@@ -57,43 +57,56 @@ export function AdminTechnicalAccessSection({
   }
 
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <h2>Benutzerrechte und Gruppen</h2>
-        <p>Dieser Bereich ist für Rollen, Gruppen und Berechtigungen gedacht und wird bei Bedarf separat geladen.</p>
-      </div>
+    <div className="content-stack">
+      <section className="panel">
+        <div className="panel-head">
+          <h2>Zugriffe & Gruppen</h2>
+          <p>Dieser Bereich ist für Login-Rechte, Gruppen und Ausnahmen gedacht und wird bewusst nur bei Bedarf geladen.</p>
+        </div>
 
-      {isLoadingTechnicalAccess ? <LoadingState title="Rechte werden geladen..." /> : null}
+        <div className="admin-guidance-grid">
+          <article className="admin-guidance-card">
+            <h3>Wann passt dieser Bereich?</h3>
+            <p>Wenn eine Person zusätzliche Zugriffe braucht oder Gruppenrechte gezielt nachgezogen werden sollen.</p>
+          </article>
+          <article className="admin-guidance-card admin-guidance-card--caution">
+            <h3>Worauf achten?</h3>
+            <p>Direkte Rollen wirken sofort. Gruppenrollen wirken meist für mehrere Personen gleichzeitig und sollten bewusst eingesetzt werden.</p>
+          </article>
+        </div>
 
-      {!isLoadingTechnicalAccess && sortedUsers.length > 0 ? (
-        <label className="field compact">
-          <span>Person</span>
-          <select
-            aria-label="Person"
-            value={selectedUser?.userId ?? ""}
-            onChange={(event) => {
-              const nextUser = sortedUsers.find((user) => user.userId === Number(event.target.value));
-              if (nextUser) {
-                onSelectUser(nextUser);
-              }
-            }}
-          >
-            <option value="">Bitte wählen</option>
-            {sortedUsers.map((user) => (
-              <option key={user.userId} value={user.userId}>
-                {user.displayName} ({user.email})
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
+        {isLoadingTechnicalAccess ? <LoadingState title="Rechte werden geladen..." /> : null}
+
+        {!isLoadingTechnicalAccess && sortedUsers.length > 0 ? (
+          <label className="field compact">
+            <span>Person für Einzelpflege</span>
+            <select
+              aria-label="Person"
+              value={selectedUser?.userId ?? ""}
+              onChange={(event) => {
+                const nextUser = sortedUsers.find((user) => user.userId === Number(event.target.value));
+                if (nextUser) {
+                  onSelectUser(nextUser);
+                }
+              }}
+            >
+              <option value="">Bitte wählen</option>
+              {sortedUsers.map((user) => (
+                <option key={user.userId} value={user.userId}>
+                  {user.displayName} ({user.email})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </section>
 
       {!isLoadingTechnicalAccess && selectedUser ? (
         <div className="content-stack">
           <section className="panel">
             <div className="panel-head">
-              <h2>Rollen zuweisen: {selectedUser.displayName}</h2>
-              <p>Rollen direkt zuordnen.</p>
+              <h2>Direkte Rollen: {selectedUser.displayName}</h2>
+              <p>Nur für gezielte Ausnahmen oder ergänzende Einzelrechte verwenden.</p>
             </div>
 
             <div className="chips-row" aria-label="Rollen Auswahl">
@@ -128,8 +141,8 @@ export function AdminTechnicalAccessSection({
 
           <section className="panel">
             <div className="panel-head">
-              <h2>Gruppen zuweisen: {selectedUser.displayName}</h2>
-              <p>Gruppen mit vererbten Rechten zuordnen.</p>
+              <h2>Gruppen für {selectedUser.displayName}</h2>
+              <p>Bevorzugt für wiederkehrende Zugriffe, damit Rechte nicht einzeln nachgepflegt werden müssen.</p>
             </div>
 
             <div className="chips-row" aria-label="Gruppen Auswahl">
@@ -167,7 +180,7 @@ export function AdminTechnicalAccessSection({
       {!isLoadingTechnicalAccess && !selectedUser ? (
         <EmptyState
           title="Person auswählen"
-          description="Wählen Sie in diesem Bereich zuerst eine Person für die Rechteverwaltung aus."
+          description="Wählen Sie hier zuerst eine Person, wenn Sie Einzelrechte oder Gruppenzuordnungen prüfen möchten."
         />
       ) : null}
 
@@ -175,7 +188,7 @@ export function AdminTechnicalAccessSection({
         <section className="panel">
           <div className="panel-head">
             <h2>Gruppenrollen</h2>
-            <p>Rollen pro Gruppe nur bei Bedarf anpassen.</p>
+            <p>Änderungen hier wirken für alle Mitglieder der gewählten Gruppe und sind deshalb bewusst separat geführt.</p>
           </div>
 
           <label className="field compact">
@@ -230,6 +243,6 @@ export function AdminTechnicalAccessSection({
           ) : null}
         </section>
       ) : null}
-    </section>
+    </div>
   );
 }

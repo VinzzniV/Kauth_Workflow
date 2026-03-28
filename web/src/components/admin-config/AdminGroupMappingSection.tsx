@@ -52,20 +52,23 @@ export function AdminGroupMappingSection({
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Gruppen-Mappings</h2>
+        <h2>Gruppen mit Rollen verbinden</h2>
         <p>
-          Jede Verzeichnisgruppe kann eine oder mehrere App-Rollen erhalten. Die Rolle wird
-          beim Login über die projizierte Gruppenmitgliedschaft wirksam.
+          Jede Verzeichnisgruppe kann eine oder mehrere App-Rollen erhalten. Die Rolle wird beim Login über die Gruppenmitgliedschaft wirksam.
         </p>
       </div>
+
+      <p className="panel-note">
+        Eine Gruppen-Rollen-Zuordnung gilt für alle Mitglieder der jeweiligen Gruppe. Neue Verknüpfungen deshalb zuerst in kleineren Gruppen oder nach einem gezielten Sync prüfen.
+      </p>
 
       <table className="table">
         <thead>
           <tr>
             <th>Verzeichnisgruppe</th>
             <th>Mitglieder</th>
-            <th>Aktuelle Mappings</th>
-            <th>Neue Rolle</th>
+            <th>Aktuelle Rollen</th>
+            <th>Neue Rolle verknüpfen</th>
           </tr>
         </thead>
         <tbody>
@@ -83,7 +86,7 @@ export function AdminGroupMappingSection({
                 <td>{group.memberCount}</td>
                 <td>
                   {group.roleMappings.length === 0 ? (
-                    <span className="panel-note">Noch keine Rollen zugeordnet.</span>
+                    <span className="panel-note">Noch keine Rollen verknüpft.</span>
                   ) : (
                     <div className="chips-row">
                       {group.roleMappings.map((mapping) => (
@@ -131,7 +134,7 @@ export function AdminGroupMappingSection({
                         void onCreateMapping(group.directoryGroupId, selectedRoleId);
                       }}
                     >
-                      {isSaving ? "Speichert..." : "Zuordnen"}
+                      {isSaving ? "Speichert..." : "Rolle verknüpfen"}
                     </button>
                   </div>
                 </td>

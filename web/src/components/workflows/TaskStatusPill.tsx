@@ -6,5 +6,13 @@ type Props = {
 };
 
 export default function TaskStatusPill({ status }: Props) {
-  return <span className={`task-pill ${getTaskStatusClassName(status)}`}>{getTaskStatusLabel(status)}</span>;
+  return (
+    <span
+      className={`task-pill ${getTaskStatusClassName(status)}`}
+      aria-label={`Aufgabenstatus: ${getTaskStatusLabel(status)}`}
+      title={`Aufgabenstatus: ${getTaskStatusLabel(status)}`}
+    >
+      {getTaskStatusLabel(status)}
+    </span>
+  );
 }

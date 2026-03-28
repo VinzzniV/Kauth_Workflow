@@ -83,6 +83,43 @@ export default function CreateWorkflowPage() {
         selectedCompletedOnboarding.employeeNumber <= 0 ||
         selectedCompletedOnboarding.badgeNumber <= 0)
   );
+  const processStepIssues = selectedProcessType
+    ? []
+    : ["Wählen Sie einen Vorgang aus, damit der Wizard den passenden Kontext laden kann."];
+  const employeeFieldErrors = requiresTargetPerson
+    ? {}
+    : {
+        firstName: employee.firstName.trim() ? undefined : "Vorname ist erforderlich.",
+        lastName: employee.lastName.trim() ? undefined : "Nachname ist erforderlich.",
+        employeeNumber: employee.employeeNumber > 0 ? undefined : "Positive Personalnummer eingeben.",
+        badgeNumber: employee.badgeNumber > 0 ? undefined : "Positive Kartennummer eingeben.",
+      };
+  const departmentError =
+    !requiresTargetPerson && selectedDepartmentId === null ? "Bitte eine Abteilung auswählen." : null;
+  const roleError =
+    !requiresTargetPerson && selectedDepartmentId !== null && selectedRoleId === null
+      ? !rolesLoading && !rolesError && availableRoles.length === 0
+        ? "In der gewählten Abteilung ist keine aktive Stelle hinterlegt."
+        : "Bitte eine Stelle auswählen."
+      : null;
+  const targetPersonSelectionError =
+    requiresTargetPerson && !selectedCompletedOnboarding && !completedOnboardingsLoading
+      ? "Bitte ein abgeschlossenes Onboarding auswählen."
+      : null;
+  const contextStepIssues = requiresTargetPerson
+    ? [
+        ...(completedOnboardingsError ? ["Die Suche nach abgeschlossenen Onboardings ist fehlgeschlagen."] : []),
+        ...(targetPersonSelectionError ? [targetPersonSelectionError] : []),
+        ...(hasDerivedContextGap
+          ? ["Für die gewählte Person fehlen vollständige Angaben zu Abteilung, Stelle, Personalnummer oder Kartennummer."]
+          : []),
+      ]
+    : [
+        ...(rolesError ? ["Stellen und Abteilungen konnten nicht geladen werden."] : []),
+        ...Object.values(employeeFieldErrors).filter((value): value is string => Boolean(value)),
+        ...(departmentError ? [departmentError] : []),
+        ...(roleError ? [roleError] : []),
+      ];
 
   const steps: StepDefinition[] = [
     {
@@ -187,6 +224,17 @@ export default function CreateWorkflowPage() {
                   </div>
                 ) : null}
 
+                {processStepIssues.length > 0 ? (
+                  <section className="panel panel-muted wizard-inline-note" role="status" aria-live="polite">
+                    <h3 className="panel-title">Zum Weitergehen fehlt noch</h3>
+                    <ul className="validation-list">
+                      {processStepIssues.map((issue) => (
+                        <li key={issue}>{issue}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+
                 <div className="wizard-actions">
                   <span />
                   <button type="button" className="btn btn-primary" disabled={!canGoToContextStep} onClick={goToContextStep}>
@@ -220,11 +268,12 @@ export default function CreateWorkflowPage() {
                   selectedOnboarding={selectedCompletedOnboarding}
                   isLoading={completedOnboardingsLoading}
                   error={completedOnboardingsError}
+                  selectionError={targetPersonSelectionError}
                   onSelectOnboarding={(onboarding) => setSelectedCompletedOnboarding(onboarding)}
                 />
               ) : (
                 <>
-                  <EmployeeForm value={employee} onChange={setEmployeeField} />
+                  <EmployeeForm value={employee} onChange={setEmployeeField} fieldErrors={employeeFieldErrors} />
 
                   <RoleSelection
                     roles={roles}
@@ -233,6 +282,8 @@ export default function CreateWorkflowPage() {
                     selectedRoleId={selectedRoleId}
                     isLoading={rolesLoading}
                     error={rolesError}
+                    departmentError={departmentError}
+                    roleError={roleError}
                     onDepartmentChange={setSelectedDepartment}
                     onRoleChange={setSelectedRole}
                     onRetry={reloadRoles}
@@ -272,6 +323,22 @@ export default function CreateWorkflowPage() {
                   </p>
                 </section>
               ) : null}
+
+              {contextStepIssues.length > 0 ? (
+                <section className="panel panel-muted" role="status" aria-live="polite">
+                  <h3 className="panel-title">Vor Schritt 3 bitte noch prüfen</h3>
+                  <ul className="validation-list">
+                    {contextStepIssues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                </section>
+              ) : (
+                <section className="panel panel-success" role="status" aria-live="polite">
+                  <h3 className="panel-title">Kontext vollständig</h3>
+                  <p className="panel-text">Alle erforderlichen Angaben für Schritt 3 sind vorhanden.</p>
+                </section>
+              )}
 
               <section className="panel">
                 <div className="wizard-actions">
@@ -397,6 +464,9 @@ export default function CreateWorkflowPage() {
             ) : null}
 
             <section className="panel">
+              {canSubmit ? (
+                <p className="panel-note">Alles bereit. Beim Anlegen wird der Vorgang sofort mit dem gezeigten Kontext gestartet.</p>
+              ) : null}
               <div className="wizard-actions">
                 <button type="button" className="btn btn-secondary" onClick={goToContextStep}>
                   Zurück zu Schritt 2

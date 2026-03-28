@@ -62,9 +62,19 @@ export function AdminDirectorySyncSection({
       <div className="panel-head">
         <h2>Verzeichnis-Synchronisierung</h2>
         <p>
-          Spiegelt Entra-Gruppen und Identitäten in die lokale Projektion. Rollen-Mappings
-          werden danach auf Basis dieser Daten ausgewertet.
+          Holt Gruppen und Identitäten aus Entra in die Anwendung. Rollen-Zuordnungen werden danach auf Basis dieser Daten ausgewertet.
         </p>
+      </div>
+
+      <div className="admin-guidance-grid">
+        <article className="admin-guidance-card">
+          <h3>Wann passt dieser Bereich?</h3>
+          <p>Wenn neue Gruppen oder Identitäten aus Entra übernommen oder bestehende Zuordnungen kontrolliert werden sollen.</p>
+        </article>
+        <article className="admin-guidance-card admin-guidance-card--caution">
+          <h3>Worauf achten?</h3>
+          <p>Nutzen Sie einen Gruppenfilter für schrittweise Prüfungen. Große Läufe und neue Gruppen-Mappings wirken auf spätere Logins vieler Personen.</p>
+        </article>
       </div>
 
       <div className="dashboard-grid" aria-label="Verzeichnisstatus">
@@ -83,11 +93,11 @@ export function AdminDirectorySyncSection({
 
         <article className="dashboard-card">
           <h2>Identitäten</h2>
-          <p>{status?.totalIdentities ?? 0} projiziert</p>
+          <p>{status?.totalIdentities ?? 0} übernommen</p>
         </article>
 
         <article className="dashboard-card">
-          <h2>Mappings</h2>
+          <h2>Gruppen-Rollen-Zuordnungen</h2>
           <p>{status?.totalMappings ?? 0} aktiv</p>
         </article>
       </div>
@@ -141,7 +151,7 @@ export function AdminDirectorySyncSection({
       {!isLoading && identities.length > 0 ? (
         <>
           <div className="panel-head" style={{ marginTop: "1rem" }}>
-            <h2>Letzte Identitäten</h2>
+            <h2>Zuletzt übernommene Identitäten</h2>
             <p>Die Liste zeigt die ersten synchronisierten Verzeichnisobjekte inklusive Verknüpfung zur App-Person.</p>
           </div>
 
@@ -180,7 +190,7 @@ export function AdminDirectorySyncSection({
       {!isLoading && auditEntries.length > 0 ? (
         <>
           <div className="panel-head" style={{ marginTop: "1rem" }}>
-            <h2>Letzte Änderungen</h2>
+            <h2>Änderungsprotokoll</h2>
             <p>Zeigt die jüngsten Mapping-Änderungen für Nachvollziehbarkeit und Betrieb.</p>
           </div>
 

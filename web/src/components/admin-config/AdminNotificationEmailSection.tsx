@@ -82,6 +82,46 @@ export function AdminNotificationEmailSection({
 }: AdminNotificationEmailSectionProps) {
   const hasSandboxRedirectDraft = notificationSandboxRedirectDraft.trim().length > 0;
   const showsDirectDeliveryWarning = notificationEnabledDraft && !hasSandboxRedirectDraft;
+  const tenantIdMissing = notificationEnabledDraft && notificationTenantIdDraft.trim().length === 0;
+  const clientIdMissing = notificationEnabledDraft && notificationClientIdDraft.trim().length === 0;
+  const clientSecretMissing =
+    notificationEnabledDraft
+    && !notificationEmailConfiguration?.hasClientSecret
+    && notificationClientSecretDraft.trim().length === 0;
+  const senderMissing = notificationEnabledDraft && notificationSenderEmailDraft.trim().length === 0;
+  const frontendBaseUrlMissing = notificationEnabledDraft && notificationFrontendBaseUrlDraft.trim().length === 0;
+  const saveBlockers = [
+    ...(!notificationEmailConfiguration ? ["Die gespeicherte Mail-Konfiguration ist noch nicht geladen."] : []),
+    ...(!hasNotificationEmailDraftChanges ? ["Es gibt aktuell keine ungespeicherten Änderungen."] : []),
+    ...(tenantIdMissing ? ["Tenant ID fehlt für aktiven Mailversand."] : []),
+    ...(clientIdMissing ? ["Client ID fehlt für aktiven Mailversand."] : []),
+    ...(clientSecretMissing ? ["Client Secret fehlt für aktiven Mailversand."] : []),
+    ...(senderMissing ? ["Sender-Mailadresse fehlt für aktiven Mailversand."] : []),
+    ...(frontendBaseUrlMissing ? ["Frontend-Basis-URL fehlt für aktiven Mailversand."] : []),
+  ];
+  const canSave =
+    !isSavingNotificationEmailConfiguration &&
+    !isLoading &&
+    hasNotificationEmailDraftChanges &&
+    !tenantIdMissing &&
+    !clientIdMissing &&
+    !clientSecretMissing &&
+    !senderMissing &&
+    !frontendBaseUrlMissing;
+  const testBlockers = [
+    ...(!notificationEmailConfiguration ? ["Die gespeicherte Konfiguration ist noch nicht geladen."] : []),
+    ...(isLoading ? ["Warten Sie, bis die Konfiguration vollständig geladen ist."] : []),
+    ...(hasNotificationEmailDraftChanges ? ["Speichern Sie zuerst die Änderungen, bevor Sie eine Testmail senden."] : []),
+    ...(notificationEmailConfiguration?.configurationStatus === "incomplete"
+      ? ["Die gespeicherte Konfiguration ist noch unvollständig."]
+      : []),
+  ];
+  const canSendTest =
+    Boolean(notificationEmailConfiguration) &&
+    !isLoading &&
+    !isSendingNotificationEmailTest &&
+    !isSavingNotificationEmailConfiguration &&
+    !hasNotificationEmailDraftChanges;
 
   return (
     <section className="panel">
@@ -150,7 +190,7 @@ export function AdminNotificationEmailSection({
           </select>
         </label>
 
-        <label className="field compact">
+        <label className={`field compact ${tenantIdMissing ? "field-invalid" : ""}`}>
           <span>Tenant ID</span>
           <input
             type="text"
@@ -158,9 +198,10 @@ export function AdminNotificationEmailSection({
             onChange={(event) => onNotificationTenantIdChange(event.target.value)}
             placeholder="Microsoft Entra Tenant ID"
           />
+          {tenantIdMissing ? <small className="field-error">Tenant ID wird für aktiven Mailversand benötigt.</small> : null}
         </label>
 
-        <label className="field compact">
+        <label className={`field compact ${clientIdMissing ? "field-invalid" : ""}`}>
           <span>Client ID</span>
           <input
             type="text"
@@ -168,9 +209,10 @@ export function AdminNotificationEmailSection({
             onChange={(event) => onNotificationClientIdChange(event.target.value)}
             placeholder="App Registration Client ID"
           />
+          {clientIdMissing ? <small className="field-error">Client ID wird für aktiven Mailversand benötigt.</small> : null}
         </label>
 
-        <label className="field compact">
+        <label className={`field compact ${clientSecretMissing ? "field-invalid" : ""}`}>
           <span>Client Secret</span>
           <input
             type="password"
@@ -182,6 +224,7 @@ export function AdminNotificationEmailSection({
                 : "Microsoft Graph Client Secret"
             }
           />
+          {clientSecretMissing ? <small className="field-error">Für den ersten aktiven Versand muss ein Client Secret hinterlegt werden.</small> : null}
         </label>
 
         <p className="panel-note">
@@ -190,7 +233,7 @@ export function AdminNotificationEmailSection({
             : "Speichern Sie hier ein neues Client Secret."}
         </p>
 
-        <label className="field compact">
+        <label className={`field compact ${senderMissing ? "field-invalid" : ""}`}>
           <span>Sender-Mailadresse</span>
           <input
             type="email"
@@ -198,9 +241,10 @@ export function AdminNotificationEmailSection({
             onChange={(event) => onNotificationSenderEmailChange(event.target.value)}
             placeholder="onboarding@example.com"
           />
+          {senderMissing ? <small className="field-error">Sender-Mailadresse wird für aktiven Mailversand benötigt.</small> : null}
         </label>
 
-        <label className="field compact">
+        <label className={`field compact ${frontendBaseUrlMissing ? "field-invalid" : ""}`}>
           <span>Frontend-Basis-URL</span>
           <input
             type="url"
@@ -208,6 +252,7 @@ export function AdminNotificationEmailSection({
             onChange={(event) => onNotificationFrontendBaseUrlChange(event.target.value)}
             placeholder="https://onboarding.example.com"
           />
+          {frontendBaseUrlMissing ? <small className="field-error">Frontend-Basis-URL wird für Links in Benachrichtigungen benötigt.</small> : null}
         </label>
 
         <label className="field compact">
@@ -279,7 +324,7 @@ export function AdminNotificationEmailSection({
             onClick={() => {
               void onSave();
             }}
-            disabled={isSavingNotificationEmailConfiguration || isLoading || !hasNotificationEmailDraftChanges}
+            disabled={!canSave}
           >
             {isSavingNotificationEmailConfiguration ? "Speichern..." : "Mail-Konfiguration speichern"}
           </button>
@@ -290,25 +335,33 @@ export function AdminNotificationEmailSection({
             onClick={() => {
               void onSendTest();
             }}
-            disabled={
-              !notificationEmailConfiguration
-              || isLoading
-              || isSendingNotificationEmailTest
-              || isSavingNotificationEmailConfiguration
-              || hasNotificationEmailDraftChanges
-            }
+            disabled={!canSendTest}
           >
             {isSendingNotificationEmailTest ? "Sende Testmail..." : "Testmail senden"}
           </button>
         </div>
 
-        {hasNotificationEmailDraftChanges ? (
-          <p className="panel-note">
-            Es gibt ungespeicherte Änderungen. Für den Testversand wird bewusst die gespeicherte Konfiguration verwendet.
-          </p>
-        ) : (
-          <p className="panel-note">Keine ungespeicherten Änderungen in der Mail-Konfiguration.</p>
-        )}
+        {saveBlockers.length > 0 ? (
+          <div className="panel panel-muted">
+            <h3 className="panel-title">Speichern aktuell blockiert</h3>
+            <ul className="validation-list">
+              {saveBlockers.map((blocker) => (
+                <li key={blocker}>{blocker}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {testBlockers.length > 0 ? (
+          <div className="panel panel-muted">
+            <h3 className="panel-title">Testmail aktuell blockiert</h3>
+            <ul className="validation-list">
+              {testBlockers.map((blocker) => (
+                <li key={blocker}>{blocker}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </section>
   );

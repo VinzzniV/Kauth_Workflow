@@ -10,6 +10,7 @@ type Props = {
   selectedOnboarding: CompletedOnboardingSearchResult | null;
   isLoading: boolean;
   error: string | null;
+  selectionError?: string | null;
   onSelectOnboarding: (onboarding: CompletedOnboardingSearchResult) => void;
 };
 
@@ -22,6 +23,7 @@ export default function TargetPersonSelection({
   selectedOnboarding,
   isLoading,
   error,
+  selectionError,
   onSelectOnboarding,
 }: Props) {
   return (
@@ -45,6 +47,7 @@ export default function TargetPersonSelection({
       </label>
 
       {error ? <p className="text-error">{error}</p> : null}
+      {selectionError ? <p className="field-error">{selectionError}</p> : null}
       {isLoading ? <p className="text-muted">Abgeschlossene Onboardings werden geladen...</p> : null}
       {!isLoading && completedOnboardings.length === 0 ? (
         <p className="text-muted">Kein passendes abgeschlossenes Onboarding gefunden.</p>

@@ -11,6 +11,16 @@ import WorkflowProgressSection from "../components/workflow-detail/WorkflowProgr
 import WorkflowRequirementsPanel from "../components/workflow-detail/WorkflowRequirementsPanel";
 import WorkflowTaskAreasSection from "../components/workflow-detail/WorkflowTaskAreasSection";
 import {
+  useAddTaskComment,
+  useUpdateSupervisorStep,
+  useUpdateTaskStatus,
+} from "../services/mutations/workflowMutations";
+import {
+  useWorkflowAuditLog,
+  useWorkflowDetail,
+  useWorkflowTasks,
+} from "../services/queries/workflowQueries";
+import {
   buildProcessSteps,
   buildTasksByArea,
   findCurrentTask,
@@ -30,19 +40,7 @@ import {
   applyRequirementBooleanEditorSelection,
   applyRequirementSingleSelectEditorSelection,
 } from "../utils/requirementEditor";
-import {
-  addTaskComment as addTaskCommentApi,
-  getWorkflowAuditLog,
-  getWorkflowByUid,
-  updateTaskStatus as updateTaskStatusApi,
-  updateWorkflowSupervisorStep,
-} from "../services/lifecycleApi";
-import type {
-  RequirementSelectionState,
-  WorkflowAuditEntry,
-  WorkflowDetail,
-  WorkflowTask,
-} from "../types/workflow";
+import type { RequirementSelectionState, WorkflowDetail, WorkflowTask } from "../types/workflow";
 import {
   buildRequirementSelections,
   createEmptyRequirementSelection,
@@ -60,13 +58,9 @@ export default function WorkflowDetailPage() {
   const { capabilities } = useCurrentUser();
   const isReaderOnlyView =
     capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
+  const canViewAuditLog =
+    capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration;
 
-  const [workflow, setWorkflow] = useState<WorkflowDetail | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [auditEntries, setAuditEntries] = useState<WorkflowAuditEntry[]>([]);
-  const [auditLogError, setAuditLogError] = useState<string | null>(null);
-  const [isLoadingAuditLog, setIsLoadingAuditLog] = useState<boolean>(false);
   const [taskNotice, setTaskNotice] = useState<string | null>(null);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [savingTaskIds, setSavingTaskIds] = useState<Record<number, boolean>>({});
@@ -78,55 +72,50 @@ export default function WorkflowDetailPage() {
   const [requirementsSaveError, setRequirementsSaveError] = useState<string | null>(null);
   const [requirementsSaveNotice, setRequirementsSaveNotice] = useState<string | null>(null);
   const [isSavingRequirements, setIsSavingRequirements] = useState<boolean>(false);
+  const workflowDetailQuery = useWorkflowDetail(uid);
+  const workflowTasksQuery = useWorkflowTasks(uid);
+  const workflowAuditLogQuery = useWorkflowAuditLog(uid, 50, 0, canViewAuditLog);
+  const updateTaskStatusMutation = useUpdateTaskStatus(uid);
+  const addTaskCommentMutation = useAddTaskComment(uid);
+  const updateSupervisorStepMutation = useUpdateSupervisorStep(uid);
+  const workflow = useMemo<WorkflowDetail | null>(() => {
+    const baseWorkflow = workflowDetailQuery.data ?? null;
+    if (!baseWorkflow) {
+      return null;
+    }
+
+    if (!workflowTasksQuery.data) {
+      return baseWorkflow;
+    }
+
+    return {
+      ...baseWorkflow,
+      tasks: workflowTasksQuery.data,
+    };
+  }, [workflowDetailQuery.data, workflowTasksQuery.data]);
+  const isLoading = workflowDetailQuery.isLoading;
+  const error = !uid.trim()
+    ? "Workflow-ID fehlt."
+    : workflowDetailQuery.error instanceof Error
+      ? workflowDetailQuery.error.message
+      : workflowDetailQuery.error
+        ? "Vorgang konnte nicht geladen werden."
+        : null;
+  const auditEntries = workflowAuditLogQuery.data ?? [];
+  const auditLogError = workflowAuditLogQuery.error instanceof Error
+    ? workflowAuditLogQuery.error.message
+    : workflowAuditLogQuery.error
+      ? "Audit-Log konnte nicht geladen werden."
+      : null;
+  const isLoadingAuditLog = workflowAuditLogQuery.isLoading;
 
   const reload = useCallback(async () => {
-    if (!uid.trim()) {
-      setWorkflow(null);
-      setError("Workflow-ID fehlt.");
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setAuditLogError(null);
-
-    try {
-      const workflowData = await getWorkflowByUid(uid);
-      setWorkflow(workflowData);
-
-      if (capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration) {
-        setIsLoadingAuditLog(true);
-
-        try {
-          const auditLogData = await getWorkflowAuditLog(uid);
-          setAuditEntries(auditLogData);
-        } catch (auditError) {
-          const message = auditError instanceof Error ? auditError.message : "Audit-Log konnte nicht geladen werden.";
-          setAuditLogError(message);
-          setAuditEntries([]);
-        } finally {
-          setIsLoadingAuditLog(false);
-        }
-      } else {
-        setAuditEntries([]);
-        setIsLoadingAuditLog(false);
-      }
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Vorgang konnte nicht geladen werden.";
-      setError(message);
-      setWorkflow(null);
-      setAuditEntries([]);
-      setIsLoadingAuditLog(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [capabilities.canManageAdminConfiguration, capabilities.hasHrRole, capabilities.hasManagerRole, uid]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    await Promise.all([
+      workflowDetailQuery.refetch(),
+      workflowTasksQuery.refetch(),
+      canViewAuditLog ? workflowAuditLogQuery.refetch() : Promise.resolve(),
+    ]);
+  }, [canViewAuditLog, workflowAuditLogQuery, workflowDetailQuery, workflowTasksQuery]);
 
   useEffect(() => {
     if (!workflow) {
@@ -267,8 +256,7 @@ export default function WorkflowDetailPage() {
       setTaskError(null);
 
       try {
-        await updateTaskStatusApi(taskId, nextStatus);
-        await reload();
+        await updateTaskStatusMutation.mutateAsync({ taskId, status: nextStatus });
         setTaskNotice("Aufgabenstatus wurde gespeichert.");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Aufgabenstatus konnte nicht aktualisiert werden.";
@@ -277,7 +265,7 @@ export default function WorkflowDetailPage() {
         setSavingTaskIds((current) => ({ ...current, [taskId]: false }));
       }
     },
-    [reload]
+    [updateTaskStatusMutation]
   );
 
   const handleCommentDraftChange = useCallback((taskId: number, value: string) => {
@@ -298,8 +286,7 @@ export default function WorkflowDetailPage() {
       setTaskNotice(null);
 
       try {
-        await addTaskCommentApi(taskId, draft);
-        await reload();
+        await addTaskCommentMutation.mutateAsync({ taskId, text: draft });
         setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
         setCommentFeedbackMessage("Kommentar wurde gespeichert.");
       } catch (err) {
@@ -309,7 +296,7 @@ export default function WorkflowDetailPage() {
         setSavingCommentTaskIds((current) => ({ ...current, [taskId]: false }));
       }
     },
-    [commentDrafts, reload]
+    [addTaskCommentMutation, commentDrafts]
   );
 
   const setRequirementBoolean = useCallback(
@@ -372,11 +359,9 @@ export default function WorkflowDetailPage() {
     setRequirementsSaveNotice(null);
 
     try {
-      await updateWorkflowSupervisorStep(
-        workflow.uid,
+      await updateSupervisorStepMutation.mutateAsync(
         toRequirementSelectionPayload(workflow.requirements, requirementSelections)
       );
-      await reload();
       setRequirementsSaveNotice("Anforderungen wurden per Admin-Override gespeichert.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Anforderungen konnten nicht gespeichert werden.";
@@ -384,7 +369,7 @@ export default function WorkflowDetailPage() {
     } finally {
       setIsSavingRequirements(false);
     }
-  }, [canEditSupervisorRequirements, reload, requirementSelections, workflow]);
+  }, [canEditSupervisorRequirements, requirementSelections, updateSupervisorStepMutation, workflow]);
 
   const processSteps = useMemo<ProcessStep[]>(() => {
     if (!workflow) {
@@ -429,8 +414,6 @@ export default function WorkflowDetailPage() {
               canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
             />
 
-            <WorkflowProgressSection processSteps={processSteps} processTypeName={workflow.processType.name} />
-
             <WorkflowRequirementsPanel
               workflow={workflow}
               canEditSupervisorRequirements={canEditSupervisorRequirements}
@@ -472,28 +455,31 @@ export default function WorkflowDetailPage() {
               onTaskCommentSubmit={handleTaskCommentSubmit}
             />
 
-            {capabilities.hasHrRole || capabilities.canManageAdminConfiguration ? (
-              <WorkflowLinksPanel uid={uid} workflow={workflow} />
-            ) : null}
+            <section className="workflow-detail-secondary-stack">
+              <WorkflowProgressSection processSteps={processSteps} processTypeName={workflow.processType.name} />
 
-            <WorkflowManagementPanel
-              uid={uid}
-              workflow={workflow}
-              capabilities={capabilities}
-              onReload={reload}
-            />
+              {capabilities.hasHrRole || capabilities.canManageAdminConfiguration ? (
+                <WorkflowLinksPanel uid={uid} workflow={workflow} />
+              ) : null}
 
-            {capabilities.canManageAdminConfiguration ? (
-              <WorkflowNotificationsPanel notifications={workflow.notifications} />
-            ) : null}
-
-            {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (
-              <WorkflowAuditLog
-                entries={auditEntries}
-                isLoading={isLoadingAuditLog}
-                error={auditLogError}
+              <WorkflowManagementPanel
+                uid={uid}
+                workflow={workflow}
+                capabilities={capabilities}
               />
-            ) : null}
+
+              {capabilities.canManageAdminConfiguration ? (
+                <WorkflowNotificationsPanel notifications={workflow.notifications} />
+              ) : null}
+
+              {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (
+                <WorkflowAuditLog
+                  entries={auditEntries}
+                  isLoading={isLoadingAuditLog}
+                  error={auditLogError}
+                />
+              ) : null}
+            </section>
           </>
         ) : null}
       </div>

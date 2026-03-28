@@ -59,16 +59,16 @@ export function AdminTaskTemplateSection({
   });
 
   const panelTitle = isCreatingNew
-    ? "Neues Task-Template"
+    ? "Neue Aufgabenvorlage"
     : selectedTemplate
-      ? `Task-Template bearbeiten: ${selectedTemplate.title}`
-      : "Task-Template auswählen";
+      ? `Aufgabenvorlage bearbeiten: ${selectedTemplate.title}`
+      : "Aufgabenvorlage auswählen";
 
   return (
     <div className="content-stack">
       <section className="panel panel-muted">
         <div className="panel-head">
-          <h2>Task-Templates</h2>
+          <h2>Aufgabenvorlagen</h2>
           <p>
             Verwalten Sie Vorlagen pro Prozesstyp. Änderungen betreffen die Konfiguration für neue
             Workflows, nicht bereits erzeugte Workflow-Tasks.
@@ -106,14 +106,14 @@ export function AdminTaskTemplateSection({
               disabled={!selectedProcessTypeId || isLoadingTemplates || isSaving || isDeleting}
               onClick={startCreatingTemplate}
             >
-              Neues Template
+              Neue Aufgabenvorlage
             </button>
           </div>
 
-          {isLoadingTemplates ? <p className="panel-note">Task-Templates werden geladen...</p> : null}
+          {isLoadingTemplates ? <p className="panel-note">Aufgabenvorlagen werden geladen...</p> : null}
 
           {!isLoadingTemplates && selectedProcessTypeId && templates.length === 0 ? (
-            <p className="panel-note">Für diesen Prozesstyp sind noch keine Task-Templates vorhanden.</p>
+            <p className="panel-note">Für diesen Prozesstyp sind noch keine Aufgabenvorlagen vorhanden.</p>
           ) : null}
 
           {!isLoadingTemplates && templates.length > 0 ? (
@@ -164,7 +164,7 @@ export function AdminTaskTemplateSection({
         <div className="panel-head">
           <h2>Dependency-Graph</h2>
           <p>
-            Interaktive Übersicht aller Template-Abhängigkeiten des ausgewählten Prozesstyps.
+            Interaktive Übersicht aller Abhängigkeiten zwischen Aufgabenvorlagen des ausgewählten Prozesstyps.
             Verbindung erstellen per Drag von Quelle zu Ziel, löschen per Klick auf die Kante.
             Ein Klick auf einen Knoten öffnet das Detailpanel.
           </p>
@@ -201,7 +201,7 @@ export function AdminTaskTemplateSection({
         <div className="panel-head">
           <h2>{panelTitle}</h2>
           <p>
-            Alle Felder werden direkt auf der Task-Vorlage gepflegt. Die Zuordnung bleibt strikt am
+            Alle Felder werden direkt auf der Aufgabenvorlage gepflegt. Die Zuordnung bleibt strikt am
             ausgewählten Prozesstyp.
           </p>
         </div>
@@ -209,12 +209,12 @@ export function AdminTaskTemplateSection({
         {!selectedProcessTypeId ? (
           <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p>
         ) : !isCreatingNew && !selectedTemplate ? (
-          <p className="panel-note">Bitte links ein Task-Template auswählen oder ein neues anlegen.</p>
+          <p className="panel-note">Bitte links eine Aufgabenvorlage auswählen oder eine neue anlegen.</p>
         ) : (
           <div className="panel-body">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
               <label>
-                <span className="form-label">Template-Key</span>
+                <span className="form-label">Vorlagen-Key</span>
                 <input
                   className="form-input"
                   value={draft.templateKey}
@@ -250,7 +250,7 @@ export function AdminTaskTemplateSection({
               </label>
 
               <label>
-                <span className="form-label">Owning Department</span>
+                <span className="form-label">Zuständige Abteilung</span>
                 <select
                   className="form-select"
                   value={draft.owningDepartmentId}
@@ -266,7 +266,7 @@ export function AdminTaskTemplateSection({
               </label>
 
               <label>
-                <span className="form-label">Default Responsibility</span>
+                <span className="form-label">Standard-Zuständigkeit</span>
                 <select
                   className="form-select"
                   value={draft.defaultResponsibilityId}
@@ -329,7 +329,7 @@ export function AdminTaskTemplateSection({
                   checked={draft.isDepartmentPhaseTask}
                   onChange={(event) => updateDraft("isDepartmentPhaseTask", event.target.checked)}
                 />
-                <span>Department-Phase-Task</span>
+                <span>Aufgabe der Fachbereichsphase</span>
               </label>
 
               <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -366,7 +366,7 @@ export function AdminTaskTemplateSection({
                   disabled={isSaving || isDeleting}
                   onClick={() => void createTemplate()}
                 >
-                  {isSaving ? "Wird angelegt..." : "Template anlegen"}
+                  {isSaving ? "Wird angelegt..." : "Aufgabenvorlage anlegen"}
                 </button>
               ) : (
                 <button
@@ -385,7 +385,7 @@ export function AdminTaskTemplateSection({
                 disabled={!selectedTemplate || isCreatingNew || isSaving || isDeleting}
                 onClick={() => void removeTemplate()}
               >
-                {isDeleting ? "Wird gelöscht..." : "Template löschen"}
+                {isDeleting ? "Wird gelöscht..." : "Aufgabenvorlage löschen"}
               </button>
             </div>
           </div>
@@ -406,7 +406,7 @@ export function AdminTaskTemplateSection({
             {isLoadingConditions ? <p className="panel-note">Bedingungen werden geladen...</p> : null}
 
             {!isLoadingConditions && groupedConditions.length === 0 ? (
-              <p className="panel-note">Für dieses Template sind noch keine Bedingungen definiert.</p>
+              <p className="panel-note">Für diese Aufgabenvorlage sind noch keine Bedingungen definiert.</p>
             ) : null}
 
             {!isLoadingConditions && groupedConditions.length > 0 ? (
@@ -464,7 +464,7 @@ export function AdminTaskTemplateSection({
 
             <div style={{ marginTop: "1.5rem", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
               <label>
-                <span className="form-label">Condition Group</span>
+                <span className="form-label">Bedingungsgruppe</span>
                 <input
                   className="form-input"
                   type="number"
@@ -475,13 +475,13 @@ export function AdminTaskTemplateSection({
               </label>
 
               <label>
-                <span className="form-label">Answer Key</span>
+                <span className="form-label">Antwortfeld</span>
                 <select
                   className="form-select"
                   value={conditionDraft.answerKey}
                   onChange={(event) => updateConditionDraft("answerKey", event.target.value)}
                 >
-                  <option value="">-- Answer Definition wählen --</option>
+                  <option value="">-- Antwortfeld wählen --</option>
                   {answerDefinitions.map((definition) => (
                     <option key={definition.id} value={definition.answerKey}>
                       {definition.answerKey} ({definition.title})
@@ -512,7 +512,7 @@ export function AdminTaskTemplateSection({
               </label>
 
               <label>
-                <span className="form-label">Expected Text</span>
+                <span className="form-label">Erwarteter Text</span>
                 <input
                   className="form-input"
                   value={conditionDraft.expectedValueText}
@@ -521,7 +521,7 @@ export function AdminTaskTemplateSection({
               </label>
 
               <label>
-                <span className="form-label">Expected Boolean</span>
+                <span className="form-label">Erwarteter Wahr/Falsch-Wert</span>
                 <select
                   className="form-select"
                   value={conditionDraft.expectedValueBoolean}
@@ -534,7 +534,7 @@ export function AdminTaskTemplateSection({
               </label>
 
               <label>
-                <span className="form-label">Expected Number</span>
+                <span className="form-label">Erwartete Zahl</span>
                 <input
                   className="form-input"
                   type="number"
@@ -572,7 +572,7 @@ export function AdminTaskTemplateSection({
           <div className="panel-head">
             <h2>Abhängigkeits-Details</h2>
             <p>
-              Detailansicht für das aktuell ausgewählte Template. Neue Verbindungen werden im
+              Detailansicht für die aktuell ausgewählte Aufgabenvorlage. Neue Verbindungen werden im
               Dependency-Graph erstellt, bestehende können hier oder direkt über Kantenklick entfernt werden.
             </p>
           </div>
@@ -581,14 +581,14 @@ export function AdminTaskTemplateSection({
             {isLoadingDependencies ? <p className="panel-note">Abhängigkeiten werden geladen...</p> : null}
 
             {!isLoadingDependencies && dependencies.length === 0 ? (
-              <p className="panel-note">Für dieses Template sind noch keine Abhängigkeiten definiert.</p>
+              <p className="panel-note">Für diese Aufgabenvorlage sind noch keine Abhängigkeiten definiert.</p>
             ) : null}
 
             {!isLoadingDependencies && dependencies.length > 0 ? (
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Abhängiges Template</th>
+                    <th>Abhängige Aufgabenvorlage</th>
                     <th>Required Status</th>
                     <th />
                   </tr>

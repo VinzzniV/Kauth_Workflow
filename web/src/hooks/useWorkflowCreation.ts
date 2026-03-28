@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createWorkflow,
-  getProcessTypes,
   getWorkflowConfig,
   searchCompletedOnboardings,
-} from "../services/lifecycleApi";
-import { useRoles } from "./useRoles";
+} from "../services/workflowApi";
+import { useDepartments, useRoles } from "../services/queries/roleQueries";
+import { useProcessTypes } from "../services/queries/processTypeQueries";
 import type {
   CompletedOnboardingSearchResult,
   Department,
@@ -90,8 +90,6 @@ function hasValidEmployeeData(employee: EmployeeFormData): boolean {
 
 export function useWorkflowCreation(): UseWorkflowCreationResult {
   const [currentStep, setCurrentStep] = useState<WorkflowCreationStep>("process");
-  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
-  const [processTypesLoading, setProcessTypesLoading] = useState(true);
   const [formState, setFormState] = useState<WorkflowStartFormState>({
     processTypeKey: null,
     employee: EMPTY_EMPLOYEE,
@@ -112,6 +110,9 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccessMessage, setSubmitSuccessMessage] = useState<string | null>(null);
   const [createdWorkflowUid, setCreatedWorkflowUid] = useState<string | null>(null);
+  const processTypesQuery = useProcessTypes();
+  const processTypes = processTypesQuery.data ?? [];
+  const processTypesLoading = processTypesQuery.isLoading;
 
   const resetSubmissionState = useCallback(() => {
     setSubmitError(null);
@@ -120,27 +121,43 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     setSubmitState((previous) => (previous === "loading" ? previous : "idle"));
   }, []);
 
-  useEffect(() => {
-    getProcessTypes()
-      .then((types) => {
-        setProcessTypes(types);
-        if (types.length === 1) {
-          setFormState((previous) => ({ ...previous, processTypeKey: types[0].key }));
-        }
-      })
-      .catch(() => {
-        setFormState((previous) => ({ ...previous, processTypeKey: null }));
-      })
-      .finally(() => setProcessTypesLoading(false));
-  }, []);
+  const rolesQuery = useRoles();
+  const departmentsQuery = useDepartments();
+  const roles = useMemo(
+    () => (rolesQuery.data ?? []).filter((role) => role.isActive),
+    [rolesQuery.data]
+  );
+  const departments = departmentsQuery.data ?? [];
+  const rolesLoading = rolesQuery.isLoading || departmentsQuery.isLoading;
+  const rolesError =
+    rolesQuery.error instanceof Error
+      ? rolesQuery.error.message
+      : departmentsQuery.error instanceof Error
+        ? departmentsQuery.error.message
+        : rolesQuery.error || departmentsQuery.error
+          ? "Die Rollen konnten nicht geladen werden."
+          : null;
+  const reloadRoles = useCallback(async () => {
+    await Promise.all([rolesQuery.refetch(), departmentsQuery.refetch()]);
+  }, [departmentsQuery, rolesQuery]);
 
-  const {
-    roles,
-    departments,
-    isLoading: rolesLoading,
-    error: rolesError,
-    reload: reloadRoles,
-  } = useRoles();
+  useEffect(() => {
+    if (processTypes.length === 0) {
+      setFormState((previous) => ({ ...previous, processTypeKey: null }));
+      return;
+    }
+
+    setFormState((previous) => {
+      if (previous.processTypeKey && processTypes.some((type) => type.key === previous.processTypeKey)) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        processTypeKey: processTypes.length === 1 ? processTypes[0].key : null,
+      };
+    });
+  }, [processTypes]);
 
   const selectedProcessType = useMemo(
     () => processTypes.find((pt) => pt.key === formState.processTypeKey) ?? null,

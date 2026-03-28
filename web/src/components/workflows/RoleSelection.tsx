@@ -10,6 +10,8 @@ type Props = {
   selectedRoleId: number | null;
   isLoading: boolean;
   error: string | null;
+  departmentError?: string | null;
+  roleError?: string | null;
   onDepartmentChange: (departmentId: number | null) => void;
   onRoleChange: (roleId: number | null) => void;
   onRetry: () => void;
@@ -22,6 +24,8 @@ export default function RoleSelection({
   selectedRoleId,
   isLoading,
   error,
+  departmentError,
+  roleError,
   onDepartmentChange,
   onRoleChange,
   onRetry,
@@ -68,7 +72,7 @@ export default function RoleSelection({
       {!isLoading && !error ? (
         <>
           <div className="form-grid">
-            <label className="field">
+            <label className={`field ${departmentError ? "field-invalid" : ""}`}>
               <span>Abteilung *</span>
               <select
                 value={selectedDepartmentId ?? ""}
@@ -83,9 +87,10 @@ export default function RoleSelection({
                   </option>
                 ))}
               </select>
+              {departmentError ? <small className="field-error">{departmentError}</small> : null}
             </label>
 
-            <label className="field">
+            <label className={`field ${roleError ? "field-invalid" : ""}`}>
               <span>Stelle *</span>
               <select
                 value={selectedRoleId ?? ""}
@@ -99,6 +104,7 @@ export default function RoleSelection({
                   </option>
                 ))}
               </select>
+              {roleError ? <small className="field-error">{roleError}</small> : null}
             </label>
           </div>
 

@@ -5,7 +5,7 @@ import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
-import { getPersonWorkflowHistory } from "../services/lifecycleApi";
+import { getPersonWorkflowHistory } from "../services/peopleApi";
 import type { PersonWorkflowHistory } from "../types/workflow";
 import { formatDate, formatDateTime } from "../utils/dateFormat";
 import {

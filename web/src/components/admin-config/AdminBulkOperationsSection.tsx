@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { bulkCreateDepartmentChange } from "../../services/adminConfigApi";
-import { getRoles } from "../../services/lifecycleApi";
+import { getRoles } from "../../services/lookupApi";
 import type { AdminDepartmentAssignment } from "../../types/auth";
 import type { BulkOperationResult, Role } from "../../types/workflow";
 
@@ -23,6 +23,7 @@ export function AdminBulkOperationsSection({
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<BulkOperationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastPreviewSignature, setLastPreviewSignature] = useState<string | null>(null);
 
   const filteredRoles = targetDeptId
     ? roles.filter((r) => r.departmentId === Number(targetDeptId))
@@ -34,6 +35,9 @@ export function AdminBulkOperationsSection({
     targetRoleId &&
     sourceDeptId !== targetDeptId &&
     !isRunning;
+  const currentSignature = `${sourceDeptId}|${targetDeptId}|${targetRoleId}|${deadlineDate.trim()}`;
+  const hasFreshPreview = Boolean(result?.isDryRun && lastPreviewSignature === currentSignature);
+  const canExecute = canRun && hasFreshPreview;
 
   const handleRun = async (dryRun: boolean) => {
     setIsRunning(true);
@@ -48,7 +52,9 @@ export function AdminBulkOperationsSection({
         dryRun,
       });
       setResult(res);
+      setLastPreviewSignature(dryRun ? currentSignature : null);
     } catch (err) {
+      setLastPreviewSignature(null);
       setError(err instanceof Error ? err.message : "Fehler bei der Ausführung.");
     } finally {
       setIsRunning(false);
@@ -66,11 +72,28 @@ export function AdminBulkOperationsSection({
             die Aktion ausführen.
           </p>
         </div>
+        <div className="admin-guidance-grid">
+          <article className="admin-guidance-card">
+            <h3>Geeignet für</h3>
+            <p>Geplante Serienfälle, bei denen viele Mitarbeitende denselben Wechselprozess benötigen.</p>
+          </article>
+          <article className="admin-guidance-card admin-guidance-card--caution">
+            <h3>Worauf achten?</h3>
+            <p>Die Ausführung erstellt reale Vorgänge. Der Start ist deshalb erst nach einer aktuellen Vorschau möglich.</p>
+          </article>
+        </div>
         <div className="panel-body">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", maxWidth: "40rem" }}>
             <label>
               <span className="form-label">Quell-Abteilung</span>
-              <select className="form-select" value={sourceDeptId} onChange={(e) => setSourceDeptId(e.target.value)}>
+              <select
+                className="form-select"
+                value={sourceDeptId}
+                onChange={(e) => {
+                  setSourceDeptId(e.target.value);
+                  setLastPreviewSignature(null);
+                }}
+              >
                 <option value="">-- Abteilung wählen --</option>
                 {departments.map((d) => (
                   <option key={d.departmentId} value={d.departmentId}>
@@ -81,7 +104,15 @@ export function AdminBulkOperationsSection({
             </label>
             <label>
               <span className="form-label">Ziel-Abteilung</span>
-              <select className="form-select" value={targetDeptId} onChange={(e) => { setTargetDeptId(e.target.value); setTargetRoleId(""); }}>
+              <select
+                className="form-select"
+                value={targetDeptId}
+                onChange={(e) => {
+                  setTargetDeptId(e.target.value);
+                  setTargetRoleId("");
+                  setLastPreviewSignature(null);
+                }}
+              >
                 <option value="">-- Abteilung wählen --</option>
                 {departments
                   .filter((d) => String(d.departmentId) !== sourceDeptId)
@@ -94,7 +125,14 @@ export function AdminBulkOperationsSection({
             </label>
             <label>
               <span className="form-label">Ziel-Stelle</span>
-              <select className="form-select" value={targetRoleId} onChange={(e) => setTargetRoleId(e.target.value)}>
+              <select
+                className="form-select"
+                value={targetRoleId}
+                onChange={(e) => {
+                  setTargetRoleId(e.target.value);
+                  setLastPreviewSignature(null);
+                }}
+              >
                 <option value="">-- Stelle wählen --</option>
                 {filteredRoles.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -109,7 +147,10 @@ export function AdminBulkOperationsSection({
                 className="form-input"
                 type="date"
                 value={deadlineDate}
-                onChange={(e) => setDeadlineDate(e.target.value)}
+                onChange={(e) => {
+                  setDeadlineDate(e.target.value);
+                  setLastPreviewSignature(null);
+                }}
               />
             </label>
           </div>
@@ -124,12 +165,18 @@ export function AdminBulkOperationsSection({
             </button>
             <button
               className="btn btn-primary"
-              disabled={!canRun}
+              disabled={!canExecute}
               onClick={() => void handleRun(false)}
             >
               {isRunning ? "Wird ausgeführt..." : "Ausführen"}
             </button>
           </div>
+
+          <p className="panel-note" style={{ marginTop: "0.85rem" }}>
+            {hasFreshPreview
+              ? "Vorschau ist aktuell. Ausführen erstellt jetzt reale Vorgänge mit genau diesen Parametern."
+              : "Bitte zuerst mit den aktuellen Parametern eine Vorschau ausführen. Bei jeder Änderung wird die Freigabe zum Ausführen zurückgesetzt."}
+          </p>
 
           {error ? (
             <p className="text-error" style={{ marginTop: "1rem" }}>{error}</p>

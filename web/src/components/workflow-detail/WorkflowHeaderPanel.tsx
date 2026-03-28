@@ -21,36 +21,61 @@ export default function WorkflowHeaderPanel({
 }: WorkflowHeaderPanelProps) {
   return (
     <section className="panel panel-intro">
-      <div className="panel-head">
-        <h2>
-          {workflow.firstName} {workflow.lastName}
-        </h2>
-        <p>
-          {workflow.departmentName} | {workflow.roleName}
-        </p>
+      <div className="workflow-detail-hero">
+        <div className="workflow-detail-hero-main">
+          <div className="panel-head">
+            <h2>
+              {workflow.firstName} {workflow.lastName}
+            </h2>
+            <p>
+              {workflow.departmentName} | {workflow.roleName}
+            </p>
+          </div>
+
+          <div className="workflow-detail-chip-row">
+            <span className="chip" aria-label={`Prozesstyp: ${workflow.processType.name}`}>{workflow.processType.name}</span>
+            <span className="chip" aria-label={`Workflow-Status: ${toRuntimeStatusLabel(workflow.workflowStatus)}`}>Status: {toRuntimeStatusLabel(workflow.workflowStatus)}</span>
+            <span className="chip" aria-label={`Aktuelle Phase: ${regularEditingText}`}>Phase: {regularEditingText}</span>
+          </div>
+
+          <div className="next-action-callout" role="status" aria-live="polite">
+            <p className="next-action-label">Nächste nötige Aktion</p>
+            <p className="next-action-text">{nextActionText}</p>
+          </div>
+
+          <p className="panel-note">
+            Sichtbarkeit und Aktionen werden im Backend je Rolle geprüft.
+            {canManageAdminConfiguration ? " Admin kann bei Bedarf eingreifen." : ""}
+          </p>
+        </div>
+
+        <aside className="workflow-detail-focus-card">
+          <p className="workflow-detail-focus-label">Aktuell wichtig</p>
+          <div className="workflow-detail-focus-item">
+            <span>Status</span>
+            <strong>{toRuntimeStatusLabel(workflow.workflowStatus)}</strong>
+          </div>
+          <div className="workflow-detail-focus-item">
+            <span>Aktueller Bereich</span>
+            <strong>{currentArea}</strong>
+          </div>
+          <div className="workflow-detail-focus-item">
+            <span>Aktuell dran</span>
+            <strong>{currentOwnerText}</strong>
+          </div>
+          <div className="workflow-detail-focus-item">
+            <span>Offene Aufgaben</span>
+            <strong>{workflow.taskMetrics.overall.activeCount}</strong>
+          </div>
+          {workflow.targetPersonId != null ? (
+            <Link className="btn btn-secondary" to={`/people/${workflow.targetPersonId}`}>
+              Mitarbeiterakte öffnen
+            </Link>
+          ) : null}
+        </aside>
       </div>
 
-      <div className="action-row">
-        <span className="chip">{workflow.processType.name}</span>
-        <span className="chip">Prozessstand: {toRuntimeStatusLabel(workflow.workflowStatus)}</span>
-        {workflow.targetPersonId != null ? (
-          <Link className="btn btn-secondary" to={`/people/${workflow.targetPersonId}`}>
-            Mitarbeiterakte
-          </Link>
-        ) : null}
-      </div>
-
-      <p className="panel-note">
-        Bearbeitungsphase: {regularEditingText} | Sichtbarkeit und Aktionen werden im Backend je Rolle geprüft.
-        {canManageAdminConfiguration ? " | Admin kann bei Bedarf eingreifen." : ""}
-      </p>
-
-      <div className="next-action-callout" role="status" aria-live="polite">
-        <p className="next-action-label">Nächste nötige Aktion</p>
-        <p className="next-action-text">{nextActionText}</p>
-      </div>
-
-      <div className="workflow-detail-summary-grid">
+      <div className="workflow-detail-context-grid">
         <article className="workflow-detail-kpi">
           <p className="workflow-detail-kpi-label">Prozesstyp</p>
           <p className="workflow-detail-kpi-value">{workflow.processType.name}</p>
@@ -82,26 +107,8 @@ export default function WorkflowHeaderPanel({
         </article>
 
         <article className="workflow-detail-kpi">
-          <p className="workflow-detail-kpi-label">Aktueller Status</p>
-          <p className="workflow-detail-kpi-value">{toRuntimeStatusLabel(workflow.workflowStatus)}</p>
-          <p className="workflow-detail-kpi-note">Gesamtstand des Vorgangs.</p>
-        </article>
-
-        <article className="workflow-detail-kpi">
-          <p className="workflow-detail-kpi-label">Aktuell zuständiger Bereich</p>
-          <p className="workflow-detail-kpi-value">{currentArea}</p>
-          <p className="workflow-detail-kpi-note">Wer diese Workflow-Phase regulär bearbeitet.</p>
-        </article>
-
-        <article className="workflow-detail-kpi">
-          <p className="workflow-detail-kpi-label">Aktuell dran</p>
-          <p className="workflow-detail-kpi-value">{currentOwnerText}</p>
-          <p className="workflow-detail-kpi-note">Konkrete Zuständigkeit für die aktuell offenen Aufgaben.</p>
-        </article>
-
-        <article className="workflow-detail-kpi">
-          <p className="workflow-detail-kpi-label">Offene Aufgaben</p>
-          <p className="workflow-detail-kpi-value">{workflow.taskMetrics.overall.activeCount}</p>
+          <p className="workflow-detail-kpi-label">Aufgabenstatus</p>
+          <p className="workflow-detail-kpi-value">{workflow.taskMetrics.overall.activeCount} offen</p>
           <p className="workflow-detail-kpi-note">
             Offen: {workflow.taskMetrics.overall.openCount} | In Bearbeitung: {workflow.taskMetrics.overall.inProgressCount} | Erledigt: {workflow.taskMetrics.overall.completedCount}
           </p>

@@ -1,26 +1,25 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  archiveWorkflow as archiveWorkflowApi,
-  deleteWorkflow as deleteWorkflowApi,
-} from "../../services/lifecycleApi";
 import type { RoleCapabilities } from "../../auth/roleModel";
+import { useConfirmationDialog } from "../feedback/ConfirmationDialogProvider";
+import { useArchiveWorkflow, useDeleteWorkflow } from "../../services/mutations/workflowMutations";
 import type { WorkflowDetail } from "../../types/workflow";
 
 interface WorkflowManagementPanelProps {
   uid: string;
   workflow: WorkflowDetail;
   capabilities: Pick<RoleCapabilities, "canManageAdminConfiguration" | "canCreateWorkflow">;
-  onReload: () => Promise<void>;
 }
 
 export default function WorkflowManagementPanel({
   uid,
   workflow,
   capabilities,
-  onReload,
 }: WorkflowManagementPanelProps) {
   const navigate = useNavigate();
+  const confirm = useConfirmationDialog();
+  const archiveMutation = useArchiveWorkflow();
+  const deleteMutation = useDeleteWorkflow();
   const [isArchiving, setIsArchiving] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -34,28 +33,33 @@ export default function WorkflowManagementPanel({
     setIsArchiving(true);
     setArchiveError(null);
     try {
-      await archiveWorkflowApi(uid);
-      await onReload();
+      await archiveMutation.mutateAsync(uid);
     } catch (err) {
       setArchiveError(err instanceof Error ? err.message : "Vorgang konnte nicht archiviert werden.");
     } finally {
       setIsArchiving(false);
     }
-  }, [uid, onReload]);
+  }, [archiveMutation, uid]);
 
   const handleDelete = useCallback(async () => {
     if (!uid.trim()) return;
-    if (!window.confirm("Entwurf wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
+    const shouldDelete = await confirm({
+      title: "Entwurf löschen?",
+      description: "Der Entwurf wird dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.",
+      confirmLabel: "Entwurf löschen",
+      tone: "danger",
+    });
+    if (!shouldDelete) return;
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      await deleteWorkflowApi(uid);
+      await deleteMutation.mutateAsync(uid);
       navigate("/workflows");
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Vorgang konnte nicht gelöscht werden.");
       setIsDeleting(false);
     }
-  }, [uid, navigate]);
+  }, [confirm, deleteMutation, uid, navigate]);
 
   if (!showArchive && !showDelete) {
     return null;

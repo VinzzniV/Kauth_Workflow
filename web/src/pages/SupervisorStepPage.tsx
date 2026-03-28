@@ -13,7 +13,7 @@ import {
   getSupervisorStepWorkflows,
   getWorkflowSupervisorStep,
   updateWorkflowSupervisorStep,
-} from "../services/lifecycleApi";
+} from "../services/workflowApi";
 import type {
   RequirementSelectionState,
   WorkflowRequirementSnapshot,

@@ -32,9 +32,9 @@ export function AdminRoleAnswerDefaultsSection({
     <div className="content-stack">
       <section className="panel panel-muted">
         <div className="panel-head">
-          <h2>Role Answer Defaults</h2>
+          <h2>Standardwerte für Antwortfelder</h2>
           <p>
-            Pflegen Sie Standardwerte pro Prozesstyp, Answer Definition und Rolle in einer Matrix.
+            Pflegen Sie Standardwerte pro Prozesstyp, Antwortfeld und Rolle in einer Matrix.
             Gespeichert wird gesammelt per Bulk-Update.
           </p>
         </div>
@@ -74,10 +74,10 @@ export function AdminRoleAnswerDefaultsSection({
             </button>
           </div>
 
-          {isLoadingMatrix ? <p className="panel-note">Role Answer Defaults werden geladen...</p> : null}
+          {isLoadingMatrix ? <p className="panel-note">Standardwerte werden geladen...</p> : null}
 
           {!isLoadingMatrix && selectedProcessTypeId && sortedDefinitions.length === 0 ? (
-            <p className="panel-note">Für diesen Prozesstyp sind noch keine Answer Definitions vorhanden.</p>
+            <p className="panel-note">Für diesen Prozesstyp sind noch keine Antwortfelder vorhanden.</p>
           ) : null}
 
           {!isLoadingMatrix && selectedProcessTypeId && sortedRoles.length === 0 ? (
@@ -89,7 +89,7 @@ export function AdminRoleAnswerDefaultsSection({
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Answer</th>
+                    <th>Antwortfeld</th>
                     <th>Input-Typ</th>
                     {sortedRoles.map((role) => (
                       <th key={role.roleId}>{role.departmentName ? `${role.departmentName} / ${role.roleName}` : role.roleName}</th>

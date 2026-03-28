@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { toNullableNumber } from "../components/admin-config/adminConfigHelpers";
+import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
 import {
   createAdminDepartment,
   deleteAdminDepartment,
   updateAdminDepartmentAssignment,
   updateAdminResponsibilityOwner,
-} from "../services/lifecycleApi";
+} from "../services/adminApi";
 import type { AdminDepartmentAssignment, AdminResponsibilityOwner } from "../types/auth";
 
 type DepartmentDraft = {
@@ -38,6 +39,7 @@ export function useAdminOrganizationManagement({
   onNotice,
   onError,
 }: UseAdminOrganizationManagementOptions) {
+  const confirm = useConfirmationDialog();
   const [newDepartmentNameDraft, setNewDepartmentNameDraft] = useState<string>("");
   const [departmentDrafts, setDepartmentDrafts] = useState<Record<number, DepartmentDraft>>({});
   const [responsibilityDrafts, setResponsibilityDrafts] = useState<Record<number, ResponsibilityDraft>>({});
@@ -102,7 +104,13 @@ export function useAdminOrganizationManagement({
   }, [newDepartmentNameDraft, onError, onNotice, setDepartmentAssignments]);
 
   const removeDepartment = useCallback(async (department: AdminDepartmentAssignment) => {
-    if (typeof window !== "undefined" && !window.confirm(`Abteilung "${department.departmentName}" wirklich löschen?`)) {
+    const shouldDelete = await confirm({
+      title: "Abteilung löschen?",
+      description: `Die Abteilung "${department.departmentName}" wird dauerhaft entfernt. Prüfen Sie vorher, ob abhängige Zuständigkeiten bereits umgestellt wurden.`,
+      confirmLabel: "Abteilung löschen",
+      tone: "danger",
+    });
+    if (!shouldDelete) {
       return;
     }
 
@@ -120,7 +128,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setDeletingDepartmentId(null);
     }
-  }, [onError, onNotice, reload]);
+  }, [confirm, onError, onNotice, reload]);
 
   const saveDepartmentAssignment = useCallback(async (departmentId: number) => {
     const draft = departmentDrafts[departmentId];

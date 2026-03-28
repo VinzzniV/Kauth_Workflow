@@ -56,12 +56,15 @@ export default function WorkflowTaskAreasSection({
   onTaskCommentSubmit,
 }: WorkflowTaskAreasSectionProps) {
   return (
-    <>
-      <section className="panel panel-muted">
+    <section className="content-stack">
+      <section className="panel">
         <div className="panel-head">
-          <h2>Bereiche im Überblick</h2>
-          <p>So ist der aktuelle Stand in den beteiligten Bereichen.</p>
+          <h2>Aufgaben nach Bereich</h2>
+          <p>Hier bearbeiten Sie den aktuellen Vorgang nach Zuständigkeiten. Der Bereichsüberblick bleibt direkt darüber sichtbar.</p>
         </div>
+
+        {taskError ? <p className="panel-note">{taskError}</p> : null}
+        {taskNotice ? <p className="panel-note">{taskNotice}</p> : null}
 
         <div className="workflow-area-grid" aria-label="Status nach Bereich">
           {tasksByArea.map((group) => {
@@ -81,16 +84,6 @@ export default function WorkflowTaskAreasSection({
             );
           })}
         </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Aufgaben nach Bereich</h2>
-          <p>Alle Aufgaben sind nach dem jeweils zuständigen Bereich gruppiert.</p>
-        </div>
-
-        {taskError ? <p className="panel-note">{taskError}</p> : null}
-        {taskNotice ? <p className="panel-note">{taskNotice}</p> : null}
 
         <div className="task-groups" aria-label="Aufgaben nach Bereich">
           {tasksByArea.map((group) => {
@@ -205,6 +198,6 @@ export default function WorkflowTaskAreasSection({
           })}
         </div>
       </section>
-    </>
+    </section>
   );
 }

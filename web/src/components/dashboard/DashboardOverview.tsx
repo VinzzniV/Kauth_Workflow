@@ -3,8 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
-import { getProcessTypes } from "../../services/lifecycleApi";
-import type { ProcessType } from "../../types/workflow";
+import { useProcessTypes } from "../../services/queries/processTypeQueries";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
 import type { DashboardStat } from "./dashboardInsights";
@@ -31,57 +30,30 @@ export default function DashboardOverview() {
     dashboardPersona === "hr" ||
     dashboardPersona === "manager" ||
     dashboardPersona === "reader";
-  const [processTypes, setProcessTypes] = useState<ProcessType[]>([]);
   const [selectedProcessTypeKey, setSelectedProcessTypeKey] = useState<string>("all");
-  const [isProcessTypeLoading, setIsProcessTypeLoading] = useState<boolean>(supportsProcessTypeFilter);
+  const processTypesQuery = useProcessTypes();
+  const processTypes = supportsProcessTypeFilter ? processTypesQuery.data ?? [] : [];
+  const isProcessTypeLoading = supportsProcessTypeFilter ? processTypesQuery.isLoading : false;
   const processTypeKey = selectedProcessTypeKey === "all" ? null : selectedProcessTypeKey;
   const selectedProcessType = processTypes.find((processType) => processType.key === processTypeKey) ?? null;
-  const { insights, insightsError, isInsightsLoading, reloadInsights } = useDashboardInsights(dashboardPersona, processTypeKey);
+  const { insights, insightsError, isInsightsLoading, reloadInsights } = useDashboardInsights(
+    dashboardPersona,
+    processTypeKey,
+    selectedProcessType
+  );
+  const priorityItem = insights?.queueItems[0] ?? null;
+  const secondaryQueueItems = insights?.queueItems.slice(1) ?? [];
 
   useEffect(() => {
     if (!supportsProcessTypeFilter) {
-      setProcessTypes([]);
       setSelectedProcessTypeKey("all");
-      setIsProcessTypeLoading(false);
       return;
     }
 
-    let isMounted = true;
-    setIsProcessTypeLoading(true);
-
-    getProcessTypes()
-      .then((nextProcessTypes) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setProcessTypes(nextProcessTypes);
-        setSelectedProcessTypeKey((current) => {
-          if (current === "all") {
-            return current;
-          }
-
-          return nextProcessTypes.some((processType) => processType.key === current) ? current : "all";
-        });
-      })
-      .catch(() => {
-        if (!isMounted) {
-          return;
-        }
-
-        setProcessTypes([]);
-        setSelectedProcessTypeKey("all");
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsProcessTypeLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [supportsProcessTypeFilter]);
+    if (selectedProcessTypeKey !== "all" && !processTypes.some((processType) => processType.key === selectedProcessTypeKey)) {
+      setSelectedProcessTypeKey("all");
+    }
+  }, [processTypes, selectedProcessTypeKey, supportsProcessTypeFilter]);
 
   if (dashboardActions.length === 0) {
     return (
@@ -94,54 +66,6 @@ export default function DashboardOverview() {
 
   return (
     <div className="content-stack">
-      <section className="panel panel-intro">
-        <div className="panel-head">
-          <h2>{dashboardContext.title}</h2>
-          <p>{dashboardContext.description}</p>
-        </div>
-        {roleLabels.length > 0 ? <p className="panel-note dashboard-user-summary">Rolle: {roleLabels.join(", ")}</p> : null}
-        <div className="action-row">
-          {supportsProcessTypeFilter && processTypes.length > 1 ? (
-            <label className="field compact dashboard-filter-field">
-              <span>Prozesstyp</span>
-              <select
-                value={selectedProcessTypeKey}
-                onChange={(event) => setSelectedProcessTypeKey(event.target.value)}
-                disabled={isInsightsLoading || isProcessTypeLoading}
-              >
-                <option value="all">Alle</option>
-                {processTypes.map((processType) => (
-                  <option key={processType.key} value={processType.key}>
-                    {processType.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => void reloadInsights()}
-            disabled={isInsightsLoading || isProcessTypeLoading}
-          >
-            {isInsightsLoading ? "Aktualisiere..." : "Übersicht aktualisieren"}
-          </button>
-        </div>
-        {supportsProcessTypeFilter && selectedProcessType ? (
-          <p className="panel-note">Aktiver Prozesstyp-Filter: {selectedProcessType.name}</p>
-        ) : null}
-      </section>
-
-      <section className="dashboard-grid" aria-label="Hauptaktionen">
-        {dashboardActions.map((action) => (
-          <Link key={action.to} to={action.to} className="dashboard-card">
-            <h2>{action.label}</h2>
-            <p>{action.description}</p>
-            <span className="card-link">Öffnen</span>
-          </Link>
-        ))}
-      </section>
-
       {isInsightsLoading || isProcessTypeLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
 
       {!isInsightsLoading && !isProcessTypeLoading && insightsError ? (
@@ -157,14 +81,119 @@ export default function DashboardOverview() {
 
       {!isInsightsLoading && !isProcessTypeLoading && !insightsError && insights ? (
         <>
+          <section className="dashboard-priority-shell">
+            <div className="panel dashboard-priority-panel">
+              <div className="panel-head">
+                <h2>{dashboardContext.title}</h2>
+                <p>{dashboardContext.description}</p>
+              </div>
+              <p className="dashboard-priority-summary">{insights.summary}</p>
+              <div className="next-action-callout" role="status" aria-live="polite">
+                <p className="next-action-label">Nächste nötige Aktion</p>
+                <p className="next-action-text">{insights.nextStep}</p>
+              </div>
+
+              <div className="dashboard-priority-block">
+                <div className="dashboard-priority-block-head">
+                  <p className="dashboard-priority-kicker">Jetzt wichtig</p>
+                  <h3>{insights.queueTitle}</h3>
+                  <p>{insights.queueDescription}</p>
+                </div>
+
+                {priorityItem ? (
+                  <article className="dashboard-priority-card">
+                    <div>
+                      <p className="dashboard-priority-title">{priorityItem.title}</p>
+                      <p className="dashboard-priority-detail">{priorityItem.detail}</p>
+                    </div>
+                    <Link to={priorityItem.to} className="btn btn-primary">
+                      {priorityItem.actionLabel}
+                    </Link>
+                  </article>
+                ) : (
+                  <p className="panel-note">{insights.emptyQueueText}</p>
+                )}
+              </div>
+            </div>
+
+            <aside className="panel panel-muted dashboard-support-panel">
+              <div className="panel-head">
+                <h2>Schnellzugriffe</h2>
+                <p>Hilfen und Bereiche für den nächsten sinnvollen Arbeitsschritt.</p>
+              </div>
+
+              {roleLabels.length > 0 ? <p className="panel-note dashboard-user-summary">Rolle: {roleLabels.join(", ")}</p> : null}
+
+              <div className="dashboard-control-stack">
+                {supportsProcessTypeFilter && processTypes.length > 1 ? (
+                  <label className="field compact dashboard-filter-field">
+                    <span>Prozesstyp</span>
+                    <select
+                      value={selectedProcessTypeKey}
+                      onChange={(event) => setSelectedProcessTypeKey(event.target.value)}
+                      disabled={isInsightsLoading || isProcessTypeLoading}
+                    >
+                      <option value="all">Alle</option>
+                      {processTypes.map((processType) => (
+                        <option key={processType.key} value={processType.key}>
+                          {processType.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => void reloadInsights()}
+                  disabled={isInsightsLoading || isProcessTypeLoading}
+                >
+                  {isInsightsLoading ? "Aktualisiere..." : "Übersicht aktualisieren"}
+                </button>
+              </div>
+
+              {supportsProcessTypeFilter && selectedProcessType ? (
+                <p className="panel-note">Aktiver Prozesstyp-Filter: {selectedProcessType.name}</p>
+              ) : null}
+
+              <nav className="dashboard-quick-actions" aria-label="Schnellzugriffe">
+                {dashboardActions.map((action) => (
+                  <Link key={action.to} to={action.to} className="dashboard-quick-action">
+                    <strong>{action.label}</strong>
+                    <span>{action.description}</span>
+                  </Link>
+                ))}
+              </nav>
+            </aside>
+          </section>
+
+          {secondaryQueueItems.length > 0 ? (
+            <section className="panel panel-muted dashboard-queue">
+              <div className="panel-head">
+                <h2>Danach relevant</h2>
+                <p>Weitere Vorgänge und Arbeitspunkte, die als Nächstes sinnvoll geprüft werden sollten.</p>
+              </div>
+
+              <ul className="dashboard-queue-list">
+                {secondaryQueueItems.map((item) => (
+                  <li key={item.key} className="dashboard-queue-item">
+                    <div>
+                      <p className="dashboard-queue-title">{item.title}</p>
+                      <p className="dashboard-queue-detail">{item.detail}</p>
+                    </div>
+                    <Link to={item.to} className="btn btn-secondary">
+                      {item.actionLabel}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section className="panel">
             <div className="panel-head">
               <h2>{insights.heading}</h2>
-              <p>{insights.summary}</p>
-            </div>
-            <div className="next-action-callout" role="status" aria-live="polite">
-              <p className="next-action-label">Nächste nötige Aktion</p>
-              <p className="next-action-text">{insights.nextStep}</p>
+              <p>Kennzahlen und Kontext als Einordnung nach dem primären Arbeitsfokus.</p>
             </div>
             {insights.stats.length > 0 ? (
               <div className="dashboard-stats-grid" aria-label="Rollenspezifische Übersicht">
@@ -181,31 +210,6 @@ export default function DashboardOverview() {
               </div>
             ) : (
               <p className="panel-note">Für diese Rolle sind aktuell keine Kennzahlen verfügbar.</p>
-            )}
-          </section>
-
-          <section className="panel panel-muted dashboard-queue">
-            <div className="panel-head">
-              <h2>{insights.queueTitle}</h2>
-              <p>{insights.queueDescription}</p>
-            </div>
-
-            {insights.queueItems.length === 0 ? (
-              <p className="panel-note">{insights.emptyQueueText}</p>
-            ) : (
-              <ul className="dashboard-queue-list">
-                {insights.queueItems.map((item) => (
-                  <li key={item.key} className="dashboard-queue-item">
-                    <div>
-                      <p className="dashboard-queue-title">{item.title}</p>
-                      <p className="dashboard-queue-detail">{item.detail}</p>
-                    </div>
-                    <Link to={item.to} className="btn btn-secondary">
-                      {item.actionLabel}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             )}
           </section>
         </>

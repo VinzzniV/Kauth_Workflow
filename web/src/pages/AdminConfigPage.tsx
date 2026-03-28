@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AdminOrganizationWorkspaceSection } from "../components/admin-config/AdminOrganizationWorkspaceSection";
@@ -13,6 +13,7 @@ import { AdminDirectorySyncSection } from "../components/admin-config/AdminDirec
 import { AdminGroupMappingSection } from "../components/admin-config/AdminGroupMappingSection";
 import { AdminWorkspaceNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
 import {
+  getAdminWorkspaceSectionMeta,
   buildAdminOverviewWarnings,
   normalizeAdminOrganizationEntity,
   normalizeAdminWorkspaceSection,
@@ -43,7 +44,7 @@ import {
   getAdminRoles,
   getAdminUsers,
   getAdminWorkflowConfig,
-} from "../services/lifecycleApi";
+} from "../services/adminApi";
 import type {
   AdminDepartmentAssignment,
   AdminDirectoryGroup,
@@ -82,6 +83,7 @@ export default function AdminConfigPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const hasLoadedTechnicalAccessRef = useRef<boolean>(false);
   const hasLoadedDirectoryRef = useRef<boolean>(false);
+  const workspaceTabsId = useId();
 
   useEffect(() => {
     hasLoadedTechnicalAccessRef.current = hasLoadedTechnicalAccess;
@@ -94,6 +96,15 @@ export default function AdminConfigPage() {
   const section = normalizeAdminWorkspaceSection(searchParams.get("section"));
   const organizationEntity = normalizeAdminOrganizationEntity(searchParams.get("entity"));
   const selectedEntityId = parseAdminWorkspaceId(searchParams.get("id"));
+  const sectionMeta = getAdminWorkspaceSectionMeta(section);
+  const getAdminSectionPanelId = useCallback(
+    (workspaceSection: AdminWorkspaceSection) => `${workspaceTabsId}-panel-${workspaceSection}`,
+    [workspaceTabsId]
+  );
+  const getAdminSectionTabId = useCallback(
+    (workspaceSection: AdminWorkspaceSection) => `${workspaceTabsId}-tab-${workspaceSection}`,
+    [workspaceTabsId]
+  );
 
   const {
     notificationEmailConfiguration,
@@ -512,8 +523,8 @@ export default function AdminConfigPage() {
     <main className="app-shell">
       <div className="page-container">
         <PageHeader
-          title="Admin-Workspace"
-          description="Verwalten Sie Organisation, Rechte und Systemkonfiguration in klar getrennten Arbeitsbereichen. Personen, Abteilungen und fachliche Zuständigkeiten werden gemeinsam modelliert, Rollen und Gruppen bleiben bewusst separat."
+          title="Administration"
+          description="Verwalten Sie Organisation, Rechte und Systemeinstellungen in klar getrennten Arbeitsbereichen. Fachliche Pflege startet in Organisation, technische und breit wirksame Änderungen bleiben bewusst separat geführt."
         />
 
         {!isLoading && notice ? (
@@ -528,6 +539,29 @@ export default function AdminConfigPage() {
           </section>
         ) : null}
 
+        {!isLoading ? (
+          <section className={`panel ${section === "operations" ? "panel-caution" : "panel-muted"}`}>
+            <div className="admin-workspace-spotlight">
+              <div className="admin-workspace-spotlight-main">
+                <p className="admin-workspace-spotlight-eyebrow">Aktueller Arbeitsbereich</p>
+                <h2>{sectionMeta.label}</h2>
+                <p>{sectionMeta.description}</p>
+              </div>
+
+              <div className="admin-workspace-spotlight-grid">
+                <article className="admin-workspace-spotlight-card">
+                  <h3>{sectionMeta.audienceLabel}</h3>
+                  <p>{sectionMeta.audienceDescription}</p>
+                </article>
+                <article className="admin-workspace-spotlight-card admin-workspace-spotlight-card--caution">
+                  <h3>{sectionMeta.cautionLabel}</h3>
+                  <p>{sectionMeta.cautionDescription}</p>
+                </article>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {isLoading ? <LoadingState title="Stammdaten werden geladen..." /> : null}
         {!isLoading && error && !hasAnyData ? (
           <EmptyState title="Stammdaten konnten nicht geladen werden." description={error} />
@@ -535,8 +569,19 @@ export default function AdminConfigPage() {
 
         {!isLoading && (!error || hasAnyData) ? (
           <>
-            <AdminWorkspaceNavigation section={section} onSelectSection={handleSelectSection} />
+            <AdminWorkspaceNavigation
+              section={section}
+              onSelectSection={handleSelectSection}
+              getPanelId={getAdminSectionPanelId}
+              getTabId={getAdminSectionTabId}
+            />
 
+            <section
+              id={getAdminSectionPanelId(section)}
+              role="tabpanel"
+              aria-labelledby={getAdminSectionTabId(section)}
+              className="content-stack"
+            >
             {section === "overview" ? (
               <AdminOverviewWorkspaceSection
                 departmentCount={departmentAssignments.length}
@@ -729,6 +774,7 @@ export default function AdminConfigPage() {
             {section === "operations" ? (
               <AdminBulkOperationsSection departments={departmentAssignments} />
             ) : null}
+            </section>
           </>
         ) : null}
       </div>

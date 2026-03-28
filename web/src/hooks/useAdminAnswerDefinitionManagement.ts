@@ -8,6 +8,7 @@ import {
 } from "../services/adminConfigApi";
 import type { AdminAnswerDefinition, AdminProcessType } from "../types/auth";
 import { toNullableText } from "../components/admin-config/adminConfigHelpers";
+import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
 
 type AnswerDefinitionDraft = {
   answerKey: string;
@@ -56,6 +57,7 @@ export function useAdminAnswerDefinitionManagement({
   onNotice,
   onError,
 }: UseAdminAnswerDefinitionManagementOptions) {
+  const confirm = useConfirmationDialog();
   const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
   const [selectedProcessTypeId, setSelectedProcessTypeId] = useState<number | null>(null);
   const [definitions, setDefinitions] = useState<AdminAnswerDefinition[]>([]);
@@ -264,7 +266,13 @@ export function useAdminAnswerDefinitionManagement({
       return;
     }
 
-    if (typeof window !== "undefined" && !window.confirm(`Answer Definition "${selectedDefinition.title}" wirklich löschen?`)) {
+    const shouldDelete = await confirm({
+      title: "Antwortfeld löschen?",
+      description: `Das Antwortfeld "${selectedDefinition.title}" wird aus der Konfiguration entfernt. Prüfen Sie vorher, ob Vorlagen oder Standardwerte davon abhängen.`,
+      confirmLabel: "Antwortfeld löschen",
+      tone: "danger",
+    });
+    if (!shouldDelete) {
       return;
     }
 
@@ -285,7 +293,7 @@ export function useAdminAnswerDefinitionManagement({
     } finally {
       setIsDeleting(false);
     }
-  }, [onError, onNotice, selectedDefinition]);
+  }, [confirm, onError, onNotice, selectedDefinition]);
 
   return {
     processTypes,

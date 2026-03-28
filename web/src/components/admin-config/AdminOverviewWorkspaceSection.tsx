@@ -37,11 +37,11 @@ export function AdminOverviewWorkspaceSection({
     <div className="content-stack">
       <section className="panel">
         <div className="panel-head">
-          <h2>Admin-Übersicht</h2>
-          <p>Hier sehen Sie zuerst den Gesamtzustand und springen dann gezielt in Organisation, Rechte oder System.</p>
+          <h2>Administrationsübersicht</h2>
+          <p>Hier sehen Sie zuerst den Gesamtzustand, priorisieren Warnhinweise und springen dann gezielt in den passenden Bereich.</p>
         </div>
 
-        <div className="dashboard-grid" aria-label="Admin-Übersicht Kennzahlen">
+        <div className="dashboard-grid" aria-label="Administrationsübersicht Kennzahlen">
           <article className="dashboard-card">
             <h2>Personen</h2>
             <p>{userCount} gepflegte Personen</p>
@@ -67,7 +67,7 @@ export function AdminOverviewWorkspaceSection({
           </article>
 
           <article className="dashboard-card">
-            <h2>Mail-Konfiguration</h2>
+            <h2>E-Mail-Konfiguration</h2>
             <p>{notificationModeLabel(notificationEmailConfiguration)}</p>
             <p className="panel-note">{notificationConfigurationStatusLabel(notificationEmailConfiguration)}</p>
           </article>
@@ -81,8 +81,8 @@ export function AdminOverviewWorkspaceSection({
 
       <section className="panel panel-muted">
         <div className="panel-head">
-          <h2>Schnellzugriffe</h2>
-          <p>Springen Sie direkt in den passenden Arbeitsbereich.</p>
+          <h2>Empfohlene Wege</h2>
+          <p>Diese Einstiege helfen neuen Admins, erst fachlich sauber zu arbeiten und technische Änderungen bewusst nur bei Bedarf zu öffnen.</p>
         </div>
 
         <div className="action-row admin-action-grid">
@@ -96,36 +96,36 @@ export function AdminOverviewWorkspaceSection({
             Organisation öffnen
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("access")}>
-            Rechte & Gruppen öffnen
+            Zugriffe & Gruppen prüfen
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("directory")}>
-            Verzeichnis öffnen
+            Entra-Verzeichnis prüfen
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("templates")}>
-            Templates öffnen
+            Aufgabenlogik öffnen
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("answers")}>
-            Answers öffnen
+            Antwortlogik öffnen
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("defaults")}>
-            Defaults öffnen
+            Standardwerte öffnen
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => onOpenSection("system")}>
-            Mail-Konfiguration öffnen
+            Benachrichtigungen prüfen
           </button>
         </div>
       </section>
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Warnhinweise</h2>
-          <p>Leere oder ungültige Zuordnungen werden hier strukturell gesammelt.</p>
+          <h2>Zuerst prüfen</h2>
+          <p>Leere oder ungültige Zuordnungen werden hier gesammelt, damit neue Admins priorisiert mit echten Lücken starten können.</p>
         </div>
 
         {warnings.length === 0 ? (
           <p className="panel-note">Aktuell sind keine strukturellen Warnhinweise vorhanden.</p>
         ) : (
-          <div className="dashboard-grid" aria-label="Admin-Warnhinweise">
+          <div className="dashboard-grid" aria-label="Warnhinweise der Administration">
             {warnings.map((warning) => (
               <article key={warning.key} className="dashboard-card">
                 <h2>{warning.title}</h2>
