@@ -22,6 +22,12 @@ services:
       DIRECTORY_EXPLICIT_GROUP_IDS: ${DIRECTORY_EXPLICIT_GROUP_IDS:-}
       DIRECTORY_SYNC_SCHEDULED: ${DIRECTORY_SYNC_SCHEDULED:-true}
       DIRECTORY_SYNC_INTERVAL_MINUTES: ${DIRECTORY_SYNC_INTERVAL_MINUTES:-15}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/live > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   web:
     restart: unless-stopped
@@ -31,8 +37,11 @@ services:
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID}
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID}
       ENTRA_REDIRECT_URI: ${PUBLIC_BASE_URL}
+    depends_on:
+      api:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health/live > /dev/null"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ > /dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -50,11 +59,13 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
+      api:
+        condition: service_healthy
       web:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health/live > /dev/null"]
+      test: ["CMD-SHELL", "wget --no-check-certificate -qO- https://127.0.0.1/api/health/live > /dev/null"]
       interval: 10s
       timeout: 5s
       retries: 12
