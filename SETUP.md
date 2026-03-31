@@ -101,6 +101,12 @@ Optional bzw. je nach Betrieb:
 - `WEB_HTTP_PORT`
 - `WEB_HTTPS_PORT`
 
+Wichtig:
+
+- `PUBLIC_BASE_URL` muss exakt zur oeffentlichen HTTPS-URL passen.
+- Dieselbe URL muss in Entra als SPA-Redirect-URI gepflegt sein.
+- Ohne `ENTRA_CLIENT_SECRET` bleibt Login funktionsfaehig, aber Directory-Sync / Graph-Zugriffe koennen Warnungen erzeugen.
+
 ### 2. Stack starten
 
 ```bash
@@ -114,6 +120,20 @@ docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml ps
 docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml logs -f
 ```
 
+Sinnvolle Checks nach dem Deploy:
+
+```bash
+curl -k https://<PUBLIC_HOSTNAME>/api/health/live
+curl -k https://<PUBLIC_HOSTNAME>/api/health
+curl -k -i https://<PUBLIC_HOSTNAME>/api/me
+```
+
+Erwartung:
+
+- `/api/health/live` liefert `200`
+- `/api/health` liefert `200` oder `503` mit Health-JSON, aber niemals `404`
+- `/api/me` liefert ohne Login in Entra typischerweise `401`, aber niemals `404`
+
 ## Serverseitiger Auth-Modus
 
 - Der servernahe Stack setzt im Compose-Override hart `AUTH_MODE=entra`.
@@ -126,7 +146,8 @@ docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml logs -f
 - `compose.prod.yml` bringt einen repo-eigenen Caddy-Reverse-Proxy mit.
 - Caddy nutzt standardmaessig `tls internal` fuer LAN-/Testbetrieb.
 - Clients im Netz muessen dem internen Caddy-Root-Zertifikat vertrauen, sonst schlagen Browser-Warnungen und Entra-Redirects fehl.
-- Health ist unter `https://<PUBLIC_HOSTNAME>/health` verfuegbar.
+- Die oeffentlichen API-Checks laufen ueber `https://<PUBLIC_HOSTNAME>/api/...`.
+- Der Proxy strippt intern den `/api`-Praefix, die API selbst bleibt auf Root-Routen wie `/health` und `/me`.
 
 ## Ersetzt / entfernt
 

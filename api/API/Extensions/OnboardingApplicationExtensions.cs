@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -63,13 +64,19 @@ internal static class LifecycleApplicationExtensions
             c.SwaggerEndpoint("/swagger/v1/swagger.json", "Employee Lifecycle API v1");
             c.RoutePrefix = "swagger";
         });
-        app.MapControllers();
 
         return app;
     }
 
     public static WebApplication MapLifecycleApiEndpoints(this WebApplication app)
     {
+        app.MapGet("/health/live", () => Results.Json(
+            new
+            {
+                status = "ok"
+            },
+            statusCode: StatusCodes.Status200OK)).WithTags("Operations");
+
         app.MapGet("/health", async (IHttpClientFactory httpClientFactory) =>
         {
             var runtimeSettings = app.Services.GetRequiredService<LifecycleRuntimeSettings>();
@@ -161,5 +168,70 @@ internal static class LifecycleApplicationExtensions
         app.MapTaskEndpoints();
 
         return app;
+    }
+
+    public static WebApplication ValidateLifecycleRouteRegistration(this WebApplication app)
+    {
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        var routeEndpoints = app.Services
+            .GetServices<EndpointDataSource>()
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.RoutePattern.RawText))
+            .ToArray();
+
+        if (routeEndpoints.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "Application started without any mapped route endpoints. " +
+                "Minimal API route registration failed.");
+        }
+
+        var routePatterns = routeEndpoints
+            .Select(endpoint => NormalizeRoutePattern(endpoint.RoutePattern.RawText!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(pattern => pattern, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        logger.LogInformation(
+            "Minimal API mode active. Registered {RouteCount} route endpoints.",
+            routePatterns.Length);
+
+        var requiredRoutes = new[]
+        {
+            "/health",
+            "/health/live",
+            "/me",
+            "/auth/current-user"
+        };
+
+        var missingRoutes = requiredRoutes
+            .Where(requiredRoute => !routePatterns.Contains(requiredRoute, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (missingRoutes.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Critical API routes are missing: {string.Join(", ", missingRoutes)}.");
+        }
+
+        logger.LogInformation(
+            "Startup validation passed: critical API routes are registered ({Routes}).",
+            string.Join(", ", requiredRoutes));
+
+        return app;
+    }
+
+    private static string NormalizeRoutePattern(string rawText)
+    {
+        var trimmed = rawText.Trim();
+        if (trimmed.Length == 0)
+        {
+            return "/";
+        }
+
+        return trimmed.StartsWith("/", StringComparison.Ordinal)
+            ? trimmed
+            : $"/{trimmed}";
     }
 }

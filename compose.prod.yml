@@ -31,6 +31,12 @@ services:
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID}
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID}
       ENTRA_REDIRECT_URI: ${PUBLIC_BASE_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health/live > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   proxy:
     image: caddy:2-alpine
@@ -44,8 +50,15 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health/live > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   caddy_data:

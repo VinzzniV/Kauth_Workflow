@@ -54,7 +54,6 @@ internal static class LifecycleServiceCollectionExtensions
             ?? ["http://localhost:5173"];
         var allowDevelopmentOriginFallback = !runtimeSettings.IsProduction;
 
-        services.AddControllers();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(c =>
         {

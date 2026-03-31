@@ -2,7 +2,7 @@
   tls internal
   encode zstd gzip
 
-  handle /api/* {
+  handle_path /api/* {
     reverse_proxy api:8080
   }
 

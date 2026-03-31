@@ -10,9 +10,9 @@ internal static class AdminRuntimeConfigEndpoints
     public static IEndpointRouteBuilder MapAdminRuntimeConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/workflow", async (
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -30,9 +30,9 @@ internal static class AdminRuntimeConfigEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/config/notification-email", async (
-            INotificationEmailConfigurationService notificationEmailConfigurationService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] INotificationEmailConfigurationService notificationEmailConfigurationService,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -49,9 +49,9 @@ internal static class AdminRuntimeConfigEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/config/graph-application", async (
-            IGraphApplicationConfigurationService graphApplicationConfigurationService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IGraphApplicationConfigurationService graphApplicationConfigurationService,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -69,9 +69,9 @@ internal static class AdminRuntimeConfigEndpoints
 
         app.MapPatch("/admin/config/graph-application", async (
             [FromBody] AdminGraphApplicationConfigurationUpdateRequest request,
-            IGraphApplicationConfigurationService graphApplicationConfigurationService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IGraphApplicationConfigurationService graphApplicationConfigurationService,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -89,11 +89,11 @@ internal static class AdminRuntimeConfigEndpoints
 
         app.MapPatch("/admin/config/notification-email", async (
             [FromBody] AdminNotificationEmailConfigurationUpdateRequest request,
-            INotificationEmailConfigurationService notificationEmailConfigurationService,
-            IWorkflowRepository repository,
-            IWorkflowEmailNotificationSender emailNotificationSender,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] INotificationEmailConfigurationService notificationEmailConfigurationService,
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IWorkflowEmailNotificationSender emailNotificationSender,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -147,10 +147,10 @@ internal static class AdminRuntimeConfigEndpoints
 
         app.MapPost("/admin/config/notification-email/test", async (
             [FromBody] AdminNotificationEmailTestRequest request,
-            INotificationEmailConfigurationService notificationEmailConfigurationService,
-            INotificationEmailTestSender notificationEmailTestSender,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] INotificationEmailConfigurationService notificationEmailConfigurationService,
+            [FromServices] INotificationEmailTestSender notificationEmailTestSender,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,

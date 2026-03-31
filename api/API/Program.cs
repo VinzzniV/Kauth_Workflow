@@ -13,6 +13,7 @@ internal class Program
         app.ValidateLifecycleStartup();
         app.ConfigureLifecycleApi();
         app.MapLifecycleApiEndpoints();
+        app.ValidateLifecycleRouteRegistration();
         app.Run();
     }
 }
