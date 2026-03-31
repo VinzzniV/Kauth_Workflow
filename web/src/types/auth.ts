@@ -13,6 +13,11 @@ export type Me = {
   email: string;
   roles: string[];
   groups: string[];
+  permissions: string[];
+  permissionScopes: PermissionScope[];
+  directorySynced: boolean;
+  departmentSource: string;
+  departmentOverrideActive: boolean;
 };
 
 export type DemoLoginResponse = {
@@ -29,7 +34,11 @@ export type AdminRole = {
   roleKind: string;
   departmentId: number | null;
   departmentName: string | null;
+  scope: string;
+  scopeDepartmentId: number | null;
+  scopeDepartmentName: string | null;
   isActive: boolean;
+  permissions: AdminPermission[];
 };
 
 export type AdminGroupRef = {
@@ -54,8 +63,48 @@ export type AdminUser = {
   hasManagerAccess: boolean;
   departmentId: number | null;
   departmentName: string | null;
+  directorySynced: boolean;
+  departmentSource: string;
+  departmentOverrideActive: boolean;
+  directoryIdentityId: number | null;
+  userPrincipalName: string | null;
+  directoryDisplayName: string | null;
   roles: AdminRole[];
   groups: AdminGroupRef[];
+  effectiveRoles: AdminRole[];
+  permissionOverrides: AdminPermissionOverride[];
+  effectivePermissions: AdminPermissionGrant[];
+};
+
+export type PermissionScope = {
+  permissionKey: string;
+  scope: string;
+  scopeDepartmentId: number | null;
+  scopeDepartmentName: string | null;
+};
+
+export type AdminPermission = {
+  permissionId: number;
+  permissionKey: string;
+  permissionName: string;
+  description: string | null;
+  scopeKind: string;
+  category: string;
+  isActive: boolean;
+};
+
+export type AdminPermissionGrant = {
+  permissionId: number;
+  permissionKey: string;
+  permissionName: string;
+  scope: string;
+  scopeDepartmentId: number | null;
+  scopeDepartmentName: string | null;
+};
+
+export type AdminPermissionOverride = AdminPermissionGrant & {
+  overrideId: number;
+  effect: string;
 };
 
 export type AdminDepartmentAssignment = {
@@ -136,7 +185,28 @@ export type AdminDirectorySyncResult = {
   appliedGroupPrefix: string | null;
 };
 
+export type AdminGraphApplicationConfiguration = {
+  tenantId: string | null;
+  clientId: string | null;
+  hasClientSecret: boolean;
+  updatedAt: string | null;
+  configurationStatus: "ready" | "incomplete";
+  configurationMessage: string | null;
+};
+
 export type AdminDirectoryMappingAuditEntry = {
+  auditEntryId: number;
+  actorUserId: number | null;
+  actorDisplayName: string | null;
+  eventType: string;
+  entityType: string;
+  detail: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  createdAt: string;
+};
+
+export type AdminPermissionAuditEntry = {
   auditEntryId: number;
   actorUserId: number | null;
   actorDisplayName: string | null;
@@ -151,8 +221,6 @@ export type AdminDirectoryMappingAuditEntry = {
 export type AdminNotificationEmailConfiguration = {
   enabled: boolean;
   mode: "enabled" | "disabled" | "sandbox";
-  tenantId: string | null;
-  clientId: string | null;
   senderEmail: string | null;
   frontendBaseUrl: string;
   testRecipientEmail: string | null;

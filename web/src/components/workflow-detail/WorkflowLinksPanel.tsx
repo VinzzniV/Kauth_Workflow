@@ -47,7 +47,7 @@ export default function WorkflowLinksPanel({ uid }: WorkflowLinksPanelProps) {
 
       <div className="workflow-grid" aria-label="Verknüpfte Vorgänge">
         {relatedWorkflows.map((workflow) => (
-          <article key={workflow.uid} className="workflow-card card-list">
+          <article key={workflow.uid} className="workflow-card workflow-card--related card-list">
             <div className="workflow-card-top">
               <h3>{workflow.processType.name}</h3>
               <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>

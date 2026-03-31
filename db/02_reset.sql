@@ -4,8 +4,7 @@
 -- task_template_conditions sind zusätzlich per Unique-Index + ON CONFLICT abgesichert,
 -- damit sich identische Seed-Regeln nicht mehrfach anhäufen.
 --
--- Ausführungsreihenfolge: Diese Datei sortiert lexikalisch vor 02_seed.sql
--- ('r' < 's'), wird also von docker-entrypoint-initdb.d zuerst ausgeführt.
+-- Im Dev-/Prod-Init wird diese Datei bewusst vor 02_seed.sql bzw. 02_bootstrap.sql geladen.
 
 DELETE FROM workflow_answer_single_select_keep_values
 WHERE answer_definition_id IN (

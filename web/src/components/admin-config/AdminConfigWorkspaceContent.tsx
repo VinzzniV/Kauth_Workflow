@@ -8,14 +8,18 @@ import { AdminTechnicalAccessSection } from "./AdminTechnicalAccessSection";
 import { AdminBulkOperationsSection } from "./AdminBulkOperationsSection";
 import { AdminDirectorySyncSection } from "./AdminDirectorySyncSection";
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
+import { AdminPermissionsSection, type AdminPermissionOverrideDraft } from "./AdminPermissionsSection";
 import type {
   AdminDepartmentAssignment,
   AdminDirectoryGroup,
   AdminDirectoryIdentity,
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncStatus,
+  AdminGraphApplicationConfiguration,
   AdminGroup,
   AdminNotificationEmailConfiguration,
+  AdminPermission,
+  AdminPermissionAuditEntry,
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
@@ -77,16 +81,22 @@ type AdminConfigWorkspaceContentProps = {
   selectedGroup: AdminGroup | null;
   selectedGroupRoleIds: number[];
   sortedRoles: AdminRole[];
+  permissions: AdminPermission[];
+  permissionAuditEntries: AdminPermissionAuditEntry[];
+  selectedRoleId: number | null;
+  selectedRolePermissionIds: number[];
+  userOverrideDrafts: AdminPermissionOverrideDraft[];
   groups: AdminGroup[];
   directoryGroups: AdminDirectoryGroup[];
   directoryIdentities: AdminDirectoryIdentity[];
   directoryAuditEntries: AdminDirectoryMappingAuditEntry[];
   directoryStatus: AdminDirectorySyncStatus | null;
+  graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
+  graphTenantIdDraft: string;
+  graphClientIdDraft: string;
+  graphClientSecretDraft: string;
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
   notificationEnabledDraft: boolean;
-  notificationTenantIdDraft: string;
-  notificationClientIdDraft: string;
-  notificationClientSecretDraft: string;
   notificationSenderEmailDraft: string;
   notificationFrontendBaseUrlDraft: string;
   notificationTestRecipientDraft: string;
@@ -94,17 +104,22 @@ type AdminConfigWorkspaceContentProps = {
   notificationNotifyOnWorkflowCreatedDraft: boolean;
   notificationNotifyOnTaskReadyDraft: boolean;
   notificationNotifyOnWorkflowCompletedDraft: boolean;
+  isSavingGraphApplicationConfiguration: boolean;
   isSavingNotificationEmailConfiguration: boolean;
   isSendingNotificationEmailTest: boolean;
+  hasGraphApplicationDraftChanges: boolean;
   hasNotificationEmailDraftChanges: boolean;
   workflowConfig: WorkflowConfig | null;
   warnings: AdminWorkspaceWarning[];
   isSavingUserRoles: boolean;
   isSavingUserGroups: boolean;
   isSavingGroupRoles: boolean;
+  isSavingRolePermissions: boolean;
+  isSavingUserOverrides: boolean;
   onOpenOrganization: (entity: AdminOrganizationEntity, id?: number | null) => void;
   onSelectSection: (section: AdminWorkspaceSection) => void;
   onSelectUser: (user: AdminUser) => void;
+  onSelectRole: (roleId: number | null) => void;
   onNewUserDisplayNameChange: (value: string) => void;
   onNewUserEmailChange: (value: string) => void;
   onNewUserNotificationEmailChange: (value: string) => void;
@@ -134,15 +149,25 @@ type AdminConfigWorkspaceContentProps = {
   onSaveUserRoles: () => void | Promise<void>;
   onSaveUserGroups: () => void | Promise<void>;
   onSaveGroupRoles: () => void | Promise<void>;
+  onToggleRolePermission: (permissionId: number) => void;
+  onSaveRolePermissions: () => void | Promise<void>;
+  onUserOverrideDraftsChange: (drafts: AdminPermissionOverrideDraft[]) => void;
+  onSaveUserOverrides: () => void | Promise<void>;
   onSyncDirectory: (groupPrefix: string | null) => void | Promise<void>;
-  onCreateDirectoryMapping: (directoryGroupId: number, appRoleId: number) => void | Promise<void>;
+  onCreateDirectoryMapping: (
+    directoryGroupId: number,
+    appRoleId: number,
+    scope: string,
+    scopeDepartmentId: number | null
+  ) => void | Promise<void>;
   onDeleteDirectoryMapping: (mappingId: number) => void | Promise<void>;
   onNotice: (message: string | null) => void;
   onError: (message: string | null) => void;
+  onGraphTenantIdChange: (value: string) => void;
+  onGraphClientIdChange: (value: string) => void;
+  onGraphClientSecretChange: (value: string) => void;
+  onSaveGraphApplicationConfiguration: () => void | Promise<void>;
   onNotificationEnabledChange: (enabled: boolean) => void;
-  onNotificationTenantIdChange: (value: string) => void;
-  onNotificationClientIdChange: (value: string) => void;
-  onNotificationClientSecretChange: (value: string) => void;
   onNotificationSenderEmailChange: (value: string) => void;
   onNotificationFrontendBaseUrlChange: (value: string) => void;
   onNotificationTestRecipientChange: (value: string) => void;
@@ -234,30 +259,50 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       );
     case "access":
       return (
-        <AdminTechnicalAccessSection
-          isTechnicalAccessOpen={true}
-          isLoadingTechnicalAccess={props.isLoadingTechnicalAccess}
-          sortedUsers={props.sortedUsers}
-          selectedUser={props.selectedUser}
-          selectedUserRoleIds={props.selectedUserRoleIds}
-          selectedUserGroupIds={props.selectedUserGroupIds}
-          selectedGroupId={props.selectedGroupId}
-          selectedGroup={props.selectedGroup}
-          selectedGroupRoleIds={props.selectedGroupRoleIds}
-          sortedRoles={props.sortedRoles}
-          groups={props.groups}
-          isSavingUserRoles={props.isSavingUserRoles}
-          isSavingUserGroups={props.isSavingUserGroups}
-          isSavingGroupRoles={props.isSavingGroupRoles}
-          onSelectUser={props.onSelectUser}
-          onToggleUserRole={props.onToggleUserRole}
-          onToggleUserGroup={props.onToggleUserGroup}
-          onSelectGroup={props.onSelectGroup}
-          onToggleGroupRole={props.onToggleGroupRole}
-          onSaveUserRoles={props.onSaveUserRoles}
-          onSaveUserGroups={props.onSaveUserGroups}
-          onSaveGroupRoles={props.onSaveGroupRoles}
-        />
+        <div className="content-stack">
+          <AdminTechnicalAccessSection
+            isTechnicalAccessOpen={true}
+            isLoadingTechnicalAccess={props.isLoadingTechnicalAccess}
+            sortedUsers={props.sortedUsers}
+            selectedUser={props.selectedUser}
+            selectedUserRoleIds={props.selectedUserRoleIds}
+            selectedUserGroupIds={props.selectedUserGroupIds}
+            selectedGroupId={props.selectedGroupId}
+            selectedGroup={props.selectedGroup}
+            selectedGroupRoleIds={props.selectedGroupRoleIds}
+            sortedRoles={props.sortedRoles}
+            groups={props.groups}
+            isSavingUserRoles={props.isSavingUserRoles}
+            isSavingUserGroups={props.isSavingUserGroups}
+            isSavingGroupRoles={props.isSavingGroupRoles}
+            onSelectUser={props.onSelectUser}
+            onToggleUserRole={props.onToggleUserRole}
+            onToggleUserGroup={props.onToggleUserGroup}
+            onSelectGroup={props.onSelectGroup}
+            onToggleGroupRole={props.onToggleGroupRole}
+            onSaveUserRoles={props.onSaveUserRoles}
+            onSaveUserGroups={props.onSaveUserGroups}
+            onSaveGroupRoles={props.onSaveGroupRoles}
+          />
+          <AdminPermissionsSection
+            roles={props.sortedRoles}
+            permissions={props.permissions}
+            auditEntries={props.permissionAuditEntries}
+            departments={props.sortedDepartments}
+            selectedRoleId={props.selectedRoleId}
+            selectedRolePermissionIds={props.selectedRolePermissionIds}
+            selectedUser={props.selectedUser}
+            userOverrideDrafts={props.userOverrideDrafts}
+            isLoading={props.isLoadingTechnicalAccess}
+            isSavingRolePermissions={props.isSavingRolePermissions}
+            isSavingUserOverrides={props.isSavingUserOverrides}
+            onSelectRole={props.onSelectRole}
+            onToggleRolePermission={props.onToggleRolePermission}
+            onSaveRolePermissions={props.onSaveRolePermissions}
+            onUserOverrideDraftsChange={props.onUserOverrideDraftsChange}
+            onSaveUserOverrides={props.onSaveUserOverrides}
+          />
+        </div>
       );
     case "directory":
       return (
@@ -273,6 +318,7 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
           <AdminGroupMappingSection
             groups={props.directoryGroups}
             roles={props.sortedRoles}
+            departments={props.sortedDepartments}
             isLoading={props.isLoadingDirectory}
             savingGroupId={props.savingDirectoryGroupId}
             deletingMappingId={props.deletingDirectoryMappingId}
@@ -297,11 +343,12 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
     case "system":
       return (
         <AdminSystemWorkspaceSection
+          graphApplicationConfiguration={props.graphApplicationConfiguration}
+          graphTenantIdDraft={props.graphTenantIdDraft}
+          graphClientIdDraft={props.graphClientIdDraft}
+          graphClientSecretDraft={props.graphClientSecretDraft}
           notificationEmailConfiguration={props.notificationEmailConfiguration}
           notificationEnabledDraft={props.notificationEnabledDraft}
-          notificationTenantIdDraft={props.notificationTenantIdDraft}
-          notificationClientIdDraft={props.notificationClientIdDraft}
-          notificationClientSecretDraft={props.notificationClientSecretDraft}
           notificationSenderEmailDraft={props.notificationSenderEmailDraft}
           notificationFrontendBaseUrlDraft={props.notificationFrontendBaseUrlDraft}
           notificationTestRecipientDraft={props.notificationTestRecipientDraft}
@@ -309,15 +356,18 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
           notificationNotifyOnWorkflowCreatedDraft={props.notificationNotifyOnWorkflowCreatedDraft}
           notificationNotifyOnTaskReadyDraft={props.notificationNotifyOnTaskReadyDraft}
           notificationNotifyOnWorkflowCompletedDraft={props.notificationNotifyOnWorkflowCompletedDraft}
+          isSavingGraphApplicationConfiguration={props.isSavingGraphApplicationConfiguration}
           isSavingNotificationEmailConfiguration={props.isSavingNotificationEmailConfiguration}
           isSendingNotificationEmailTest={props.isSendingNotificationEmailTest}
           isLoading={false}
+          hasGraphApplicationDraftChanges={props.hasGraphApplicationDraftChanges}
           hasNotificationEmailDraftChanges={props.hasNotificationEmailDraftChanges}
           workflowConfig={props.workflowConfig}
+          onGraphTenantIdChange={props.onGraphTenantIdChange}
+          onGraphClientIdChange={props.onGraphClientIdChange}
+          onGraphClientSecretChange={props.onGraphClientSecretChange}
+          onSaveGraphApplicationConfiguration={props.onSaveGraphApplicationConfiguration}
           onNotificationEnabledChange={props.onNotificationEnabledChange}
-          onNotificationTenantIdChange={props.onNotificationTenantIdChange}
-          onNotificationClientIdChange={props.onNotificationClientIdChange}
-          onNotificationClientSecretChange={props.onNotificationClientSecretChange}
           onNotificationSenderEmailChange={props.onNotificationSenderEmailChange}
           onNotificationFrontendBaseUrlChange={props.onNotificationFrontendBaseUrlChange}
           onNotificationTestRecipientChange={props.onNotificationTestRecipientChange}

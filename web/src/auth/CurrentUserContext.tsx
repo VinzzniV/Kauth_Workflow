@@ -16,7 +16,8 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   // Diese abgeleiteten Werte werden im Routing, in der Navigation und in Guards mehrfach verwendet.
   const roles = useMemo(() => currentUser?.roles ?? [], [currentUser]);
   const groups = useMemo(() => currentUser?.groups ?? [], [currentUser]);
-  const capabilities = useMemo(() => deriveRoleCapabilities(roles), [roles]);
+  const permissions = useMemo(() => currentUser?.permissions ?? [], [currentUser]);
+  const capabilities = useMemo(() => deriveRoleCapabilities(roles, permissions), [permissions, roles]);
   const defaultRoute = useMemo(() => getDefaultRoute(capabilities), [capabilities]);
 
   const canAccessFeatureSafe = useCallback(
@@ -35,6 +36,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
       roles,
       roleLabels,
       groups,
+      permissions,
       capabilities,
       defaultRoute,
       canAccessFeature: canAccessFeatureSafe,
@@ -46,6 +48,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
       roles,
       roleLabels,
       groups,
+      permissions,
       capabilities,
       defaultRoute,
       canAccessFeatureSafe,

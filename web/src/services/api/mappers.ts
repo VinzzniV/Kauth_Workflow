@@ -323,6 +323,7 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
     status: toWorkflowLegacyStatus(dto.status),
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
+    completedAt: dto.completedAt,
     deadlineDate: dto.deadlineDate,
     archivedAt: dto.archivedAt,
     pendingNotifications: dto.pendingNotifications,

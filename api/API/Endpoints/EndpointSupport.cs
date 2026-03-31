@@ -22,13 +22,24 @@ internal static class EndpointSupport
             .OrderBy(groupKey => groupKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        var permissions = currentUser.EffectivePermissions
+            .Select(permission => permission.PermissionKey)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(permissionKey => permissionKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         return new MeDto
         {
             Username = username,
             DisplayName = currentUser.DisplayName,
             Email = currentUser.Email,
             Roles = roles,
-            Groups = groups
+            Groups = groups,
+            Permissions = permissions,
+            PermissionScopes = currentUser.PermissionScopes,
+            DirectorySynced = currentUser.DirectorySynced,
+            DepartmentSource = currentUser.DepartmentSource,
+            DepartmentOverrideActive = currentUser.DepartmentOverrideActive
         };
     }
 
@@ -189,14 +200,21 @@ internal static class EndpointSupport
         IAuthorizationPolicyService authorizationPolicy)
     {
         if (authorizationPolicy.CanManageAdminConfiguration(currentUser)
-            || authorizationPolicy.CanCreateOrStartWorkflow(currentUser))
+            || authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.WorkflowsViewAll)
+            || authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.UsersViewAllDepartments))
         {
             return null;
         }
 
+        var departmentIds = new HashSet<int>();
+        departmentIds.UnionWith(currentUser.GetPermissionDepartmentIds(AuthorizationPermissions.WorkflowsViewDepartment));
+        departmentIds.UnionWith(currentUser.GetPermissionDepartmentIds(AuthorizationPermissions.UsersViewDepartment));
+        departmentIds.UnionWith(currentUser.GetPermissionDepartmentIds(AuthorizationPermissions.TasksExecuteSupervisor));
+        departmentIds.UnionWith(currentUser.GetPermissionDepartmentIds(AuthorizationPermissions.TasksExecuteDepartment));
+
         if (authorizationPolicy.CanAccessSupervisorStep(currentUser))
         {
-            var departmentIds = await repository.GetRequirementSelectionDepartmentIds(currentUser.UserId);
+            departmentIds.UnionWith(await repository.GetRequirementSelectionDepartmentIds(currentUser.UserId));
 
             foreach (var responsibility in currentUser.EffectiveResponsibilities)
             {
@@ -206,11 +224,16 @@ internal static class EndpointSupport
                     departmentIds.Add(responsibility.DepartmentId.Value);
                 }
             }
-
-            return departmentIds;
         }
 
-        return null;
+        var hasDepartmentScopedAccess = departmentIds.Count > 0
+            || currentUser.HasPermission(AuthorizationPermissions.WorkflowsViewDepartment)
+            || currentUser.HasPermission(AuthorizationPermissions.UsersViewDepartment)
+            || currentUser.HasPermission(AuthorizationPermissions.TasksExecuteSupervisor)
+            || currentUser.HasPermission(AuthorizationPermissions.TasksExecuteDepartment)
+            || currentUser.HasRole(AuthorizationRoles.Manager);
+
+        return hasDepartmentScopedAccess ? departmentIds : null;
     }
 
     public static bool CanObserveWorkflow(

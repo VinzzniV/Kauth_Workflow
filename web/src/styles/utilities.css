@@ -188,9 +188,10 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface-overlay);
-    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--surface-nav-border);
+    background: color-mix(in srgb, var(--surface-nav) 88%, transparent);
+    box-shadow: 0 16px 34px rgba(2, 6, 23, 0.18);
+    backdrop-filter: blur(18px);
   }
 
   .mobile-topbar-actions {
@@ -233,13 +234,13 @@
   .mobile-topbar-title {
     font-size: 0.82rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--surface-nav-text-active);
     line-height: 1.2;
   }
 
   .mobile-topbar-current {
     font-size: 0.78rem;
-    color: var(--text-secondary);
+    color: var(--surface-nav-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -247,10 +248,10 @@
 
   .mobile-menu-button,
   .mobile-nav-close {
-    border: 1px solid var(--border);
+    border: 1px solid var(--surface-nav-border);
     border-radius: var(--radius-md);
-    background: var(--bg-card);
-    color: var(--text-primary);
+    background: color-mix(in srgb, var(--surface-nav-hover) 72%, transparent);
+    color: var(--surface-nav-text-active);
     font: inherit;
     cursor: pointer;
   }
@@ -265,7 +266,7 @@
     justify-content: center;
     gap: 0.24rem;
     flex-shrink: 0;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.2);
   }
 
   .mobile-menu-button:focus-visible,
@@ -278,7 +279,7 @@
     width: 18px;
     height: 2px;
     border-radius: 999px;
-    background: var(--text-primary);
+    background: var(--surface-nav-text-active);
   }
 
   .mobile-nav-backdrop {
@@ -304,9 +305,9 @@
     bottom: 0;
     z-index: 130;
     width: min(88vw, 340px);
-    background: var(--bg-card);
-    border-left: 1px solid var(--border);
-    box-shadow: -16px 0 32px rgba(2, 6, 23, 0.22);
+    background: var(--surface-nav);
+    border-left: 1px solid var(--surface-nav-border);
+    box-shadow: -20px 0 48px rgba(2, 6, 23, 0.28);
     display: flex;
     flex-direction: column;
     transform: translateX(100%);

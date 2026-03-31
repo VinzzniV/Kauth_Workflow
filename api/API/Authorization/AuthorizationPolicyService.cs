@@ -18,20 +18,40 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         return roleKeys.Any(roleSet.Contains);
     }
 
+    public bool HasPermission(CurrentUser user, string permissionKey, int? departmentId = null)
+    {
+        if (string.IsNullOrWhiteSpace(permissionKey))
+        {
+            return false;
+        }
+
+        if (user.HasPermission(permissionKey, departmentId))
+        {
+            return true;
+        }
+
+        return HasLegacyRolePermission(user, permissionKey, departmentId);
+    }
+
     public bool CanReadAllowedViews(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.ReadAllowed);
+        return HasPermission(user, AuthorizationPermissions.AppAccess)
+            || HasAnyRole(user, AuthorizationRoles.ReadAllowed);
     }
 
     public bool CanAccessWorkflowOverview(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Hr, AuthorizationRoles.Admin, AuthorizationRoles.Reader, AuthorizationRoles.Manager);
+        return HasPermission(user, AuthorizationPermissions.WorkflowsViewAll)
+            || HasPermission(user, AuthorizationPermissions.WorkflowsViewDepartment)
+            || HasAnyRole(user, AuthorizationRoles.Hr, AuthorizationRoles.Admin, AuthorizationRoles.Reader, AuthorizationRoles.Manager);
     }
 
     // Aktive Workflows sind fuer HR und Admin lesbar; reine Leser sehen nur abgeschlossene Faelle.
     public bool CanReadWorkflow(CurrentUser user, string workflowStatus)
     {
-        if (HasAnyRole(user, AuthorizationRoles.Admin, AuthorizationRoles.Hr))
+        if (HasPermission(user, AuthorizationPermissions.WorkflowsViewAll)
+            || HasPermission(user, AuthorizationPermissions.WorkflowsViewDepartment)
+            || HasAnyRole(user, AuthorizationRoles.Admin, AuthorizationRoles.Hr))
         {
             return true;
         }
@@ -54,11 +74,18 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
 
     public bool CanCreateWorkflow(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Hr, AuthorizationRoles.Manager, AuthorizationRoles.Admin);
+        return user.EffectivePermissions.Any(permission =>
+                   AuthorizationPermissions.IsWorkflowCreatePermission(permission.PermissionKey))
+               || HasAnyRole(user, AuthorizationRoles.Hr, AuthorizationRoles.Manager, AuthorizationRoles.Admin);
     }
 
-    public bool CanCreateWorkflowForProcessType(CurrentUser user, bool managerCreatableProcessType)
+    public bool CanCreateWorkflowForProcessType(CurrentUser user, string processTypeKey, bool managerCreatableProcessType)
     {
+        if (HasPermission(user, AuthorizationPermissions.WorkflowCreate(processTypeKey)))
+        {
+            return true;
+        }
+
         if (HasAnyRole(user, AuthorizationRoles.Admin, AuthorizationRoles.Hr))
         {
             return true;
@@ -69,37 +96,47 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
 
     public bool CanCreateOrStartWorkflow(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Hr);
+        return HasPermission(user, AuthorizationPermissions.WorkflowsViewAll)
+               && CanCreateWorkflow(user);
     }
 
     public bool CanEditSupervisorRequirements(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Manager, AuthorizationRoles.Admin);
+        return HasPermission(user, AuthorizationPermissions.TasksExecuteSupervisor)
+               || HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+               || HasAnyRole(user, AuthorizationRoles.Manager, AuthorizationRoles.Admin);
     }
 
     public bool CanAccessSupervisorStep(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Manager);
+        return HasPermission(user, AuthorizationPermissions.TasksExecuteSupervisor)
+               || HasAnyRole(user, AuthorizationRoles.Manager);
     }
 
     public bool CanAccessTechnicalTasks(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Worker);
+        return HasPermission(user, AuthorizationPermissions.TasksExecuteDepartment)
+               || HasAnyRole(user, AuthorizationRoles.Worker);
     }
 
     public bool CanAccessTaskStatusUpdates(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Worker, AuthorizationRoles.Admin);
+        return HasPermission(user, AuthorizationPermissions.TasksExecuteDepartment)
+               || HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+               || HasAnyRole(user, AuthorizationRoles.Worker, AuthorizationRoles.Admin);
     }
 
     public bool CanManageAdminConfiguration(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Admin);
+        return HasPermission(user, AuthorizationPermissions.AdminPermissionsManage)
+               || HasAnyRole(user, AuthorizationRoles.Admin);
     }
 
     public bool CanViewTaskAssigneeIdentity(CurrentUser user)
     {
-        return HasAnyRole(user, AuthorizationRoles.Admin);
+        return HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+               || CanManageAdminConfiguration(user)
+               || HasAnyRole(user, AuthorizationRoles.Admin);
     }
 
     public bool CanObserveWorkflow(
@@ -108,12 +145,22 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         string workflowStatus,
         IReadOnlySet<int>? observableDepartmentIds)
     {
-        if (CanManageAdminConfiguration(user) || CanCreateOrStartWorkflow(user))
+        if (CanManageAdminConfiguration(user)
+            || HasPermission(user, AuthorizationPermissions.WorkflowsViewAll))
         {
             return true;
         }
 
-        if (CanAccessSupervisorStep(user))
+        if (HasPermission(user, AuthorizationPermissions.WorkflowsViewDepartment, workflowDepartmentId))
+        {
+            return true;
+        }
+
+        var hasDepartmentScopedWorkflowAccess =
+            HasPermission(user, AuthorizationPermissions.WorkflowsViewDepartment)
+            || HasAnyRole(user, AuthorizationRoles.Manager);
+
+        if (hasDepartmentScopedWorkflowAccess || CanAccessSupervisorStep(user))
         {
             return observableDepartmentIds?.Contains(workflowDepartmentId) == true;
         }
@@ -153,7 +200,8 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return false;
         }
 
-        if (HasAnyRole(user, AuthorizationRoles.Admin))
+        if (HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+            || HasAnyRole(user, AuthorizationRoles.Admin))
         {
             return true;
         }
@@ -170,7 +218,8 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
     public bool CanUpdateTaskAssignment(CurrentUser user, TaskWithWorkflowDto task)
     {
         return !WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus)
-            && HasAnyRole(user, AuthorizationRoles.Admin);
+            && (HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+                || HasAnyRole(user, AuthorizationRoles.Admin));
     }
 
     public bool CanAddTaskComment(CurrentUser user, TaskWithWorkflowDto task)
@@ -221,4 +270,25 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
     {
         "done"
     };
+
+    private static bool HasLegacyRolePermission(CurrentUser user, string permissionKey, int? departmentId)
+    {
+        var normalizedPermissionKey = permissionKey.Trim();
+        return normalizedPermissionKey switch
+        {
+            AuthorizationPermissions.AppAccess => AuthorizationRoles.ReadAllowed.Any(user.HasRole),
+            AuthorizationPermissions.UsersViewAllDepartments => user.HasRole(AuthorizationRoles.Hr) || user.HasRole(AuthorizationRoles.Admin),
+            AuthorizationPermissions.UsersViewDepartment => !departmentId.HasValue && user.HasRole(AuthorizationRoles.Manager),
+            AuthorizationPermissions.WorkflowsViewAll => user.HasRole(AuthorizationRoles.Hr) || user.HasRole(AuthorizationRoles.Admin),
+            AuthorizationPermissions.WorkflowsViewDepartment => !departmentId.HasValue && user.HasRole(AuthorizationRoles.Manager),
+            AuthorizationPermissions.TasksExecuteSupervisor => user.HasRole(AuthorizationRoles.Manager) || user.HasRole(AuthorizationRoles.Admin),
+            AuthorizationPermissions.TasksExecuteDepartment => user.HasRole(AuthorizationRoles.Worker) || user.HasRole(AuthorizationRoles.Admin),
+            AuthorizationPermissions.TasksAssignOverride => user.HasRole(AuthorizationRoles.Admin),
+            AuthorizationPermissions.AdminDirectoryManage => user.HasRole(AuthorizationRoles.Admin),
+            AuthorizationPermissions.AdminPermissionsManage => user.HasRole(AuthorizationRoles.Admin),
+            _ when AuthorizationPermissions.IsWorkflowCreatePermission(normalizedPermissionKey)
+                => user.HasRole(AuthorizationRoles.Hr) || user.HasRole(AuthorizationRoles.Admin),
+            _ => false
+        };
+    }
 }

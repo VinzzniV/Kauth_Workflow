@@ -206,6 +206,7 @@ public sealed class WorkflowListItemDto
     public required string Status { get; init; }
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
+    public DateTime? CompletedAt { get; init; }
     public DateOnly? DeadlineDate { get; init; }
     public DateTime? ArchivedAt { get; init; }
     public required int PendingNotifications { get; init; }

@@ -34,6 +34,39 @@ public sealed class CurrentUserRole
     /// When AssignmentSource is "directory_group", the display name of the Entra group that granted this role.
     /// </summary>
     public string? DirectoryGroupName { get; init; }
+    public string Scope { get; init; } = "global";
+    public int? ScopeDepartmentId { get; init; }
+    public string? ScopeDepartmentName { get; init; }
+}
+
+public sealed class CurrentUserPermission
+{
+    public required int PermissionId { get; init; }
+    public required string PermissionKey { get; init; }
+    public required string PermissionName { get; init; }
+    public string Scope { get; init; } = "global";
+    public int? ScopeDepartmentId { get; init; }
+    public string? ScopeDepartmentName { get; init; }
+}
+
+public sealed class CurrentUserPermissionScope
+{
+    public required string PermissionKey { get; init; }
+    public string Scope { get; init; } = "global";
+    public int? ScopeDepartmentId { get; init; }
+    public string? ScopeDepartmentName { get; init; }
+}
+
+public sealed class CurrentUserPermissionOverride
+{
+    public required long OverrideId { get; init; }
+    public required int PermissionId { get; init; }
+    public required string PermissionKey { get; init; }
+    public required string PermissionName { get; init; }
+    public required string Effect { get; init; }
+    public string Scope { get; init; } = "global";
+    public int? ScopeDepartmentId { get; init; }
+    public string? ScopeDepartmentName { get; init; }
 }
 
 public sealed class CurrentUserResponsibility
@@ -59,10 +92,16 @@ public sealed class CurrentUser
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }
     public required string IdentityProvider { get; init; }
+    public bool DirectorySynced { get; init; }
+    public string DepartmentSource { get; init; } = "local";
+    public bool DepartmentOverrideActive { get; init; }
     public required List<CurrentUserGroup> Groups { get; init; }
     public required List<CurrentUserRole> DirectRoles { get; init; }
     public required List<CurrentUserRole> GroupRoles { get; init; }
     public required List<CurrentUserRole> EffectiveRoles { get; init; }
+    public List<CurrentUserPermission> EffectivePermissions { get; init; } = [];
+    public List<CurrentUserPermissionScope> PermissionScopes { get; init; } = [];
+    public List<CurrentUserPermissionOverride> PermissionOverrides { get; init; } = [];
     public required List<CurrentUserResponsibility> DirectResponsibilities { get; init; }
     public required List<CurrentUserResponsibility> GroupResponsibilities { get; init; }
     public required List<CurrentUserResponsibility> EffectiveResponsibilities { get; init; }
@@ -77,6 +116,55 @@ public sealed class CurrentUser
 
         return EffectiveRoles.Any(
             role => string.Equals(role.RoleKey, roleKey.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    public bool HasPermission(string permissionKey, int? departmentId = null)
+    {
+        if (string.IsNullOrWhiteSpace(permissionKey))
+        {
+            return false;
+        }
+
+        return EffectivePermissions.Any(permission =>
+        {
+            if (!string.Equals(permission.PermissionKey, permissionKey.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (string.Equals(permission.Scope, "global", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!departmentId.HasValue)
+            {
+                return true;
+            }
+
+            return permission.ScopeDepartmentId == departmentId.Value;
+        });
+    }
+
+    public bool HasAnyPermission(params string[] permissionKeys)
+    {
+        if (permissionKeys.Length == 0)
+        {
+            return false;
+        }
+
+        return permissionKeys.Any(permissionKey => HasPermission(permissionKey));
+    }
+
+    public IReadOnlySet<int> GetPermissionDepartmentIds(string permissionKey)
+    {
+        return EffectivePermissions
+            .Where(permission =>
+                string.Equals(permission.PermissionKey, permissionKey.Trim(), StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(permission.Scope, "global", StringComparison.OrdinalIgnoreCase)
+                && permission.ScopeDepartmentId.HasValue)
+            .Select(permission => permission.ScopeDepartmentId!.Value)
+            .ToHashSet();
     }
 
     public bool HasResponsibility(string responsibilityKey)
@@ -116,6 +204,11 @@ public sealed class MeDto
     public required string Email { get; init; }
     public required List<string> Roles { get; init; }
     public required List<string> Groups { get; init; }
+    public List<string> Permissions { get; init; } = [];
+    public List<CurrentUserPermissionScope> PermissionScopes { get; init; } = [];
+    public bool DirectorySynced { get; init; }
+    public string DepartmentSource { get; init; } = "local";
+    public bool DepartmentOverrideActive { get; init; }
 }
 
 public sealed class DemoLoginResponse
@@ -133,7 +226,11 @@ public sealed class AdminRoleDto
     public required string RoleKind { get; init; }
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }
+    public string Scope { get; init; } = "global";
+    public int? ScopeDepartmentId { get; init; }
+    public string? ScopeDepartmentName { get; init; }
     public required bool IsActive { get; init; }
+    public List<AdminPermissionDto> Permissions { get; init; } = [];
 }
 
 public class AdminGroupRefDto
@@ -161,8 +258,17 @@ public sealed class AdminUserDto
     public required bool HasManagerAccess { get; init; }
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }
+    public bool DirectorySynced { get; init; }
+    public string DepartmentSource { get; init; } = "local";
+    public bool DepartmentOverrideActive { get; init; }
+    public long? DirectoryIdentityId { get; init; }
+    public string? UserPrincipalName { get; init; }
+    public string? DirectoryDisplayName { get; init; }
     public required List<AdminRoleDto> Roles { get; init; }
     public required List<AdminGroupRefDto> Groups { get; init; }
+    public List<AdminRoleDto> EffectiveRoles { get; init; } = [];
+    public List<AdminPermissionOverrideDto> PermissionOverrides { get; init; } = [];
+    public List<AdminPermissionGrantDto> EffectivePermissions { get; init; } = [];
 }
 
 public sealed class AdminDepartmentAssignmentDto
@@ -220,6 +326,64 @@ public sealed class AdminUserGroupUpdateRequest
     public required List<int> GroupIds { get; init; }
 }
 
+public sealed class AdminPermissionDto
+{
+    public required int PermissionId { get; init; }
+    public required string PermissionKey { get; init; }
+    public required string PermissionName { get; init; }
+    public string? Description { get; init; }
+    public required string ScopeKind { get; init; }
+    public required string Category { get; init; }
+    public required bool IsActive { get; init; }
+}
+
+public class AdminPermissionGrantDto
+{
+    public required int PermissionId { get; init; }
+    public required string PermissionKey { get; init; }
+    public required string PermissionName { get; init; }
+    public string Scope { get; init; } = "global";
+    public int? ScopeDepartmentId { get; init; }
+    public string? ScopeDepartmentName { get; init; }
+}
+
+public sealed class AdminPermissionOverrideDto : AdminPermissionGrantDto
+{
+    public required long OverrideId { get; init; }
+    public required string Effect { get; init; }
+}
+
+public sealed class AdminUserPermissionOverrideUpsertRequest
+{
+    public int PermissionId { get; init; }
+    public string? Effect { get; init; }
+    public string? Scope { get; init; }
+    public int? ScopeDepartmentId { get; init; }
+}
+
+public sealed class AdminUserPermissionOverrideUpdateRequest
+{
+    public required List<AdminUserPermissionOverrideUpsertRequest> Overrides { get; init; }
+}
+
+public sealed class AdminRolePermissionUpdateRequest
+{
+    public required List<int> PermissionIds { get; init; }
+}
+
+public sealed class AdminPermissionAuditEntryDto
+{
+    public required long AuditEntryId { get; init; }
+    public long? ActorUserId { get; init; }
+    public string? ActorDisplayName { get; init; }
+    public required string EventType { get; init; }
+    public required string EntityType { get; init; }
+    public string? Detail { get; init; }
+    public string? OldValue { get; init; }
+    public string? NewValue { get; init; }
+    public required DateTime CreatedAt { get; init; }
+}
+
 public sealed class AdminGroupRoleUpdateRequest
 {
     public required List<int> RoleIds { get; init; }
@@ -246,8 +410,6 @@ public sealed class AdminNotificationEmailConfigurationDto
 {
     public required bool Enabled { get; init; }
     public required string Mode { get; init; }
-    public string? TenantId { get; init; }
-    public string? ClientId { get; init; }
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
@@ -267,9 +429,6 @@ public sealed class AdminNotificationEmailConfigurationDto
 public sealed class AdminNotificationEmailConfigurationUpdateRequest
 {
     public required bool Enabled { get; init; }
-    public string? TenantId { get; init; }
-    public string? ClientId { get; init; }
-    public string? ClientSecret { get; init; }
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
@@ -296,6 +455,23 @@ public sealed class AdminNotificationEmailTestResponse
 {
     public required AdminNotificationEmailConfigurationDto Configuration { get; init; }
     public required AdminNotificationEmailTestResultDto Result { get; init; }
+}
+
+public sealed class AdminGraphApplicationConfigurationDto
+{
+    public string? TenantId { get; init; }
+    public string? ClientId { get; init; }
+    public required bool HasClientSecret { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+    public required string ConfigurationStatus { get; init; }
+    public string? ConfigurationMessage { get; init; }
+}
+
+public sealed class AdminGraphApplicationConfigurationUpdateRequest
+{
+    public string? TenantId { get; init; }
+    public string? ClientId { get; init; }
+    public string? ClientSecret { get; init; }
 }
 
 internal sealed class DemoSession

@@ -232,6 +232,7 @@ export type WorkflowSummary = {
   status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
+  completedAt: string | null;
   deadlineDate: string | null;
   archivedAt: string | null;
   pendingNotifications: number;

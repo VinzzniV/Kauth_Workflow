@@ -1,0 +1,58 @@
+name: onboarding
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_pw}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./api/API
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      AUTH_MODE: ${AUTH_MODE:-demo}
+      ConnectionStrings__Default: Host=db;Port=5432;Database=${POSTGRES_DB:-appdb};Username=${POSTGRES_USER:-app};Password=${POSTGRES_PASSWORD:-app_pw}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5173}
+      Cors__AllowedOrigins__0: ${PUBLIC_BASE_URL:-http://localhost:5173}
+      NotificationEmail__FrontendBaseUrl: ${PUBLIC_BASE_URL:-http://localhost:5173}
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
+      GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET:-}
+      DIRECTORY_GROUP_PREFIX: ${DIRECTORY_GROUP_PREFIX:-}
+      DIRECTORY_EXPLICIT_GROUP_IDS: ${DIRECTORY_EXPLICIT_GROUP_IDS:-}
+      DIRECTORY_SYNC_SCHEDULED: ${DIRECTORY_SYNC_SCHEDULED:-true}
+      DIRECTORY_SYNC_INTERVAL_MINUTES: ${DIRECTORY_SYNC_INTERVAL_MINUTES:-15}
+      AUTO_PROVISION_DEFAULT_ROLE_KEY: ${AUTO_PROVISION_DEFAULT_ROLE_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    environment:
+      API_BASE: /api
+      AUTH_MODE: ${WEB_AUTH_MODE:-demo}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_REDIRECT_URI: ${PUBLIC_BASE_URL:-}
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

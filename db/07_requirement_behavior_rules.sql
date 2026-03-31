@@ -1,7 +1,7 @@
 -- Requirement-Behavior-Regeln fuer bestehende Datenbanken nachziehen.
 -- Auf einem frischen Schema laufen die CREATE TABLE/INDEX Statements leer,
 -- die anschliessenden Deletes/Seeds stellen aber sicher, dass der aktuelle
--- Regelstand identisch zur 02_seed.sql ist.
+-- Regelstand identisch zur Bootstrap-/Dev-Seed-Basis ist.
 
 CREATE TABLE IF NOT EXISTS workflow_answer_visibility_rules (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

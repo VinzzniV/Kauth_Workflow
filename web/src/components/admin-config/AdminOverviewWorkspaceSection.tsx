@@ -46,7 +46,7 @@ export function AdminOverviewWorkspaceSection({
         <SectionHeader title="Arbeitsbereiche" />
 
         <div className="admin-overview-grid" aria-label="Bereiche der Administration">
-          <Card variant="primary" className="admin-overview-card">
+          <Card variant="primary" className="admin-overview-card admin-overview-card--organization">
             <SectionHeader
               title="Organisation"
               description={`${userCount} Personen | ${departmentCount} Abteilungen | ${responsibilityCount} Zuständigkeiten`}
@@ -66,7 +66,7 @@ export function AdminOverviewWorkspaceSection({
             </div>
           </Card>
 
-          <Card variant="primary" className="admin-overview-card">
+          <Card variant="primary" className="admin-overview-card admin-overview-card--templates">
             <SectionHeader
               title="Vorlagen & Felder"
               description="Vorlagen | Felder | Standardwerte"
@@ -86,7 +86,7 @@ export function AdminOverviewWorkspaceSection({
             </div>
           </Card>
 
-          <Card variant="primary" className="admin-overview-card">
+          <Card variant="primary" className="admin-overview-card admin-overview-card--access">
             <SectionHeader
               title="Rechte & Zugriff"
               description={technicalAccessSummary}
@@ -103,7 +103,7 @@ export function AdminOverviewWorkspaceSection({
             </div>
           </Card>
 
-          <Card variant="primary" className="admin-overview-card">
+          <Card variant="primary" className="admin-overview-card admin-overview-card--system">
             <SectionHeader
               title="System"
               description={notificationSummary}

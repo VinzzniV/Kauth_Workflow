@@ -1,0 +1,7 @@
+services:
+  db:
+    ports:
+      - "25432:5432"
+    volumes:
+      - ./db/init/dev:/docker-entrypoint-initdb.d:ro
+      - ./db:/docker-entrypoint-sql:ro

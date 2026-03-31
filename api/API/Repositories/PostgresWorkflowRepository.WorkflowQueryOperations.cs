@@ -41,6 +41,7 @@ SELECT
     r.id,
     r.name,
     w.status,
+    w.completed_at,
     w.deadline_date,
     w.created_at,
     COUNT(n.id) FILTER (WHERE n.status = 'pending') AS pending_notifications,
@@ -69,6 +70,7 @@ ORDER BY w.created_at DESC;";
             int RoleId,
             string RoleName,
             string WorkflowStatus,
+            DateTime? CompletedAt,
             DateOnly? DeadlineDate,
             DateTime CreatedAt,
             int PendingNotifications,
@@ -94,10 +96,11 @@ ORDER BY w.created_at DESC;";
                     reader.GetInt32(11),
                     reader.GetString(12),
                     reader.GetString(13),
-                    reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
-                    reader.GetDateTime(15),
-                    reader.GetInt32(16),
-                    reader.GetInt32(17)));
+                    reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                    reader.IsDBNull(15) ? null : reader.GetFieldValue<DateOnly>(15),
+                    reader.GetDateTime(16),
+                    reader.GetInt32(17),
+                    reader.GetInt32(18)));
             }
         }
 
@@ -133,6 +136,7 @@ ORDER BY w.created_at DESC;";
                     RoleName = row.RoleName,
                     Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                     WorkflowStatus = workflowStatus,
+                    CompletedAt = row.CompletedAt,
                     DeadlineDate = row.DeadlineDate,
                     CreatedAt = row.CreatedAt,
                     PendingNotifications = row.PendingNotifications,
@@ -188,6 +192,7 @@ ORDER BY w.created_at DESC;";
                 RoleName = row.RoleName,
                 Status = WorkflowStatusRules.ToLegacyStatus(row.WorkflowStatus),
                 WorkflowStatus = row.WorkflowStatus,
+                CompletedAt = row.CompletedAt,
                 DeadlineDate = row.DeadlineDate,
                 CreatedAt = row.CreatedAt,
                 PendingNotifications = row.PendingNotifications,
@@ -223,7 +228,7 @@ ORDER BY w.created_at DESC;";
         long WorkflowId, Guid Uid, string FirstName, string LastName,
         int EmployeeNumber, int BadgeNumber, int DepartmentId, string DepartmentName,
         string ProcessTypeKey, string ProcessTypeName, bool ProcessTypeRequiresTargetPerson,
-        int RoleId, string RoleName, string WorkflowStatus, DateOnly? DeadlineDate,
+        int RoleId, string RoleName, string WorkflowStatus, DateTime? CompletedAt, DateOnly? DeadlineDate,
         DateTime CreatedAt, int PendingNotifications, int FailedNotifications, int TotalCount);
 
     private static async Task<List<FilteredWorkflowRow>> QueryFilteredWorkflowRows(
@@ -244,7 +249,7 @@ SELECT
     d.id, d.name,
     pt.key, pt.name, pt.requires_target_person,
     r.id, r.name,
-    w.status, w.deadline_date, w.created_at,
+    w.status, w.completed_at, w.deadline_date, w.created_at,
     COUNT(n.id) FILTER (WHERE n.status = 'pending') AS pending_notifications,
     COUNT(n.id) FILTER (WHERE n.status = 'failed') AS failed_notifications,
     COUNT(*) OVER() AS total_count
@@ -266,9 +271,10 @@ ORDER BY w.created_at DESC{limitClause}{offsetClause};";
                 reader.GetInt32(4), reader.GetInt32(5), reader.GetInt32(6), reader.GetString(7),
                 reader.GetString(8), reader.GetString(9), reader.GetBoolean(10),
                 reader.GetInt32(11), reader.GetString(12), reader.GetString(13),
-                reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
-                reader.GetDateTime(15), reader.GetInt32(16), reader.GetInt32(17),
-                reader.GetInt32(18)));
+                reader.IsDBNull(14) ? null : reader.GetDateTime(14),
+                reader.IsDBNull(15) ? null : reader.GetFieldValue<DateOnly>(15),
+                reader.GetDateTime(16), reader.GetInt32(17), reader.GetInt32(18),
+                reader.GetInt32(19)));
         }
 
         return rows;

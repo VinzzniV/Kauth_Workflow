@@ -6,13 +6,16 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
 {
     private readonly INotificationEmailConfigurationRepository repository;
     private readonly NotificationEmailOptions defaults;
+    private readonly IGraphApplicationConfigurationService graphApplicationConfigurationService;
 
     public NotificationEmailConfigurationService(
         INotificationEmailConfigurationRepository repository,
-        IOptions<NotificationEmailOptions> defaults)
+        IOptions<NotificationEmailOptions> defaults,
+        IGraphApplicationConfigurationService graphApplicationConfigurationService)
     {
         this.repository = repository;
         this.defaults = defaults.Value;
+        this.graphApplicationConfigurationService = graphApplicationConfigurationService;
     }
 
     public async Task<AdminNotificationEmailConfigurationDto> GetAdminConfiguration(CancellationToken cancellationToken = default)
@@ -26,9 +29,6 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         CancellationToken cancellationToken = default)
     {
         var existingSettings = await repository.GetSettings(cancellationToken);
-        var tenantId = Normalize(request.TenantId);
-        var clientId = Normalize(request.ClientId);
-        var clientSecret = Normalize(request.ClientSecret) ?? existingSettings?.ClientSecret;
         var senderEmail = Normalize(request.SenderEmail);
         var frontendBaseUrl = Normalize(request.FrontendBaseUrl) ?? defaults.FrontendBaseUrl;
         var testRecipientEmail = Normalize(request.TestRecipientEmail);
@@ -54,13 +54,15 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             throw new InvalidOperationException("Sandbox-Weiterleitungsadresse ist ungültig.");
         }
 
+        var graphConfiguration =
+            await graphApplicationConfigurationService.GetRuntimeConfiguration(cancellationToken);
         var runtimeCandidate = new NotificationEmailRuntimeConfiguration
         {
             Enabled = request.Enabled,
             Provider = defaults.Provider,
-            TenantId = tenantId,
-            ClientId = clientId,
-            ClientSecret = clientSecret,
+            TenantId = graphConfiguration.TenantId,
+            ClientId = graphConfiguration.ClientId,
+            ClientSecret = graphConfiguration.ClientSecret,
             SenderEmail = senderEmail,
             FrontendBaseUrl = frontendBaseUrl,
             TestRecipientEmail = testRecipientEmail,
@@ -69,7 +71,7 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             NotifyOnTaskReady = request.NotifyOnTaskReady,
             NotifyOnWorkflowCompleted = request.NotifyOnWorkflowCompleted,
             SaveToSentItems = defaults.SaveToSentItems,
-            HasClientSecret = !string.IsNullOrWhiteSpace(clientSecret),
+            HasClientSecret = graphConfiguration.HasClientSecret,
             LastTestStatus = existingSettings?.LastTestStatus ?? "never",
             LastTestAt = existingSettings?.LastTestAt,
             LastError = existingSettings?.LastError,
@@ -87,9 +89,6 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             new NotificationEmailSettingsUpsertModel
             {
                 Enabled = request.Enabled,
-                TenantId = tenantId,
-                ClientId = clientId,
-                ClientSecret = clientSecret,
                 SenderEmail = senderEmail,
                 FrontendBaseUrl = frontendBaseUrl,
                 TestRecipientEmail = testRecipientEmail,
@@ -108,25 +107,31 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         string? lastError,
         CancellationToken cancellationToken = default)
     {
-        var stored = await repository.UpdateTestStatus(lastTestStatus, Normalize(lastError), cancellationToken);
+        var stored = await repository.UpdateTestStatus(
+            lastTestStatus,
+            Normalize(lastError),
+            defaults.FrontendBaseUrl,
+            cancellationToken);
         return await BuildAdminConfiguration(stored, cancellationToken);
     }
 
     public async Task<NotificationEmailRuntimeConfiguration> GetRuntimeConfiguration(CancellationToken cancellationToken = default)
     {
         var stored = await repository.GetSettings(cancellationToken);
-        return Merge(stored);
+        var graphConfiguration = await graphApplicationConfigurationService.GetRuntimeConfiguration(cancellationToken);
+        return Merge(stored, graphConfiguration);
     }
 
-    private Task<AdminNotificationEmailConfigurationDto> BuildAdminConfiguration(
+    private async Task<AdminNotificationEmailConfigurationDto> BuildAdminConfiguration(
         StoredNotificationEmailSettings? stored,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var runtime = Merge(stored);
+        var graphConfiguration = await graphApplicationConfigurationService.GetRuntimeConfiguration(cancellationToken);
+        var runtime = Merge(stored, graphConfiguration);
         var validation = NotificationEmailConfigurationValidator.ValidateForSending(runtime);
 
-        return Task.FromResult(new AdminNotificationEmailConfigurationDto
+        return new AdminNotificationEmailConfigurationDto
         {
             Enabled = runtime.Enabled,
             Mode = !runtime.Enabled
@@ -134,8 +139,6 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
                 : !string.IsNullOrWhiteSpace(runtime.SandboxRedirectEmail)
                     ? "sandbox"
                     : "enabled",
-            TenantId = runtime.TenantId,
-            ClientId = runtime.ClientId,
             SenderEmail = runtime.SenderEmail,
             FrontendBaseUrl = runtime.FrontendBaseUrl,
             TestRecipientEmail = runtime.TestRecipientEmail,
@@ -150,15 +153,14 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             HasClientSecret = runtime.HasClientSecret,
             ConfigurationStatus = validation.Status,
             ConfigurationMessage = validation.Message
-        });
+        };
     }
 
-    private NotificationEmailRuntimeConfiguration Merge(StoredNotificationEmailSettings? stored)
+    private NotificationEmailRuntimeConfiguration Merge(
+        StoredNotificationEmailSettings? stored,
+        GraphApplicationRuntimeConfiguration graphConfiguration)
     {
         var enabled = stored?.Enabled ?? defaults.Enabled;
-        var tenantId = stored?.TenantId ?? Normalize(defaults.TenantId);
-        var clientId = stored?.ClientId ?? Normalize(defaults.ClientId);
-        var clientSecret = stored?.ClientSecret ?? Normalize(defaults.ClientSecret);
         var senderEmail = stored?.SenderEmail ?? Normalize(defaults.SenderEmail);
         var frontendBaseUrl = stored?.FrontendBaseUrl ?? defaults.FrontendBaseUrl;
         var testRecipientEmail = stored?.TestRecipientEmail;
@@ -171,9 +173,9 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         {
             Enabled = enabled,
             Provider = defaults.Provider,
-            TenantId = tenantId,
-            ClientId = clientId,
-            ClientSecret = clientSecret,
+            TenantId = graphConfiguration.TenantId,
+            ClientId = graphConfiguration.ClientId,
+            ClientSecret = graphConfiguration.ClientSecret,
             SenderEmail = senderEmail,
             FrontendBaseUrl = frontendBaseUrl,
             TestRecipientEmail = testRecipientEmail,
@@ -182,7 +184,7 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
             NotifyOnTaskReady = notifyOnTaskReady,
             NotifyOnWorkflowCompleted = notifyOnWorkflowCompleted,
             SaveToSentItems = defaults.SaveToSentItems,
-            HasClientSecret = !string.IsNullOrWhiteSpace(clientSecret),
+            HasClientSecret = graphConfiguration.HasClientSecret,
             LastTestStatus = stored?.LastTestStatus ?? "never",
             LastTestAt = stored?.LastTestAt,
             LastError = stored?.LastError,

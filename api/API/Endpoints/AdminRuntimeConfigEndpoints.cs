@@ -48,6 +48,45 @@ internal static class AdminRuntimeConfigEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapGet("/admin/config/graph-application", async (
+            IGraphApplicationConfigurationService graphApplicationConfigurationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await graphApplicationConfigurationService.GetAdminConfiguration());
+        }).Produces<AdminGraphApplicationConfigurationDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPatch("/admin/config/graph-application", async (
+            [FromBody] AdminGraphApplicationConfigurationUpdateRequest request,
+            IGraphApplicationConfigurationService graphApplicationConfigurationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await graphApplicationConfigurationService.SaveAdminConfiguration(request));
+        }).Produces<AdminGraphApplicationConfigurationDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPatch("/admin/config/notification-email", async (
             [FromBody] AdminNotificationEmailConfigurationUpdateRequest request,
             INotificationEmailConfigurationService notificationEmailConfigurationService,

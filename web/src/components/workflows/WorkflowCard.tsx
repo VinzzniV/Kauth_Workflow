@@ -15,7 +15,7 @@ export default function WorkflowCard({ workflow }: Props) {
   const fullName = `${workflow.firstName} ${workflow.lastName}`.trim();
 
   return (
-    <Card variant="list" className="workflow-card">
+    <Card variant="list" className="workflow-card workflow-card--summary">
       <div className="workflow-card-top">
         <div>
           <h3>{fullName || "Unbekannter Name"}</h3>

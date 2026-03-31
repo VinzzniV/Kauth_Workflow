@@ -20,9 +20,6 @@ function notificationModePillClass(mode: AdminNotificationEmailConfiguration["mo
 type AdminNotificationEmailSectionProps = {
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
   notificationEnabledDraft: boolean;
-  notificationTenantIdDraft: string;
-  notificationClientIdDraft: string;
-  notificationClientSecretDraft: string;
   notificationSenderEmailDraft: string;
   notificationFrontendBaseUrlDraft: string;
   notificationTestRecipientDraft: string;
@@ -35,9 +32,6 @@ type AdminNotificationEmailSectionProps = {
   isLoading: boolean;
   hasNotificationEmailDraftChanges: boolean;
   onNotificationEnabledChange: (enabled: boolean) => void;
-  onNotificationTenantIdChange: (value: string) => void;
-  onNotificationClientIdChange: (value: string) => void;
-  onNotificationClientSecretChange: (value: string) => void;
   onNotificationSenderEmailChange: (value: string) => void;
   onNotificationFrontendBaseUrlChange: (value: string) => void;
   onNotificationTestRecipientChange: (value: string) => void;
@@ -52,9 +46,6 @@ type AdminNotificationEmailSectionProps = {
 export function AdminNotificationEmailSection({
   notificationEmailConfiguration,
   notificationEnabledDraft,
-  notificationTenantIdDraft,
-  notificationClientIdDraft,
-  notificationClientSecretDraft,
   notificationSenderEmailDraft,
   notificationFrontendBaseUrlDraft,
   notificationTestRecipientDraft,
@@ -67,9 +58,6 @@ export function AdminNotificationEmailSection({
   isLoading,
   hasNotificationEmailDraftChanges,
   onNotificationEnabledChange,
-  onNotificationTenantIdChange,
-  onNotificationClientIdChange,
-  onNotificationClientSecretChange,
   onNotificationSenderEmailChange,
   onNotificationFrontendBaseUrlChange,
   onNotificationTestRecipientChange,
@@ -82,20 +70,11 @@ export function AdminNotificationEmailSection({
 }: AdminNotificationEmailSectionProps) {
   const hasSandboxRedirectDraft = notificationSandboxRedirectDraft.trim().length > 0;
   const showsDirectDeliveryWarning = notificationEnabledDraft && !hasSandboxRedirectDraft;
-  const tenantIdMissing = notificationEnabledDraft && notificationTenantIdDraft.trim().length === 0;
-  const clientIdMissing = notificationEnabledDraft && notificationClientIdDraft.trim().length === 0;
-  const clientSecretMissing =
-    notificationEnabledDraft
-    && !notificationEmailConfiguration?.hasClientSecret
-    && notificationClientSecretDraft.trim().length === 0;
   const senderMissing = notificationEnabledDraft && notificationSenderEmailDraft.trim().length === 0;
   const frontendBaseUrlMissing = notificationEnabledDraft && notificationFrontendBaseUrlDraft.trim().length === 0;
   const saveBlockers = [
     ...(!notificationEmailConfiguration ? ["Die gespeicherte Mail-Konfiguration ist noch nicht geladen."] : []),
     ...(!hasNotificationEmailDraftChanges ? ["Es gibt aktuell keine ungespeicherten Änderungen."] : []),
-    ...(tenantIdMissing ? ["Tenant ID fehlt für aktiven Mailversand."] : []),
-    ...(clientIdMissing ? ["Client ID fehlt für aktiven Mailversand."] : []),
-    ...(clientSecretMissing ? ["Client Secret fehlt für aktiven Mailversand."] : []),
     ...(senderMissing ? ["Sender-Mailadresse fehlt für aktiven Mailversand."] : []),
     ...(frontendBaseUrlMissing ? ["Frontend-Basis-URL fehlt für aktiven Mailversand."] : []),
   ];
@@ -103,9 +82,6 @@ export function AdminNotificationEmailSection({
     !isSavingNotificationEmailConfiguration &&
     !isLoading &&
     hasNotificationEmailDraftChanges &&
-    !tenantIdMissing &&
-    !clientIdMissing &&
-    !clientSecretMissing &&
     !senderMissing &&
     !frontendBaseUrlMissing;
   const testBlockers = [
@@ -164,11 +140,11 @@ export function AdminNotificationEmailSection({
 
         <article className="dashboard-stat-card card-stat">
           <div>
-            <h2>Secret-Status</h2>
-            <p>{notificationEmailConfiguration?.hasClientSecret ? "Hinterlegt" : "Fehlt"}</p>
+            <h2>Graph-Zugang</h2>
+            <p>{notificationEmailConfiguration?.hasClientSecret ? "Verfügbar" : "Unvollständig"}</p>
           </div>
           <p className="panel-note">
-            Das Secret wird nicht im Klartext geladen. Hier kann nur ein neues Secret gesetzt oder ein bestehendes ersetzt werden.
+            Die Anwendung nutzt die separat gepflegte Graph-Anwendungskonfiguration.
           </p>
         </article>
       </div>
@@ -176,7 +152,7 @@ export function AdminNotificationEmailSection({
       <div className="dashboard-card card-primary">
         <div>
           <h2>Mail-Einstellungen</h2>
-          <p>Konfigurieren Sie die für Microsoft Graph benötigten Felder. Ein gespeichertes Client Secret wird aus Sicherheitsgründen nicht zurück an die UI übertragen.</p>
+          <p>Konfigurieren Sie Versand, Absender und Mail-spezifische Laufzeitoptionen. Graph-Zugangsdaten werden separat gepflegt.</p>
         </div>
 
         <label className="field compact">
@@ -189,49 +165,6 @@ export function AdminNotificationEmailSection({
             <option value="disabled">Deaktiviert</option>
           </select>
         </label>
-
-        <label className={`field compact ${tenantIdMissing ? "field-invalid" : ""}`}>
-          <span>Tenant ID</span>
-          <input
-            type="text"
-            value={notificationTenantIdDraft}
-            onChange={(event) => onNotificationTenantIdChange(event.target.value)}
-            placeholder="Microsoft Entra Tenant ID"
-          />
-          {tenantIdMissing ? <small className="field-error">Tenant ID wird für aktiven Mailversand benötigt.</small> : null}
-        </label>
-
-        <label className={`field compact ${clientIdMissing ? "field-invalid" : ""}`}>
-          <span>Client ID</span>
-          <input
-            type="text"
-            value={notificationClientIdDraft}
-            onChange={(event) => onNotificationClientIdChange(event.target.value)}
-            placeholder="App Registration Client ID"
-          />
-          {clientIdMissing ? <small className="field-error">Client ID wird für aktiven Mailversand benötigt.</small> : null}
-        </label>
-
-        <label className={`field compact ${clientSecretMissing ? "field-invalid" : ""}`}>
-          <span>Client Secret</span>
-          <input
-            type="password"
-            value={notificationClientSecretDraft}
-            onChange={(event) => onNotificationClientSecretChange(event.target.value)}
-            placeholder={
-              notificationEmailConfiguration?.hasClientSecret
-                ? "Neues Client Secret zum Ersetzen eingeben"
-                : "Microsoft Graph Client Secret"
-            }
-          />
-          {clientSecretMissing ? <small className="field-error">Für den ersten aktiven Versand muss ein Client Secret hinterlegt werden.</small> : null}
-        </label>
-
-        <p className="panel-note">
-          {notificationEmailConfiguration?.hasClientSecret
-            ? "Leer lassen, um das bestehende Secret unverändert zu behalten."
-            : "Speichern Sie hier ein neues Client Secret."}
-        </p>
 
         <label className={`field compact ${senderMissing ? "field-invalid" : ""}`}>
           <span>Sender-Mailadresse</span>

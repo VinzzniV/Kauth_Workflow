@@ -1,8 +1,11 @@
 import type {
   AdminDepartmentAssignment,
+  AdminGraphApplicationConfiguration,
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
+  AdminPermission,
+  AdminPermissionAuditEntry,
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
@@ -11,9 +14,12 @@ import type { WorkflowConfig } from "../types/workflow";
 import { requestJson } from "./api/client";
 import type {
   BackendAdminDepartmentAssignmentDto,
+  BackendAdminGraphApplicationConfigurationDto,
   BackendAdminGroupDto,
   BackendAdminNotificationEmailConfigurationDto,
   BackendAdminNotificationEmailTestResponseDto,
+  BackendAdminPermissionAuditEntryDto,
+  BackendAdminPermissionDto,
   BackendAdminResponsibilityOwnerDto,
   BackendAdminRoleDto,
   BackendAdminUserDto,
@@ -30,11 +36,23 @@ export async function getAdminNotificationEmailConfiguration(): Promise<AdminNot
   return requestJson<BackendAdminNotificationEmailConfigurationDto>("/admin/config/notification-email");
 }
 
-export async function updateAdminNotificationEmailConfiguration(payload: {
-  enabled: boolean;
+export async function getAdminGraphApplicationConfiguration(): Promise<AdminGraphApplicationConfiguration> {
+  return requestJson<BackendAdminGraphApplicationConfigurationDto>("/admin/config/graph-application");
+}
+
+export async function updateAdminGraphApplicationConfiguration(payload: {
   tenantId: string | null;
   clientId: string | null;
   clientSecret?: string | null;
+}): Promise<AdminGraphApplicationConfiguration> {
+  return requestJson<BackendAdminGraphApplicationConfigurationDto>("/admin/config/graph-application", {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export async function updateAdminNotificationEmailConfiguration(payload: {
+  enabled: boolean;
   senderEmail: string | null;
   frontendBaseUrl: string;
   testRecipientEmail: string | null;
@@ -66,6 +84,15 @@ export async function getAdminRoles(): Promise<AdminRole[]> {
 
 export async function getAdminGroups(): Promise<AdminGroup[]> {
   return requestJson<BackendAdminGroupDto[]>("/admin/auth/groups");
+}
+
+export async function getAdminPermissions(): Promise<AdminPermission[]> {
+  return requestJson<BackendAdminPermissionDto[]>("/admin/auth/permissions");
+}
+
+export async function getAdminPermissionAudit(limit = 100): Promise<AdminPermissionAuditEntry[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return requestJson<BackendAdminPermissionAuditEntryDto[]>(`/admin/auth/audit?${params.toString()}`);
 }
 
 export async function getAdminDepartmentAssignments(): Promise<AdminDepartmentAssignment[]> {
@@ -143,6 +170,31 @@ export async function updateAdminGroupRoles(groupId: number, roleIds: number[]):
     method: "PATCH",
     body: { roleIds },
   });
+}
+
+export async function updateAdminRolePermissions(roleId: number, permissionIds: number[]): Promise<AdminRole> {
+  return requestJson<BackendAdminRoleDto>(`/admin/auth/roles/${encodeURIComponent(String(roleId))}/permissions`, {
+    method: "PATCH",
+    body: { permissionIds },
+  });
+}
+
+export async function updateAdminUserPermissionOverrides(
+  userId: number,
+  overrides: Array<{
+    permissionId: number;
+    effect: string;
+    scope: string;
+    scopeDepartmentId: number | null;
+  }>
+): Promise<AdminUser> {
+  return requestJson<BackendAdminUserDto>(
+    `/admin/auth/users/${encodeURIComponent(String(userId))}/permission-overrides`,
+    {
+      method: "PATCH",
+      body: { overrides },
+    }
+  );
 }
 
 export async function updateAdminDepartmentAssignment(

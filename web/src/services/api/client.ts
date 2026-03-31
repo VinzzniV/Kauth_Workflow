@@ -1,4 +1,5 @@
 import { identityProvider } from "../../auth/IdentityProvider";
+import { getApiBase } from "../../config/appRuntimeConfig";
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
@@ -12,16 +13,7 @@ export type ApiError = Error & {
 };
 
 function resolveApiBase(): string {
-  const configuredBase = import.meta.env.VITE_API_BASE?.trim();
-  if (configuredBase) {
-    return configuredBase;
-  }
-
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return "/api";
+  return getApiBase();
 }
 
 const API_BASE = resolveApiBase();

@@ -3,12 +3,13 @@ namespace API;
 internal interface IAuthorizationPolicyService
 {
     bool HasAnyRole(CurrentUser user, params string[] roleKeys);
+    bool HasPermission(CurrentUser user, string permissionKey, int? departmentId = null);
     bool CanReadAllowedViews(CurrentUser user);
     bool CanAccessWorkflowOverview(CurrentUser user);
     bool CanReadWorkflow(CurrentUser user, string workflowStatus);
     bool CanRegularlyEditWorkflow(CurrentUser user, string workflowStatus);
     bool CanCreateWorkflow(CurrentUser user);
-    bool CanCreateWorkflowForProcessType(CurrentUser user, bool managerCreatableProcessType);
+    bool CanCreateWorkflowForProcessType(CurrentUser user, string processTypeKey, bool managerCreatableProcessType);
     bool CanCreateOrStartWorkflow(CurrentUser user);
     bool CanEditSupervisorRequirements(CurrentUser user);
     bool CanAccessSupervisorStep(CurrentUser user);

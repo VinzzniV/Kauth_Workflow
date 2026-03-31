@@ -17,6 +17,9 @@ import type {
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncResult,
   AdminDirectorySyncStatus,
+  AdminGraphApplicationConfiguration,
+  AdminPermission,
+  AdminPermissionAuditEntry,
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
@@ -134,6 +137,7 @@ export type BackendWorkflowSummaryDto = {
   status: string;
   workflowStatus: string;
   createdAt: string;
+  completedAt: string | null;
   deadlineDate: string | null;
   archivedAt: string | null;
   pendingNotifications: number;
@@ -372,6 +376,8 @@ export type BackendAdminRoleDto = AdminRole;
 export type BackendAdminGroupDto = AdminGroup;
 export type BackendAdminDepartmentAssignmentDto = AdminDepartmentAssignment;
 export type BackendAdminResponsibilityOwnerDto = AdminResponsibilityOwner;
+export type BackendAdminPermissionDto = AdminPermission;
+export type BackendAdminPermissionAuditEntryDto = AdminPermissionAuditEntry;
 export type BackendAdminNotificationEmailConfigurationDto = AdminNotificationEmailConfiguration;
 export type BackendAdminNotificationEmailTestResponseDto = AdminNotificationEmailTestResponse;
 export type BackendAdminDirectoryGroupDto = AdminDirectoryGroup;
@@ -380,6 +386,7 @@ export type BackendAdminDirectoryIdentityDto = AdminDirectoryIdentity;
 export type BackendAdminDirectoryMappingAuditEntryDto = AdminDirectoryMappingAuditEntry;
 export type BackendAdminDirectorySyncStatusDto = AdminDirectorySyncStatus;
 export type BackendAdminDirectorySyncResultDto = AdminDirectorySyncResult;
+export type BackendAdminGraphApplicationConfigurationDto = AdminGraphApplicationConfiguration;
 
 export type BackendWorkflowLinkDto = WorkflowLink;
 export type BackendLinkableWorkflowDto = LinkableWorkflow;

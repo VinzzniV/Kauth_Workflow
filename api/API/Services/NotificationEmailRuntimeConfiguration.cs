@@ -6,14 +6,6 @@ namespace API;
 internal sealed class StoredNotificationEmailSettings
 {
     public required bool Enabled { get; init; }
-    public string? TenantId { get; init; }
-    public string? ClientId { get; init; }
-    // Plaintext secret – only use to pass to NotificationEmailRuntimeConfiguration for OAuth calls.
-    public string? ClientSecret { get; init; }
-
-    // Suppress secret in all string representations to prevent accidental logging.
-    public override string ToString() =>
-        $"StoredNotificationEmailSettings(Enabled={Enabled}, ClientId={ClientId}, HasSecret={ClientSecret is not null})";
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }
@@ -30,9 +22,6 @@ internal sealed class StoredNotificationEmailSettings
 internal sealed class NotificationEmailSettingsUpsertModel
 {
     public required bool Enabled { get; init; }
-    public string? TenantId { get; init; }
-    public string? ClientId { get; init; }
-    public string? ClientSecret { get; init; }
     public string? SenderEmail { get; init; }
     public required string FrontendBaseUrl { get; init; }
     public string? TestRecipientEmail { get; init; }

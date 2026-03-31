@@ -2,24 +2,18 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace API;
 
 internal static class AuthEndpoints
 {
-    private static bool IsDemoEndpointsEnabled() =>
-        LifecycleServiceCollectionExtensions.IsDemoAuthActive();
-
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var demoEnabled = IsDemoEndpointsEnabled();
-        var entraEnabled = LifecycleServiceCollectionExtensions.IsEntraAuthEnabled();
-        var authMode = (entraEnabled, demoEnabled) switch
-        {
-            (true, true) => "dual",
-            (true, false) => "entra",
-            _ => "demo"
-        };
+        var runtimeSettings = app.ServiceProvider.GetRequiredService<LifecycleRuntimeSettings>();
+        var demoEnabled = runtimeSettings.DemoAuthEnabled;
+        var entraEnabled = runtimeSettings.EntraAuthEnabled;
+        var authMode = runtimeSettings.AuthMode;
 
         app.MapGet("/auth/provider-info", () => Results.Ok(new
         {
@@ -92,10 +86,12 @@ internal static class AuthEndpoints
             }).Produces(StatusCodes.Status204NoContent);
         }
 
-        app.MapGet("/me", async (IUserContext userContext) =>
+        app.MapGet("/me", async (
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
         {
             var currentUser = await userContext.GetCurrentUser();
-            if (currentUser is null || !currentUser.IsActive)
+            if (currentUser is null || !currentUser.IsActive || !authorizationPolicy.CanReadAllowedViews(currentUser))
             {
                 return Results.Unauthorized();
             }

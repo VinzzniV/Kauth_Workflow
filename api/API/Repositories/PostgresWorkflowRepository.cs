@@ -72,12 +72,6 @@ internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository
     // Die Verbindung wird bewusst direkt aus der Umgebung gelesen, damit API und Container identisch konfiguriert bleiben.
     private static string GetConnectionString()
     {
-        var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("CONNECTION_STRING is not configured.");
-        }
-
-        return connectionString;
+        return LifecycleRuntimeSettingsResolver.GetRequiredConnectionString();
     }
 }

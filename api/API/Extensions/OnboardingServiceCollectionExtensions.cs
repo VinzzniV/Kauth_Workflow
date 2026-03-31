@@ -9,47 +9,50 @@ namespace API;
 
 internal static class LifecycleServiceCollectionExtensions
 {
-    /// <summary>
-    /// Checks whether demo auth endpoints and resolvers should be active.
-    /// Demo is disabled when DEMO_ENDPOINTS_ENABLED=false OR ASPNETCORE_ENVIRONMENT=Production.
-    /// </summary>
-    internal static bool IsDemoAuthActive()
+    internal static bool IsProductionEnvironment()
     {
-        var explicitlyDisabled = string.Equals(
-            Environment.GetEnvironmentVariable("DEMO_ENDPOINTS_ENABLED"),
-            "false",
-            StringComparison.OrdinalIgnoreCase);
-
-        var isProduction = string.Equals(
-            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-            "Production",
-            StringComparison.OrdinalIgnoreCase);
-
-        return !explicitlyDisabled && !isProduction;
+        return LifecycleRuntimeSettingsResolver.ResolveFromEnvironment().IsProduction;
     }
 
     /// <summary>
-    /// Checks whether Entra ID authentication is enabled via ENTRA_AUTH_ENABLED=true.
+    /// Checks whether demo auth endpoints and resolvers should be active.
+    /// AUTH_MODE=demo/dual is preferred; legacy flags remain as a transitional fallback.
+    /// </summary>
+    internal static bool IsDemoAuthActive()
+    {
+        return LifecycleRuntimeSettingsResolver.ResolveFromEnvironment().DemoAuthEnabled;
+    }
+
+    /// <summary>
+    /// Checks whether Entra ID authentication is enabled via AUTH_MODE=entra/dual.
     /// </summary>
     internal static bool IsEntraAuthEnabled()
     {
-        return string.Equals(
-            Environment.GetEnvironmentVariable("ENTRA_AUTH_ENABLED"),
-            "true",
-            StringComparison.OrdinalIgnoreCase);
+        return LifecycleRuntimeSettingsResolver.ResolveFromEnvironment().EntraAuthEnabled;
     }
 
     public static IServiceCollection AddLifecycleApiServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var runtimeSettings = LifecycleRuntimeSettingsResolver.Resolve(configuration);
+        if (runtimeSettings.IsProduction
+            && !string.Equals(runtimeSettings.AuthMode, "entra", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "ASPNETCORE_ENVIRONMENT=Production requires AUTH_MODE=entra. " +
+                "Legacy fallback flags are only supported for non-production or transitional runs.");
+        }
+
         var corsAllowedOrigins = configuration
             .GetSection("Cors:AllowedOrigins")
             .Get<string[]>()
-            ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+            ?.Select(NormalizeConfiguredOrigin)
+            .OfType<string>()
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray()
             ?? ["http://localhost:5173"];
+        var allowDevelopmentOriginFallback = !runtimeSettings.IsProduction;
 
         services.AddControllers();
         services.AddEndpointsApiExplorer();
@@ -59,11 +62,12 @@ internal static class LifecycleServiceCollectionExtensions
         });
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();
         services.AddHttpContextAccessor();
+        services.AddSingleton(runtimeSettings);
 
         // Identity resolver chain: Entra first (if enabled), then demo resolvers (if active).
         // In Production, demo resolvers are never registered.
-        var demoActive = IsDemoAuthActive();
-        var entraEnabled = IsEntraAuthEnabled();
+        var demoActive = runtimeSettings.DemoAuthEnabled;
+        var entraEnabled = runtimeSettings.EntraAuthEnabled;
 
         if (entraEnabled)
         {
@@ -71,24 +75,21 @@ internal static class LifecycleServiceCollectionExtensions
                 .AddMicrosoftIdentityWebApi(
                     jwtOptions =>
                     {
-                        var audience = Environment.GetEnvironmentVariable("ENTRA_AUDIENCE");
-                        if (!string.IsNullOrWhiteSpace(audience))
+                        if (!string.IsNullOrWhiteSpace(runtimeSettings.EntraAudience))
                         {
-                            jwtOptions.Audience = audience;
+                            jwtOptions.Audience = runtimeSettings.EntraAudience;
                         }
                     },
                     identityOptions =>
                     {
                         identityOptions.Instance = "https://login.microsoftonline.com/";
-                        var tenantId = Environment.GetEnvironmentVariable("ENTRA_TENANT_ID");
-                        if (!string.IsNullOrWhiteSpace(tenantId))
+                        if (!string.IsNullOrWhiteSpace(runtimeSettings.EntraTenantId))
                         {
-                            identityOptions.TenantId = tenantId;
+                            identityOptions.TenantId = runtimeSettings.EntraTenantId;
                         }
-                        var clientId = Environment.GetEnvironmentVariable("ENTRA_CLIENT_ID");
-                        if (!string.IsNullOrWhiteSpace(clientId))
+                        if (!string.IsNullOrWhiteSpace(runtimeSettings.EntraClientId))
                         {
-                            identityOptions.ClientId = clientId;
+                            identityOptions.ClientId = runtimeSettings.EntraClientId;
                         }
                     });
 
@@ -106,16 +107,21 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IIdentityProvider, IdentityProvider>();
         services.AddScoped<IUserAuthorizationRepository, PostgresUserAuthorizationRepository>();
         services.AddScoped<INotificationEmailConfigurationRepository, PostgresNotificationEmailConfigurationRepository>();
+        services.AddScoped<IGraphApplicationConfigurationRepository, PostgresGraphApplicationConfigurationRepository>();
         services.AddScoped<ICurrentUserResolver, CurrentUserResolver>();
         services.AddScoped<IUserContext, CurrentUserContext>();
         services.AddScoped<IAuthorizationPolicyService, AuthorizationPolicyService>();
         services.AddScoped<ISupervisorStepService, PostgresSupervisorStepService>();
+        services.Configure<GraphApplicationOptions>(
+            configuration.GetSection(GraphApplicationOptions.SectionName));
         services.Configure<NotificationEmailOptions>(
             configuration.GetSection(NotificationEmailOptions.SectionName));
+        services.AddScoped<IGraphApplicationConfigurationService, GraphApplicationConfigurationService>();
         services.AddScoped<INotificationEmailConfigurationService, NotificationEmailConfigurationService>();
         services.AddScoped<IWorkflowEmailNotificationSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<INotificationEmailTestSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<IDirectorySyncService, EntraDirectorySyncService>();
+        services.AddHostedService<DirectorySyncHostedService>();
         services.AddHttpClient("health", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(3);
@@ -124,7 +130,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddCors(options =>
         {
             options.AddPolicy("vite", policy =>
-                policy.SetIsOriginAllowed(origin => IsAllowedFrontendOrigin(origin, corsAllowedOrigins))
+                policy.SetIsOriginAllowed(origin => IsAllowedFrontendOrigin(origin, corsAllowedOrigins, allowDevelopmentOriginFallback))
                       .AllowAnyHeader()
                       .AllowAnyMethod()
             );
@@ -133,16 +139,42 @@ internal static class LifecycleServiceCollectionExtensions
         return services;
     }
 
-    private static bool IsAllowedFrontendOrigin(string? origin, IReadOnlyCollection<string> configuredOrigins)
+    private static string? NormalizeConfiguredOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return null;
+        }
+
+        var trimmedOrigin = origin.Trim();
+        if (!Uri.TryCreate(trimmedOrigin, UriKind.Absolute, out var uri))
+        {
+            return trimmedOrigin;
+        }
+
+        return uri.GetLeftPart(UriPartial.Authority);
+    }
+
+    private static bool IsAllowedFrontendOrigin(
+        string? origin,
+        IReadOnlyCollection<string> configuredOrigins,
+        bool allowDevelopmentOriginFallback)
     {
         if (string.IsNullOrWhiteSpace(origin))
         {
             return false;
         }
 
-        if (configuredOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+        var normalizedOrigin = NormalizeConfiguredOrigin(origin);
+        if (normalizedOrigin is not null
+            && configuredOrigins.Contains(normalizedOrigin, StringComparer.OrdinalIgnoreCase))
         {
             return true;
+        }
+
+        if (!allowDevelopmentOriginFallback)
+        {
+            return false;
         }
 
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))

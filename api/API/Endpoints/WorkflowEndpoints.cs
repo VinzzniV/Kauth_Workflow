@@ -48,7 +48,7 @@ internal static class WorkflowEndpoints
 
                 var normalizedProcessTypeKey = request.ProcessTypeKey.Trim().ToLowerInvariant();
                 var managerCreatableProcessType = await repository.IsManagerCreatableProcessType(normalizedProcessTypeKey);
-                if (!authorizationPolicy.CanCreateWorkflowForProcessType(currentUser, managerCreatableProcessType))
+                if (!authorizationPolicy.CanCreateWorkflowForProcessType(currentUser, normalizedProcessTypeKey, managerCreatableProcessType))
                 {
                     return EndpointSupport.Forbidden("Der gewählte Prozesstyp ist für Ihre Rolle nicht freigegeben.");
                 }
@@ -71,9 +71,14 @@ internal static class WorkflowEndpoints
                     repository,
                     authorizationPolicy);
 
+                PersonWorkflowHistoryDto? targetPersonHistory = null;
+                if (request.TargetPersonId.HasValue)
+                {
+                    targetPersonHistory = await repository.GetPersonWorkflowHistory(request.TargetPersonId.Value);
+                }
+
                 if (observableDepartmentIds is not null && request.TargetPersonId.HasValue)
                 {
-                    var targetPersonHistory = await repository.GetPersonWorkflowHistory(request.TargetPersonId.Value);
                     if (targetPersonHistory is null)
                     {
                         return Results.BadRequest(new { message = "Die angegebene Zielperson wurde nicht gefunden." });
@@ -85,6 +90,18 @@ internal static class WorkflowEndpoints
                         return EndpointSupport.Forbidden(
                             "Die ausgewählte Zielperson liegt außerhalb Ihrer freigegebenen Abteilungen.");
                     }
+                }
+
+                var requestedDepartmentId = request.DepartmentId
+                    ?? targetPersonHistory?.DepartmentId;
+
+                if (requestedDepartmentId.HasValue
+                    && authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.WorkflowCreate(normalizedProcessTypeKey))
+                    && !authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.WorkflowCreate(normalizedProcessTypeKey), requestedDepartmentId.Value)
+                    && !authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.WorkflowsViewAll)
+                    && !authorizationPolicy.HasAnyRole(currentUser, AuthorizationRoles.Hr, AuthorizationRoles.Admin))
+                {
+                    return EndpointSupport.Forbidden("Der gewählte Vorgang ist nicht für die ausgewählte Abteilung freigegeben.");
                 }
 
                 if (request.DeadlineDate.HasValue

@@ -14,18 +14,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
+  border: 1px solid var(--surface-card-border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 94%, transparent), color-mix(in srgb, var(--surface-card-subtle) 80%, transparent));
   min-height: 3.2rem;
   padding: 0.8rem 0.9rem;
   cursor: pointer;
   text-align: center;
-  transition: border-color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
+  box-shadow: var(--surface-card-shadow);
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .admin-workspace-tab:hover {
-  border-color: var(--border-strong);
+  border-color: var(--brand-border-soft);
+  transform: translateY(-1px);
 }
 
 .admin-workspace-tab:focus-visible {
@@ -35,29 +37,47 @@
 
 .admin-workspace-tab.active {
   border-color: var(--brand);
-  background: var(--brand-soft);
-  box-shadow: inset 0 0 0 1px var(--brand);
+  background: var(--surface-focus-background);
+  box-shadow: 0 0 0 1px var(--brand-ring), var(--surface-focus-shadow);
+}
+
+.admin-workspace-tab--organization.active {
+  border-color: color-mix(in srgb, var(--brand) 72%, transparent);
+}
+
+.admin-workspace-tab--templates.active {
+  border-color: color-mix(in srgb, var(--status-info-border) 92%, transparent);
+}
+
+.admin-workspace-tab--access.active {
+  border-color: color-mix(in srgb, var(--status-ready-border) 92%, transparent);
+}
+
+.admin-workspace-tab--system.active {
+  border-color: color-mix(in srgb, var(--status-warning-border) 90%, transparent);
 }
 
 .admin-workspace-subtab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--surface-card-border);
   border-radius: 999px;
-  background: var(--bg-card-muted);
+  background: color-mix(in srgb, var(--surface-card-subtle) 92%, transparent);
   color: var(--text-secondary);
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
   padding: 0.45rem 0.8rem;
   cursor: pointer;
-  transition: border-color 100ms ease, background-color 100ms ease, color 100ms ease;
+  box-shadow: var(--surface-card-shadow);
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease, transform 120ms ease;
 }
 
 .admin-workspace-subtab:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-card);
+  border-color: var(--brand-border-soft);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  transform: translateY(-1px);
 }
 
 .admin-workspace-subtab:focus-visible {
@@ -67,8 +87,9 @@
 
 .admin-workspace-subtab.active {
   border-color: var(--brand);
-  background: var(--brand-soft);
+  background: var(--surface-focus-background);
   color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand-ring);
 }
 
 .admin-workspace-tab-title {
@@ -91,6 +112,32 @@
 .admin-overview-card {
   display: grid;
   gap: 0.9rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-overview-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--brand);
+}
+
+.admin-overview-card--organization::before {
+  background: var(--brand);
+}
+
+.admin-overview-card--templates::before {
+  background: var(--status-info-text);
+}
+
+.admin-overview-card--access::before {
+  background: var(--status-ready-text);
+}
+
+.admin-overview-card--system::before {
+  background: var(--status-warning-text);
 }
 
 .admin-overview-card-head {
@@ -106,9 +153,9 @@
 }
 
 .admin-overview-card-head p {
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  line-height: 1.35;
+  line-height: 1.45;
 }
 
 .admin-overview-actions {
@@ -133,12 +180,13 @@
 }
 
 .admin-guidance-card {
-  background: var(--surface-overlay);
+  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+  box-shadow: var(--surface-card-shadow);
 }
 
 .admin-guidance-card--caution {
   border-color: var(--border-caution);
-  background: var(--bg-card-caution);
+  background: color-mix(in srgb, var(--bg-card-caution) 88%, var(--surface-elevated));
 }
 
 .admin-guidance-card h3 {
@@ -169,10 +217,11 @@
 }
 
 .admin-condition-group {
-  border: 1px solid var(--border);
+  border: 1px solid var(--surface-card-border);
   border-radius: var(--radius-md);
-  background: var(--bg-card-muted);
+  background: color-mix(in srgb, var(--surface-card-subtle) 92%, transparent);
   padding: 0.95rem 1rem;
+  box-shadow: var(--surface-card-shadow);
 }
 
 .admin-condition-group-head {
@@ -201,22 +250,29 @@
 }
 
 .admin-entity-switch {
-  border: 1px solid var(--border);
+  border: 1px solid var(--surface-card-border);
   border-radius: 999px;
-  background: var(--bg-card-muted);
+  background: color-mix(in srgb, var(--surface-card-subtle) 92%, transparent);
   color: var(--text-secondary);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 600;
   padding: 0.32rem 0.65rem;
   cursor: pointer;
-  transition: border-color 100ms ease, background-color 100ms ease, color 100ms ease;
+  box-shadow: var(--surface-card-shadow);
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.admin-entity-switch:hover {
+  border-color: var(--brand-border-soft);
+  transform: translateY(-1px);
 }
 
 .admin-entity-switch.active {
   border-color: var(--brand);
-  background: var(--brand-soft);
+  background: var(--surface-focus-background);
   color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand-ring);
 }
 
 .admin-entity-switch:focus-visible {
@@ -233,9 +289,9 @@
   display: inline-flex;
   justify-content: flex-start;
   width: 100%;
-  border: 1px solid var(--border);
+  border: 1px solid var(--surface-card-border);
   border-radius: var(--radius-sm);
-  background: var(--bg-card);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
   color: var(--text-primary);
   font: inherit;
   font-size: 0.82rem;
@@ -243,10 +299,12 @@
   padding: 0.45rem 0.6rem;
   cursor: pointer;
   text-align: left;
-  transition: border-color 100ms ease, background-color 100ms ease;
+  box-shadow: var(--surface-card-shadow);
+  transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
 }
 
 .admin-relation-link:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-card-muted);
+  border-color: var(--brand-border-soft);
+  background: color-mix(in srgb, var(--surface-card-subtle) 92%, transparent);
+  transform: translateY(-1px);
 }

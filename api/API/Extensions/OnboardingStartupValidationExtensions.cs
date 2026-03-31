@@ -1,4 +1,6 @@
+using System.Net;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -12,19 +14,16 @@ internal static class LifecycleStartupValidationExtensions
     public static WebApplication ValidateLifecycleStartup(this WebApplication app)
     {
         var logger = app.Services.GetRequiredService<ILogger<Program>>();
-
-        var isProduction = string.Equals(
-            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-            "Production",
-            StringComparison.OrdinalIgnoreCase);
-
-        var demoActive = LifecycleServiceCollectionExtensions.IsDemoAuthActive();
-        var entraEnabled = LifecycleServiceCollectionExtensions.IsEntraAuthEnabled();
+        var configuration = app.Services.GetRequiredService<IConfiguration>();
+        var runtimeSettings = app.Services.GetRequiredService<LifecycleRuntimeSettings>();
+        var isProduction = runtimeSettings.IsProduction;
+        var demoActive = runtimeSettings.DemoAuthEnabled;
+        var entraEnabled = runtimeSettings.EntraAuthEnabled;
 
         if (isProduction && !entraEnabled)
         {
             logger.LogWarning(
-                "ASPNETCORE_ENVIRONMENT is Production but ENTRA_AUTH_ENABLED is not true. " +
+                "ASPNETCORE_ENVIRONMENT is Production but AUTH_MODE is not entra. " +
                 "No productive authentication is configured. The application will reject all requests.");
         }
 
@@ -41,34 +40,31 @@ internal static class LifecycleStartupValidationExtensions
             logger.LogInformation("Demo auth endpoints are active (non-production environment).");
         }
 
-        ValidateEntraConfiguration(logger, isProduction, entraEnabled);
-        ValidateRequiredSupervisorConfigurationAsync(logger).GetAwaiter().GetResult();
+        ValidateEntraConfiguration(logger, runtimeSettings);
+        ValidateProductionPublicUrls(configuration, runtimeSettings, logger);
+        ValidateDatabaseConfigurationAsync(logger, runtimeSettings).GetAwaiter().GetResult();
         return app;
     }
 
-    private static void ValidateEntraConfiguration(ILogger logger, bool isProduction, bool entraEnabled)
+    private static void ValidateEntraConfiguration(ILogger logger, LifecycleRuntimeSettings runtimeSettings)
     {
-        if (!entraEnabled)
+        if (!runtimeSettings.EntraAuthEnabled)
         {
             return;
         }
 
-        var tenantId = Environment.GetEnvironmentVariable("ENTRA_TENANT_ID");
-        var clientId = Environment.GetEnvironmentVariable("ENTRA_CLIENT_ID");
-        var audience = Environment.GetEnvironmentVariable("ENTRA_AUDIENCE");
-
         var missing = new List<string>();
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(runtimeSettings.EntraTenantId))
         {
             missing.Add("ENTRA_TENANT_ID");
         }
 
-        if (string.IsNullOrWhiteSpace(clientId))
+        if (string.IsNullOrWhiteSpace(runtimeSettings.EntraClientId))
         {
             missing.Add("ENTRA_CLIENT_ID");
         }
 
-        if (string.IsNullOrWhiteSpace(audience))
+        if (string.IsNullOrWhiteSpace(runtimeSettings.EntraAudience))
         {
             missing.Add("ENTRA_AUDIENCE");
         }
@@ -80,7 +76,7 @@ internal static class LifecycleStartupValidationExtensions
         }
 
         var message = $"Entra auth is enabled but missing required settings: {string.Join(", ", missing)}.";
-        if (isProduction)
+        if (runtimeSettings.IsProduction)
         {
             throw new InvalidOperationException($"{message} Startup aborted.");
         }
@@ -88,18 +84,108 @@ internal static class LifecycleStartupValidationExtensions
         logger.LogWarning("{Message}", message);
     }
 
-    private static async Task ValidateRequiredSupervisorConfigurationAsync(ILogger logger)
+    private static void ValidateProductionPublicUrls(
+        IConfiguration configuration,
+        LifecycleRuntimeSettings runtimeSettings,
+        ILogger logger)
     {
-        var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (!runtimeSettings.IsProduction)
         {
-            throw new InvalidOperationException("CONNECTION_STRING is not configured.");
+            return;
+        }
+
+        var publicBaseUrl = NormalizeConfiguredOrigin(
+            runtimeSettings.PublicBaseUrl,
+            "PUBLIC_BASE_URL");
+        var frontendBaseUrl = NormalizeConfiguredOrigin(
+            configuration[$"{NotificationEmailOptions.SectionName}:FrontendBaseUrl"],
+            "NotificationEmail:FrontendBaseUrl");
+
+        var allowedOrigins = configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>()
+            ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+            .Select(origin => NormalizeConfiguredOrigin(origin, "Cors:AllowedOrigins"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray()
+            ?? [];
+
+        if (allowedOrigins.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "Production startup requires at least one non-local CORS origin.");
+        }
+
+        if (!allowedOrigins.Contains(publicBaseUrl, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"PUBLIC_BASE_URL '{publicBaseUrl}' must also be configured in Cors:AllowedOrigins. Startup aborted.");
+        }
+
+        if (!string.Equals(frontendBaseUrl, publicBaseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "NotificationEmail:FrontendBaseUrl must match PUBLIC_BASE_URL in Production. Startup aborted.");
+        }
+
+        logger.LogInformation(
+            "Startup validation passed: PUBLIC_BASE_URL, CORS origins and notification frontend base URL are production-safe.");
+    }
+
+    private static string NormalizeConfiguredOrigin(string? value, string settingName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException(
+                $"Production startup requires {settingName} to be set to an absolute non-local origin.");
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            throw new InvalidOperationException(
+                $"{settingName} must be an absolute URL. Value '{value}' is invalid. Startup aborted.");
+        }
+
+        if (!string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
+        {
+            throw new InvalidOperationException(
+                $"{settingName} must not contain query strings or fragments. Startup aborted.");
+        }
+
+        if (uri.AbsolutePath is not "/" and not "")
+        {
+            throw new InvalidOperationException(
+                $"{settingName} must be configured as an origin without path suffix. Startup aborted.");
+        }
+
+        if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"{settingName} must not point to localhost in Production. Startup aborted.");
+        }
+
+        if (IPAddress.TryParse(uri.Host, out var ipAddress) && IPAddress.IsLoopback(ipAddress))
+        {
+            throw new InvalidOperationException(
+                $"{settingName} must not point to a loopback address in Production. Startup aborted.");
+        }
+
+        return uri.GetLeftPart(UriPartial.Authority);
+    }
+
+    private static async Task ValidateDatabaseConfigurationAsync(
+        ILogger logger,
+        LifecycleRuntimeSettings runtimeSettings)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeSettings.ConnectionString))
+        {
+            throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
         }
 
         NpgsqlConnection connection;
         try
         {
-            connection = new NpgsqlConnection(connectionString);
+            connection = new NpgsqlConnection(runtimeSettings.ConnectionString);
             await connection.OpenAsync();
         }
         catch (Exception ex)
@@ -113,6 +199,7 @@ internal static class LifecycleStartupValidationExtensions
         await using (connection)
         {
             await ValidateSupervisorConfigurationAsync(connection, logger);
+            await ValidateNotificationFrontendBaseUrlAsync(connection, logger, runtimeSettings);
         }
     }
 
@@ -176,5 +263,46 @@ SELECT EXISTS(
 
         logger.LogInformation(
             "Startup validation passed: approval task template '{Key}' found.", approvalTaskTemplateKey);
+    }
+
+    private static async Task ValidateNotificationFrontendBaseUrlAsync(
+        NpgsqlConnection connection,
+        ILogger logger,
+        LifecycleRuntimeSettings runtimeSettings)
+    {
+        if (!runtimeSettings.IsProduction)
+        {
+            return;
+        }
+
+        const string sql = @"
+SELECT frontend_base_url
+FROM notification_email_settings
+WHERE id = 1
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        var storedFrontendBaseUrl = await command.ExecuteScalarAsync() as string;
+        if (string.IsNullOrWhiteSpace(storedFrontendBaseUrl))
+        {
+            logger.LogInformation("Startup validation passed: notification email frontend base URL not stored yet.");
+            return;
+        }
+
+        var publicBaseUrl = NormalizeConfiguredOrigin(
+            runtimeSettings.PublicBaseUrl,
+            "PUBLIC_BASE_URL");
+        var normalizedStoredFrontendBaseUrl = NormalizeConfiguredOrigin(
+            storedFrontendBaseUrl,
+            "notification_email_settings.frontend_base_url");
+
+        if (!string.Equals(normalizedStoredFrontendBaseUrl, publicBaseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Stored notification frontend_base_url must match PUBLIC_BASE_URL in Production. Startup aborted.");
+        }
+
+        logger.LogInformation(
+            "Startup validation passed: stored notification email frontend base URL matches PUBLIC_BASE_URL.");
     }
 }

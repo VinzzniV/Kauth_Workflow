@@ -66,6 +66,45 @@ internal static class AdminOrgEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapGet("/admin/auth/permissions", async (
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await userAuthorizationRepository.GetAdminPermissions());
+        }).Produces<List<AdminPermissionDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapGet("/admin/auth/audit", async (
+            [FromQuery] int? limit,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await userAuthorizationRepository.GetAdminPermissionAudit(limit ?? 100));
+        }).Produces<List<AdminPermissionAuditEntryDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapGet("/admin/master-data/departments", async (
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
@@ -186,7 +225,8 @@ internal static class AdminOrgEndpoints
                     request.Email,
                     request.NotificationEmail,
                     request.DepartmentId,
-                    request.IsActive);
+                    request.IsActive,
+                    access.User?.UserId);
                 return Results.Ok(user);
             }
             catch (InvalidOperationException ex)
@@ -253,7 +293,8 @@ internal static class AdminOrgEndpoints
                     request.Email,
                     request.NotificationEmail,
                     request.DepartmentId,
-                    request.IsActive);
+                    request.IsActive,
+                    access.User?.UserId);
                 if (user is null)
                 {
                     return Results.NotFound(new { message = "User not found." });
@@ -452,6 +493,84 @@ internal static class AdminOrgEndpoints
                 return Results.BadRequest(new { message = ex.Message });
             }
         }).Produces<AdminGroupDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPatch("/admin/auth/roles/{roleId:int}/permissions", async (
+            int roleId,
+            [FromBody] AdminRolePermissionUpdateRequest request,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var role = await userAuthorizationRepository.UpdateRolePermissions(
+                    roleId,
+                    request.PermissionIds,
+                    access.User?.UserId);
+                if (role is null)
+                {
+                    return Results.NotFound(new { message = "Role not found." });
+                }
+
+                return Results.Ok(role);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<AdminRoleDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPatch("/admin/auth/users/{userId:long}/permission-overrides", async (
+            long userId,
+            [FromBody] AdminUserPermissionOverrideUpdateRequest request,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var user = await userAuthorizationRepository.UpdateUserPermissionOverrides(
+                    userId,
+                    request.Overrides,
+                    access.User?.UserId);
+                if (user is null)
+                {
+                    return Results.NotFound(new { message = "User not found." });
+                }
+
+                return Results.Ok(user);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<AdminUserDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status404NotFound)
           .Produces(StatusCodes.Status403Forbidden)

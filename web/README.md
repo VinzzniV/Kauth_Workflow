@@ -52,22 +52,18 @@ Verdrahtet Auth-Status, App-Layout und die geschuetzten Routen.
 
 ## Entwicklung
 
-API-Basis-URL:
-`VITE_API_BASE` in `web/.env.local`
+Lokale Entwicklung laeuft ueber den Vite-Dev-Server und den lokalen API-Start, nicht ueber einen Docker-Vollstack.
 
-Beispiel:
+`web/.env.local`:
 
 ```env
-VITE_API_BASE=http://localhost:5001
+VITE_API_PROXY_TARGET=http://127.0.0.1:5001
+VITE_AUTH_MODE=demo
 ```
 
 Es gibt dafuer eine Vorlage in [`web/.env.example`](./.env.example).
 
-Auth-Hinweis:
-- Das Frontend verwendet aktuell bewusst Demo-Login gegen die API.
-- Diese Demo-Auth ist fuer Demo/Dev gedacht und kein Produktionsmodell.
-- Die Trennung der Umgebungen ist in [`../ENVIRONMENTS.md`](../ENVIRONMENTS.md) beschrieben.
-- Fuer lokale Entwicklung wird `VITE_API_BASE` ueber `web/.env.local` gesetzt; produktive Werte gehoeren nicht in eingecheckte Dateien.
+Fuer den kompletten Ablauf siehe [`../SETUP.md`](../SETUP.md).
 
 Wichtige Befehle:
 

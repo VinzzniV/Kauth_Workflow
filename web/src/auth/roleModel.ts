@@ -22,6 +22,7 @@ export type AppFeature =
 
 export type RoleCapabilities = {
   roleKeys: AuthRoleKey[];
+  permissionKeys: string[];
   hasMultipleRoles: boolean;
   hasAdminRole: boolean;
   hasHrRole: boolean;
@@ -83,8 +84,13 @@ export function toRoleLabel(roleKey: string): string {
 }
 
 // Verdichtet die vorhandenen Rollen in wiederverwendbare UI-Faehigkeiten.
-export function deriveRoleCapabilities(rawRoleKeys: string[]): RoleCapabilities {
+function normalizePermissionKey(permissionKey: string): string {
+  return permissionKey.trim().toLowerCase();
+}
+
+export function deriveRoleCapabilities(rawRoleKeys: string[], rawPermissionKeys: string[]): RoleCapabilities {
   const roleSet = new Set<AuthRoleKey>();
+  const permissionSet = new Set<string>();
 
   for (const rawRoleKey of rawRoleKeys) {
     const normalized = normalizeRoleKey(rawRoleKey);
@@ -95,6 +101,19 @@ export function deriveRoleCapabilities(rawRoleKeys: string[]): RoleCapabilities 
     roleSet.add(normalized);
   }
 
+  for (const rawPermissionKey of rawPermissionKeys) {
+    if (!rawPermissionKey.trim()) {
+      continue;
+    }
+
+    permissionSet.add(normalizePermissionKey(rawPermissionKey));
+  }
+
+  const hasPermission = (permissionKey: string) => permissionSet.has(normalizePermissionKey(permissionKey));
+  const hasWorkflowCreatePermission = Array.from(permissionSet).some((permissionKey) =>
+    permissionKey.startsWith("workflows.create.")
+  );
+
   const hasAdmin = roleSet.has(AUTH_ROLE_KEYS.admin);
   const hasHr = roleSet.has(AUTH_ROLE_KEYS.hr);
   const hasManager = roleSet.has(AUTH_ROLE_KEYS.manager);
@@ -104,11 +123,18 @@ export function deriveRoleCapabilities(rawRoleKeys: string[]): RoleCapabilities 
 
   const hasReadRole = hasAdmin || hasHr || hasManager || hasWorker || hasReader;
   const hasProcessActorRole = hasHr || hasManager || hasWorker;
-  const canCreateWorkflow = hasHr || hasManager || hasAdmin;
-  const canAccessSupervisorStep = hasManager;
-  const canAccessTechnicalTasks = hasWorker;
-  const canManageAdminConfiguration = hasAdmin;
-  const canAccessWorkflowOverview = hasAdmin || hasHr || hasReader || hasManager;
+  const canCreateWorkflow = hasWorkflowCreatePermission || hasHr || hasManager || hasAdmin;
+  const canAccessSupervisorStep = hasPermission("tasks.execute.supervisor") || hasManager;
+  const canAccessTechnicalTasks = hasPermission("tasks.execute.department") || hasWorker;
+  const canManageAdminConfiguration =
+    hasPermission("admin.permissions.manage") || hasPermission("admin.directory.manage") || hasAdmin;
+  const canAccessWorkflowOverview =
+    hasPermission("workflows.view_all")
+    || hasPermission("workflows.view_department")
+    || hasAdmin
+    || hasHr
+    || hasReader
+    || hasManager;
   const dashboardPersona: DashboardPersona = hasAdmin
     ? "admin"
     : hasHr
@@ -123,6 +149,7 @@ export function deriveRoleCapabilities(rawRoleKeys: string[]): RoleCapabilities 
 
   return {
     roleKeys: Array.from(roleSet).sort((left, right) => left.localeCompare(right, "en")),
+    permissionKeys: Array.from(permissionSet).sort((left, right) => left.localeCompare(right, "en")),
     hasMultipleRoles,
     hasAdminRole: hasAdmin,
     hasHrRole: hasHr,

@@ -22,7 +22,7 @@ export function AdminWorkspaceNavigation({
         <button
           key={area.key}
           type="button"
-          className={`admin-workspace-tab ${activeArea === area.key ? "active" : ""}`}
+          className={`admin-workspace-tab admin-workspace-tab--${area.key} ${activeArea === area.key ? "active" : ""}`}
           aria-pressed={activeArea === area.key}
           onClick={() => onSelectSection(area.defaultSection)}
         >

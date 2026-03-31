@@ -12,7 +12,7 @@ public sealed class PostgresWorkflowRepositoryIntegrationCollection
 [Collection(PostgresWorkflowRepositoryIntegrationCollection.Name)]
 public sealed class PostgresWorkflowRepositoryConcurrencyTests
 {
-    private const string DefaultTestConnectionString = "Host=localhost;Port=23456;Database=appdb;Username=app;Password=app_pw";
+    private const string DefaultTestConnectionString = "Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw";
     private const long TestActorUserId = 1;
 
     [Fact]

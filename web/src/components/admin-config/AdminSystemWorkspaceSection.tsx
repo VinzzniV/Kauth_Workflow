@@ -1,15 +1,17 @@
-import type { AdminNotificationEmailConfiguration } from "../../types/auth";
+import type { AdminGraphApplicationConfiguration, AdminNotificationEmailConfiguration } from "../../types/auth";
 import type { WorkflowConfig } from "../../types/workflow";
+import { AdminGraphApplicationSection } from "./AdminGraphApplicationSection";
 import { AdminNotificationEmailSection } from "./AdminNotificationEmailSection";
 import { AdminProcessTypeSection } from "./AdminProcessTypeSection";
 import { AdminWorkflowConfigurationSection } from "./AdminWorkflowConfigurationSection";
 
 type AdminSystemWorkspaceSectionProps = {
+  graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
+  graphTenantIdDraft: string;
+  graphClientIdDraft: string;
+  graphClientSecretDraft: string;
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
   notificationEnabledDraft: boolean;
-  notificationTenantIdDraft: string;
-  notificationClientIdDraft: string;
-  notificationClientSecretDraft: string;
   notificationSenderEmailDraft: string;
   notificationFrontendBaseUrlDraft: string;
   notificationTestRecipientDraft: string;
@@ -17,15 +19,17 @@ type AdminSystemWorkspaceSectionProps = {
   notificationNotifyOnWorkflowCreatedDraft: boolean;
   notificationNotifyOnTaskReadyDraft: boolean;
   notificationNotifyOnWorkflowCompletedDraft: boolean;
+  isSavingGraphApplicationConfiguration: boolean;
   isSavingNotificationEmailConfiguration: boolean;
   isSendingNotificationEmailTest: boolean;
   isLoading: boolean;
+  hasGraphApplicationDraftChanges: boolean;
   hasNotificationEmailDraftChanges: boolean;
   workflowConfig: WorkflowConfig | null;
+  onGraphTenantIdChange: (value: string) => void;
+  onGraphClientIdChange: (value: string) => void;
+  onGraphClientSecretChange: (value: string) => void;
   onNotificationEnabledChange: (enabled: boolean) => void;
-  onNotificationTenantIdChange: (value: string) => void;
-  onNotificationClientIdChange: (value: string) => void;
-  onNotificationClientSecretChange: (value: string) => void;
   onNotificationSenderEmailChange: (value: string) => void;
   onNotificationFrontendBaseUrlChange: (value: string) => void;
   onNotificationTestRecipientChange: (value: string) => void;
@@ -33,6 +37,7 @@ type AdminSystemWorkspaceSectionProps = {
   onNotificationNotifyOnWorkflowCreatedChange: (value: boolean) => void;
   onNotificationNotifyOnTaskReadyChange: (value: boolean) => void;
   onNotificationNotifyOnWorkflowCompletedChange: (value: boolean) => void;
+  onSaveGraphApplicationConfiguration: () => void | Promise<void>;
   onSaveNotificationEmailConfiguration: () => void | Promise<void>;
   onSendNotificationEmailTest: () => void | Promise<void>;
 };
@@ -40,12 +45,22 @@ type AdminSystemWorkspaceSectionProps = {
 export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionProps) {
   return (
     <div className="content-stack">
+      <AdminGraphApplicationSection
+        graphApplicationConfiguration={props.graphApplicationConfiguration}
+        graphTenantIdDraft={props.graphTenantIdDraft}
+        graphClientIdDraft={props.graphClientIdDraft}
+        graphClientSecretDraft={props.graphClientSecretDraft}
+        isSavingGraphApplicationConfiguration={props.isSavingGraphApplicationConfiguration}
+        hasGraphApplicationDraftChanges={props.hasGraphApplicationDraftChanges}
+        onGraphTenantIdChange={props.onGraphTenantIdChange}
+        onGraphClientIdChange={props.onGraphClientIdChange}
+        onGraphClientSecretChange={props.onGraphClientSecretChange}
+        onSave={props.onSaveGraphApplicationConfiguration}
+      />
+
       <AdminNotificationEmailSection
         notificationEmailConfiguration={props.notificationEmailConfiguration}
         notificationEnabledDraft={props.notificationEnabledDraft}
-        notificationTenantIdDraft={props.notificationTenantIdDraft}
-        notificationClientIdDraft={props.notificationClientIdDraft}
-        notificationClientSecretDraft={props.notificationClientSecretDraft}
         notificationSenderEmailDraft={props.notificationSenderEmailDraft}
         notificationFrontendBaseUrlDraft={props.notificationFrontendBaseUrlDraft}
         notificationTestRecipientDraft={props.notificationTestRecipientDraft}
@@ -58,9 +73,6 @@ export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionPr
         isLoading={props.isLoading}
         hasNotificationEmailDraftChanges={props.hasNotificationEmailDraftChanges}
         onNotificationEnabledChange={props.onNotificationEnabledChange}
-        onNotificationTenantIdChange={props.onNotificationTenantIdChange}
-        onNotificationClientIdChange={props.onNotificationClientIdChange}
-        onNotificationClientSecretChange={props.onNotificationClientSecretChange}
         onNotificationSenderEmailChange={props.onNotificationSenderEmailChange}
         onNotificationFrontendBaseUrlChange={props.onNotificationFrontendBaseUrlChange}
         onNotificationTestRecipientChange={props.onNotificationTestRecipientChange}

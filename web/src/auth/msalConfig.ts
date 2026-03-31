@@ -1,8 +1,9 @@
 import { type Configuration, LogLevel, type RedirectRequest } from "@azure/msal-browser";
+import { getEntraClientId, getEntraRedirectUri, getEntraTenantId } from "../config/appRuntimeConfig";
 
-const clientId = import.meta.env.VITE_ENTRA_CLIENT_ID ?? "";
-const tenantId = import.meta.env.VITE_ENTRA_TENANT_ID ?? "";
-const redirectUri = import.meta.env.VITE_ENTRA_REDIRECT_URI ?? window.location.origin;
+const clientId = getEntraClientId();
+const tenantId = getEntraTenantId();
+const redirectUri = getEntraRedirectUri();
 
 export const msalConfig: Configuration = {
   auth: {

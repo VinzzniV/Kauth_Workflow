@@ -8,6 +8,7 @@ import {
   setDemoAuthToken,
 } from "../services/authApi";
 import { EntraIdentityProvider } from "./EntraIdentityProvider";
+import { getAuthMode as getConfiguredAuthMode } from "../config/appRuntimeConfig";
 import type { DemoLoginResponse, DemoLoginUserOption, Me } from "../types/auth";
 
 export type IIdentityProvider = {
@@ -54,7 +55,7 @@ class DemoIdentityProvider implements IIdentityProvider {
 }
 
 export function getAuthMode(): string {
-  return (import.meta.env.VITE_AUTH_MODE ?? "demo").trim().toLowerCase();
+  return getConfiguredAuthMode();
 }
 
 export function isEntraMode(): boolean {

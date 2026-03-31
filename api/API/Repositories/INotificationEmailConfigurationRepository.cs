@@ -9,5 +9,6 @@ internal interface INotificationEmailConfigurationRepository
     Task<StoredNotificationEmailSettings> UpdateTestStatus(
         string lastTestStatus,
         string? lastError,
+        string frontendBaseUrl,
         CancellationToken cancellationToken = default);
 }

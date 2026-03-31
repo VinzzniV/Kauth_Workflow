@@ -1758,16 +1758,20 @@ public sealed class WorkflowEndpointsTests
         public Task<List<AdminUserDto>> GetAdminUsers(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminRoleDto>> GetAdminRoles(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminGroupDto>> GetAdminGroups(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<List<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(int limit = 100, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminDepartmentAssignmentDto> CreateDepartment(string departmentName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> DeleteDepartment(int departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<AdminUserDto> CreateUser(string? externalKey, string displayName, string email, string? notificationEmail, int? departmentId, bool isActive, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminUserDto> CreateUser(string? externalKey, string displayName, string email, string? notificationEmail, int? departmentId, bool isActive, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> DeleteUser(long userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<AdminUserDto?> UpdateUserMasterData(long userId, string? externalKey, string displayName, string email, string? notificationEmail, int? departmentId, bool isActive, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminUserDto?> UpdateUserMasterData(long userId, string? externalKey, string displayName, string email, string? notificationEmail, int? departmentId, bool isActive, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminUserDto?> UpdateUserRoles(long userId, IReadOnlyList<int> roleIds, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminUserDto?> UpdateUserGroups(long userId, IReadOnlyList<int> groupIds, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminGroupDto?> UpdateGroupRoles(int groupId, IReadOnlyList<int> roleIds, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminRoleDto?> UpdateRolePermissions(int roleId, IReadOnlyList<int> permissionIds, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminUserDto?> UpdateUserPermissionOverrides(long userId, IReadOnlyList<AdminUserPermissionOverrideUpsertRequest> overrides, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminDepartmentAssignmentDto?> UpdateDepartmentAssignment(int departmentId, long? departmentLeadUserId, long? requirementOwnerUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminResponsibilityOwnerDto?> UpdateResponsibilityOwner(int responsibilityId, long? appUserId, int? departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

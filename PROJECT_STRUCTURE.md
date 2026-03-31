@@ -10,8 +10,20 @@ Diese Detailuebersicht.
 `PRODUCTIVE_TARGET_ARCHITECTURE.md`
 Sollbild fuer produktive Architektur, Auth, Rollenmodell, Datenmodell und Migrationspfad.
 
-`docker-compose.yml`  
-Startet PostgreSQL, API und das gebaute Web-Frontend gemeinsam.
+`compose.yml`
+Gemeinsame Container-Basis fuer `db`, `api` und `web`.
+
+`compose.dev-db.yml`
+Lokale Entwicklungs-Ergaenzung nur fuer PostgreSQL mit Dev-Init und Host-Port.
+
+`compose.prod.yml`
+Servernahes Override fuer Linux-Deployment mit Entra-Auth und Caddy-Reverse-Proxy.
+
+`.env.prod.example`
+Vorlage fuer die serverseitigen Pflicht- und Optional-Variablen.
+
+`SETUP.md`
+Zentrale operative Doku fuer lokale Entwicklung und Linux-Deployment.
 
 `db/`  
 SQL-Dateien fuer Schema und Demo-/Seed-Daten.
@@ -28,10 +40,10 @@ Frontend-Projekt auf Basis von React und Vite.
 Frontend-Abhaengigkeiten und Skripte fuer `dev`, `build`, `lint` und `preview`.
 
 `Dockerfile`  
-Mehrstufiges Image: Build auf `node:20-alpine`, Auslieferung ueber `nginx:1.27-alpine`.
+Mehrstufiges Image: Build auf `node:20-alpine`, Auslieferung ueber `nginx:1.27-alpine` mit Runtime-Config ueber `app-config.js`.
 
 `nginx.conf`  
-SPA-Fallback fuer React-Routing. Ein Proxy auf `/api/` ist vorbereitet, aber aktuell auskommentiert.
+SPA-Fallback fuer React-Routing, Proxy auf `/api/` und `/health` sowie No-Cache-Regeln fuer `app-config.js`.
 
 `vite.config.ts`  
 Vite-Konfiguration mit React- und Tailwind-Plugin.
@@ -59,7 +71,7 @@ Verwaltet aktuell Demo-Login, Logout, Session-Wiederherstellung und den globalen
 Leitet Rollen, Labels, Features und Default-Route aus dem angemeldeten Benutzer ab.
 
 `IdentityProvider.ts`  
-Frontend-Abstraktion fuer Demo-Login, `/me` und tab-lokale Token-Speicherung. Muss langfristig auf produktive Entra-Authentifizierung umgestellt werden.
+Frontend-Abstraktion fuer Demo-Login und Entra-Login. Liest den Auth-Modus ueber die zentrale Runtime-Config.
 
 `roleModel.ts`  
 Rollenkeys, Feature-Matrix und Standardrouten fuer die UI.
@@ -296,8 +308,19 @@ Definiert das Datenmodell fuer:
 - Workflow-Laufzeit: `workflows`, `workflow_answers`, `workflow_answer_selected_options`, `workflow_tasks`, `workflow_task_dependencies`, `task_assignments`, `workflow_notifications`
 - Benachrichtigungskonfiguration: `notification_email_settings`
 
+`02_bootstrap.sql`  
+Produktiver Bootstrap fuer Referenzdaten und Onboarding-Grundkonfiguration ohne Demo-Benutzer oder localhost-Defaults.
+
 `02_seed.sql`  
-Fuellt die Datenbank mit Demo-Abteilungen, Rollen, Verantwortlichkeiten, Benutzern, Gruppen, Workflow-Definitionen und Task-Templates. Die Datei enthaelt ausserdem:
+Dev-Wrapper, der `02_bootstrap.sql` und `90_demo_seed.sql` gemeinsam laedt.
+
+`90_demo_seed.sql`  
+Demo-/Dev-Ergaenzungen wie Demo-Benutzer, Gruppen, Zuordnungen und lokale Mail-Defaults.
+
+`init/dev/00_init.sql` und `init/prod/00_init.sql`  
+Definieren die feste Init-Reihenfolge fuer Dev bzw. Production.
+
+Die Seed-/Bootstrap-Dateien enthalten zusammen:
 
 - bedingte Anforderungsdefinitionen fuer Referenzuser, Hardware, Laptop-VPN-Variante und Laufwerksrechte
 - fachliche Zustaendigkeiten fuer IT, QS, AV und QMB

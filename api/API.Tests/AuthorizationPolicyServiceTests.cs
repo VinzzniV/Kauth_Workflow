@@ -182,16 +182,16 @@ public sealed class AuthorizationPolicyServiceTests
     public void CanCreateWorkflowForProcessType_ReturnsTrue_ForHrAndAdmin_RegardlessOfProcessFlag(string role)
     {
         var user = CreateUser(role);
-        Assert.True(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: false));
-        Assert.True(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: true));
+        Assert.True(_sut.CanCreateWorkflowForProcessType(user, "offboarding", managerCreatableProcessType: false));
+        Assert.True(_sut.CanCreateWorkflowForProcessType(user, "onboarding", managerCreatableProcessType: true));
     }
 
     [Fact]
     public void CanCreateWorkflowForProcessType_ManagerDependsOnProcessFlag()
     {
         var user = CreateUser(AuthorizationRoles.Manager);
-        Assert.False(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: false));
-        Assert.True(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: true));
+        Assert.False(_sut.CanCreateWorkflowForProcessType(user, "offboarding", managerCreatableProcessType: false));
+        Assert.True(_sut.CanCreateWorkflowForProcessType(user, "department_change", managerCreatableProcessType: true));
     }
 
     [Theory]
@@ -200,8 +200,8 @@ public sealed class AuthorizationPolicyServiceTests
     public void CanCreateWorkflowForProcessType_ReturnsFalse_ForRolesWithoutCreatePermission(string role)
     {
         var user = CreateUser(role);
-        Assert.False(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: false));
-        Assert.False(_sut.CanCreateWorkflowForProcessType(user, managerCreatableProcessType: true));
+        Assert.False(_sut.CanCreateWorkflowForProcessType(user, "offboarding", managerCreatableProcessType: false));
+        Assert.False(_sut.CanCreateWorkflowForProcessType(user, "department_change", managerCreatableProcessType: true));
     }
 
     // --- CanCreateOrStartWorkflow ---
@@ -213,8 +213,14 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.True(_sut.CanCreateOrStartWorkflow(user));
     }
 
+    [Fact]
+    public void CanCreateOrStartWorkflow_Admin_ReturnsTrue()
+    {
+        var user = CreateUser(AuthorizationRoles.Admin);
+        Assert.True(_sut.CanCreateOrStartWorkflow(user));
+    }
+
     [Theory]
-    [InlineData(AuthorizationRoles.Admin)]
     [InlineData(AuthorizationRoles.Manager)]
     [InlineData(AuthorizationRoles.Worker)]
     [InlineData(AuthorizationRoles.Reader)]
@@ -254,8 +260,14 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.True(_sut.CanAccessSupervisorStep(user));
     }
 
+    [Fact]
+    public void CanAccessSupervisorStep_Admin_ReturnsTrue()
+    {
+        var user = CreateUser(AuthorizationRoles.Admin);
+        Assert.True(_sut.CanAccessSupervisorStep(user));
+    }
+
     [Theory]
-    [InlineData(AuthorizationRoles.Admin)]
     [InlineData(AuthorizationRoles.Hr)]
     [InlineData(AuthorizationRoles.Worker)]
     public void CanAccessSupervisorStep_ReturnsFalse_ForNonManager(string role)
@@ -273,8 +285,14 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.True(_sut.CanAccessTechnicalTasks(user));
     }
 
+    [Fact]
+    public void CanAccessTechnicalTasks_Admin_ReturnsTrue()
+    {
+        var user = CreateUser(AuthorizationRoles.Admin);
+        Assert.True(_sut.CanAccessTechnicalTasks(user));
+    }
+
     [Theory]
-    [InlineData(AuthorizationRoles.Admin)]
     [InlineData(AuthorizationRoles.Hr)]
     [InlineData(AuthorizationRoles.Manager)]
     public void CanAccessTechnicalTasks_ReturnsFalse_ForNonWorker(string role)

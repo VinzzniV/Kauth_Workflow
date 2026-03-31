@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type {
+  AdminDepartmentAssignment,
   AdminDirectoryGroup,
   AdminRole,
 } from "../../types/auth";
@@ -10,16 +11,27 @@ import { roleDisplayName } from "./adminConfigHelpers";
 type AdminGroupMappingSectionProps = {
   groups: AdminDirectoryGroup[];
   roles: AdminRole[];
+  departments: AdminDepartmentAssignment[];
   isLoading: boolean;
   savingGroupId: number | null;
   deletingMappingId: number | null;
-  onCreateMapping: (directoryGroupId: number, appRoleId: number) => void | Promise<void>;
+  onCreateMapping: (
+    directoryGroupId: number,
+    appRoleId: number,
+    scope: string,
+    scopeDepartmentId: number | null
+  ) => void | Promise<void>;
   onDeleteMapping: (mappingId: number) => void | Promise<void>;
 };
+
+function formatMappingScope(scope: string, departmentName: string | null | undefined): string {
+  return scope === "department" ? `Abteilung: ${departmentName ?? "unbekannt"}` : "Global";
+}
 
 export function AdminGroupMappingSection({
   groups,
   roles,
+  departments,
   isLoading,
   savingGroupId,
   deletingMappingId,
@@ -27,6 +39,8 @@ export function AdminGroupMappingSection({
   onDeleteMapping,
 }: AdminGroupMappingSectionProps) {
   const [roleDrafts, setRoleDrafts] = useState<Record<number, string>>({});
+  const [scopeDrafts, setScopeDrafts] = useState<Record<number, string>>({});
+  const [scopeDepartmentDrafts, setScopeDepartmentDrafts] = useState<Record<number, string>>({});
 
   const sortedRoles = useMemo(
     () =>
@@ -74,6 +88,11 @@ export function AdminGroupMappingSection({
         <tbody>
           {groups.map((group) => {
             const selectedRoleId = Number(roleDrafts[group.directoryGroupId] ?? "");
+            const selectedScope = scopeDrafts[group.directoryGroupId] ?? "global";
+            const selectedScopeDepartmentId =
+              selectedScope === "department"
+                ? Number(scopeDepartmentDrafts[group.directoryGroupId] ?? "")
+                : null;
             const isSaving = savingGroupId === group.directoryGroupId;
 
             return (
@@ -101,7 +120,15 @@ export function AdminGroupMappingSection({
                           title="Mapping entfernen"
                         >
                           {mapping.roleDepartmentName ? `${mapping.roleDepartmentName} / ` : ""}
-                          {mapping.appRoleName}
+                          {mapping.appRoleName}{" "}
+                          <span>
+                            (
+                            {formatMappingScope(
+                              mapping.scope,
+                              departments.find((department) => department.departmentId === mapping.scopeDepartmentId)?.departmentName
+                            )}
+                            )
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -125,13 +152,49 @@ export function AdminGroupMappingSection({
                         </option>
                       ))}
                     </select>
+                    <select
+                      value={selectedScope}
+                      onChange={(event) =>
+                        setScopeDrafts((current) => ({
+                          ...current,
+                          [group.directoryGroupId]: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="global">Global</option>
+                      <option value="department">Abteilung</option>
+                    </select>
+                    {selectedScope === "department" ? (
+                      <select
+                        value={scopeDepartmentDrafts[group.directoryGroupId] ?? ""}
+                        onChange={(event) =>
+                          setScopeDepartmentDrafts((current) => ({
+                            ...current,
+                            [group.directoryGroupId]: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Abteilung wählen</option>
+                        {departments.map((department) => (
+                          <option key={`directory-mapping-department-${department.departmentId}`} value={department.departmentId}>
+                            {department.departmentName}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
 
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      disabled={isSaving || !selectedRoleId}
+                      disabled={isSaving || !selectedRoleId || (selectedScope === "department" && !selectedScopeDepartmentId)}
                       onClick={() => {
-                        void onCreateMapping(group.directoryGroupId, selectedRoleId);
+                        void Promise.resolve(
+                          onCreateMapping(group.directoryGroupId, selectedRoleId, selectedScope, selectedScopeDepartmentId)
+                        ).then(() => {
+                          setRoleDrafts((current) => ({ ...current, [group.directoryGroupId]: "" }));
+                          setScopeDrafts((current) => ({ ...current, [group.directoryGroupId]: "global" }));
+                          setScopeDepartmentDrafts((current) => ({ ...current, [group.directoryGroupId]: "" }));
+                        });
                       }}
                     >
                       {isSaving ? "Speichert..." : "Rolle verknüpfen"}

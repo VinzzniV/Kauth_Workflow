@@ -5,12 +5,13 @@ import {
   getAdminUsers,
 } from "../../services/adminApi";
 import { getMyTasks } from "../../services/taskApi";
-import { getSupervisorStepWorkflows, getWorkflows } from "../../services/workflowApi";
+import { getWorkflows } from "../../services/workflowApi";
 import type {
   ProcessType,
   WorkflowSummary,
   WorkflowTask,
 } from "../../types/workflow";
+import { formatDate } from "../../utils/dateFormat";
 import { getTaskStatusLabel } from "../../utils/taskStatus";
 import {
   getWorkflowRuntimeStatusLabel,
@@ -33,6 +34,20 @@ export type DashboardQueueItem = {
   actionLabel: string;
 };
 
+export type DashboardEmployeeItem = {
+  key: string;
+  name: string;
+  roleName: string;
+  departmentName: string | null;
+  processTypeName: string;
+  workflowStatus: WorkflowSummary["workflowStatus"];
+  contextText: string;
+  dateLabel: string;
+  dateValue: string;
+  to: string;
+  actionLabel: string;
+};
+
 export type DashboardInsights = {
   heading: string;
   nextStep: string;
@@ -40,6 +55,9 @@ export type DashboardInsights = {
   queueTitle: string;
   queueItems: DashboardQueueItem[];
   emptyQueueText: string;
+  employeeListTitle?: string;
+  employeeListDescription?: string;
+  employeeItems?: DashboardEmployeeItem[];
 };
 
 export type DashboardInsightsOptions = {
@@ -55,6 +73,8 @@ type WorkflowMetrics = {
   inProgress: number;
   completed: number;
 };
+
+const RECENT_COMPLETION_WINDOW_DAYS = 30;
 
 function toEpoch(value: string): number {
   const parsed = new Date(value);
@@ -97,14 +117,6 @@ function summarizeWorkflows(workflows: WorkflowSummary[]): WorkflowMetrics {
   );
 }
 
-function matchesProcessType(processTypeKey: string | null | undefined, workflow: Pick<WorkflowSummary, "processType">): boolean {
-  if (!processTypeKey) {
-    return true;
-  }
-
-  return workflow.processType.key === processTypeKey;
-}
-
 function getProcessTypeContext(selectedProcessType: ProcessType | null) {
   if (!selectedProcessType) {
     return {
@@ -116,6 +128,70 @@ function getProcessTypeContext(selectedProcessType: ProcessType | null) {
   return {
     scopedTitle: `Vorgänge (${selectedProcessType.name})`,
     scopedEmptyQueueText: `Aktuell sind keine Vorgänge vom Typ ${selectedProcessType.name} vorhanden.`,
+  };
+}
+
+function isRecentlyCompletedWorkflow(workflow: WorkflowSummary, nowEpoch: number): boolean {
+  if (workflow.workflowStatus !== "completed" || !workflow.completedAt) {
+    return false;
+  }
+
+  const completedEpoch = toEpoch(workflow.completedAt);
+  if (completedEpoch === 0) {
+    return false;
+  }
+
+  const completionWindowMs = RECENT_COMPLETION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  return completedEpoch >= nowEpoch - completionWindowMs;
+}
+
+function getManagerWorkflowPriority(status: WorkflowSummary["workflowStatus"]): number {
+  switch (status) {
+    case "waiting_for_supervisor":
+      return 0;
+    case "waiting_for_department":
+      return 1;
+    case "in_progress":
+      return 2;
+    case "draft":
+      return 3;
+    case "completed":
+      return 4;
+    default:
+      return 5;
+  }
+}
+
+function getManagerWorkflowContextText(workflow: WorkflowSummary): string {
+  switch (workflow.workflowStatus) {
+    case "waiting_for_supervisor":
+      return "Wartet auf Ihre Rückmeldung.";
+    case "waiting_for_department":
+      return "Fachbereiche bearbeiten Aufgaben.";
+    case "in_progress":
+      return "Vorgang läuft in den Fachbereichen.";
+    case "draft":
+      return "HR bereitet den Vorgang vor.";
+    case "completed":
+      return workflow.completedAt
+        ? `Abgeschlossen am ${formatDate(workflow.completedAt)}.`
+        : "Abgeschlossen.";
+    default:
+      return getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action");
+  }
+}
+
+function getManagerWorkflowAction(workflow: WorkflowSummary): Pick<DashboardEmployeeItem, "to" | "actionLabel"> {
+  if (workflow.workflowStatus === "waiting_for_supervisor") {
+    return {
+      to: "/supervisor",
+      actionLabel: "Bearbeiten",
+    };
+  }
+
+  return {
+    to: `/workflows/${workflow.uid}`,
+    actionLabel: workflow.workflowStatus === "completed" ? "Ansehen" : "Öffnen",
   };
 }
 
@@ -195,51 +271,122 @@ async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<D
 
 async function loadManagerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
   const selectedProcessType = options.selectedProcessType ?? null;
-  const processTypeContext = getProcessTypeContext(selectedProcessType);
-  const workflows = (await getSupervisorStepWorkflows()).filter((workflow) => matchesProcessType(options.processTypeKey, workflow));
-  const pendingSelections = workflows.reduce(
+  const nowEpoch = Date.now();
+  const visibleWorkflows = await getWorkflows({ processTypeKey: options.processTypeKey ?? null });
+  const relevantWorkflows = visibleWorkflows.filter(
+    (workflow) => !isWorkflowTerminalStatus(workflow.workflowStatus) || isRecentlyCompletedWorkflow(workflow, nowEpoch)
+  );
+  const waitingForSupervisor = relevantWorkflows.filter((workflow) => workflow.workflowStatus === "waiting_for_supervisor");
+  const activeWorkflows = relevantWorkflows.filter((workflow) => !isWorkflowTerminalStatus(workflow.workflowStatus));
+  const recentlyCompletedWorkflows = relevantWorkflows.filter((workflow) => workflow.workflowStatus === "completed");
+  const pendingSelections = waitingForSupervisor.reduce(
     (count, workflow) => count + workflow.requirementSummary.pendingVisibleCount,
     0
   );
+  const visibleDepartmentCount = new Set(relevantWorkflows.map((workflow) => workflow.departmentId)).size;
+  const shouldShowDepartmentName = visibleDepartmentCount > 1;
 
-  const queueItems = workflows
+  const employeeItems = relevantWorkflows
     .slice()
-    .sort((left, right) => toEpoch(left.createdAt) - toEpoch(right.createdAt))
-    .slice(0, 5)
+    .sort((left, right) => {
+      const priorityDelta = getManagerWorkflowPriority(left.workflowStatus) - getManagerWorkflowPriority(right.workflowStatus);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+
+      if (left.workflowStatus === "completed" && right.workflowStatus === "completed") {
+        return toEpoch(right.completedAt ?? right.createdAt) - toEpoch(left.completedAt ?? left.createdAt);
+      }
+
+      return toEpoch(right.createdAt) - toEpoch(left.createdAt);
+    })
+    .slice(0, 8)
     .map((workflow) => {
-      const selectionText = `${workflow.requirementSummary.answeredVisibleCount} von ${workflow.requirementSummary.visibleCount} beantwortet`;
+      const action = getManagerWorkflowAction(workflow);
+      const isCompleted = workflow.workflowStatus === "completed";
 
       return {
         key: workflow.uid,
-        title: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
-        detail: selectionText,
-        to: "/supervisor",
-        actionLabel: "Zur Auswahl",
+        name: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
+        roleName: workflow.roleName,
+        departmentName: shouldShowDepartmentName ? workflow.departmentName : null,
+        processTypeName: workflow.processType.name,
+        workflowStatus: workflow.workflowStatus,
+        contextText: getManagerWorkflowContextText(workflow),
+        dateLabel: isCompleted ? "Abgeschlossen" : "Gestartet",
+        dateValue: formatDate(isCompleted ? workflow.completedAt : workflow.createdAt),
+        to: action.to,
+        actionLabel: action.actionLabel,
       };
     });
 
+  const compactSummaryText = waitingForSupervisor.length > 0
+    ? `${waitingForSupervisor.length} Vorgänge warten auf Ihre Rückmeldung.`
+    : activeWorkflows.length > 0
+      ? `${activeWorkflows.length} aktive Vorgänge in Ihren Abteilungen.`
+      : recentlyCompletedWorkflows.length > 0
+        ? `${recentlyCompletedWorkflows.length} kürzlich abgeschlossene Vorgänge in Ihren Abteilungen.`
+        : "Aktuell gibt es keine aktiven oder kürzlich abgeschlossenen Vorgänge in Ihren Abteilungen.";
+
+  const queueItems: DashboardQueueItem[] = waitingForSupervisor.length > 0
+    ? [
+        {
+          key: "manager-supervisor-summary",
+          title: compactSummaryText,
+          detail: selectedProcessType
+            ? `Öffnen Sie die offenen ${selectedProcessType.name}-Fälle im Leitungs-Schritt.`
+            : "Öffnen Sie die offenen Fälle im Leitungs-Schritt.",
+          to: "/supervisor",
+          actionLabel: "Freigaben öffnen",
+        },
+      ]
+    : [];
+
   return {
-    heading: "Meine offenen Anforderungen",
-    nextStep: "Nächsten offenen Fall bearbeiten.",
+    heading: "Vorgänge meiner Mitarbeitenden",
+    nextStep: waitingForSupervisor.length > 0
+      ? "Offene Freigaben zuerst bearbeiten."
+      : activeWorkflows.length > 0
+        ? "Laufende Vorgänge Ihrer Mitarbeitenden im Blick behalten."
+        : recentlyCompletedWorkflows.length > 0
+          ? "Kürzlich abgeschlossene Vorgänge prüfen."
+          : "Aktuell sind keine relevanten Vorgänge offen.",
     stats: [
       {
         label: "Offene Anforderungen",
         value: pendingSelections,
         note: "offene Auswahlpunkte",
+        tone: "attention",
       },
       {
-        label: "Noch zu bearbeitende Vorgänge",
-        value: workflows.length,
+        label: "Wartet auf Sie",
+        value: waitingForSupervisor.length,
+        note: "Leitungs-Schritt",
+        tone: "attention",
+      },
+      {
+        label: "Aktive Vorgänge",
+        value: activeWorkflows.length,
         note: selectedProcessType
           ? `${selectedProcessType.name}-Fälle`
-          : "im Leitungs-Schritt",
+          : "in Ihren Abteilungen",
+        tone: "progress",
+      },
+      {
+        label: "Kürzlich abgeschlossen",
+        value: recentlyCompletedWorkflows.length,
+        note: selectedProcessType
+          ? `letzte ${RECENT_COMPLETION_WINDOW_DAYS} Tage`
+          : `letzte ${RECENT_COMPLETION_WINDOW_DAYS} Tage`,
+        tone: "success",
       },
     ],
-    queueTitle: processTypeContext.scopedTitle,
+    queueTitle: selectedProcessType ? `Mitarbeitende (${selectedProcessType.name})` : "Mitarbeitende",
     queueItems,
-    emptyQueueText: selectedProcessType
-      ? `Aktuell warten keine ${selectedProcessType.name}-Fälle auf Eingaben durch die Abteilungsleitung.`
-      : "Aktuell warten keine Vorgänge auf Eingaben durch die Abteilungsleitung.",
+    emptyQueueText: compactSummaryText,
+    employeeListTitle: selectedProcessType ? `Mitarbeitende (${selectedProcessType.name})` : "Mitarbeitende",
+    employeeListDescription: "Aktive und kürzlich abgeschlossene Vorgänge Ihrer sichtbaren Abteilungen.",
+    employeeItems,
   };
 }
 

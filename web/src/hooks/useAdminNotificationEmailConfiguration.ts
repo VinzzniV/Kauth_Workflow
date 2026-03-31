@@ -18,9 +18,6 @@ export function useAdminNotificationEmailConfiguration({
   const [notificationEmailConfiguration, setNotificationEmailConfiguration] =
     useState<AdminNotificationEmailConfiguration | null>(null);
   const [notificationEnabledDraft, setNotificationEnabledDraft] = useState<boolean>(false);
-  const [notificationTenantIdDraft, setNotificationTenantIdDraft] = useState<string>("");
-  const [notificationClientIdDraft, setNotificationClientIdDraft] = useState<string>("");
-  const [notificationClientSecretDraft, setNotificationClientSecretDraft] = useState<string>("");
   const [notificationSenderEmailDraft, setNotificationSenderEmailDraft] = useState<string>("");
   const [notificationFrontendBaseUrlDraft, setNotificationFrontendBaseUrlDraft] = useState<string>("");
   const [notificationTestRecipientDraft, setNotificationTestRecipientDraft] = useState<string>("");
@@ -35,9 +32,6 @@ export function useAdminNotificationEmailConfiguration({
   useEffect(() => {
     if (!notificationEmailConfiguration) {
       setNotificationEnabledDraft(false);
-      setNotificationTenantIdDraft("");
-      setNotificationClientIdDraft("");
-      setNotificationClientSecretDraft("");
       setNotificationSenderEmailDraft("");
       setNotificationFrontendBaseUrlDraft("");
       setNotificationTestRecipientDraft("");
@@ -49,9 +43,6 @@ export function useAdminNotificationEmailConfiguration({
     }
 
     setNotificationEnabledDraft(notificationEmailConfiguration.enabled);
-    setNotificationTenantIdDraft(notificationEmailConfiguration.tenantId ?? "");
-    setNotificationClientIdDraft(notificationEmailConfiguration.clientId ?? "");
-    setNotificationClientSecretDraft("");
     setNotificationSenderEmailDraft(notificationEmailConfiguration.senderEmail ?? "");
     setNotificationFrontendBaseUrlDraft(notificationEmailConfiguration.frontendBaseUrl);
     setNotificationTestRecipientDraft(notificationEmailConfiguration.testRecipientEmail ?? "");
@@ -66,13 +57,8 @@ export function useAdminNotificationEmailConfiguration({
       return false;
     }
 
-    const hasClientSecretReplacement = notificationClientSecretDraft.trim().length > 0;
-
     return (
       notificationEnabledDraft !== notificationEmailConfiguration.enabled
-      || toNullableText(notificationTenantIdDraft) !== notificationEmailConfiguration.tenantId
-      || toNullableText(notificationClientIdDraft) !== notificationEmailConfiguration.clientId
-      || hasClientSecretReplacement
       || toNullableText(notificationSenderEmailDraft) !== notificationEmailConfiguration.senderEmail
       || notificationFrontendBaseUrlDraft.trim() !== notificationEmailConfiguration.frontendBaseUrl
       || toNullableText(notificationTestRecipientDraft) !== notificationEmailConfiguration.testRecipientEmail
@@ -82,8 +68,6 @@ export function useAdminNotificationEmailConfiguration({
       || notificationNotifyOnWorkflowCompletedDraft !== notificationEmailConfiguration.notifyOnWorkflowCompleted
     );
   }, [
-    notificationClientIdDraft,
-    notificationClientSecretDraft,
     notificationEmailConfiguration,
     notificationEnabledDraft,
     notificationFrontendBaseUrlDraft,
@@ -92,7 +76,6 @@ export function useAdminNotificationEmailConfiguration({
     notificationNotifyOnWorkflowCreatedDraft,
     notificationSandboxRedirectDraft,
     notificationSenderEmailDraft,
-    notificationTenantIdDraft,
     notificationTestRecipientDraft,
   ]);
 
@@ -102,12 +85,8 @@ export function useAdminNotificationEmailConfiguration({
     onError(null);
 
     try {
-      const clientSecret = toNullableText(notificationClientSecretDraft);
       const updatedConfiguration = await updateAdminNotificationEmailConfiguration({
         enabled: notificationEnabledDraft,
-        tenantId: toNullableText(notificationTenantIdDraft),
-        clientId: toNullableText(notificationClientIdDraft),
-        ...(clientSecret ? { clientSecret } : {}),
         senderEmail: toNullableText(notificationSenderEmailDraft),
         frontendBaseUrl: notificationFrontendBaseUrlDraft.trim(),
         testRecipientEmail: toNullableText(notificationTestRecipientDraft),
@@ -117,7 +96,6 @@ export function useAdminNotificationEmailConfiguration({
         notifyOnWorkflowCompleted: notificationNotifyOnWorkflowCompletedDraft,
       });
       setNotificationEmailConfiguration(updatedConfiguration);
-      setNotificationClientSecretDraft("");
       onNotice("Mail-Konfiguration wurde gespeichert.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Mail-Konfiguration konnte nicht gespeichert werden.";
@@ -126,8 +104,6 @@ export function useAdminNotificationEmailConfiguration({
       setIsSavingNotificationEmailConfiguration(false);
     }
   }, [
-    notificationClientIdDraft,
-    notificationClientSecretDraft,
     notificationEnabledDraft,
     notificationFrontendBaseUrlDraft,
     notificationNotifyOnTaskReadyDraft,
@@ -135,7 +111,6 @@ export function useAdminNotificationEmailConfiguration({
     notificationNotifyOnWorkflowCreatedDraft,
     notificationSandboxRedirectDraft,
     notificationSenderEmailDraft,
-    notificationTenantIdDraft,
     notificationTestRecipientDraft,
     onError,
     onNotice,
@@ -162,9 +137,6 @@ export function useAdminNotificationEmailConfiguration({
     notificationEmailConfiguration,
     setNotificationEmailConfiguration,
     notificationEnabledDraft,
-    notificationTenantIdDraft,
-    notificationClientIdDraft,
-    notificationClientSecretDraft,
     notificationSenderEmailDraft,
     notificationFrontendBaseUrlDraft,
     notificationTestRecipientDraft,
@@ -176,9 +148,6 @@ export function useAdminNotificationEmailConfiguration({
     isSendingNotificationEmailTest,
     hasNotificationEmailDraftChanges,
     setNotificationEnabledDraft,
-    setNotificationTenantIdDraft,
-    setNotificationClientIdDraft,
-    setNotificationClientSecretDraft,
     setNotificationSenderEmailDraft,
     setNotificationFrontendBaseUrlDraft,
     setNotificationTestRecipientDraft,

@@ -24,22 +24,79 @@ LEFT JOIN departments d ON d.id = r.department_id
 WHERE r.role_kind = '{AuthorizationRoles.SystemRoleKind}'
 ORDER BY r.role_kind, d.name, r.name, r.id;";
 
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-
         var roles = new List<AdminRoleDto>();
-        while (await reader.ReadAsync(cancellationToken))
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
         {
-            roles.Add(new AdminRoleDto
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+            while (await reader.ReadAsync(cancellationToken))
             {
-                RoleId = reader.GetInt32(0),
-                RoleKey = reader.GetString(1),
-                RoleName = reader.GetString(2),
-                RoleKind = reader.GetString(3),
-                DepartmentId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                DepartmentName = reader.IsDBNull(5) ? null : reader.GetString(5),
-                IsActive = reader.GetBoolean(6)
-            });
+                roles.Add(new AdminRoleDto
+                {
+                    RoleId = reader.GetInt32(0),
+                    RoleKey = reader.GetString(1),
+                    RoleName = reader.GetString(2),
+                    RoleKind = reader.GetString(3),
+                    DepartmentId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                    DepartmentName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    Scope = "global",
+                    ScopeDepartmentId = null,
+                    ScopeDepartmentName = null,
+                    IsActive = reader.GetBoolean(6)
+                });
+            }
+        }
+
+        if (roles.Count == 0)
+        {
+            return roles;
+        }
+
+        try
+        {
+            const string permissionsSql = @"
+SELECT
+    rp.app_role_id,
+    p.id,
+    p.permission_key,
+    p.name,
+    p.description,
+    p.scope_kind,
+    p.category,
+    p.is_active
+FROM app_role_permissions rp
+JOIN app_permissions p ON p.id = rp.app_permission_id
+WHERE rp.app_role_id = ANY(@roleIds)
+ORDER BY rp.app_role_id, p.category, p.name, p.id;";
+
+            await using var permissionCommand = new NpgsqlCommand(permissionsSql, connection, transaction);
+            permissionCommand.Parameters.Add("roleIds", NpgsqlDbType.Array | NpgsqlDbType.Integer).Value =
+                roles.Select(role => role.RoleId).Distinct().ToArray();
+
+            var roleById = roles.ToDictionary(role => role.RoleId);
+            await using var permissionReader = await permissionCommand.ExecuteReaderAsync(cancellationToken);
+            while (await permissionReader.ReadAsync(cancellationToken))
+            {
+                if (!roleById.TryGetValue(permissionReader.GetInt32(0), out var role))
+                {
+                    continue;
+                }
+
+                role.Permissions.Add(new AdminPermissionDto
+                {
+                    PermissionId = permissionReader.GetInt32(1),
+                    PermissionKey = permissionReader.GetString(2),
+                    PermissionName = permissionReader.GetString(3),
+                    Description = permissionReader.IsDBNull(4) ? null : permissionReader.GetString(4),
+                    ScopeKind = permissionReader.GetString(5),
+                    Category = permissionReader.GetString(6),
+                    IsActive = permissionReader.GetBoolean(7)
+                });
+            }
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            // Permission migration not applied yet.
         }
 
         return roles;
@@ -131,6 +188,9 @@ ORDER BY gr.app_group_id, r.role_kind, d.name, r.name, r.id;";
                 RoleKind = rolesReader.GetString(4),
                 DepartmentId = rolesReader.IsDBNull(5) ? null : rolesReader.GetInt32(5),
                 DepartmentName = rolesReader.IsDBNull(6) ? null : rolesReader.GetString(6),
+                Scope = "global",
+                ScopeDepartmentId = null,
+                ScopeDepartmentName = null,
                 IsActive = rolesReader.GetBoolean(7)
             });
         }
@@ -261,6 +321,12 @@ SELECT
     u.email,
     u.notification_email,
     u.is_active,
+    u.directory_synced,
+    u.department_source,
+    u.department_override_active,
+    di.id,
+    di.user_principal_name,
+    di.display_name,
     COALESCE(p.department_id, u.department_id),
     d.name,
     EXISTS (
@@ -276,6 +342,13 @@ SELECT
             JOIN app_groups g ON g.id = ug.app_group_id
             WHERE ug.app_user_id = u.id
               AND g.is_active = TRUE
+            UNION
+            SELECT dgrm.app_role_id AS role_id
+            FROM directory_identities di_current
+            JOIN directory_group_members dgm ON dgm.directory_identity_id = di_current.id
+            JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
+            WHERE di_current.app_user_id = u.id
+              AND dgrm.is_active = TRUE
         ) assigned_roles
         JOIN app_roles r ON r.id = assigned_roles.role_id
         WHERE r.is_active = TRUE
@@ -284,6 +357,7 @@ SELECT
     ) AS has_manager_access
 FROM app_users u
 LEFT JOIN people p ON p.app_user_id = u.id
+LEFT JOIN directory_identities di ON di.app_user_id = u.id
 LEFT JOIN departments d ON d.id = COALESCE(p.department_id, u.department_id)
 WHERE (@userId IS NULL OR u.id = @userId)
 ORDER BY u.display_name, u.id;";
@@ -307,11 +381,20 @@ ORDER BY u.display_name, u.id;";
                     Email = baseReader.GetString(3),
                     NotificationEmail = baseReader.IsDBNull(4) ? null : baseReader.GetString(4),
                     IsActive = baseReader.GetBoolean(5),
-                    DepartmentId = baseReader.IsDBNull(6) ? null : baseReader.GetInt32(6),
-                    DepartmentName = baseReader.IsDBNull(7) ? null : baseReader.GetString(7),
-                    HasManagerAccess = baseReader.GetBoolean(8),
+                    DirectorySynced = baseReader.GetBoolean(6),
+                    DepartmentSource = baseReader.GetString(7),
+                    DepartmentOverrideActive = baseReader.GetBoolean(8),
+                    DirectoryIdentityId = baseReader.IsDBNull(9) ? null : baseReader.GetInt64(9),
+                    UserPrincipalName = baseReader.IsDBNull(10) ? null : baseReader.GetString(10),
+                    DirectoryDisplayName = baseReader.IsDBNull(11) ? null : baseReader.GetString(11),
+                    DepartmentId = baseReader.IsDBNull(12) ? null : baseReader.GetInt32(12),
+                    DepartmentName = baseReader.IsDBNull(13) ? null : baseReader.GetString(13),
+                    HasManagerAccess = baseReader.GetBoolean(14),
                     Roles = new List<AdminRoleDto>(),
-                    Groups = new List<AdminGroupRefDto>()
+                    Groups = new List<AdminGroupRefDto>(),
+                    EffectiveRoles = new List<AdminRoleDto>(),
+                    PermissionOverrides = new List<AdminPermissionOverrideDto>(),
+                    EffectivePermissions = new List<AdminPermissionGrantDto>()
                 };
 
                 users.Add(user);
@@ -363,6 +446,9 @@ ORDER BY ur.app_user_id, r.role_kind, d.name, r.name, r.id;";
                     RoleKind = roleReader.GetString(4),
                     DepartmentId = roleReader.IsDBNull(5) ? null : roleReader.GetInt32(5),
                     DepartmentName = roleReader.IsDBNull(6) ? null : roleReader.GetString(6),
+                    Scope = "global",
+                    ScopeDepartmentId = null,
+                    ScopeDepartmentName = null,
                     IsActive = roleReader.GetBoolean(7)
                 });
             }
@@ -381,27 +467,89 @@ JOIN app_groups g ON g.id = ug.app_group_id
 WHERE (@userId IS NULL OR ug.app_user_id = @userId)
 ORDER BY ug.app_user_id, g.name, g.id;";
 
-        await using var groupCommand = new NpgsqlCommand(groupSql, connection, transaction);
-        var groupUserIdParameter = groupCommand.Parameters.Add("userId", NpgsqlDbType.Bigint);
-        groupUserIdParameter.Value = (object?)userId ?? DBNull.Value;
-        await using var groupReader = await groupCommand.ExecuteReaderAsync(cancellationToken);
-
-        while (await groupReader.ReadAsync(cancellationToken))
+        await using (var groupCommand = new NpgsqlCommand(groupSql, connection, transaction))
         {
-            var currentUserId = groupReader.GetInt64(0);
-            if (!userById.TryGetValue(currentUserId, out var user))
-            {
-                continue;
-            }
+            var groupUserIdParameter = groupCommand.Parameters.Add("userId", NpgsqlDbType.Bigint);
+            groupUserIdParameter.Value = (object?)userId ?? DBNull.Value;
+            await using var groupReader = await groupCommand.ExecuteReaderAsync(cancellationToken);
 
-            user.Groups.Add(new AdminGroupRefDto
+            while (await groupReader.ReadAsync(cancellationToken))
             {
-                GroupId = groupReader.GetInt32(1),
-                GroupKey = groupReader.GetString(2),
-                GroupName = groupReader.GetString(3),
-                Description = groupReader.IsDBNull(4) ? null : groupReader.GetString(4),
-                IsActive = groupReader.GetBoolean(5)
-            });
+                var currentUserId = groupReader.GetInt64(0);
+                if (!userById.TryGetValue(currentUserId, out var user))
+                {
+                    continue;
+                }
+
+                user.Groups.Add(new AdminGroupRefDto
+                {
+                    GroupId = groupReader.GetInt32(1),
+                    GroupKey = groupReader.GetString(2),
+                    GroupName = groupReader.GetString(3),
+                    Description = groupReader.IsDBNull(4) ? null : groupReader.GetString(4),
+                    IsActive = groupReader.GetBoolean(5)
+                });
+            }
+        }
+
+        foreach (var user in users)
+        {
+            var directRoles = user.Roles
+                .Select(role => new CurrentUserRole
+                {
+                    RoleId = role.RoleId,
+                    RoleKey = role.RoleKey,
+                    RoleName = role.RoleName,
+                    RoleKind = role.RoleKind,
+                    AssignmentSource = "direct",
+                    Scope = "global"
+                })
+                .ToList();
+            var groupRoles = await LoadGroupRoles(connection, user.UserId, cancellationToken);
+            var directoryGroupRoles = await LoadDirectoryGroupRoles(connection, user.UserId, cancellationToken);
+            var effectiveRoles = BuildEffectiveRoles(directRoles, groupRoles, directoryGroupRoles);
+            var rolePermissionDefinitions = await LoadRolePermissionDefinitions(
+                connection,
+                effectiveRoles.Select(role => role.RoleId).Distinct().ToArray(),
+                cancellationToken);
+            var permissionOverrides = await LoadAdminUserPermissionOverrides(connection, transaction, user.UserId, cancellationToken);
+            var effectivePermissions = BuildEffectivePermissions(
+                BuildRolePermissionGrants(effectiveRoles, rolePermissionDefinitions),
+                permissionOverrides.Select(overridePermission => new CurrentUserPermissionOverride
+                {
+                    OverrideId = overridePermission.OverrideId,
+                    PermissionId = overridePermission.PermissionId,
+                    PermissionKey = overridePermission.PermissionKey,
+                    PermissionName = overridePermission.PermissionName,
+                    Effect = overridePermission.Effect,
+                    Scope = overridePermission.Scope,
+                    ScopeDepartmentId = overridePermission.ScopeDepartmentId,
+                    ScopeDepartmentName = overridePermission.ScopeDepartmentName
+                }).ToList());
+
+            user.EffectiveRoles.AddRange(effectiveRoles.Select(role => new AdminRoleDto
+            {
+                RoleId = role.RoleId,
+                RoleKey = role.RoleKey,
+                RoleName = role.RoleName,
+                RoleKind = role.RoleKind,
+                DepartmentId = null,
+                DepartmentName = null,
+                Scope = role.Scope,
+                ScopeDepartmentId = role.ScopeDepartmentId,
+                ScopeDepartmentName = role.ScopeDepartmentName,
+                IsActive = true
+            }));
+            user.PermissionOverrides.AddRange(permissionOverrides);
+            user.EffectivePermissions.AddRange(effectivePermissions.Select(permission => new AdminPermissionGrantDto
+            {
+                PermissionId = permission.PermissionId,
+                PermissionKey = permission.PermissionKey,
+                PermissionName = permission.PermissionName,
+                Scope = permission.Scope,
+                ScopeDepartmentId = permission.ScopeDepartmentId,
+                ScopeDepartmentName = permission.ScopeDepartmentName
+            }));
         }
 
         return users;

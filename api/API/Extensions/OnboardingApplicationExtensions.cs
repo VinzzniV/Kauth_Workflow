@@ -11,6 +11,8 @@ internal static class LifecycleApplicationExtensions
 {
     public static WebApplication ConfigureLifecycleApi(this WebApplication app)
     {
+        var runtimeSettings = app.Services.GetRequiredService<LifecycleRuntimeSettings>();
+
         app.UseExceptionHandler(errorApp =>
         {
             errorApp.Run(async context =>
@@ -32,7 +34,7 @@ internal static class LifecycleApplicationExtensions
 
         app.UseCors("vite");
 
-        if (LifecycleServiceCollectionExtensions.IsEntraAuthEnabled())
+        if (runtimeSettings.EntraAuthEnabled)
         {
             app.UseAuthentication();
             app.UseAuthorization();
@@ -48,7 +50,7 @@ internal static class LifecycleApplicationExtensions
             }
 
             if (context.Response.StatusCode == StatusCodes.Status401Unauthorized
-                && LifecycleServiceCollectionExtensions.IsEntraAuthEnabled()
+                && runtimeSettings.EntraAuthEnabled
                 && !context.Response.Headers.ContainsKey("WWW-Authenticate"))
             {
                 context.Response.Headers.Append("WWW-Authenticate", "Bearer");
@@ -70,12 +72,13 @@ internal static class LifecycleApplicationExtensions
     {
         app.MapGet("/health", async (IHttpClientFactory httpClientFactory) =>
         {
-            var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-            var entraEnabled = LifecycleServiceCollectionExtensions.IsEntraAuthEnabled();
-            var demoActive = LifecycleServiceCollectionExtensions.IsDemoAuthActive();
-            var tenantId = Environment.GetEnvironmentVariable("ENTRA_TENANT_ID");
-            var clientId = Environment.GetEnvironmentVariable("ENTRA_CLIENT_ID");
-            var audience = Environment.GetEnvironmentVariable("ENTRA_AUDIENCE");
+            var runtimeSettings = app.Services.GetRequiredService<LifecycleRuntimeSettings>();
+            var connectionString = runtimeSettings.ConnectionString;
+            var entraEnabled = runtimeSettings.EntraAuthEnabled;
+            var demoActive = runtimeSettings.DemoAuthEnabled;
+            var tenantId = runtimeSettings.EntraTenantId;
+            var clientId = runtimeSettings.EntraClientId;
+            var audience = runtimeSettings.EntraAudience;
 
             var databaseStatus = "ok";
             if (string.IsNullOrWhiteSpace(connectionString))

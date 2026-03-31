@@ -3,6 +3,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
 import { useProcessTypes } from "../../services/queries/processTypeQueries";
+import {
+  getWorkflowRuntimeStatusLabel,
+  getWorkflowRuntimeStatusPillClass,
+} from "../../utils/workflowStatus";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
 import Card from "../ui/Card";
@@ -29,6 +33,7 @@ export default function DashboardOverview() {
   );
   const priorityItem = insights?.queueItems[0] ?? null;
   const secondaryQueueItems = insights?.queueItems.slice(1) ?? [];
+  const employeeItems = insights?.employeeItems ?? [];
 
   useEffect(() => {
     if (!supportsProcessTypeFilter) {
@@ -112,15 +117,19 @@ export default function DashboardOverview() {
           {insights.stats.length > 0 ? (
             <section className="section-stack">
               <SectionHeader title="Kennzahlen" />
-              <div className="dashboard-stats-grid" aria-label="Rollenspezifische Übersicht">
-                {insights.stats.map((stat) => (
-                  <Card key={stat.label} variant="stat" className="dashboard-stat-card">
-                    <p className="dashboard-stat-label">{stat.label}</p>
-                    <p className="dashboard-stat-value">{stat.value}</p>
-                  </Card>
-                ))}
-              </div>
-            </section>
+                <div className="dashboard-stats-grid" aria-label="Rollenspezifische Übersicht">
+                  {insights.stats.map((stat) => (
+                    <Card
+                      key={stat.label}
+                      variant="stat"
+                      className={`dashboard-stat-card${stat.tone ? ` dashboard-stat-card--${stat.tone}` : ""}`}
+                    >
+                      <p className="dashboard-stat-label">{stat.label}</p>
+                      <p className="dashboard-stat-value">{stat.value}</p>
+                    </Card>
+                  ))}
+                </div>
+              </section>
           ) : null}
 
           {secondaryQueueItems.length > 0 ? (
@@ -133,6 +142,46 @@ export default function DashboardOverview() {
                       <p className="dashboard-queue-title">{item.title}</p>
                       <p className="dashboard-queue-detail">{item.detail}</p>
                     </div>
+                    <Link to={item.to} className="btn btn-secondary">
+                      {item.actionLabel}
+                    </Link>
+                  </Card>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {dashboardPersona === "manager" && employeeItems.length > 0 ? (
+            <section className="section-stack dashboard-queue">
+              <SectionHeader
+                title={insights.employeeListTitle ?? "Mitarbeitende"}
+                description={insights.employeeListDescription}
+              />
+              <ul className="dashboard-employee-list" aria-label="Mitarbeitende mit Vorgängen">
+                {employeeItems.map((item) => (
+                  <Card key={item.key} as="li" variant="list" className="dashboard-employee-item">
+                    <div className="dashboard-employee-main">
+                      <div className="dashboard-employee-head">
+                        <div className="dashboard-employee-copy">
+                          <p className="dashboard-employee-name">{item.name}</p>
+                          <p className="dashboard-employee-role">{item.roleName}</p>
+                        </div>
+                        <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(item.workflowStatus)}`}>
+                          {getWorkflowRuntimeStatusLabel(item.workflowStatus)}
+                        </span>
+                      </div>
+
+                      <div className="chips-row dashboard-employee-chips" aria-label="Vorgangskontext">
+                        <span className="chip">{item.processTypeName}</span>
+                        {item.departmentName ? <span className="chip">{item.departmentName}</span> : null}
+                      </div>
+
+                      <p className="dashboard-employee-context">{item.contextText}</p>
+                      <p className="dashboard-employee-date">
+                        {item.dateLabel}: {item.dateValue}
+                      </p>
+                    </div>
+
                     <Link to={item.to} className="btn btn-secondary">
                       {item.actionLabel}
                     </Link>

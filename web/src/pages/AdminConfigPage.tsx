@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
+import type { AdminPermissionOverrideDraft } from "../components/admin-config/AdminPermissionsSection";
 import { AdminConfigWorkspaceContent } from "../components/admin-config/AdminConfigWorkspaceContent";
 import { AdminWorkspaceNavigation, AdminWorkspaceSubNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
 import {
@@ -14,6 +15,7 @@ import {
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
+import { useAdminGraphApplicationConfiguration } from "../hooks/useAdminGraphApplicationConfiguration";
 import { useAdminNotificationEmailConfiguration } from "../hooks/useAdminNotificationEmailConfiguration";
 import { useAdminOrganizationManagement } from "../hooks/useAdminOrganizationManagement";
 import { useAdminUserManagement } from "../hooks/useAdminUserManagement";
@@ -28,12 +30,17 @@ import {
 } from "../services/adminConfigApi";
 import {
   getAdminDepartmentAssignments,
+  getAdminGraphApplicationConfiguration,
   getAdminGroups,
+  getAdminPermissionAudit,
+  getAdminPermissions,
   getAdminNotificationEmailConfiguration,
   getAdminResponsibilityOwners,
   getAdminRoles,
   getAdminUsers,
   getAdminWorkflowConfig,
+  updateAdminRolePermissions,
+  updateAdminUserPermissionOverrides,
 } from "../services/adminApi";
 import type {
   AdminDepartmentAssignment,
@@ -42,6 +49,8 @@ import type {
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncStatus,
   AdminGroup,
+  AdminPermission,
+  AdminPermissionAuditEntry,
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
@@ -54,6 +63,8 @@ export default function AdminConfigPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [groups, setGroups] = useState<AdminGroup[]>([]);
+  const [permissions, setPermissions] = useState<AdminPermission[]>([]);
+  const [permissionAuditEntries, setPermissionAuditEntries] = useState<AdminPermissionAuditEntry[]>([]);
   const [directoryGroups, setDirectoryGroups] = useState<AdminDirectoryGroup[]>([]);
   const [directoryIdentities, setDirectoryIdentities] = useState<AdminDirectoryIdentity[]>([]);
   const [directoryAuditEntries, setDirectoryAuditEntries] = useState<AdminDirectoryMappingAuditEntry[]>([]);
@@ -67,6 +78,11 @@ export default function AdminConfigPage() {
   const [isSyncingDirectory, setIsSyncingDirectory] = useState<boolean>(false);
   const [savingDirectoryGroupId, setSavingDirectoryGroupId] = useState<number | null>(null);
   const [deletingDirectoryMappingId, setDeletingDirectoryMappingId] = useState<number | null>(null);
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  const [selectedRolePermissionIds, setSelectedRolePermissionIds] = useState<number[]>([]);
+  const [userOverrideDrafts, setUserOverrideDrafts] = useState<AdminPermissionOverrideDraft[]>([]);
+  const [isSavingRolePermissions, setIsSavingRolePermissions] = useState<boolean>(false);
+  const [isSavingUserOverrides, setIsSavingUserOverrides] = useState<boolean>(false);
   const [hasLoadedTechnicalAccess, setHasLoadedTechnicalAccess] = useState<boolean>(false);
   const [hasLoadedDirectory, setHasLoadedDirectory] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,9 +106,6 @@ export default function AdminConfigPage() {
     notificationEmailConfiguration,
     setNotificationEmailConfiguration,
     notificationEnabledDraft,
-    notificationTenantIdDraft,
-    notificationClientIdDraft,
-    notificationClientSecretDraft,
     notificationSenderEmailDraft,
     notificationFrontendBaseUrlDraft,
     notificationTestRecipientDraft,
@@ -104,9 +117,6 @@ export default function AdminConfigPage() {
     isSendingNotificationEmailTest,
     hasNotificationEmailDraftChanges,
     setNotificationEnabledDraft,
-    setNotificationTenantIdDraft,
-    setNotificationClientIdDraft,
-    setNotificationClientSecretDraft,
     setNotificationSenderEmailDraft,
     setNotificationFrontendBaseUrlDraft,
     setNotificationTestRecipientDraft,
@@ -121,14 +131,38 @@ export default function AdminConfigPage() {
     onError: setError,
   });
 
+  const {
+    graphApplicationConfiguration,
+    setGraphApplicationConfiguration,
+    graphTenantIdDraft,
+    graphClientIdDraft,
+    graphClientSecretDraft,
+    isSavingGraphApplicationConfiguration,
+    hasGraphApplicationDraftChanges,
+    setGraphTenantIdDraft,
+    setGraphClientIdDraft,
+    setGraphClientSecretDraft,
+    saveGraphApplicationConfiguration,
+  } = useAdminGraphApplicationConfiguration({
+    onNotice: setNotice,
+    onError: setError,
+  });
+
   const loadTechnicalAccess = useCallback(async () => {
     setIsLoadingTechnicalAccess(true);
     setError(null);
 
     try {
-      const [rolesData, groupsData] = await Promise.all([getAdminRoles(), getAdminGroups()]);
+      const [rolesData, groupsData, permissionsData, permissionAuditData] = await Promise.all([
+        getAdminRoles(),
+        getAdminGroups(),
+        getAdminPermissions(),
+        getAdminPermissionAudit(50),
+      ]);
       setRoles(rolesData);
       setGroups(groupsData);
+      setPermissions(permissionsData);
+      setPermissionAuditEntries(permissionAuditData);
       setHasLoadedTechnicalAccess(true);
     } catch (err) {
       const message =
@@ -136,6 +170,8 @@ export default function AdminConfigPage() {
       setError(message);
       setRoles([]);
       setGroups([]);
+      setPermissions([]);
+      setPermissionAuditEntries([]);
     } finally {
       setIsLoadingTechnicalAccess(false);
     }
@@ -178,16 +214,18 @@ export default function AdminConfigPage() {
 
     try {
       const workflowConfigPromise = getAdminWorkflowConfig().catch(() => null);
-      const [usersData, departmentsData, responsibilitiesData, notificationEmailConfigurationData] = await Promise.all([
+      const [usersData, departmentsData, responsibilitiesData, graphApplicationConfigurationData, notificationEmailConfigurationData] = await Promise.all([
         getAdminUsers(),
         getAdminDepartmentAssignments(),
         getAdminResponsibilityOwners(),
+        getAdminGraphApplicationConfiguration(),
         getAdminNotificationEmailConfiguration(),
       ]);
 
       setUsers(usersData);
       setDepartmentAssignments(departmentsData);
       setResponsibilityOwners(responsibilitiesData);
+      setGraphApplicationConfiguration(graphApplicationConfigurationData);
       setNotificationEmailConfiguration(notificationEmailConfigurationData);
       setWorkflowConfig(await workflowConfigPromise);
 
@@ -205,6 +243,7 @@ export default function AdminConfigPage() {
       setDepartmentAssignments([]);
       setResponsibilityOwners([]);
       setWorkflowConfig(null);
+      setGraphApplicationConfiguration(null);
       setNotificationEmailConfiguration(null);
       setDirectoryStatus(null);
       setDirectoryGroups([]);
@@ -213,7 +252,7 @@ export default function AdminConfigPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [loadDirectoryData, loadTechnicalAccess, setNotificationEmailConfiguration]);
+  }, [loadDirectoryData, loadTechnicalAccess, setGraphApplicationConfiguration, setNotificationEmailConfiguration]);
 
   useEffect(() => {
     void reload();
@@ -359,6 +398,38 @@ export default function AdminConfigPage() {
   const workspaceSelectedUser =
     section === "organization" && organizationEntity === "user" && selectedEntityId ? selectedUser : null;
 
+  useEffect(() => {
+    if (!selectedRoleId) {
+      setSelectedRolePermissionIds([]);
+      return;
+    }
+
+    const selectedRole = roles.find((role) => role.roleId === selectedRoleId) ?? null;
+    if (!selectedRole) {
+      setSelectedRoleId(null);
+      setSelectedRolePermissionIds([]);
+      return;
+    }
+
+    setSelectedRolePermissionIds(selectedRole.permissions.map((permission) => permission.permissionId));
+  }, [roles, selectedRoleId]);
+
+  useEffect(() => {
+    if (!selectedUser) {
+      setUserOverrideDrafts([]);
+      return;
+    }
+
+    setUserOverrideDrafts(
+      selectedUser.permissionOverrides.map((override) => ({
+        permissionId: override.permissionId,
+        effect: override.effect,
+        scope: override.scope,
+        scopeDepartmentId: override.scopeDepartmentId,
+      }))
+    );
+  }, [selectedUser]);
+
   const warnings = useMemo(
     () =>
       buildAdminOverviewWarnings({
@@ -446,7 +517,7 @@ export default function AdminConfigPage() {
   }, [loadDirectoryData]);
 
   const handleCreateDirectoryMapping = useCallback(
-    async (directoryGroupId: number, appRoleId: number) => {
+    async (directoryGroupId: number, appRoleId: number, scope: string, scopeDepartmentId: number | null) => {
       setSavingDirectoryGroupId(directoryGroupId);
       setNotice(null);
       setError(null);
@@ -455,11 +526,15 @@ export default function AdminConfigPage() {
         const mapping = await createAdminDirectoryGroupRoleMapping({
           directoryGroupId,
           appRoleId,
-          scope: "global",
+          scope,
+          scopeDepartmentId,
           isActive: true,
         });
         await loadDirectoryData();
-        setNotice(`Mapping gespeichert: ${mapping.appRoleName} wurde der Verzeichnisgruppe zugeordnet.`);
+        const scopeDepartmentName =
+          sortedDepartments.find((department) => department.departmentId === scopeDepartmentId)?.departmentName ?? null;
+        const scopeLabel = scope === "department" ? `Abteilung ${scopeDepartmentName ?? "unbekannt"}` : "global";
+        setNotice(`Mapping gespeichert: ${mapping.appRoleName} wurde der Verzeichnisgruppe mit Scope ${scopeLabel} zugeordnet.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Mapping konnte nicht gespeichert werden.";
         setError(message);
@@ -467,7 +542,7 @@ export default function AdminConfigPage() {
         setSavingDirectoryGroupId(null);
       }
     },
-    [loadDirectoryData]
+    [loadDirectoryData, sortedDepartments]
   );
 
   const handleDeleteDirectoryMapping = useCallback(
@@ -494,8 +569,70 @@ export default function AdminConfigPage() {
     users.length > 0
     || departmentAssignments.length > 0
     || responsibilityOwners.length > 0
+    || permissions.length > 0
     || directoryGroups.length > 0
     || directoryIdentities.length > 0;
+
+  const handleSelectRole = useCallback((roleId: number | null) => {
+    setSelectedRoleId(roleId);
+  }, []);
+
+  const handleToggleRolePermission = useCallback((permissionId: number) => {
+    setSelectedRolePermissionIds((current) =>
+      current.includes(permissionId)
+        ? current.filter((item) => item !== permissionId)
+        : current.concat(permissionId)
+    );
+  }, []);
+
+  const handleSaveRolePermissions = useCallback(async () => {
+    if (!selectedRoleId) {
+      return;
+    }
+
+    setIsSavingRolePermissions(true);
+    setNotice(null);
+    setError(null);
+
+    try {
+      const updatedRole = await updateAdminRolePermissions(selectedRoleId, selectedRolePermissionIds);
+      const [freshUsers, auditData] = await Promise.all([getAdminUsers(), getAdminPermissionAudit(50)]);
+      setRoles((current) => current.map((role) => (role.roleId === updatedRole.roleId ? updatedRole : role)));
+      setUsers(freshUsers);
+      setPermissionAuditEntries(auditData);
+      await refreshCurrentUser();
+      setNotice(`Permission-Bundle für ${updatedRole.roleName} wurde aktualisiert.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Rollen-Permissions konnten nicht gespeichert werden.";
+      setError(message);
+    } finally {
+      setIsSavingRolePermissions(false);
+    }
+  }, [refreshCurrentUser, selectedRoleId, selectedRolePermissionIds]);
+
+  const handleSaveUserOverrides = useCallback(async () => {
+    if (!selectedUser) {
+      return;
+    }
+
+    setIsSavingUserOverrides(true);
+    setNotice(null);
+    setError(null);
+
+    try {
+      const updatedUser = await updateAdminUserPermissionOverrides(selectedUser.userId, userOverrideDrafts);
+      const auditData = await getAdminPermissionAudit(50);
+      setUsers((current) => current.map((user) => (user.userId === updatedUser.userId ? updatedUser : user)));
+      setPermissionAuditEntries(auditData);
+      await refreshCurrentUser();
+      setNotice(`Lokale Permission-Overrides für ${updatedUser.displayName} wurden gespeichert.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Permission-Overrides konnten nicht gespeichert werden.";
+      setError(message);
+    } finally {
+      setIsSavingUserOverrides(false);
+    }
+  }, [refreshCurrentUser, selectedUser, userOverrideDrafts]);
 
   return (
     <main className="app-shell">
@@ -585,16 +722,22 @@ export default function AdminConfigPage() {
                 selectedGroup={selectedGroup}
                 selectedGroupRoleIds={selectedGroupRoleIds}
                 sortedRoles={sortedRoles}
+                permissions={permissions}
+                permissionAuditEntries={permissionAuditEntries}
+                selectedRoleId={selectedRoleId}
+                selectedRolePermissionIds={selectedRolePermissionIds}
+                userOverrideDrafts={userOverrideDrafts}
                 groups={groups}
                 directoryGroups={directoryGroups}
                 directoryIdentities={directoryIdentities}
                 directoryAuditEntries={directoryAuditEntries}
                 directoryStatus={directoryStatus}
+                graphApplicationConfiguration={graphApplicationConfiguration}
+                graphTenantIdDraft={graphTenantIdDraft}
+                graphClientIdDraft={graphClientIdDraft}
+                graphClientSecretDraft={graphClientSecretDraft}
                 notificationEmailConfiguration={notificationEmailConfiguration}
                 notificationEnabledDraft={notificationEnabledDraft}
-                notificationTenantIdDraft={notificationTenantIdDraft}
-                notificationClientIdDraft={notificationClientIdDraft}
-                notificationClientSecretDraft={notificationClientSecretDraft}
                 notificationSenderEmailDraft={notificationSenderEmailDraft}
                 notificationFrontendBaseUrlDraft={notificationFrontendBaseUrlDraft}
                 notificationTestRecipientDraft={notificationTestRecipientDraft}
@@ -602,17 +745,22 @@ export default function AdminConfigPage() {
                 notificationNotifyOnWorkflowCreatedDraft={notificationNotifyOnWorkflowCreatedDraft}
                 notificationNotifyOnTaskReadyDraft={notificationNotifyOnTaskReadyDraft}
                 notificationNotifyOnWorkflowCompletedDraft={notificationNotifyOnWorkflowCompletedDraft}
+                isSavingGraphApplicationConfiguration={isSavingGraphApplicationConfiguration}
                 isSavingNotificationEmailConfiguration={isSavingNotificationEmailConfiguration}
                 isSendingNotificationEmailTest={isSendingNotificationEmailTest}
+                hasGraphApplicationDraftChanges={hasGraphApplicationDraftChanges}
                 hasNotificationEmailDraftChanges={hasNotificationEmailDraftChanges}
                 workflowConfig={workflowConfig}
                 warnings={warnings}
                 isSavingUserRoles={isSavingUserRoles}
                 isSavingUserGroups={isSavingUserGroups}
                 isSavingGroupRoles={isSavingGroupRoles}
+                isSavingRolePermissions={isSavingRolePermissions}
+                isSavingUserOverrides={isSavingUserOverrides}
                 onOpenOrganization={handleOpenOrganization}
                 onSelectSection={handleSelectSection}
                 onSelectUser={selectUser}
+                onSelectRole={handleSelectRole}
                 onNewUserDisplayNameChange={setNewUserDisplayNameDraft}
                 onNewUserEmailChange={setNewUserEmailDraft}
                 onNewUserNotificationEmailChange={setNewUserNotificationEmailDraft}
@@ -646,15 +794,20 @@ export default function AdminConfigPage() {
                 onSaveUserRoles={saveUserRoles}
                 onSaveUserGroups={saveUserGroups}
                 onSaveGroupRoles={saveGroupRoles}
+                onToggleRolePermission={handleToggleRolePermission}
+                onSaveRolePermissions={handleSaveRolePermissions}
+                onUserOverrideDraftsChange={setUserOverrideDrafts}
+                onSaveUserOverrides={handleSaveUserOverrides}
                 onSyncDirectory={handleSyncDirectory}
                 onCreateDirectoryMapping={handleCreateDirectoryMapping}
                 onDeleteDirectoryMapping={handleDeleteDirectoryMapping}
                 onNotice={setNotice}
                 onError={setError}
+                onGraphTenantIdChange={setGraphTenantIdDraft}
+                onGraphClientIdChange={setGraphClientIdDraft}
+                onGraphClientSecretChange={setGraphClientSecretDraft}
+                onSaveGraphApplicationConfiguration={saveGraphApplicationConfiguration}
                 onNotificationEnabledChange={setNotificationEnabledDraft}
-                onNotificationTenantIdChange={setNotificationTenantIdDraft}
-                onNotificationClientIdChange={setNotificationClientIdDraft}
-                onNotificationClientSecretChange={setNotificationClientSecretDraft}
                 onNotificationSenderEmailChange={setNotificationSenderEmailDraft}
                 onNotificationFrontendBaseUrlChange={setNotificationFrontendBaseUrlDraft}
                 onNotificationTestRecipientChange={setNotificationTestRecipientDraft}

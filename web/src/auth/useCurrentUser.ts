@@ -10,6 +10,7 @@ type CurrentUserContextValue = {
   roles: string[];
   roleLabels: string[];
   groups: string[];
+  permissions: string[];
   capabilities: RoleCapabilities;
   defaultRoute: string;
   canAccessFeature: (feature: AppFeature) => boolean;

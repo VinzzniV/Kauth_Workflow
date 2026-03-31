@@ -6,19 +6,16 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . ./
-ARG VITE_API_BASE=/api
-ARG VITE_AUTH_MODE=demo
-ARG VITE_ENTRA_CLIENT_ID=
-ARG VITE_ENTRA_TENANT_ID=
-ARG VITE_ENTRA_REDIRECT_URI=
-ENV VITE_API_BASE=$VITE_API_BASE
-ENV VITE_AUTH_MODE=$VITE_AUTH_MODE
-ENV VITE_ENTRA_CLIENT_ID=$VITE_ENTRA_CLIENT_ID
-ENV VITE_ENTRA_TENANT_ID=$VITE_ENTRA_TENANT_ID
-ENV VITE_ENTRA_REDIRECT_URI=$VITE_ENTRA_REDIRECT_URI
 RUN npm run build
 
 FROM nginx:1.27-alpine AS final
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.d/40-write-app-config.sh /docker-entrypoint.d/40-write-app-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
+RUN chmod +x /docker-entrypoint.d/40-write-app-config.sh
+ENV API_BASE=/api
+ENV AUTH_MODE=demo
+ENV ENTRA_CLIENT_ID=
+ENV ENTRA_TENANT_ID=
+ENV ENTRA_REDIRECT_URI=
 EXPOSE 80

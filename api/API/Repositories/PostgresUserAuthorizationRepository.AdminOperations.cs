@@ -77,6 +77,7 @@ WHERE id = @departmentId;";
         string? notificationEmail,
         int? departmentId,
         bool isActive,
+        long? actorUserId = null,
         CancellationToken cancellationToken = default)
     {
         var normalizedExternalKey = Normalize(externalKey);
@@ -108,7 +109,9 @@ INSERT INTO app_users (
     display_name,
     email,
     notification_email,
-    is_active
+    is_active,
+    department_source,
+    department_override_active
 )
 VALUES (
     @externalKey,
@@ -116,7 +119,9 @@ VALUES (
     @displayName,
     @email,
     @notificationEmail,
-    @isActive
+    @isActive,
+    CASE WHEN @departmentId IS NULL THEN 'unassigned' ELSE 'local' END,
+    FALSE
 )
 RETURNING id;";
 
@@ -143,6 +148,16 @@ RETURNING id;";
         }
 
         await UpsertPersonRecord(connection, transaction, userId, departmentId, cancellationToken);
+        await LogPermissionAuditAsync(
+            connection,
+            transaction,
+            actorUserId,
+            "created",
+            "user",
+            $"User {normalizedDisplayName} created.",
+            null,
+            new { userId, normalizedDisplayName, normalizedEmail, departmentId, isActive },
+            cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
         var users = await LoadAdminUsers(connection, null, userId, cancellationToken);
@@ -187,6 +202,7 @@ WHERE id = @userId;";
         string? notificationEmail,
         int? departmentId,
         bool isActive,
+        long? actorUserId = null,
         CancellationToken cancellationToken = default)
     {
         if (userId <= 0)
@@ -208,6 +224,8 @@ WHERE id = @userId;";
             return null;
         }
 
+        var previousUser = (await LoadAdminUsers(connection, transaction, userId, cancellationToken)).FirstOrDefault();
+
         if (departmentId.HasValue && !await DepartmentExists(connection, transaction, departmentId.Value, cancellationToken))
         {
             throw new InvalidOperationException("Selected department is invalid.");
@@ -228,7 +246,20 @@ SET external_key = @externalKey,
     email = @email,
     notification_email = @notificationEmail,
     department_id = @departmentId,
-    is_active = @isActive
+    is_active = @isActive,
+    department_source = CASE
+        WHEN directory_synced = TRUE AND @departmentId IS NOT NULL THEN 'override'
+        WHEN directory_synced = TRUE AND @departmentId IS NULL THEN 'unassigned'
+        WHEN @departmentId IS NULL THEN 'unassigned'
+        ELSE 'local'
+    END,
+    department_override_active = CASE
+        WHEN directory_synced = TRUE AND (
+            department_id IS DISTINCT FROM @departmentId
+            OR department_override_active = TRUE
+        ) THEN @departmentId IS NOT NULL
+        ELSE FALSE
+    END
 WHERE id = @userId;";
 
         await using (var command = new NpgsqlCommand(sql, connection, transaction))
@@ -247,6 +278,17 @@ WHERE id = @userId;";
         }
 
         await UpsertPersonRecord(connection, transaction, userId, departmentId, cancellationToken);
+        var updatedUserBeforeCommit = (await LoadAdminUsers(connection, transaction, userId, cancellationToken)).FirstOrDefault();
+        await LogPermissionAuditAsync(
+            connection,
+            transaction,
+            actorUserId,
+            "updated",
+            "user",
+            $"User {userId} master data updated.",
+            previousUser,
+            updatedUserBeforeCommit,
+            cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
         var users = await LoadAdminUsers(connection, null, userId, cancellationToken);
@@ -706,6 +748,18 @@ SELECT EXISTS(
         const string sql = "SELECT EXISTS(SELECT 1 FROM departments WHERE id = @departmentId);";
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("departmentId", departmentId);
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+    }
+
+    private static async Task<bool> RoleExists(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        int roleId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = "SELECT EXISTS(SELECT 1 FROM app_roles WHERE id = @roleId AND role_kind = 'system');";
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("roleId", roleId);
         return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
     }
 

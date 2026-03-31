@@ -6,6 +6,7 @@
 # Frontend local environment
 /web/.env.*
 !/web/.env.example
+/.env.prod
 
 # Local assistant/editor config
 /.claude/settings.local.json

@@ -8,9 +8,9 @@
   color: #111827;
   background: #f9fafb;
 
-  --bg-body: #f9fafb;
+  --bg-body: #eef3f9;
   --bg-card: #ffffff;
-  --bg-card-muted: #f3f4f6;
+  --bg-card-muted: #f4f7fb;
   --bg-card-success: #f0fdf4;
   --bg-card-warning: #fffbeb;
   --bg-card-caution: #fff7ed;
@@ -24,8 +24,8 @@
   --text-info: #1e40af;
   --brand: #2563eb;
   --brand-hover: #1d4ed8;
-  --brand-soft: #eff6ff;
-  --brand-soft-strong: #e8f0ff;
+  --brand-soft: #edf4ff;
+  --brand-soft-strong: #dfeeff;
   --brand-ring: rgba(37, 99, 235, 0.22);
   --brand-border-soft: rgba(37, 99, 235, 0.18);
   --brand-border-strong: rgba(37, 99, 235, 0.28);
@@ -41,13 +41,32 @@
   --danger: #dc2626;
   --success: #059669;
   --warning: #d97706;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.08);
+  --shadow-sm: 0 10px 24px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 18px 36px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 28px 68px rgba(15, 23, 42, 0.12);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --sidebar-width: 260px;
+  --surface-content-plane: radial-gradient(circle at top right, rgba(209, 224, 245, 0.42), transparent 32%), linear-gradient(180deg, #f8fbff 0%, #edf2f8 100%);
+  --surface-panel: rgba(255, 255, 255, 0.84);
+  --surface-panel-border: rgba(148, 163, 184, 0.24);
+  --surface-panel-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+  --surface-card-border: rgba(148, 163, 184, 0.22);
+  --surface-card-shadow: 0 16px 34px rgba(15, 23, 42, 0.06);
+  --surface-focus-background: linear-gradient(180deg, rgba(230, 240, 255, 0.98), rgba(247, 250, 255, 0.98));
+  --surface-focus-border: rgba(96, 138, 214, 0.34);
+  --surface-focus-shadow: 0 18px 44px rgba(37, 99, 235, 0.12);
+  --surface-elevated: rgba(255, 255, 255, 0.94);
+  --surface-card-subtle: rgba(247, 250, 255, 0.82);
+  --surface-nav: linear-gradient(180deg, #122036 0%, #16253d 100%);
+  --surface-nav-border: rgba(148, 163, 184, 0.16);
+  --surface-nav-hover: rgba(148, 197, 255, 0.1);
+  --surface-nav-active: linear-gradient(135deg, rgba(49, 103, 196, 0.34), rgba(78, 165, 255, 0.14));
+  --surface-nav-footer: rgba(10, 18, 31, 0.22);
+  --surface-nav-text: #b7c7de;
+  --surface-nav-text-active: #f3f8ff;
+  --surface-nav-muted: #90a6c4;
   --surface-hover-subtle: rgba(15, 23, 42, 0.08);
   --surface-backdrop: rgba(15, 23, 42, 0.42);
   --surface-overlay: rgba(255, 255, 255, 0.96);
@@ -68,8 +87,8 @@
   --login-provider-text: #111827;
   --login-provider-hover-bg: #f8fafc;
   --login-provider-hover-border: rgba(15, 23, 42, 0.18);
-  --dashboard-priority-gradient: radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
-  --dashboard-priority-ring: 0 0 0 1px rgba(37, 99, 235, 0.14), var(--shadow-md);
+  --dashboard-priority-gradient: radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 38%), linear-gradient(180deg, rgba(227, 239, 255, 0.98), rgba(248, 251, 255, 0.98));
+  --dashboard-priority-ring: 0 0 0 1px rgba(37, 99, 235, 0.2), 0 18px 40px rgba(37, 99, 235, 0.12);
   --badge-success-bg: #d1fae5;
   --badge-success-text: #065f46;
   --badge-success-border: #a7f3d0;
@@ -103,6 +122,10 @@
   --theme-toggle-hover-bg: var(--bg-card-muted);
   --theme-toggle-hover-border: var(--border-strong);
   --theme-toggle-shadow: var(--shadow-sm);
+  --button-primary-shadow: 0 12px 28px rgba(37, 99, 235, 0.18);
+  --button-secondary-bg: rgba(255, 255, 255, 0.84);
+  --button-secondary-hover-bg: rgba(237, 244, 255, 0.88);
+  --button-secondary-border: rgba(148, 163, 184, 0.26);
   --graph-edge-done: #0f766e;
   --graph-edge-ready: #0ea5e9;
   --graph-edge-in-progress: #f59e0b;
@@ -147,9 +170,9 @@
 :root[data-theme="dark"] {
   color: #e5eef8;
   background: #0b1220;
-  --bg-body: #0b1220;
-  --bg-card: #101a2a;
-  --bg-card-muted: #162235;
+  --bg-body: #08111d;
+  --bg-card: #142033;
+  --bg-card-muted: #19283f;
   --bg-card-success: #102117;
   --bg-card-warning: #2b2311;
   --bg-card-caution: #302112;
@@ -163,8 +186,8 @@
   --text-info: #93c5fd;
   --brand: #60a5fa;
   --brand-hover: #93c5fd;
-  --brand-soft: #132742;
-  --brand-soft-strong: #183457;
+  --brand-soft: #14304f;
+  --brand-soft-strong: #1b3f66;
   --brand-ring: rgba(96, 165, 250, 0.24);
   --brand-border-soft: rgba(96, 165, 250, 0.22);
   --brand-border-strong: rgba(96, 165, 250, 0.36);
@@ -180,9 +203,28 @@
   --danger: #f87171;
   --success: #34d399;
   --warning: #fbbf24;
-  --shadow-sm: 0 4px 18px rgba(2, 6, 23, 0.22);
-  --shadow-md: 0 10px 32px rgba(2, 6, 23, 0.32);
-  --shadow-lg: 0 24px 60px rgba(2, 6, 23, 0.45);
+  --shadow-sm: 0 12px 28px rgba(2, 6, 23, 0.24);
+  --shadow-md: 0 18px 42px rgba(2, 6, 23, 0.36);
+  --shadow-lg: 0 30px 76px rgba(2, 6, 23, 0.48);
+  --surface-content-plane: radial-gradient(circle at top right, rgba(36, 74, 128, 0.24), transparent 30%), linear-gradient(180deg, #0b1423 0%, #09111e 100%);
+  --surface-panel: rgba(15, 24, 39, 0.82);
+  --surface-panel-border: rgba(71, 85, 105, 0.4);
+  --surface-panel-shadow: 0 22px 48px rgba(2, 6, 23, 0.32);
+  --surface-card-border: rgba(84, 102, 128, 0.34);
+  --surface-card-shadow: 0 18px 36px rgba(2, 6, 23, 0.22);
+  --surface-focus-background: linear-gradient(180deg, rgba(19, 50, 87, 0.94), rgba(15, 24, 39, 0.98));
+  --surface-focus-border: rgba(91, 170, 250, 0.34);
+  --surface-focus-shadow: 0 20px 46px rgba(27, 65, 130, 0.26);
+  --surface-elevated: rgba(18, 31, 49, 0.94);
+  --surface-card-subtle: rgba(20, 31, 49, 0.82);
+  --surface-nav: linear-gradient(180deg, #0d1626 0%, #101a2e 100%);
+  --surface-nav-border: rgba(71, 85, 105, 0.34);
+  --surface-nav-hover: rgba(96, 165, 250, 0.12);
+  --surface-nav-active: linear-gradient(135deg, rgba(42, 97, 170, 0.4), rgba(30, 64, 109, 0.48));
+  --surface-nav-footer: rgba(8, 13, 22, 0.38);
+  --surface-nav-text: #afc0d8;
+  --surface-nav-text-active: #f5f9ff;
+  --surface-nav-muted: #8ca1be;
   --surface-hover-subtle: rgba(148, 163, 184, 0.14);
   --surface-backdrop: rgba(2, 6, 23, 0.62);
   --surface-overlay: rgba(11, 18, 32, 0.92);
@@ -203,8 +245,8 @@
   --login-provider-text: #e5eef8;
   --login-provider-hover-bg: #18283d;
   --login-provider-hover-border: rgba(148, 163, 184, 0.3);
-  --dashboard-priority-gradient: radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 38%), linear-gradient(180deg, rgba(16, 26, 42, 0.98), rgba(11, 18, 32, 0.98));
-  --dashboard-priority-ring: 0 0 0 1px rgba(96, 165, 250, 0.2), var(--shadow-md);
+  --dashboard-priority-gradient: radial-gradient(circle at top right, rgba(74, 222, 222, 0.18), transparent 34%), linear-gradient(180deg, rgba(18, 43, 73, 0.98), rgba(11, 18, 32, 0.98));
+  --dashboard-priority-ring: 0 0 0 1px rgba(96, 165, 250, 0.24), 0 20px 44px rgba(8, 145, 178, 0.18);
   --badge-success-bg: #153525;
   --badge-success-text: #86efac;
   --badge-success-border: #256243;
@@ -238,6 +280,10 @@
   --theme-toggle-hover-bg: #18283d;
   --theme-toggle-hover-border: rgba(148, 163, 184, 0.3);
   --theme-toggle-shadow: 0 12px 24px rgba(2, 6, 23, 0.24);
+  --button-primary-shadow: 0 14px 30px rgba(59, 130, 246, 0.26);
+  --button-secondary-bg: rgba(20, 31, 49, 0.84);
+  --button-secondary-hover-bg: rgba(25, 43, 68, 0.92);
+  --button-secondary-border: rgba(84, 102, 128, 0.36);
   --graph-edge-done: #2dd4bf;
   --graph-edge-ready: #38bdf8;
   --graph-edge-in-progress: #fbbf24;
@@ -290,7 +336,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--text-primary);
-  background: var(--bg-body);
+  background: var(--surface-content-plane);
 }
 
 h1, h2, h3, h4, p {
@@ -341,12 +387,13 @@ h1, h2, h3, h4, p {
   left: 0;
   bottom: 0;
   width: var(--sidebar-width);
-  background: var(--bg-card);
-  border-right: 1px solid var(--border);
+  background: var(--surface-nav);
+  border-right: 1px solid var(--surface-nav-border);
   display: flex;
   flex-direction: column;
   z-index: 100;
   overflow-y: auto;
+  box-shadow: 14px 0 34px rgba(2, 6, 23, 0.14);
 }
 
 .sidebar-brand {
@@ -354,7 +401,7 @@ h1, h2, h3, h4, p {
   align-items: center;
   gap: 0.65rem;
   padding: 1.25rem 1.25rem 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--surface-nav-border);
 }
 
 .sidebar-logo {
@@ -368,7 +415,7 @@ h1, h2, h3, h4, p {
 .sidebar-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--surface-nav-text-active);
   line-height: 1.3;
 }
 
@@ -384,13 +431,13 @@ h1, h2, h3, h4, p {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-sm);
+  padding: 0.62rem 0.8rem;
+  border-radius: 10px;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 550;
+  color: var(--surface-nav-text);
   text-decoration: none;
-  transition: background-color 100ms ease, color 100ms ease;
+  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .sidebar-link-icon {
@@ -413,8 +460,9 @@ h1, h2, h3, h4, p {
 }
 
 .sidebar-link:hover {
-  background: var(--bg-card-muted);
-  color: var(--text-primary);
+  background: var(--surface-nav-hover);
+  color: var(--surface-nav-text-active);
+  transform: translateX(2px);
 }
 
 .sidebar-link:focus-visible {
@@ -423,13 +471,15 @@ h1, h2, h3, h4, p {
 }
 
 .sidebar-link.active {
-  background: var(--brand-soft);
-  color: var(--brand);
-  font-weight: 600;
+  background: var(--surface-nav-active);
+  color: var(--surface-nav-text-active);
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.18), 0 10px 24px rgba(2, 6, 23, 0.16);
 }
 
 .sidebar-footer {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--surface-nav-border);
+  background: var(--surface-nav-footer);
   padding: 0.75rem 1rem;
   display: flex;
   flex-direction: column;
@@ -438,9 +488,9 @@ h1, h2, h3, h4, p {
 
 .theme-toggle-btn {
   width: 100%;
-  padding: 0.5rem 0.7rem;
+  padding: 0.58rem 0.75rem;
   border: 1px solid var(--theme-toggle-border);
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   background: var(--theme-toggle-bg);
   color: var(--theme-toggle-text);
   font: inherit;
@@ -475,8 +525,8 @@ h1, h2, h3, h4, p {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--brand-soft);
-  color: var(--brand);
+  background: rgba(96, 165, 250, 0.18);
+  color: var(--surface-nav-text-active);
   font-weight: 700;
   font-size: 0.8rem;
   display: flex;
@@ -492,7 +542,7 @@ h1, h2, h3, h4, p {
 .sidebar-user-name {
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--surface-nav-text-active);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -500,7 +550,7 @@ h1, h2, h3, h4, p {
 
 .sidebar-user-role {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--surface-nav-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -509,10 +559,10 @@ h1, h2, h3, h4, p {
 .sidebar-logout-btn {
   width: 100%;
   padding: 0.4rem 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--surface-nav-border);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--surface-nav-text);
   font: inherit;
   font-size: 0.8rem;
   font-weight: 500;
@@ -521,8 +571,9 @@ h1, h2, h3, h4, p {
 }
 
 .sidebar-logout-btn:hover {
-  background: var(--bg-card-muted);
-  border-color: var(--border-strong);
+  background: var(--surface-nav-hover);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: var(--surface-nav-text-active);
 }
 
 /* ─── Main Content Area ─── */
@@ -530,12 +581,14 @@ h1, h2, h3, h4, p {
   flex: 1;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  background: var(--surface-content-plane);
+  position: relative;
 }
 
 /* ─── Page Shell (used by each page) ─── */
 .app-shell {
   min-height: 100vh;
-  padding: 2rem 2rem 3rem;
+  padding: 2.25rem 2rem 3.25rem;
 }
 
 .page-container {
@@ -578,7 +631,7 @@ h1, h2, h3, h4, p {
 /* ─── Page Header ─── */
 .page-header {
   padding: 0.15rem 0 0.75rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
   margin-bottom: 0.35rem;
 }
 

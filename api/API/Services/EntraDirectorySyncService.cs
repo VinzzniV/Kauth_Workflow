@@ -13,14 +13,17 @@ namespace API;
 /// </summary>
 internal sealed class EntraDirectorySyncService : IDirectorySyncService
 {
-    private readonly INotificationEmailConfigurationService _configService;
+    private readonly IGraphApplicationConfigurationService _graphApplicationConfigurationService;
+    private readonly LifecycleRuntimeSettings _runtimeSettings;
     private readonly ILogger<EntraDirectorySyncService> _logger;
 
     public EntraDirectorySyncService(
-        INotificationEmailConfigurationService configService,
+        IGraphApplicationConfigurationService graphApplicationConfigurationService,
+        LifecycleRuntimeSettings runtimeSettings,
         ILogger<EntraDirectorySyncService> logger)
     {
-        _configService = configService;
+        _graphApplicationConfigurationService = graphApplicationConfigurationService;
+        _runtimeSettings = runtimeSettings;
         _logger = logger;
     }
 
@@ -29,15 +32,16 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         CancellationToken cancellationToken = default)
     {
         var startedAt = DateTime.UtcNow;
-        var connectionString = GetConnectionStringOrNull();
-        var configuredGroupPrefix = Normalize(Environment.GetEnvironmentVariable("DIRECTORY_GROUP_PREFIX"));
+        var connectionString = _runtimeSettings.ConnectionString;
+        var configuredGroupPrefix = _runtimeSettings.DirectoryGroupPrefix;
+        var explicitGroupIds = ParseExplicitGroupIds(_runtimeSettings.DirectoryExplicitGroupIds);
         var effectiveGroupPrefix = ResolveEffectiveGroupPrefix(configuredGroupPrefix, groupPrefixOverride);
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return new DirectorySyncResult
             {
                 Status = "failed",
-                ErrorMessage = "CONNECTION_STRING not configured.",
+                ErrorMessage = "ConnectionStrings:Default not configured.",
                 AppliedGroupPrefix = effectiveGroupPrefix
             };
         }
@@ -52,7 +56,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                 {
                     Status = "failed",
                     ErrorMessage =
-                        "Graph credentials not configured. Set ENTRA_TENANT_ID, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET/GRAPH_CLIENT_SECRET via environment variables or maintain them in the System configuration.",
+                        "Graph credentials not configured. Set ENTRA_TENANT_ID, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET/GRAPH_CLIENT_SECRET via environment variables or maintain them in the Graph application configuration.",
                     AppliedGroupPrefix = effectiveGroupPrefix
                 };
             }
@@ -98,7 +102,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!MatchesGroupPrefix(group.DisplayName, effectiveGroupPrefix))
+                if (!ShouldSyncGroup(group.Id, group.DisplayName, effectiveGroupPrefix, explicitGroupIds))
                 {
                     continue;
                 }
@@ -120,7 +124,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                 {
                     var membersResponse = await graphClient.Groups[group.Id].Members.GetAsync(config =>
                     {
-                        config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled"];
+                        config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department"];
                         config.QueryParameters.Top = 999;
                     }, cancellationToken);
 
@@ -159,11 +163,14 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             }
 
             await AutoLinkIdentitiesToAppUsers(connection, cancellationToken);
+            await EnsureDirectoryDepartmentsExist(connection, cancellationToken);
+            await UpsertProjectedAppUsersFromDirectory(connection, cancellationToken);
+            await UpdateDirectoryUserActivationStates(connection, cancellationToken);
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
             status = "failed";
-            errorMessage = "Directory tables are missing. Apply migration db/35_directory_tables.sql first.";
+            errorMessage = "Directory tables are missing. Apply migrations db/35_directory_tables.sql and db/38_permission_model.sql first.";
         }
         catch (Exception ex)
         {
@@ -204,11 +211,9 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
     private async Task<(string TenantId, string ClientId, string ClientSecret)?> ResolveGraphCredentialsAsync(
         CancellationToken cancellationToken)
     {
-        var tenantId = Normalize(Environment.GetEnvironmentVariable("ENTRA_TENANT_ID"));
-        var clientId = Normalize(Environment.GetEnvironmentVariable("ENTRA_CLIENT_ID"));
-        var clientSecret =
-            Normalize(Environment.GetEnvironmentVariable("ENTRA_CLIENT_SECRET"))
-            ?? Normalize(Environment.GetEnvironmentVariable("GRAPH_CLIENT_SECRET"));
+        var tenantId = _runtimeSettings.EntraTenantId;
+        var clientId = _runtimeSettings.EntraClientId;
+        var clientSecret = _runtimeSettings.EntraClientSecret ?? _runtimeSettings.GraphClientSecret;
 
         if (!string.IsNullOrWhiteSpace(tenantId)
             && !string.IsNullOrWhiteSpace(clientId)
@@ -217,7 +222,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             return (tenantId, clientId, clientSecret);
         }
 
-        var configuration = await _configService.GetRuntimeConfiguration(cancellationToken);
+        var configuration = await _graphApplicationConfigurationService.GetRuntimeConfiguration(cancellationToken);
         if (string.IsNullOrWhiteSpace(configuration.TenantId)
             || string.IsNullOrWhiteSpace(configuration.ClientId)
             || string.IsNullOrWhiteSpace(configuration.ClientSecret))
@@ -230,7 +235,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 
     public async Task<DirectorySyncStatusDto> GetSyncStatusAsync(CancellationToken cancellationToken = default)
     {
-        var connectionString = GetConnectionStringOrNull();
+        var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return new DirectorySyncStatusDto();
@@ -283,7 +288,7 @@ SELECT
                     TotalIdentities = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
                     TotalMappings = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
                     LastError = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    ConfiguredGroupPrefix = Normalize(Environment.GetEnvironmentVariable("DIRECTORY_GROUP_PREFIX"))
+                    ConfiguredGroupPrefix = _runtimeSettings.DirectoryGroupPrefix
                 };
             }
         }
@@ -294,13 +299,13 @@ SELECT
 
         return new DirectorySyncStatusDto
         {
-            ConfiguredGroupPrefix = Normalize(Environment.GetEnvironmentVariable("DIRECTORY_GROUP_PREFIX"))
+            ConfiguredGroupPrefix = _runtimeSettings.DirectoryGroupPrefix
         };
     }
 
     public async Task<List<AdminDirectoryGroupDto>> GetGroupsAsync(CancellationToken cancellationToken = default)
     {
-        var connectionString = GetConnectionStringOrNull();
+        var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return [];
@@ -413,7 +418,7 @@ ORDER BY dgrm.directory_group_id, r.role_kind, r.name, dgrm.id;";
         int offset = 0,
         CancellationToken cancellationToken = default)
     {
-        var connectionString = GetConnectionStringOrNull();
+        var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return [];
@@ -491,7 +496,7 @@ LIMIT @limit OFFSET @offset;";
         int limit = 50,
         CancellationToken cancellationToken = default)
     {
-        var connectionString = GetConnectionStringOrNull();
+        var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return [];
@@ -554,10 +559,10 @@ LIMIT @limit;";
         long? actorUserId = null,
         CancellationToken cancellationToken = default)
     {
-        var connectionString = GetConnectionStringOrNull();
+        var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("CONNECTION_STRING is not configured.");
+            throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
         }
 
         var scope = NormalizeScope(request.Scope);
@@ -648,7 +653,7 @@ RETURNING id;";
         long? actorUserId = null,
         CancellationToken cancellationToken = default)
     {
-        var connectionString = GetConnectionStringOrNull();
+        var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return false;
@@ -847,12 +852,14 @@ RETURNING id;";
     {
         const string sql = @"
 INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, last_synced_at)
-VALUES (@entraObjectId, @userPrincipalName, @mail, @displayName, @accountEnabled, NOW())
+INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, last_synced_at)
+VALUES (@entraObjectId, @userPrincipalName, @mail, @displayName, @accountEnabled, @departmentName, NOW())
 ON CONFLICT (entra_object_id) DO UPDATE SET
     user_principal_name = EXCLUDED.user_principal_name,
     mail = EXCLUDED.mail,
     display_name = EXCLUDED.display_name,
     account_enabled = EXCLUDED.account_enabled,
+    department_name = EXCLUDED.department_name,
     last_synced_at = NOW()
 RETURNING id;";
 
@@ -862,6 +869,7 @@ RETURNING id;";
         cmd.Parameters.AddWithValue("mail", (object?)user.Mail ?? DBNull.Value);
         cmd.Parameters.AddWithValue("displayName", user.DisplayName ?? user.UserPrincipalName ?? entraObjectId.ToString());
         cmd.Parameters.AddWithValue("accountEnabled", user.AccountEnabled ?? true);
+        cmd.Parameters.AddWithValue("departmentName", (object?)Normalize(user.Department) ?? DBNull.Value);
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(cancellationToken));
     }
 
@@ -935,12 +943,6 @@ VALUES (@syncType, @status, @groupsSynced, @identitiesSynced, @membershipsSynced
         await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static string? GetConnectionStringOrNull()
-    {
-        var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-        return string.IsNullOrWhiteSpace(connectionString) ? null : connectionString;
-    }
-
     private static string NormalizeScope(string? value)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? "global" : value.Trim().ToLowerInvariant();
@@ -959,7 +961,7 @@ VALUES (@syncType, @status, @groupsSynced, @identitiesSynced, @membershipsSynced
             return false;
         }
 
-        return displayName.Contains(prefix, StringComparison.OrdinalIgnoreCase);
+        return displayName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ResolveEffectiveGroupPrefix(string? configuredPrefix, string? overridePrefix)
@@ -976,6 +978,217 @@ VALUES (@syncType, @status, @groupsSynced, @identitiesSynced, @membershipsSynced
     private static string? Normalize(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static HashSet<Guid> ParseExplicitGroupIds(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        return value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(item => Guid.TryParse(item, out var parsed) ? parsed : (Guid?)null)
+            .Where(item => item.HasValue)
+            .Select(item => item!.Value)
+            .ToHashSet();
+    }
+
+    private static bool ShouldSyncGroup(
+        string? groupId,
+        string? displayName,
+        string? prefix,
+        IReadOnlySet<Guid> explicitGroupIds)
+    {
+        if (!string.IsNullOrWhiteSpace(groupId)
+            && Guid.TryParse(groupId, out var parsedGroupId)
+            && explicitGroupIds.Contains(parsedGroupId))
+        {
+            return true;
+        }
+
+        if (explicitGroupIds.Count > 0 && string.IsNullOrWhiteSpace(prefix))
+        {
+            return false;
+        }
+
+        return MatchesGroupPrefix(displayName, prefix);
+    }
+
+    private static async Task EnsureDirectoryDepartmentsExist(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+INSERT INTO departments (name)
+SELECT DISTINCT BTRIM(di.department_name)
+FROM directory_identities di
+WHERE di.department_name IS NOT NULL
+  AND BTRIM(di.department_name) <> ''
+ON CONFLICT (name) DO NOTHING;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task UpsertProjectedAppUsersFromDirectory(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+WITH scoped_identities AS (
+    SELECT DISTINCT
+        di.id AS directory_identity_id,
+        di.entra_object_id,
+        di.user_principal_name,
+        di.mail,
+        di.display_name,
+        di.department_name,
+        di.account_enabled,
+        department.id AS department_id
+    FROM directory_identities di
+    JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
+    JOIN directory_groups dg ON dg.id = dgm.directory_group_id
+    LEFT JOIN departments department ON LOWER(department.name) = LOWER(di.department_name)
+),
+upserted_users AS (
+    INSERT INTO app_users (
+        external_key,
+        entra_object_id,
+        department_id,
+        display_name,
+        email,
+        notification_email,
+        is_active,
+        directory_synced,
+        last_directory_synced_at,
+        department_source,
+        department_override_active
+    )
+    SELECT
+        scoped.entra_object_id::text,
+        scoped.entra_object_id,
+        scoped.department_id,
+        scoped.display_name,
+        COALESCE(scoped.mail, scoped.user_principal_name, scoped.entra_object_id::text || '@directory.local'),
+        NULL,
+        scoped.account_enabled,
+        TRUE,
+        NOW(),
+        CASE
+            WHEN scoped.department_id IS NULL THEN 'unassigned'
+            ELSE 'directory'
+        END,
+        FALSE
+    FROM scoped_identities scoped
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM app_users existing
+        WHERE existing.entra_object_id = scoped.entra_object_id
+    )
+    RETURNING id, entra_object_id
+)
+UPDATE app_users u
+SET
+    external_key = di.entra_object_id::text,
+    entra_object_id = di.entra_object_id,
+    display_name = di.display_name,
+    email = COALESCE(di.mail, di.user_principal_name, u.email),
+    directory_synced = TRUE,
+    last_directory_synced_at = NOW(),
+    department_id = CASE
+        WHEN u.department_override_active = TRUE THEN u.department_id
+        ELSE department.id
+    END,
+    department_source = CASE
+        WHEN u.department_override_active = TRUE THEN 'override'
+        WHEN department.id IS NULL THEN 'unassigned'
+        ELSE 'directory'
+    END
+FROM directory_identities di
+LEFT JOIN departments department ON LOWER(department.name) = LOWER(di.department_name)
+WHERE u.entra_object_id = di.entra_object_id;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        const string linkSql = @"
+UPDATE directory_identities di
+SET app_user_id = u.id
+FROM app_users u
+WHERE u.entra_object_id = di.entra_object_id
+  AND di.app_user_id IS DISTINCT FROM u.id;";
+
+        await using var linkCommand = new NpgsqlCommand(linkSql, connection);
+        await linkCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        const string personSql = @"
+INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
+SELECT
+    u.id,
+    u.department_id,
+    di.id,
+    NOW()
+FROM app_users u
+JOIN directory_identities di ON di.app_user_id = u.id
+ON CONFLICT (app_user_id) DO UPDATE
+SET
+    department_id = EXCLUDED.department_id,
+    directory_identity_id = EXCLUDED.directory_identity_id,
+    updated_at = NOW();";
+
+        await using var personCommand = new NpgsqlCommand(personSql, connection);
+        await personCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task UpdateDirectoryUserActivationStates(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+WITH role_based_access AS (
+    SELECT DISTINCT di.app_user_id AS user_id
+    FROM directory_identities di
+    JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
+    JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
+    JOIN app_role_permissions rp ON rp.app_role_id = dgrm.app_role_id
+    JOIN app_permissions p ON p.id = rp.app_permission_id
+    WHERE di.app_user_id IS NOT NULL
+      AND di.account_enabled = TRUE
+      AND dgrm.is_active = TRUE
+      AND p.permission_key = 'app.access'
+      AND p.is_active = TRUE
+),
+override_allow AS (
+    SELECT DISTINCT upo.app_user_id AS user_id
+    FROM app_user_permission_overrides upo
+    JOIN app_permissions p ON p.id = upo.app_permission_id
+    WHERE p.permission_key = 'app.access'
+      AND upo.effect = 'allow'
+),
+override_deny AS (
+    SELECT DISTINCT upo.app_user_id AS user_id
+    FROM app_user_permission_overrides upo
+    JOIN app_permissions p ON p.id = upo.app_permission_id
+    WHERE p.permission_key = 'app.access'
+      AND upo.effect = 'deny'
+)
+UPDATE app_users u
+SET is_active = (
+    di.account_enabled = TRUE
+    AND (
+        u.id IN (SELECT user_id FROM role_based_access)
+        OR u.id IN (SELECT user_id FROM override_allow)
+    )
+    AND u.id NOT IN (SELECT user_id FROM override_deny)
+)
+FROM directory_identities di
+WHERE di.app_user_id = u.id
+  AND u.directory_synced = TRUE;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static string? SerializeJson<T>(T? value)

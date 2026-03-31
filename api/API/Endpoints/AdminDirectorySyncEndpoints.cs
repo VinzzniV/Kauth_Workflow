@@ -10,7 +10,7 @@ internal static class AdminDirectorySyncEndpoints
     public static IEndpointRouteBuilder MapAdminDirectorySyncEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/directory/status", async (
-            IDirectorySyncService directorySyncService,
+            [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -30,7 +30,7 @@ internal static class AdminDirectorySyncEndpoints
 
         app.MapPost("/admin/directory/sync", async (
             [FromBody] DirectorySyncRequest? request,
-            IDirectorySyncService directorySyncService,
+            [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -49,7 +49,7 @@ internal static class AdminDirectorySyncEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/directory/groups", async (
-            IDirectorySyncService directorySyncService,
+            [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -70,7 +70,7 @@ internal static class AdminDirectorySyncEndpoints
         app.MapGet("/admin/directory/identities", async (
             [FromQuery] int? limit,
             [FromQuery] int? offset,
-            IDirectorySyncService directorySyncService,
+            [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -90,7 +90,7 @@ internal static class AdminDirectorySyncEndpoints
 
         app.MapGet("/admin/directory/audit", async (
             [FromQuery] int? limit,
-            IDirectorySyncService directorySyncService,
+            [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -110,7 +110,7 @@ internal static class AdminDirectorySyncEndpoints
 
         app.MapPost("/admin/directory/group-mappings", async (
             [FromBody] AdminDirectoryGroupRoleMappingUpsertRequest request,
-            IDirectorySyncService directorySyncService,
+            [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -140,7 +140,7 @@ internal static class AdminDirectorySyncEndpoints
 
         app.MapDelete("/admin/directory/group-mappings/{mappingId:int}", async (
             int mappingId,
-            IDirectorySyncService directorySyncService,
+            [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {

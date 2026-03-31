@@ -34,6 +34,9 @@ SELECT
     u.display_name,
     u.email,
     u.is_active,
+    u.directory_synced,
+    u.department_source,
+    u.department_override_active,
     COALESCE(p.department_id, u.department_id),
     d.name
 FROM app_users u
@@ -57,6 +60,9 @@ LIMIT 1;";
         string displayName;
         string email;
         bool isActive;
+        bool directorySynced;
+        string departmentSource;
+        bool departmentOverrideActive;
         int? departmentId;
         string? departmentName;
 
@@ -82,8 +88,16 @@ LIMIT 1;";
             displayName = reader.GetString(2);
             email = reader.GetString(3);
             isActive = reader.GetBoolean(4);
-            departmentId = reader.IsDBNull(5) ? null : reader.GetInt32(5);
-            departmentName = reader.IsDBNull(6) ? null : reader.GetString(6);
+            directorySynced = reader.GetBoolean(5);
+            departmentSource = reader.GetString(6);
+            departmentOverrideActive = reader.GetBoolean(7);
+            departmentId = reader.IsDBNull(8) ? null : reader.GetInt32(8);
+            departmentName = reader.IsDBNull(9) ? null : reader.GetString(9);
+        }
+
+        if (string.Equals(identity.Provider, "entra", StringComparison.OrdinalIgnoreCase))
+        {
+            await EnsureAutoProvisionRoleAssignment(connection, userId, cancellationToken);
         }
 
         var directRoles = await LoadDirectRoles(connection, userId, cancellationToken);
@@ -91,6 +105,14 @@ LIMIT 1;";
         var groupRoles = await LoadGroupRoles(connection, userId, cancellationToken);
         var directoryGroupRoles = await LoadDirectoryGroupRoles(connection, userId, cancellationToken);
         var effectiveRoles = BuildEffectiveRoles(directRoles, groupRoles, directoryGroupRoles);
+        var rolePermissionDefinitions = await LoadRolePermissionDefinitions(
+            connection,
+            effectiveRoles.Select(role => role.RoleId).Distinct().ToArray(),
+            cancellationToken);
+        var userPermissionOverrides = await LoadUserPermissionOverrides(connection, userId, cancellationToken);
+        var rolePermissions = BuildRolePermissionGrants(effectiveRoles, rolePermissionDefinitions);
+        var effectivePermissions = BuildEffectivePermissions(rolePermissions, userPermissionOverrides);
+        var permissionScopes = BuildPermissionScopes(effectivePermissions);
         var directResponsibilities = await LoadDirectResponsibilities(connection, userId, cancellationToken);
         var groupResponsibilities = await LoadGroupResponsibilities(connection, userId, cancellationToken);
         var effectiveResponsibilities = BuildEffectiveResponsibilities(directResponsibilities, groupResponsibilities);
@@ -105,10 +127,16 @@ LIMIT 1;";
             DepartmentId = departmentId,
             DepartmentName = departmentName,
             IdentityProvider = identity.Provider,
+            DirectorySynced = directorySynced,
+            DepartmentSource = departmentSource,
+            DepartmentOverrideActive = departmentOverrideActive,
             Groups = groups,
             DirectRoles = directRoles,
             GroupRoles = groupRoles,
             EffectiveRoles = effectiveRoles,
+            EffectivePermissions = effectivePermissions,
+            PermissionScopes = permissionScopes,
+            PermissionOverrides = userPermissionOverrides,
             DirectResponsibilities = directResponsibilities,
             GroupResponsibilities = groupResponsibilities,
             EffectiveResponsibilities = effectiveResponsibilities
@@ -178,7 +206,14 @@ SET external_key = @externalKey,
     entra_object_id = COALESCE(@entraObjectId, entra_object_id),
     display_name = @displayName,
     email = @email,
-    is_active = TRUE
+    is_active = TRUE,
+    directory_synced = TRUE,
+    last_directory_synced_at = NOW(),
+    department_source = CASE
+        WHEN department_override_active THEN 'override'
+        WHEN department_id IS NULL THEN 'unassigned'
+        ELSE department_source
+    END
 WHERE id = @userId;";
 
             await using var updateCmd = new NpgsqlCommand(updateUserSql, connection);
@@ -193,8 +228,17 @@ WHERE id = @userId;";
         else
         {
             const string insertUserSql = @"
-INSERT INTO app_users (external_key, entra_object_id, display_name, email, is_active)
-VALUES (@externalKey, @entraObjectId, @displayName, @email, TRUE)
+INSERT INTO app_users (
+    external_key,
+    entra_object_id,
+    display_name,
+    email,
+    is_active,
+    directory_synced,
+    last_directory_synced_at,
+    department_source
+)
+VALUES (@externalKey, @entraObjectId, @displayName, @email, TRUE, TRUE, NOW(), 'unassigned')
 RETURNING id;";
 
             await using var insertCmd = new NpgsqlCommand(insertUserSql, connection);
@@ -219,6 +263,8 @@ ON CONFLICT (app_user_id) DO NOTHING;";
             peopleCmd.Parameters.AddWithValue("userId", userId!.Value);
             await peopleCmd.ExecuteNonQueryAsync(cancellationToken);
         }
+
+        await EnsureAutoProvisionRoleAssignment(connection, userId.Value, cancellationToken);
 
         // Now resolve the full user model with roles/groups/responsibilities.
         return await ResolveCurrentUser(
@@ -359,7 +405,10 @@ ORDER BY r.role_kind, r.name;";
                 RoleKind = reader.GetString(3),
                 AssignmentSource = "direct",
                 GroupId = null,
-                GroupKey = null
+                GroupKey = null,
+                Scope = "global",
+                ScopeDepartmentId = null,
+                ScopeDepartmentName = null
             });
         }
 
@@ -407,7 +456,7 @@ ORDER BY g.name;";
         long userId,
         CancellationToken cancellationToken)
     {
-        const string sql = @"
+        var sql = $@"
 SELECT
     g.id,
     g.group_key,
@@ -440,7 +489,10 @@ ORDER BY g.name, r.role_kind, r.name;";
                 RoleKey = reader.GetString(3),
                 RoleName = reader.GetString(4),
                 RoleKind = reader.GetString(5),
-                AssignmentSource = "group"
+                AssignmentSource = "group",
+                Scope = "global",
+                ScopeDepartmentId = null,
+                ScopeDepartmentName = null
             });
         }
 
@@ -459,17 +511,21 @@ SELECT
     r.id,
     r.role_key,
     r.name,
-    r.role_kind
+    r.role_kind,
+    dgrm.scope,
+    dgrm.scope_department_id,
+    scope_department.name
 FROM directory_identities di
 JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
 JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
 JOIN directory_groups dg ON dg.id = dgm.directory_group_id
 JOIN app_roles r ON r.id = dgrm.app_role_id
+LEFT JOIN departments scope_department ON scope_department.id = dgrm.scope_department_id
 WHERE di.app_user_id = @userId
   AND dgrm.is_active = TRUE
   AND r.is_active = TRUE
   AND r.role_kind = 'system'
-ORDER BY dg.display_name, r.name;";
+ORDER BY dg.display_name, r.name, dgrm.scope, scope_department.name;";
 
         // Guard: if directory tables don't exist yet (migration not applied), return empty.
         try
@@ -490,7 +546,10 @@ ORDER BY dg.display_name, r.name;";
                     RoleKey = reader.GetString(3),
                     RoleName = reader.GetString(4),
                     RoleKind = reader.GetString(5),
-                    AssignmentSource = "directory_group"
+                    AssignmentSource = "directory_group",
+                    Scope = reader.GetString(6),
+                    ScopeDepartmentId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                    ScopeDepartmentName = reader.IsDBNull(8) ? null : reader.GetString(8)
                 });
             }
 
@@ -508,19 +567,20 @@ ORDER BY dg.display_name, r.name;";
         IReadOnlyList<CurrentUserRole> groupRoles,
         IReadOnlyList<CurrentUserRole>? directoryGroupRoles = null)
     {
-        var effectiveByRoleId = new Dictionary<int, CurrentUserRole>();
+        var effectiveByRoleKey = new Dictionary<string, CurrentUserRole>(StringComparer.OrdinalIgnoreCase);
 
         // Priority: direct > app group > directory group.
         foreach (var role in directRoles)
         {
-            effectiveByRoleId[role.RoleId] = role;
+            effectiveByRoleKey[ToEffectiveRoleKey(role)] = role;
         }
 
         foreach (var role in groupRoles)
         {
-            if (!effectiveByRoleId.ContainsKey(role.RoleId))
+            var key = ToEffectiveRoleKey(role);
+            if (!effectiveByRoleKey.ContainsKey(key))
             {
-                effectiveByRoleId[role.RoleId] = role;
+                effectiveByRoleKey[key] = role;
             }
         }
 
@@ -528,19 +588,27 @@ ORDER BY dg.display_name, r.name;";
         {
             foreach (var role in directoryGroupRoles)
             {
-                if (!effectiveByRoleId.ContainsKey(role.RoleId))
+                var key = ToEffectiveRoleKey(role);
+                if (!effectiveByRoleKey.ContainsKey(key))
                 {
-                    effectiveByRoleId[role.RoleId] = role;
+                    effectiveByRoleKey[key] = role;
                 }
             }
         }
 
-        return effectiveByRoleId
+        return effectiveByRoleKey
             .Values
             .OrderBy(role => role.RoleKind, StringComparer.OrdinalIgnoreCase)
             .ThenBy(role => role.RoleName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(role => role.Scope, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(role => role.ScopeDepartmentName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(role => role.RoleKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static string ToEffectiveRoleKey(CurrentUserRole role)
+    {
+        return $"{role.RoleId}|{role.Scope.Trim().ToLowerInvariant()}|{role.ScopeDepartmentId?.ToString() ?? "global"}";
     }
 
     private static async Task<List<CurrentUserResponsibility>> LoadDirectResponsibilities(
@@ -665,13 +733,7 @@ ORDER BY g.name, r.responsibility_type, r.name;";
 
     private static string GetConnectionString()
     {
-        var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("CONNECTION_STRING is not configured.");
-        }
-
-        return connectionString;
+        return LifecycleRuntimeSettingsResolver.GetRequiredConnectionString();
     }
 
     private static string? Normalize(string? value)
@@ -698,5 +760,36 @@ ORDER BY g.name, r.responsibility_type, r.name;";
     private static int? NormalizeNullableDepartmentId(int? value)
     {
         return value is > 0 ? value : null;
+    }
+
+    private static async Task EnsureAutoProvisionRoleAssignment(
+        NpgsqlConnection connection,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        var roleKey = LifecycleRuntimeSettingsResolver.ResolveFromEnvironment().AutoProvisionDefaultRoleKey;
+        if (string.IsNullOrWhiteSpace(roleKey))
+        {
+            return;
+        }
+
+        const string sql = @"
+INSERT INTO app_user_roles (app_user_id, app_role_id)
+SELECT @userId, r.id
+FROM app_roles r
+WHERE r.role_key = @roleKey
+  AND r.is_active = TRUE
+  AND r.role_kind = 'system'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM app_user_roles ur
+      WHERE ur.app_user_id = @userId
+        AND ur.app_role_id = r.id
+  );";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("userId", userId);
+        command.Parameters.AddWithValue("roleKey", roleKey);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }
