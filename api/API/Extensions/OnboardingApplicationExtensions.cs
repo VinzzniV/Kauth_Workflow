@@ -173,8 +173,8 @@ internal static class LifecycleApplicationExtensions
     public static WebApplication ValidateLifecycleRouteRegistration(this WebApplication app)
     {
         var logger = app.Services.GetRequiredService<ILogger<Program>>();
-        var routeEndpoints = app.Services
-            .GetServices<EndpointDataSource>()
+        var routeBuilder = (IEndpointRouteBuilder)app;
+        var routeEndpoints = routeBuilder.DataSources
             .SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>()
             .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.RoutePattern.RawText))
