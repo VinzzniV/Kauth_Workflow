@@ -1,6 +1,7 @@
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
+using Microsoft.Graph.Models;
 using Npgsql;
 using NpgsqlTypes;
 using System.Text.Json;
@@ -89,14 +90,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         var status = "success";
         try
         {
-            var groupsResponse = await graphClient.Groups.GetAsync(config =>
-            {
-                config.QueryParameters.Select = ["id", "displayName", "description", "securityEnabled"];
-                config.QueryParameters.Filter = "securityEnabled eq true";
-                config.QueryParameters.Top = 999;
-            }, cancellationToken);
-
-            var groups = groupsResponse?.Value ?? [];
+            var groups = await LoadSecurityGroupsAsync(graphClient, cancellationToken);
 
             foreach (var group in groups)
             {
@@ -122,13 +116,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 
                 try
                 {
-                    var membersResponse = await graphClient.Groups[group.Id].Members.GetAsync(config =>
-                    {
-                        config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department"];
-                        config.QueryParameters.Top = 999;
-                    }, cancellationToken);
-
-                    var members = membersResponse?.Value ?? [];
+                    var members = await LoadGroupMembersAsync(graphClient, group.Id, cancellationToken);
 
                     await ClearGroupMemberships(connection, directoryGroupId, cancellationToken);
 
@@ -206,6 +194,64 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             ErrorMessage = errorMessage,
             AppliedGroupPrefix = effectiveGroupPrefix
         };
+    }
+
+    private static async Task<List<Group>> LoadSecurityGroupsAsync(
+        GraphServiceClient graphClient,
+        CancellationToken cancellationToken)
+    {
+        var groups = new List<Group>();
+
+        var response = await graphClient.Groups.GetAsync(config =>
+        {
+            config.QueryParameters.Select = ["id", "displayName", "description", "securityEnabled"];
+            config.QueryParameters.Filter = "securityEnabled eq true";
+            config.QueryParameters.Top = 999;
+        }, cancellationToken);
+
+        while (response is not null)
+        {
+            groups.AddRange(response.Value ?? []);
+
+            var nextLink = response.OdataNextLink;
+            if (string.IsNullOrWhiteSpace(nextLink))
+            {
+                break;
+            }
+
+            response = await graphClient.Groups.WithUrl(nextLink).GetAsync(cancellationToken: cancellationToken);
+        }
+
+        return groups;
+    }
+
+    private static async Task<List<DirectoryObject>> LoadGroupMembersAsync(
+        GraphServiceClient graphClient,
+        string groupId,
+        CancellationToken cancellationToken)
+    {
+        var members = new List<DirectoryObject>();
+
+        var response = await graphClient.Groups[groupId].Members.GetAsync(config =>
+        {
+            config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department"];
+            config.QueryParameters.Top = 999;
+        }, cancellationToken);
+
+        while (response is not null)
+        {
+            members.AddRange(response.Value ?? []);
+
+            var nextLink = response.OdataNextLink;
+            if (string.IsNullOrWhiteSpace(nextLink))
+            {
+                break;
+            }
+
+            response = await graphClient.Groups[groupId].Members.WithUrl(nextLink).GetAsync(cancellationToken: cancellationToken);
+        }
+
+        return members;
     }
 
     private async Task<(string TenantId, string ClientId, string ClientSecret)?> ResolveGraphCredentialsAsync(
