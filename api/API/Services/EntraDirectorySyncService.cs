@@ -897,7 +897,6 @@ RETURNING id;";
         CancellationToken cancellationToken)
     {
         const string sql = @"
-INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, last_synced_at)
 INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, last_synced_at)
 VALUES (@entraObjectId, @userPrincipalName, @mail, @displayName, @accountEnabled, @departmentName, NOW())
 ON CONFLICT (entra_object_id) DO UPDATE SET
