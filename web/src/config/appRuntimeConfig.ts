@@ -3,6 +3,7 @@ type AppRuntimeConfig = {
   authMode?: string;
   entraClientId?: string;
   entraTenantId?: string;
+  entraAudience?: string;
   entraRedirectUri?: string;
 };
 
@@ -43,6 +44,11 @@ export function getEntraClientId(): string {
 export function getEntraTenantId(): string {
   const windowConfig = readWindowConfig();
   return normalize(windowConfig.entraTenantId) ?? normalize(import.meta.env.VITE_ENTRA_TENANT_ID) ?? "";
+}
+
+export function getEntraAudience(): string {
+  const windowConfig = readWindowConfig();
+  return normalize(windowConfig.entraAudience) ?? normalize(import.meta.env.VITE_ENTRA_AUDIENCE) ?? "";
 }
 
 export function getEntraRedirectUri(): string {

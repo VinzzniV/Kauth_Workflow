@@ -55,8 +55,8 @@ async function acquireToken(forceRefresh = false): Promise<string | null> {
     return result.accessToken;
   } catch (error) {
     if (error instanceof InteractionRequiredAuthError) {
-      // Token expired and can't be silently refreshed — redirect to login.
-      await msalInstance.acquireTokenRedirect(loginRequest);
+      // Do not trigger a fresh redirect here. A 401 from the API can also mean
+      // "authenticated at Microsoft, but not authorized in this app".
       return null;
     }
     throw error;

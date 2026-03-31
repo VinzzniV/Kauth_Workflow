@@ -1,9 +1,26 @@
 import { type Configuration, LogLevel, type RedirectRequest } from "@azure/msal-browser";
-import { getEntraClientId, getEntraRedirectUri, getEntraTenantId } from "../config/appRuntimeConfig";
+import { getEntraAudience, getEntraClientId, getEntraRedirectUri, getEntraTenantId } from "../config/appRuntimeConfig";
 
 const clientId = getEntraClientId();
 const tenantId = getEntraTenantId();
+const audience = getEntraAudience();
 const redirectUri = getEntraRedirectUri();
+
+function resolveApiScope(): string | null {
+  const normalizedAudience = audience.trim();
+  if (normalizedAudience.length > 0) {
+    return `${normalizedAudience.replace(/\/+$/, "")}/access_as_user`;
+  }
+
+  const normalizedClientId = clientId.trim();
+  if (normalizedClientId.length > 0) {
+    return `api://${normalizedClientId}/access_as_user`;
+  }
+
+  return null;
+}
+
+const apiScope = resolveApiScope();
 
 export const msalConfig: Configuration = {
   auth: {
@@ -32,6 +49,6 @@ export const loginRequest: RedirectRequest = {
     "openid",
     "profile",
     "email",
-    ...(clientId ? [`api://${clientId}/access_as_user`] : []),
+    ...(apiScope ? [apiScope] : []),
   ],
 };

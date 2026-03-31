@@ -1,9 +1,12 @@
 import { useCallback, useState } from "react";
 import { identityProvider } from "../auth/IdentityProvider";
+import { useAuth } from "../auth/useAuth";
 
 export default function EntraLoginPage() {
+  const { loginError } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resolvedError = error ?? loginError;
 
   const handleLogin = useCallback(async () => {
     setLoading(true);
@@ -35,9 +38,9 @@ export default function EntraLoginPage() {
           </div>
 
           <div className="login-body">
-            {error && (
+            {resolvedError && (
               <div className="login-error">
-                <span>{error}</span>
+                <span>{resolvedError}</span>
               </div>
             )}
 

@@ -11,6 +11,7 @@ window.__APP_CONFIG__ = {
   authMode: "$(js_escape "${AUTH_MODE:-demo}")",
   entraClientId: "$(js_escape "${ENTRA_CLIENT_ID:-}")",
   entraTenantId: "$(js_escape "${ENTRA_TENANT_ID:-}")",
+  entraAudience: "$(js_escape "${ENTRA_AUDIENCE:-}")",
   entraRedirectUri: "$(js_escape "${ENTRA_REDIRECT_URI:-}")"
 };
 EOF

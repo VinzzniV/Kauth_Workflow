@@ -126,8 +126,11 @@ async function requestJsonInternal<T>(
         }
       }
 
-      identityProvider.setStoredToken(null);
-      window.dispatchEvent(new Event("auth-invalid"));
+      const tokenStillAvailable = await Promise.resolve(identityProvider.getStoredToken()).catch(() => null);
+      if (!tokenStillAvailable) {
+        identityProvider.setStoredToken(null);
+        window.dispatchEvent(new Event("auth-invalid"));
+      }
     }
 
     const err = new Error(toSafeErrorMessage(response.status, payload)) as ApiError;

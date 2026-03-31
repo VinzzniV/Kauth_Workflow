@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) {
       setCurrentUser(null);
       setStatus("unauthenticated");
+      setLoginError(null);
       return;
     }
 
@@ -57,10 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUser(me);
       setStatus("authenticated");
       setLoginError(null);
-    } catch {
-      identityProvider.setStoredToken(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Anmeldung fehlgeschlagen.";
       setCurrentUser(null);
       setStatus("unauthenticated");
+      setLoginError(
+        message === "Backend-Fehler (HTTP 401)."
+          ? "Ihr Microsoft-Konto ist angemeldet, aber in dieser Anwendung nicht freigeschaltet."
+          : message
+      );
     }
   }, []);
 

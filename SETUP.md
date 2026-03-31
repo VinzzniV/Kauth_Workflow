@@ -105,6 +105,7 @@ Wichtig:
 
 - `PUBLIC_BASE_URL` muss exakt zur oeffentlichen HTTPS-URL passen.
 - Dieselbe URL muss in Entra als SPA-Redirect-URI gepflegt sein.
+- `ENTRA_AUDIENCE` muss die API-App-ID-URI sein, aus der das Frontend den Scope `<audience>/access_as_user` anfordert.
 - Ohne `ENTRA_CLIENT_SECRET` bleibt Login funktionsfaehig, aber Directory-Sync / Graph-Zugriffe koennen Warnungen erzeugen.
 
 ### 2. Stack starten
@@ -187,4 +188,5 @@ Wichtige Frontend-Werte:
 - `authMode`
 - `entraClientId`
 - `entraTenantId`
+- `entraAudience`
 - `entraRedirectUri`

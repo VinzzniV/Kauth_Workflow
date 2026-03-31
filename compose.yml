@@ -50,6 +50,7 @@ services:
       AUTH_MODE: ${WEB_AUTH_MODE:-demo}
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-}
       ENTRA_REDIRECT_URI: ${PUBLIC_BASE_URL:-}
     depends_on:
       - api
