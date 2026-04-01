@@ -109,7 +109,7 @@ jobs:
       - name: Test API
         env:
           ONBOARDING_TEST_CONNECTION_STRING: Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw
-        run: dotnet test api/API.Tests/API.Tests.csproj -c Release --no-build
+        run: dotnet test api/API.Tests/API.Tests.csproj -c Release --no-restore
 
   frontend:
     name: Frontend Lint Test Build
