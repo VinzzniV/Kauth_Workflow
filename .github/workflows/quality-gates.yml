@@ -101,7 +101,7 @@ jobs:
         shell: pwsh
 
       - name: Restore
-        run: dotnet restore api/API/API.sln
+        run: dotnet restore api/API.Tests/API.Tests.csproj
 
       - name: Build API
         run: dotnet build api/API/API.csproj -c Release --no-restore
