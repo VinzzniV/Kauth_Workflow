@@ -24,9 +24,21 @@ type UseAdminRoleAnswerDefaultsOptions = {
   onError: (message: string | null) => void;
 };
 
+type OperationState = {
+  isLoadingProcessTypes: boolean;
+  isLoadingMatrix: boolean;
+  isSaving: boolean;
+};
+
 function getDraftKey(appRoleId: number, answerKey: string) {
   return `${appRoleId}::${answerKey}`;
 }
+
+const INITIAL_OPERATION_STATE: OperationState = {
+  isLoadingProcessTypes: true,
+  isLoadingMatrix: false,
+  isSaving: false,
+};
 
 export function useAdminRoleAnswerDefaults({
   onNotice,
@@ -38,9 +50,11 @@ export function useAdminRoleAnswerDefaults({
   const [definitions, setDefinitions] = useState<AdminAnswerDefinition[]>([]);
   const [defaults, setDefaults] = useState<AdminRoleAnswerDefault[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DefaultDraftValue>>({});
-  const [isLoadingProcessTypes, setIsLoadingProcessTypes] = useState(true);
-  const [isLoadingMatrix, setIsLoadingMatrix] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [operationState, setOperationState] = useState<OperationState>(INITIAL_OPERATION_STATE);
+
+  const updateOperationState = useCallback((patch: Partial<OperationState>) => {
+    setOperationState((current) => ({ ...current, ...patch }));
+  }, []);
 
   const sortedRoles = useMemo(
     () =>
@@ -65,7 +79,7 @@ export function useAdminRoleAnswerDefaults({
   );
 
   const loadMatrixData = useCallback(async (processTypeId: number) => {
-    setIsLoadingMatrix(true);
+    updateOperationState({ isLoadingMatrix: true });
 
     try {
       const [loadedRoles, loadedDefinitions, loadedDefaults] = await Promise.all([
@@ -95,12 +109,12 @@ export function useAdminRoleAnswerDefaults({
       setDrafts({});
       throw err;
     } finally {
-      setIsLoadingMatrix(false);
+      updateOperationState({ isLoadingMatrix: false });
     }
-  }, []);
+  }, [updateOperationState]);
 
   useEffect(() => {
-    setIsLoadingProcessTypes(true);
+    updateOperationState({ isLoadingProcessTypes: true });
     getAdminProcessTypes()
       .then((loadedProcessTypes) => {
         setProcessTypes(loadedProcessTypes);
@@ -110,8 +124,8 @@ export function useAdminRoleAnswerDefaults({
         setProcessTypes([]);
         setSelectedProcessTypeId(null);
       })
-      .finally(() => setIsLoadingProcessTypes(false));
-  }, []);
+      .finally(() => updateOperationState({ isLoadingProcessTypes: false }));
+  }, [updateOperationState]);
 
   useEffect(() => {
     if (!selectedProcessTypeId) {
@@ -189,7 +203,7 @@ export function useAdminRoleAnswerDefaults({
       return;
     }
 
-    setIsSaving(true);
+    updateOperationState({ isSaving: true });
     onNotice(null);
     onError(null);
 
@@ -228,18 +242,18 @@ export function useAdminRoleAnswerDefaults({
       const message = err instanceof Error ? err.message : "Role Answer Defaults konnten nicht gespeichert werden.";
       onError(message);
     } finally {
-      setIsSaving(false);
+      updateOperationState({ isSaving: false });
     }
-  }, [definitions, drafts, onError, onNotice, roles, selectedProcessTypeId]);
+  }, [definitions, drafts, onError, onNotice, roles, selectedProcessTypeId, updateOperationState]);
 
   return {
     processTypes,
     selectedProcessTypeId,
     sortedRoles,
     sortedDefinitions,
-    isLoadingProcessTypes,
-    isLoadingMatrix,
-    isSaving,
+    isLoadingProcessTypes: operationState.isLoadingProcessTypes,
+    isLoadingMatrix: operationState.isLoadingMatrix,
+    isSaving: operationState.isSaving,
     hasChanges,
     selectProcessType,
     getCellDraft,

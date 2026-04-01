@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../components/feedback/useToast";
 import { useUpdateSupervisorStep } from "../services/mutations/workflowMutations";
 import type { RequirementSelectionState, WorkflowDetail } from "../types/workflow";
@@ -27,8 +27,16 @@ export function useRequirementEditor({
   const [isSavingRequirements, setIsSavingRequirements] = useState<boolean>(false);
   const { showError, showSuccess } = useToast();
   const updateSupervisorStepMutation = useUpdateSupervisorStep(workflowUid);
+  const previousWorkflowUidRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const nextWorkflowUid = workflow?.uid ?? null;
+    if (previousWorkflowUidRef.current === nextWorkflowUid) {
+      return;
+    }
+
+    previousWorkflowUidRef.current = nextWorkflowUid;
+
     if (!workflow) {
       setRequirementSelections({});
       return;

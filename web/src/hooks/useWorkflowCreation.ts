@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  createWorkflow,
-  getWorkflowConfig,
-  searchCompletedOnboardings,
-} from "../services/workflowApi";
+import { createWorkflow } from "../services/workflowApi";
 import { useDepartments, useRoles } from "../services/queries/roleQueries";
 import { useProcessTypes } from "../services/queries/processTypeQueries";
+import {
+  useCompletedOnboardingsSearch,
+  useWorkflowConfig,
+} from "../services/queries/workflowQueries";
 import type {
   CompletedOnboardingSearchResult,
   Department,
@@ -97,15 +97,9 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     roleId: null,
     completedOnboardingSearch: "",
   });
-  const [selectedCompletedOnboarding, setSelectedCompletedOnboardingState] =
+  const [selectedCompletedOnboardingSnapshot, setSelectedCompletedOnboardingSnapshot] =
     useState<CompletedOnboardingSearchResult | null>(null);
-  const [completedOnboardings, setCompletedOnboardings] = useState<CompletedOnboardingSearchResult[]>([]);
-  const [completedOnboardingsLoading, setCompletedOnboardingsLoading] = useState(false);
-  const [completedOnboardingsError, setCompletedOnboardingsError] = useState<string | null>(null);
   const [debouncedCompletedOnboardingSearch, setDebouncedCompletedOnboardingSearch] = useState("");
-  const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig | null>(null);
-  const [workflowConfigLoading, setWorkflowConfigLoading] = useState(false);
-  const [workflowConfigError, setWorkflowConfigError] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccessMessage, setSubmitSuccessMessage] = useState<string | null>(null);
@@ -200,93 +194,53 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     return roles.filter((role) => role.departmentId === selectedDepartmentId);
   }, [roles, selectedDepartmentId]);
 
-  useEffect(() => {
-    if (!requiresTargetPerson) {
-      return;
+  const completedOnboardingsQuery = useCompletedOnboardingsSearch(
+    debouncedCompletedOnboardingSearch,
+    requiresTargetPerson
+  );
+  const completedOnboardings = useMemo(
+    () => completedOnboardingsQuery.data ?? [],
+    [completedOnboardingsQuery.data]
+  );
+  const completedOnboardingsLoading = requiresTargetPerson && completedOnboardingsQuery.isFetching;
+  const completedOnboardingsError =
+    requiresTargetPerson && completedOnboardingsQuery.error instanceof Error
+      ? completedOnboardingsQuery.error.message
+      : requiresTargetPerson && completedOnboardingsQuery.error
+        ? "Abgeschlossene Onboardings konnten nicht geladen werden."
+        : null;
+
+  const selectedCompletedOnboarding = useMemo(() => {
+    if (!selectedCompletedOnboardingSnapshot) {
+      return null;
     }
 
-    let cancelled = false;
-    const loadCompletedOnboardings = async () => {
-      setCompletedOnboardingsLoading(true);
-      setCompletedOnboardingsError(null);
-
-      try {
-        const results = await searchCompletedOnboardings(debouncedCompletedOnboardingSearch);
-        if (cancelled) {
-          return;
-        }
-
-        setCompletedOnboardings(results);
-        setSelectedCompletedOnboardingState((previous) => {
-          if (!previous) {
-            return previous;
-          }
-
-          const refreshed = results.find((result) => result.workflowUid === previous.workflowUid);
-          return refreshed ?? previous;
-        });
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-
-        setCompletedOnboardings([]);
-        setCompletedOnboardingsError(
-          err instanceof Error ? err.message : "Abgeschlossene Onboardings konnten nicht geladen werden."
-        );
-      } finally {
-        if (!cancelled) {
-          setCompletedOnboardingsLoading(false);
-        }
-      }
-    };
-
-    void loadCompletedOnboardings();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedCompletedOnboardingSearch, requiresTargetPerson]);
-
+    return (
+      completedOnboardings.find(
+        (result) => result.workflowUid === selectedCompletedOnboardingSnapshot.workflowUid
+      ) ?? selectedCompletedOnboardingSnapshot
+    );
+  }, [completedOnboardings, selectedCompletedOnboardingSnapshot]);
   const effectiveRoleIdForConfig = requiresTargetPerson
     ? selectedCompletedOnboarding?.roleId ?? null
     : selectedRoleId;
 
-  useEffect(() => {
-    if (!selectedProcessTypeKey) {
-      return;
-    }
-
-    let cancelled = false;
-    const loadWorkflowConfig = async () => {
-      setWorkflowConfigLoading(true);
-      setWorkflowConfigError(null);
-
-      try {
-        const config = await getWorkflowConfig(effectiveRoleIdForConfig, selectedProcessTypeKey);
-        if (!cancelled) {
-          setWorkflowConfig(config);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setWorkflowConfig(null);
-          setWorkflowConfigError(
-            err instanceof Error ? err.message : "Workflow-Konfiguration konnte nicht geladen werden."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setWorkflowConfigLoading(false);
-        }
-      }
-    };
-
-    void loadWorkflowConfig();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [effectiveRoleIdForConfig, selectedProcessTypeKey]);
+  const workflowConfigQuery = useWorkflowConfig(
+    effectiveRoleIdForConfig,
+    selectedProcessTypeKey,
+    Boolean(selectedProcessTypeKey)
+  );
+  const workflowConfig = useMemo<WorkflowConfig | null>(
+    () => (selectedProcessTypeKey ? workflowConfigQuery.data ?? null : null),
+    [selectedProcessTypeKey, workflowConfigQuery.data]
+  );
+  const workflowConfigLoading = Boolean(selectedProcessTypeKey) && workflowConfigQuery.isFetching;
+  const workflowConfigError =
+    selectedProcessTypeKey && workflowConfigQuery.error instanceof Error
+      ? workflowConfigQuery.error.message
+      : selectedProcessTypeKey && workflowConfigQuery.error
+        ? "Workflow-Konfiguration konnte nicht geladen werden."
+        : null;
 
   const setProcessType = (key: string) => {
     resetSubmissionState();
@@ -301,11 +255,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
         deadlineDate: previous.employee.deadlineDate,
       },
     }));
-    setSelectedCompletedOnboardingState(null);
-    setCompletedOnboardings([]);
-    setCompletedOnboardingsError(null);
-    setWorkflowConfig(null);
-    setWorkflowConfigError(null);
+    setSelectedCompletedOnboardingSnapshot(null);
   };
 
   const setEmployeeField = (field: keyof EmployeeFormData, value: string | number) => {
@@ -367,7 +317,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
 
   const setSelectedCompletedOnboarding = (onboarding: CompletedOnboardingSearchResult | null) => {
     resetSubmissionState();
-    setSelectedCompletedOnboardingState(onboarding);
+    setSelectedCompletedOnboardingSnapshot(onboarding);
     setFormState((previous) => ({
       ...previous,
       departmentId: onboarding?.departmentId ?? null,
@@ -536,9 +486,9 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     departments,
     rolesLoading,
     rolesError,
-    workflowConfig: selectedProcessTypeKey ? workflowConfig : null,
-    workflowConfigLoading: selectedProcessTypeKey ? workflowConfigLoading : false,
-    workflowConfigError: selectedProcessTypeKey ? workflowConfigError : null,
+    workflowConfig,
+    workflowConfigLoading,
+    workflowConfigError,
     submitState,
     submitError,
     submitSuccessMessage,

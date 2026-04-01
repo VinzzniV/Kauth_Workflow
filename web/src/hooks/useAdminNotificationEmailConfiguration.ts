@@ -11,73 +11,85 @@ type UseAdminNotificationEmailConfigurationOptions = {
   onError: (message: string | null) => void;
 };
 
+export type NotificationDraft = {
+  enabled: boolean;
+  senderEmail: string;
+  frontendBaseUrl: string;
+  testRecipientEmail: string;
+  sandboxRedirectEmail: string;
+  notifyOnWorkflowCreated: boolean;
+  notifyOnTaskReady: boolean;
+  notifyOnWorkflowCompleted: boolean;
+};
+
+const EMPTY_NOTIFICATION_DRAFT: NotificationDraft = {
+  enabled: false,
+  senderEmail: "",
+  frontendBaseUrl: "",
+  testRecipientEmail: "",
+  sandboxRedirectEmail: "",
+  notifyOnWorkflowCreated: true,
+  notifyOnTaskReady: true,
+  notifyOnWorkflowCompleted: true,
+};
+
+export function buildNotificationDraft(
+  source: AdminNotificationEmailConfiguration | null
+): NotificationDraft {
+  if (!source) {
+    return EMPTY_NOTIFICATION_DRAFT;
+  }
+
+  return {
+    enabled: source.enabled,
+    senderEmail: source.senderEmail ?? "",
+    frontendBaseUrl: source.frontendBaseUrl,
+    testRecipientEmail: source.testRecipientEmail ?? "",
+    sandboxRedirectEmail: source.sandboxRedirectEmail ?? "",
+    notifyOnWorkflowCreated: source.notifyOnWorkflowCreated,
+    notifyOnTaskReady: source.notifyOnTaskReady,
+    notifyOnWorkflowCompleted: source.notifyOnWorkflowCompleted,
+  };
+}
+
+export function hasNotificationDraftChanges(
+  draft: NotificationDraft,
+  source: AdminNotificationEmailConfiguration | null
+): boolean {
+  if (!source) {
+    return false;
+  }
+
+  return (
+    draft.enabled !== source.enabled
+    || toNullableText(draft.senderEmail) !== source.senderEmail
+    || draft.frontendBaseUrl.trim() !== source.frontendBaseUrl
+    || toNullableText(draft.testRecipientEmail) !== source.testRecipientEmail
+    || toNullableText(draft.sandboxRedirectEmail) !== source.sandboxRedirectEmail
+    || draft.notifyOnWorkflowCreated !== source.notifyOnWorkflowCreated
+    || draft.notifyOnTaskReady !== source.notifyOnTaskReady
+    || draft.notifyOnWorkflowCompleted !== source.notifyOnWorkflowCompleted
+  );
+}
+
 export function useAdminNotificationEmailConfiguration({
   onNotice,
   onError,
 }: UseAdminNotificationEmailConfigurationOptions) {
   const [notificationEmailConfiguration, setNotificationEmailConfiguration] =
     useState<AdminNotificationEmailConfiguration | null>(null);
-  const [notificationEnabledDraft, setNotificationEnabledDraft] = useState<boolean>(false);
-  const [notificationSenderEmailDraft, setNotificationSenderEmailDraft] = useState<string>("");
-  const [notificationFrontendBaseUrlDraft, setNotificationFrontendBaseUrlDraft] = useState<string>("");
-  const [notificationTestRecipientDraft, setNotificationTestRecipientDraft] = useState<string>("");
-  const [notificationSandboxRedirectDraft, setNotificationSandboxRedirectDraft] = useState<string>("");
-  const [notificationNotifyOnWorkflowCreatedDraft, setNotificationNotifyOnWorkflowCreatedDraft] = useState<boolean>(true);
-  const [notificationNotifyOnTaskReadyDraft, setNotificationNotifyOnTaskReadyDraft] = useState<boolean>(true);
-  const [notificationNotifyOnWorkflowCompletedDraft, setNotificationNotifyOnWorkflowCompletedDraft] = useState<boolean>(true);
+  const [draft, setDraft] = useState<NotificationDraft>(EMPTY_NOTIFICATION_DRAFT);
   const [isSavingNotificationEmailConfiguration, setIsSavingNotificationEmailConfiguration] =
     useState<boolean>(false);
   const [isSendingNotificationEmailTest, setIsSendingNotificationEmailTest] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!notificationEmailConfiguration) {
-      setNotificationEnabledDraft(false);
-      setNotificationSenderEmailDraft("");
-      setNotificationFrontendBaseUrlDraft("");
-      setNotificationTestRecipientDraft("");
-      setNotificationSandboxRedirectDraft("");
-      setNotificationNotifyOnWorkflowCreatedDraft(true);
-      setNotificationNotifyOnTaskReadyDraft(true);
-      setNotificationNotifyOnWorkflowCompletedDraft(true);
-      return;
-    }
-
-    setNotificationEnabledDraft(notificationEmailConfiguration.enabled);
-    setNotificationSenderEmailDraft(notificationEmailConfiguration.senderEmail ?? "");
-    setNotificationFrontendBaseUrlDraft(notificationEmailConfiguration.frontendBaseUrl);
-    setNotificationTestRecipientDraft(notificationEmailConfiguration.testRecipientEmail ?? "");
-    setNotificationSandboxRedirectDraft(notificationEmailConfiguration.sandboxRedirectEmail ?? "");
-    setNotificationNotifyOnWorkflowCreatedDraft(notificationEmailConfiguration.notifyOnWorkflowCreated);
-    setNotificationNotifyOnTaskReadyDraft(notificationEmailConfiguration.notifyOnTaskReady);
-    setNotificationNotifyOnWorkflowCompletedDraft(notificationEmailConfiguration.notifyOnWorkflowCompleted);
+    setDraft(buildNotificationDraft(notificationEmailConfiguration));
   }, [notificationEmailConfiguration]);
 
   const hasNotificationEmailDraftChanges = useMemo(() => {
-    if (!notificationEmailConfiguration) {
-      return false;
-    }
-
-    return (
-      notificationEnabledDraft !== notificationEmailConfiguration.enabled
-      || toNullableText(notificationSenderEmailDraft) !== notificationEmailConfiguration.senderEmail
-      || notificationFrontendBaseUrlDraft.trim() !== notificationEmailConfiguration.frontendBaseUrl
-      || toNullableText(notificationTestRecipientDraft) !== notificationEmailConfiguration.testRecipientEmail
-      || toNullableText(notificationSandboxRedirectDraft) !== notificationEmailConfiguration.sandboxRedirectEmail
-      || notificationNotifyOnWorkflowCreatedDraft !== notificationEmailConfiguration.notifyOnWorkflowCreated
-      || notificationNotifyOnTaskReadyDraft !== notificationEmailConfiguration.notifyOnTaskReady
-      || notificationNotifyOnWorkflowCompletedDraft !== notificationEmailConfiguration.notifyOnWorkflowCompleted
-    );
-  }, [
-    notificationEmailConfiguration,
-    notificationEnabledDraft,
-    notificationFrontendBaseUrlDraft,
-    notificationNotifyOnTaskReadyDraft,
-    notificationNotifyOnWorkflowCompletedDraft,
-    notificationNotifyOnWorkflowCreatedDraft,
-    notificationSandboxRedirectDraft,
-    notificationSenderEmailDraft,
-    notificationTestRecipientDraft,
-  ]);
+    return hasNotificationDraftChanges(draft, notificationEmailConfiguration);
+  }, [draft, notificationEmailConfiguration]);
 
   const saveNotificationEmailConfiguration = useCallback(async () => {
     setIsSavingNotificationEmailConfiguration(true);
@@ -86,14 +98,14 @@ export function useAdminNotificationEmailConfiguration({
 
     try {
       const updatedConfiguration = await updateAdminNotificationEmailConfiguration({
-        enabled: notificationEnabledDraft,
-        senderEmail: toNullableText(notificationSenderEmailDraft),
-        frontendBaseUrl: notificationFrontendBaseUrlDraft.trim(),
-        testRecipientEmail: toNullableText(notificationTestRecipientDraft),
-        sandboxRedirectEmail: toNullableText(notificationSandboxRedirectDraft),
-        notifyOnWorkflowCreated: notificationNotifyOnWorkflowCreatedDraft,
-        notifyOnTaskReady: notificationNotifyOnTaskReadyDraft,
-        notifyOnWorkflowCompleted: notificationNotifyOnWorkflowCompletedDraft,
+        enabled: draft.enabled,
+        senderEmail: toNullableText(draft.senderEmail),
+        frontendBaseUrl: draft.frontendBaseUrl.trim(),
+        testRecipientEmail: toNullableText(draft.testRecipientEmail),
+        sandboxRedirectEmail: toNullableText(draft.sandboxRedirectEmail),
+        notifyOnWorkflowCreated: draft.notifyOnWorkflowCreated,
+        notifyOnTaskReady: draft.notifyOnTaskReady,
+        notifyOnWorkflowCompleted: draft.notifyOnWorkflowCompleted,
       });
       setNotificationEmailConfiguration(updatedConfiguration);
       onNotice("Mail-Konfiguration wurde gespeichert.");
@@ -104,14 +116,7 @@ export function useAdminNotificationEmailConfiguration({
       setIsSavingNotificationEmailConfiguration(false);
     }
   }, [
-    notificationEnabledDraft,
-    notificationFrontendBaseUrlDraft,
-    notificationNotifyOnTaskReadyDraft,
-    notificationNotifyOnWorkflowCompletedDraft,
-    notificationNotifyOnWorkflowCreatedDraft,
-    notificationSandboxRedirectDraft,
-    notificationSenderEmailDraft,
-    notificationTestRecipientDraft,
+    draft,
     onError,
     onNotice,
   ]);
@@ -122,7 +127,7 @@ export function useAdminNotificationEmailConfiguration({
     onError(null);
 
     try {
-      const response = await sendAdminNotificationEmailTest(toNullableText(notificationTestRecipientDraft));
+      const response = await sendAdminNotificationEmailTest(toNullableText(draft.testRecipientEmail));
       setNotificationEmailConfiguration(response.configuration);
       onNotice(response.result.message);
     } catch (err) {
@@ -131,30 +136,34 @@ export function useAdminNotificationEmailConfiguration({
     } finally {
       setIsSendingNotificationEmailTest(false);
     }
-  }, [notificationTestRecipientDraft, onError, onNotice]);
+  }, [draft.testRecipientEmail, onError, onNotice]);
+
+  const updateDraft = useCallback(<K extends keyof NotificationDraft>(key: K, value: NotificationDraft[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }, []);
 
   return {
     notificationEmailConfiguration,
     setNotificationEmailConfiguration,
-    notificationEnabledDraft,
-    notificationSenderEmailDraft,
-    notificationFrontendBaseUrlDraft,
-    notificationTestRecipientDraft,
-    notificationSandboxRedirectDraft,
-    notificationNotifyOnWorkflowCreatedDraft,
-    notificationNotifyOnTaskReadyDraft,
-    notificationNotifyOnWorkflowCompletedDraft,
+    notificationEnabledDraft: draft.enabled,
+    notificationSenderEmailDraft: draft.senderEmail,
+    notificationFrontendBaseUrlDraft: draft.frontendBaseUrl,
+    notificationTestRecipientDraft: draft.testRecipientEmail,
+    notificationSandboxRedirectDraft: draft.sandboxRedirectEmail,
+    notificationNotifyOnWorkflowCreatedDraft: draft.notifyOnWorkflowCreated,
+    notificationNotifyOnTaskReadyDraft: draft.notifyOnTaskReady,
+    notificationNotifyOnWorkflowCompletedDraft: draft.notifyOnWorkflowCompleted,
     isSavingNotificationEmailConfiguration,
     isSendingNotificationEmailTest,
     hasNotificationEmailDraftChanges,
-    setNotificationEnabledDraft,
-    setNotificationSenderEmailDraft,
-    setNotificationFrontendBaseUrlDraft,
-    setNotificationTestRecipientDraft,
-    setNotificationSandboxRedirectDraft,
-    setNotificationNotifyOnWorkflowCreatedDraft,
-    setNotificationNotifyOnTaskReadyDraft,
-    setNotificationNotifyOnWorkflowCompletedDraft,
+    setNotificationEnabledDraft: (value: boolean) => updateDraft("enabled", value),
+    setNotificationSenderEmailDraft: (value: string) => updateDraft("senderEmail", value),
+    setNotificationFrontendBaseUrlDraft: (value: string) => updateDraft("frontendBaseUrl", value),
+    setNotificationTestRecipientDraft: (value: string) => updateDraft("testRecipientEmail", value),
+    setNotificationSandboxRedirectDraft: (value: string) => updateDraft("sandboxRedirectEmail", value),
+    setNotificationNotifyOnWorkflowCreatedDraft: (value: boolean) => updateDraft("notifyOnWorkflowCreated", value),
+    setNotificationNotifyOnTaskReadyDraft: (value: boolean) => updateDraft("notifyOnTaskReady", value),
+    setNotificationNotifyOnWorkflowCompletedDraft: (value: boolean) => updateDraft("notifyOnWorkflowCompleted", value),
     saveNotificationEmailConfiguration,
     sendNotificationEmailTest,
   };

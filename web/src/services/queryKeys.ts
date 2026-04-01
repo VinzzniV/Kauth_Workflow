@@ -11,7 +11,11 @@ export const queryKeys = {
     list: (options: WorkflowQueryOptions, page: number, pageSize: number) =>
       ["workflows", "list", options, page, pageSize] as const,
     detail: (uid: string) => ["workflows", uid] as const,
+    config: (roleId: number | null, processTypeKey: string | null) =>
+      ["workflows", "config", roleId ?? null, processTypeKey ?? null] as const,
+    completedOnboardings: (search: string) => ["workflows", "completed-onboardings", search] as const,
     tasks: (uid: string) => ["workflows", uid, "tasks"] as const,
+    related: (uid: string) => ["workflows", uid, "related"] as const,
     auditLog: (uid: string, limit: number, offset: number) =>
       ["workflows", uid, "audit", limit, offset] as const,
     supervisorStep: (uid: string) => ["workflows", uid, "supervisor-step"] as const,

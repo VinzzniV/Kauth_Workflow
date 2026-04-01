@@ -2,7 +2,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   getWorkflowAuditLog,
   getWorkflowByUid,
+  getWorkflowConfig,
   getWorkflowPage,
+  getRelatedWorkflows,
+  searchCompletedOnboardings,
   getWorkflowTasks,
   type WorkflowQueryOptions,
 } from "../workflowApi";
@@ -34,6 +37,29 @@ export function useWorkflowDetail(uid: string) {
   });
 }
 
+export function useWorkflowConfig(
+  roleId: number | null,
+  processTypeKey: string | null,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: queryKeys.workflows.config(roleId, processTypeKey),
+    queryFn: () => getWorkflowConfig(roleId, processTypeKey),
+    enabled: enabled && Boolean(processTypeKey),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCompletedOnboardingsSearch(search: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.workflows.completedOnboardings(search),
+    queryFn: () => searchCompletedOnboardings(search),
+    enabled,
+    staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useWorkflowTasks(uid: string) {
   return useQuery({
     queryKey: queryKeys.workflows.tasks(uid),
@@ -49,6 +75,15 @@ export function useWorkflowAuditLog(uid: string, limit: number, offset: number, 
     queryFn: () => getWorkflowAuditLog(uid, limit, offset),
     enabled: Boolean(uid) && enabled,
     staleTime: 60 * 1000,
+  });
+}
+
+export function useRelatedWorkflows(uid: string) {
+  return useQuery({
+    queryKey: queryKeys.workflows.related(uid),
+    queryFn: () => getRelatedWorkflows(uid),
+    enabled: Boolean(uid),
+    staleTime: 30 * 1000,
   });
 }
 

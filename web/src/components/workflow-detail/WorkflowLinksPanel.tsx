@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getRelatedWorkflows } from "../../services/workflowApi";
-import type { RelatedWorkflowSummary } from "../../types/workflow";
+import { useRelatedWorkflows } from "../../services/queries/workflowQueries";
 import { formatDateTime } from "../../utils/dateFormat";
 import {
   getWorkflowRuntimeStatusLabel,
@@ -13,29 +11,10 @@ interface WorkflowLinksPanelProps {
 }
 
 export default function WorkflowLinksPanel({ uid }: WorkflowLinksPanelProps) {
-  const [relatedWorkflows, setRelatedWorkflows] = useState<RelatedWorkflowSummary[] | null>(null);
+  const relatedWorkflowsQuery = useRelatedWorkflows(uid);
+  const relatedWorkflows = relatedWorkflowsQuery.data ?? null;
 
-  useEffect(() => {
-    let isActive = true;
-
-    void getRelatedWorkflows(uid)
-      .then((workflows) => {
-        if (isActive) {
-          setRelatedWorkflows(workflows);
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setRelatedWorkflows([]);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [uid]);
-
-  if (!relatedWorkflows || relatedWorkflows.length === 0) {
+  if (relatedWorkflowsQuery.isLoading || relatedWorkflowsQuery.isError || !relatedWorkflows || relatedWorkflows.length === 0) {
     return null;
   }
 

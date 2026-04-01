@@ -27,6 +27,13 @@ type UseAdminAnswerDefinitionManagementOptions = {
   onError: (message: string | null) => void;
 };
 
+type OperationState = {
+  isLoadingProcessTypes: boolean;
+  isLoadingDefinitions: boolean;
+  isSaving: boolean;
+  isDeleting: boolean;
+};
+
 const EMPTY_DRAFT: AnswerDefinitionDraft = {
   answerKey: "",
   title: "",
@@ -37,6 +44,13 @@ const EMPTY_DRAFT: AnswerDefinitionDraft = {
   isRequired: false,
   sortOrder: "0",
   isActive: true,
+};
+
+const INITIAL_OPERATION_STATE: OperationState = {
+  isLoadingProcessTypes: true,
+  isLoadingDefinitions: false,
+  isSaving: false,
+  isDeleting: false,
 };
 
 function toDraft(definition: AdminAnswerDefinition): AnswerDefinitionDraft {
@@ -64,10 +78,11 @@ export function useAdminAnswerDefinitionManagement({
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | null>(null);
   const [draft, setDraft] = useState<AnswerDefinitionDraft>(EMPTY_DRAFT);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
-  const [isLoadingProcessTypes, setIsLoadingProcessTypes] = useState(true);
-  const [isLoadingDefinitions, setIsLoadingDefinitions] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [operationState, setOperationState] = useState<OperationState>(INITIAL_OPERATION_STATE);
+
+  const updateOperationState = useCallback((patch: Partial<OperationState>) => {
+    setOperationState((current) => ({ ...current, ...patch }));
+  }, []);
 
   const selectedDefinition = useMemo(
     () => definitions.find((definition) => definition.id === selectedDefinitionId) ?? null,
@@ -75,7 +90,7 @@ export function useAdminAnswerDefinitionManagement({
   );
 
   const loadDefinitions = useCallback(async (processTypeId: number, definitionIdToSelect?: number | null) => {
-    setIsLoadingDefinitions(true);
+    updateOperationState({ isLoadingDefinitions: true });
 
     try {
       const loadedDefinitions = await getAdminAnswerDefinitions(processTypeId);
@@ -100,12 +115,12 @@ export function useAdminAnswerDefinitionManagement({
       setDraft(EMPTY_DRAFT);
       throw err;
     } finally {
-      setIsLoadingDefinitions(false);
+      updateOperationState({ isLoadingDefinitions: false });
     }
-  }, []);
+  }, [updateOperationState]);
 
   useEffect(() => {
-    setIsLoadingProcessTypes(true);
+    updateOperationState({ isLoadingProcessTypes: true });
     getAdminProcessTypes()
       .then((loadedProcessTypes) => {
         setProcessTypes(loadedProcessTypes);
@@ -115,8 +130,8 @@ export function useAdminAnswerDefinitionManagement({
         setProcessTypes([]);
         setSelectedProcessTypeId(null);
       })
-      .finally(() => setIsLoadingProcessTypes(false));
-  }, []);
+      .finally(() => updateOperationState({ isLoadingProcessTypes: false }));
+  }, [updateOperationState]);
 
   useEffect(() => {
     if (!selectedProcessTypeId) {
@@ -209,7 +224,7 @@ export function useAdminAnswerDefinitionManagement({
       return;
     }
 
-    setIsSaving(true);
+    updateOperationState({ isSaving: true });
     onNotice(null);
     onError(null);
 
@@ -224,9 +239,9 @@ export function useAdminAnswerDefinitionManagement({
       const message = err instanceof Error ? err.message : "Answer Definition konnte nicht angelegt werden.";
       onError(message);
     } finally {
-      setIsSaving(false);
+      updateOperationState({ isSaving: false });
     }
-  }, [buildPayload, onError, onNotice, sortDefinitions]);
+  }, [buildPayload, onError, onNotice, sortDefinitions, updateOperationState]);
 
   const saveDefinition = useCallback(async () => {
     if (!selectedDefinitionId) {
@@ -242,7 +257,7 @@ export function useAdminAnswerDefinitionManagement({
       return;
     }
 
-    setIsSaving(true);
+    updateOperationState({ isSaving: true });
     onNotice(null);
     onError(null);
 
@@ -257,9 +272,9 @@ export function useAdminAnswerDefinitionManagement({
       const message = err instanceof Error ? err.message : "Answer Definition konnte nicht gespeichert werden.";
       onError(message);
     } finally {
-      setIsSaving(false);
+      updateOperationState({ isSaving: false });
     }
-  }, [buildPayload, onError, onNotice, selectedDefinitionId, sortDefinitions]);
+  }, [buildPayload, onError, onNotice, selectedDefinitionId, sortDefinitions, updateOperationState]);
 
   const removeDefinition = useCallback(async () => {
     if (!selectedDefinition) {
@@ -276,7 +291,7 @@ export function useAdminAnswerDefinitionManagement({
       return;
     }
 
-    setIsDeleting(true);
+    updateOperationState({ isDeleting: true });
     onNotice(null);
     onError(null);
 
@@ -291,9 +306,9 @@ export function useAdminAnswerDefinitionManagement({
       const message = err instanceof Error ? err.message : "Answer Definition konnte nicht gelöscht werden.";
       onError(message);
     } finally {
-      setIsDeleting(false);
+      updateOperationState({ isDeleting: false });
     }
-  }, [confirm, onError, onNotice, selectedDefinition]);
+  }, [confirm, onError, onNotice, selectedDefinition, updateOperationState]);
 
   return {
     processTypes,
@@ -302,10 +317,10 @@ export function useAdminAnswerDefinitionManagement({
     selectedDefinition,
     draft,
     isCreatingNew,
-    isLoadingProcessTypes,
-    isLoadingDefinitions,
-    isSaving,
-    isDeleting,
+    isLoadingProcessTypes: operationState.isLoadingProcessTypes,
+    isLoadingDefinitions: operationState.isLoadingDefinitions,
+    isSaving: operationState.isSaving,
+    isDeleting: operationState.isDeleting,
     selectProcessType,
     selectDefinition,
     startCreatingDefinition,

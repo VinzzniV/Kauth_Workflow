@@ -7,30 +7,20 @@ Dieses Dokument ist für KI-gestützte Umsetzung gedacht. Es zerlegt die wichtig
 
 Diese Einordnung basiert auf dem aktuellen Repo-Stand.
 
-Bereits aus der offenen TODO entfernt:
+Bereits erledigt:
 - Produktions-Deployment von Dev entkoppeln
 - Seed-/Demo-Daten in Production technisch ausschließen
-- `P0.3 Secrets aus unsicherer Persistenz entfernen`
-  Erledigt: Graph-/Mail-Secrets kommen nun aus Runtime-Konfiguration; die Graph-Admin-Ansicht ist read-only.
-- `P0.4 Frontend Lint auf grün`
-  Erledigt: `npm run lint` läuft wieder fehlerfrei; die kritischen Hook-/State-Synchronisationen und Fast-Refresh-Verträge wurden bereinigt.
-
-Noch offen oder nur teilweise umgesetzt:
-- `P0.5 Frontend Tests auf grün`
-  Erledigt: `npm test` läuft aktuell im Frontend mit 17/17 Testdateien und 48/48 Tests grün.
-- `P0.6 Swagger in Production absichern oder deaktivieren`
-  Erledigt: Swagger ist ausserhalb von Production aktiv, in Production standardmaessig deaktiviert und per Startup-Validierung gegen versehentliches Aktivieren abgesichert.
-- `P0.7 Minimale CI/CD-Quality-Gates`
-  Erledigt: Eine minimale GitHub-Actions-Pipeline validiert jetzt Backend Build/Tests sowie Frontend Lint/Tests/Build.
+- P0.3 bis P0.7
+- P1.1 bis P1.4
 
 ## Wichtig für die KIs
 - Das Projekt ist **fachlich schon stark**, aber **noch nicht produktionsreif**.
 - Größte Risiken liegen aktuell in:
-  1. Frontend Quality Gates (Tests/Lint)
-  2. fehlendem Release-/CI-Schutz
-  3. offenem Swagger in Production
-  4. noch nicht sauber getrennten Betriebs- und Health-Signalen
-  5. noch nicht vollständig gehärteten CORS-/Auth-/Redirect-Regeln
+  1. noch zu fragiler Frontend-State-Architektur
+  2. clientseitig rekonstruierter Manager-/Supervisor-Logik
+  3. zu großen Frontend-Dateien und Hooks
+  4. fehlendem route-basiertem Code-Splitting
+  5. weiterer Betriebs- und Observability-Härtung
 - Änderungen sollen **nicht blind umsetzen**, sondern immer auf Auswirkungen auf Dev, Demo und Production prüfen.
 - Bevor größere Umbauten passieren, soll die KI vorhandene Dateien, Doku und Compose-/Env-Struktur vollständig lesen.
 - Keine Pseudo-Fixes. Wenn Architekturproblem erkannt wird, lieber sauber umstellen statt nur Symptome patchen.
@@ -68,399 +58,27 @@ Noch offen oder nur teilweise umgesetzt:
 3. **P2 – Architektur- und UX-Härtung**
 4. **P3 – Performance und langfristige Wartbarkeit**
 
----
-
-# P0 – Muss vor Go-Live erledigt werden
-
----
-
-## TASK P0.3 – Erledigt: Secrets aus unsicherer Persistenz entfernen
-**Ziel:** Keine produktionsrelevanten Secrets mehr als Klartext in der Datenbank.
-
-**Warum:** Das dokumentierte `client_secret` in Klartext ist für Produktion nicht akzeptabel.
-
-**Prüfen / betroffene Bereiche:**
-- Notification-/Mail-Konfiguration
-- DB-Modelle / Tabellen
-- API-Konfigurationslogik
-- Admin-UI für Mail/Notifications
-- Dokumentation zu Entra / Mail
-
-**Erwartetes Ergebnis:**
-- Secret-Handling über sichere Runtime-Konfiguration oder Secret Store
-- UI darf Secret nicht im Klartext zurückgeben
-- Rotation/Änderung bleibt möglich
-
-**Aktueller Stand:**
-- erledigt: Graph-/Mail-Secrets werden nur noch aus Runtime-Konfiguration gelesen
-- erledigt: `graph_application_settings` und alte Secret-Spalten in `notification_email_settings` werden nicht mehr produktiv verwendet
-- erledigt: Die Admin-UI zeigt nur noch Secret-Status und Rotationshinweise, keine editierbaren Graph-Secrets
-
-**Konkrete Aufgaben:**
-1. Analysiere, wo Secrets gespeichert, gelesen und angezeigt werden.
-2. Entwerfe ein Zielmodell: Secret aus Environment / Secret Store / sicherer Runtime-Konfiguration, nur Metadaten in DB.
-3. Refactore Backend und Admin-UI entsprechend.
-4. Stelle sicher, dass bestehende Konfigurationen migrierbar sind.
-5. Verhindere, dass Secret-Werte in Logs, API-Responses oder Admin-Reads auftauchen.
-
-**Definition of Done:**
-- kein Klartext-Secret mehr in DB als produktiver Standard
-- Admin-UI zeigt Secret nicht auslesbar an
-- App kann Secret sicher aus Runtime lesen
-- Doku beschreibt das neue Modell sauber
-
-**Empfohlene KI:** Claude für Zielmodell, Codex für Implementierung
-**Reasoning:** very high
-
----
-
-## TASK P0.4 – Frontend Lint komplett auf grün bringen
-**Ziel:** Keine ESLint-Errors mehr im Frontend.
-
-**Warum:** Rotes Lint kurz vor Produktion ist ein Disziplinproblem und verdeckt echte Fehler.
-
-**Prüfen / betroffene Bereiche:**
-- gesamtes `web/`
-- besonders Hooks, Pages, Admin-/Workflow-Komponenten
-
-**Erwartetes Ergebnis:**
-- Lint vollständig grün
-- nicht durch Regel-Deaktivierung erschummelt
-
-**Aktueller Stand:**
-- erledigt: `npm run lint` läuft aktuell fehlerfrei
-- erledigt: Die Hauptfehlerbilder `react-hooks/set-state-in-effect`, `react-refresh/only-export-components` und ungenutzte Variablen wurden ohne globale Regel-Abschaltung bereinigt
-
-**Konkrete Aufgaben:**
-1. Führe ESLint aus und gruppiere die Fehlerarten.
-2. Behebe zuerst echte Architekturwarnzeichen wie `set-state-in-effect`.
-3. Behebe danach ungenutzte Variablen, fehlerhafte Imports und sonstige Verstöße.
-4. Vermeide globale Abschaltungen, außer wenn fachlich wirklich begründet und eng lokalisiert.
-
-**Definition of Done:**
-- `npm run lint` oder entsprechender Lint-Command läuft fehlerfrei
-- keine pauschalen Regel-Deaktivierungen als Schnellschuss
-
-**Empfohlene KI:** Codex
-**Reasoning:** medium
-
----
-
-## TASK P0.5 – Frontend Tests wieder stabil auf grün bringen
-**Ziel:** Testlandschaft muss wieder zur Implementierung passen.
-
-**Warum:** Aktuell gibt es Refactoring-Drift zwischen Tests und echtem Code.
-
-**Prüfen / betroffene Bereiche:**
-- `workflowDetailModel.test.ts`
-- `dashboardInsights.test.ts`
-- `TaskCommentsSection.test.tsx`
-- zugehörige Implementierungen und API-Importpfade
-
-**Erwartetes Ergebnis:**
-- Tests prüfen reales Verhalten
-- keine kaputten Mocks durch falsche Modulgrenzen
-- keine veralteten Vertragserwartungen
-
-**Aktueller Stand:**
-- erledigt: `npm test` laeuft aktuell gruen
-- erledigt: Test-Renderpfade rund um `rawPermissionKeys`, API-/Mock-Grenzen und veraltete UI-Vertragserwartungen wurden an die aktuelle Implementierung angepasst
-
-**Konkrete Aufgaben:**
-1. Analysiere alle aktuell fehlschlagenden Tests und ordne sie in Kategorien ein:
-   - veralteter Test
-   - kaputte Implementierung
-   - falsches Mocking
-   - unstabile UI-Verträge
-2. Repariere die Export-/Import-Verträge zwischen Test und Implementierung.
-3. Richte Mocking an den echten Modulgrenzen aus, nicht an Wunsch-Barrels.
-4. Stabilisiere Accessibility-/Status-Verträge dort, wo UI-Feedback erwartet wird.
-5. Lass danach alle Frontend-Tests erneut laufen.
-
-**Definition of Done:**
-- Frontend-Tests laufen grün
-- Tests greifen an echten Importgrenzen
-- keine Refactoring-Reste wie erwartete, aber nicht mehr existente Exporte
-
-**Empfohlene KI:** Codex
-**Reasoning:** high
-
----
-
-## TASK P0.6 – Swagger in Production absichern oder deaktivieren
-**Ziel:** Swagger darf in Production nicht unkontrolliert offen sein.
-
-**Warum:** Offene API-Dokumentation in Production erhöht Angriffsfläche und passt nicht zu einem harten Release-Standard.
-
-**Prüfen / betroffene Bereiche:**
-- API Startup / Middleware
-- Environment-Abfragen
-- ggf. internes Admin-/Ops-Konzept
-
-**Erwartetes Ergebnis:**
-- Swagger nur in Dev/Test oder sauber abgesichert
-
-**Aktueller Stand:**
-- erledigt: Swagger wird nur noch aktiviert, wenn `SWAGGER_ENABLED` fuer die jeweilige Runtime erlaubt ist
-- erledigt: In Production ist Swagger deaktiviert; `SWAGGER_ENABLED=true` fuehrt dort zu einem bewussten Startup-Abbruch
-
-**Konkrete Aufgaben:**
-1. Prüfe, wo Swagger aktiviert wird.
-2. Implementiere klares Environment-Gating.
-3. Falls Swagger in Production gewünscht ist, nur abgesichert und bewusst.
-4. Dokumentiere die Entscheidung.
-
-**Definition of Done:**
-- Swagger ist in Production entweder deaktiviert oder sauber geschützt
-
-**Empfohlene KI:** Codex
-**Reasoning:** low
-
----
-
-## TASK P0.7 – Minimale CI/CD-Quality-Gates einführen
-**Ziel:** Jeder Release-Kandidat muss reproduzierbar validiert werden.
-
-**Warum:** Ohne Pipeline fallen kaputte Tests/Lint/Builds erst spät auf.
-
-**Prüfen / betroffene Bereiche:**
-- Repository Root
-- vorhandene Build-/Test-Skripte
-- Backend-Test-Commands
-- Frontend-Test-/Lint-/Build-Commands
-
-**Erwartetes Ergebnis:**
-- automatischer Pipeline-Check für API und Web
-- Build, Test, Lint als Pflichtprüfungen
-
-**Aktueller Stand:**
-- erledigt: `.github/workflows/quality-gates.yml` fuehrt Backend Build/Tests und Frontend Lint/Tests/Build aus
-- erledigt: Die Backend-Pipeline initialisiert eine PostgreSQL-Dev-Datenbank reproduzierbar vor dem Testlauf
-- erledigt: Die bislang roten Backend-Admin-Config-Integrations-Tests laufen nach Fix der typisierten Nullable-Parameter wieder gruen
-
-**Konkrete Aufgaben:**
-1. Analysiere vorhandene Skripte und notwendigen Commands.
-2. Erstelle eine erste CI-Pipeline für:
-   - Backend Build
-   - Backend Tests
-   - Frontend Build
-   - Frontend Lint
-   - Frontend Tests
-3. Stelle sicher, dass Fehler sauber und früh sichtbar sind.
-4. Dokumentiere lokale Vorab-Prüfungen für Entwickler.
-
-**Definition of Done:**
-- reproduzierbare Pipeline vorhanden
-- Projekt kann vor Merge/Release automatisch validiert werden
-
-**Empfohlene KI:** Codex
-**Reasoning:** medium
-
----
-
-# P1 – Kurz nach P0, aber noch vor echtem Rollout dringend empfohlen
-
-## TASK P1.1 – Health-Checks sauber in Liveness / Readiness / Deep Health trennen
-**Ziel:** Monitoring soll echte Betriebszustände abbilden, ohne falsche Ausfälle durch externe Abhängigkeiten.
-
-**Warum:** Aktuell scheint `/health` zu stark an externe Microsoft-Erreichbarkeit gekoppelt.
-
-**Aktueller Stand:**
-- erledigt: `/health/live` bleibt der einfache Liveness-Check
-- erledigt: `/health/ready` prueft nur noch die Datenbank und liefert bei fehlender lokaler Betriebsbereitschaft `503`
-- erledigt: `/health` ist jetzt ein Deep-Health-Endpoint mit Status-JSON fuer DB plus Entra-Reichweite, aber ohne `503`-Probe-Semantik
-- erledigt: `compose.prod.yml`, Setup-Doku und Route-Validierung wurden auf das Drei-Probe-Modell nachgezogen
-
-**Konkrete Aufgaben:**
-1. Analysiere aktuellen Health-Endpoint.
-2. Trenne in sinnvolle Probes:
-   - Liveness: Prozess lebt
-   - Readiness: App + lokale Abhängigkeiten bereit
-   - Deep Health: externe Provider wie Entra/Graph erreichbar
-3. Passe Monitoring-/Doku-Hinweise an.
-
-**Definition of Done:**
-- externe Störung macht nicht automatisch Liveness/Readiness rot
-- klare Probe-Trennung vorhanden
-
-**Empfohlene KI:** Claude für Design, Codex für Implementierung
-**Reasoning:** high
-
----
-
-### Design (Claude) – Implementierung durch Codex
-
-#### Ist-Problem
-
-In `api/API/Extensions/OnboardingApplicationExtensions.cs` (Zeile 83–166):
-
-`/health` kombiniert einen DB-Check (`NpgsqlConnection + SELECT 1`) mit einem externen HTTP-Call gegen `login.microsoftonline.com/.well-known/openid-configuration`. Wenn Microsoft temporär unerreichbar ist, gibt der Endpoint HTTP 503 zurück. Wird dieser Endpoint als Container-Probe oder Load-Balancer-Healthcheck verwendet, löst das unnötige Neustarts oder Deregistrierungen aus, obwohl die App selbst funktionstüchtig ist.
-
-#### Zielmodell – 3 Probes
-
-**1. `/health/live` – unverändert lassen**
-- Zweck: Prozess lebt und kann HTTP beantworten
-- Prüft: nichts außer dem Handler selbst
-- HTTP-Status: immer 200
-- Response: `{"status": "ok"}`
-- Verwendung: Docker/K8s Liveness-Probe
-
-**2. `/health/ready` – neu anlegen**
-- Zweck: App ist bereit, produktive Requests zu bedienen
-- Prüft: ausschließlich DB-Verbindung (`NpgsqlConnection + SELECT 1`)
-- Prüft NICHT: externe Dienste (Entra, Graph, Mail)
-- HTTP-Status: 200 wenn DB erreichbar, 503 wenn nicht
-- Response-Schema:
-  ```json
-  {
-    "status": "ok" | "degraded",
-    "database": "ok" | "unreachable" | "not_configured"
-  }
-  ```
-- Verwendung: Docker/K8s Readiness-Probe; dies ersetzt `/health` als Probe-Endpunkt
-
-**3. `/health` – umbauen zu reinem Deep-Health (Ops-Only)**
-- Zweck: Vollständiger Betriebszustand für Ops-Monitoring und manuelle Diagnose
-- Prüft: DB-Status + Auth-Konfiguration + Entra-OIDC-Erreichbarkeit (wenn `AUTH_MODE=entra`)
-- HTTP-Status: Kann weiterhin 200/503 zurückgeben – aber dieser Endpoint wird **nicht** als Container-Probe konfiguriert
-- Response-Schema: bisheriges Schema bleibt erhalten (kompatibel)
-- Verwendung: manuelles Ops-Monitoring, Dashboards, Alerting – nicht als Probe-Endpoint
-
-#### Änderungen im Code
-
-**Datei: `api/API/Extensions/OnboardingApplicationExtensions.cs`**
-
-1. Bestehenden `/health/live`-Handler: **keine Änderung**
-
-2. Neuen `/health/ready`-Handler hinzufügen (vor `/health`):
-   - `runtimeSettings` per DI holen (wie in `/health` bereits gemacht)
-   - DB-Check identisch zu aktuellem `/health`: `NpgsqlConnection` + `SELECT 1`
-   - Rückgabe: `{"status": "ok"|"degraded", "database": "ok"|"unreachable"|"not_configured"}`
-   - HTTP 200 wenn `database == "ok"`, HTTP 503 sonst
-   - `.WithTags("Operations")` anhängen
-
-3. Bestehenden `/health`-Handler: **DB-Block herauslösen** (liegt jetzt in `/health/ready`), Auth/Entra-Check bleibt. DB-Status als zusätzliches Info-Feld im Response behalten (DB-Check kann für Vollständigkeit optional drin bleiben, aber der Status steuert **nicht** mehr den HTTP-Code alleine). Alternativ: `/health` ruft intern dasselbe DB-Check-Ergebnis ab und zeigt es als zusätzliches Feld an.
-   - Empfehlung: DB-Check in `/health` drin lassen, aber **HTTP-Status 200 immer zurückgeben** (nur der JSON-Body zeigt `status: "degraded"` wenn etwas down ist). So wird `/health` nicht versehentlich als Probe missbraucht.
-
-4. `.WithTags("Operations")` an allen drei Endpunkten sicherstellen.
-
-**Datei: `api/API/Extensions/OnboardingApplicationExtensions.cs` – `ValidateLifecycleRouteRegistration`**
-
-`requiredRoutes`-Array um `/health/ready` erweitern:
-```csharp
-var requiredRoutes = new[]
-{
-    "/health",
-    "/health/live",
-    "/health/ready",
-    "/me",
-    "/auth/current-user"
-};
-```
-
-**Datei: `api/API/Extensions/OnboardingServiceCollectionExtensions.cs`**
-
-Der `"health"`-Named-HttpClient (Zeile 119–122, Timeout 3s) bleibt – er wird weiterhin im `/health`-Deep-Health-Handler benötigt.
-
-#### Compose / Monitoring
-
-Falls in `compose.yml`, `compose.prod.yml` oder Caddy ein Healthcheck auf `/health` konfiguriert ist:
-- Liveness-Probe → `/health/live`
-- Readiness-Probe → `/health/ready`
-- `/health` nur für Ops-Diagnose verwenden, nicht als automatischen Probe-Endpunkt
-
-#### Nicht ändern
-
-- Response-Schema von `/health` bleibt rückwärtskompatibel (kein Breaking Change für bestehende Monitoring-Clients)
-- Keine neuen Abhängigkeiten oder Packages notwendig
-- Kein eigenes Health-Check-Framework (wie `Microsoft.Extensions.Diagnostics.HealthChecks`) – die drei Minimal-API-Handler sind ausreichend und konsistent mit dem bestehenden Code-Stil
-
----
-
-## TASK P1.2 – CORS-, Auth- und Redirect-Konfiguration pro Umgebung härten
-**Ziel:** Umgebungsabhängige Security-Konfigurationen müssen explizit und nachvollziehbar sein.
-
-**Warum:** Dev-lastige Defaults kurz vor Produktion sind riskant.
-
-**Aktueller Stand:**
-- erledigt: Production-Startup lehnt jetzt nicht-HTTPS-`PUBLIC_BASE_URL`- und CORS-Origin-Konfigurationen ab
-- erledigt: Der deployte Web-Container akzeptiert nur noch gueltige Auth-Modi (`dev-sim`, `entra`) statt alter Demo-Defaults
-- erledigt: `app-config.js` verlangt bei `authMode=entra` jetzt explizite Entra-Werte inklusive `ENTRA_REDIRECT_URI`; nur lokale Vite-Entwicklung darf den Redirect noch aus dem aktuellen Origin ableiten
-- erledigt: Compose-, Beispiel- und Setup-Doku spiegeln das explizite Auth-/Redirect-Modell jetzt knapp und konsistent
-
-**Konkrete Aufgaben:**
-1. Prüfe CORS-Regeln, Redirect-URIs, Auth-Modes, Demo-Flags und Frontend-Build-Args.
-2. Entferne implizite Dev-Annahmen.
-3. Stelle sicher, dass Production nur freigegebene Origins und produktive Redirects akzeptiert.
-4. Dokumentiere das Konfigurationsmodell kompakt.
-
-**Definition of Done:**
-- CORS und Redirects sind pro Umgebung explizit definiert
-- Production übernimmt keine lockeren Dev-Defaults
-
-**Empfohlene KI:** Codex
-**Reasoning:** high
-
----
-
-## TASK P1.3 – Handoff-/Release-Artefakte bereinigen
-**Ziel:** ZIP-/Release-Artefakte dürfen keine unnötigen Build- oder Repo-Reste enthalten.
-
-**Warum:** Das aktuelle Handoff zeigt Prozessschwächen.
-
-**Aktueller Stand:**
-- erledigt: `scripts/Prepare-Handoff.ps1` schliesst jetzt auch lokale Env-Dateien, Logs, Testresultate, `.vs` und weitere Workspace-Reste aus
-- erledigt: Das Skript validiert das erzeugte ZIP nach dem Packen auf verbotene Artefakte
-- erledigt: `SETUP.md` beschreibt jetzt den reproduzierbaren Handoff-Befehl und die bewussten Ausschluesse
-
-**Konkrete Aufgaben:**
-1. Prüfe bestehendes `Prepare-Handoff.ps1` oder ähnliche Skripte.
-2. Stelle sicher, dass Artefakte Dinge wie `.git`, `node_modules`, `dist`, lokale Caches usw. ausschließen.
-3. Ergänze eine kurze Anleitung für saubere Übergaben.
-
-**Definition of Done:**
-- sauberes Handoff-Artefakt reproduzierbar erzeugbar
-- keine unnötigen Artefakte im ZIP
-
-**Empfohlene KI:** Codex
-**Reasoning:** low
-
----
-
-## TASK P1.4 – Produktionskonfiguration dokumentieren wie eine Checkliste
-**Ziel:** Kein implizites Betriebswissen nur im Kopf.
-
-**Warum:** Kurz vor Go-Live scheitern viele Projekte an verstreutem Konfigurationswissen.
-
-**Aktueller Stand:**
-- erledigt: `PRODUCTION_CHECKLIST.md` erstellt mit Entra-Voraussetzungen, Pflicht-Env-Variablen, Startreihenfolge, Smoke-Tests, Secret-Rotation und häufigen Fehlerbildern
-- erledigt: `SETUP.md` dokumentiert weiterhin Env-Variablen, Startreihenfolge und Smoke-Checks als Detailreferenz
-
-**Konkrete Aufgaben:**
-1. Erstelle eine kompakte `PRODUCTION_CHECKLIST.md` oder erweitere bestehende Doku.
-2. Dokumentiere:
-   - benötigte Env-Variablen
-   - Redirect-URIs
-   - DB-Initialisierung
-   - Secret-Bereitstellung
-   - Startreihenfolge
-   - Smoke-Tests nach Deployment
-3. Halte die Datei kurz, konkret und ausführbar.
-
-**Definition of Done:**
-- ein neuer Techniker kann Production-Setup nachvollziehen, ohne raten zu müssen
-
-**Empfohlene KI:** Claude
-**Reasoning:** medium
-
----
-
 # P2 – Architektur- und Stabilitätsverbesserungen
 
 ## TASK P2.1 – Frontend-State-Management entschlacken
 **Ziel:** Weniger fragile State-Synchronisation, weniger `setState` in Effects, besser vorhersagbares UI-Verhalten.
 
 **Warum:** Wiederkehrende `set-state-in-effect`-Muster deuten auf ein zu fragiles Zustandsmodell hin.
+
+**Aktueller Stand:**
+- erledigt
+- erledigt:
+  - Draft-Konsolidierung in `useAdminNotificationEmailConfiguration`
+  - Draft-Konsolidierung und Refresh-Resync in `useAdminUserManagement`
+  - UID-basierter Requirement-Reset in `useRequirementEditor`
+  - `WorkflowLinksPanel` nutzt jetzt React Query via `useRelatedWorkflows(uid)`
+  - `useWorkflowCreation` nutzt React Query für `completedOnboardings` und `workflowConfig`
+  - `useAdminTaskTemplateManagement` bündelt Loading-/Saving-/Deleting-Flags jetzt in einem gemeinsamen Operation-State
+  - `useAdminAnswerDefinitionManagement` bündelt seine Operation-Flags jetzt intern
+  - `useAdminRoleAnswerDefaults` bündelt Laden/Speichern jetzt in einem gemeinsamen Operation-State
+- bewusst nicht umgebaut:
+  - `useAdminOrganizationManagement`, weil die beiden Draft-Sync-Effects pro Draft-Record fachlich legitim und deutlich risikoärmer als ihr kosmetischer Nutzen sind
+  - Dashboard-Hooks, weil die verbleibende Manager-/Supervisor-Problematik fachlich in P2.3 gelöst werden soll und kein reines Frontend-State-Thema mehr ist
 
 **Konkrete Aufgaben:**
 1. Analysiere die betroffenen Komponenten/Hooks systematisch.
@@ -474,6 +92,152 @@ Falls in `compose.yml`, `compose.prod.yml` oder Caddy ein Healthcheck auf `/heal
 
 **Empfohlene KI:** Claude für Analyse, Codex für Umsetzung
 **Reasoning:** very high
+
+---
+
+### Analyse & Design (Claude) – Implementierung durch Codex
+
+#### Problemlandschaft
+
+Es gibt drei wiederkehrende Anti-Patterns im Frontend:
+
+**A. setState-in-useEffect zur Prop-/Server-Synchronisation** – Serverstate oder Props werden per useEffect in viele einzelne useState-Felder kopiert. Erzeugt unnötige Render-Zyklen und macht den Datenfluss schwer nachvollziehbar.
+
+**B. Extreme useState-Fragmentierung** – Hooks mit 10–25 einzelnen useState-Aufrufen für Daten, Drafts und Operationsstatus. Führt zu inkonsistenten Batch-Updates und riesigen Return-Objekten.
+
+**C. Manueller Fetch statt React Query** – Einige Hooks fetchen mit useEffect + cancelled-Flag, obwohl der Hook-Kontext bereits React Query verwendet. Erzeugt redundante Loading/Error-States.
+
+#### Priorisierte Änderungsliste
+
+##### Paket 1 – HIGH: Draft-Konsolidierung (größter Impact, geringstes Risiko)
+
+**1.1 `web/src/hooks/useAdminNotificationEmailConfiguration.ts`**
+
+Problem: 8 einzelne Draft-useState (Zeile 20–27) + useEffect (Zeile 32–53) mit 8 Settern zur Synchronisation aus `notificationEmailConfiguration`.
+
+Fix:
+- Einen `NotificationDraft`-Typ anlegen mit allen 8 Feldern als Properties.
+- Funktion `buildNotificationDraft(source: AdminNotificationEmailConfiguration | null): NotificationDraft` extrahieren.
+- Die 8 `useState` durch einen einzigen `useState<NotificationDraft>` ersetzen.
+- Den useEffect (Zeile 32–53) auf eine Zeile reduzieren: `setDraft(buildNotificationDraft(notificationEmailConfiguration))`.
+- `hasNotificationEmailDraftChanges` (Zeile 55–80): statt 8 einzelner Dependencies nur `draft` und `notificationEmailConfiguration` vergleichen.
+- `saveNotificationEmailConfiguration` (Zeile 82–117): liest Felder aus dem `draft`-Objekt statt aus 8 Variablen.
+- Das Return-Objekt ändert sich: statt 8 einzelner Setter exportiert der Hook `draft`, `setDraft` oder `updateDraft(key, value)`.
+- **Achtung**: Die konsumierenden Komponenten (AdminConfig-Seite) müssen auf `draft.notificationEnabledDraft` statt `notificationEnabledDraft` umgestellt werden. Suche alle Imports/Verwendungen von `useAdminNotificationEmailConfiguration`.
+
+**1.2 `web/src/hooks/useAdminUserManagement.ts`**
+
+Problem (a): 25 useState-Aufrufe (Zeile 53–77). Davon 6 edit-Draft-Felder (Zeile 60–65), 6 new-Draft-Felder (Zeile 66–71), 5 Operation-Flags (Zeile 72–77).
+
+Problem (b): useEffect (Zeile 105–126) synchronisiert 8 Felder aus `selectedUser` – redundant zu `selectUser`-Callback (Zeile 82–96), der fast identische Zuweisungen macht.
+
+Fix:
+- `UserEditDraft`-Typ mit den 6 Edit-Feldern (`externalKey`, `displayName`, `email`, `notificationEmail`, `departmentId`, `isActive`).
+- `UserNewDraft`-Typ mit den 6 New-Feldern (gleiche Struktur).
+- Funktion `buildEditDraft(user: AdminUser | null): UserEditDraft` extrahieren.
+- Die 12 Draft-useState durch `useState<UserEditDraft>` + `useState<UserNewDraft>` ersetzen.
+- `selectUser` (Zeile 82–96): Setzt `selectedUserId`, `editDraft`, `selectedUserRoleIds`, `selectedUserGroupIds`.
+- useEffect (Zeile 105–126): Nur noch Fallback für externe `users`-Array-Änderungen (z. B. nach Server-Refresh). Reduziert sich auf: `setEditDraft(buildEditDraft(selectedUser)); setSelectedUserRoleIds(...)`.
+- Die 5 `isSaving*`-Flags können zu einem `savingOperation: string | null`-State zusammengefasst werden (Werte: `"masterData" | "roles" | "groups" | "groupRoles" | "creating" | null`).
+- **Achtung**: Großer Hook mit vielen Consumern. Regressionstests nach dem Refactoring laufen lassen.
+
+**1.3 `web/src/hooks/useRequirementEditor.ts`**
+
+Problem: useEffect (Zeile 31–38) setzt `requirementSelections` aus `workflow.requirements`. Danach wird `requirementSelections` durch User-Interaktion mutiert – es ist also echte Draft-State, kein reiner derived State.
+
+Fix:
+- Die sauberste Lösung: Der Aufrufer setzt `key={workflow?.uid ?? ""}` auf die Komponente, die `useRequirementEditor` nutzt. Damit wird der Hook bei Workflow-Wechsel neu gemountet und der Initialwert aus `useState(() => buildRequirementSelections(workflow?.requirements ?? []))` greift sauber.
+- Alternativ (wenn `key`-Ansatz zu invasiv): useEffect beibehalten, aber den Abhängigkeitsarray auf `[workflow?.uid]` statt `[workflow]` einschränken, damit nicht jede Reference-Änderung des Workflow-Objekts die Selections resettet.
+
+##### Paket 2 – HIGH: Große Hooks konsolidieren
+
+**2.1 `web/src/hooks/useAdminTaskTemplateManagement.ts`**
+
+Problem: 23 useState-Aufrufe (Zeile 118–140). 6 Loading-Flags, 2 Deleting-IDs, 3 Saving-Flags, Daten + Drafts.
+
+Fix:
+- Loading-/Saving-/Deleting-States in ein `OperationState`-Objekt:
+  ```typescript
+  type OperationState = {
+    loadingProcessTypes: boolean;
+    loadingTemplates: boolean;
+    loadingDependencyGraph: boolean;
+    loadingConditions: boolean;
+    loadingDependencies: boolean;
+    saving: boolean;
+    deleting: boolean;
+    savingCondition: boolean;
+    deletingConditionId: number | null;
+    savingDependency: boolean;
+    deletingDependencyId: number | null;
+  };
+  ```
+- Helper-Funktionen: `startOp(key)`, `endOp(key)` um die Set-Aufrufe zu reduzieren.
+- Die Daten-States (`processTypes`, `templates`, `dependencyGraph`, `conditions`, `dependencies`, `answerDefinitions`) können bleiben – sie haben unterschiedliche Lifecycles.
+- Die Draft-States (`draft`, `conditionDraft`, `dependencyDraft`) können bleiben, sind schon als Objekte modelliert (gut).
+
+**2.2 `web/src/hooks/useAdminOrganizationManagement.ts`**
+
+Problem: Zwei useEffect-Blöcke (Zeile 51–63, 65–77) synchronisieren Draft-Records aus Props.
+
+Bewertung: Eigentlich vertretbar – jeder Effect setzt genau 1 State-Variable. Das ist das Standard-Pattern für "editable draft from server data". Der Effect bleibt nötig, weil die Drafts vom User editierbar sind.
+
+Fix (optional, geringer Impact):
+- `useMemo` ist hier NICHT korrekt, weil die Drafts mutierbar sein müssen.
+- Wenn gewünscht: `departmentDrafts` und `responsibilityDrafts` in ein gemeinsames `drafts`-Objekt zusammenfassen und den Initializer zusammenführen. Aber das ist kosmetisch.
+- **Empfehlung: Niedrige Priorität, nur machen wenn Paket 1 abgeschlossen.**
+
+##### Paket 3 – MEDIUM: Manual Fetch durch React Query ersetzen
+
+**3.1 `web/src/hooks/useWorkflowCreation.ts`**
+
+Problem: Der Hook nutzt React Query für `processTypes` und `roles`/`departments` (gut), aber manuellen Fetch mit useEffect + cancelled-Flag für `completedOnboardings` (Zeile 203–249) und `workflowConfig` (Zeile 255–289). Das erzeugt 6 manuelle useState-Felder (`completedOnboardings`, `completedOnboardingsLoading`, `completedOnboardingsError`, `workflowConfig`, `workflowConfigLoading`, `workflowConfigError`).
+
+Fix:
+- Zwei neue React-Query-Hooks anlegen: `useCompletedOnboardingsSearch(search, enabled)` und `useWorkflowConfig(roleId, processTypeKey, enabled)`.
+- Die 6 manuellen useState + 2 useEffects entfallen komplett.
+- Der Debounce-Effect (Zeile 162–168) ist legitim und bleibt.
+
+**3.2 `web/src/components/workflow-detail/WorkflowLinksPanel.tsx`**
+
+Problem: Manueller Fetch (Zeile 18–36) mit cancelled-Flag.
+
+Fix: Durch einen `useRelatedWorkflows(uid)`-React-Query-Hook ersetzen. Drei useState + 1 useEffect entfallen.
+
+**Empfehlung: Paket 3 nur machen, wenn die React-Query-Infrastruktur (`services/queries/`) das Muster schon klar vorgibt.** Die manuellen Fetches funktionieren korrekt – das Refactoring ist Konsistenz, nicht Bugfix.
+
+##### Paket 4 – MEDIUM: Admin-Config-Hooks Konsolidierung
+
+**4.1 `web/src/hooks/useAdminAnswerDefinitionManagement.ts`**
+**4.2 `web/src/hooks/useAdminRoleAnswerDefaults.ts`**
+
+Beide haben 9–10 useState-Aufrufe mit demselben Muster: `processTypes`, `selectedProcessTypeId`, Daten, Draft, Loading-Flags. Gleiche Konsolidierungsstrategie wie bei TaskTemplate (Operation-State-Objekt).
+
+Diese Hooks sind kleiner und weniger kritisch. **Nur machen, wenn Paket 1+2 abgeschlossen.**
+
+#### Nicht ändern (legitimie Patterns)
+
+- **`useTaskInteraction.ts`**: Record-basierter State, kein Sync-Effect. Sauber.
+- **`dashboardInsights.ts`**: Reine async Utility-Funktionen, kein React-State.
+- **`DashboardOverview.tsx` + `useDashboardInsights.ts`**: Nutzt React Query korrekt.
+- **`useWorkflowCreation.ts` Zeile 162–168**: Debounce-Effect – legitimer Seiteneffekt.
+- **Page-Level Effects** (WorkflowListPage, WorkflowSearchPage): URL-Synchronisation und Debounce – beides legitime Seiteneffekte.
+- **Admin-Hooks: useEffect für Init-Load** (z. B. `getAdminProcessTypes()` on mount): Akzeptabel. Diese in React Query umzubauen wäre nice-to-have, aber kein State-Management-Problem.
+
+#### Reihenfolge für Codex
+
+1. **Paket 1.1** – `useAdminNotificationEmailConfiguration` (kleinster Hook, idealer Pilot)
+2. **Paket 1.3** – `useRequirementEditor` (einfachste Änderung)
+3. **Paket 2.1** – `useAdminTaskTemplateManagement` (OperationState-Konsolidierung)
+4. **Paket 1.2** – `useAdminUserManagement` (größter Hook, höchstes Risiko)
+5. **Paket 3** und **Paket 4** – nur wenn Tests nach 1–4 stabil grün
+
+#### Testrichtlinien
+
+- Nach jeder Hook-Änderung: `npm run lint` + `npm test` im Frontend
+- UI-Verhalten manuell prüfen: Admin-Config-Seite durchklicken, Draft-Änderungen vornehmen, speichern, Entity-Wechsel testen
+- **Kritisch**: Beim User-Management-Hook sicherstellen, dass Entity-Wechsel (User wählen → anderer User) die Drafts korrekt resettet
+- Die Return-Signatur der Hooks ändert sich (einzelne Felder → Objekte). Alle Importe in konsumierenden Komponenten anpassen.
 
 ---
 
@@ -493,6 +257,170 @@ Falls in `compose.yml`, `compose.prod.yml` oder Caddy ein Healthcheck auf `/heal
 
 **Empfohlene KI:** Claude für Review, Codex für Refactor
 **Reasoning:** high
+
+---
+
+### Claude-Analyse und Codex-Anweisungen für P2.2
+
+#### Analyse-Ergebnis
+
+Alle 18 Testdateien in `web/tests/` wurden geprüft. Die Mehrheit der Tests importiert bereits korrekt aus den Domain-Modulen (`adminApi`, `workflowApi`, `lookupApi`, `taskApi`, `types/auth`, `types/workflow`). Zwei strukturelle Probleme wurden gefunden:
+
+**Problem A – Compat-Barrel-Import in `lifecycleApi.test.ts`** (Severity: HIGH)
+
+`web/tests/lifecycleApi.test.ts` importiert `getProcessTypes` über den Compat-Barrel `lifecycleApi.ts`, der nichts anderes macht als alle Domain-Module re-exportieren:
+```
+// lifecycleApi.ts – nur ein Barrel:
+export * from "./adminApi";
+export * from "./lookupApi";
+...
+```
+`getProcessTypes` liegt tatsächlich in `web/src/services/lookupApi.ts`. Der Testname und Import-Pfad spiegeln also nicht mehr die reale Modulstruktur wider. Wenn der Barrel umgebaut oder entfernt wird, bricht der Test.
+
+Der im Test verwendete Low-Level-Mock (`vi.mock("../src/services/api/client", ...)`) ist bewusst gewählt, weil der Test prüft, dass `getProcessTypes` den korrekten URL-Pfad `/process-types` aufruft und kein Caching betreibt. Dieser Ansatz ist korrekt – der Mock selbst muss nicht geändert werden.
+
+**Problem B – Veralteter und duplizierter `createUser`-Helper** (Severity: HIGH)
+
+`createUser` existiert in zwei Testdateien:
+- `web/tests/AdminDepartmentsSection.test.tsx` – **veraltet**, fehlen 9 Pflichtfelder von `AdminUser`:
+  `directorySynced`, `departmentSource`, `departmentOverrideActive`, `directoryIdentityId`, `userPrincipalName`, `directoryDisplayName`, `effectiveRoles`, `permissionOverrides`, `effectivePermissions`
+- `web/tests/AdminConfigPage.test.tsx` – vollständig, entspricht aktuellem `AdminUser`-Typ
+
+`createDepartment` ist ebenfalls dupliziert:
+- `web/tests/AdminDepartmentsSection.test.tsx`
+- `web/tests/AdminConfigPage.test.tsx`
+
+Beide Funktionen gehören in `web/tests/testUtils.tsx`, wo bereits `createWorkflowSummary`, `createTaskWithWorkflow` und `createRequirementSnapshot` zentralisiert sind.
+
+**Kein Problem (Referenz):**
+
+Diese Muster sind korrekt und sollen nicht geändert werden:
+- `workflowDetailModel.test.ts` → importiert direkt aus `components/workflow-detail/workflowDetailModel.ts` (co-located Model-File, kein Barrel)
+- `dashboardInsights.test.ts` → importiert direkt aus `components/dashboard/dashboardInsights.ts`, mockt `workflowApi` auf Modul-Ebene – korrekt
+- `AdminConfigPage.test.tsx`, `MyTasksPage.test.tsx`, `CreateWorkflowPage.test.tsx`, etc. → mocken und importieren alle aus den richtigen Domain-Modulen
+
+---
+
+#### Codex-Anweisung: Paket A – `lifecycleApi.test.ts` korrigieren
+
+**Ziel:** Testdatei auf das echte Quellmodul zeigen lassen.
+
+1. Datei `web/tests/lifecycleApi.test.ts` umbenennen zu `web/tests/lookupApi.test.ts`
+
+2. In der umbenannten Datei den Import-Pfad ändern:
+   ```ts
+   // VORHER (Zeile 9):
+   import { getProcessTypes } from "../src/services/lifecycleApi";
+   
+   // NACHHER:
+   import { getProcessTypes } from "../src/services/lookupApi";
+   ```
+
+3. Den Mock (`vi.mock("../src/services/api/client", ...)`) und alle Test-Assertions (`mockedRequestJson`) **nicht ändern** – der Low-Level-Mock ist bewusst gewählt, um das URL-Routing zu prüfen.
+
+4. Den `describe`-Block-Namen anpassen:
+   ```ts
+   // VORHER:
+   describe("lifecycleApi.getProcessTypes", () => {
+   
+   // NACHHER:
+   describe("lookupApi.getProcessTypes", () => {
+   ```
+
+---
+
+#### Codex-Anweisung: Paket B – Test-Helper zentralisieren
+
+**Ziel:** `createUser` und `createDepartment` aus den lokalen Testdateien in `testUtils.tsx` auslagern.
+
+**Schritt 1: `web/tests/testUtils.tsx` ergänzen**
+
+Am Ende der Datei (nach `createRequirementSnapshot`) folgende zwei Exporte hinzufügen:
+
+```ts
+import type { AdminUser, AdminDepartmentAssignment } from "../src/types/auth";
+
+export function createAdminUser(overrides: Partial<AdminUser> = {}): AdminUser {
+  return {
+    userId: 1,
+    externalKey: "lea.lead",
+    displayName: "Lea Lead",
+    email: "lea.lead@demo.local",
+    notificationEmail: null,
+    isActive: true,
+    hasManagerAccess: true,
+    departmentId: 1,
+    departmentName: "IT",
+    directorySynced: false,
+    departmentSource: "manual",
+    departmentOverrideActive: false,
+    directoryIdentityId: null,
+    userPrincipalName: null,
+    directoryDisplayName: null,
+    roles: [],
+    groups: [],
+    effectiveRoles: [],
+    permissionOverrides: [],
+    effectivePermissions: [],
+    ...overrides,
+  };
+}
+
+export function createAdminDepartmentAssignment(
+  overrides: Partial<AdminDepartmentAssignment> = {}
+): AdminDepartmentAssignment {
+  return {
+    departmentId: 1,
+    departmentName: "IT",
+    departmentLeadUserId: 10,
+    departmentLeadDisplayName: "Lea Lead",
+    requirementOwnerUserId: 11,
+    requirementOwnerDisplayName: "Mia Manager",
+    updatedAt: "2026-03-24T08:00:00.000Z",
+    ...overrides,
+  };
+}
+```
+
+**Achtung:** Der Import von `AdminUser` und `AdminDepartmentAssignment` ist oben ggf. bereits im Import-Block vorhanden oder muss ergänzt werden. In `testUtils.tsx` ist Zeile 9 bereits `import type { ... } from "../src/types/workflow"` — der neue Import muss als eigene Zeile für `../src/types/auth` hinzugefügt werden.
+
+**Schritt 2: `web/tests/AdminDepartmentsSection.test.tsx` anpassen**
+
+a) Die lokalen Funktionen `createDepartment` (Zeilen 6–17) und `createUser` (Zeilen 19–33) löschen.
+
+b) Import aus `testUtils` ergänzen:
+   ```ts
+   import { createAdminUser, createAdminDepartmentAssignment } from "./testUtils";
+   ```
+
+c) Alle Aufrufe `createDepartment(...)` → `createAdminDepartmentAssignment(...)` umbenennen.
+
+d) Alle Aufrufe `createUser(...)` → `createAdminUser(...)` umbenennen.
+
+e) `import type { AdminDepartmentAssignment, AdminUser } from "../src/types/auth";` entfernen, wenn nach der Änderung nicht mehr direkt benötigt.
+
+**Schritt 3: `web/tests/AdminConfigPage.test.tsx` anpassen**
+
+a) Die lokalen Funktionen `createUser` (ca. Zeilen 52–76) und `createDepartment` (ca. Zeilen 78–90+) löschen.
+
+b) Import aus `testUtils` ergänzen:
+   ```ts
+   import { createAdminUser, createAdminDepartmentAssignment, renderWithApp } from "./testUtils";
+   ```
+
+c) Alle Aufrufe `createDepartment(...)` → `createAdminDepartmentAssignment(...)` umbenennen.
+
+d) Alle Aufrufe `createUser(...)` → `createAdminUser(...)` umbenennen.
+
+e) Die `import type { AdminUser, AdminDepartmentAssignment, ... }` Zeile (Zeile 6–14) nur bereinigen, wenn die verbleibenden Typen noch direkt in der Datei gebraucht werden; andere Typen wie `AdminGraphApplicationConfiguration`, `AdminGroup`, etc. werden weiterhin für lokale Hilfsfunktionen in der Datei gebraucht.
+
+---
+
+#### Hinweis für Codex: Abhängigkeit zu P2.1
+
+P2.1 konsolidiert useState-Fragmentation in Admin-Hooks. Wenn dabei die Props-Schnittstellen von Komponenten wie `AdminDepartmentsSection` geändert werden (z.B. einzelne State-Variablen zu Objekt-Props zusammengefasst), dann muss das Rendering in `AdminDepartmentsSection.test.tsx` angepasst werden. Das ist eine spätere Aufgabe und nicht Teil von P2.2.
+
+P2.2-Änderungen sind von P2.1 unabhängig und können vorher oder parallel angewendet werden.
 
 ---
 
@@ -630,34 +558,27 @@ Verwende Codex primär für **Umsetzung, Refactoring, Dateianpassungen, Tests un
 # Konkrete Reihenfolge für die nächste KI-Arbeit
 
 ## Sprint 1
-1. P0.6 Swagger absichern/deaktivieren
-2. P1.2 CORS/Auth/Redirects härten
-3. P1.1 Health-Checks trennen
-
-**Empfohlene KI-Mischung:** Claude für Review, dann Codex für Umsetzung
-
-## Sprint 2
-1. P0.7 CI/CD-Quality-Gates
-2. P1.4 Produktions-Checkliste schreiben
-3. P0.4 Frontend Lint grün
-
-**Empfohlene KI-Mischung:** Claude zuerst, dann Codex
-
-## Sprint 3
-1. P0.4 Frontend Lint grün
-2. P0.5 Frontend Tests grün
-3. P2.2 Teststrategie stabilisieren
-
-**Empfohlene KI:** Codex
-
-## Sprint 4
 1. P2.1 State-Management entschlacken
 2. P2.3 Manager-/Supervisor-Dashboard serverseitig härten
 3. P2.4 große Dateien/Hooks zerlegen
 
 **Empfohlene KI-Mischung:** Claude für Zerlegung/Review, Codex für Umsetzung
 
-## Sprint 5
+## Sprint 2
+1. P1.4 Produktions-Checkliste schreiben
+2. P2.2 Teststrategie stabilisieren
+3. P3.1 Code-Splitting
+
+**Empfohlene KI-Mischung:** Claude zuerst, dann Codex
+
+## Sprint 3
+1. P2.1 State-Management entschlacken
+2. P2.3 Manager-/Supervisor-Dashboard serverseitig härten
+3. P2.4 große Dateien/Hooks zerlegen
+
+**Empfohlene KI-Mischung:** Claude für Zerlegung/Review, Codex für Umsetzung
+
+## Sprint 4
 1. P3.1 Code-Splitting
 2. P3.2 Backend-Service-/Repository-Grenzen
 3. P3.3 Observability
@@ -667,20 +588,23 @@ Verwende Codex primär für **Umsetzung, Refactoring, Dateianpassungen, Tests un
 # Klare Gesamtpriorität
 
 ## Sofort
-- Tests/Lint/Pipeline
-- Swagger / Auth-Härtung / CORS
+- State-Architektur
+- Produktions-Checkliste
+- Dashboard-/Rollenlogik aus dem Backend
 
 ## Danach
-- Health / Dokumentation
+- Bundle / Code-Splitting
+- größere Frontend-Zerlegung
 
 ## Später
-- State-Architektur / Bundle / größere Refactors / Observability
+- Repository-/Service-Härtung
+- Observability
 
 ---
 
 # Endzustand, den die KIs anstreben sollen
-Nach Abschluss der P0-Aufgaben soll das Projekt nicht „schöner“, sondern **real freigabefähiger** sein:
-- keine produktiven Secrets im Klartext in DB
-- Frontend Checks grün
-- Release-Validierung automatisiert
-- Security- und Betriebsverhalten explizit statt implizit
+Nach Abschluss der verbleibenden Aufgaben soll das Projekt nicht „schöner“, sondern **real robuster und wartbarer** sein:
+- weniger fragile Frontend-State- und Testarchitektur
+- serverseitig modellierte Rollen-/Queue-Logik
+- kleinere, klarere Module
+- besseres Betriebs- und Fehlerverhalten

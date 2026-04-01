@@ -62,6 +62,20 @@ type DependencyDraft = {
 
 type DependencyStatus = DependencyDraft["requiredStatus"];
 
+type OperationState = {
+  isLoadingProcessTypes: boolean;
+  isLoadingTemplates: boolean;
+  isLoadingDependencyGraph: boolean;
+  isLoadingConditions: boolean;
+  isLoadingDependencies: boolean;
+  isSaving: boolean;
+  isDeleting: boolean;
+  isSavingCondition: boolean;
+  deletingConditionId: number | null;
+  isSavingDependency: boolean;
+  deletingDependencyId: number | null;
+};
+
 const EMPTY_DRAFT: TemplateDraft = {
   templateKey: "",
   title: "",
@@ -90,6 +104,20 @@ const EMPTY_CONDITION_DRAFT: ConditionDraft = {
 const EMPTY_DEPENDENCY_DRAFT: DependencyDraft = {
   dependsOnTaskTemplateId: "",
   requiredStatus: "done",
+};
+
+const INITIAL_OPERATION_STATE: OperationState = {
+  isLoadingProcessTypes: true,
+  isLoadingTemplates: false,
+  isLoadingDependencyGraph: false,
+  isLoadingConditions: false,
+  isLoadingDependencies: false,
+  isSaving: false,
+  isDeleting: false,
+  isSavingCondition: false,
+  deletingConditionId: null,
+  isSavingDependency: false,
+  deletingDependencyId: null,
 };
 
 function toDraft(template: AdminTaskTemplate): TemplateDraft {
@@ -127,17 +155,11 @@ export function useAdminTaskTemplateManagement({
   const [conditionDraft, setConditionDraft] = useState<ConditionDraft>(EMPTY_CONDITION_DRAFT);
   const [dependencyDraft, setDependencyDraft] = useState<DependencyDraft>(EMPTY_DEPENDENCY_DRAFT);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
-  const [isLoadingProcessTypes, setIsLoadingProcessTypes] = useState(true);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-  const [isLoadingDependencyGraph, setIsLoadingDependencyGraph] = useState(false);
-  const [isLoadingConditions, setIsLoadingConditions] = useState(false);
-  const [isLoadingDependencies, setIsLoadingDependencies] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isSavingCondition, setIsSavingCondition] = useState(false);
-  const [deletingConditionId, setDeletingConditionId] = useState<number | null>(null);
-  const [isSavingDependency, setIsSavingDependency] = useState(false);
-  const [deletingDependencyId, setDeletingDependencyId] = useState<number | null>(null);
+  const [operationState, setOperationState] = useState<OperationState>(INITIAL_OPERATION_STATE);
+
+  const updateOperationState = useCallback((patch: Partial<OperationState>) => {
+    setOperationState((current) => ({ ...current, ...patch }));
+  }, []);
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
@@ -161,7 +183,7 @@ export function useAdminTaskTemplateManagement({
   }, [conditions]);
 
   const loadConditions = useCallback(async (templateId: number) => {
-    setIsLoadingConditions(true);
+    updateOperationState({ isLoadingConditions: true });
 
     try {
       const loadedConditions = await getAdminTaskTemplateConditions(templateId);
@@ -176,12 +198,12 @@ export function useAdminTaskTemplateManagement({
       setConditions([]);
       throw err;
     } finally {
-      setIsLoadingConditions(false);
+      updateOperationState({ isLoadingConditions: false });
     }
-  }, []);
+  }, [updateOperationState]);
 
   const loadDependencies = useCallback(async (templateId: number) => {
-    setIsLoadingDependencies(true);
+    updateOperationState({ isLoadingDependencies: true });
 
     try {
       const loadedDependencies = await getAdminTaskTemplateDependencies(templateId);
@@ -190,12 +212,12 @@ export function useAdminTaskTemplateManagement({
       setDependencies([]);
       throw err;
     } finally {
-      setIsLoadingDependencies(false);
+      updateOperationState({ isLoadingDependencies: false });
     }
-  }, []);
+  }, [updateOperationState]);
 
   const loadDependencyGraph = useCallback(async (processTypeId: number) => {
-    setIsLoadingDependencyGraph(true);
+    updateOperationState({ isLoadingDependencyGraph: true });
 
     try {
       const loadedGraph = await getAdminDependencyGraph(processTypeId);
@@ -205,12 +227,12 @@ export function useAdminTaskTemplateManagement({
       setDependencyGraph({ nodes: [], edges: [] });
       throw err;
     } finally {
-      setIsLoadingDependencyGraph(false);
+      updateOperationState({ isLoadingDependencyGraph: false });
     }
-  }, []);
+  }, [updateOperationState]);
 
   const loadTemplates = useCallback(async (processTypeId: number, templateIdToSelect?: number | null) => {
-    setIsLoadingTemplates(true);
+    updateOperationState({ isLoadingTemplates: true });
 
     try {
       const [loadedTemplates, loadedAnswerDefinitions, loadedGraph] = await Promise.all([
@@ -260,12 +282,12 @@ export function useAdminTaskTemplateManagement({
       setDependencyDraft(EMPTY_DEPENDENCY_DRAFT);
       throw err;
     } finally {
-      setIsLoadingTemplates(false);
+      updateOperationState({ isLoadingTemplates: false });
     }
-  }, [loadConditions, loadDependencies, loadDependencyGraph]);
+  }, [loadConditions, loadDependencies, loadDependencyGraph, updateOperationState]);
 
   useEffect(() => {
-    setIsLoadingProcessTypes(true);
+    updateOperationState({ isLoadingProcessTypes: true });
     getAdminProcessTypes()
       .then((loadedProcessTypes) => {
         setProcessTypes(loadedProcessTypes);
@@ -275,8 +297,8 @@ export function useAdminTaskTemplateManagement({
         setProcessTypes([]);
         setSelectedProcessTypeId(null);
       })
-      .finally(() => setIsLoadingProcessTypes(false));
-  }, []);
+      .finally(() => updateOperationState({ isLoadingProcessTypes: false }));
+  }, [updateOperationState]);
 
   useEffect(() => {
     if (!selectedProcessTypeId) {
@@ -396,7 +418,7 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    setIsSaving(true);
+    updateOperationState({ isSaving: true });
     onNotice(null);
     onError(null);
 
@@ -431,9 +453,9 @@ export function useAdminTaskTemplateManagement({
       const message = err instanceof Error ? err.message : "Task-Template konnte nicht angelegt werden.";
       onError(message);
     } finally {
-      setIsSaving(false);
+      updateOperationState({ isSaving: false });
     }
-  }, [buildPayload, onError, onNotice]);
+  }, [buildPayload, onError, onNotice, updateOperationState]);
 
   const saveTemplate = useCallback(async () => {
     if (!selectedTemplateId) {
@@ -449,7 +471,7 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    setIsSaving(true);
+    updateOperationState({ isSaving: true });
     onNotice(null);
     onError(null);
 
@@ -482,9 +504,9 @@ export function useAdminTaskTemplateManagement({
       const message = err instanceof Error ? err.message : "Task-Template konnte nicht gespeichert werden.";
       onError(message);
     } finally {
-      setIsSaving(false);
+      updateOperationState({ isSaving: false });
     }
-  }, [buildPayload, onError, onNotice, selectedTemplateId]);
+  }, [buildPayload, onError, onNotice, selectedTemplateId, updateOperationState]);
 
   const removeTemplate = useCallback(async () => {
     if (!selectedTemplate) {
@@ -501,7 +523,7 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    setIsDeleting(true);
+    updateOperationState({ isDeleting: true });
     onNotice(null);
     onError(null);
 
@@ -526,9 +548,9 @@ export function useAdminTaskTemplateManagement({
       const message = err instanceof Error ? err.message : "Task-Template konnte nicht gelöscht werden.";
       onError(message);
     } finally {
-      setIsDeleting(false);
+      updateOperationState({ isDeleting: false });
     }
-  }, [confirm, onError, onNotice, selectedTemplate]);
+  }, [confirm, onError, onNotice, selectedTemplate, updateOperationState]);
 
   const addCondition = useCallback(async () => {
     if (!selectedTemplate) {
@@ -552,7 +574,7 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    setIsSavingCondition(true);
+    updateOperationState({ isSavingCondition: true });
     onNotice(null);
     onError(null);
 
@@ -594,16 +616,16 @@ export function useAdminTaskTemplateManagement({
       const message = err instanceof Error ? err.message : "Bedingung konnte nicht angelegt werden.";
       onError(message);
     } finally {
-      setIsSavingCondition(false);
+      updateOperationState({ isSavingCondition: false });
     }
-  }, [conditionDraft, onError, onNotice, selectedTemplate]);
+  }, [conditionDraft, onError, onNotice, selectedTemplate, updateOperationState]);
 
   const removeCondition = useCallback(async (conditionId: number) => {
     if (!selectedTemplate) {
       return;
     }
 
-    setDeletingConditionId(conditionId);
+    updateOperationState({ deletingConditionId: conditionId });
     onNotice(null);
     onError(null);
 
@@ -622,9 +644,9 @@ export function useAdminTaskTemplateManagement({
       const message = err instanceof Error ? err.message : "Bedingung konnte nicht gelöscht werden.";
       onError(message);
     } finally {
-      setDeletingConditionId(null);
+      updateOperationState({ deletingConditionId: null });
     }
-  }, [onError, onNotice, selectedTemplate]);
+  }, [onError, onNotice, selectedTemplate, updateOperationState]);
 
   const addConditionGroup = useCallback(() => {
     const nextGroup = groupedConditions.length === 0
@@ -656,7 +678,7 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    setIsSavingDependency(true);
+    updateOperationState({ isSavingDependency: true });
     onNotice(null);
     onError(null);
 
@@ -696,9 +718,9 @@ export function useAdminTaskTemplateManagement({
       const message = err instanceof Error ? err.message : "Abhängigkeit konnte nicht angelegt werden.";
       onError(message);
     } finally {
-      setIsSavingDependency(false);
+      updateOperationState({ isSavingDependency: false });
     }
-  }, [dependencyDraft, onError, onNotice, selectedTemplate]);
+  }, [dependencyDraft, onError, onNotice, selectedTemplate, updateOperationState]);
 
   const createDependencyFromGraph = useCallback(async (
     sourceTemplateId: number,
@@ -711,7 +733,7 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    setIsSavingDependency(true);
+    updateOperationState({ isSavingDependency: true });
     onNotice(null);
     onError(null);
 
@@ -752,16 +774,16 @@ export function useAdminTaskTemplateManagement({
       onError(message);
       throw err;
     } finally {
-      setIsSavingDependency(false);
+      updateOperationState({ isSavingDependency: false });
     }
-  }, [onError, onNotice, selectedTemplate]);
+  }, [onError, onNotice, selectedTemplate, updateOperationState]);
 
   const removeDependency = useCallback(async (dependencyId: number) => {
     if (!selectedTemplate) {
       return;
     }
 
-    setDeletingDependencyId(dependencyId);
+    updateOperationState({ deletingDependencyId: dependencyId });
     onNotice(null);
     onError(null);
 
@@ -784,9 +806,9 @@ export function useAdminTaskTemplateManagement({
       const message = err instanceof Error ? err.message : "Abhängigkeit konnte nicht gelöscht werden.";
       onError(message);
     } finally {
-      setDeletingDependencyId(null);
+      updateOperationState({ deletingDependencyId: null });
     }
-  }, [onError, onNotice, selectedTemplate]);
+  }, [onError, onNotice, selectedTemplate, updateOperationState]);
 
   const removeDependencyFromGraph = useCallback(async (dependencyId: number) => {
     const edge = dependencyGraph.edges.find((entry) => entry.id === dependencyId);
@@ -794,7 +816,7 @@ export function useAdminTaskTemplateManagement({
       return;
     }
 
-    setDeletingDependencyId(dependencyId);
+    updateOperationState({ deletingDependencyId: dependencyId });
     onNotice(null);
     onError(null);
 
@@ -822,9 +844,9 @@ export function useAdminTaskTemplateManagement({
       onError(message);
       throw err;
     } finally {
-      setDeletingDependencyId(null);
+      updateOperationState({ deletingDependencyId: null });
     }
-  }, [dependencyGraph.edges, onError, onNotice, selectedTemplate]);
+  }, [dependencyGraph.edges, onError, onNotice, selectedTemplate, updateOperationState]);
 
   return {
     processTypes,
@@ -840,17 +862,17 @@ export function useAdminTaskTemplateManagement({
     conditionDraft,
     dependencyDraft,
     isCreatingNew,
-    isLoadingProcessTypes,
-    isLoadingTemplates,
-    isLoadingDependencyGraph,
-    isLoadingConditions,
-    isLoadingDependencies,
-    isSaving,
-    isDeleting,
-    isSavingCondition,
-    deletingConditionId,
-    isSavingDependency,
-    deletingDependencyId,
+    isLoadingProcessTypes: operationState.isLoadingProcessTypes,
+    isLoadingTemplates: operationState.isLoadingTemplates,
+    isLoadingDependencyGraph: operationState.isLoadingDependencyGraph,
+    isLoadingConditions: operationState.isLoadingConditions,
+    isLoadingDependencies: operationState.isLoadingDependencies,
+    isSaving: operationState.isSaving,
+    isDeleting: operationState.isDeleting,
+    isSavingCondition: operationState.isSavingCondition,
+    deletingConditionId: operationState.deletingConditionId,
+    isSavingDependency: operationState.isSavingDependency,
+    deletingDependencyId: operationState.deletingDependencyId,
     availableDependencyTemplates,
     selectProcessType,
     selectTemplate,
