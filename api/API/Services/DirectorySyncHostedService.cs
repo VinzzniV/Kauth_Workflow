@@ -22,9 +22,9 @@ internal sealed class DirectorySyncHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!_runtimeSettings.EntraAuthEnabled)
+        if (!_runtimeSettings.DirectorySyncEnabled)
         {
-            _logger.LogInformation("Scheduled directory sync is disabled because Entra auth is not enabled.");
+            _logger.LogInformation("Scheduled directory sync is disabled because the current auth mode does not use Entra directory data.");
             return;
         }
 

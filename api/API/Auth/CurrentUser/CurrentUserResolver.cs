@@ -37,6 +37,46 @@ internal sealed class CurrentUserResolver : ICurrentUserResolver
                 identity, cancellationToken);
         }
 
-        return currentUser;
+        if (currentUser is null)
+        {
+            return null;
+        }
+
+        return IsDevelopmentSimulationIdentity(identity.Provider)
+            ? CreateDevelopmentSimulationUser(currentUser)
+            : currentUser;
+    }
+
+    private static bool IsDevelopmentSimulationIdentity(string provider)
+    {
+        return provider.StartsWith("dev-sim", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static CurrentUser CreateDevelopmentSimulationUser(CurrentUser currentUser)
+    {
+        return new CurrentUser
+        {
+            UserId = currentUser.UserId,
+            ExternalKey = currentUser.ExternalKey,
+            DisplayName = currentUser.DisplayName,
+            Email = currentUser.Email,
+            IsActive = true,
+            DepartmentId = currentUser.DepartmentId,
+            DepartmentName = currentUser.DepartmentName,
+            IdentityProvider = currentUser.IdentityProvider,
+            DirectorySynced = currentUser.DirectorySynced,
+            DepartmentSource = currentUser.DepartmentSource,
+            DepartmentOverrideActive = currentUser.DepartmentOverrideActive,
+            Groups = currentUser.Groups,
+            DirectRoles = currentUser.DirectRoles,
+            GroupRoles = currentUser.GroupRoles,
+            EffectiveRoles = currentUser.EffectiveRoles,
+            EffectivePermissions = currentUser.EffectivePermissions,
+            PermissionScopes = currentUser.PermissionScopes,
+            PermissionOverrides = currentUser.PermissionOverrides,
+            DirectResponsibilities = currentUser.DirectResponsibilities,
+            GroupResponsibilities = currentUser.GroupResponsibilities,
+            EffectiveResponsibilities = currentUser.EffectiveResponsibilities
+        };
     }
 }

@@ -16,7 +16,10 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await EnsureWorkflowLinkSchemaAsync(connectionString);
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
         var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
-        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "integration-admin@kauth.local",
+            "Integration Admin");
 
         var sourceWorkflow = await CreateWorkflowAsync(connectionString, departmentId, roleId, "onboarding");
         var targetWorkflow = await CreateWorkflowAsync(connectionString, departmentId, roleId, "onboarding");
@@ -49,7 +52,10 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await EnsureWorkflowLinkSchemaAsync(connectionString);
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
         var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
-        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "integration-admin@kauth.local",
+            "Integration Admin");
 
         var sourceProcessType = await CreateTemporaryProcessTypeAsync(connectionString, "source");
         var targetProcessType = await CreateTemporaryProcessTypeAsync(connectionString, "target");
@@ -208,23 +214,6 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         command.Parameters.AddWithValue("roleKey", roleKey);
         return (int)(await command.ExecuteScalarAsync()
             ?? throw new InvalidOperationException($"Role '{roleKey}' not found."));
-    }
-
-    private static async Task<long> LoadUserIdAsync(string connectionString, string email)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-        await using var command = new NpgsqlCommand(
-            """
-            SELECT id
-            FROM app_users
-            WHERE email = @email
-            LIMIT 1;
-            """,
-            connection);
-        command.Parameters.AddWithValue("email", email);
-        return (long)(await command.ExecuteScalarAsync()
-            ?? throw new InvalidOperationException($"User '{email}' not found."));
     }
 
     private static async Task<TemporaryProcessType> CreateTemporaryProcessTypeAsync(string connectionString, string prefix)

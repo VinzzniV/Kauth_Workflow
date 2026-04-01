@@ -22,7 +22,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-      AUTH_MODE: ${AUTH_MODE:-demo}
+      AUTH_MODE: ${AUTH_MODE:-dev-sim}
       ConnectionStrings__Default: Host=db;Port=5432;Database=${POSTGRES_DB:-appdb};Username=${POSTGRES_USER:-app};Password=${POSTGRES_PASSWORD:-app_pw}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5173}
       Cors__AllowedOrigins__0: ${PUBLIC_BASE_URL:-http://localhost:5173}
@@ -47,7 +47,7 @@ services:
       dockerfile: Dockerfile
     environment:
       API_BASE: /api
-      AUTH_MODE: ${WEB_AUTH_MODE:-demo}
+      AUTH_MODE: ${WEB_AUTH_MODE:-dev-sim}
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
       ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-}

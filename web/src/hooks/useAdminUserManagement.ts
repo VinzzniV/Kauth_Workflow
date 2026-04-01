@@ -17,7 +17,7 @@ import {
 } from "../services/adminApi";
 import type { AdminGroup, AdminUser } from "../types/auth";
 
-const DEMO_USERS_REFRESH_EVENT = "demo-users-refresh";
+const SIMULATION_USERS_REFRESH_EVENT = "sim-users-refresh";
 
 type UseAdminUserManagementOptions = {
   users: AdminUser[];
@@ -42,12 +42,12 @@ export function useAdminUserManagement({
 }: UseAdminUserManagementOptions) {
   const confirm = useConfirmationDialog();
 
-  const notifyDemoUsersChanged = useCallback(() => {
+  const notifySimulationUsersChanged = useCallback(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    window.dispatchEvent(new Event(DEMO_USERS_REFRESH_EVENT));
+    window.dispatchEvent(new Event(SIMULATION_USERS_REFRESH_EVENT));
   }, []);
 
   const [userFormError, setUserFormError] = useState<string | null>(null);
@@ -160,7 +160,7 @@ export function useAdminUserManagement({
       setUsers(freshUsers);
       setSelectedUserId(updatedUser.userId);
       await refreshCurrentUser();
-      notifyDemoUsersChanged();
+      notifySimulationUsersChanged();
       setUserFormNotice(`Personenstammdaten für ${updatedUser.displayName} wurden gespeichert.`);
       onNotice(`Personenstammdaten für ${updatedUser.displayName} wurden gespeichert.`);
     } catch (err) {
@@ -182,7 +182,7 @@ export function useAdminUserManagement({
     userExternalKeyDraft,
     userIsActiveDraft,
     userNotificationEmailDraft,
-    notifyDemoUsersChanged,
+    notifySimulationUsersChanged,
   ]);
 
   const createUser = useCallback(async () => {
@@ -209,7 +209,7 @@ export function useAdminUserManagement({
       setNewUserNotificationEmailDraft("");
       setNewUserDepartmentIdDraft("");
       setNewUserIsActiveDraft(true);
-      notifyDemoUsersChanged();
+      notifySimulationUsersChanged();
       onNotice(`Person ${createdUser.displayName} wurde angelegt.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Person konnte nicht angelegt werden.";
@@ -224,7 +224,7 @@ export function useAdminUserManagement({
     newUserExternalKeyDraft,
     newUserIsActiveDraft,
     newUserNotificationEmailDraft,
-    notifyDemoUsersChanged,
+    notifySimulationUsersChanged,
     onError,
     onNotice,
     setUsers,
@@ -251,7 +251,7 @@ export function useAdminUserManagement({
         setSelectedUserId(null);
       }
       await reload();
-      notifyDemoUsersChanged();
+      notifySimulationUsersChanged();
       onNotice(`Person ${user.displayName} wurde gelöscht.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Person konnte nicht gelöscht werden.";
@@ -259,7 +259,7 @@ export function useAdminUserManagement({
     } finally {
       setDeletingUserId(null);
     }
-  }, [confirm, notifyDemoUsersChanged, onError, onNotice, reload, selectedUserId]);
+  }, [confirm, notifySimulationUsersChanged, onError, onNotice, reload, selectedUserId]);
 
   const saveUserRoles = useCallback(async () => {
     if (!selectedUser) {
@@ -273,7 +273,7 @@ export function useAdminUserManagement({
     try {
       const updatedUser = await updateAdminUserRoles(selectedUser.userId, selectedUserRoleIds);
       setUsers((current) => current.map((user) => (user.userId === updatedUser.userId ? updatedUser : user)));
-      notifyDemoUsersChanged();
+      notifySimulationUsersChanged();
       onNotice(`Rollen für ${updatedUser.displayName} wurden aktualisiert.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Rollen konnten nicht aktualisiert werden.";
@@ -281,7 +281,7 @@ export function useAdminUserManagement({
     } finally {
       setIsSavingUserRoles(false);
     }
-  }, [notifyDemoUsersChanged, onError, onNotice, selectedUser, selectedUserRoleIds, setUsers]);
+  }, [notifySimulationUsersChanged, onError, onNotice, selectedUser, selectedUserRoleIds, setUsers]);
 
   const saveUserGroups = useCallback(async () => {
     if (!selectedUser) {
@@ -295,7 +295,7 @@ export function useAdminUserManagement({
     try {
       const updatedUser = await updateAdminUserGroups(selectedUser.userId, selectedUserGroupIds);
       setUsers((current) => current.map((user) => (user.userId === updatedUser.userId ? updatedUser : user)));
-      notifyDemoUsersChanged();
+      notifySimulationUsersChanged();
       onNotice(`Gruppen für ${updatedUser.displayName} wurden aktualisiert.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gruppen konnten nicht aktualisiert werden.";
@@ -303,7 +303,7 @@ export function useAdminUserManagement({
     } finally {
       setIsSavingUserGroups(false);
     }
-  }, [notifyDemoUsersChanged, onError, onNotice, selectedUser, selectedUserGroupIds, setUsers]);
+  }, [notifySimulationUsersChanged, onError, onNotice, selectedUser, selectedUserGroupIds, setUsers]);
 
   const saveGroupRoles = useCallback(async () => {
     if (!selectedGroup) {

@@ -109,7 +109,7 @@ export function AdminUsersSection({
           <p>
             {isExternalIdentityMode
               ? "Nur verwenden, wenn eine Person bewusst lokal gepflegt werden muss. Standardfall bleibt die Synchronisierung aus dem Verzeichnis."
-              : "Die Login-E-Mail bleibt eindeutig. Für Demo-Mails kann zusätzlich eine separate Benachrichtigungs-Mail gepflegt werden, die auch bei mehreren Personen identisch sein darf."}
+              : "Die Login-E-Mail bleibt eindeutig. Fuer Sammel- oder Testpostfaecher kann zusaetzlich eine separate Benachrichtigungs-Mail gepflegt werden, die auch bei mehreren Personen identisch sein darf."}
           </p>
         </div>
 
@@ -139,7 +139,7 @@ export function AdminUsersSection({
             type="email"
             value={newUserNotificationEmailDraft}
             onChange={(event) => onNewUserNotificationEmailChange(event.target.value)}
-            placeholder="optional fuer Demo-Verteiler"
+            placeholder="optional fuer Sammel- oder Testpostfaecher"
           />
         </label>
 
@@ -220,7 +220,7 @@ export function AdminUsersSection({
               <section key={`selected-user-${selectedUser.userId}`} className="panel">
                 <div className="panel-head">
                   <h2>Person pflegen: {selectedUser.displayName}</h2>
-                  <p>Die Login-E-Mail bleibt eindeutig. Für Demo- oder Sammelpostfächer können Sie zusätzlich eine separate Benachrichtigungs-Mail pflegen.</p>
+                  <p>Die Login-E-Mail bleibt eindeutig. Fuer Sammel- oder Testpostfaecher koennen Sie zusaetzlich eine separate Benachrichtigungs-Mail pflegen.</p>
                 </div>
 
                 <label className="field compact">
@@ -277,9 +277,9 @@ export function AdminUsersSection({
                 </label>
 
                 <p className="panel-note">
-                  Demo-Versand: {userNotificationEmailDraft.trim() || userEmailDraft.trim() || "keine Mail gepflegt"} | Rollen:{" "}
+                  Benachrichtigungsziel: {userNotificationEmailDraft.trim() || userEmailDraft.trim() || "keine Mail gepflegt"} | Rollen:{" "}
                   {selectedUser.roles.map(roleDisplayName).join(", ") || "keine"} | Gruppen:{" "}
-                  {selectedUser.groups.map((group) => group.groupName).join(", ") || "keine"} | Klick auf einen Mail-Link meldet die Session als diese Person an.
+                  {selectedUser.groups.map((group) => group.groupName).join(", ") || "keine"}
                 </p>
 
                 {userFormError ? <p className="panel-note">{userFormError}</p> : null}

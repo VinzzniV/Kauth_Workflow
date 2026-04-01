@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Http;
 
 namespace API;
 
-internal sealed class DemoSessionTokenIdentityResolver : IRequestIdentityResolver
+internal sealed class DevSimulationSessionTokenIdentityResolver : IRequestIdentityResolver
 {
-    private readonly IDemoSessionStore _sessionStore;
+    private readonly IDevSimulationSessionStore _sessionStore;
 
-    public DemoSessionTokenIdentityResolver(IDemoSessionStore sessionStore)
+    public DevSimulationSessionTokenIdentityResolver(IDevSimulationSessionStore sessionStore)
     {
         _sessionStore = sessionStore;
     }
@@ -32,7 +32,7 @@ internal sealed class DemoSessionTokenIdentityResolver : IRequestIdentityResolve
             ExternalKey = session.IdentityKey,
             Email = null,
             DisplayName = null,
-            Provider = "demo-session"
+            Provider = "dev-sim-session"
         });
     }
 

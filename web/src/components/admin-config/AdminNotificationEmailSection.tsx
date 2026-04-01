@@ -204,7 +204,7 @@ export function AdminNotificationEmailSection({
             type="email"
             value={notificationSandboxRedirectDraft}
             onChange={(event) => onNotificationSandboxRedirectChange(event.target.value)}
-            placeholder="demo-mailbox@example.com"
+            placeholder="test-mailbox@example.com"
           />
         </label>
 

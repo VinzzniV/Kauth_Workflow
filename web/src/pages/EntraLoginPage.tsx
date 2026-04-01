@@ -12,7 +12,7 @@ export default function EntraLoginPage() {
     setLoading(true);
     setError(null);
     try {
-      await identityProvider.loginWithUsername("");
+      await identityProvider.loginAsUser(0);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Anmeldung fehlgeschlagen.";

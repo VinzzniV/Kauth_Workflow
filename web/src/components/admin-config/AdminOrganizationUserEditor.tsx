@@ -92,7 +92,7 @@ export function AdminOrganizationUserEditor(props: AdminOrganizationUserEditorPr
               type="email"
               value={props.newUserNotificationEmailDraft}
               onChange={(event) => props.onNewUserNotificationEmailChange(event.target.value)}
-              placeholder="optional für Demo-Verteiler"
+              placeholder="optional fuer Sammel- oder Testpostfaecher"
             />
           </label>
 

@@ -1,21 +1,28 @@
 # Setup
 
-## Struktur
+Diese Datei beschreibt den aktuellen Betriebs- und Entwicklungsweg des Projekts. Sie ist die operative Doku fuer lokale Entwicklung, servernahes Deployment und Laufzeitkonfiguration.
 
-Das Repo trennt jetzt nach Verantwortung statt nach historischen Szenarien:
+## Repo-Struktur Fuer Betrieb
 
 - `compose.yml`
-  Gemeinsame Container-Basis fuer `db`, `api` und `web`.
+  Gemeinsame Compose-Basis fuer `db`, `api` und `web`.
 - `compose.dev-db.yml`
-  Lokale Entwicklungs-Ergaenzung nur fuer PostgreSQL mit Dev-Init und Host-Port `25432`.
+  Lokales Override nur fuer PostgreSQL mit Dev-Init und Host-Port `25432`.
 - `compose.prod.yml`
-  Serverseitiges Override fuer den Linux-Stack mit Entra-Auth, produktivem DB-Init und Caddy als HTTPS-Reverse-Proxy.
+  Produktionsnahes Override mit Entra-Auth, produktivem DB-Init und Caddy-Reverse-Proxy.
 - `.env.prod.example`
-  Vorlage fuer die serverseitige Konfiguration. Die echte Datei heisst `.env.prod` und bleibt lokal.
+  Vorlage fuer produktive Laufzeitvariablen.
 - `web/.env.local`
-  Lokale Frontend-Entwicklung. Wird nicht eingecheckt.
+  Lokale Frontend-Entwicklung. Bleibt ungeversioniert.
 
-## Lokal entwickeln
+## Lokale Entwicklung
+
+Der normale lokale Weg ist:
+1. Datenbank per Docker
+2. API lokal per `dotnet run`
+3. Frontend lokal per Vite
+
+Ein kompletter lokaler Docker-Vollstack ist fuer den Standard-Workflow nicht noetig.
 
 ### 1. Datenbank starten
 
@@ -35,22 +42,51 @@ Die lokale DB laeuft dann auf `localhost:25432` mit:
 dotnet run --project api/API/API.csproj --launch-profile API
 ```
 
-Der Launch-Profile `API` setzt lokal bereits:
+Das Launch-Profil `API` setzt lokal bereits:
 
-- `AUTH_MODE=demo`
+- `ASPNETCORE_ENVIRONMENT=Development`
+- `AUTH_MODE=dev-sim`
 - `ConnectionStrings__Default=Host=localhost;Port=25432;...`
 - `PUBLIC_BASE_URL=http://localhost:5173`
-- CORS / Notification-Frontend auf `http://localhost:5173`
+- `Cors__AllowedOrigins__0=http://localhost:5173`
+- `NotificationEmail__FrontendBaseUrl=http://localhost:5173`
+- `DIRECTORY_GROUP_PREFIX=Onboarding-App-`
+- `DIRECTORY_SYNC_SCHEDULED=true`
 
-Damit ist fuer lokale Entwicklung kein zusaetzliches Shell-Environment noetig.
+Die API laedt beim Start optional eine `.env.prod` aus dem aktuellen oder einem uebergeordneten Verzeichnis. Das dient lokal als Fallback fuer fehlende `ENTRA_*`- oder Directory-Werte. Vorhandene Shell- oder Launch-Profile-Werte behalten Vorrang.
+
+Fuer lokalen Verzeichnis-Sync braucht die API echte Entra-Zugangsdaten, entweder in der Shell, in Windows-Benutzervariablen oder in `.env.prod`:
+
+```powershell
+$env:ENTRA_TENANT_ID = "<tenant-id>"
+$env:ENTRA_CLIENT_ID = "<app-id>"
+$env:ENTRA_CLIENT_SECRET = "<client-secret-value>"
+$env:ENTRA_AUDIENCE = "api://<app-id>"
+```
+
+Wichtig:
+
+- `AUTH_MODE=dev-sim` bedeutet lokal nur Simulations-Login, nicht kuenstliche Demo-Welt.
+- Die Login-Liste kommt aus synchronisierten Verzeichnisidentitaeten.
+- Ohne gueltige `ENTRA_*`-Werte bleibt diese Liste leer, bis ein Directory-Sync erfolgreich war.
 
 ### 3. Web lokal starten
 
-In `web/.env.local` reicht im Normalfall:
+Beispiel fuer `web/.env.local`:
 
 ```env
 VITE_API_PROXY_TARGET=http://127.0.0.1:5001
-VITE_AUTH_MODE=demo
+VITE_AUTH_MODE=dev-sim
+```
+
+Optional fuer lokale Entra-Tests:
+
+```env
+VITE_AUTH_MODE=entra
+VITE_ENTRA_CLIENT_ID=
+VITE_ENTRA_TENANT_ID=
+VITE_ENTRA_AUDIENCE=api://00000000-0000-0000-0000-000000000000
+VITE_ENTRA_REDIRECT_URI=https://onboarding-test.example.local
 ```
 
 Dann:
@@ -61,18 +97,29 @@ npm install
 npm run dev
 ```
 
-Das Frontend laeuft auf `http://localhost:5173` und nutzt den Vite-Proxy auf die lokal gestartete API.
+Das Frontend laeuft auf `http://localhost:5173` und nutzt den Vite-Proxy zur lokal gestarteten API.
 
-### Lokaler Auth-Modus
+### Lokale Checks
 
-- Lokal ist `AUTH_MODE=demo` der Standard.
-- Gesteuert wird das fuer die API ueber `api/API/Properties/launchSettings.json`.
-- Das Frontend nutzt lokal `web/.env.local` als Fallback und laeuft standardmaessig ebenfalls im Demo-Modus.
-- Fuer lokalen Entra-Test kann das Frontend optional in `web/.env.local` auf `VITE_AUTH_MODE=entra` gestellt werden; serverseitig bleibt der echte Entra-Betrieb aber der servernahe Stack.
+Sinnvolle lokale Smoke-Checks:
 
-## Linux-VM deployen
+```powershell
+curl http://127.0.0.1:5001/health/live
+curl http://127.0.0.1:5001/health
+curl http://127.0.0.1:5001/auth/provider-info
+curl http://127.0.0.1:5001/me
+```
 
-### 1. Konfiguration anlegen
+Erwartung:
+
+- `/health/live` liefert `200`
+- `/health` liefert `200` oder `503` mit Status-JSON, aber nicht `404`
+- `/auth/provider-info` zeigt den aktiven Auth-Modus
+- `/me` liefert ohne gueltige Session typischerweise `401`
+
+## Linux-VM Deployment
+
+### 1. Produktive Konfiguration anlegen
 
 ```bash
 cp .env.prod.example .env.prod
@@ -88,11 +135,10 @@ Pflichtwerte in `.env.prod`:
 - `ENTRA_TENANT_ID`
 - `ENTRA_CLIENT_ID`
 - `ENTRA_AUDIENCE`
+- `ENTRA_CLIENT_SECRET` oder `GRAPH_CLIENT_SECRET`
 
 Optional bzw. je nach Betrieb:
 
-- `ENTRA_CLIENT_SECRET`
-- `GRAPH_CLIENT_SECRET`
 - `DIRECTORY_GROUP_PREFIX`
 - `DIRECTORY_EXPLICIT_GROUP_IDS`
 - `DIRECTORY_SYNC_SCHEDULED`
@@ -100,15 +146,16 @@ Optional bzw. je nach Betrieb:
 - `WEB_BIND_HOST`
 - `WEB_HTTP_PORT`
 - `WEB_HTTPS_PORT`
+- `AUTO_PROVISION_DEFAULT_ROLE_KEY`
 
 Wichtig:
 
 - `PUBLIC_BASE_URL` muss exakt zur oeffentlichen HTTPS-URL passen.
-- Dieselbe URL muss in Entra als SPA-Redirect-URI gepflegt sein.
-- `ENTRA_AUDIENCE` muss die API-App-ID-URI sein, aus der das Frontend den Scope `<audience>/access_as_user` anfordert.
-- Ohne `ENTRA_CLIENT_SECRET` bleibt Login funktionsfaehig, aber Directory-Sync / Graph-Zugriffe koennen Warnungen erzeugen.
+- Dieselbe URL muss als Entra SPA Redirect URI gepflegt sein.
+- `ENTRA_AUDIENCE` muss die API App-ID-URI sein, aus der das Frontend den Scope `<audience>/access_as_user` anfordert.
+- Mindestens eines aus `ENTRA_CLIENT_SECRET` oder `GRAPH_CLIENT_SECRET` muss gesetzt sein, sonst ist weder lokaler Directory-Sync noch produktive Entra-/Graph-Nutzung vollstaendig konfiguriert.
 
-### 2. Stack starten
+### 2. Produktionsstack starten
 
 ```bash
 docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml up -d --build
@@ -126,33 +173,83 @@ Sinnvolle Checks nach dem Deploy:
 ```bash
 curl -k https://<PUBLIC_HOSTNAME>/api/health/live
 curl -k https://<PUBLIC_HOSTNAME>/api/health
+curl -k https://<PUBLIC_HOSTNAME>/api/auth/provider-info
 curl -k -i https://<PUBLIC_HOSTNAME>/api/me
 ```
 
 Erwartung:
 
 - `/api/health/live` liefert `200`
-- `/api/health` liefert `200` oder `503` mit Health-JSON, aber niemals `404`
-- `/api/me` liefert ohne Login in Entra typischerweise `401`, aber niemals `404`
+- `/api/health` liefert `200` oder `503`, aber nicht `404`
+- `/api/auth/provider-info` zeigt `mode=entra`
+- `/api/me` liefert ohne Login typischerweise `401`, aber nicht `404`
 
-## Serverseitiger Auth-Modus
+## Auth-Modi
 
-- Der servernahe Stack setzt im Compose-Override hart `AUTH_MODE=entra`.
-- Die API erwartet in diesem Modus `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` und `ENTRA_AUDIENCE`.
-- Das Web bekommt seine Laufzeitkonfiguration ueber `app-config.js`, das beim Containerstart aus den Container-Umgebungsvariablen erzeugt wird.
-- Dadurch braucht das Web fuer URL-/Entra-Aenderungen keinen Neubuild mehr.
+### Lokal
 
-## HTTPS / Caddy
+- API-Standard ist `AUTH_MODE=dev-sim`
+- Frontend-Standard ist `VITE_AUTH_MODE=dev-sim`
+- Simulations-Login basiert auf lokal synchronisierten Verzeichnisidentitaeten
 
-- `compose.prod.yml` bringt einen repo-eigenen Caddy-Reverse-Proxy mit.
-- Caddy nutzt standardmaessig `tls internal` fuer LAN-/Testbetrieb.
-- Clients im Netz muessen dem internen Caddy-Root-Zertifikat vertrauen, sonst schlagen Browser-Warnungen und Entra-Redirects fehl.
-- Die oeffentlichen API-Checks laufen ueber `https://<PUBLIC_HOSTNAME>/api/...`.
-- Der Proxy strippt intern den `/api`-Praefix, die API selbst bleibt auf Root-Routen wie `/health` und `/me`.
+### Servernah / produktiv
 
-## Ersetzt / entfernt
+- `compose.prod.yml` setzt `AUTH_MODE=entra`
+- Das Web bekommt Laufzeitwerte ueber `app-config.js`
+- URL-/Entra-Aenderungen brauchen dadurch keinen Frontend-Neubuild
 
-Diese Dateien wurden durch die neue Struktur ersetzt:
+## Datenbank-Initialisierung
+
+- Dev verwendet `db/init/dev/00_init.sql`
+- Production verwendet `db/init/prod/00_init.sql`
+- Production laedt `02_bootstrap.sql`, aber nicht `02_seed.sql`
+- Dev laedt `02_seed.sql`, das den produktiven Bootstrap plus `90_dev_defaults.sql` kombiniert
+
+Damit sind produktiver Bootstrap und lokale Defaults technisch getrennt.
+
+## HTTPS / Reverse Proxy
+
+- `compose.prod.yml` bringt einen repo-eigenen Caddy-Proxy mit
+- `deploy/Caddyfile` nutzt standardmaessig `tls internal`
+- `/api/*` wird an die API weitergereicht, der Rest an das Web
+- Clients im Netz muessen dem internen Caddy-Root-Zertifikat vertrauen, sonst gibt es Browser-Warnungen und Redirect-Probleme
+
+## Wichtige Konfigurationsschalter
+
+### Backend
+
+- `AUTH_MODE`
+  Erlaubte Werte: `dev-sim`, `entra`
+- `ConnectionStrings__Default`
+  Bevorzugter DB-Connection-String
+- `CONNECTION_STRING`
+  Legacy-Fallback
+- `PUBLIC_BASE_URL`
+  Oeffentliche URL fuer CORS, Redirects und Mail-Links
+- `DIRECTORY_*`
+  Verzeichnis-Sync und Gruppenfilter
+- `ENTRA_*`
+  Entra- und API-Integration
+- `GRAPH_CLIENT_SECRET`
+  Graph-nahe Runtime-Konfiguration
+
+### Frontend
+
+- lokal: `web/.env.local`
+- serverseitig: Runtime-Config in `app-config.js`
+
+Wichtige Frontend-Werte:
+
+- `apiBase`
+- `authMode`
+- `entraClientId`
+- `entraTenantId`
+- `entraAudience`
+- `entraRedirectUri`
+
+## Ersetzte Altstruktur
+
+Diese frueheren Dateien oder Pfade werden durch die aktuelle Struktur ersetzt:
 
 - `docker-compose.yml` -> `compose.yml`
 - `docker-compose.prod.yml` -> `compose.prod.yml`
@@ -165,28 +262,3 @@ Diese Dateien wurden durch die neue Struktur ersetzt:
 - `start-prod.ps1` entfernt
 - `ENVIRONMENTS.md` entfernt
 - `docs/ENTRA_SETUP.md` entfernt
-
-## Wichtige Konfigurationsschalter
-
-### Backend
-
-- `AUTH_MODE`
-  Erlaubte Werte: `demo`, `entra`, `dual`.
-- `ConnectionStrings__Default`
-  Bevorzugter DB-Connection-String.
-- `CONNECTION_STRING`
-  Nur noch Legacy-Fallback.
-
-### Frontend
-
-- Lokal: `web/.env.local`
-- Serverseitig: Runtime-Config in `app-config.js`
-
-Wichtige Frontend-Werte:
-
-- `apiBase`
-- `authMode`
-- `entraClientId`
-- `entraTenantId`
-- `entraAudience`
-- `entraRedirectUri`

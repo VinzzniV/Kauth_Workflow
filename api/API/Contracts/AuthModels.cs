@@ -182,8 +182,8 @@ public sealed class CurrentUser
     }
 }
 
-// Rueckgaben fuer Demo-Login und Admin-Verwaltung.
-public sealed class DemoLoginUserOptionDto
+// Rueckgaben fuer Dev-Simulation und Admin-Verwaltung.
+public sealed class SimulationLoginUserOptionDto
 {
     public required long UserId { get; init; }
     public required string Username { get; init; }
@@ -192,9 +192,9 @@ public sealed class DemoLoginUserOptionDto
     public string? DepartmentName { get; init; }
 }
 
-public sealed class DemoLoginRequest
+public sealed class SimulationLoginRequest
 {
-    public string? Username { get; init; }
+    public long? UserId { get; init; }
 }
 
 public sealed class MeDto
@@ -211,7 +211,7 @@ public sealed class MeDto
     public bool DepartmentOverrideActive { get; init; }
 }
 
-public sealed class DemoLoginResponse
+public sealed class SimulationLoginResponse
 {
     public required string Token { get; init; }
     public required DateTime ExpiresAtUtc { get; init; }
@@ -474,7 +474,7 @@ public sealed class AdminGraphApplicationConfigurationUpdateRequest
     public string? ClientSecret { get; init; }
 }
 
-internal sealed class DemoSession
+internal sealed class DevSimulationSession
 {
     public required string Token { get; init; }
     public required long UserId { get; init; }

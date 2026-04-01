@@ -1,170 +1,92 @@
 # FRONTEND_TODO.md
 
----
+## Purpose
 
-# 🧠 CONTEXT (UNBEDINGT LESEN)
-
-Dieses Projekt ist ein internes Onboarding-System.
-
-Frontend-Ziel:
-
-- Klar, ruhig, professionell
-- Fokus auf Handlung, nicht auf Information
-- Keine unnötigen Texte oder Elemente
-- Einheitliches Design-System
+This file is the active frontend working contract.
+Use it for frontend guardrails, review criteria and still-open UI work.
+It is not the main architecture file and not the full product backlog.
 
 ---
 
-## ❗ WICHTIGSTE REGELN
+## Read Order For Frontend Work
 
-1. Action > Information  
-   Jede Seite muss sofort zeigen: Was soll ich tun?
-
-2. Reduce Noise  
-   Alles entfernen, was nicht direkt zur Entscheidung beiträgt
-
-3. Consistency  
-   Gleiche Elemente müssen gleich aussehen
-
-4. Keine Marketing-Texte  
-   Keine erklärenden Fließtexte  
-   Keine „Hilfetexte“, die obvious sind
-
-5. Maximal 1 Fokus pro Seite
+Before non-trivial frontend changes, read:
+1. `DOCS_CONTROL.md`
+2. `PROJECT_CONTEXT.md`
+3. `FRONTEND_TODO.md`
+4. `web/README.md`
+5. `MEMORY.md`
 
 ---
 
-## ❌ VERBOTEN
+## Frontend Goal
 
-- zusätzliche Panels ohne Funktion
-- erklärende Texte über offensichtliche Dinge
-- doppelte Informationen
-- unterschiedliche Card-Typen ohne klaren Zweck
-- „Design verschönern“ ohne Strukturänderung
+The UI should feel:
+- clear
+- calm
+- task-oriented
+- professional
 
----
-
-## ✅ ERLAUBT
-
-- Entfernen von UI-Elementen
-- Umstrukturieren von Layout
-- Vereinheitlichen von Komponenten
-- Reduzieren von Komplexität
+The product is a workflow application, not a marketing page and not a dashboard toy.
 
 ---
 
-# 🎯 GLOBAL DESIGN SYSTEM (MUSS EINGEHALTEN WERDEN)
+## Core UI Rules
+
+- Action over explanation: users should quickly see what they can do next.
+- Reduce noise: remove text, panels and badges that do not help a decision.
+- Keep one clear focus per screen or section.
+- Preserve consistent interaction patterns across pages.
+- Prefer simplification over adding compensating UI.
 
 ---
 
-## 1. Layout-Regeln
+## Forbidden
 
-- Seiten haben KEINE verschachtelten Cards
-- max. 2 Ebenen:
-  - Section
-  - Content
-
----
-
-## 2. Card-Regeln
-
-Es gibt NUR 3 Typen:
-
-### Primary Card
-- wichtigste Aktion
-- groß, hervorgehoben
-
-### List Card
-- Listen (Workflows, Einträge)
-- kompakt, wenig Inhalt
-
-### Stat Card
-- nur Zahl + Label
-- keine Beschreibung
-
-### ❌ Verboten
-- Card in Card
-- lange Texte in Cards
+- decorative panels without function
+- explanatory text for obvious controls or states
+- duplicated information across the same page
+- inconsistent card patterns for similar content
+- "visual improvement" changes without structural benefit
+- nested cards unless there is a very strong existing pattern that already depends on it
 
 ---
 
-## 3. Typografie
+## Allowed
 
-- Titel → groß, fett
-- Labels → klein, grau
-- Meta → reduziert
-- KEINE langen Absätze
-
----
-
-## 4. Spacing
-
-- mehr Abstand zwischen Sections
-- weniger Rahmen
-- kein „Box-Stapel“
+- removing UI elements
+- simplifying layouts
+- merging redundant sections
+- unifying components and wording
+- making hierarchy and actions easier to scan
 
 ---
 
-# 📌 AKTUELLER STAND
+## Layout And Component Guardrails
+
+- Prefer simple section-based layouts over box stacks.
+- Keep visual hierarchy obvious: page title, key action, supporting content.
+- Card usage should stay intentional:
+  - primary card for the main action or decision
+  - list card for compact repeated entries
+  - stat card for short metric display
+- Long prose blocks are usually a smell.
 
 ---
 
-Alle bisher definierten Frontend-Aufgaben sind erledigt.
+## Validation Checklist
 
-Neue Aufgaben sollen hier nur ergänzt werden, wenn sie noch offen sind.
-
----
-
-# 🧪 VALIDATION
-
-Nach Umsetzung prüfen:
-
-- erkennt ein neuer User sofort:
-  → was zu tun ist?
-
-- gibt es:
-  ❌ unnötigen Text  
-  ❌ doppelte Infos  
-  ❌ Unklarheit  
-
-- ist alles:
-  ✅ konsistent  
-  ✅ ruhig  
-  ✅ verständlich  
+After frontend changes, check:
+- Is the next action obvious?
+- Did the change remove noise instead of adding it?
+- Are labels and interactions consistent with neighboring screens?
+- Is there any duplicated information left on the page?
+- Does the layout still work on desktop and mobile?
 
 ---
 
-# 🤖 KI-ARBEITSANWEISUNG
+## Open Frontend Work
 
-IMMER SO STARTEN:
-
-Read FRONTEND_TODO.md and PROJECT_CONTEXT.md.
-
-Summarize:
-- UI rules
-- what is forbidden
-- what must be achieved
-
-Then implement ONLY the requested task.
-No extra features.
-No additional UI elements.
-Focus on simplification.
-
----
-
-# 🔥 FINALER GEDANKE
-
-Dieses Frontend soll nicht:
-
-❌ fancy  
-❌ verspielt  
-❌ erklärend  
-
-sein
-
-sondern:
-
-✅ klar  
-✅ ruhig  
-✅ effizient  
-✅ professionell
+- No frontend-specific open item is tracked here right now.
+- Add new entries only when they are genuinely still open and frontend-specific.
+- Cross-cutting release work belongs in `TODO.md`.

@@ -3,13 +3,9 @@ using NpgsqlTypes;
 
 namespace API;
 
-// Laedt Benutzer, Rollen, Gruppen und Verantwortlichkeiten fuer Demo-Login und Admin-Bereich aus PostgreSQL.
+// Laedt Benutzer, Rollen, Gruppen und Verantwortlichkeiten fuer Simulations-Login und Admin-Bereich aus PostgreSQL.
 internal sealed partial class PostgresUserAuthorizationRepository : IUserAuthorizationRepository
 {
-    private static readonly string DemoEligibleRoleFilterSql = string.Join(
-        ",\n          ",
-        AuthorizationRoles.ReadAllowed.Select(static roleKey => $"'{roleKey}'"));
-
     // Baut aus einer aufgeloesten Identitaet das vollstaendige CurrentUser-Modell fuer die Autorisierung.
     public async Task<CurrentUser?> ResolveCurrentUser(ResolvedIdentity identity, CancellationToken cancellationToken = default)
     {
@@ -279,52 +275,35 @@ ON CONFLICT (app_user_id) DO NOTHING;";
             cancellationToken);
     }
 
-    // Liefert die auswaehlbaren Demo-Benutzer fuer die Login-Seite.
-    public async Task<List<DemoLoginUserOptionDto>> GetDemoLoginUsers(CancellationToken cancellationToken = default)
+    // Liefert die lokal synchronisierten Entra-Benutzer fuer die Dev-Simulationsseite.
+    public async Task<List<SimulationLoginUserOptionDto>> GetSimulationLoginUsers(CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
 
-        var sql = $@"
-SELECT
+        const string sql = @"
+SELECT DISTINCT ON (u.id)
     u.id,
-    u.external_key,
+    COALESCE(di.user_principal_name, u.external_key, u.email),
     u.display_name,
     u.email,
     d.name
 FROM app_users u
+JOIN directory_identities di ON di.app_user_id = u.id
+JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
 LEFT JOIN people p ON p.app_user_id = u.id
 LEFT JOIN departments d ON d.id = COALESCE(p.department_id, u.department_id)
-WHERE u.is_active = TRUE
-  AND u.external_key IS NOT NULL
-  AND BTRIM(u.external_key) <> ''
-  AND EXISTS (
-      SELECT 1
-      FROM (
-          SELECT ur.app_role_id AS role_id
-          FROM app_user_roles ur
-          WHERE ur.app_user_id = u.id
-          UNION
-          SELECT gr.app_role_id AS role_id
-          FROM app_user_groups ug
-          JOIN app_group_roles gr ON gr.app_group_id = ug.app_group_id
-          WHERE ug.app_user_id = u.id
-      ) assigned_roles
-      JOIN app_roles r ON r.id = assigned_roles.role_id
-      WHERE r.role_key IN (
-          {DemoEligibleRoleFilterSql}
-      )
-      AND r.role_kind = '{AuthorizationRoles.SystemRoleKind}'
-  )
-ORDER BY u.display_name, u.id;";
+WHERE u.directory_synced = TRUE
+  AND di.account_enabled = TRUE
+ORDER BY u.id, di.last_synced_at DESC NULLS LAST, di.id DESC;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-        var users = new List<DemoLoginUserOptionDto>();
+        var users = new List<SimulationLoginUserOptionDto>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            users.Add(new DemoLoginUserOptionDto
+            users.Add(new SimulationLoginUserOptionDto
             {
                 UserId = reader.GetInt64(0),
                 Username = reader.GetString(1),

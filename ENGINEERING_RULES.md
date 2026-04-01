@@ -19,6 +19,16 @@
 
 ---
 
+## Documentation Rules
+
+- Read `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md` and `MEMORY.md` before larger changes
+- Update the relevant docs in the same pass when code, structure or runtime behavior changes
+- Keep stable truth in `PROJECT_CONTEXT.md`, not in ad-hoc notes
+- Keep temporary findings in `MEMORY.md`, not in long-term architecture files
+- Do not duplicate setup, structure and decision content across multiple docs without need
+
+---
+
 ## File Size Rules
 
 Avoid large files:

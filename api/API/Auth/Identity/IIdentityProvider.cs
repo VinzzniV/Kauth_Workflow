@@ -5,6 +5,6 @@ namespace API;
 public interface IIdentityProvider
 {
     // Resolves the request identity independent of the backing auth mechanism
-    // (demo session/header today, real company SSO later).
+    // (development simulation session or Entra token).
     Task<ResolvedIdentity?> ResolveIdentity(HttpContext httpContext, CancellationToken cancellationToken = default);
 }

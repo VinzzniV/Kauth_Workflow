@@ -33,7 +33,7 @@ export function getApiBase(): string {
 
 export function getAuthMode(): string {
   const windowConfig = readWindowConfig();
-  return (normalize(windowConfig.authMode) ?? normalize(import.meta.env.VITE_AUTH_MODE) ?? "demo").toLowerCase();
+  return (normalize(windowConfig.authMode) ?? normalize(import.meta.env.VITE_AUTH_MODE) ?? "dev-sim").toLowerCase();
 }
 
 export function getEntraClientId(): string {

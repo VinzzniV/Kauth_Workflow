@@ -5,7 +5,7 @@ import {
 } from "@azure/msal-browser";
 import { msalConfig, loginRequest } from "./msalConfig";
 import type { IIdentityProvider } from "./IdentityProvider";
-import type { DemoLoginResponse, DemoLoginUserOption, Me } from "../types/auth";
+import type { Me, SimulationLoginResponse, SimulationLoginUserOption } from "../types/auth";
 import { requestJson } from "../services/api/client";
 
 const msalInstance = new PublicClientApplication(msalConfig);
@@ -83,12 +83,12 @@ export class EntraIdentityProvider implements IIdentityProvider {
     return requestJson<Me>("/me");
   }
 
-  public async getLoginOptions(): Promise<DemoLoginUserOption[]> {
+  public async getLoginOptions(): Promise<SimulationLoginUserOption[]> {
     // Not applicable for Entra — return empty list.
     return [];
   }
 
-  public async loginWithUsername(_username: string): Promise<DemoLoginResponse> {
+  public async loginAsUser(_userId: number): Promise<SimulationLoginResponse> {
     await ensureMsalInitialized();
 
     // Trigger the MSAL redirect flow. This navigates away from the SPA,

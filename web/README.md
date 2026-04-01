@@ -1,74 +1,119 @@
 # Web-Frontend
 
-Das Frontend bildet die Oberflaeche fuer Mitarbeiterprozesse. Hier liegen Seiten, Rollenlogik, Navigation und der zentrale Zugriff auf die Backend-Endpunkte.
+Das Frontend ist die React/Vite-Oberflaeche fuer den Employee-Lifecycle-Workflow. Es steuert Login, Navigation, Workflow-Erstellung, Detailansichten, Aufgabenarbeit und die Admin-Workspaces.
+
+## Einstiegspunkte
+
+`src/main.tsx`
+Startet React, Router, React Query, Auth-/CurrentUser-Provider, Theme, Toasts und Dialoge.
+
+`src/App.tsx`
+Verdrahtet Login-Zustand, App-Layout und alle geschuetzten Routen.
 
 ## Wichtige Ordner
 
-`src/pages/`  
-Komplette Fachseiten wie Dashboard, Workflow-Uebersicht, Workflow-Detail, Aufgabenliste und Admin-Konfiguration.
+`src/pages/`
+Fachseiten wie Dashboard, Workflow-Liste, Workflow-Detail, Suche, Supervisor-Schritt, Aufgaben, Personenhistorie, Simulation-Login, Entra-Login und Administration.
 
-`src/components/`  
-Wiederverwendbare UI-Bausteine. Besonders wichtig sind `components/dashboard`, `components/layout` und `components/workflows`.
+`src/components/`
+Wiederverwendbare UI-Bausteine. Wichtig sind vor allem:
+- `components/layout`
+- `components/workflows`
+- `components/workflow-detail`
+- `components/dashboard`
+- `components/admin-config`
+- `components/feedback`
 
-`src/auth/`  
-Auth- und Rollenlogik des Frontends. Hier wird gesteuert, wer eingeloggt ist und welche Bereiche sichtbar sind.
+`src/auth/`
+Auth-Provider, Session-Wiederherstellung, aktueller Benutzer, Rollenmodell, MSAL/Entra-Integration und Auth-Modus-Abstraktion.
 
-`src/navigation/`  
-Routing-Helfer und Guards. Relevant, wenn sich Sichtbarkeit oder Menuefuehrung aendert.
+`src/navigation/`
+Route-Schutz und rollenabhaengige Navigation.
 
-`src/services/`  
-Zentraler API-Zugriff. Aenderungen an Backend-Endpunkten oder Request-Handling passieren in `lifecycleApi.ts`.
+`src/services/`
+HTTP-Clients, fachliche API-Module und React-Query-Layer. Das Frontend ist in mehrere Service- und Query-Module aufgeteilt.
 
-`src/types/`  
-Gemeinsame Typen fuer Workflow-, Aufgaben- und Auth-Daten.
+`src/theme/`
+Theme-Aufloesung und ThemeProvider.
+
+`src/types/`
+Gemeinsame Typen fuer Auth, Workflows und Admin-Daten.
+
+`src/config/`
+Runtime-Config fuer `app-config.js` und lokale Vite-Variablen.
+
+## Service-Schnitt
+
+Wichtige Service-Bereiche:
+- `authApi.ts` fuer Login, Session und aktueller Benutzer
+- `workflowApi.ts`, `taskApi.ts`, `peopleApi.ts`, `lookupApi.ts` fuer Fachdaten
+- `adminApi.ts` und `adminConfigApi.ts` fuer Admin-, Permission-, Directory- und Runtime-Konfiguration
+- `services/api/*` fuer Backend-DTOs, Mappings und den Basis-Client
+- `services/queries/*` und `services/mutations/*` fuer React Query
 
 ## Wo aendere ich was?
 
 Neue oder geaenderte Seiten:
 `src/pages/`
 
-Rollen, Freigaben, Standardrouten:
+Login, Session oder Auth-Modus:
+`src/auth/AuthContext.tsx`, `src/auth/IdentityProvider.ts`, `src/auth/EntraIdentityProvider.ts`
+
+Rollen, Freigaben, Default-Routen:
 `src/auth/roleModel.ts`
 
-Login- oder Session-Verhalten:
-`src/auth/AuthContext.tsx`
-
-Seitennavigation oder Route-Schutz:
+Navigation oder Route-Schutz:
 `src/navigation/`
 
-Backend-Endpunkte, DTO-Mapping, Fetch-Logik:
-`src/services/lifecycleApi.ts`
+HTTP-Client, DTO-Mapping oder Endpunktvertraege:
+`src/services/` und `src/services/api/`
 
-Workflow-Eingaben, Aufgabenanzeige, Dashboard-UI:
-`src/components/workflows/` und `src/components/dashboard/`
+React-Query-Queries oder Mutations:
+`src/services/queries/` und `src/services/mutations/`
 
-## Einstiegspunkte
+Admin-Workspaces:
+`src/components/admin-config/` und `src/pages/AdminConfigPage.tsx`
 
-`src/main.tsx`  
-Startet React, Router und die globalen Provider.
-
-`src/App.tsx`  
-Verdrahtet Auth-Status, App-Layout und die geschuetzten Routen.
+Workflow-Detail, Audit-Log und Verknuepfungen:
+`src/components/workflow-detail/`
 
 ## Entwicklung
 
-Lokale Entwicklung laeuft ueber den Vite-Dev-Server und den lokalen API-Start, nicht ueber einen Docker-Vollstack.
+Die normale lokale Entwicklung laeuft ueber:
+- lokale DB per Docker
+- API lokal per `dotnet run`
+- Frontend lokal per Vite
 
 `web/.env.local`:
 
 ```env
 VITE_API_PROXY_TARGET=http://127.0.0.1:5001
-VITE_AUTH_MODE=demo
+VITE_AUTH_MODE=dev-sim
 ```
 
-Es gibt dafuer eine Vorlage in [`web/.env.example`](./.env.example).
+Optionale lokale Entra-Tests:
+
+```env
+VITE_AUTH_MODE=entra
+VITE_ENTRA_CLIENT_ID=
+VITE_ENTRA_TENANT_ID=
+VITE_ENTRA_AUDIENCE=api://00000000-0000-0000-0000-000000000000
+VITE_ENTRA_REDIRECT_URI=https://onboarding-test.example.local
+```
+
+Wichtig:
+- `dev-sim` zeigt keine kuenstlichen Demo-Benutzer mehr.
+- Die Simulations-Login-Seite listet nur lokal synchronisierte Verzeichnisidentitaeten.
+- Dafuer braucht die lokal gestartete API gueltige `ENTRA_*`-Variablen und einen erfolgreichen Directory-Sync.
 
 Fuer den kompletten Ablauf siehe [`../SETUP.md`](../SETUP.md).
 
-Wichtige Befehle:
+## Befehle
 
 ```bash
 npm install
 npm run dev
 npm run build
+npm run lint
+npm run test
 ```

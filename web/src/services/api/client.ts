@@ -17,15 +17,15 @@ function resolveApiBase(): string {
 }
 
 const API_BASE = resolveApiBase();
-const DEMO_AUTH_TOKEN_STORAGE_KEY = "lifecycle.demo.authToken";
+const DEV_SIM_AUTH_TOKEN_STORAGE_KEY = "lifecycle.devSim.authToken";
 
-export function getDemoAuthToken(): string | null {
+export function getDevSimAuthToken(): string | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const sessionToken = window.sessionStorage.getItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
-  const localToken = window.localStorage.getItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+  const sessionToken = window.sessionStorage.getItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY);
+  const localToken = window.localStorage.getItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY);
   const token = sessionToken ?? localToken;
 
   if (!token) {
@@ -38,26 +38,26 @@ export function getDemoAuthToken(): string | null {
   }
 
   if (!sessionToken && localToken) {
-    window.sessionStorage.setItem(DEMO_AUTH_TOKEN_STORAGE_KEY, normalized);
-    window.localStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+    window.sessionStorage.setItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY, normalized);
+    window.localStorage.removeItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY);
   }
 
   return normalized;
 }
 
-export function setDemoAuthToken(token: string | null): void {
+export function setDevSimAuthToken(token: string | null): void {
   if (typeof window === "undefined") {
     return;
   }
 
   if (!token || !token.trim()) {
-    window.sessionStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
-    window.localStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+    window.sessionStorage.removeItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY);
+    window.localStorage.removeItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY);
     return;
   }
 
-  window.sessionStorage.setItem(DEMO_AUTH_TOKEN_STORAGE_KEY, token.trim());
-  window.localStorage.removeItem(DEMO_AUTH_TOKEN_STORAGE_KEY);
+  window.sessionStorage.setItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY, token.trim());
+  window.localStorage.removeItem(DEV_SIM_AUTH_TOKEN_STORAGE_KEY);
 }
 
 async function buildRequestHeaders(withJsonBody: boolean): Promise<HeadersInit> {

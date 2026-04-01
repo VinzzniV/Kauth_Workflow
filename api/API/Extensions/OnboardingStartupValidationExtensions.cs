@@ -17,7 +17,7 @@ internal static class LifecycleStartupValidationExtensions
         var configuration = app.Services.GetRequiredService<IConfiguration>();
         var runtimeSettings = app.Services.GetRequiredService<LifecycleRuntimeSettings>();
         var isProduction = runtimeSettings.IsProduction;
-        var demoActive = runtimeSettings.DemoAuthEnabled;
+        var devSimulationActive = runtimeSettings.DevSimulationEnabled;
         var entraEnabled = runtimeSettings.EntraAuthEnabled;
 
         if (isProduction && !entraEnabled)
@@ -27,17 +27,17 @@ internal static class LifecycleStartupValidationExtensions
                 "No productive authentication is configured. The application will reject all requests.");
         }
 
-        if (isProduction && demoActive)
+        if (isProduction && devSimulationActive)
         {
-            // This should not happen because IsDemoAuthActive() returns false in Production,
+            // This should not happen because the service collection already blocks non-Entra auth in Production,
             // but log defensively in case the logic is changed later.
             logger.LogWarning(
-                "Demo auth is unexpectedly active in Production. This is a security risk.");
+                "Development simulation auth is unexpectedly active in Production. This is a security risk.");
         }
 
-        if (!isProduction && demoActive)
+        if (!isProduction && devSimulationActive)
         {
-            logger.LogInformation("Demo auth endpoints are active (non-production environment).");
+            logger.LogInformation("Development simulation auth endpoints are active (non-production environment).");
         }
 
         ValidateEntraConfiguration(logger, runtimeSettings);
@@ -48,7 +48,7 @@ internal static class LifecycleStartupValidationExtensions
 
     private static void ValidateEntraConfiguration(ILogger logger, LifecycleRuntimeSettings runtimeSettings)
     {
-        if (!runtimeSettings.EntraAuthEnabled)
+        if (!runtimeSettings.DirectorySyncEnabled && !runtimeSettings.EntraAuthEnabled)
         {
             return;
         }
@@ -64,24 +64,26 @@ internal static class LifecycleStartupValidationExtensions
             missing.Add("ENTRA_CLIENT_ID");
         }
 
-        if (string.IsNullOrWhiteSpace(runtimeSettings.EntraAudience))
+        if (runtimeSettings.EntraAuthEnabled && string.IsNullOrWhiteSpace(runtimeSettings.EntraAudience))
         {
             missing.Add("ENTRA_AUDIENCE");
         }
 
+        if (runtimeSettings.DirectorySyncEnabled
+            && string.IsNullOrWhiteSpace(runtimeSettings.EntraClientSecret)
+            && string.IsNullOrWhiteSpace(runtimeSettings.GraphClientSecret))
+        {
+            missing.Add("ENTRA_CLIENT_SECRET/GRAPH_CLIENT_SECRET");
+        }
+
         if (missing.Count == 0)
         {
-            logger.LogInformation("Startup validation passed: Entra auth configuration is present.");
+            logger.LogInformation("Startup validation passed: Entra directory/auth configuration is present.");
             return;
         }
 
-        var message = $"Entra auth is enabled but missing required settings: {string.Join(", ", missing)}.";
-        if (runtimeSettings.IsProduction)
-        {
-            throw new InvalidOperationException($"{message} Startup aborted.");
-        }
-
-        logger.LogWarning("{Message}", message);
+        throw new InvalidOperationException(
+            $"The current auth mode depends on Entra directory/auth configuration, but required settings are missing: {string.Join(", ", missing)}. Startup aborted.");
     }
 
     private static void ValidateProductionPublicUrls(

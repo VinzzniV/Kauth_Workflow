@@ -11,7 +11,7 @@ internal static class AuthEndpoints
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var runtimeSettings = app.ServiceProvider.GetRequiredService<LifecycleRuntimeSettings>();
-        var demoEnabled = runtimeSettings.DemoAuthEnabled;
+        var devSimulationEnabled = runtimeSettings.DevSimulationEnabled;
         var entraEnabled = runtimeSettings.EntraAuthEnabled;
         var authMode = runtimeSettings.AuthMode;
 
@@ -19,43 +19,36 @@ internal static class AuthEndpoints
         {
             mode = authMode,
             entraEnabled,
-            demoEnabled
+            devSimulationEnabled
         }));
 
-        if (demoEnabled)
+        if (devSimulationEnabled)
         {
-            app.MapGet("/auth/demo-users", async (IUserAuthorizationRepository userAuthorizationRepository) =>
+            app.MapGet("/auth/sim-users", async (IUserAuthorizationRepository userAuthorizationRepository) =>
             {
-                return Results.Ok(await userAuthorizationRepository.GetDemoLoginUsers());
-            }).Produces<List<DemoLoginUserOptionDto>>(StatusCodes.Status200OK);
+                return Results.Ok(await userAuthorizationRepository.GetSimulationLoginUsers());
+            }).Produces<List<SimulationLoginUserOptionDto>>(StatusCodes.Status200OK);
 
-            app.MapPost("/auth/demo-login", async (
-                [FromBody] DemoLoginRequest request,
+            app.MapPost("/auth/sim-login", async (
+                [FromBody] SimulationLoginRequest request,
                 IUserAuthorizationRepository userAuthorizationRepository,
-                IDemoSessionStore sessionStore,
-                IAuthorizationPolicyService authorizationPolicy) =>
+                IDevSimulationSessionStore sessionStore) =>
             {
-                var username = request.Username?.Trim();
-                if (string.IsNullOrWhiteSpace(username))
+                if (request.UserId is not > 0)
                 {
-                    return Results.BadRequest(new { message = "username is required." });
+                    return Results.BadRequest(new { message = "userId is required." });
                 }
 
                 var currentUser = await userAuthorizationRepository.ResolveCurrentUser(new ResolvedIdentity
                 {
-                    UserId = null,
-                    ExternalKey = username,
-                    Provider = "demo-login"
+                    UserId = request.UserId,
+                    ExternalKey = null,
+                    Provider = "dev-sim-login"
                 });
 
-                if (currentUser is null || !currentUser.IsActive)
+                if (currentUser is null)
                 {
                     return Results.Unauthorized();
-                }
-
-                if (!authorizationPolicy.CanReadAllowedViews(currentUser))
-                {
-                    return Results.BadRequest(new { message = "Selected user has no application role for this demo." });
                 }
 
                 var identityKey = !string.IsNullOrWhiteSpace(currentUser.ExternalKey)
@@ -64,17 +57,17 @@ internal static class AuthEndpoints
 
                 var session = sessionStore.CreateSession(currentUser.UserId, identityKey);
 
-                return Results.Ok(new DemoLoginResponse
+                return Results.Ok(new SimulationLoginResponse
                 {
                     Token = session.Token,
                     ExpiresAtUtc = session.ExpiresAtUtc,
                     User = EndpointSupport.ToMeDto(currentUser)
                 });
-            }).Produces<DemoLoginResponse>(StatusCodes.Status200OK)
+            }).Produces<SimulationLoginResponse>(StatusCodes.Status200OK)
               .Produces(StatusCodes.Status400BadRequest)
               .Produces(StatusCodes.Status401Unauthorized);
 
-            app.MapPost("/auth/demo-logout", (HttpContext httpContext, IDemoSessionStore sessionStore) =>
+            app.MapPost("/auth/sim-logout", (HttpContext httpContext, IDevSimulationSessionStore sessionStore) =>
             {
                 var token = EndpointSupport.ExtractBearerToken(httpContext.Request.Headers.Authorization.FirstOrDefault());
                 if (!string.IsNullOrWhiteSpace(token))
@@ -91,7 +84,12 @@ internal static class AuthEndpoints
             IAuthorizationPolicyService authorizationPolicy) =>
         {
             var currentUser = await userContext.GetCurrentUser();
-            if (currentUser is null || !currentUser.IsActive || !authorizationPolicy.CanReadAllowedViews(currentUser))
+            if (currentUser is null || !currentUser.IsActive)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!devSimulationEnabled && !authorizationPolicy.CanReadAllowedViews(currentUser))
             {
                 return Results.Unauthorized();
             }
@@ -104,6 +102,17 @@ internal static class AuthEndpoints
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
+            if (devSimulationEnabled)
+            {
+                var currentUser = await userContext.GetCurrentUser();
+                if (currentUser is null || !currentUser.IsActive)
+                {
+                    return Results.Unauthorized();
+                }
+
+                return Results.Ok(currentUser);
+            }
+
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
                 authorizationPolicy.CanReadAllowedViews,

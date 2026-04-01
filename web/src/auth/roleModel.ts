@@ -1,4 +1,4 @@
-// Beschreibt die Rollen der Demo und leitet daraus UI-Faehigkeiten und Standardrouten ab.
+// Beschreibt die Rollen der Anwendung und leitet daraus UI-Faehigkeiten und Standardrouten ab.
 export const AUTH_ROLE_KEYS = {
   hr: "auth_hr",
   manager: "auth_manager",

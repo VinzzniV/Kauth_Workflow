@@ -296,7 +296,7 @@ export function useRoleAwareNavigation() {
   }, [canAccessFeature, capabilities]);
 
   const secondaryDashboardActions = useMemo<DashboardAction[]>(() => {
-    // Bewusst leer: keine technische Neben-Navigation in der Demo.
+    // Bewusst leer: keine technische Neben-Navigation im Standard-Dashboard.
     return [];
   }, []);
 

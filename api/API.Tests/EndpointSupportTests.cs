@@ -133,7 +133,7 @@ public sealed class EndpointSupportTests
             DisplayName = "Test User",
             Email = "test@example.com",
             IsActive = true,
-            IdentityProvider = "demo",
+            IdentityProvider = "dev-sim",
             Groups = [],
             DirectRoles = [role],
             GroupRoles = [],

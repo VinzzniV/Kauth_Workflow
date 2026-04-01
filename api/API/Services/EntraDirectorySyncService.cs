@@ -153,6 +153,10 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             await AutoLinkIdentitiesToAppUsers(connection, cancellationToken);
             await EnsureDirectoryDepartmentsExist(connection, cancellationToken);
             await UpsertProjectedAppUsersFromDirectory(connection, cancellationToken);
+            if (_runtimeSettings.DevSimulationEnabled)
+            {
+                await EnsureDevelopmentDefaultGroupMappings(connection, cancellationToken);
+            }
             await UpdateDirectoryUserActivationStates(connection, cancellationToken);
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
@@ -1231,6 +1235,41 @@ SET is_active = (
 FROM directory_identities di
 WHERE di.app_user_id = u.id
   AND u.directory_synced = TRUE;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task EnsureDevelopmentDefaultGroupMappings(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+WITH mapping_seed(group_name, role_key, scope) AS (
+    VALUES
+        ('Onboarding-App-Admins', 'auth_admin', 'global'),
+        ('Onboarding-App-HR', 'auth_hr', 'global'),
+        ('Onboarding-App-Managers', 'auth_manager', 'global'),
+        ('Onboarding-App-Access', 'auth_reader', 'global')
+)
+INSERT INTO directory_group_role_mappings (
+    directory_group_id,
+    app_role_id,
+    scope,
+    scope_department_id,
+    is_active
+)
+SELECT
+    dg.id,
+    ar.id,
+    seed.scope,
+    NULL,
+    TRUE
+FROM mapping_seed seed
+JOIN directory_groups dg ON dg.display_name = seed.group_name
+JOIN app_roles ar ON ar.role_key = seed.role_key
+ON CONFLICT (directory_group_id, app_role_id, scope, COALESCE(scope_department_id, -1))
+DO UPDATE SET is_active = TRUE;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);

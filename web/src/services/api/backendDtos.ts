@@ -35,7 +35,7 @@ import type {
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
-  DemoLoginUserOption,
+  SimulationLoginUserOption,
   Me,
 } from "../../types/auth";
 
@@ -369,7 +369,7 @@ export type BackendTaskWithWorkflowDto = {
   workflow: BackendTaskWorkflowContextDto;
 };
 
-export type BackendDemoLoginUserOptionDto = DemoLoginUserOption;
+export type BackendSimulationLoginUserOptionDto = SimulationLoginUserOption;
 export type BackendMeDto = Me;
 export type BackendAdminUserDto = AdminUser;
 export type BackendAdminRoleDto = AdminRole;

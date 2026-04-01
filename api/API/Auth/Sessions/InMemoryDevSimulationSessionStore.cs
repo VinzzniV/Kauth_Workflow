@@ -3,29 +3,29 @@ using System.Security.Cryptography;
 
 namespace API;
 
-internal sealed class InMemoryDemoSessionStore : IDemoSessionStore
+internal sealed class InMemoryDevSimulationSessionStore : IDevSimulationSessionStore
 {
     private static readonly TimeSpan DefaultLifetime = TimeSpan.FromHours(12);
 
-    private readonly ConcurrentDictionary<string, DemoSession> _sessions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, DevSimulationSession> _sessions = new(StringComparer.Ordinal);
 
-    public DemoSession CreateSession(long userId, string identityKey, TimeSpan? lifetime = null)
+    public DevSimulationSession CreateSession(long userId, string identityKey, TimeSpan? lifetime = null)
     {
         if (userId <= 0)
         {
-            throw new InvalidOperationException("User ID is required to create a demo session.");
+            throw new InvalidOperationException("User ID is required to create a development simulation session.");
         }
 
         var normalizedIdentityKey = identityKey.Trim();
         if (string.IsNullOrWhiteSpace(normalizedIdentityKey))
         {
-            throw new InvalidOperationException("Identity key is required to create a demo session.");
+            throw new InvalidOperationException("Identity key is required to create a development simulation session.");
         }
 
         var token = CreateToken();
         var expiresAtUtc = DateTime.UtcNow.Add(lifetime ?? DefaultLifetime);
 
-        var session = new DemoSession
+        var session = new DevSimulationSession
         {
             Token = token,
             UserId = userId,
@@ -37,7 +37,7 @@ internal sealed class InMemoryDemoSessionStore : IDemoSessionStore
         return session;
     }
 
-    public bool TryGetSession(string token, out DemoSession? session)
+    public bool TryGetSession(string token, out DevSimulationSession? session)
     {
         session = null;
 

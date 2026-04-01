@@ -7,8 +7,9 @@ internal sealed class LifecycleRuntimeSettings
     public required string EnvironmentName { get; init; }
     public required bool IsProduction { get; init; }
     public required string AuthMode { get; init; }
-    public required bool DemoAuthEnabled { get; init; }
+    public required bool DevSimulationEnabled { get; init; }
     public required bool EntraAuthEnabled { get; init; }
+    public required bool DirectorySyncEnabled { get; init; }
     public string? ConnectionString { get; init; }
     public string? PublicBaseUrl { get; init; }
     public string? EntraTenantId { get; init; }
@@ -41,10 +42,10 @@ internal static class LifecycleRuntimeSettingsResolver
             EnvironmentName = environmentName,
             IsProduction = isProduction,
             AuthMode = authMode,
-            DemoAuthEnabled = string.Equals(authMode, "demo", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(authMode, "dual", StringComparison.OrdinalIgnoreCase),
-            EntraAuthEnabled = string.Equals(authMode, "entra", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(authMode, "dual", StringComparison.OrdinalIgnoreCase),
+            DevSimulationEnabled = string.Equals(authMode, "dev-sim", StringComparison.OrdinalIgnoreCase),
+            EntraAuthEnabled = string.Equals(authMode, "entra", StringComparison.OrdinalIgnoreCase),
+            DirectorySyncEnabled = string.Equals(authMode, "dev-sim", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(authMode, "entra", StringComparison.OrdinalIgnoreCase),
             ConnectionString = GetConnectionStringOrNull(configuration),
             PublicBaseUrl = Normalize(configuration["PUBLIC_BASE_URL"]),
             EntraTenantId = Normalize(configuration["ENTRA_TENANT_ID"]),
@@ -89,40 +90,15 @@ internal static class LifecycleRuntimeSettingsResolver
         var configuredAuthMode = Normalize(configuration["AUTH_MODE"])?.ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(configuredAuthMode))
         {
-            if (configuredAuthMode is "demo" or "entra" or "dual")
+            if (configuredAuthMode is "dev-sim" or "entra")
             {
                 return configuredAuthMode;
             }
 
-            throw new InvalidOperationException("AUTH_MODE must be one of: demo, entra, dual.");
+            throw new InvalidOperationException("AUTH_MODE must be one of: dev-sim, entra.");
         }
 
-        var demoEnabled = !string.Equals(
-                Normalize(configuration["DEMO_ENDPOINTS_ENABLED"]),
-                "false",
-                StringComparison.OrdinalIgnoreCase)
-            && !isProduction;
-        var entraEnabled = string.Equals(
-            Normalize(configuration["ENTRA_AUTH_ENABLED"]),
-            "true",
-            StringComparison.OrdinalIgnoreCase);
-
-        if (entraEnabled && demoEnabled)
-        {
-            return "dual";
-        }
-
-        if (entraEnabled)
-        {
-            return "entra";
-        }
-
-        if (demoEnabled)
-        {
-            return "demo";
-        }
-
-        return isProduction ? "none" : "demo";
+        return isProduction ? "none" : "dev-sim";
     }
 
     private static bool GetBoolean(string? value, bool defaultValue)

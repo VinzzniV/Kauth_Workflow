@@ -1,5 +1,5 @@
 // Zentrale App-Huelle fuer Auth-Status, Layout und geschuetzte Routen.
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/useAuth";
 import { useCurrentUser } from "./auth/useCurrentUser";
 import { isEntraMode } from "./auth/IdentityProvider";
@@ -9,10 +9,9 @@ import RouteGuard from "./navigation/RouteGuard";
 import AdminConfigPage from "./pages/AdminConfigPage";
 import CreateWorkflowPage from "./pages/CreateWorkflowPage";
 import DashboardPage from "./pages/DashboardPage";
-import DemoAccessPage from "./pages/DemoAccessPage";
-import DemoLoginPage from "./pages/DemoLoginPage";
 import EntraLoginPage from "./pages/EntraLoginPage";
 import MyTasksPage from "./pages/MyTasksPage";
+import SimulationLoginPage from "./pages/SimulationLoginPage";
 import SupervisorStepPage from "./pages/SupervisorStepPage";
 import WorkflowDetailPage from "./pages/WorkflowDetailPage";
 import WorkflowListPage from "./pages/WorkflowListPage";
@@ -22,16 +21,6 @@ import PersonWorkflowHistoryPage from "./pages/PersonWorkflowHistoryPage";
 export default function App() {
   const { status } = useAuth();
   const { defaultRoute } = useCurrentUser();
-  const location = useLocation();
-
-  // Demo access page is only available in demo mode.
-  if (!isEntraMode() && location.pathname === "/demo/access") {
-    return (
-      <Routes>
-        <Route path="/demo/access" element={<DemoAccessPage />} />
-      </Routes>
-    );
-  }
 
   // Solange die Session geprueft wird, rendert die App bewusst noch keine Fachroute.
   if (status === "loading") {
@@ -48,9 +37,7 @@ export default function App() {
   }
 
   if (status === "unauthenticated") {
-    // In Entra mode, the EntraLoginPage handles the Microsoft redirect flow.
-    // In demo mode, the classic DemoLoginPage is shown.
-    return isEntraMode() ? <EntraLoginPage /> : <DemoLoginPage />;
+    return isEntraMode() ? <EntraLoginPage /> : <SimulationLoginPage />;
   }
 
   // Alle Fachseiten laufen innerhalb desselben Layouts und werden ueber Feature-Guards abgesichert.

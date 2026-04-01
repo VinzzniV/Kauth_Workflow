@@ -1,5 +1,5 @@
-// Frontend-Typen fuer Demo-Login, aktuellen Benutzer und Admin-Stammdaten.
-export type DemoLoginUserOption = {
+// Frontend-Typen fuer Dev-Simulations-Login, aktuellen Benutzer und Admin-Stammdaten.
+export type SimulationLoginUserOption = {
   userId: number;
   username: string;
   displayName: string;
@@ -20,7 +20,7 @@ export type Me = {
   departmentOverrideActive: boolean;
 };
 
-export type DemoLoginResponse = {
+export type SimulationLoginResponse = {
   token: string;
   expiresAtUtc: string;
   user: Me;

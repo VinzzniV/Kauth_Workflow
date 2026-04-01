@@ -1,7 +1,21 @@
 # Produktive Zielarchitektur
 
-Dieses Dokument beschreibt das Soll-Bild fuer den produktiven Ausbau des Projekts.
-Es ersetzt kein Umsetzungsdetail, aber es definiert die fachlichen und technischen Leitplanken, damit weitere Entwicklung nicht in die falsche Richtung laeuft.
+Dieses Dokument beschreibt das Sollbild fuer den produktiven Ausbau des Projekts und verortet kurz, was davon im Repo bereits sichtbar ist. Es ersetzt keine Umsetzungsdetails, definiert aber die Leitplanken fuer weitere Architekturarbeit.
+
+## Statusbild April 2026
+
+Bereits im Repo sichtbar:
+- Entra-basierte Produktivrichtung ist technisch verankert
+- lokaler `dev-sim` nutzt synchronisierte Verzeichnisidentitaeten statt alter Demo-Benutzer
+- Directory-Projektion, Gruppen-Mapping und Audit-Tabellen existieren
+- Admin-UI deckt bereits Directory-Sync, Gruppen-Mapping, Permissions sowie Graph-/Mail-Runtime-Konfiguration ab
+- mehrere Prozessarten und Workflow-Verknuepfungen sind im Datenmodell vorhanden
+
+Noch nicht am Ziel:
+- Secrets liegen teilweise weiterhin in DB-gestuetzten Runtime-Konfigurationen
+- Swagger ist noch nicht produktiv hart gegatet
+- User- und Gruppenkonfiguration enthaelt weiterhin Uebergangsanteile von lokalem CRUD
+- Release-/CI-Haertung ist noch kein abgeschlossenes Standardmodell
 
 ---
 
@@ -10,293 +24,216 @@ Es ersetzt kein Umsetzungsdetail, aber es definiert die fachlichen und technisch
 Die Anwendung soll produktiv als internes Employee-Lifecycle-System betrieben werden.
 
 Rahmenbedingungen:
-- Fuehrendes Identitaetssystem ist das on-prem Active Directory.
-- AD wird in die Cloud synchronisiert.
-- Die Anwendung ist in Azure registriert, unter anderem fuer Mailversand.
-- Die Anwendung soll on-prem auf einem eigenen Server in Docker betrieben werden.
+- fuehrendes Identitaetssystem ist das on-prem Active Directory
+- AD wird nach Entra synchronisiert
+- die Anwendung laeuft on-prem in Docker
+- Entra ist die produktive Authentifizierungs- und Integrationsschicht
 
 Kernprinzip:
-- Identitaet kommt aus AD/Entra.
-- Die App mappt und erweitert, sie verwaltet Identitaeten nicht als primaeres System.
-- Fachliche Prozesslogik, Verantwortlichkeiten und Ausnahmen liegen in der App.
+- Identitaet kommt aus AD/Entra
+- die App projiziert, mappt und erweitert
+- fachliche Prozesslogik, Verantwortlichkeiten, Ausnahmen und Workflow-Daten bleiben in der App
 
 ---
 
 ## 2. Authentifizierung
 
-Produktiv darf die Anwendung nicht auf Demo-Login, Header-Identity oder lokale Demo-Sessions bauen.
+Produktiv darf die Anwendung nicht auf lokale Demo- oder Pseudo-Auth bauen.
 
-Soll-Zustand:
-- Anmeldung ueber Microsoft Entra ID mit OpenID Connect / OAuth2.
-- Frontend authentifiziert gegen Entra.
-- API validiert Access Tokens serverseitig.
-- Benutzerkontext wird aus stabilen externen Identitaetsmerkmalen aufgebaut.
+Sollzustand:
+- Frontend meldet Benutzer ueber Microsoft Entra ID an
+- API validiert Access Tokens serverseitig
+- Benutzerkontext wird aus stabilen externen Identitaetsmerkmalen aufgebaut
+- lokaler `dev-sim` bleibt nur Entwicklungsmodus
 
-Pflichtfelder im Benutzerkontext:
+Pflichtfelder im Identitaetskontext:
 - `entra_object_id`
 - `user_principal_name`
 - `display_name`
 - `mail`
-- optionale Gruppeninformationen oder serverseitig aufgeloeste Gruppen
+- serverseitig aufgeloeste Gruppen- oder Mappinginformationen
 
-Wichtige Regel:
-- Kein produktiver Login ueber Demo-Endpunkte.
-- Kein Mail-Link, der eine Demo-Session erzeugt.
-- Keine Header-basierte Pseudo-Authentifizierung in Produktion.
+Regeln:
+- kein produktiver Login ueber Simulations-Endpunkte
+- keine Header-basierte Pseudo-Authentifizierung
+- keine Mail- oder Deep-Link-Mechanik, die implizit Sessions erzeugt
 
 ---
 
-## 3. Rollen- und Rechtekonzept
+## 3. Rollen, Permissions und Verantwortlichkeiten
 
-Die App braucht ein hybrides Berechtigungsmodell.
+Die App verwendet ein hybrides Berechtigungsmodell.
 
-### 3.1 Basiszugang
+### Basiszugang
 
-Steuert, wer die Anwendung ueberhaupt nutzen darf.
+Steuert, wer die Anwendung ueberhaupt verwenden darf, typischerweise ueber Entra-Gruppen.
 
-Beispiel:
-- `Onboarding-App-Users`
+### Standardrollen
 
-### 3.2 Standardrollen
-
-Standardrollen sollen primaer aus AD-/Entra-Gruppen abgeleitet werden.
-
+Zugriffsrollen kommen standardmaessig aus Gruppen-Mappings.
 Beispiele:
 - HR
-- IT
 - Manager
-- Viewer
+- Worker
+- Reader
 - Admin
 
-Diese Rollen sind Zugriffsrollen, nicht fachliche Ownership.
+### App-spezifische Fachzuordnungen
 
-### 3.3 Lokale Fachzuordnungen
-
-Nicht alles ist sinnvoll ueber AD-Gruppen abbildbar. Daher darf die App lokal verwalten:
-- fachliche Verantwortlichkeiten
+Lokal in der App bleiben:
+- Verantwortlichkeiten
 - Freigabeverantwortungen
 - Vertretungen
-- temporaere Ausnahmen
-- bereichsspezifische Owner
+- Ausnahmen
+- ggf. bereichsbezogene Scopes auf Permissions oder Rollen
 
-Regel:
+Regeln:
+- Rollen = Zugriff
+- Verantwortlichkeiten = fachliche Ownership
 - Standardrechte aus Gruppen
-- Ausnahmen lokal
-- keine manuelle Benutzeranlage als Normalfall
+- lokale Sonderfaelle bleiben Ausnahmen, nicht Primarmodell
 
 ---
 
 ## 4. Mapping-Modell
 
-Es gibt zwei moegliche Modelle:
-- direkte 1:1-Zuordnung von Gruppen auf App-Rollen
-- Mapping externer Gruppen auf interne App-Rollen
-
 Empfohlenes Zielbild:
-- direkte Gruppenableitung dort, wo die AD-/Entra-Struktur sauber passt
-- zusaetzliche Mapping-Tabelle fuer Faelle, in denen externe Gruppen nicht 1:1 auf App-Rollen passen
+- externe Gruppen werden in `directory_groups` projiziert
+- Gruppenmitgliedschaften werden lokal gespiegelt
+- Gruppen werden ueber Mappingtabellen auf App-Rollen und ggf. Scopes abgebildet
+- lokale Permission-Overrides bleiben moeglich, aber selten
 
-Die App soll daher eine Konfiguration fuer Gruppen-Mappings haben, aber nicht Benutzer manuell anlegen oder als lokale Stammdatenquelle missbrauchen.
-
-Beispiel Mapping:
-
-| Externe Gruppe | App-Rolle | Scope | Bemerkung |
-|---|---|---|---|
-| `HR-Team-Berlin` | `HR_EDITOR` | `global` | direkt gemappt |
-| `AL-Produktion` | `MANAGER` | `department` | ggf. mit Bereichsbezug |
+Damit gilt:
+- die App ist nicht die fuehrende Benutzerquelle
+- Benutzer sollen produktiv nicht manuell als Normalfall angelegt werden
+- lokale Pflege dient Mapping, Ausnahmen und Fachanreicherung
 
 ---
 
 ## 5. Datenmodell-Soll
 
-Das bestehende Modell koppelt fachliche Personendaten zu eng an lokale App-Benutzer.
-Produktiv muss das getrennt werden.
+### Identitaet
 
-### 5.1 Identitaet
+Technische Identitaet aus AD/Entra, z. B. in `directory_identities`.
 
-Technische Identitaet aus AD/Entra.
-
-Vorgeschlagene Entitaet:
-- `directory_identities`
-
-Beispielfelder:
+Wichtige Merkmale:
 - `entra_object_id`
-- `onprem_object_guid` oder anderes stabiles on-prem Merkmal
 - `user_principal_name`
 - `mail`
 - `display_name`
 - `account_enabled`
-- `source_system`
-- `last_synced_at`
-- `is_managed_externally`
-
-### 5.2 Mitarbeiter
-
-Fachlicher Mitarbeiterdatensatz.
-
-Vorgeschlagene Entitaet:
-- `employees`
-
-Beispielfelder:
-- `employee_number`
-- `first_name`
-- `last_name`
-- `department_id`
-- `employment_status`
-- `entry_date`
-- `exit_date`
-- optionale Verknuepfung auf `directory_identities`
-
-Wichtige Regel:
-- Ein Mitarbeiter ist kein Synonym fuer einen Login.
-- Ein Mitarbeiterdatensatz darf existieren, ohne dass die App ihn als lokalen Benutzer "angelegt" hat.
-
-### 5.3 Gruppen
-
-Externe Gruppen sollen als Projektion gefuehrt werden.
-
-Vorgeschlagene Entitaet:
-- `directory_groups`
-
-Beispielfelder:
-- `external_group_id`
-- `display_name`
-- `description`
-- `source_system`
 - `last_synced_at`
 
-### 5.4 App-spezifische Zuordnungen
+### Mitarbeiter / Person
 
-Lokal verbleiben:
-- `app_role_mappings`
-- `responsibility_assignments`
-- `delegation_assignments`
-- `approval_assignments`
+Fachlicher Mitarbeiterdatensatz bleibt getrennt von technischer Identitaet.
 
-### 5.5 Workflow-Daten
+Regeln:
+- Person bzw. Employee ist nicht synonym zu Login
+- historische Workflow-Daten duerfen nicht an mutable Strings wie Anzeigenamen gekoppelt werden
+- Verknuepfung zwischen Person und Identitaet ist moeglich, aber nicht identisch
 
-Workflow-, Aufgaben- und Anforderungsdaten bleiben Fachobjekte der Anwendung und duerfen nicht ueber Identitaetsabkuerzungen modelliert werden.
+### Gruppen
+
+Externe Gruppen werden als Projektion gefuehrt und lokal mit Rollen/Scopes verknuepft.
+
+### Workflow-Daten
+
+Workflow-, Aufgaben-, Antwort- und Audit-Daten bleiben Fachobjekte der Anwendung.
+Sie duerfen nicht ueber Auth-Abkuerzungen oder UI-Hilfsannahmen modelliert werden.
 
 ---
 
 ## 6. Admin-UI-Soll
 
-Die Admin-Oberflaeche darf langfristig kein User-CRUD-Werkzeug sein.
+Die Admin-Oberflaeche ist langfristig kein User-CRUD-Werkzeug, sondern ein Steuerungsbereich fuer:
 
-Stattdessen braucht sie diese Bereiche:
+- Organisationspflege
+- Aufgabenlogik und Antwortdefinitionen
+- Rollen, Permissions und Gruppen
+- Directory-Sync und Gruppen-Mapping
+- System- und Mail-Konfiguration
+- Bulk-Operationen und Betriebswarnungen
 
-### 6.1 Verzeichnis-Sync
-- letzter erfolgreicher Sync
-- fehlgeschlagene Syncs
-- neue Benutzer/Gruppen
-- deaktivierte Benutzer
-- Konflikte
-
-### 6.2 Gruppen-Mapping
-- welche externen Gruppen welche App-Rollen liefern
-- optionaler Scope
-- aktiv/inaktiv
-
-### 6.3 Verantwortlichkeiten
-- wer ist fachlich zustaendig fuer welchen Bereich oder Prozess
-- Vertretungen
-- Eskalationen
-
-### 6.4 Ausnahmen
-- lokale Sonderrechte
-- zeitlich begrenzte Freigaben
-- dokumentierte Abweichungen
-
-### 6.5 Audit
-- wer hat wann welches Mapping oder welche Verantwortlichkeit geaendert
-
-Was nicht mehr das Primaermodell sein darf:
-- Benutzer manuell anlegen
-- Benutzer lokal als fuehrende Wahrheit pflegen
-- Gruppen und Rollen vollstaendig manuell bauen
+Was langfristig nicht das Primarmodell sein soll:
+- Benutzer lokal manuell als Standardweg anlegen
+- Gruppen vollstaendig in der App nachbauen
+- technische Identitaetsfuehrung in der App halten
 
 ---
 
 ## 7. Betriebsmodell
 
-Die App soll on-prem per Docker betrieben werden.
-
-Produktiv bedeutet dabei mindestens:
+Produktiv bedeutet mindestens:
 - TLS vor der Anwendung
 - Reverse Proxy
-- getrennte Konfiguration fuer Dev und Prod
-- keine Demo-Authentifizierung in Prod
-- keine Klartext-Secrets in der Datenbank
-- Logging
-- Monitoring
-- Health-Checks
-- Backup- und Restore-Prozess
-- klarer Update- und Migrationsprozess
+- getrennte Dev-/Prod-Konfiguration
+- Entra-Login statt lokaler Simulationsauth
+- kein produktiver Klartext-Secret-Standard in DB
+- Logging, Monitoring und Health-Checks
+- reproduzierbare DB-Initialisierung und Migration
+- klarer Update- und Restore-Pfad
 
 Wichtige Betriebsentscheidung:
-- On-prem Hosting schliesst Entra-Login nicht aus.
-- Die Anwendung kann on-prem laufen und trotzdem moderne Cloud-Authentifizierung nutzen.
+- On-prem Hosting rechtfertigt keine proprietaeren Auth-Abkuerzungen
+- on-prem und moderne Cloud-Authentifizierung schliessen sich nicht aus
 
 ---
 
-## 8. Ziel fuer Mailversand
+## 8. Mail und Graph
 
-Mailversand darf produktiv nicht auf einem in der DB gespeicherten Klartext-Secret und Demo-Links basieren.
-
-Soll-Zustand:
+Sollzustand:
 - produktive Authentifizierung gegen Microsoft Graph
-- Secret-Verwaltung ueber sichere Laufzeitmechanismen
-- keine Demo-Zugriffslinks in Mails
-- stabile Links auf regulare App-Routen
+- Secret-Verwaltung ueber sichere Laufzeitmechanismen oder Secret Store
+- keine Demo-Links oder Session-Abkuerzungen in Benachrichtigungen
+- stabile Links auf regulaere App-Routen
 
-Je nach Betriebsumgebung:
-- bevorzugt Zertifikat oder andere sichere Secret-Verwaltung
-- mindestens keine Ablage sensibler Secrets als freier DB-Klartextwert
+Aktueller Architekturhinweis:
+- Die Admin-Oberflaeche hat bereits Graph- und Notification-Konfiguration
+- die Secret-Ablage ist aber noch nicht auf dem final sicheren Modell
 
 ---
 
-## 9. Migrationspfad ohne Big Bang
+## 9. Migrationspfad Ohne Big Bang
 
-### Phase 1: Sicherheits- und Produktivblocker entfernen
-- Demo-Auth produktiv deaktivieren
-- Demo-Links aus Benachrichtigungen entfernen
-- produktive Auth-Richtung festziehen
-- Klartext-Secret-Modell ablösen
+### Phase 1: Produktivblocker haerten
 
-### Phase 2: Produktive Identitaetsbasis schaffen
-- Entra-Login integrieren
-- API auf echtes Token-Handling umstellen
-- stabile externe Identifikatoren im Datenmodell einfuehren
+- Swagger produktiv absichern oder deaktivieren
+- Klartext-/DB-Secret-Modell abbauen
+- Release-Checks und CI einfuehren
 
-### Phase 3: Rechte auf Gruppenmodell umstellen
-- Gruppenprojektion einfuehren
-- Rollen aus Gruppen ableiten
-- lokale Sonderzuordnungen separat halten
+### Phase 2: Identitaetsbasis festziehen
 
-### Phase 4: Fachmodell bereinigen
-- `Person`/`Employee` von technischer Identitaet entkoppeln
-- historische Zuordnungen sauber migrieren
-- stringbasierte Zuordnung ueber Namen ablösen
+- Entra-Login und Token-Handling weiter haerten
+- stabile externe Identifikatoren konsequent verwenden
+- lokale Simulationswelt nur als Entwicklungsmodus behandeln
 
-### Phase 5: Admin-Oberflaeche umbauen
-- User-CRUD reduzieren oder entfernen
-- Sync- und Mapping-UI aufbauen
-- Audit und Konfliktbehandlung sichtbar machen
+### Phase 3: Gruppen- und Permission-Modell konsolidieren
 
-### Phase 6: Architektur und Betrieb haerten
-- Repository-Grenzen aufraeumen
-- Health-Checks und Observability erweitern
-- produktiven Migrationsprozess etablieren
+- Gruppenprojektion und Mapping als Standard
+- lokale Sonderrechte explizit und auditierbar halten
+- User-CRUD weiter zur Ausnahme zurueckdruecken
+
+### Phase 4: Fachmodell weiter bereinigen
+
+- People/Employee sauber von technischer Identitaet getrennt halten
+- historische Zuordnungen robust machen
+- stringbasierte Aufloesung ueber Namen vermeiden
+
+### Phase 5: Betrieb haerten
+
+- Health-Modell scharf trennen
+- Observability erweitern
+- Migrations- und Deploymentprozess standardisieren
 
 ---
 
 ## 10. Klare Entscheidungen
 
 Fuer die weitere Entwicklung gelten diese Entscheidungen:
-- Die App ist nicht das fuehrende Benutzersystem.
-- On-prem AD ist fachlich die Quelle, Entra ist die produktive Authentifizierungs- und Integrationsschicht.
-- Benutzer werden produktiv nicht manuell in der App angelegt.
-- Gruppenbasierte Rechte sind der Standard.
-- Lokale Zuordnungen sind nur fuer app-spezifische Fachlogik gedacht.
-- `Employee` und `Identity` sind getrennte Konzepte.
-- Produktivbetrieb braucht ein Betriebsmodell, nicht nur einen funktionierenden Docker-Start.
+- die App ist nicht das fuehrende Benutzersystem
+- AD bzw. Entra liefern Identitaet und Gruppenbasis
+- gruppenbasierte Rechte sind der Standard
+- lokale Zuordnungen bleiben fuer Fachlogik, Ausnahmen und Scopes
+- `Employee` bzw. Person und technische Identitaet sind getrennte Konzepte
+- Produktionsbetrieb braucht ein Betriebsmodell, nicht nur einen funktionierenden Docker-Start

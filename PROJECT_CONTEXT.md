@@ -15,6 +15,12 @@ Productive direction:
 - identity comes from on-prem AD via Entra sync
 - app maps external identities and groups instead of owning them
 
+Current implementation direction:
+- multiple process types exist beyond pure onboarding
+- local development uses `dev-sim` with synced directory identities
+- server-near and productive auth run via Microsoft Entra ID
+- admin configuration already includes directory sync, group mapping, permission management and runtime system settings
+
 ---
 
 ## Core Model
@@ -123,3 +129,10 @@ Move toward:
 - keep backend truth
 - avoid refactors
 - explain changes
+
+## Working Docs
+
+- `DOCS_CONTROL.md` = which docs to read first, when to update which file, and where temporary vs stable knowledge belongs
+- `PROJECT_CONTEXT.md` = stable project truth and guardrails
+- `MEMORY.md` = current working memory for next session, active findings, open risks and immediate next steps
+- `TODO.md` = larger production-readiness backlog and prioritised work packages

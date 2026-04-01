@@ -1,334 +1,328 @@
 # Projektstruktur
 
-Diese Uebersicht beschreibt die aktuell vorhandene Struktur des Repositories. Fokus sind produktive Quelltexte und relevante Infrastrukturdateien. Build-Artefakte wie `node_modules/`, `web/node_modules/`, `api/API/bin/` oder `api/API/obj/` werden bewusst nicht im Detail beschrieben.
+Diese Uebersicht beschreibt die aktuell relevante Struktur des Repositories. Fokus sind produktive Quelltexte, Tests und betriebsrelevante Infrastrukturdateien. Generierbare Artefakte wie `node_modules/`, `web/dist/`, `api/API/bin/` oder `api/API/obj/` werden bewusst nicht im Detail beschrieben.
 
 ## Root
 
-`PROJECT_STRUCTURE.md`
-Diese Detailuebersicht.
+`DOCS_CONTROL.md`
+Steuerungsdatei fuer Doku-Lesereihenfolge, Schreibziele und Pflege-Regeln.
+
+`PROJECT_CONTEXT.md`
+Stabile Projektwahrheit, Leitplanken und fachliche Guardrails.
+
+`MEMORY.md`
+Kurzlebiges Arbeitsgedaechtnis fuer naechste Sessions.
+
+`DECISIONS.md`
+Langfristige Architektur- und Produktentscheidungen.
+
+`ENGINEERING_RULES.md`
+Technische Arbeitsregeln, inklusive Doku-Hygiene.
+
+`TODO.md`
+Groesserer Produktions- und Release-Backlog.
+
+`FRONTEND_TODO.md`
+Frontend-spezifische UI-Guardrails und Review-Kriterien.
 
 `PRODUCTIVE_TARGET_ARCHITECTURE.md`
-Sollbild fuer produktive Architektur, Auth, Rollenmodell, Datenmodell und Migrationspfad.
-
-`compose.yml`
-Gemeinsame Container-Basis fuer `db`, `api` und `web`.
-
-`compose.dev-db.yml`
-Lokale Entwicklungs-Ergaenzung nur fuer PostgreSQL mit Dev-Init und Host-Port.
-
-`compose.prod.yml`
-Servernahes Override fuer Linux-Deployment mit Entra-Auth und Caddy-Reverse-Proxy.
-
-`.env.prod.example`
-Vorlage fuer die serverseitigen Pflicht- und Optional-Variablen.
+Sollbild fuer produktive Architektur und Migrationsrichtung.
 
 `SETUP.md`
-Zentrale operative Doku fuer lokale Entwicklung und Linux-Deployment.
+Operative Doku fuer lokale Entwicklung und Linux-Deployment.
 
-`db/`  
-SQL-Dateien fuer Schema und Demo-/Seed-Daten.
+`compose.yml`
+Gemeinsame Compose-Basis fuer `db`, `api` und `web`.
 
-`api/`  
-Backend-Solution und API-Projekt.
+`compose.dev-db.yml`
+Lokales Override fuer PostgreSQL mit Dev-Init und Host-Port.
 
-`web/`  
-Frontend-Projekt auf Basis von React und Vite.
+`compose.prod.yml`
+Produktionsnahes Override mit Entra-Auth, produktivem DB-Init und Caddy-Reverse-Proxy.
+
+`.env.prod.example`
+Vorlage fuer produktive Laufzeitkonfiguration.
+
+`deploy/Caddyfile`
+HTTPS-Reverse-Proxy fuer den produktiven Stack.
+
+`db/`
+Schema, Bootstrap, Migrationen und Init-Reihenfolge fuer Dev und Production.
+
+`api/`
+Backend-Solution, API-Projekt und Backend-Tests.
+
+`web/`
+Frontend-Projekt auf Basis von React, Vite und React Query.
 
 ## Frontend: `web/`
 
-`package.json`  
-Frontend-Abhaengigkeiten und Skripte fuer `dev`, `build`, `lint` und `preview`.
+`package.json`
+Frontend-Abhaengigkeiten und Skripte fuer `dev`, `build`, `lint`, `test` und `preview`.
 
-`Dockerfile`  
-Mehrstufiges Image: Build auf `node:20-alpine`, Auslieferung ueber `nginx:1.27-alpine` mit Runtime-Config ueber `app-config.js`.
+`Dockerfile`
+Mehrstufiges Image fuer Build und Auslieferung ueber Nginx.
 
-`nginx.conf`  
-SPA-Fallback fuer React-Routing, Proxy auf `/api/` und `/health` sowie No-Cache-Regeln fuer `app-config.js`.
+`nginx.conf`
+SPA-Fallback, Proxy fuer `/api/` und Runtime-Config-Auslieferung.
 
-`vite.config.ts`  
-Vite-Konfiguration mit React- und Tailwind-Plugin.
+`README.md`
+Frontend-spezifische Orientierung fuer Module, Einstiegspunkte und Service-Layer.
 
-`index.html`  
-HTML-Einstiegspunkt der Single-Page-Application.
+`tests/`
+Vitest- und React-Testing-Library-Tests fuer Seiten, Komponenten und Hilfsmodelle.
 
 ### `web/src`
 
-`main.tsx`  
-Bindet `AuthProvider`, `CurrentUserProvider` und `BrowserRouter` ein.
+`main.tsx`
+Startet React, Router, React Query, Auth-/CurrentUser-Kontext, Theme, Toasts und Dialoge.
 
-`App.tsx`  
-Zentrale Routen, Layout-Einbindung, Demo-Access-Route und Feature-Guards.
+`App.tsx`
+Zentrale App-Huelle mit Login-Routing, Layout und Feature-Guards.
 
-`index.css`  
-Globale Styles der Anwendung.
+`index.css`
+Globaler CSS-Einstieg, der die Styleschichten zusammenzieht.
 
 ### `web/src/auth`
 
-`AuthContext.tsx`  
-Verwaltet aktuell Demo-Login, Logout, Session-Wiederherstellung und den globalen Auth-Status. Produktiv ist hier ein Entra-basiertes Auth-Modell vorgesehen.
+`AuthContext.tsx`
+Verwaltet Session-Wiederherstellung, Login-Zustand und Logout fuer `dev-sim` oder Entra.
 
-`CurrentUserContext.tsx`  
-Leitet Rollen, Labels, Features und Default-Route aus dem angemeldeten Benutzer ab.
+`CurrentUserContext.tsx`
+Leitet Rollen, Permissions, Persona und Default-Route aus dem aktuellen Benutzer ab.
 
-`IdentityProvider.ts`  
-Frontend-Abstraktion fuer Demo-Login und Entra-Login. Liest den Auth-Modus ueber die zentrale Runtime-Config.
+`IdentityProvider.ts`
+Abstraktion ueber `dev-sim` und Entra.
 
-`roleModel.ts`  
-Rollenkeys, Feature-Matrix und Standardrouten fuer die UI.
+`EntraIdentityProvider.ts`
+MSAL-basierte Entra-Integration.
 
-### `web/src/navigation`
+`msalConfig.ts`
+MSAL-Konfiguration aus Runtime-Config.
 
-`RouteGuard.tsx`  
-Schuetzt Seiten anhand der freigegebenen Features des aktuellen Benutzers.
-
-`useRoleAwareNavigation.ts`  
-Baut Sidebar-Navigation, Dashboard-Aktionen und Persona-Texte rollenabhaengig auf.
+`roleModel.ts`
+Rollenkeys, Permissions, Features und Default-Routen der UI.
 
 ### `web/src/pages`
 
-`DemoLoginPage.tsx`  
-Startseite ohne Session; Demo-Benutzer koennen direkt ausgewaehlt werden.
+`SimulationLoginPage.tsx`
+Lokale Login-Seite fuer Entwicklersimulation auf Basis synchronisierter Verzeichnisidentitaeten.
 
-`DemoAccessPage.tsx`  
-Token-basierter Einstieg fuer Benachrichtigungslinks; setzt eine Session und leitet in die App weiter.
+`EntraLoginPage.tsx`
+Login-Entry fuer Entra-Modus.
 
-`DashboardPage.tsx`  
-Rollenabhaengiger Startbereich.
+`DashboardPage.tsx`
+Rollenspezifischer Startbereich.
 
-`CreateWorkflowPage.tsx`  
-Formular zum Anlegen eines neuen Onboardings.
+`CreateWorkflowPage.tsx`
+Erstellung neuer Lifecycle-Vorgaenge.
 
-`WorkflowListPage.tsx`  
-Uebersicht der sichtbaren Onboarding-Faelle. Fuer Abteilungsleitungen ist die Sicht auf die eigenen Abteilungen begrenzt; standardmaessig werden laufende statt aller Faelle angezeigt.
+`WorkflowListPage.tsx`
+Gefilterte Uebersicht sichtbarer Workflows.
 
-`WorkflowSearchPage.tsx`  
-Freie Suche und Filter ueber Onboarding-Faelle nach Name, Abteilung, Stelle, Personalnummer oder ID.
+`WorkflowSearchPage.tsx`
+Freie Suche ueber Vorgaenge.
 
-`WorkflowDetailPage.tsx`  
-Detailansicht mit Anforderungen, Prozessstand, Aufgaben nach Bereichen und Notification-Historie.
+`WorkflowDetailPage.tsx`
+Detailansicht mit Anforderungen, Aufgaben, Audit-Log, Benachrichtigungen und Verknuepfungen.
 
-`SupervisorStepPage.tsx`  
-Arbeitsbereich der Abteilungsleitung fuer den Supervisor-Schritt mit bedingten Anforderungen, z. B. Referenzuser, Hardware-Auswahl und Laufwerksrechten.
+`SupervisorStepPage.tsx`
+Arbeitsbereich fuer Abteilungsleitungen.
 
-`MyTasksPage.tsx`  
-Persoenlicher Aufgabenarbeitsplatz des Fachbereichs.
-
-`AdminConfigPage.tsx`
-Verwaltet aktuell Benutzer, Rollen, Gruppen, Abteilungen, Verantwortlichkeiten und Notification-E-Mail-Einstellungen. Das Zielbild verschiebt den Fokus weg von User-CRUD hin zu Gruppen-Mapping, Verantwortlichkeiten, Sync-Status und Ausnahmen.
+`MyTasksPage.tsx`
+Persoenlicher Aufgabenarbeitsplatz fuer Fachbereiche.
 
 `PersonWorkflowHistoryPage.tsx`
-Zeigt alle Workflows einer Person (nach Personen-ID) in chronologischer Reihenfolge.
+Chronologische Historie aller Vorgaenge einer Person.
+
+`AdminConfigPage.tsx`
+Administration fuer Organisation, Konfiguration, Zugriffe, Verzeichnis-Sync, System und Massenaktionen.
 
 ### `web/src/components`
 
-`dashboard/`  
-Rollenspezifische Dashboard-Bausteine, aktuell `DashboardOverview.tsx`.
+`admin-config/`
+Admin-Workspaces fuer Organisation, Templates, Antwortfelder, Standardwerte, Rechte, Directory-Sync, System und Bulk-Operationen.
 
-`feedback/`  
-Generische Lade- und Leerstates (`LoadingState.tsx`, `EmptyState.tsx`).
+`workflow-detail/`
+Bausteine fuer Detailansicht, Audit-Log, Links, Management und Aufgabenbereiche.
 
-`layout/`  
-App-Shell und Seitenkopf (`AppLayout.tsx`, `PageHeader.tsx`).
+`workflows/`
+Wiederverwendbare Komponenten fuer Erstellung, Aufgabenstatus, Kommentare und Workflow-Karten.
 
-`workflows/`  
-Wiederverwendbare Form- und Anzeigekomponenten fuer Rollen-, Anforderungs-, Icon- und Workflow-Daten.
+`dashboard/`
+Dashboard-Bausteine und Insight-Modelle.
+
+`layout/`
+App-Shell und Seitenkopf.
+
+`feedback/`
+Loading-, Empty-, Toast- und Dialog-Komponenten.
+
+`ui/`
+Kleinere generische UI-Bausteine.
 
 ### `web/src/services`
 
-`lifecycleApi.ts`
-Zentraler HTTP-Client fuer Demo-Auth, Stammdaten, Workflow-, Aufgaben- und Admin-Endpunkte.
+`authApi.ts`
+Login, Logout, Session-Token und aktueller Benutzer.
 
-`onboardingApi.ts`
-Kompatibilitaets-Re-Export auf `lifecycleApi.ts` fuer alte Importpfade.
+`workflowApi.ts`, `taskApi.ts`, `peopleApi.ts`, `lookupApi.ts`
+Fachliche API-Module fuer Workflows, Aufgaben, Personen und Lookup-Daten.
 
-`api/backendDtos.ts`
-Rohe Backend-Antworttypen, 1:1 zu den Backend-DTOs.
+`adminApi.ts`, `adminConfigApi.ts`
+Admin-, Permission-, Directory- und Runtime-Konfigurations-Endpunkte.
 
-`api/mappers.ts`
-Transformiert Backend-DTOs in Frontend-Typen.
+`services/api/`
+Basis-Client, Backend-DTOs und Mapping-Schicht.
 
-`api/client.ts`
-Basis-HTTP-Client mit einheitlichem Fehlerhandling.
+`services/queries/`
+React-Query-Lesezugriffe.
+
+`services/mutations/`
+React-Query-Schreiboperationen.
+
+`queryClient.ts`, `queryKeys.ts`, `cache.ts`
+Clientseitige Query-Infrastruktur.
 
 ### `web/src/hooks`
 
-`useRoles.ts`  
-Laedt Abteilungen und Rollen fuer Auswahl- und Verwaltungsoberflaechen.
+Form-, Admin- und Workflow-Hooks wie:
+- `useWorkflowCreation.ts`
+- `useRows.ts`
+- `useTaskInteraction.ts`
+- `useRequirementEditor.ts`
+- `useAdmin*`
 
-`useWorkflowCreation.ts`  
-Kapselt Formularzustand, Validierung und das Senden neuer Workflows.
+### `web/src/theme`, `web/src/styles`, `web/src/utils`, `web/src/types`
 
-`useRows.ts`  
-Laedt und filtert Workflow-Listen fuer Uebersichten.
+`theme/`
+Theme-Aufloesung und ThemeProvider.
 
-### `web/src/types`
+`styles/`
+Globale Style-Schichten fuer Basis, Admin, Dashboard, Komponenten und Workflows.
 
-`workflow.ts`  
-Frontend-Modelle fuer Workflow-Konfiguration, Workflow-Details, Aufgaben und Notifications.
+`utils/`
+Formatierungs- und Hilfslogik fuer Status, Aufgaben, Anforderungen und Icons.
 
-`auth.ts`  
-Typen fuer Demo-Login, aktuellen Benutzer und Admin-Stammdaten.
-
-### `web/src/utils`
-
-`iconRegistry.ts`  
-Ordnet fachliche Icon-Keys den gebuendelten Assets zu.
-
-`taskAssignment.ts`  
-Hilfslogik fuer Aufgaben-Zuweisungen.
-
-`taskStatus.ts`  
-Hilfslogik fuer Statusdarstellung und Statuslabels.
-
-### `web/src/assets/icons`
-
-Bild- und Icon-Dateien fuer Branding sowie fachliche Anforderungen und Aufgaben.
+`types/`
+Frontend-Domaenenmodelle fuer Auth und Workflows.
 
 ## Backend: `api/API`
 
-`API.csproj`  
-ASP.NET Core 8 Projekt mit Npgsql, Microsoft Graph und Swagger.
+`API.csproj`
+ASP.NET Core 8 Webprojekt mit Npgsql, Microsoft Identity Web, Microsoft Graph und Swagger.
 
-`API.sln`  
-Solution-Datei fuer die API.
+`Program.cs`
+Startpunkt mit optionalem `.env.prod`-Fallback, Service-Registrierung, Startup-Validierung und Endpunkt-Mapping.
 
-`Program.cs`  
-Registriert Services, Swagger und alle Minimal-API-Endpunkte.
+`LifecycleRuntimeSettings.cs`
+Zentrale Aufloesung von Auth-Modus, Connection String und Directory-/Entra-Laufzeitwerten.
 
-`appsettings.json`  
-Default-Konfiguration fuer Notification-E-Mails; Versand ist initial deaktiviert.
+`appsettings.json`
+Default-Werte fuer Notification- und Graph-nahe Laufzeitkonfiguration.
 
-`Dockerfile`  
-Container-Build und Publish fuer die API.
-
-`Properties/launchSettings.json`  
-Lokale Startprofile fuer Entwicklung in IDE oder CLI.
+`Properties/launchSettings.json`
+Lokales Startprofil fuer API-Entwicklung mit `dev-sim`.
 
 ### `api/API/Auth`
 
-`CurrentUser/`  
-Liefert den aufgeloesten aktuellen Benutzer und den Request-Kontext.
+`CurrentUser/`
+Aktueller Benutzer und Request-Kontext.
 
-`Identity/`  
-Abstraktion zur Ermittlung der Identitaet aus eingehenden Requests. Aktuell demo-lastig, produktiv auf Entra/OIDC auszurichten.
+`Identity/`
+Abstraktion ueber eingehende Identitaeten.
 
-`Resolvers/`  
-Konkrete Resolver fuer Demo-Header und Demo-Session-Token. Diese sind Entwicklungs-/Demo-Helfer und kein produktives Zielmodell.
+`Resolvers/`
+Resolver fuer Entra-Tokens und Dev-Simulations-Sessions.
 
-`Sessions/`  
-In-Memory-Speicher fuer Demo-Sessions.
+`Sessions/`
+In-Memory-Speicher fuer Dev-Simulations-Sessions.
 
 ### `api/API/Authorization`
 
-`AuthorizationRoles.cs`  
-Zentrale Rollenschluessel der Anwendung.
+Zentrale Rollen-, Permission- und Policy-Logik.
 
-`IAuthorizationPolicyService.cs`  
-Interface fuer Rollen- und Aufgabenfreigaben.
+### `api/API/Endpoints`
 
-`AuthorizationPolicyService.cs`  
-Implementiert Zugriffsregeln fuer Views, Workflows, Supervisor-Schritt, Aufgaben und Admin-Bereich, einschliesslich effektiver Verantwortlichkeiten und Beobachtungsrechten fuer Abteilungsleitungen.
-
-### `api/API/Contracts`
-
-`WorkflowDtos.cs`  
-DTOs fuer Konfiguration, Erstellung, Listen, Detailansichten, Anforderungen, Aufgaben und Notifications.
-
-`AuthModels.cs`  
-DTOs und Domaintypen fuer Identitaet, aktuellen Benutzer, Demo-Login und Admin-Konfiguration.
-
-### `api/API/Repositories`
-
-`IWorkflowRepository.cs`  
-Vertrag fuer Workflow-, Aufgaben- und Konfigurationszugriffe.
-
-`PostgresWorkflowRepository.cs`  
-PostgreSQL-Implementierung fuer Workflow-Lebenszyklus, Anforderungslogik, Aufgaben, Abhaengigkeiten, Creator-Tracking und Notifications.
-
-`IUserAuthorizationRepository.cs`  
-Vertrag fuer Benutzer-, Rollen-, Gruppen- und Stammdatenzugriffe.
-
-`PostgresUserAuthorizationRepository.cs`  
-Liest und pflegt aktuell Benutzer, Rollen, Gruppen, Abteilungen und Verantwortlichkeiten. Produktiv darf die Anwendung Identitaeten und Gruppen nicht primaer selbst besitzen.
-
-`INotificationEmailConfigurationRepository.cs`  
-Vertrag fuer Notification-E-Mail-Konfiguration.
-
-`PostgresNotificationEmailConfigurationRepository.cs`  
-Persistiert Mailversand-Konfiguration und Teststatus in PostgreSQL.
+Minimal-API-Module fuer:
+- Auth und aktueller Benutzer
+- Admin-Runtime-Konfiguration
+- Admin-Organisation, Permissions und Directory-Sync
+- Workflow-Stammdaten
+- Workflow-Lifecycle, Suche, Historie, Archivierung und Loeschung
+- Supervisor-Schritt
+- Workflow-Verknuepfungen
+- Aufgaben, Status, Assignment und Kommentare
 
 ### `api/API/Services`
 
-`ISupervisorStepService.cs`  
-Vertrag fuer den Supervisor-Schritt.
+Fach- und Infrastrukturservices wie:
+- `PostgresSupervisorStepService`
+- `EntraDirectorySyncService`
+- `DirectorySyncHostedService`
+- `NotificationEmailConfigurationService`
+- `GraphApplicationConfigurationService`
+- `GraphWorkflowEmailNotificationSender`
 
-`PostgresSupervisorStepService.cs`  
-Laedt zugewiesene Workflows der Abteilungsleitung und verarbeitet deren Rueckmeldungen.
+### `api/API/Repositories`
 
-`INotificationEmailConfigurationService.cs`  
-Fachservice fuer Lese- und Schreibzugriffe auf die Mailkonfiguration.
+PostgreSQL-Repositories fuer:
+- Workflows, Aufgaben, Audit, Verknuepfungen und Konfiguration
+- Benutzer, Rollen, Gruppen, Permissions und Verantwortlichkeiten
+- Notification-E-Mail-Konfiguration
+- Graph-Anwendungskonfiguration
 
-`NotificationEmailConfigurationService.cs`  
-Validiert, normalisiert und speichert Notification-E-Mail-Einstellungen.
+### `api/API/Contracts`
 
-`NotificationEmailConfigurationValidator.cs`  
-Prueft Vollstaendigkeit und Gueltigkeit der Mailkonfiguration.
+DTOs fuer Workflows, Auth, Directory-Sync und Admin-Modelle.
 
-`NotificationEmailOptions.cs`  
-Bindet Default-Werte aus `appsettings.json`.
+## Backend-Tests: `api/API.Tests`
 
-`NotificationEmailRuntimeConfiguration.cs`  
-Gemeinsames Laufzeitmodell fuer Mailversand und Tests.
-
-`IWorkflowEmailNotificationSender.cs`  
-Vertrag fuer Workflow-Benachrichtigungen.
-
-`INotificationEmailTestSender.cs`  
-Vertrag fuer Testmails.
-
-`GraphWorkflowEmailNotificationSender.cs`  
-Versendet gebuendelte Aufgaben- und Abschlussbenachrichtigungen ueber Microsoft Graph. Demo-Zugangslinks sind nur fuer Demo/Dev akzeptabel und muessen fuer Produktivbetrieb entfallen.
-
-### Endpunkte in `Program.cs`
-
-- Demo-Auth und aktueller Benutzer: `/auth/demo-users`, `/auth/demo-login`, `/auth/demo-logout`, `/me`, `/auth/current-user`
-- Stammdaten fuer das Frontend: `/departments`, `/roles`, `/requirements`, `/workflow-config`
-- Admin-Konfiguration: `/admin/config/workflow`, `/admin/config/notification-email`, `/admin/config/notification-email/test`
-- Admin-Stammdaten und Rechte: `/admin/auth/*`, `/admin/master-data/*`
-- Workflow und Aufgaben: `/workflows`, `/workflows/{uid}`, `/workflows/{uid}/tasks`, `/workflows/supervisor-step`, `/workflows/{uid}/supervisor-step`, `/tasks`, `/tasks/{id}`, `/tasks/{id}/status`, `/tasks/{id}/assign`
+Enthaelt Unit- und Integrationsnahe Tests fuer:
+- Authorization
+- Endpunkte
+- Requirement- und Statusregeln
+- Workflow-Repositories
+- Audit-Log und Workflow-Links
+- Notification-Template-Logik
 
 ## Datenbank: `db/`
 
-`01_schema.sql`  
-Definiert das Datenmodell fuer:
+`01_schema.sql`
+Grundschema fuer Stammdaten, Workflow-Laufzeit, Directory-Projektion, Rollen-/Permission-Modell und Runtime-Konfiguration.
 
-- Stammdaten: `departments`, `app_roles`, `app_users`, `people`, `app_groups`, `app_responsibilities`, `department_settings`, `system_responsibilities`
-- Rechtezuweisungen: `app_user_roles`, `app_user_groups`, `app_group_roles`, `app_user_responsibilities`, `app_group_responsibilities`
-- Workflow-Definition: `workflow_answer_definitions`, `workflow_answer_options`, `app_role_answer_defaults`, `app_role_answer_default_options`, `task_templates`, `task_template_conditions`, `task_template_dependencies`
-- Workflow-Laufzeit: `workflows`, `workflow_answers`, `workflow_answer_selected_options`, `workflow_tasks`, `workflow_task_dependencies`, `task_assignments`, `workflow_notifications`
-- Benachrichtigungskonfiguration: `notification_email_settings`
+`02_bootstrap.sql`
+Produktiver Bootstrap fuer Basisdaten ohne Demo-Benutzerwelt.
 
-`02_bootstrap.sql`  
-Produktiver Bootstrap fuer Referenzdaten und Onboarding-Grundkonfiguration ohne Demo-Benutzer oder localhost-Defaults.
+`02_seed.sql`
+Dev-Wrapper, der produktiven Bootstrap plus lokale Defaults laedt.
 
-`02_seed.sql`  
-Dev-Wrapper, der `02_bootstrap.sql` und `90_demo_seed.sql` gemeinsam laedt.
+`02_reset.sql`
+Reset-/Neuaufbau-Helfer fuer reproduzierbare Initialisierung.
 
-`90_demo_seed.sql`  
-Demo-/Dev-Ergaenzungen wie Demo-Benutzer, Gruppen, Zuordnungen und lokale Mail-Defaults.
+`03_*.sql` bis `39_*.sql`
+Historische Migrationen und Facherweiterungen, u. a.:
+- Backfills
+- Task-Hardening
+- Prozessarten
+- Workflow-Links
+- Archivierung
+- Directory-Tabellen
+- Identity-/People-Trennung
+- Permission-Modell
+- Graph-Anwendungseinstellungen
 
-`init/dev/00_init.sql` und `init/prod/00_init.sql`  
-Definieren die feste Init-Reihenfolge fuer Dev bzw. Production.
+`90_dev_defaults.sql`
+Lokale Entwicklungs-Defaults ohne kuenstliche Demo-Benutzer oder Demo-Gruppen.
 
-Die Seed-/Bootstrap-Dateien enthalten zusammen:
+`init/dev/00_init.sql`
+Dev-Init-Reihenfolge mit Seed-Datei.
 
-- bedingte Anforderungsdefinitionen fuer Referenzuser, Hardware, Laptop-VPN-Variante und Laufwerksrechte
-- fachliche Zustaendigkeiten fuer IT, QS, AV und QMB
-- Task-Generierungsregeln aus Anforderungen
-- Backfill-Logik fuer fehlende Aufgaben und Beschreibungen in bereits offenen Workflows
+`init/prod/00_init.sql`
+Produktive Init-Reihenfolge ohne Dev-Seed.
 
 ## Nicht im Fokus dieser Uebersicht
 
 - `node_modules/` und `web/node_modules/`
-- `web/dist/` als generierbares Build-Artefakt
+- `web/dist/`
 - `api/API/bin/` und `api/API/obj/`

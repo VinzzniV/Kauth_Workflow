@@ -1,23 +1,23 @@
-import type { DemoLoginResponse, DemoLoginUserOption, Me } from "../types/auth";
-import { getDemoAuthToken, requestJson, setDemoAuthToken } from "./api/client";
-import type { BackendDemoLoginUserOptionDto, BackendMeDto } from "./api/backendDtos";
+import type { Me, SimulationLoginResponse, SimulationLoginUserOption } from "../types/auth";
+import { getDevSimAuthToken, requestJson, setDevSimAuthToken } from "./api/client";
+import type { BackendMeDto, BackendSimulationLoginUserOptionDto } from "./api/backendDtos";
 
-type BackendDemoLoginResponseDto = {
+type BackendSimulationLoginResponseDto = {
   token: string;
   expiresAtUtc: string;
   user: BackendMeDto;
 };
 
-export { getDemoAuthToken, setDemoAuthToken };
+export { getDevSimAuthToken, setDevSimAuthToken };
 
-export async function getDemoLoginUsers(): Promise<DemoLoginUserOption[]> {
-  return requestJson<BackendDemoLoginUserOptionDto[]>("/auth/demo-users");
+export async function getSimulationLoginUsers(): Promise<SimulationLoginUserOption[]> {
+  return requestJson<BackendSimulationLoginUserOptionDto[]>("/auth/sim-users");
 }
 
-export async function demoLogin(username: string): Promise<DemoLoginResponse> {
-  const data = await requestJson<BackendDemoLoginResponseDto>("/auth/demo-login", {
+export async function simulationLogin(userId: number): Promise<SimulationLoginResponse> {
+  const data = await requestJson<BackendSimulationLoginResponseDto>("/auth/sim-login", {
     method: "POST",
-    body: { username },
+    body: { userId },
   });
 
   return {
@@ -27,8 +27,8 @@ export async function demoLogin(username: string): Promise<DemoLoginResponse> {
   };
 }
 
-export async function demoLogout(): Promise<void> {
-  await requestJson<unknown>("/auth/demo-logout", { method: "POST" });
+export async function simulationLogout(): Promise<void> {
+  await requestJson<unknown>("/auth/sim-logout", { method: "POST" });
 }
 
 export async function getMe(): Promise<Me> {

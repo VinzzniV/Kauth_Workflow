@@ -15,16 +15,16 @@ internal static class LifecycleServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Checks whether demo auth endpoints and resolvers should be active.
-    /// AUTH_MODE=demo/dual is preferred; legacy flags remain as a transitional fallback.
+    /// Checks whether development simulation auth endpoints and resolvers should be active.
+    /// AUTH_MODE=dev-sim is the local development default.
     /// </summary>
-    internal static bool IsDemoAuthActive()
+    internal static bool IsDevelopmentSimulationActive()
     {
-        return LifecycleRuntimeSettingsResolver.ResolveFromEnvironment().DemoAuthEnabled;
+        return LifecycleRuntimeSettingsResolver.ResolveFromEnvironment().DevSimulationEnabled;
     }
 
     /// <summary>
-    /// Checks whether Entra ID authentication is enabled via AUTH_MODE=entra/dual.
+    /// Checks whether Entra ID token authentication is enabled via AUTH_MODE=entra.
     /// </summary>
     internal static bool IsEntraAuthEnabled()
     {
@@ -40,8 +40,7 @@ internal static class LifecycleServiceCollectionExtensions
             && !string.Equals(runtimeSettings.AuthMode, "entra", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                "ASPNETCORE_ENVIRONMENT=Production requires AUTH_MODE=entra. " +
-                "Legacy fallback flags are only supported for non-production or transitional runs.");
+                "ASPNETCORE_ENVIRONMENT=Production requires AUTH_MODE=entra.");
         }
 
         var corsAllowedOrigins = configuration
@@ -63,9 +62,9 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddHttpContextAccessor();
         services.AddSingleton(runtimeSettings);
 
-        // Identity resolver chain: Entra first (if enabled), then demo resolvers (if active).
-        // In Production, demo resolvers are never registered.
-        var demoActive = runtimeSettings.DemoAuthEnabled;
+        // Identity resolver chain: Entra first (if enabled), then development simulation session.
+        // In Production, only Entra token auth is allowed.
+        var devSimulationActive = runtimeSettings.DevSimulationEnabled;
         var entraEnabled = runtimeSettings.EntraAuthEnabled;
 
         if (entraEnabled)
@@ -96,11 +95,10 @@ internal static class LifecycleServiceCollectionExtensions
             services.AddScoped<IRequestIdentityResolver, EntraTokenIdentityResolver>();
         }
 
-        if (demoActive)
+        if (devSimulationActive)
         {
-            services.AddSingleton<IDemoSessionStore, InMemoryDemoSessionStore>();
-            services.AddScoped<IRequestIdentityResolver, DemoSessionTokenIdentityResolver>();
-            services.AddScoped<IRequestIdentityResolver, DemoHeaderIdentityResolver>();
+            services.AddSingleton<IDevSimulationSessionStore, InMemoryDevSimulationSessionStore>();
+            services.AddScoped<IRequestIdentityResolver, DevSimulationSessionTokenIdentityResolver>();
         }
 
         services.AddScoped<IIdentityProvider, IdentityProvider>();

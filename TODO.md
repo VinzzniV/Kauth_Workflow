@@ -3,6 +3,25 @@
 ## Ziel
 Dieses Dokument ist für KI-gestützte Umsetzung gedacht. Es zerlegt die wichtigsten Go-Live-Risiken in konkrete, ausreichend kleine Aufgabenpakete. Fokus: **Produktionsreife**, nicht kosmetische Optimierung.
 
+## Status-Snapshot (Stand 2026-04-01)
+
+Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtbar erledigt, sichtbar offen und in diesem Doku-Durchgang nicht verifiziert.
+
+- `P0.1 Produktions-Deployment entkoppeln`
+  Weitgehend umgesetzt: `compose.yml`, `compose.dev-db.yml` und `compose.prod.yml` sind getrennt; Production nutzt Caddy, Entra-Auth und eigenes DB-Init.
+- `P0.2 Seed-/Demo-Daten aus Production ausschließen`
+  Weitgehend umgesetzt: `db/init/prod/00_init.sql` laedt `02_bootstrap.sql`, waehrend Dev ueber `db/init/dev/00_init.sql` die `02_seed.sql` nutzt.
+- `P0.3 Secrets aus unsicherer Persistenz entfernen`
+  Weiter offen: Graph-Anwendungsdaten werden aktuell weiterhin DB-gestuetzt gespeichert, inklusive Secret-Fallback im Runtime-Modell.
+- `P0.4 Frontend Lint auf gruen`
+  In diesem Doku-Durchgang nicht verifiziert.
+- `P0.5 Frontend Tests auf gruen`
+  In diesem Doku-Durchgang nicht verifiziert.
+- `P0.6 Swagger in Production absichern oder deaktivieren`
+  Offen: `UseSwagger()` und `UseSwaggerUI()` laufen aktuell ohne Environment-Gating.
+- `P0.7 Minimale CI/CD-Quality-Gates`
+  Offen: Im aktuellen Repo ist keine CI-Konfiguration sichtbar.
+
 ## Wichtig für die KIs
 - Das Projekt ist **fachlich schon stark**, aber **noch nicht produktionsreif**.
 - Größte Risiken liegen aktuell in:

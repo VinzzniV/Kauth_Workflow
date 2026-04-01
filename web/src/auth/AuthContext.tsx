@@ -8,21 +8,21 @@ import {
 } from "react";
 import { identityProvider, isEntraMode } from "./IdentityProvider";
 import { handleMsalRedirect } from "./EntraIdentityProvider";
-import type { DemoLoginUserOption, Me } from "../types/auth";
+import type { Me, SimulationLoginUserOption } from "../types/auth";
 import { AuthContext } from "./useAuth";
 import type { AuthStatus } from "./useAuth";
 
-const DEMO_USERS_REFRESH_EVENT = "demo-users-refresh";
+const SIMULATION_USERS_REFRESH_EVENT = "sim-users-refresh";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [currentUser, setCurrentUser] = useState<Me | null>(null);
-  const [demoUsers, setDemoUsers] = useState<DemoLoginUserOption[]>([]);
+  const [simulationUsers, setSimulationUsers] = useState<SimulationLoginUserOption[]>([]);
   const [usersLoading, setUsersLoading] = useState<boolean>(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Laedt die verfuegbaren Demo-Benutzer fuer die Login-Seite (nur im Demo-Modus).
+  // Laedt die verfuegbaren synchronisierten Benutzer fuer die Login-Seite im Dev-Simulationsmodus.
   const reloadUsers = useCallback(async () => {
     if (isEntraMode()) return;
 
@@ -31,11 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const users = await identityProvider.getLoginOptions();
-      setDemoUsers(users);
+      setSimulationUsers(users);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Demo-Benutzer konnten nicht geladen werden.";
+      const message = error instanceof Error ? error.message : "Simulationsbenutzer konnten nicht geladen werden.";
       setUsersError(message);
-      setDemoUsers([]);
+      setSimulationUsers([]);
     } finally {
       setUsersLoading(false);
     }
@@ -64,18 +64,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus("unauthenticated");
       setLoginError(
         message === "Backend-Fehler (HTTP 401)."
-          ? "Ihr Microsoft-Konto ist angemeldet, aber in dieser Anwendung nicht freigeschaltet."
+          ? (isEntraMode()
+            ? "Ihr Microsoft-Konto ist angemeldet, aber in dieser Anwendung nicht freigeschaltet."
+            : "Der simulierte Benutzer ist in dieser Anwendung nicht freigeschaltet.")
           : message
       );
     }
   }, []);
 
   // Fuehrt den Login aus und aktualisiert danach den aktuellen Benutzer.
-  const login = useCallback(async (username: string) => {
+  const login = useCallback(async (userId: number) => {
     setLoginError(null);
 
     try {
-      const response = await identityProvider.loginWithUsername(username);
+      const response = await identityProvider.loginAsUser(userId);
       identityProvider.setStoredToken(response.token);
       const me = await identityProvider.getCurrentUser();
       setCurrentUser(me);
@@ -119,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setStatus("unauthenticated");
           }
         } else {
-          // Demo mode: load demo users and try to restore session.
+          // Dev simulation mode: load synchronized users and try to restore session.
           void reloadUsers();
           await refreshMe();
         }
@@ -142,18 +144,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoginError("Die Sitzung ist nicht mehr gültig. Bitte erneut anmelden.");
     };
 
-    const handleRefreshDemoUsers = () => {
+    const handleRefreshSimulationUsers = () => {
       void reloadUsers();
     };
 
     window.addEventListener("auth-invalid", handleInvalidAuth);
-    // Keep backwards compatibility for demo mode event.
-    window.addEventListener("demo-auth-invalid", handleInvalidAuth);
-    window.addEventListener(DEMO_USERS_REFRESH_EVENT, handleRefreshDemoUsers);
+    window.addEventListener(SIMULATION_USERS_REFRESH_EVENT, handleRefreshSimulationUsers);
     return () => {
       window.removeEventListener("auth-invalid", handleInvalidAuth);
-      window.removeEventListener("demo-auth-invalid", handleInvalidAuth);
-      window.removeEventListener(DEMO_USERS_REFRESH_EVENT, handleRefreshDemoUsers);
+      window.removeEventListener(SIMULATION_USERS_REFRESH_EVENT, handleRefreshSimulationUsers);
     };
   }, [reloadUsers]);
 
@@ -161,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       currentUser,
-      demoUsers,
+      simulationUsers,
       usersLoading,
       usersError,
       loginError,
@@ -170,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       reloadUsers,
       refreshMe,
     }),
-    [status, currentUser, demoUsers, usersLoading, usersError, loginError, login, logout, reloadUsers, refreshMe]
+    [status, currentUser, simulationUsers, usersLoading, usersError, loginError, login, logout, reloadUsers, refreshMe]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

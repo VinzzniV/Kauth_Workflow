@@ -1,15 +1,15 @@
-// Kapselt die konkrete Auth-Quelle, damit der Rest der App nicht von der Demo-Implementierung abhaengt.
+// Kapselt die konkrete Auth-Quelle, damit der Rest der App nicht von der konkreten Login-Art abhaengt.
 import {
-  demoLogin,
-  demoLogout,
-  getDemoAuthToken,
-  getDemoLoginUsers,
+  getDevSimAuthToken,
+  getSimulationLoginUsers,
   getMe,
-  setDemoAuthToken,
+  setDevSimAuthToken,
+  simulationLogin,
+  simulationLogout,
 } from "../services/authApi";
 import { EntraIdentityProvider } from "./EntraIdentityProvider";
 import { getAuthMode as getConfiguredAuthMode } from "../config/appRuntimeConfig";
-import type { DemoLoginResponse, DemoLoginUserOption, Me } from "../types/auth";
+import type { Me, SimulationLoginResponse, SimulationLoginUserOption } from "../types/auth";
 
 export type IIdentityProvider = {
   readonly providerKind: string;
@@ -17,20 +17,20 @@ export type IIdentityProvider = {
   setStoredToken: (token: string | null) => void;
   refreshAfterUnauthorized: () => Promise<boolean>;
   getCurrentUser: () => Promise<Me>;
-  getLoginOptions: () => Promise<DemoLoginUserOption[]>;
-  loginWithUsername: (username: string) => Promise<DemoLoginResponse>;
+  getLoginOptions: () => Promise<SimulationLoginUserOption[]>;
+  loginAsUser: (userId: number) => Promise<SimulationLoginResponse>;
   logout: () => Promise<void>;
 };
 
-class DemoIdentityProvider implements IIdentityProvider {
-  public readonly providerKind = "demo";
+class DevSimulationIdentityProvider implements IIdentityProvider {
+  public readonly providerKind = "dev-sim";
 
   public getStoredToken(): string | null {
-    return getDemoAuthToken();
+    return getDevSimAuthToken();
   }
 
   public setStoredToken(token: string | null): void {
-    setDemoAuthToken(token);
+    setDevSimAuthToken(token);
   }
 
   public async refreshAfterUnauthorized(): Promise<boolean> {
@@ -41,16 +41,16 @@ class DemoIdentityProvider implements IIdentityProvider {
     return getMe();
   }
 
-  public getLoginOptions(): Promise<DemoLoginUserOption[]> {
-    return getDemoLoginUsers();
+  public getLoginOptions(): Promise<SimulationLoginUserOption[]> {
+    return getSimulationLoginUsers();
   }
 
-  public loginWithUsername(username: string): Promise<DemoLoginResponse> {
-    return demoLogin(username);
+  public loginAsUser(userId: number): Promise<SimulationLoginResponse> {
+    return simulationLogin(userId);
   }
 
   public logout(): Promise<void> {
-    return demoLogout();
+    return simulationLogout();
   }
 }
 
@@ -66,7 +66,7 @@ function createIdentityProvider(): IIdentityProvider {
   if (isEntraMode()) {
     return new EntraIdentityProvider();
   }
-  return new DemoIdentityProvider();
+  return new DevSimulationIdentityProvider();
 }
 
 export const identityProvider: IIdentityProvider = createIdentityProvider();

@@ -82,7 +82,7 @@ internal static class LifecycleApplicationExtensions
             var runtimeSettings = app.Services.GetRequiredService<LifecycleRuntimeSettings>();
             var connectionString = runtimeSettings.ConnectionString;
             var entraEnabled = runtimeSettings.EntraAuthEnabled;
-            var demoActive = runtimeSettings.DemoAuthEnabled;
+            var devSimulationActive = runtimeSettings.DevSimulationEnabled;
             var tenantId = runtimeSettings.EntraTenantId;
             var clientId = runtimeSettings.EntraClientId;
             var audience = runtimeSettings.EntraAudience;
@@ -153,10 +153,10 @@ internal static class LifecycleApplicationExtensions
                     database = databaseStatus,
                     auth = new
                     {
-                        mode = entraEnabled ? "entra" : demoActive ? "demo" : "none",
+                        mode = entraEnabled ? "entra" : devSimulationActive ? "dev-sim" : "none",
                         status = authStatus,
                         reachability = authReachability,
-                        demoActive
+                        devSimulationActive
                     }
                 },
                 statusCode: statusCode);

@@ -1,12 +1,12 @@
-// Einfache Demo-Anmeldung ueber hinterlegte Testbenutzer.
+// Lokale Entwicklungssimulation ueber synchronisierte Entra-Benutzer.
 import { useMemo, useState } from "react";
 import { useAuth } from "../auth/useAuth";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 
-export default function DemoLoginPage() {
+export default function SimulationLoginPage() {
   const {
-    demoUsers,
+    simulationUsers,
     usersLoading,
     usersError,
     loginError,
@@ -14,44 +14,39 @@ export default function DemoLoginPage() {
     reloadUsers,
   } = useAuth();
 
-  const [selectedUsername, setSelectedUsername] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  const preferredDemoUsername = useMemo(
+  const preferredUserId = useMemo(
     () =>
-      demoUsers.find((user) => user.username === "laura.romankewicz")?.username
-      ?? demoUsers.find((user) => user.username === "tobias.lueck")?.username
-      ?? demoUsers.find((user) => user.username === "vinzent.niederwieser")?.username
-      ?? demoUsers.find((user) => user.username === "admin.demo")?.username
-      ?? demoUsers[0]?.username
-      ?? "",
-    [demoUsers]
+      simulationUsers.find((user) => user.username.toLowerCase().includes("vinzent"))?.userId
+      ?? simulationUsers[0]?.userId
+      ?? null,
+    [simulationUsers]
   );
 
-  const resolvedSelectedUsername = useMemo(() => {
-    if (selectedUsername && demoUsers.some((user) => user.username === selectedUsername)) {
-      return selectedUsername;
+  const resolvedSelectedUserId = useMemo(() => {
+    if (selectedUserId && simulationUsers.some((user) => user.userId === selectedUserId)) {
+      return selectedUserId;
     }
 
-    return preferredDemoUsername;
-  }, [demoUsers, preferredDemoUsername, selectedUsername]);
+    return preferredUserId;
+  }, [preferredUserId, selectedUserId, simulationUsers]);
 
-  // Vorbelegung spart in der Demo einen zusaetzlichen Schritt beim ersten Laden.
   const selectedUser = useMemo(
-    () => demoUsers.find((user) => user.username === resolvedSelectedUsername) ?? null,
-    [demoUsers, resolvedSelectedUsername]
+    () => simulationUsers.find((user) => user.userId === resolvedSelectedUserId) ?? null,
+    [resolvedSelectedUserId, simulationUsers]
   );
 
-  const canSubmit = resolvedSelectedUsername.trim().length > 0 && !submitting;
+  const canSubmit = resolvedSelectedUserId !== null && !submitting;
 
-  // Die Login-Funktion selbst liegt im AuthContext, die Seite steuert nur Auswahl und UI-Zustand.
   const handleLogin = async () => {
-    if (!canSubmit) {
+    if (!canSubmit || resolvedSelectedUserId === null) {
       return;
     }
 
     setSubmitting(true);
-    await login(resolvedSelectedUsername);
+    await login(resolvedSelectedUserId);
     setSubmitting(false);
   };
 
@@ -65,14 +60,14 @@ export default function DemoLoginPage() {
             alt="Kauth Mitarbeiterprozesse"
           />
           <h1>Kauth Mitarbeiterprozesse</h1>
-          <p>Wählen Sie einen Benutzer aus, um sich in die Demo anzumelden.</p>
+          <p>Waehlen Sie einen synchronisierten Benutzer aus, um lokal dessen Rechte und Sicht zu simulieren.</p>
         </div>
 
-        {usersLoading ? <LoadingState title="Benutzer werden geladen..." /> : null}
+        {usersLoading ? <LoadingState title="Simulationsbenutzer werden geladen..." /> : null}
 
         {!usersLoading && usersError ? (
           <EmptyState
-            title="Benutzer konnten nicht geladen werden."
+            title="Simulationsbenutzer konnten nicht geladen werden."
             description={usersError}
             actionLabel="Erneut laden"
             onAction={() => {
@@ -84,14 +79,14 @@ export default function DemoLoginPage() {
         {!usersLoading && !usersError ? (
           <section className="panel">
             <div className="panel-head">
-              <h2>Benutzer auswählen</h2>
-              <p>Der ausgewählte Benutzer wird für die aktuelle Anmeldung verwendet.</p>
+              <h2>Benutzer simulieren</h2>
+              <p>Die Liste kommt aus der lokal synchronisierten Entra-Projektion.</p>
             </div>
 
-            {demoUsers.length === 0 ? (
+            {simulationUsers.length === 0 ? (
               <EmptyState
-                title="Keine Benutzer verfügbar"
-                description="Bitte prüfen Sie die hinterlegten Benutzer."
+                title="Keine synchronisierten Benutzer verfügbar"
+                description="Pruefen Sie die Entra-Konfiguration, den Directory-Sync und die lokalen Gruppen-Mappings."
               />
             ) : (
               <>
@@ -99,11 +94,11 @@ export default function DemoLoginPage() {
                   <label className="field compact grow">
                     <span>Benutzer</span>
                     <select
-                      value={resolvedSelectedUsername}
-                      onChange={(event) => setSelectedUsername(event.target.value)}
+                      value={resolvedSelectedUserId ?? ""}
+                      onChange={(event) => setSelectedUserId(Number(event.target.value))}
                     >
-                      {demoUsers.map((user) => (
-                        <option key={user.userId} value={user.username}>
+                      {simulationUsers.map((user) => (
+                        <option key={user.userId} value={user.userId}>
                           {user.displayName} ({user.username})
                         </option>
                       ))}

@@ -9,19 +9,13 @@ namespace API;
 internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotificationSender, INotificationEmailTestSender
 {
     private readonly INotificationEmailConfigurationService configurationService;
-    private readonly IDemoSessionStore? demoSessionStore;
-    private readonly LifecycleRuntimeSettings runtimeSettings;
     private readonly ILogger<GraphWorkflowEmailNotificationSender> logger;
 
     public GraphWorkflowEmailNotificationSender(
         INotificationEmailConfigurationService configurationService,
-        LifecycleRuntimeSettings runtimeSettings,
-        ILogger<GraphWorkflowEmailNotificationSender> logger,
-        IDemoSessionStore? demoSessionStore = null)
+        ILogger<GraphWorkflowEmailNotificationSender> logger)
     {
         this.configurationService = configurationService;
-        this.runtimeSettings = runtimeSettings;
-        this.demoSessionStore = demoSessionStore;
         this.logger = logger;
     }
 
@@ -70,8 +64,7 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                 var workflowUrl = BuildWorkflowAccessUrl(
                     configuration.FrontendBaseUrl,
                     workflowUid,
-                    batch,
-                    allowDemoAccessLink: runtimeSettings.DemoAuthEnabled && !isSandbox);
+                    batch);
                 var effectiveRecipientEmail = isSandbox
                     ? configuration.SandboxRedirectEmail!
                     : batch.PrimaryTarget.TargetEmail;
@@ -327,8 +320,7 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
     private string BuildWorkflowAccessUrl(
         string frontendBaseUrl,
         Guid workflowUid,
-        NotificationDispatchBatch batch,
-        bool allowDemoAccessLink)
+        NotificationDispatchBatch batch)
     {
         var normalizedBaseUrl = frontendBaseUrl.TrimEnd('/');
         var target = batch.PrimaryTarget;
@@ -341,21 +333,6 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
             "/workflows" => $"/workflows/{workflowUid}",
             _ => $"/workflows/{workflowUid}"
         };
-
-        if (allowDemoAccessLink
-            && demoSessionStore is not null
-            && target.RecipientUserId.HasValue
-            && !string.IsNullOrWhiteSpace(target.RecipientIdentityKey))
-        {
-            var session = demoSessionStore.CreateSession(
-                target.RecipientUserId.Value,
-                target.RecipientIdentityKey!,
-                TimeSpan.FromHours(12));
-
-            var encodedToken = Uri.EscapeDataString(session.Token);
-            var encodedRedirect = Uri.EscapeDataString(redirectPath);
-            return $"{normalizedBaseUrl}/demo/access?token={encodedToken}&redirect={encodedRedirect}";
-        }
 
         return $"{normalizedBaseUrl}{redirectPath}";
     }

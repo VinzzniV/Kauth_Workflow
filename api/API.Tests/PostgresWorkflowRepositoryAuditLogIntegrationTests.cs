@@ -14,8 +14,14 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
     {
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
-        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
-        var assigneeUserId = await LoadUserIdAsync(connectionString, "vinzent.niederwieser@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "integration-admin@kauth.local",
+            "Integration Admin");
+        var assigneeUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "vinzent.niederwieser@kauth.local",
+            "Vinzent Niederwieser");
         var initialResponsibilityId = await LoadResponsibilityIdAsync(connectionString, "it_ad");
         var nextResponsibilityId = await LoadResponsibilityIdAsync(connectionString, "it_hardware");
         var temporaryRoleId = await CreateTemporaryPositionRoleAsync(connectionString, departmentId);
@@ -74,7 +80,10 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
     {
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
-        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "integration-admin@kauth.local",
+            "Integration Admin");
         var temporaryRoleId = await CreateTemporaryPositionRoleAsync(connectionString, departmentId);
         var workflow = await CreateManualWorkflowAsync(
             connectionString,
@@ -111,7 +120,10 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
     {
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
-        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "integration-admin@kauth.local",
+            "Integration Admin");
         var temporaryRoleId = await CreateTemporaryPositionRoleAsync(connectionString, departmentId);
         var workflow = await CreateManualWorkflowAsync(
             connectionString,
@@ -152,7 +164,10 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
         var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
-        var actorUserId = await LoadUserIdAsync(connectionString, "laura.romankewicz@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "laura.romankewicz@kauth.local",
+            "Laura Romankewicz");
 
         await WithRepositoryConnectionStringAsync(connectionString, async repository =>
         {
@@ -183,7 +198,10 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
         var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
-        var actorUserId = await LoadUserIdAsync(connectionString, "laura.romankewicz@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "laura.romankewicz@kauth.local",
+            "Laura Romankewicz");
         var templateId = 0;
         var taskKey = string.Empty;
 
@@ -252,7 +270,10 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
     {
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
-        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "integration-admin@kauth.local",
+            "Integration Admin");
         var temporaryRoleId = await CreateTemporaryPositionRoleAsync(connectionString, departmentId);
         var workflow = await CreateManualWorkflowAsync(
             connectionString,
@@ -289,7 +310,10 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
     {
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
-        var actorUserId = await LoadUserIdAsync(connectionString, "admin.demo@demo.local");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "integration-admin@kauth.local",
+            "Integration Admin");
         var temporaryRoleId = await CreateTemporaryPositionRoleAsync(connectionString, departmentId);
         var workflow = await CreateManualWorkflowAsync(
             connectionString,
@@ -329,8 +353,14 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
         var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
-        var createdByUserId = await LoadUserIdAsync(connectionString, "laura.romankewicz@demo.local");
-        var actorUserId = await LoadUserIdAsync(connectionString, "tobias.lueck@demo.local");
+        var createdByUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "laura.romankewicz@kauth.local",
+            "Laura Romankewicz");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "tobias.lueck@kauth.local",
+            "Tobias Lueck");
 
         await WithRepositoryConnectionStringAsync(connectionString, async repository =>
         {
@@ -373,8 +403,14 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
         var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
-        var createdByUserId = await LoadUserIdAsync(connectionString, "laura.romankewicz@demo.local");
-        var actorUserId = await LoadUserIdAsync(connectionString, "tobias.lueck@demo.local");
+        var createdByUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "laura.romankewicz@kauth.local",
+            "Laura Romankewicz");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "tobias.lueck@kauth.local",
+            "Tobias Lueck");
 
         await WithRepositoryConnectionStringAsync(connectionString, async repository =>
         {
@@ -414,8 +450,14 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
         var connectionString = GetTestConnectionString();
         var departmentId = await LoadDepartmentIdAsync(connectionString, "IT");
         var roleId = await LoadRoleIdAsync(connectionString, "position_developer");
-        var createdByUserId = await LoadUserIdAsync(connectionString, "laura.romankewicz@demo.local");
-        var actorUserId = await LoadUserIdAsync(connectionString, "tobias.lueck@demo.local");
+        var createdByUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "laura.romankewicz@kauth.local",
+            "Laura Romankewicz");
+        var actorUserId = await DirectorySyncedTestUserHelper.EnsureUserAsync(
+            connectionString,
+            "tobias.lueck@kauth.local",
+            "Tobias Lueck");
         var workflow = await CreateManualWorkflowAsync(
             connectionString,
             departmentId,
@@ -729,14 +771,6 @@ VALUES (
             connectionString,
             "SELECT id FROM app_responsibilities WHERE responsibility_key = @value LIMIT 1;",
             responsibilityKey);
-    }
-
-    private static async Task<long> LoadUserIdAsync(string connectionString, string email)
-    {
-        return await LoadLongAsync(
-            connectionString,
-            "SELECT id FROM app_users WHERE email = @value LIMIT 1;",
-            email);
     }
 
     private static async Task<int> LoadAnswerDefinitionIdAsync(string connectionString, string answerKey)

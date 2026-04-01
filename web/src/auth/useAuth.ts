@@ -1,16 +1,16 @@
 import { createContext, useContext } from "react";
-import type { DemoLoginUserOption, Me } from "../types/auth";
+import type { Me, SimulationLoginUserOption } from "../types/auth";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 type AuthContextValue = {
   status: AuthStatus;
   currentUser: Me | null;
-  demoUsers: DemoLoginUserOption[];
+  simulationUsers: SimulationLoginUserOption[];
   usersLoading: boolean;
   usersError: string | null;
   loginError: string | null;
-  login: (username: string) => Promise<boolean>;
+  login: (userId: number) => Promise<boolean>;
   logout: () => Promise<void>;
   reloadUsers: () => Promise<void>;
   refreshMe: () => Promise<void>;
