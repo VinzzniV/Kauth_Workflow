@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatDateTime } from "../../utils/dateFormat";
 import type { WorkflowTask } from "../../types/workflow";
 
@@ -19,20 +19,16 @@ export default function TaskCommentsSection({
 }: TaskCommentsSectionProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const trimmedDraft = draftValue.trim();
+  const isForcedOpen = trimmedDraft.length > 0 || isSaving;
+  const isDetailsOpen = isOpen || isForcedOpen;
   const latestComment = task.comments.at(-1) ?? null;
   const commentCountLabel = `${task.comments.length} Eintrag${task.comments.length === 1 ? "" : "e"} zur Aufgabe.`;
-
-  useEffect(() => {
-    if (trimmedDraft || isSaving) {
-      setIsOpen(true);
-    }
-  }, [isSaving, trimmedDraft]);
 
   return (
     <details
       className="panel panel-muted"
       name={`task-comments-${task.id}`}
-      open={isOpen}
+      open={isDetailsOpen}
       onToggle={(event) => setIsOpen(event.currentTarget.open)}
     >
       <summary className="panel-head" style={{ cursor: "pointer", listStyle: "none" }}>

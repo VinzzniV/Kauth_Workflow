@@ -70,7 +70,8 @@ export class EntraIdentityProvider implements IIdentityProvider {
     return acquireToken();
   }
 
-  public setStoredToken(_token: string | null): void {
+  public setStoredToken(token: string | null): void {
+    void token;
     // MSAL manages its own token cache — this is a no-op for Entra mode.
   }
 
@@ -88,8 +89,9 @@ export class EntraIdentityProvider implements IIdentityProvider {
     return [];
   }
 
-  public async loginAsUser(_userId: number): Promise<SimulationLoginResponse> {
+  public async loginAsUser(userId: number): Promise<SimulationLoginResponse> {
     await ensureMsalInitialized();
+    void userId;
 
     // Trigger the MSAL redirect flow. This navigates away from the SPA,
     // so the returned promise will not resolve in the current page load.

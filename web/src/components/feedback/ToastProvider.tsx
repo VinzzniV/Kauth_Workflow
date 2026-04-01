@@ -1,33 +1,19 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-
-type ToastType = "success" | "error" | "info";
-
-type ToastItem = {
-  id: string;
-  message: string;
-  type: ToastType;
-  isLeaving: boolean;
-};
-
-type ToastContextValue = {
-  showSuccess: (message: string) => void;
-  showError: (message: string) => void;
-  showInfo: (message: string) => void;
-  dismissToast: (id: string) => void;
-};
+import {
+  ToastContext,
+  type ToastContextValue,
+  type ToastItem,
+  type ToastType,
+} from "./toastContext";
 
 const TOAST_LIMIT = 3;
 const TOAST_EXIT_MS = 220;
-
-const ToastContext = createContext<ToastContextValue | null>(null);
 
 function getToastDuration(type: ToastType): number {
   return type === "error" ? 6000 : 4000;
@@ -137,14 +123,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
     </ToastContext.Provider>
   );
-}
-
-export function useToast() {
-  const context = useContext(ToastContext);
-
-  if (!context) {
-    throw new Error("useToast must be used within a ToastProvider.");
-  }
-
-  return context;
 }

@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS workflow_notifications CASCADE;
 DROP TABLE IF EXISTS workflow_task_comments CASCADE;
 DROP TABLE IF EXISTS workflow_audit_log CASCADE;
 DROP TABLE IF EXISTS notification_email_settings CASCADE;
+DROP TABLE IF EXISTS graph_application_settings CASCADE;
 DROP TABLE IF EXISTS task_assignments CASCADE;
 DROP TABLE IF EXISTS workflow_task_dependencies CASCADE;
 DROP TABLE IF EXISTS workflow_tasks CASCADE;
@@ -65,9 +66,6 @@ CREATE TABLE app_users (
 CREATE TABLE notification_email_settings (
     id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    tenant_id VARCHAR(255),
-    client_id VARCHAR(255),
-    client_secret TEXT,
     sender_email VARCHAR(320),
     frontend_base_url VARCHAR(500) NOT NULL DEFAULT 'http://localhost:5173',
     test_recipient_email VARCHAR(320),

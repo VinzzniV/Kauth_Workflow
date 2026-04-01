@@ -15,7 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { AdminDependencyGraph, AdminTaskTemplate } from "../../types/auth";
-import { useConfirmationDialog } from "../feedback/ConfirmationDialogProvider";
+import { useConfirmationDialog } from "../feedback/useConfirmationDialog";
 import { DependencyGraphEdge } from "./DependencyGraphEdge";
 import { DependencyGraphNode, type DependencyGraphNodeData } from "./DependencyGraphNode";
 
@@ -58,7 +58,6 @@ export function DependencyGraphEditor({
   const confirm = useConfirmationDialog();
   const [pendingConnection, setPendingConnection] = useState<{ sourceTemplateId: number; targetTemplateId: number } | null>(null);
   const [pendingRequiredStatus, setPendingRequiredStatus] = useState<"open" | "ready" | "in_progress" | "blocked" | "done">("done");
-  const [layoutVersion, setLayoutVersion] = useState(0);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<Node<DependencyGraphNodeData>, Edge> | null>(null);
 
   const templateIndex = useMemo(() => {
@@ -117,7 +116,7 @@ export function DependencyGraphEditor({
         selectable: true,
       };
     });
-  }, [graph.edges, graph.nodes, layoutVersion, selectedTemplateId, templateIndex]);
+  }, [graph.edges, graph.nodes, selectedTemplateId, templateIndex]);
 
   const edges = useMemo<Edge[]>(() => {
     return graph.edges.map((edge) => ({
@@ -245,7 +244,6 @@ export function DependencyGraphEditor({
           type="button"
           className="btn btn-outline"
           onClick={() => {
-            setLayoutVersion((current) => current + 1);
             if (flowInstance) {
               setTimeout(() => {
                 void flowInstance.fitView({ padding: 0.18, duration: 250 });

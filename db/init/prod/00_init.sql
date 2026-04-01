@@ -41,3 +41,4 @@
 \i /docker-entrypoint-sql/37_directory_mapping_audit_log.sql
 \i /docker-entrypoint-sql/38_permission_model.sql
 \i /docker-entrypoint-sql/39_graph_application_settings.sql
+\i /docker-entrypoint-sql/40_remove_secret_persistence.sql

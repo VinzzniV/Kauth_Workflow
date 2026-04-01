@@ -1,20 +1,30 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowSearchPage from "../src/pages/WorkflowSearchPage";
-import * as lifecycleApi from "../src/services/lifecycleApi";
+import * as lookupApi from "../src/services/lookupApi";
+import * as workflowApi from "../src/services/workflowApi";
 import { createWorkflowSummary, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/lifecycleApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
+vi.mock("../src/services/lookupApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lookupApi")>("../src/services/lookupApi");
   return {
     ...actual,
     getProcessTypes: vi.fn(),
-    getWorkflows: vi.fn(),
+    getDepartments: vi.fn(),
   };
 });
 
-const mockedGetProcessTypes = vi.mocked(lifecycleApi.getProcessTypes);
-const mockedGetWorkflows = vi.mocked(lifecycleApi.getWorkflows);
+vi.mock("../src/services/workflowApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/workflowApi")>("../src/services/workflowApi");
+  return {
+    ...actual,
+    getWorkflowPage: vi.fn(),
+  };
+});
+
+const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
+const mockedGetDepartments = vi.mocked(lookupApi.getDepartments);
+const mockedGetWorkflowPage = vi.mocked(workflowApi.getWorkflowPage);
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -28,53 +38,78 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+function createWorkflowPageResponse(
+  overrides: Partial<Awaited<ReturnType<typeof workflowApi.getWorkflowPage>>> = {}
+) {
+  return {
+    items: [createWorkflowSummary()],
+    count: 1,
+    offset: 0,
+    limit: 1000,
+    departmentOptions: [{ id: 10, name: "IT" }],
+    responsibilityOptions: [{ value: "it", label: "IT" }],
+    ...overrides,
+  };
+}
+
 describe("WorkflowSearchPage", () => {
   beforeEach(() => {
     mockedGetProcessTypes.mockReset();
-    mockedGetWorkflows.mockReset();
+    mockedGetDepartments.mockReset();
+    mockedGetWorkflowPage.mockReset();
     mockedGetProcessTypes.mockResolvedValue([
       { key: "onboarding", name: "Onboarding" },
       { key: "offboarding", name: "Offboarding" },
     ]);
+    mockedGetDepartments.mockResolvedValue([
+      { id: 10, name: "IT" },
+      { id: 20, name: "Finance" },
+    ]);
   });
 
   it("keeps other departments selectable after a department filter is applied", async () => {
-    mockedGetWorkflows
-      .mockResolvedValueOnce([
-        createWorkflowSummary({
-          uid: "wf-it",
-          departmentId: 10,
-          departmentName: "IT",
-        }),
-        createWorkflowSummary({
-          uid: "wf-finance",
-          departmentId: 20,
-          departmentName: "Finance",
-        }),
-      ])
-      .mockResolvedValueOnce([
-        createWorkflowSummary({
-          uid: "wf-it",
-          departmentId: 10,
-          departmentName: "IT",
-        }),
-      ])
-      .mockResolvedValueOnce([
-        createWorkflowSummary({
-          uid: "wf-it",
-          departmentId: 10,
-          departmentName: "IT",
-        }),
-        createWorkflowSummary({
-          uid: "wf-finance",
-          departmentId: 20,
-          departmentName: "Finance",
-        }),
-      ]);
+    mockedGetWorkflowPage
+      .mockResolvedValueOnce(createWorkflowPageResponse({
+        items: [
+          createWorkflowSummary({
+            uid: "wf-it",
+            departmentId: 10,
+            departmentName: "IT",
+          }),
+          createWorkflowSummary({
+            uid: "wf-finance",
+            departmentId: 20,
+            departmentName: "Finance",
+          }),
+        ],
+        departmentOptions: [
+          { id: 10, name: "IT" },
+          { id: 20, name: "Finance" },
+        ],
+      }))
+      .mockResolvedValueOnce(createWorkflowPageResponse({
+        items: [
+          createWorkflowSummary({
+            uid: "wf-it",
+            departmentId: 10,
+            departmentName: "IT",
+          }),
+        ],
+        departmentOptions: [
+          { id: 10, name: "IT" },
+          { id: 20, name: "Finance" },
+        ],
+      }));
 
     renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
 
     expect(await screen.findByRole("option", { name: "Finance" })).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
+      target: { value: "alice" },
+    });
+
+    expect(await screen.findByText("Alice Example")).toBeTruthy();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Abteilung" }), {
       target: { value: "10" },
@@ -85,22 +120,22 @@ describe("WorkflowSearchPage", () => {
   });
 
   it("passes the selected process type to the search endpoint", async () => {
-    mockedGetWorkflows
-      .mockResolvedValueOnce([createWorkflowSummary()])
-      .mockResolvedValueOnce([
-        createWorkflowSummary({
-          uid: "wf-off",
-          processType: { key: "offboarding", name: "Offboarding" },
-        }),
-      ])
-      .mockResolvedValueOnce([
-        createWorkflowSummary({
-          uid: "wf-off",
-          processType: { key: "offboarding", name: "Offboarding" },
-        }),
-      ]);
+    mockedGetWorkflowPage
+      .mockResolvedValueOnce(createWorkflowPageResponse())
+      .mockResolvedValueOnce(createWorkflowPageResponse({
+        items: [
+          createWorkflowSummary({
+            uid: "wf-off",
+            processType: { key: "offboarding", name: "Offboarding" },
+          }),
+        ],
+      }));
 
     renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
+      target: { value: "alice" },
+    });
 
     expect(await screen.findByText("Alice Example")).toBeTruthy();
 
@@ -109,7 +144,9 @@ describe("WorkflowSearchPage", () => {
     });
 
     expect(await screen.findByText("Offboarding")).toBeTruthy();
-    expect(mockedGetWorkflows).toHaveBeenCalledWith(
+    expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
+      1000,
+      0,
       expect.objectContaining({ processTypeKey: "offboarding" })
     );
   });
@@ -125,33 +162,38 @@ describe("WorkflowSearchPage", () => {
       firstName: "Berta",
       lastName: "Latest",
     });
-    const staleResponse = createDeferred<typeof latestWorkflow[]>();
+    const staleResponse = createDeferred<Awaited<ReturnType<typeof workflowApi.getWorkflowPage>>>();
 
-    mockedGetWorkflows
-      .mockResolvedValueOnce([initialWorkflow])
+    mockedGetWorkflowPage
+      .mockResolvedValueOnce(createWorkflowPageResponse({ items: [initialWorkflow] }))
       .mockImplementationOnce(() => staleResponse.promise)
-      .mockResolvedValueOnce([latestWorkflow]);
+      .mockResolvedValueOnce(createWorkflowPageResponse({ items: [latestWorkflow] }));
 
     renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
-
-    expect(await screen.findByText("Alice Example")).toBeTruthy();
 
     fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
       target: { value: "al" },
     });
+    await new Promise((resolve) => window.setTimeout(resolve, 450));
+
+    expect(await screen.findByText("Alice Example")).toBeTruthy();
+
     fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
       target: { value: "be" },
     });
+    await new Promise((resolve) => window.setTimeout(resolve, 450));
 
     expect(await screen.findByText("Berta Latest")).toBeTruthy();
 
-    staleResponse.resolve([
-      createWorkflowSummary({
-        uid: "wf-stale",
-        firstName: "Stale",
-        lastName: "Result",
-      }),
-    ]);
+    staleResponse.resolve(createWorkflowPageResponse({
+      items: [
+        createWorkflowSummary({
+          uid: "wf-stale",
+          firstName: "Stale",
+          lastName: "Result",
+        }),
+      ],
+    }));
 
     await waitFor(() => {
       expect(screen.queryByText("Stale Result")).toBeNull();
@@ -160,17 +202,23 @@ describe("WorkflowSearchPage", () => {
   });
 
   it("shows the no-results state when filters return no workflows", async () => {
-    mockedGetWorkflows
-      .mockResolvedValueOnce([
-        createWorkflowSummary({
-          uid: "wf-initial",
-          firstName: "Alice",
-          lastName: "Example",
-        }),
-      ])
-      .mockResolvedValueOnce([]);
+    mockedGetWorkflowPage
+      .mockResolvedValueOnce(createWorkflowPageResponse({
+        items: [
+          createWorkflowSummary({
+            uid: "wf-initial",
+            firstName: "Alice",
+            lastName: "Example",
+          }),
+        ],
+      }))
+      .mockResolvedValueOnce(createWorkflowPageResponse({ items: [], count: 0 }));
 
     renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
+      target: { value: "alice" },
+    });
 
     expect(await screen.findByText("Alice Example")).toBeTruthy();
 

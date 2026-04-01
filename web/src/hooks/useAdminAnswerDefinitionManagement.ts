@@ -8,7 +8,7 @@ import {
 } from "../services/adminConfigApi";
 import type { AdminAnswerDefinition, AdminProcessType } from "../types/auth";
 import { toNullableText } from "../components/admin-config/adminConfigHelpers";
-import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
+import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 
 type AnswerDefinitionDraft = {
   answerKey: string;

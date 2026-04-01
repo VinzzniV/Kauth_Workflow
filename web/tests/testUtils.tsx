@@ -4,17 +4,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { CurrentUserContext } from "../src/auth/useCurrentUser";
 import { canAccessFeature, deriveRoleCapabilities, toRoleLabel } from "../src/auth/roleModel";
+import { ConfirmationDialogProvider } from "../src/components/feedback/ConfirmationDialogProvider";
 import { ToastProvider } from "../src/components/feedback/ToastProvider";
 import type { TaskWithWorkflow, WorkflowRequirementSnapshot, WorkflowSummary, WorkflowTask } from "../src/types/workflow";
 
 type RenderOptions = {
   roleKeys?: string[];
+  permissionKeys?: string[];
   route?: string;
 };
 
 export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
   const roleKeys = options.roleKeys ?? ["auth_hr"];
-  const capabilities = deriveRoleCapabilities(roleKeys);
+  const permissionKeys = options.permissionKeys ?? [];
+  const capabilities = deriveRoleCapabilities(roleKeys, permissionKeys);
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -31,29 +34,37 @@ export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
     email: "tester@example.com",
     roles: [...roleKeys],
     groups: [] as string[],
+    permissions: [...permissionKeys],
+    permissionScopes: [],
+    directorySynced: false,
+    departmentSource: "test",
+    departmentOverrideActive: false,
   };
 
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <MemoryRouter initialEntries={[options.route ?? "/"]}>
-          <CurrentUserContext.Provider
-            value={{
-              status: "authenticated",
-              currentUser,
-              displayName: currentUser.displayName,
-              roles: currentUser.roles,
-              roleLabels: currentUser.roles.map(toRoleLabel),
-              groups: currentUser.groups,
-              capabilities,
-              defaultRoute: "/",
-              canAccessFeature: (feature) => canAccessFeature(capabilities, feature),
-              refreshCurrentUser: async () => undefined,
-            }}
-          >
-            {ui}
-          </CurrentUserContext.Provider>
-        </MemoryRouter>
+        <ConfirmationDialogProvider>
+          <MemoryRouter initialEntries={[options.route ?? "/"]}>
+            <CurrentUserContext.Provider
+              value={{
+                status: "authenticated",
+                currentUser,
+                displayName: currentUser.displayName,
+                roles: currentUser.roles,
+                roleLabels: currentUser.roles.map(toRoleLabel),
+                groups: currentUser.groups,
+                permissions: currentUser.permissions,
+                capabilities,
+                defaultRoute: "/",
+                canAccessFeature: (feature) => canAccessFeature(capabilities, feature),
+                refreshCurrentUser: async () => undefined,
+              }}
+            >
+              {ui}
+            </CurrentUserContext.Provider>
+          </MemoryRouter>
+        </ConfirmationDialogProvider>
       </ToastProvider>
     </QueryClientProvider>
   );

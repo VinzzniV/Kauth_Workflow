@@ -67,26 +67,6 @@ internal static class AdminRuntimeConfigEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
-        app.MapPatch("/admin/config/graph-application", async (
-            [FromBody] AdminGraphApplicationConfigurationUpdateRequest request,
-            [FromServices] IGraphApplicationConfigurationService graphApplicationConfigurationService,
-            [FromServices] IUserContext userContext,
-            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            return Results.Ok(await graphApplicationConfigurationService.SaveAdminConfiguration(request));
-        }).Produces<AdminGraphApplicationConfigurationDto>(StatusCodes.Status200OK)
-          .Produces(StatusCodes.Status403Forbidden)
-          .Produces(StatusCodes.Status401Unauthorized);
-
         app.MapPatch("/admin/config/notification-email", async (
             [FromBody] AdminNotificationEmailConfigurationUpdateRequest request,
             [FromServices] INotificationEmailConfigurationService notificationEmailConfigurationService,

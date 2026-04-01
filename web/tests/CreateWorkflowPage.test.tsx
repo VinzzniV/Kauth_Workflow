@@ -1,27 +1,35 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CreateWorkflowPage from "../src/pages/CreateWorkflowPage";
-import * as lifecycleApi from "../src/services/lifecycleApi";
+import * as lookupApi from "../src/services/lookupApi";
+import * as workflowApi from "../src/services/workflowApi";
 import { renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/lifecycleApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
+vi.mock("../src/services/lookupApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/lookupApi")>("../src/services/lookupApi");
   return {
     ...actual,
     getProcessTypes: vi.fn(),
-    getWorkflowConfig: vi.fn(),
-    searchCompletedOnboardings: vi.fn(),
     getRoles: vi.fn(),
     getDepartments: vi.fn(),
+  };
+});
+
+vi.mock("../src/services/workflowApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/workflowApi")>("../src/services/workflowApi");
+  return {
+    ...actual,
+    getWorkflowConfig: vi.fn(),
+    searchCompletedOnboardings: vi.fn(),
     createWorkflow: vi.fn(),
   };
 });
 
-const mockedGetProcessTypes = vi.mocked(lifecycleApi.getProcessTypes);
-const mockedGetWorkflowConfig = vi.mocked(lifecycleApi.getWorkflowConfig);
-const mockedSearchCompletedOnboardings = vi.mocked(lifecycleApi.searchCompletedOnboardings);
-const mockedGetRoles = vi.mocked(lifecycleApi.getRoles);
-const mockedGetDepartments = vi.mocked(lifecycleApi.getDepartments);
+const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
+const mockedGetWorkflowConfig = vi.mocked(workflowApi.getWorkflowConfig);
+const mockedSearchCompletedOnboardings = vi.mocked(workflowApi.searchCompletedOnboardings);
+const mockedGetRoles = vi.mocked(lookupApi.getRoles);
+const mockedGetDepartments = vi.mocked(lookupApi.getDepartments);
 
 describe("CreateWorkflowPage", () => {
   beforeEach(() => {
@@ -91,8 +99,8 @@ describe("CreateWorkflowPage", () => {
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_manager"] });
 
-    expect(await screen.findByText("Schritt 1: Vorgang wählen")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Abteilungswechsel/i })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByText("Abteilungswechsel")).toBeTruthy();
     expect(screen.queryByText("Daten der neuen Person")).toBeNull();
   });
 
@@ -114,13 +122,13 @@ describe("CreateWorkflowPage", () => {
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_hr"] });
 
-    expect(await screen.findByText("Schritt 1: Vorgang wählen")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByText("Onboarding")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /Onboarding/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
+    fireEvent.click(screen.getByText("Onboarding"));
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));
 
-    expect(await screen.findByText("Schritt 2: Neue Person erfassen")).toBeTruthy();
-    expect(screen.getByText("Daten der neuen Person")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Daten der neuen Person" })).toBeTruthy();
     expect(screen.getByText("Stelle und Abteilung")).toBeTruthy();
   });
 
@@ -137,11 +145,11 @@ describe("CreateWorkflowPage", () => {
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_manager"] });
 
     expect(await screen.findByText("Änderung starten")).toBeTruthy();
+    expect(await screen.findByText("Abteilungswechsel")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
 
-    expect(await screen.findByText("Schritt 2: Bestehende Person wählen")).toBeTruthy();
-    expect(screen.getByText("Abgeschlossenes Onboarding auswählen")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Abgeschlossenes Onboarding auswählen" })).toBeTruthy();
     expect(screen.queryByText("Daten der neuen Person")).toBeNull();
   });
 
@@ -158,8 +166,9 @@ describe("CreateWorkflowPage", () => {
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_manager"] });
 
     expect(await screen.findByText("Änderung starten")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
-    expect(await screen.findByText("Schritt 2: Bestehende Person wählen")).toBeTruthy();
+    expect(await screen.findByText("Abteilungswechsel")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
+    expect(await screen.findByRole("heading", { name: "Abgeschlossenes Onboarding auswählen" })).toBeTruthy();
 
     await waitFor(() => expect(mockedSearchCompletedOnboardings).toHaveBeenCalledTimes(1));
 
@@ -187,24 +196,27 @@ describe("CreateWorkflowPage", () => {
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_hr"] });
 
-    expect(await screen.findByText("Schritt 1: Vorgang wählen")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByText("Onboarding")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /Onboarding/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
-    fireEvent.change(screen.getByLabelText("Vorname"), { target: { value: "Ada" } });
+    fireEvent.click(screen.getByText("Onboarding"));
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));
+    fireEvent.change(screen.getByPlaceholderText("Max"), { target: { value: "Ada" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Zurück zu Schritt 1" }));
-    fireEvent.click(screen.getByRole("button", { name: /Offboarding/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Vorgangsauswahl" }));
+    expect(await screen.findByText("Offboarding")).toBeTruthy();
+    fireEvent.click(screen.getByText("Offboarding"));
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
 
-    expect(await screen.findByText("Schritt 2: Bestehende Person wählen")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Abgeschlossenes Onboarding auswählen" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Zurück zu Schritt 1" }));
-    fireEvent.click(screen.getByRole("button", { name: /Onboarding/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Vorgangsauswahl" }));
+    expect(await screen.findByText("Onboarding")).toBeTruthy();
+    fireEvent.click(screen.getByText("Onboarding"));
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));
 
-    expect(await screen.findByText("Schritt 2: Neue Person erfassen")).toBeTruthy();
-    expect((screen.getByLabelText("Vorname") as HTMLInputElement).value).toBe("");
+    expect(await screen.findByRole("heading", { name: "Daten der neuen Person" })).toBeTruthy();
+    expect((screen.getByPlaceholderText("Max") as HTMLInputElement).value).toBe("");
   });
 
   it("shows a review step with the selected onboarding context", async () => {
@@ -219,18 +231,19 @@ describe("CreateWorkflowPage", () => {
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_hr"] });
 
-    expect(await screen.findByText("Schritt 1: Vorgang wählen")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByText("Onboarding")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 2" }));
-    fireEvent.change(screen.getByLabelText("Vorname"), { target: { value: "Ada" } });
-    fireEvent.change(screen.getByLabelText("Nachname"), { target: { value: "Lovelace" } });
-    fireEvent.change(screen.getByLabelText("Personalnummer"), { target: { value: "1001" } });
-    fireEvent.change(screen.getByLabelText("Kartennummer"), { target: { value: "2002" } });
-    fireEvent.change(screen.getByLabelText("Abteilung *"), { target: { value: "10" } });
-    fireEvent.change(screen.getByLabelText("Stelle *"), { target: { value: "7" } });
-    fireEvent.click(screen.getByRole("button", { name: "Weiter zu Schritt 3" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));
+    fireEvent.change(screen.getByPlaceholderText("Max"), { target: { value: "Ada" } });
+    fireEvent.change(screen.getByPlaceholderText("Mustermann"), { target: { value: "Lovelace" } });
+    fireEvent.change(screen.getByPlaceholderText("10001"), { target: { value: "1001" } });
+    fireEvent.change(screen.getByPlaceholderText("60001"), { target: { value: "2002" } });
+    fireEvent.change(screen.getAllByRole("combobox")[0]!, { target: { value: "10" } });
+    fireEvent.change(screen.getAllByRole("combobox")[1]!, { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zur Prüfung" }));
 
-    expect(await screen.findByText("Schritt 3: Prüfen und anlegen")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Prüfen und anlegen" })).toBeTruthy();
     expect(screen.getAllByText("Ada Lovelace").length).toBeGreaterThan(0);
     expect(screen.getByText("Engineer")).toBeTruthy();
     expect(screen.getByText("IT")).toBeTruthy();

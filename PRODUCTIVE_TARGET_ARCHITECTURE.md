@@ -8,12 +8,12 @@ Bereits im Repo sichtbar:
 - Entra-basierte Produktivrichtung ist technisch verankert
 - lokaler `dev-sim` nutzt synchronisierte Verzeichnisidentitaeten statt alter Demo-Benutzer
 - Directory-Projektion, Gruppen-Mapping und Audit-Tabellen existieren
-- Admin-UI deckt bereits Directory-Sync, Gruppen-Mapping, Permissions sowie Graph-/Mail-Runtime-Konfiguration ab
+- Admin-UI deckt bereits Directory-Sync, Gruppen-Mapping, Permissions, Mail-Runtime-Konfiguration und read-only Graph-Status ab
 - mehrere Prozessarten und Workflow-Verknuepfungen sind im Datenmodell vorhanden
 
 Noch nicht am Ziel:
-- Secrets liegen teilweise weiterhin in DB-gestuetzten Runtime-Konfigurationen
-- Swagger ist noch nicht produktiv hart gegatet
+- Frontend-Lint und Frontend-Tests sind noch nicht auf gruen
+- Swagger ist produktiv deaktiviert, aber weitere Security-/Betriebshaertung bleibt offen
 - User- und Gruppenkonfiguration enthaelt weiterhin Uebergangsanteile von lokalem CRUD
 - Release-/CI-Haertung ist noch kein abgeschlossenes Standardmodell
 
@@ -189,8 +189,8 @@ Sollzustand:
 - stabile Links auf regulaere App-Routen
 
 Aktueller Architekturhinweis:
-- Die Admin-Oberflaeche hat bereits Graph- und Notification-Konfiguration
-- die Secret-Ablage ist aber noch nicht auf dem final sicheren Modell
+- Die Admin-Oberflaeche hat weiterhin Mail-Konfiguration und einen read-only Graph-Status
+- produktive Graph-/Mail-Secrets kommen aus Runtime-Konfiguration, nicht mehr aus DB-Persistenz
 
 ---
 
@@ -199,7 +199,7 @@ Aktueller Architekturhinweis:
 ### Phase 1: Produktivblocker haerten
 
 - Swagger produktiv absichern oder deaktivieren
-- Klartext-/DB-Secret-Modell abbauen
+- Klartext-/DB-Secret-Modell fuer weitere potenzielle Secret-Pfade konsequent vermeiden
 - Release-Checks und CI einfuehren
 
 ### Phase 2: Identitaetsbasis festziehen

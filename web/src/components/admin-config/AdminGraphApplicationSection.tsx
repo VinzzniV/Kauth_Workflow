@@ -1,47 +1,17 @@
 import type { AdminGraphApplicationConfiguration } from "../../types/auth";
-import { formatTimestamp } from "./adminConfigHelpers";
 
 type AdminGraphApplicationSectionProps = {
   graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
-  graphTenantIdDraft: string;
-  graphClientIdDraft: string;
-  graphClientSecretDraft: string;
-  isSavingGraphApplicationConfiguration: boolean;
-  hasGraphApplicationDraftChanges: boolean;
-  onGraphTenantIdChange: (value: string) => void;
-  onGraphClientIdChange: (value: string) => void;
-  onGraphClientSecretChange: (value: string) => void;
-  onSave: () => void | Promise<void>;
 };
 
 export function AdminGraphApplicationSection({
   graphApplicationConfiguration,
-  graphTenantIdDraft,
-  graphClientIdDraft,
-  graphClientSecretDraft,
-  isSavingGraphApplicationConfiguration,
-  hasGraphApplicationDraftChanges,
-  onGraphTenantIdChange,
-  onGraphClientIdChange,
-  onGraphClientSecretChange,
-  onSave,
 }: AdminGraphApplicationSectionProps) {
-  const tenantMissing = graphTenantIdDraft.trim().length === 0;
-  const clientIdMissing = graphClientIdDraft.trim().length === 0;
-  const clientSecretMissing =
-    !graphApplicationConfiguration?.hasClientSecret && graphClientSecretDraft.trim().length === 0;
-  const canSave =
-    !isSavingGraphApplicationConfiguration
-    && hasGraphApplicationDraftChanges
-    && !tenantMissing
-    && !clientIdMissing
-    && !clientSecretMissing;
-
   return (
     <section className="panel">
       <div className="panel-head">
         <h2>Konfiguration: Graph-Anwendung</h2>
-        <p>Separater Zugriff für Entra-/Graph-Operationen wie Benutzer-, Gruppen- und Mailzugriff.</p>
+        <p>Read-only Status der Entra-Laufzeitkonfiguration für Directory-Sync und Graph-basierten Mailversand.</p>
       </div>
 
       <div className="dashboard-grid" aria-label="Graph-Anwendungsstatus">
@@ -61,69 +31,50 @@ export function AdminGraphApplicationSection({
             <p>{graphApplicationConfiguration?.hasClientSecret ? "Hinterlegt" : "Fehlt"}</p>
           </div>
           <p className="panel-note">
-            Das Secret wird nicht im Klartext geladen. Hier kann nur ein neues Secret gesetzt oder ersetzt werden.
+            Das Secret wird ausschließlich aus der Runtime gelesen und nie über die Admin-Oberfläche ausgegeben.
           </p>
         </article>
 
         <article className="dashboard-stat-card card-stat">
           <div>
-            <h2>Letzte Änderung</h2>
-            <p>{formatTimestamp(graphApplicationConfiguration?.updatedAt ?? null)}</p>
+            <h2>Konfigurationsquelle</h2>
+            <p>{graphApplicationConfiguration?.configurationSource === "runtime" ? "Runtime" : "Unbekannt"}</p>
           </div>
+          <p className="panel-note">Erwartet werden `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` und ein Runtime-Secret.</p>
         </article>
       </div>
 
       <div className="dashboard-card card-primary">
-        <label className={`field compact ${tenantMissing ? "field-invalid" : ""}`}>
+        <div>
+          <h2>Runtime-Werte</h2>
+          <p>
+            Graph, Directory-Sync und Mailversand verwenden dieselbe Entra-App wie die API-Auth. Änderungen erfolgen
+            über Environment oder Secret-Store und werden nach Neustart wirksam.
+          </p>
+        </div>
+
+        <div className="field compact">
           <span>Tenant ID</span>
-          <input
-            type="text"
-            value={graphTenantIdDraft}
-            onChange={(event) => onGraphTenantIdChange(event.target.value)}
-            placeholder="Microsoft Entra Tenant ID"
-          />
-        </label>
+          <p className="panel-note">{graphApplicationConfiguration?.tenantId ?? "Nicht gesetzt"}</p>
+        </div>
 
-        <label className={`field compact ${clientIdMissing ? "field-invalid" : ""}`}>
+        <div className="field compact">
           <span>Client ID</span>
-          <input
-            type="text"
-            value={graphClientIdDraft}
-            onChange={(event) => onGraphClientIdChange(event.target.value)}
-            placeholder="App Registration Client ID"
-          />
-        </label>
+          <p className="panel-note">{graphApplicationConfiguration?.clientId ?? "Nicht gesetzt"}</p>
+        </div>
 
-        <label className={`field compact ${clientSecretMissing ? "field-invalid" : ""}`}>
-          <span>Client Secret</span>
-          <input
-            type="password"
-            value={graphClientSecretDraft}
-            onChange={(event) => onGraphClientSecretChange(event.target.value)}
-            placeholder={
-              graphApplicationConfiguration?.hasClientSecret
-                ? "Neues Client Secret zum Ersetzen eingeben"
-                : "Graph Client Secret"
-            }
-          />
-        </label>
+        <div className="field compact">
+          <span>Secret-Rotation</span>
+          <p className="panel-note">
+            Setzen Sie `ENTRA_CLIENT_SECRET` oder optional `GRAPH_CLIENT_SECRET` außerhalb der UI und starten Sie die
+            API anschließend neu.
+          </p>
+        </div>
 
         <p className="panel-note">
-          Diese Zugangsdaten werden unabhängig von der Mail-Konfiguration gespeichert und von Graph-basierten Diensten wiederverwendet.
+          Diese Ansicht ist bewusst read-only. Persistierte Graph-Secrets oder lokale Admin-Edits werden nicht mehr
+          unterstützt.
         </p>
-
-        <div className="action-row">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              void onSave();
-            }}
-            disabled={!canSave}
-          >
-            {isSavingGraphApplicationConfiguration ? "Speichern..." : "Graph-Konfiguration speichern"}
-          </button>
-        </div>
       </div>
     </section>
   );

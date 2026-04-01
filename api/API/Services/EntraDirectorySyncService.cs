@@ -57,7 +57,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                 {
                     Status = "failed",
                     ErrorMessage =
-                        "Graph credentials not configured. Set ENTRA_TENANT_ID, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET/GRAPH_CLIENT_SECRET via environment variables or maintain them in the Graph application configuration.",
+                        "Graph credentials not configured. Set ENTRA_TENANT_ID, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET or GRAPH_CLIENT_SECRET via environment variables or your secret store.",
                     AppliedGroupPrefix = effectiveGroupPrefix
                 };
             }
@@ -261,17 +261,6 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
     private async Task<(string TenantId, string ClientId, string ClientSecret)?> ResolveGraphCredentialsAsync(
         CancellationToken cancellationToken)
     {
-        var tenantId = _runtimeSettings.EntraTenantId;
-        var clientId = _runtimeSettings.EntraClientId;
-        var clientSecret = _runtimeSettings.EntraClientSecret ?? _runtimeSettings.GraphClientSecret;
-
-        if (!string.IsNullOrWhiteSpace(tenantId)
-            && !string.IsNullOrWhiteSpace(clientId)
-            && !string.IsNullOrWhiteSpace(clientSecret))
-        {
-            return (tenantId, clientId, clientSecret);
-        }
-
         var configuration = await _graphApplicationConfigurationService.GetRuntimeConfiguration(cancellationToken);
         if (string.IsNullOrWhiteSpace(configuration.TenantId)
             || string.IsNullOrWhiteSpace(configuration.ClientId)

@@ -53,7 +53,6 @@ describe("TaskCommentsSection", () => {
         task={task}
         draftValue="Rueckfrage zum Liefertermin"
         isSaving={false}
-        feedbackMessage={null}
         onDraftChange={vi.fn()}
         onSubmit={vi.fn(async () => undefined)}
       />
@@ -66,13 +65,12 @@ describe("TaskCommentsSection", () => {
     expect(container.querySelector("details")?.open).toBe(true);
   });
 
-  it("shows contextual empty-state guidance and save feedback", () => {
+  it("shows contextual empty-state guidance for a new comment thread", () => {
     render(
       <TaskCommentsSection
         task={createTask()}
         draftValue=""
         isSaving={false}
-        feedbackMessage="Kommentar wurde gespeichert."
         onDraftChange={vi.fn()}
         onSubmit={vi.fn(async () => undefined)}
       />
@@ -80,6 +78,6 @@ describe("TaskCommentsSection", () => {
 
     expect(screen.getByText("Noch keine Kommentare. Rückfragen direkt an der Aufgabe dokumentieren.")).toBeTruthy();
     expect(screen.getByText("Noch keine Kommentare vorhanden.")).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toContain("Kommentar wurde gespeichert.");
+    expect((screen.getByRole("button", { name: "Kommentar speichern" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

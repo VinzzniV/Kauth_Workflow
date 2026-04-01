@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import TaskStatusPill from "../workflows/TaskStatusPill";
 import TaskCommentsSection from "../workflows/TaskCommentsSection";
 import TaskSlaPill from "../workflows/TaskSlaPill";
@@ -71,38 +71,28 @@ export default function WorkflowTaskAreasSection({
     return map;
   }, [orderedGroups]);
 
-  const [expandedAreas, setExpandedAreas] = useState<Record<string, boolean>>(initialExpanded);
-
-  useEffect(() => {
-    setExpandedAreas((current) => {
-      const next: Record<string, boolean> = {};
-      for (const group of orderedGroups) {
-        next[group.name] = current[group.name] ?? initialExpanded[group.name] ?? false;
-        if (group.isCurrentArea) {
-          next[group.name] = true;
-        }
-      }
-      return next;
-    });
-  }, [initialExpanded, orderedGroups]);
+  const [expandedAreaOverrides, setExpandedAreaOverrides] = useState<Record<string, boolean>>({});
 
   const toggleArea = useCallback((name: string) => {
-    setExpandedAreas((prev) => ({ ...prev, [name]: !prev[name] }));
-  }, []);
+    setExpandedAreaOverrides((previous) => ({
+      ...previous,
+      [name]: !(previous[name] ?? initialExpanded[name] ?? false),
+    }));
+  }, [initialExpanded]);
 
   const scrollToArea = useCallback((name: string) => {
-    setExpandedAreas((prev) => ({ ...prev, [name]: true }));
+    setExpandedAreaOverrides((previous) => ({ ...previous, [name]: true }));
     requestAnimationFrame(() => {
       groupRefs.current[name]?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }, []);
 
   const expandAll = useCallback(() => {
-    setExpandedAreas(Object.fromEntries(orderedGroups.map((g) => [g.name, true])));
+    setExpandedAreaOverrides(Object.fromEntries(orderedGroups.map((g) => [g.name, true])));
   }, [orderedGroups]);
 
   const collapseAll = useCallback(() => {
-    setExpandedAreas(Object.fromEntries(orderedGroups.map((g) => [g.name, false])));
+    setExpandedAreaOverrides(Object.fromEntries(orderedGroups.map((g) => [g.name, false])));
   }, [orderedGroups]);
 
   return (
@@ -145,7 +135,7 @@ export default function WorkflowTaskAreasSection({
         <div className="task-groups" aria-label="Aufgaben nach Bereich">
           {orderedGroups.map((group, index) => {
             const status = toAreaStatus(group);
-            const isExpanded = expandedAreas[group.name] ?? false;
+            const isExpanded = expandedAreaOverrides[group.name] ?? initialExpanded[group.name] ?? false;
             const isDone = status === "done";
             const contentId = `workflow-task-group-${index}`;
 

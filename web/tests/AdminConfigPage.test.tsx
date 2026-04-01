@@ -1,10 +1,11 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminConfigPage from "../src/pages/AdminConfigPage";
-import * as lifecycleApi from "../src/services/lifecycleApi";
+import * as adminApi from "../src/services/adminApi";
 import { renderWithApp } from "./testUtils";
 import type {
   AdminDepartmentAssignment,
+  AdminGraphApplicationConfiguration,
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminResponsibilityOwner,
@@ -13,9 +14,9 @@ import type {
 } from "../src/types/auth";
 import type { WorkflowConfig } from "../src/types/workflow";
 
-vi.mock("../src/services/lifecycleApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>(
-    "../src/services/lifecycleApi"
+vi.mock("../src/services/adminApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/adminApi")>(
+    "../src/services/adminApi"
   );
 
   return {
@@ -23,7 +24,10 @@ vi.mock("../src/services/lifecycleApi", async () => {
     createAdminUser: vi.fn(),
     getAdminDepartmentAssignments: vi.fn(),
     getAdminGroups: vi.fn(),
+    getAdminGraphApplicationConfiguration: vi.fn(),
     getAdminNotificationEmailConfiguration: vi.fn(),
+    getAdminPermissionAudit: vi.fn(),
+    getAdminPermissions: vi.fn(),
     getAdminResponsibilityOwners: vi.fn(),
     getAdminRoles: vi.fn(),
     getAdminUsers: vi.fn(),
@@ -31,16 +35,19 @@ vi.mock("../src/services/lifecycleApi", async () => {
   };
 });
 
-const mockedCreateAdminUser = vi.mocked(lifecycleApi.createAdminUser);
-const mockedGetAdminDepartmentAssignments = vi.mocked(lifecycleApi.getAdminDepartmentAssignments);
-const mockedGetAdminGroups = vi.mocked(lifecycleApi.getAdminGroups);
+const mockedCreateAdminUser = vi.mocked(adminApi.createAdminUser);
+const mockedGetAdminDepartmentAssignments = vi.mocked(adminApi.getAdminDepartmentAssignments);
+const mockedGetAdminGroups = vi.mocked(adminApi.getAdminGroups);
+const mockedGetAdminGraphApplicationConfiguration = vi.mocked(adminApi.getAdminGraphApplicationConfiguration);
 const mockedGetAdminNotificationEmailConfiguration = vi.mocked(
-  lifecycleApi.getAdminNotificationEmailConfiguration
+  adminApi.getAdminNotificationEmailConfiguration
 );
-const mockedGetAdminResponsibilityOwners = vi.mocked(lifecycleApi.getAdminResponsibilityOwners);
-const mockedGetAdminRoles = vi.mocked(lifecycleApi.getAdminRoles);
-const mockedGetAdminUsers = vi.mocked(lifecycleApi.getAdminUsers);
-const mockedGetAdminWorkflowConfig = vi.mocked(lifecycleApi.getAdminWorkflowConfig);
+const mockedGetAdminPermissionAudit = vi.mocked(adminApi.getAdminPermissionAudit);
+const mockedGetAdminPermissions = vi.mocked(adminApi.getAdminPermissions);
+const mockedGetAdminResponsibilityOwners = vi.mocked(adminApi.getAdminResponsibilityOwners);
+const mockedGetAdminRoles = vi.mocked(adminApi.getAdminRoles);
+const mockedGetAdminUsers = vi.mocked(adminApi.getAdminUsers);
+const mockedGetAdminWorkflowConfig = vi.mocked(adminApi.getAdminWorkflowConfig);
 
 function createUser(overrides: Partial<AdminUser> = {}): AdminUser {
   return {
@@ -53,8 +60,17 @@ function createUser(overrides: Partial<AdminUser> = {}): AdminUser {
     hasManagerAccess: true,
     departmentId: 1,
     departmentName: "IT",
+    directorySynced: false,
+    departmentSource: "manual",
+    departmentOverrideActive: false,
+    directoryIdentityId: null,
+    userPrincipalName: null,
+    directoryDisplayName: null,
     roles: [],
     groups: [],
+    effectiveRoles: [],
+    permissionOverrides: [],
+    effectivePermissions: [],
     ...overrides,
   };
 }
@@ -98,7 +114,11 @@ function createRole(overrides: Partial<AdminRole> = {}): AdminRole {
     roleKind: "system",
     departmentId: null,
     departmentName: null,
+    scope: "global",
+    scopeDepartmentId: null,
+    scopeDepartmentName: null,
     isActive: true,
+    permissions: [],
     ...overrides,
   };
 }
@@ -121,8 +141,6 @@ function createNotificationConfiguration(
   return {
     enabled: false,
     mode: "disabled",
-    tenantId: null,
-    clientId: null,
     senderEmail: null,
     frontendBaseUrl: "http://localhost:5173",
     testRecipientEmail: null,
@@ -136,6 +154,21 @@ function createNotificationConfiguration(
     updatedAt: "2026-03-24T08:00:00.000Z",
     hasClientSecret: false,
     configurationStatus: "disabled",
+    configurationMessage: null,
+    ...overrides,
+  };
+}
+
+function createGraphConfiguration(
+  overrides: Partial<AdminGraphApplicationConfiguration> = {}
+): AdminGraphApplicationConfiguration {
+  return {
+    tenantId: "tenant-1",
+    clientId: "client-1",
+    hasClientSecret: true,
+    updatedAt: null,
+    configurationSource: "runtime",
+    configurationStatus: "ready",
     configurationMessage: null,
     ...overrides,
   };
@@ -190,7 +223,10 @@ function mockSuccessfulLoad() {
   ]);
   mockedGetAdminDepartmentAssignments.mockResolvedValue([createDepartment()]);
   mockedGetAdminResponsibilityOwners.mockResolvedValue([createResponsibility()]);
+  mockedGetAdminGraphApplicationConfiguration.mockResolvedValue(createGraphConfiguration());
   mockedGetAdminNotificationEmailConfiguration.mockResolvedValue(createNotificationConfiguration());
+  mockedGetAdminPermissionAudit.mockResolvedValue([]);
+  mockedGetAdminPermissions.mockResolvedValue([]);
   mockedGetAdminWorkflowConfig.mockResolvedValue(createWorkflowConfig());
   mockedGetAdminRoles.mockResolvedValue([createRole()]);
   mockedGetAdminGroups.mockResolvedValue([createGroup()]);
@@ -202,7 +238,10 @@ describe("AdminConfigPage", () => {
     mockedGetAdminUsers.mockReset();
     mockedGetAdminDepartmentAssignments.mockReset();
     mockedGetAdminResponsibilityOwners.mockReset();
+    mockedGetAdminGraphApplicationConfiguration.mockReset();
     mockedGetAdminNotificationEmailConfiguration.mockReset();
+    mockedGetAdminPermissionAudit.mockReset();
+    mockedGetAdminPermissions.mockReset();
     mockedGetAdminWorkflowConfig.mockReset();
     mockedGetAdminRoles.mockReset();
     mockedGetAdminGroups.mockReset();
@@ -223,8 +262,8 @@ describe("AdminConfigPage", () => {
       route: "/admin/config",
     });
 
-    expect(await screen.findByText("Admin-Übersicht")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Neue Person" })).toBeTruthy();
+    expect(await screen.findByText("Arbeitsbereiche")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Personen" })).toBeTruthy();
     expect(mockedGetAdminRoles).not.toHaveBeenCalled();
     expect(mockedGetAdminGroups).not.toHaveBeenCalled();
   });
@@ -255,7 +294,7 @@ describe("AdminConfigPage", () => {
       route: "/admin/config?section=access",
     });
 
-    expect(await screen.findByText("Benutzerrechte und Gruppen")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Zugriffe & Gruppen" })).toBeTruthy();
 
     await waitFor(() => {
       expect(mockedGetAdminRoles).toHaveBeenCalled();
@@ -269,14 +308,14 @@ describe("AdminConfigPage", () => {
       route: "/admin/config?section=access",
     });
 
-    expect(await screen.findByText("Benutzerrechte und Gruppen")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Zugriffe & Gruppen" })).toBeTruthy();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Person" }), {
       target: { value: "2" },
     });
 
-    expect(await screen.findByText("Rollen zuweisen: Mia Manager")).toBeTruthy();
-    expect(screen.getByText("Gruppen zuweisen: Mia Manager")).toBeTruthy();
+    expect(await screen.findByText("Direkte Rollen: Mia Manager")).toBeTruthy();
+    expect(screen.getByText("Gruppen für Mia Manager")).toBeTruthy();
   });
 
   it("navigates from a user relation to the linked department without leaving the page", async () => {
@@ -319,7 +358,7 @@ describe("AdminConfigPage", () => {
     });
 
     await waitFor(() => {
-      expect(dispatchEventSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "demo-users-refresh" }));
+      expect(dispatchEventSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "sim-users-refresh" }));
     });
 
     dispatchEventSpy.mockRestore();

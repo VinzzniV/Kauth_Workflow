@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
-import { useTheme } from "../../theme/ThemeProvider";
+import { useTheme } from "../../theme/useTheme";
 
 type Props = {
   children: ReactNode;
@@ -19,11 +19,24 @@ export default function AppLayout({ children }: Props) {
   const mobileMenuId = useId();
   const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileCloseButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMobileNavOpen(false);
-  }, [location.pathname]);
+  const [mobileNavState, setMobileNavState] = useState({
+    isOpen: false,
+    openedPathname: location.pathname,
+  });
+  const isMobileNavOpen =
+    mobileNavState.isOpen && mobileNavState.openedPathname === location.pathname;
+  const closeMobileNav = () => {
+    setMobileNavState((current) =>
+      current.isOpen ? { isOpen: false, openedPathname: current.openedPathname } : current
+    );
+  };
+  const toggleMobileNav = () => {
+    setMobileNavState((current) =>
+      current.isOpen && current.openedPathname === location.pathname
+        ? { isOpen: false, openedPathname: current.openedPathname }
+        : { isOpen: true, openedPathname: location.pathname }
+    );
+  };
 
   useEffect(() => {
     if (!isMobileNavOpen) {
@@ -38,7 +51,7 @@ export default function AppLayout({ children }: Props) {
     }, 0);
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsMobileNavOpen(false);
+        closeMobileNav();
       }
     };
     document.addEventListener("keydown", handleEscape);
@@ -132,9 +145,7 @@ export default function AppLayout({ children }: Props) {
             aria-controls={mobileMenuId}
             aria-label={isMobileNavOpen ? "Navigation schließen" : "Navigation öffnen"}
             ref={mobileMenuButtonRef}
-            onClick={() => {
-              setIsMobileNavOpen((current) => !current);
-            }}
+            onClick={toggleMobileNav}
           >
             <span className="mobile-menu-button-line" />
             <span className="mobile-menu-button-line" />
@@ -146,9 +157,7 @@ export default function AppLayout({ children }: Props) {
       <div
         className={`mobile-nav-backdrop${isMobileNavOpen ? " is-open" : ""}`}
         aria-hidden={!isMobileNavOpen}
-        onClick={() => {
-          setIsMobileNavOpen(false);
-        }}
+        onClick={closeMobileNav}
       />
 
       <aside className="sidebar">
@@ -199,9 +208,7 @@ export default function AppLayout({ children }: Props) {
             type="button"
             className="mobile-nav-close"
             ref={mobileCloseButtonRef}
-            onClick={() => {
-              setIsMobileNavOpen(false);
-            }}
+            onClick={closeMobileNav}
           >
             Schließen
           </button>

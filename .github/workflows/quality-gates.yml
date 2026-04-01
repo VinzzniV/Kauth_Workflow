@@ -1,0 +1,143 @@
+name: Quality Gates
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend Build And Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: appdb
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app_pw
+        ports:
+          - 25432:5432
+        options: >-
+          --health-cmd="pg_isready -U app -d appdb"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Wait For PostgreSQL
+        env:
+          PGPASSWORD: app_pw
+        run: |
+          until pg_isready -h localhost -p 25432 -U app -d appdb; do
+            sleep 1
+          done
+
+      - name: Initialize Test Database
+        env:
+          PGPASSWORD: app_pw
+        run: |
+          $scripts = @(
+            "db/01_schema.sql",
+            "db/02_reset.sql",
+            "db/02_seed.sql",
+            "db/03_legacy_cleanup.sql",
+            "db/04_workflow_backfills.sql",
+            "db/05_task_assignment_hardening.sql",
+            "db/06_responsibility_system_keys.sql",
+            "db/07_requirement_behavior_rules.sql",
+            "db/08_audit_log.sql",
+            "db/09_task_comments.sql",
+            "db/10_task_due_dates.sql",
+            "db/11_notification_settings_v2.sql",
+            "db/12_workflow_deadline.sql",
+            "db/13_remove_skipped_task_status.sql",
+            "db/14_indexes.sql",
+            "db/15_process_types.sql",
+            "db/16_workflows_process_type.sql",
+            "db/17_task_templates_process_type.sql",
+            "db/18_workflow_answer_definitions_process_type.sql",
+            "db/19_app_role_answer_defaults_process_type.sql",
+            "db/20_process_types_approval_task.sql",
+            "db/21_offboarding.sql",
+            "db/22_department_change.sql",
+            "db/23_name_change.sql",
+            "db/23_workflow_links.sql",
+            "db/24_position_change.sql",
+            "db/25_role_change.sql",
+            "db/26_drop_task_cancelled_at.sql",
+            "db/27_app_role_answer_defaults_process_type_consistency.sql",
+            "db/28_drop_workflow_cancelled_at.sql",
+            "db/29_process_types_manager_creation.sql",
+            "db/30_answer_definitions_unique_constraint.sql",
+            "db/31_workflow_archive.sql",
+            "db/32_activate_lifecycle_process_types.sql",
+            "db/33_fix_qmb_consense_tasks.sql",
+            "db/34_add_entra_object_id.sql",
+            "db/35_directory_tables.sql",
+            "db/36_people_identity_separation.sql",
+            "db/37_directory_mapping_audit_log.sql",
+            "db/38_permission_model.sql",
+            "db/39_graph_application_settings.sql",
+            "db/40_remove_secret_persistence.sql"
+          )
+
+          foreach ($script in $scripts) {
+            psql -h localhost -p 25432 -U app -d appdb -v ON_ERROR_STOP=1 -f $script
+          }
+        shell: pwsh
+
+      - name: Restore
+        run: dotnet restore api/API/API.sln
+
+      - name: Build API
+        run: dotnet build api/API/API.csproj -c Release --no-restore
+
+      - name: Test API
+        env:
+          ONBOARDING_TEST_CONNECTION_STRING: Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw
+        run: dotnet test api/API.Tests/API.Tests.csproj -c Release -p:UseAppHost=false --no-build
+
+  frontend:
+    name: Frontend Lint Test Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+
+      - name: Test
+        working-directory: web
+        run: npm test
+
+      - name: Build
+        working-directory: web
+        run: npm run build

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { RoleCapabilities } from "../../auth/roleModel";
-import { useConfirmationDialog } from "../feedback/ConfirmationDialogProvider";
+import { useConfirmationDialog } from "../feedback/useConfirmationDialog";
 import { useArchiveWorkflow, useDeleteWorkflow } from "../../services/mutations/workflowMutations";
 import type { WorkflowDetail } from "../../types/workflow";
 

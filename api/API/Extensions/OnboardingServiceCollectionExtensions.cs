@@ -104,13 +104,10 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IIdentityProvider, IdentityProvider>();
         services.AddScoped<IUserAuthorizationRepository, PostgresUserAuthorizationRepository>();
         services.AddScoped<INotificationEmailConfigurationRepository, PostgresNotificationEmailConfigurationRepository>();
-        services.AddScoped<IGraphApplicationConfigurationRepository, PostgresGraphApplicationConfigurationRepository>();
         services.AddScoped<ICurrentUserResolver, CurrentUserResolver>();
         services.AddScoped<IUserContext, CurrentUserContext>();
         services.AddScoped<IAuthorizationPolicyService, AuthorizationPolicyService>();
         services.AddScoped<ISupervisorStepService, PostgresSupervisorStepService>();
-        services.Configure<GraphApplicationOptions>(
-            configuration.GetSection(GraphApplicationOptions.SectionName));
         services.Configure<NotificationEmailOptions>(
             configuration.GetSection(NotificationEmailOptions.SectionName));
         services.AddScoped<IGraphApplicationConfigurationService, GraphApplicationConfigurationService>();

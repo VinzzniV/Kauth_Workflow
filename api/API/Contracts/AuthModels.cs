@@ -463,15 +463,9 @@ public sealed class AdminGraphApplicationConfigurationDto
     public string? ClientId { get; init; }
     public required bool HasClientSecret { get; init; }
     public DateTime? UpdatedAt { get; init; }
+    public required string ConfigurationSource { get; init; }
     public required string ConfigurationStatus { get; init; }
     public string? ConfigurationMessage { get; init; }
-}
-
-public sealed class AdminGraphApplicationConfigurationUpdateRequest
-{
-    public string? TenantId { get; init; }
-    public string? ClientId { get; init; }
-    public string? ClientSecret { get; init; }
 }
 
 internal sealed class DevSimulationSession

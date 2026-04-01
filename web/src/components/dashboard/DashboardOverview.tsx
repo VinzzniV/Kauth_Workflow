@@ -1,5 +1,5 @@
 // Rollenspezifisches Dashboard mit Kennzahlen und dem naechsten sinnvollen Arbeitsschritt.
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
 import { useProcessTypes } from "../../services/queries/processTypeQueries";
@@ -22,9 +22,18 @@ export default function DashboardOverview() {
     dashboardPersona === "reader";
   const [selectedProcessTypeKey, setSelectedProcessTypeKey] = useState<string>("all");
   const processTypesQuery = useProcessTypes();
-  const processTypes = supportsProcessTypeFilter ? processTypesQuery.data ?? [] : [];
+  const processTypes = useMemo(
+    () => (supportsProcessTypeFilter ? processTypesQuery.data ?? [] : []),
+    [processTypesQuery.data, supportsProcessTypeFilter]
+  );
   const isProcessTypeLoading = supportsProcessTypeFilter ? processTypesQuery.isLoading : false;
-  const processTypeKey = selectedProcessTypeKey === "all" ? null : selectedProcessTypeKey;
+  const effectiveProcessTypeKey =
+    supportsProcessTypeFilter &&
+    (selectedProcessTypeKey === "all" ||
+      processTypes.some((processType) => processType.key === selectedProcessTypeKey))
+      ? selectedProcessTypeKey
+      : "all";
+  const processTypeKey = effectiveProcessTypeKey === "all" ? null : effectiveProcessTypeKey;
   const selectedProcessType = processTypes.find((processType) => processType.key === processTypeKey) ?? null;
   const { insights, insightsError, isInsightsLoading, reloadInsights } = useDashboardInsights(
     dashboardPersona,
@@ -34,17 +43,6 @@ export default function DashboardOverview() {
   const priorityItem = insights?.queueItems[0] ?? null;
   const secondaryQueueItems = insights?.queueItems.slice(1) ?? [];
   const employeeItems = insights?.employeeItems ?? [];
-
-  useEffect(() => {
-    if (!supportsProcessTypeFilter) {
-      setSelectedProcessTypeKey("all");
-      return;
-    }
-
-    if (selectedProcessTypeKey !== "all" && !processTypes.some((processType) => processType.key === selectedProcessTypeKey)) {
-      setSelectedProcessTypeKey("all");
-    }
-  }, [processTypes, selectedProcessTypeKey, supportsProcessTypeFilter]);
 
   if (dashboardActions.length === 0) {
     return (
@@ -79,7 +77,7 @@ export default function DashboardOverview() {
                 <label className="field compact dashboard-filter-field">
                   <span>Prozesstyp</span>
                   <select
-                    value={selectedProcessTypeKey}
+                    value={effectiveProcessTypeKey}
                     onChange={(event) => setSelectedProcessTypeKey(event.target.value)}
                     disabled={isInsightsLoading || isProcessTypeLoading}
                   >

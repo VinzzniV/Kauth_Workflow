@@ -1,20 +1,5 @@
 namespace API;
 
-internal sealed class StoredGraphApplicationSettings
-{
-    public string? TenantId { get; init; }
-    public string? ClientId { get; init; }
-    public string? ClientSecret { get; init; }
-    public DateTime? UpdatedAt { get; init; }
-}
-
-internal sealed class GraphApplicationSettingsUpsertModel
-{
-    public string? TenantId { get; init; }
-    public string? ClientId { get; init; }
-    public string? ClientSecret { get; init; }
-}
-
 internal sealed class GraphApplicationRuntimeConfiguration
 {
     public string? TenantId { get; init; }

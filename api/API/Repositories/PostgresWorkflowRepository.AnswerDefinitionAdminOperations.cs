@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 
 namespace API;
 
@@ -263,7 +264,8 @@ LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("answerKey", answerKey.Trim());
-        command.Parameters.AddWithValue("excludedDefinitionId", (object?)excludedDefinitionId ?? DBNull.Value);
+        command.Parameters.Add("excludedDefinitionId", NpgsqlDbType.Integer).Value =
+            (object?)excludedDefinitionId ?? DBNull.Value;
 
         if (await command.ExecuteScalarAsync() is not null)
         {

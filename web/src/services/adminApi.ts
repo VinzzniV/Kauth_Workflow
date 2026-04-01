@@ -40,17 +40,6 @@ export async function getAdminGraphApplicationConfiguration(): Promise<AdminGrap
   return requestJson<BackendAdminGraphApplicationConfigurationDto>("/admin/config/graph-application");
 }
 
-export async function updateAdminGraphApplicationConfiguration(payload: {
-  tenantId: string | null;
-  clientId: string | null;
-  clientSecret?: string | null;
-}): Promise<AdminGraphApplicationConfiguration> {
-  return requestJson<BackendAdminGraphApplicationConfigurationDto>("/admin/config/graph-application", {
-    method: "PATCH",
-    body: payload,
-  });
-}
-
 export async function updateAdminNotificationEmailConfiguration(payload: {
   enabled: boolean;
   senderEmail: string | null;

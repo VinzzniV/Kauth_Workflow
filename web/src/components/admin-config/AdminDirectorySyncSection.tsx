@@ -3,7 +3,7 @@ import type {
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncStatus,
 } from "../../types/auth";
-import { useEffect, useState } from "react";
+import { useRef } from "react";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
 import { formatTimestamp } from "./adminConfigHelpers";
@@ -51,11 +51,8 @@ export function AdminDirectorySyncSection({
   isSyncing,
   onSync,
 }: AdminDirectorySyncSectionProps) {
-  const [groupPrefixDraft, setGroupPrefixDraft] = useState<string>(status?.configuredGroupPrefix ?? "Onboarding");
-
-  useEffect(() => {
-    setGroupPrefixDraft(status?.configuredGroupPrefix ?? "Onboarding");
-  }, [status?.configuredGroupPrefix]);
+  const configuredGroupPrefix = status?.configuredGroupPrefix ?? "Onboarding";
+  const groupPrefixInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <section className="panel">
@@ -96,9 +93,10 @@ export function AdminDirectorySyncSection({
         <label className="field compact grow">
           <span>Gruppenfilter</span>
           <input
+            key={configuredGroupPrefix}
             type="text"
-            value={groupPrefixDraft}
-            onChange={(event) => setGroupPrefixDraft(event.target.value)}
+            ref={groupPrefixInputRef}
+            defaultValue={configuredGroupPrefix}
             placeholder="z. B. Onboarding"
             disabled={isLoading || isSyncing}
           />
@@ -117,6 +115,7 @@ export function AdminDirectorySyncSection({
           type="button"
           className="btn btn-primary"
           onClick={() => {
+            const groupPrefixDraft = groupPrefixInputRef.current?.value ?? configuredGroupPrefix;
             void onSync(groupPrefixDraft.trim().length > 0 ? groupPrefixDraft.trim() : "");
           }}
           disabled={isLoading || isSyncing}

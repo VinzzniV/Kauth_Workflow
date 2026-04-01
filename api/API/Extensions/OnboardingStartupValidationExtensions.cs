@@ -40,10 +40,25 @@ internal static class LifecycleStartupValidationExtensions
             logger.LogInformation("Development simulation auth endpoints are active (non-production environment).");
         }
 
+        ValidateSwaggerConfiguration(logger, runtimeSettings);
         ValidateEntraConfiguration(logger, runtimeSettings);
         ValidateProductionPublicUrls(configuration, runtimeSettings, logger);
         ValidateDatabaseConfigurationAsync(logger, runtimeSettings).GetAwaiter().GetResult();
         return app;
+    }
+
+    private static void ValidateSwaggerConfiguration(ILogger logger, LifecycleRuntimeSettings runtimeSettings)
+    {
+        if (runtimeSettings.IsProduction && runtimeSettings.SwaggerEnabled)
+        {
+            throw new InvalidOperationException(
+                "SWAGGER_ENABLED=true is not allowed in Production. Swagger must stay disabled there. Startup aborted.");
+        }
+
+        logger.LogInformation(
+            "Startup validation passed: Swagger is {SwaggerState} for environment {EnvironmentName}.",
+            runtimeSettings.SwaggerEnabled ? "enabled" : "disabled",
+            runtimeSettings.EnvironmentName);
     }
 
     private static void ValidateEntraConfiguration(ILogger logger, LifecycleRuntimeSettings runtimeSettings)

@@ -1039,6 +1039,43 @@ public sealed class WorkflowEndpointsTests
         Assert.True(repository.LastUpdateProcessTypeRequest!.IsActive);
     }
 
+    [Fact]
+    public async Task GraphApplicationEndpoint_ReturnsReadOnlyRuntimeConfiguration()
+    {
+        var repository = new StubWorkflowRepository();
+        var app = CreateApp(repository);
+        var endpoint = GetWorkflowEndpoint(app, "/admin/config/graph-application", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            "/admin/config/graph-application",
+            "");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        context.Response.Body.Position = 0;
+        using var reader = new StreamReader(context.Response.Body, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+        Assert.Contains("\"configurationSource\":\"runtime\"", body);
+        Assert.DoesNotContain("\"clientSecret\":", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GraphApplicationPatchEndpoint_IsNotRegistered()
+    {
+        var app = CreateApp(new StubWorkflowRepository());
+
+        var exists = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Any(endpoint =>
+                endpoint.RoutePattern.RawText == "/admin/config/graph-application"
+                && endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(HttpMethods.Patch) == true);
+
+        Assert.False(exists);
+    }
+
     private static WebApplication CreateApp(StubWorkflowRepository repository, CurrentUser? user = null)
     {
         var builder = WebApplication.CreateBuilder();
@@ -1047,6 +1084,7 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddSingleton<IUserAuthorizationRepository, StubUserAuthorizationRepository>();
         builder.Services.AddSingleton<IUserContext>(new StubUserContext(user ?? CreateAdminHrUser()));
         builder.Services.AddSingleton<IAuthorizationPolicyService, AuthorizationPolicyService>();
+        builder.Services.AddSingleton<IGraphApplicationConfigurationService, StubGraphApplicationConfigurationService>();
         builder.Services.AddSingleton<IWorkflowEmailNotificationSender, StubWorkflowEmailNotificationSender>();
         builder.Services.AddSingleton<INotificationEmailTestSender, StubNotificationEmailTestSender>();
         builder.Services.AddSingleton<INotificationEmailConfigurationService, StubNotificationEmailConfigurationService>();
@@ -1748,6 +1786,35 @@ public sealed class WorkflowEndpointsTests
         public Task<NotificationEmailTestSendResult> SendTestEmailAsync(
             string recipientEmail,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private sealed class StubGraphApplicationConfigurationService : IGraphApplicationConfigurationService
+    {
+        public Task<AdminGraphApplicationConfigurationDto> GetAdminConfiguration(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new AdminGraphApplicationConfigurationDto
+            {
+                TenantId = "tenant-id",
+                ClientId = "client-id",
+                HasClientSecret = true,
+                UpdatedAt = null,
+                ConfigurationSource = "runtime",
+                ConfigurationStatus = "ready",
+                ConfigurationMessage = null
+            });
+        }
+
+        public Task<GraphApplicationRuntimeConfiguration> GetRuntimeConfiguration(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new GraphApplicationRuntimeConfiguration
+            {
+                TenantId = "tenant-id",
+                ClientId = "client-id",
+                ClientSecret = "runtime-secret",
+                HasClientSecret = true,
+                UpdatedAt = null
+            });
+        }
     }
 
     private sealed class StubUserAuthorizationRepository : IUserAuthorizationRepository

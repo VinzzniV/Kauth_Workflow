@@ -24,18 +24,6 @@ vi.mock("../src/services/workflowApi", async () => {
 const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
 const mockedGetWorkflowPage = vi.mocked(workflowApi.getWorkflowPage);
 
-function createDeferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-
-  return { promise, resolve, reject };
-}
-
 function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof workflowApi.getWorkflowPage>>> = {}) {
   return {
     items: [createWorkflowSummary()],
@@ -78,7 +66,7 @@ describe("WorkflowListPage", () => {
     expect(await screen.findByText("Mila Muster")).toBeTruthy();
     expect(screen.getByText("Quality Engineer")).toBeTruthy();
     expect(screen.getAllByText("Onboarding").length).toBeGreaterThan(0);
-    expect(screen.getByText("wf-123")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Öffnen" }).getAttribute("href")).toBe("/workflows/wf-123");
   });
 
   it("passes the selected process type filter to the workflow overview endpoint", async () => {
@@ -212,12 +200,12 @@ describe("WorkflowListPage", () => {
 
     expect(await screen.findByText("Alice Example")).toBeTruthy();
 
-    fireEvent.change(screen.getByRole("textbox", { name: "Schnellfilter" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Suche im Überblick" }), {
       target: { value: "zzzzz" },
     });
 
     expect(await screen.findByText("Keine Treffer")).toBeTruthy();
-    expect(screen.queryByText("Keine Onboarding-Fälle vorhanden")).toBeNull();
+    expect(screen.queryByText("Keine laufenden Vorgänge vorhanden")).toBeNull();
   });
 
   it("ignores stale page responses after filters reset the page index", async () => {

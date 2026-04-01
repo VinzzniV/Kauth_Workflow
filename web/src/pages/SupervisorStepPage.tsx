@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
-import { useToast } from "../components/feedback/ToastProvider";
+import { useToast } from "../components/feedback/useToast";
 import PageHeader from "../components/layout/PageHeader";
 import RequirementsSelection from "../components/workflows/RequirementsSelection";
 import {

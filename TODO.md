@@ -5,31 +5,32 @@ Dieses Dokument ist für KI-gestützte Umsetzung gedacht. Es zerlegt die wichtig
 
 ## Status-Snapshot (Stand 2026-04-01)
 
-Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtbar erledigt, sichtbar offen und in diesem Doku-Durchgang nicht verifiziert.
+Diese Einordnung basiert auf dem aktuellen Repo-Stand.
 
-- `P0.1 Produktions-Deployment entkoppeln`
-  Weitgehend umgesetzt: `compose.yml`, `compose.dev-db.yml` und `compose.prod.yml` sind getrennt; Production nutzt Caddy, Entra-Auth und eigenes DB-Init.
-- `P0.2 Seed-/Demo-Daten aus Production ausschließen`
-  Weitgehend umgesetzt: `db/init/prod/00_init.sql` laedt `02_bootstrap.sql`, waehrend Dev ueber `db/init/dev/00_init.sql` die `02_seed.sql` nutzt.
+Bereits aus der offenen TODO entfernt:
+- Produktions-Deployment von Dev entkoppeln
+- Seed-/Demo-Daten in Production technisch ausschließen
 - `P0.3 Secrets aus unsicherer Persistenz entfernen`
-  Weiter offen: Graph-Anwendungsdaten werden aktuell weiterhin DB-gestuetzt gespeichert, inklusive Secret-Fallback im Runtime-Modell.
-- `P0.4 Frontend Lint auf gruen`
-  In diesem Doku-Durchgang nicht verifiziert.
-- `P0.5 Frontend Tests auf gruen`
-  In diesem Doku-Durchgang nicht verifiziert.
+  Erledigt: Graph-/Mail-Secrets kommen nun aus Runtime-Konfiguration; die Graph-Admin-Ansicht ist read-only.
+- `P0.4 Frontend Lint auf grün`
+  Erledigt: `npm run lint` läuft wieder fehlerfrei; die kritischen Hook-/State-Synchronisationen und Fast-Refresh-Verträge wurden bereinigt.
+
+Noch offen oder nur teilweise umgesetzt:
+- `P0.5 Frontend Tests auf grün`
+  Erledigt: `npm test` läuft aktuell im Frontend mit 17/17 Testdateien und 48/48 Tests grün.
 - `P0.6 Swagger in Production absichern oder deaktivieren`
-  Offen: `UseSwagger()` und `UseSwaggerUI()` laufen aktuell ohne Environment-Gating.
+  Erledigt: Swagger ist ausserhalb von Production aktiv, in Production standardmaessig deaktiviert und per Startup-Validierung gegen versehentliches Aktivieren abgesichert.
 - `P0.7 Minimale CI/CD-Quality-Gates`
-  Offen: Im aktuellen Repo ist keine CI-Konfiguration sichtbar.
+  Erledigt: Eine minimale GitHub-Actions-Pipeline validiert jetzt Backend Build/Tests sowie Frontend Lint/Tests/Build.
 
 ## Wichtig für die KIs
 - Das Projekt ist **fachlich schon stark**, aber **noch nicht produktionsreif**.
 - Größte Risiken liegen aktuell in:
-  1. Deployment-/Environment-Trennung
-  2. Seed-/Demo-Verhalten in Production
-  3. Secret-Handling
-  4. Frontend Quality Gates (Tests/Lint)
-  5. fehlendem Release-/CI-Schutz
+  1. Frontend Quality Gates (Tests/Lint)
+  2. fehlendem Release-/CI-Schutz
+  3. offenem Swagger in Production
+  4. noch nicht sauber getrennten Betriebs- und Health-Signalen
+  5. noch nicht vollständig gehärteten CORS-/Auth-/Redirect-Regeln
 - Änderungen sollen **nicht blind umsetzen**, sondern immer auf Auswirkungen auf Dev, Demo und Production prüfen.
 - Bevor größere Umbauten passieren, soll die KI vorhandene Dateien, Doku und Compose-/Env-Struktur vollständig lesen.
 - Keine Pseudo-Fixes. Wenn Architekturproblem erkannt wird, lieber sauber umstellen statt nur Symptome patchen.
@@ -71,75 +72,9 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 
 # P0 – Muss vor Go-Live erledigt werden
 
-## TASK P0.1 – Produktions-Deployment sauber von Dev entkoppeln
-**Ziel:** `compose.prod.yml` darf kein umgefärbtes Dev-Setup mehr sein.
-
-**Warum:** Aktuell erbt Production zu viel Dev-Verhalten. Das ist ein echter Go-Live-Blocker.
-
-**Prüfen / betroffene Bereiche:**
-- `compose.yml`
-- `compose.prod.yml`
-- Env-Dateien / Compose-Variablen
-- API/Web Build-Args
-- DB-Initialisierung
-
-**Erwartetes Ergebnis:**
-- Production nutzt eigenes, sauberes Setup
-- keine Dev-Volumes oder Demo-Initialisierung in Production
-- keine localhost-Redirects in Production
-- keine Standard-Credentials in Production
-- nur produktionsrelevante Ports / Services / Variablen
-
-**Konkrete Aufgaben:**
-1. Analysiere beide Compose-Dateien vollständig und dokumentiere, welche Dev-Annahmen aktuell in Production durchrutschen.
-2. Refactore die Compose-Struktur so, dass Production nicht mehr implizit Dev-Verhalten erbt.
-3. Trenne DB-Init, Redirect-URIs, Credentials und Host-Port-Exposition sauber nach Umgebung.
-4. Prüfe, ob Reverse-Proxy-/Ingress-Annahme sauber unterstützt wird.
-5. Dokumentiere exakt, welche Variablen für Production zwingend gesetzt sein müssen.
-
-**Definition of Done:**
-- `compose.prod.yml` ist eigenständig produktionsfähig
-- keine Demo-/Dev-Initialisierung mehr in Production
-- Production-Redirect-URIs zeigen auf echte Ziel-Domain
-- keine Default-Secrets/Credentials fest im Compose
-
-**Empfohlene KI:** Claude für Analyse/Plan, danach Codex für Umsetzung
-**Reasoning:** very high
-
 ---
 
-## TASK P0.2 – Demo-/Seed-Daten technisch aus Production ausschließen
-**Ziel:** Production darf unter keinen Umständen Demo- oder Testdaten initialisieren.
-
-**Warum:** Aktuell besteht das Risiko, dass frische Produktionsvolumes Seed-Daten laden.
-
-**Prüfen / betroffene Bereiche:**
-- `db/02_seed.sql`
-- DB-Init-Mechanismus
-- Compose-Mounts
-- Produktionsdoku
-
-**Erwartetes Ergebnis:**
-- technischer Ausschluss von Seed-Daten in Production
-- keine Lösung nur per Kommentar oder Konvention
-
-**Konkrete Aufgaben:**
-1. Analysiere den gesamten DB-Init-Pfad.
-2. Baue die Init-Strategie so um, dass Schema/Migrationen und optionale Demo-Seeds getrennt sind.
-3. Stelle sicher, dass Production nur Schema/Migrationen bekommt, niemals Demo-Content.
-4. Ergänze einen kurzen technischen Hinweis in der Doku, wie Test-/Demo-Daten bewusst aktiviert werden können, aber standardmäßig aus bleiben.
-
-**Definition of Done:**
-- Seed-Dateien werden in Production technisch nicht geladen
-- neue produktive DB startet ohne Demo-Datensätze
-- Dev/Demo bleibt weiterhin nutzbar
-
-**Empfohlene KI:** Codex
-**Reasoning:** high
-
----
-
-## TASK P0.3 – Secrets aus unsicherer Persistenz entfernen
+## TASK P0.3 – Erledigt: Secrets aus unsicherer Persistenz entfernen
 **Ziel:** Keine produktionsrelevanten Secrets mehr als Klartext in der Datenbank.
 
 **Warum:** Das dokumentierte `client_secret` in Klartext ist für Produktion nicht akzeptabel.
@@ -155,6 +90,11 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 - Secret-Handling über sichere Runtime-Konfiguration oder Secret Store
 - UI darf Secret nicht im Klartext zurückgeben
 - Rotation/Änderung bleibt möglich
+
+**Aktueller Stand:**
+- erledigt: Graph-/Mail-Secrets werden nur noch aus Runtime-Konfiguration gelesen
+- erledigt: `graph_application_settings` und alte Secret-Spalten in `notification_email_settings` werden nicht mehr produktiv verwendet
+- erledigt: Die Admin-UI zeigt nur noch Secret-Status und Rotationshinweise, keine editierbaren Graph-Secrets
 
 **Konkrete Aufgaben:**
 1. Analysiere, wo Secrets gespeichert, gelesen und angezeigt werden.
@@ -187,6 +127,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 - Lint vollständig grün
 - nicht durch Regel-Deaktivierung erschummelt
 
+**Aktueller Stand:**
+- erledigt: `npm run lint` läuft aktuell fehlerfrei
+- erledigt: Die Hauptfehlerbilder `react-hooks/set-state-in-effect`, `react-refresh/only-export-components` und ungenutzte Variablen wurden ohne globale Regel-Abschaltung bereinigt
+
 **Konkrete Aufgaben:**
 1. Führe ESLint aus und gruppiere die Fehlerarten.
 2. Behebe zuerst echte Architekturwarnzeichen wie `set-state-in-effect`.
@@ -217,6 +161,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 - Tests prüfen reales Verhalten
 - keine kaputten Mocks durch falsche Modulgrenzen
 - keine veralteten Vertragserwartungen
+
+**Aktueller Stand:**
+- erledigt: `npm test` laeuft aktuell gruen
+- erledigt: Test-Renderpfade rund um `rawPermissionKeys`, API-/Mock-Grenzen und veraltete UI-Vertragserwartungen wurden an die aktuelle Implementierung angepasst
 
 **Konkrete Aufgaben:**
 1. Analysiere alle aktuell fehlschlagenden Tests und ordne sie in Kategorien ein:
@@ -252,6 +200,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 **Erwartetes Ergebnis:**
 - Swagger nur in Dev/Test oder sauber abgesichert
 
+**Aktueller Stand:**
+- erledigt: Swagger wird nur noch aktiviert, wenn `SWAGGER_ENABLED` fuer die jeweilige Runtime erlaubt ist
+- erledigt: In Production ist Swagger deaktiviert; `SWAGGER_ENABLED=true` fuehrt dort zu einem bewussten Startup-Abbruch
+
 **Konkrete Aufgaben:**
 1. Prüfe, wo Swagger aktiviert wird.
 2. Implementiere klares Environment-Gating.
@@ -281,6 +233,11 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 - automatischer Pipeline-Check für API und Web
 - Build, Test, Lint als Pflichtprüfungen
 
+**Aktueller Stand:**
+- erledigt: `.github/workflows/quality-gates.yml` fuehrt Backend Build/Tests und Frontend Lint/Tests/Build aus
+- erledigt: Die Backend-Pipeline initialisiert eine PostgreSQL-Dev-Datenbank reproduzierbar vor dem Testlauf
+- erledigt: Die bislang roten Backend-Admin-Config-Integrations-Tests laufen nach Fix der typisierten Nullable-Parameter wieder gruen
+
 **Konkrete Aufgaben:**
 1. Analysiere vorhandene Skripte und notwendigen Commands.
 2. Erstelle eine erste CI-Pipeline für:
@@ -308,6 +265,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 
 **Warum:** Aktuell scheint `/health` zu stark an externe Microsoft-Erreichbarkeit gekoppelt.
 
+**Aktueller Stand:**
+- teilweise umgesetzt: `/health/live` existiert bereits als einfacher Liveness-Check
+- offen: `/health` mischt weiterhin lokale und externe Abhängigkeiten statt sauberer Readiness-/Deep-Health-Trennung
+
 **Konkrete Aufgaben:**
 1. Analysiere aktuellen Health-Endpoint.
 2. Trenne in sinnvolle Probes:
@@ -329,6 +290,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 **Ziel:** Umgebungsabhängige Security-Konfigurationen müssen explizit und nachvollziehbar sein.
 
 **Warum:** Dev-lastige Defaults kurz vor Produktion sind riskant.
+
+**Aktueller Stand:**
+- teilweise umgesetzt: Auth-Modi und `PUBLIC_BASE_URL`/CORS-Validierung sind bereits expliziter als früher
+- offen: Das Thema ist noch nicht als vollständig gehärtetes, knapp dokumentiertes Endmodell abgeschlossen
 
 **Konkrete Aufgaben:**
 1. Prüfe CORS-Regeln, Redirect-URIs, Auth-Modes, Demo-Flags und Frontend-Build-Args.
@@ -368,6 +333,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 **Ziel:** Kein implizites Betriebswissen nur im Kopf.
 
 **Warum:** Kurz vor Go-Live scheitern viele Projekte an verstreutem Konfigurationswissen.
+
+**Aktueller Stand:**
+- teilweise umgesetzt: `SETUP.md` dokumentiert bereits Env-Variablen, Startreihenfolge und Smoke-Checks
+- offen: Eine wirklich knappe, checklistenartige Produktionsdatei fehlt noch
 
 **Konkrete Aufgaben:**
 1. Erstelle eine kompakte `PRODUCTION_CHECKLIST.md` oder erweitere bestehende Doku.
@@ -434,6 +403,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 
 **Warum:** Das Risiko für Berechtigungsdrift ist hoch, wenn Manager-Insights generisch aus Workflows abgeleitet werden.
 
+**Aktueller Stand:**
+- teilweise umgesetzt: Der Backend-Endpoint `/workflows/supervisor-step` existiert bereits
+- offen: `dashboardInsights.ts` baut Manager-Sicht aktuell weiterhin über generische Workflow-Abfragen zusammen
+
 **Konkrete Aufgaben:**
 1. Prüfe aktuelle Dashboard-Datenpfade.
 2. Vergleiche generische Workflow-Abfragen mit dedizierten Supervisor-/Queue-Endpoints.
@@ -496,6 +469,10 @@ Diese Einordnung basiert auf dem aktuellen Repo-Stand und trennt zwischen sichtb
 
 **Warum:** Das Backend ist ordentlich, aber einige Repositories sind zu groß und fachlich schwer.
 
+**Aktueller Stand:**
+- teilweise umgesetzt: `PostgresWorkflowRepository` ist bereits in mehrere Operations-Dateien aufgeteilt
+- offen: Die fachliche Grenze zwischen Repository- und Service-Logik ist damit noch nicht automatisch sauber
+
 **Konkrete Aufgaben:**
 1. Identifiziere größte Repository-Klassen.
 2. Prüfe, welche Logik in Domain-/Application-Services gehört.
@@ -546,8 +523,6 @@ Verwende Claude primär dann, wenn zuerst **Analyse, Priorisierung oder Architek
 Verwende Codex primär für **Umsetzung, Refactoring, Dateianpassungen, Tests und Skripte**.
 
 ### Gute Codex-Aufgaben
-- „Setze die Compose-Trennung für Production technisch um und dokumentiere alle geänderten Variablen.“
-- „Entferne Seed-Initialisierung aus Production, ohne Dev/Demo zu brechen.“
 - „Bringe alle Frontend-Lint-Fehler sauber auf grün.“
 - „Repariere die fehlschlagenden Frontend-Tests an den echten Modulgrenzen.“
 - „Füge eine minimale CI-Pipeline für Build/Test/Lint hinzu.“
@@ -557,17 +532,16 @@ Verwende Codex primär für **Umsetzung, Refactoring, Dateianpassungen, Tests un
 # Konkrete Reihenfolge für die nächste KI-Arbeit
 
 ## Sprint 1
-1. P0.1 Produktions-Deployment entkoppeln
-2. P0.2 Seed-Daten aus Production ausschließen
-3. P0.6 Swagger absichern/deaktivieren
-4. P1.2 CORS/Auth/Redirects härten
+1. P0.6 Swagger absichern/deaktivieren
+2. P1.2 CORS/Auth/Redirects härten
+3. P1.1 Health-Checks trennen
 
 **Empfohlene KI-Mischung:** Claude für Review, dann Codex für Umsetzung
 
 ## Sprint 2
-1. P0.3 Secret-Handling umbauen
-2. P0.7 CI/CD-Quality-Gates
-3. P1.4 Produktions-Checkliste schreiben
+1. P0.7 CI/CD-Quality-Gates
+2. P1.4 Produktions-Checkliste schreiben
+3. P0.4 Frontend Lint grün
 
 **Empfohlene KI-Mischung:** Claude zuerst, dann Codex
 
@@ -579,10 +553,9 @@ Verwende Codex primär für **Umsetzung, Refactoring, Dateianpassungen, Tests un
 **Empfohlene KI:** Codex
 
 ## Sprint 4
-1. P1.1 Health-Checks trennen
-2. P2.1 State-Management entschlacken
-3. P2.3 Manager-/Supervisor-Dashboard serverseitig härten
-4. P2.4 große Dateien/Hooks zerlegen
+1. P2.1 State-Management entschlacken
+2. P2.3 Manager-/Supervisor-Dashboard serverseitig härten
+3. P2.4 große Dateien/Hooks zerlegen
 
 **Empfohlene KI-Mischung:** Claude für Zerlegung/Review, Codex für Umsetzung
 
@@ -596,13 +569,11 @@ Verwende Codex primär für **Umsetzung, Refactoring, Dateianpassungen, Tests un
 # Klare Gesamtpriorität
 
 ## Sofort
-- Deployment / Production-Konfiguration
-- Seed-/Demo-Ausschluss
-- Secret-Handling
 - Tests/Lint/Pipeline
+- Swagger / Auth-Härtung / CORS
 
 ## Danach
-- Health / Auth-Härtung / CORS / Dokumentation
+- Health / Dokumentation
 
 ## Später
 - State-Architektur / Bundle / größere Refactors / Observability
@@ -611,8 +582,6 @@ Verwende Codex primär für **Umsetzung, Refactoring, Dateianpassungen, Tests un
 
 # Endzustand, den die KIs anstreben sollen
 Nach Abschluss der P0-Aufgaben soll das Projekt nicht „schöner“, sondern **real freigabefähiger** sein:
-- Production ist technisch von Dev getrennt
-- keine Demo-Daten in Production
 - keine produktiven Secrets im Klartext in DB
 - Frontend Checks grün
 - Release-Validierung automatisiert

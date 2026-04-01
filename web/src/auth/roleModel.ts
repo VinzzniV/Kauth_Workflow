@@ -88,7 +88,10 @@ function normalizePermissionKey(permissionKey: string): string {
   return permissionKey.trim().toLowerCase();
 }
 
-export function deriveRoleCapabilities(rawRoleKeys: string[], rawPermissionKeys: string[]): RoleCapabilities {
+export function deriveRoleCapabilities(
+  rawRoleKeys: string[],
+  rawPermissionKeys: string[] = []
+): RoleCapabilities {
   const roleSet = new Set<AuthRoleKey>();
   const permissionSet = new Set<string>();
 

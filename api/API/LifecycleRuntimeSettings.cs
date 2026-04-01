@@ -9,6 +9,7 @@ internal sealed class LifecycleRuntimeSettings
     public required string AuthMode { get; init; }
     public required bool DevSimulationEnabled { get; init; }
     public required bool EntraAuthEnabled { get; init; }
+    public required bool SwaggerEnabled { get; init; }
     public required bool DirectorySyncEnabled { get; init; }
     public string? ConnectionString { get; init; }
     public string? PublicBaseUrl { get; init; }
@@ -44,6 +45,7 @@ internal static class LifecycleRuntimeSettingsResolver
             AuthMode = authMode,
             DevSimulationEnabled = string.Equals(authMode, "dev-sim", StringComparison.OrdinalIgnoreCase),
             EntraAuthEnabled = string.Equals(authMode, "entra", StringComparison.OrdinalIgnoreCase),
+            SwaggerEnabled = ResolveSwaggerEnabled(configuration, isProduction),
             DirectorySyncEnabled = string.Equals(authMode, "dev-sim", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(authMode, "entra", StringComparison.OrdinalIgnoreCase),
             ConnectionString = GetConnectionStringOrNull(configuration),
@@ -106,6 +108,11 @@ internal static class LifecycleRuntimeSettingsResolver
         return bool.TryParse(Normalize(value), out var parsed)
             ? parsed
             : defaultValue;
+    }
+
+    private static bool ResolveSwaggerEnabled(IConfiguration configuration, bool isProduction)
+    {
+        return GetBoolean(configuration["SWAGGER_ENABLED"], defaultValue: !isProduction);
     }
 
     private static int GetPositiveInt(string? value, int defaultValue)

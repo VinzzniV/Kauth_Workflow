@@ -1,51 +1,26 @@
-using Microsoft.Extensions.Options;
-
 namespace API;
 
 internal sealed class GraphApplicationConfigurationService : IGraphApplicationConfigurationService
 {
-    private readonly IGraphApplicationConfigurationRepository repository;
-    private readonly GraphApplicationOptions defaults;
+    private readonly LifecycleRuntimeSettings runtimeSettings;
 
-    public GraphApplicationConfigurationService(
-        IGraphApplicationConfigurationRepository repository,
-        IOptions<GraphApplicationOptions> defaults)
+    public GraphApplicationConfigurationService(LifecycleRuntimeSettings runtimeSettings)
     {
-        this.repository = repository;
-        this.defaults = defaults.Value;
+        this.runtimeSettings = runtimeSettings;
     }
 
-    public async Task<AdminGraphApplicationConfigurationDto> GetAdminConfiguration(
+    public Task<AdminGraphApplicationConfigurationDto> GetAdminConfiguration(
         CancellationToken cancellationToken = default)
     {
-        var stored = await repository.GetSettings(cancellationToken);
-        return BuildAdminConfiguration(Merge(stored));
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(BuildAdminConfiguration(BuildRuntimeConfiguration()));
     }
 
-    public async Task<AdminGraphApplicationConfigurationDto> SaveAdminConfiguration(
-        AdminGraphApplicationConfigurationUpdateRequest request,
+    public Task<GraphApplicationRuntimeConfiguration> GetRuntimeConfiguration(
         CancellationToken cancellationToken = default)
     {
-        var existingSettings = await repository.GetSettings(cancellationToken);
-        var clientSecret = Normalize(request.ClientSecret) ?? existingSettings?.ClientSecret;
-
-        var stored = await repository.UpsertSettings(
-            new GraphApplicationSettingsUpsertModel
-            {
-                TenantId = Normalize(request.TenantId),
-                ClientId = Normalize(request.ClientId),
-                ClientSecret = clientSecret
-            },
-            cancellationToken);
-
-        return BuildAdminConfiguration(Merge(stored));
-    }
-
-    public async Task<GraphApplicationRuntimeConfiguration> GetRuntimeConfiguration(
-        CancellationToken cancellationToken = default)
-    {
-        var stored = await repository.GetSettings(cancellationToken);
-        return Merge(stored);
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(BuildRuntimeConfiguration());
     }
 
     private AdminGraphApplicationConfigurationDto BuildAdminConfiguration(
@@ -57,30 +32,24 @@ internal sealed class GraphApplicationConfigurationService : IGraphApplicationCo
             TenantId = runtime.TenantId,
             ClientId = runtime.ClientId,
             HasClientSecret = runtime.HasClientSecret,
-            UpdatedAt = runtime.UpdatedAt,
+            UpdatedAt = null,
+            ConfigurationSource = "runtime",
             ConfigurationStatus = validation.Status,
             ConfigurationMessage = validation.Message
         };
     }
 
-    private GraphApplicationRuntimeConfiguration Merge(StoredGraphApplicationSettings? stored)
+    private GraphApplicationRuntimeConfiguration BuildRuntimeConfiguration()
     {
-        var tenantId = stored?.TenantId ?? Normalize(defaults.TenantId);
-        var clientId = stored?.ClientId ?? Normalize(defaults.ClientId);
-        var clientSecret = stored?.ClientSecret ?? Normalize(defaults.ClientSecret);
+        var clientSecret = runtimeSettings.GraphClientSecret ?? runtimeSettings.EntraClientSecret;
 
         return new GraphApplicationRuntimeConfiguration
         {
-            TenantId = tenantId,
-            ClientId = clientId,
+            TenantId = runtimeSettings.EntraTenantId,
+            ClientId = runtimeSettings.EntraClientId,
             ClientSecret = clientSecret,
             HasClientSecret = !string.IsNullOrWhiteSpace(clientSecret),
-            UpdatedAt = stored?.UpdatedAt
+            UpdatedAt = null
         };
-    }
-
-    private static string? Normalize(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

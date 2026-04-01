@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -16,15 +14,7 @@ import {
   type ThemeMode,
   type ThemePreference,
 } from "./theme";
-
-type ThemeContextValue = {
-  theme: ThemeMode;
-  preference: ThemePreference;
-  setTheme: (mode: ThemeMode) => void;
-  toggleTheme: () => void;
-};
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+import { ThemeContext, type ThemeContextValue } from "./themeContext";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreference] = useState<ThemePreference>(() => readStoredThemePreference());
@@ -74,14 +64,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider.");
-  }
-
-  return context;
 }

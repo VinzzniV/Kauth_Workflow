@@ -7,9 +7,6 @@ import { AdminWorkflowConfigurationSection } from "./AdminWorkflowConfigurationS
 
 type AdminSystemWorkspaceSectionProps = {
   graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
-  graphTenantIdDraft: string;
-  graphClientIdDraft: string;
-  graphClientSecretDraft: string;
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
   notificationEnabledDraft: boolean;
   notificationSenderEmailDraft: string;
@@ -19,16 +16,11 @@ type AdminSystemWorkspaceSectionProps = {
   notificationNotifyOnWorkflowCreatedDraft: boolean;
   notificationNotifyOnTaskReadyDraft: boolean;
   notificationNotifyOnWorkflowCompletedDraft: boolean;
-  isSavingGraphApplicationConfiguration: boolean;
   isSavingNotificationEmailConfiguration: boolean;
   isSendingNotificationEmailTest: boolean;
   isLoading: boolean;
-  hasGraphApplicationDraftChanges: boolean;
   hasNotificationEmailDraftChanges: boolean;
   workflowConfig: WorkflowConfig | null;
-  onGraphTenantIdChange: (value: string) => void;
-  onGraphClientIdChange: (value: string) => void;
-  onGraphClientSecretChange: (value: string) => void;
   onNotificationEnabledChange: (enabled: boolean) => void;
   onNotificationSenderEmailChange: (value: string) => void;
   onNotificationFrontendBaseUrlChange: (value: string) => void;
@@ -37,7 +29,6 @@ type AdminSystemWorkspaceSectionProps = {
   onNotificationNotifyOnWorkflowCreatedChange: (value: boolean) => void;
   onNotificationNotifyOnTaskReadyChange: (value: boolean) => void;
   onNotificationNotifyOnWorkflowCompletedChange: (value: boolean) => void;
-  onSaveGraphApplicationConfiguration: () => void | Promise<void>;
   onSaveNotificationEmailConfiguration: () => void | Promise<void>;
   onSendNotificationEmailTest: () => void | Promise<void>;
 };
@@ -45,18 +36,7 @@ type AdminSystemWorkspaceSectionProps = {
 export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionProps) {
   return (
     <div className="content-stack">
-      <AdminGraphApplicationSection
-        graphApplicationConfiguration={props.graphApplicationConfiguration}
-        graphTenantIdDraft={props.graphTenantIdDraft}
-        graphClientIdDraft={props.graphClientIdDraft}
-        graphClientSecretDraft={props.graphClientSecretDraft}
-        isSavingGraphApplicationConfiguration={props.isSavingGraphApplicationConfiguration}
-        hasGraphApplicationDraftChanges={props.hasGraphApplicationDraftChanges}
-        onGraphTenantIdChange={props.onGraphTenantIdChange}
-        onGraphClientIdChange={props.onGraphClientIdChange}
-        onGraphClientSecretChange={props.onGraphClientSecretChange}
-        onSave={props.onSaveGraphApplicationConfiguration}
-      />
+      <AdminGraphApplicationSection graphApplicationConfiguration={props.graphApplicationConfiguration} />
 
       <AdminNotificationEmailSection
         notificationEmailConfiguration={props.notificationEmailConfiguration}

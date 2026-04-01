@@ -134,19 +134,7 @@ export default function AdminConfigPage() {
   const {
     graphApplicationConfiguration,
     setGraphApplicationConfiguration,
-    graphTenantIdDraft,
-    graphClientIdDraft,
-    graphClientSecretDraft,
-    isSavingGraphApplicationConfiguration,
-    hasGraphApplicationDraftChanges,
-    setGraphTenantIdDraft,
-    setGraphClientIdDraft,
-    setGraphClientSecretDraft,
-    saveGraphApplicationConfiguration,
-  } = useAdminGraphApplicationConfiguration({
-    onNotice: setNotice,
-    onError: setError,
-  });
+  } = useAdminGraphApplicationConfiguration();
 
   const loadTechnicalAccess = useCallback(async () => {
     setIsLoadingTechnicalAccess(true);
@@ -733,9 +721,6 @@ export default function AdminConfigPage() {
                 directoryAuditEntries={directoryAuditEntries}
                 directoryStatus={directoryStatus}
                 graphApplicationConfiguration={graphApplicationConfiguration}
-                graphTenantIdDraft={graphTenantIdDraft}
-                graphClientIdDraft={graphClientIdDraft}
-                graphClientSecretDraft={graphClientSecretDraft}
                 notificationEmailConfiguration={notificationEmailConfiguration}
                 notificationEnabledDraft={notificationEnabledDraft}
                 notificationSenderEmailDraft={notificationSenderEmailDraft}
@@ -745,10 +730,8 @@ export default function AdminConfigPage() {
                 notificationNotifyOnWorkflowCreatedDraft={notificationNotifyOnWorkflowCreatedDraft}
                 notificationNotifyOnTaskReadyDraft={notificationNotifyOnTaskReadyDraft}
                 notificationNotifyOnWorkflowCompletedDraft={notificationNotifyOnWorkflowCompletedDraft}
-                isSavingGraphApplicationConfiguration={isSavingGraphApplicationConfiguration}
                 isSavingNotificationEmailConfiguration={isSavingNotificationEmailConfiguration}
                 isSendingNotificationEmailTest={isSendingNotificationEmailTest}
-                hasGraphApplicationDraftChanges={hasGraphApplicationDraftChanges}
                 hasNotificationEmailDraftChanges={hasNotificationEmailDraftChanges}
                 workflowConfig={workflowConfig}
                 warnings={warnings}
@@ -803,10 +786,6 @@ export default function AdminConfigPage() {
                 onDeleteDirectoryMapping={handleDeleteDirectoryMapping}
                 onNotice={setNotice}
                 onError={setError}
-                onGraphTenantIdChange={setGraphTenantIdDraft}
-                onGraphClientIdChange={setGraphClientIdDraft}
-                onGraphClientSecretChange={setGraphClientSecretDraft}
-                onSaveGraphApplicationConfiguration={saveGraphApplicationConfiguration}
                 onNotificationEnabledChange={setNotificationEnabledDraft}
                 onNotificationSenderEmailChange={setNotificationSenderEmailDraft}
                 onNotificationFrontendBaseUrlChange={setNotificationFrontendBaseUrlDraft}

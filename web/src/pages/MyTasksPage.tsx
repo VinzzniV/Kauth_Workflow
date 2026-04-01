@@ -45,7 +45,7 @@ export default function MyTasksPage() {
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | VisibleTaskStatus>("all");
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>("all");
-  const rows: TaskWithWorkflow[] = myTasksQuery.data ?? [];
+  const rows = useMemo<TaskWithWorkflow[]>(() => myTasksQuery.data ?? [], [myTasksQuery.data]);
   const isLoading = myTasksQuery.isLoading;
   const isRefreshing = myTasksQuery.isFetching;
   const error = myTasksQuery.error instanceof Error

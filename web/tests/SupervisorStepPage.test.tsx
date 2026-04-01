@@ -1,11 +1,11 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SupervisorStepPage from "../src/pages/SupervisorStepPage";
-import * as lifecycleApi from "../src/services/lifecycleApi";
+import * as workflowApi from "../src/services/workflowApi";
 import { createRequirementSnapshot, createWorkflowSummary, renderWithApp } from "./testUtils";
 
-vi.mock("../src/services/lifecycleApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/lifecycleApi")>("../src/services/lifecycleApi");
+vi.mock("../src/services/workflowApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/workflowApi")>("../src/services/workflowApi");
   return {
     ...actual,
     getSupervisorStepWorkflows: vi.fn(),
@@ -14,8 +14,8 @@ vi.mock("../src/services/lifecycleApi", async () => {
   };
 });
 
-const mockedGetSupervisorStepWorkflows = vi.mocked(lifecycleApi.getSupervisorStepWorkflows);
-const mockedGetWorkflowSupervisorStep = vi.mocked(lifecycleApi.getWorkflowSupervisorStep);
+const mockedGetSupervisorStepWorkflows = vi.mocked(workflowApi.getSupervisorStepWorkflows);
+const mockedGetWorkflowSupervisorStep = vi.mocked(workflowApi.getWorkflowSupervisorStep);
 
 describe("SupervisorStepPage", () => {
   beforeEach(() => {

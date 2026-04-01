@@ -64,9 +64,16 @@ $env:ENTRA_CLIENT_SECRET = "<client-secret-value>"
 $env:ENTRA_AUDIENCE = "api://<app-id>"
 ```
 
+Hinweis:
+
+- Directory-Sync, Graph und Mailversand nutzen dieselbe `ENTRA_TENANT_ID` und `ENTRA_CLIENT_ID` wie die API-Auth.
+- `GRAPH_CLIENT_SECRET` ist nur ein optionaler Runtime-Override fuer Graph-basierte Dienste, nicht ein separates zweites App-Modell.
+- Die Admin-UI zeigt den Graph-Status nur read-only an. Secret-Rotation passiert ausserhalb der UI.
+
 Wichtig:
 
 - `AUTH_MODE=dev-sim` bedeutet lokal nur Simulations-Login, nicht kuenstliche Demo-Welt.
+- Swagger ist lokal standardmaessig aktiv. Bei Bedarf kann er ueber `SWAGGER_ENABLED=false` abgeschaltet werden.
 - Die Login-Liste kommt aus synchronisierten Verzeichnisidentitaeten.
 - Ohne gueltige `ENTRA_*`-Werte bleibt diese Liste leer, bis ein Directory-Sync erfolgreich war.
 
@@ -117,6 +124,26 @@ Erwartung:
 - `/auth/provider-info` zeigt den aktiven Auth-Modus
 - `/me` liefert ohne gueltige Session typischerweise `401`
 
+### Lokale Quality Gates vor Merge oder Release
+
+Die minimalen Pflichtpruefungen fuer lokale Vorab-Checks sind:
+
+```powershell
+dotnet build api/API/API.csproj -c Release
+dotnet test api/API.Tests/API.Tests.csproj -c Release -p:UseAppHost=false
+cd web
+npm ci
+npm run lint
+npm test
+npm run build
+```
+
+Hinweise:
+
+- Die Backend-Tests erwarten eine laufende PostgreSQL-Dev-Datenbank auf `localhost:25432` mit dem bekannten Dev-Init.
+- Die GitHub-Actions-Pipeline richtet dafuer denselben DB-Zustand automatisiert ein.
+- Fuer schnelle lokale Iteration reicht oft weiterhin ein gezielter Lauf; vor Merge oder Release sollten aber die kompletten Gates gruen sein.
+
 ## Linux-VM Deployment
 
 ### 1. Produktive Konfiguration anlegen
@@ -147,6 +174,7 @@ Optional bzw. je nach Betrieb:
 - `WEB_HTTP_PORT`
 - `WEB_HTTPS_PORT`
 - `AUTO_PROVISION_DEFAULT_ROLE_KEY`
+- `SWAGGER_ENABLED=false`
 
 Wichtig:
 
@@ -154,6 +182,9 @@ Wichtig:
 - Dieselbe URL muss als Entra SPA Redirect URI gepflegt sein.
 - `ENTRA_AUDIENCE` muss die API App-ID-URI sein, aus der das Frontend den Scope `<audience>/access_as_user` anfordert.
 - Mindestens eines aus `ENTRA_CLIENT_SECRET` oder `GRAPH_CLIENT_SECRET` muss gesetzt sein, sonst ist weder lokaler Directory-Sync noch produktive Entra-/Graph-Nutzung vollstaendig konfiguriert.
+- `GRAPH_CLIENT_SECRET` ueberschreibt nur das fuer Graph/Mail verwendete Secret; Tenant und Client ID kommen weiterhin aus `ENTRA_TENANT_ID` und `ENTRA_CLIENT_ID`.
+- Graph-Credentials werden nicht mehr in der Datenbank gepflegt. Rotation erfolgt ueber Environment bzw. Secret-Store und einen API-/Container-Neustart.
+- Swagger ist in Production standardmaessig deaktiviert und darf dort nicht per `SWAGGER_ENABLED=true` aktiviert werden. Das Startup bricht in diesem Fall bewusst ab.
 
 ### 2. Produktionsstack starten
 
@@ -214,6 +245,20 @@ Damit sind produktiver Bootstrap und lokale Defaults technisch getrennt.
 - `/api/*` wird an die API weitergereicht, der Rest an das Web
 - Clients im Netz muessen dem internen Caddy-Root-Zertifikat vertrauen, sonst gibt es Browser-Warnungen und Redirect-Probleme
 
+## CI / Quality Gates
+
+Im Repo liegt eine minimale GitHub-Actions-Pipeline unter `.github/workflows/quality-gates.yml`.
+
+Sie prueft auf Pushes nach `main` oder `master` sowie auf Pull Requests:
+
+- Backend Restore
+- Backend Build
+- Backend Tests gegen eine initialisierte PostgreSQL-Dev-Datenbank
+- Frontend `npm ci`
+- Frontend Lint
+- Frontend Tests
+- Frontend Build
+
 ## Wichtige Konfigurationsschalter
 
 ### Backend
@@ -230,8 +275,10 @@ Damit sind produktiver Bootstrap und lokale Defaults technisch getrennt.
   Verzeichnis-Sync und Gruppenfilter
 - `ENTRA_*`
   Entra- und API-Integration
+- `SWAGGER_ENABLED`
+  Optionaler Schalter fuer nicht-produktive Umgebungen; in Production verboten
 - `GRAPH_CLIENT_SECRET`
-  Graph-nahe Runtime-Konfiguration
+  Optionaler Secret-Override fuer Graph- und Mail-Dienste bei gleicher Entra-App
 
 ### Frontend
 

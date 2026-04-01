@@ -190,6 +190,7 @@ export type AdminGraphApplicationConfiguration = {
   clientId: string | null;
   hasClientSecret: boolean;
   updatedAt: string | null;
+  configurationSource: "runtime";
   configurationStatus: "ready" | "incomplete";
   configurationMessage: string | null;
 };

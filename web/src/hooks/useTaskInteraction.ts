@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useToast } from "../components/feedback/ToastProvider";
+import { useToast } from "../components/feedback/useToast";
 import {
   useAddTaskComment,
   useUpdateTaskStatus,

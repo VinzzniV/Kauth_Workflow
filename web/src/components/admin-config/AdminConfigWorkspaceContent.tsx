@@ -92,9 +92,6 @@ type AdminConfigWorkspaceContentProps = {
   directoryAuditEntries: AdminDirectoryMappingAuditEntry[];
   directoryStatus: AdminDirectorySyncStatus | null;
   graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
-  graphTenantIdDraft: string;
-  graphClientIdDraft: string;
-  graphClientSecretDraft: string;
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
   notificationEnabledDraft: boolean;
   notificationSenderEmailDraft: string;
@@ -104,10 +101,8 @@ type AdminConfigWorkspaceContentProps = {
   notificationNotifyOnWorkflowCreatedDraft: boolean;
   notificationNotifyOnTaskReadyDraft: boolean;
   notificationNotifyOnWorkflowCompletedDraft: boolean;
-  isSavingGraphApplicationConfiguration: boolean;
   isSavingNotificationEmailConfiguration: boolean;
   isSendingNotificationEmailTest: boolean;
-  hasGraphApplicationDraftChanges: boolean;
   hasNotificationEmailDraftChanges: boolean;
   workflowConfig: WorkflowConfig | null;
   warnings: AdminWorkspaceWarning[];
@@ -163,10 +158,6 @@ type AdminConfigWorkspaceContentProps = {
   onDeleteDirectoryMapping: (mappingId: number) => void | Promise<void>;
   onNotice: (message: string | null) => void;
   onError: (message: string | null) => void;
-  onGraphTenantIdChange: (value: string) => void;
-  onGraphClientIdChange: (value: string) => void;
-  onGraphClientSecretChange: (value: string) => void;
-  onSaveGraphApplicationConfiguration: () => void | Promise<void>;
   onNotificationEnabledChange: (enabled: boolean) => void;
   onNotificationSenderEmailChange: (value: string) => void;
   onNotificationFrontendBaseUrlChange: (value: string) => void;
@@ -344,9 +335,6 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       return (
         <AdminSystemWorkspaceSection
           graphApplicationConfiguration={props.graphApplicationConfiguration}
-          graphTenantIdDraft={props.graphTenantIdDraft}
-          graphClientIdDraft={props.graphClientIdDraft}
-          graphClientSecretDraft={props.graphClientSecretDraft}
           notificationEmailConfiguration={props.notificationEmailConfiguration}
           notificationEnabledDraft={props.notificationEnabledDraft}
           notificationSenderEmailDraft={props.notificationSenderEmailDraft}
@@ -356,17 +344,11 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
           notificationNotifyOnWorkflowCreatedDraft={props.notificationNotifyOnWorkflowCreatedDraft}
           notificationNotifyOnTaskReadyDraft={props.notificationNotifyOnTaskReadyDraft}
           notificationNotifyOnWorkflowCompletedDraft={props.notificationNotifyOnWorkflowCompletedDraft}
-          isSavingGraphApplicationConfiguration={props.isSavingGraphApplicationConfiguration}
           isSavingNotificationEmailConfiguration={props.isSavingNotificationEmailConfiguration}
           isSendingNotificationEmailTest={props.isSendingNotificationEmailTest}
           isLoading={false}
-          hasGraphApplicationDraftChanges={props.hasGraphApplicationDraftChanges}
           hasNotificationEmailDraftChanges={props.hasNotificationEmailDraftChanges}
           workflowConfig={props.workflowConfig}
-          onGraphTenantIdChange={props.onGraphTenantIdChange}
-          onGraphClientIdChange={props.onGraphClientIdChange}
-          onGraphClientSecretChange={props.onGraphClientSecretChange}
-          onSaveGraphApplicationConfiguration={props.onSaveGraphApplicationConfiguration}
           onNotificationEnabledChange={props.onNotificationEnabledChange}
           onNotificationSenderEmailChange={props.onNotificationSenderEmailChange}
           onNotificationFrontendBaseUrlChange={props.onNotificationFrontendBaseUrlChange}

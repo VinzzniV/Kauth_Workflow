@@ -5,7 +5,7 @@ import {
   toNullableText,
   toggleId,
 } from "../components/admin-config/adminConfigHelpers";
-import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
+import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 import {
   createAdminUser,
   deleteAdminUser,

@@ -219,7 +219,7 @@ Startpunkt mit optionalem `.env.prod`-Fallback, Service-Registrierung, Startup-V
 Zentrale Aufloesung von Auth-Modus, Connection String und Directory-/Entra-Laufzeitwerten.
 
 `appsettings.json`
-Default-Werte fuer Notification- und Graph-nahe Laufzeitkonfiguration.
+Default-Werte fuer Notification-Laufzeitkonfiguration.
 
 `Properties/launchSettings.json`
 Lokales Startprofil fuer API-Entwicklung mit `dev-sim`.
@@ -261,7 +261,7 @@ Fach- und Infrastrukturservices wie:
 - `EntraDirectorySyncService`
 - `DirectorySyncHostedService`
 - `NotificationEmailConfigurationService`
-- `GraphApplicationConfigurationService`
+- `GraphApplicationConfigurationService` als read-only Runtime-Provider fuer Tenant/Client/Secret-Status
 - `GraphWorkflowEmailNotificationSender`
 
 ### `api/API/Repositories`
@@ -270,7 +270,6 @@ PostgreSQL-Repositories fuer:
 - Workflows, Aufgaben, Audit, Verknuepfungen und Konfiguration
 - Benutzer, Rollen, Gruppen, Permissions und Verantwortlichkeiten
 - Notification-E-Mail-Konfiguration
-- Graph-Anwendungskonfiguration
 
 ### `api/API/Contracts`
 
@@ -310,7 +309,10 @@ Historische Migrationen und Facherweiterungen, u. a.:
 - Directory-Tabellen
 - Identity-/People-Trennung
 - Permission-Modell
-- Graph-Anwendungseinstellungen
+- historische Graph-Anwendungseinstellungen
+
+`40_remove_secret_persistence.sql`
+Entfernt persistierte Graph-/Secret-Spalten und baut das Runtime-Only-Modell fuer produktive Secrets fest ein.
 
 `90_dev_defaults.sql`
 Lokale Entwicklungs-Defaults ohne kuenstliche Demo-Benutzer oder Demo-Gruppen.

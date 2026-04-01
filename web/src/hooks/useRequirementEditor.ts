@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useToast } from "../components/feedback/ToastProvider";
+import { useToast } from "../components/feedback/useToast";
 import { useUpdateSupervisorStep } from "../services/mutations/workflowMutations";
 import type { RequirementSelectionState, WorkflowDetail } from "../types/workflow";
 import {

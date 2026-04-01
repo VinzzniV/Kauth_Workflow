@@ -58,12 +58,15 @@ internal static class LifecycleApplicationExtensions
             }
         });
 
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
+        if (runtimeSettings.SwaggerEnabled)
         {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Employee Lifecycle API v1");
-            c.RoutePrefix = "swagger";
-        });
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Employee Lifecycle API v1");
+                c.RoutePrefix = "swagger";
+            });
+        }
 
         return app;
     }

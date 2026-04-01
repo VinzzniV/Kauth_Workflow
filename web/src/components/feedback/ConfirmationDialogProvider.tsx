@@ -1,31 +1,15 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-
-type ConfirmationTone = "default" | "danger";
-
-export type ConfirmationDialogOptions = {
-  title: string;
-  description: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  tone?: ConfirmationTone;
-};
-
-type ConfirmationRequest = {
-  options: ConfirmationDialogOptions;
-  resolve: (value: boolean) => void;
-};
-
-const ConfirmationDialogContext = createContext<
-  ((options: ConfirmationDialogOptions) => Promise<boolean>) | null
->(null);
+import {
+  ConfirmationDialogContext,
+  type ConfirmationDialogOptions,
+  type ConfirmationRequest,
+} from "./confirmationDialogContext";
 
 function ConfirmationDialog({
   options,
@@ -104,14 +88,4 @@ export function ConfirmationDialogProvider({ children }: { children: ReactNode }
       {request ? <ConfirmationDialog options={request.options} onClose={handleClose} /> : null}
     </ConfirmationDialogContext.Provider>
   );
-}
-
-export function useConfirmationDialog() {
-  const context = useContext(ConfirmationDialogContext);
-
-  if (!context) {
-    throw new Error("useConfirmationDialog must be used within a ConfirmationDialogProvider.");
-  }
-
-  return context;
 }

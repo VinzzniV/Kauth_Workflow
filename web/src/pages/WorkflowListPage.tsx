@@ -58,7 +58,7 @@ export default function WorkflowListPage() {
   const [pageIndex, setPageIndex] = useState<number>(initialPageIndex);
 
   const [search, setSearch] = useState<string>(initialSearch);
-  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch);
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(initialStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>(initialDepartmentFilter);
   const [processTypeFilter, setProcessTypeFilter] = useState<string>(initialProcessTypeFilter);
@@ -69,22 +69,6 @@ export default function WorkflowListPage() {
     const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [search]);
-
-  useEffect(() => {
-    const nextSearch = searchParams.get("q") ?? "";
-    const nextStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
-    const nextDepartmentFilter = searchParams.get("dept") ?? "all";
-    const nextProcessTypeFilter = searchParams.get("type") ?? "all";
-    const nextResponsibilityFilter = searchParams.get("resp") ?? "all";
-    const nextPageIndex = parsePageIndex(searchParams.get("page"));
-
-    setSearch((current) => (current === nextSearch ? current : nextSearch));
-    setStatusFilter((current) => (current === nextStatusFilter ? current : nextStatusFilter));
-    setDepartmentFilter((current) => (current === nextDepartmentFilter ? current : nextDepartmentFilter));
-    setProcessTypeFilter((current) => (current === nextProcessTypeFilter ? current : nextProcessTypeFilter));
-    setResponsibilityFilter((current) => (current === nextResponsibilityFilter ? current : nextResponsibilityFilter));
-    setPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
-  }, [searchParams]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();

@@ -23,7 +23,7 @@ import type {
   AdminTaskTemplateDependency,
 } from "../types/auth";
 import { toNullableNumber, toNullableText } from "../components/admin-config/adminConfigHelpers";
-import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
+import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 
 type TemplateDraft = {
   templateKey: string;

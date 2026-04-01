@@ -144,7 +144,7 @@ export function AdminNotificationEmailSection({
             <p>{notificationEmailConfiguration?.hasClientSecret ? "Verfügbar" : "Unvollständig"}</p>
           </div>
           <p className="panel-note">
-            Die Anwendung nutzt die separat gepflegte Graph-Anwendungskonfiguration.
+            Die Anwendung nutzt die Entra-Laufzeitkonfiguration. Secret-Rotation erfolgt außerhalb der Admin-UI.
           </p>
         </article>
       </div>
@@ -152,7 +152,7 @@ export function AdminNotificationEmailSection({
       <div className="dashboard-card card-primary">
         <div>
           <h2>Mail-Einstellungen</h2>
-          <p>Konfigurieren Sie Versand, Absender und Mail-spezifische Laufzeitoptionen. Graph-Zugangsdaten werden separat gepflegt.</p>
+          <p>Konfigurieren Sie Versand, Absender und Mail-spezifische Laufzeitoptionen. Graph-Credentials kommen ausschließlich aus der Runtime.</p>
         </div>
 
         <label className="field compact">

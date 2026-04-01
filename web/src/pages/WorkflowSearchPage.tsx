@@ -34,7 +34,7 @@ export default function WorkflowSearchPage() {
   const initialProcessTypeFilter = searchParams.get("type") ?? "all";
   const initialStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
   const [search, setSearch] = useState<string>(initialSearch);
-  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch);
   const [departmentFilter, setDepartmentFilter] = useState<string>(initialDepartmentFilter);
   const [processTypeFilter, setProcessTypeFilter] = useState<string>(initialProcessTypeFilter);
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(initialStatusFilter);
@@ -44,18 +44,6 @@ export default function WorkflowSearchPage() {
     const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [search]);
-
-  useEffect(() => {
-    const nextSearch = searchParams.get("q") ?? "";
-    const nextDepartmentFilter = searchParams.get("dept") ?? "all";
-    const nextProcessTypeFilter = searchParams.get("type") ?? "all";
-    const nextStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
-
-    setSearch((current) => (current === nextSearch ? current : nextSearch));
-    setDepartmentFilter((current) => (current === nextDepartmentFilter ? current : nextDepartmentFilter));
-    setProcessTypeFilter((current) => (current === nextProcessTypeFilter ? current : nextProcessTypeFilter));
-    setStatusFilter((current) => (current === nextStatusFilter ? current : nextStatusFilter));
-  }, [searchParams]);
 
   const hasActiveFilters =
     search.trim().length > 0 || departmentFilter !== "all" || processTypeFilter !== "all" || statusFilter !== "all";

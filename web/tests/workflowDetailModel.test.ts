@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildProcessSteps,
+  hasSupervisorStep,
   toPhaseOwnerArea,
   toRegularEditingLabel,
 } from "../src/components/workflow-detail/workflowDetailModel";
@@ -81,8 +81,7 @@ describe("workflowDetailModel", () => {
   });
 
   it("omits the supervisor step for process types without approval task", () => {
-    const steps = buildProcessSteps(
-      createWorkflowDetail({
+    const workflow = createWorkflowDetail({
         processType: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
         workflowStatus: "waiting_for_department",
         tasks: [
@@ -114,9 +113,8 @@ describe("workflowDetailModel", () => {
             comments: [],
           },
         ],
-      })
-    );
+      });
 
-    expect(steps.map((step) => step.key)).toEqual(["hr-start", "departments", "completed"]);
+    expect(hasSupervisorStep(workflow)).toBe(false);
   });
 });

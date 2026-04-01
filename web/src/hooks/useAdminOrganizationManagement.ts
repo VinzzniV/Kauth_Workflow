@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { toNullableNumber } from "../components/admin-config/adminConfigHelpers";
-import { useConfirmationDialog } from "../components/feedback/ConfirmationDialogProvider";
+import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 import {
   createAdminDepartment,
   deleteAdminDepartment,
