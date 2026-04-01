@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $handoffRoot = Join-Path $repoRoot "handoff"
@@ -15,16 +16,41 @@ $excludeDirectories = @(
     "handoff",
     "node_modules",
     "web/node_modules",
+    "web/.vite",
     "web/dist",
     "api/API/bin",
     "api/API/obj",
     "api/API.Tests/bin",
-    "api/API.Tests/obj"
+    "api/API.Tests/obj",
+    "TestResults",
+    ".vs"
 )
 
 $excludeFiles = @(
     ".claude/settings.local.json",
+    ".env.prod",
     "web/.env.local"
+)
+
+$excludeFileNamePatterns = @(
+    "*.log",
+    "*.tmp",
+    "*.user",
+    "*.suo",
+    "*.cache",
+    "*.coverage",
+    "*.trx"
+)
+
+$forbiddenPathMatchers = @(
+    { param($path) $path -like ".git/*" },
+    { param($path) $path -like ".vs/*" },
+    { param($path) $path -like "*/node_modules/*" -or $path -like "node_modules/*" },
+    { param($path) $path -like "*/dist/*" -or $path -like "dist/*" },
+    { param($path) $path -like "*/bin/*" -or $path -like "bin/*" },
+    { param($path) $path -like "*/obj/*" -or $path -like "obj/*" },
+    { param($path) $path -like "*/TestResults/*" -or $path -like "TestResults/*" },
+    { param($path) $path -eq ".env.prod" }
 )
 
 function Ensure-ParentDirectory {
@@ -83,7 +109,41 @@ function Should-ExcludeFile {
         }
     }
 
+    $fileName = [System.IO.Path]::GetFileName($RelativePath)
+    foreach ($pattern in $excludeFileNamePatterns) {
+        if ($fileName -like $pattern) {
+            return $true
+        }
+    }
+
     return $false
+}
+
+function Assert-HandoffArchiveClean {
+    param([string]$ArchivePath)
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+    try {
+        $violations = @()
+
+        foreach ($entry in $archive.Entries) {
+            $normalized = $entry.FullName.Replace("\", "/")
+            foreach ($matcher in $forbiddenPathMatchers) {
+                if (& $matcher $normalized) {
+                    $violations += $normalized
+                    break
+                }
+            }
+        }
+
+        if ($violations.Count -gt 0) {
+            $uniqueViolations = $violations | Sort-Object -Unique
+            throw "Handoff archive contains forbidden entries: $($uniqueViolations -join ', ')"
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
 }
 
 if (Test-Path -LiteralPath $stageRoot) {
@@ -130,6 +190,7 @@ foreach ($file in $allFiles) {
 }
 
 Compress-Archive -Path (Join-Path $stageRoot "*") -DestinationPath $zipPath
+Assert-HandoffArchiveClean -ArchivePath $zipPath
 
 if (Test-Path -LiteralPath $stageRoot) {
     Remove-Item -LiteralPath $stageRoot -Recurse -Force

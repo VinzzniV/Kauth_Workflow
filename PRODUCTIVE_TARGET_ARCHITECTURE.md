@@ -12,10 +12,9 @@ Bereits im Repo sichtbar:
 - mehrere Prozessarten und Workflow-Verknuepfungen sind im Datenmodell vorhanden
 
 Noch nicht am Ziel:
-- Frontend-Lint und Frontend-Tests sind noch nicht auf gruen
-- Swagger ist produktiv deaktiviert, aber weitere Security-/Betriebshaertung bleibt offen
+- Security- und Betriebsmodell sind weiter in Haertung, auch wenn Lint, Tests, Swagger-Gating und minimale CI inzwischen stehen
 - User- und Gruppenkonfiguration enthaelt weiterhin Uebergangsanteile von lokalem CRUD
-- Release-/CI-Haertung ist noch kein abgeschlossenes Standardmodell
+- Release-/CI-Haertung ist eingefuehrt, aber noch nicht das vollstaendige Betriebsendmodell
 
 ---
 
@@ -173,6 +172,16 @@ Produktiv bedeutet mindestens:
 - Logging, Monitoring und Health-Checks
 - reproduzierbare DB-Initialisierung und Migration
 - klarer Update- und Restore-Pfad
+
+Health-Modell:
+- Liveness prueft nur den Prozess
+- Readiness prueft nur lokale Betriebsfaehigkeit wie die Datenbank
+- Deep Health darf externe Provider wie Entra einbeziehen, darf aber keine Container-Restarts ausloesen
+
+Konfigurationsmodell:
+- Production nutzt nur explizite `https://`-basierte Origins fuer `PUBLIC_BASE_URL` und CORS
+- Das Web bekommt seinen Auth-Modus und Entra-Werte ueber Runtime-Config statt implizite Build-Defaults
+- Der Entra-SPA-Redirect wird produktiv explizit auf die oeffentliche Basis-URL gespiegelt, nicht aus Frontend-Fallbacks erraten
 
 Wichtige Betriebsentscheidung:
 - On-prem Hosting rechtfertigt keine proprietaeren Auth-Abkuerzungen

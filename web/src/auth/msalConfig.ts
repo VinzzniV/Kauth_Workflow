@@ -1,10 +1,25 @@
 import { type Configuration, LogLevel, type RedirectRequest } from "@azure/msal-browser";
-import { getEntraAudience, getEntraClientId, getEntraRedirectUri, getEntraTenantId } from "../config/appRuntimeConfig";
+import { getAuthMode, getEntraAudience, getEntraClientId, getEntraRedirectUri, getEntraTenantId } from "../config/appRuntimeConfig";
 
+const authMode = getAuthMode();
 const clientId = getEntraClientId();
 const tenantId = getEntraTenantId();
 const audience = getEntraAudience();
 const redirectUri = getEntraRedirectUri();
+
+if (authMode === "entra") {
+  if (!clientId.trim()) {
+    throw new Error("Entra auth mode requires ENTRA_CLIENT_ID.");
+  }
+
+  if (!tenantId.trim()) {
+    throw new Error("Entra auth mode requires ENTRA_TENANT_ID.");
+  }
+
+  if (!audience.trim()) {
+    throw new Error("Entra auth mode requires ENTRA_AUDIENCE.");
+  }
+}
 
 function resolveApiScope(): string | null {
   const normalizedAudience = audience.trim();

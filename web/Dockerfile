@@ -14,7 +14,7 @@ COPY docker-entrypoint.d/40-write-app-config.sh /docker-entrypoint.d/40-write-ap
 COPY --from=build /app/dist /usr/share/nginx/html
 RUN chmod +x /docker-entrypoint.d/40-write-app-config.sh
 ENV API_BASE=/api
-ENV AUTH_MODE=demo
+ENV AUTH_MODE=dev-sim
 ENV ENTRA_CLIENT_ID=
 ENV ENTRA_TENANT_ID=
 ENV ENTRA_AUDIENCE=

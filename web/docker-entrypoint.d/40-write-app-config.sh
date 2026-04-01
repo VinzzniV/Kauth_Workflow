@@ -8,7 +8,7 @@ js_escape() {
 cat > /usr/share/nginx/html/app-config.js <<EOF
 window.__APP_CONFIG__ = {
   apiBase: "$(js_escape "${API_BASE:-/api}")",
-  authMode: "$(js_escape "${AUTH_MODE:-demo}")",
+  authMode: "$(js_escape "${AUTH_MODE:-dev-sim}")",
   entraClientId: "$(js_escape "${ENTRA_CLIENT_ID:-}")",
   entraTenantId: "$(js_escape "${ENTRA_TENANT_ID:-}")",
   entraAudience: "$(js_escape "${ENTRA_AUDIENCE:-}")",

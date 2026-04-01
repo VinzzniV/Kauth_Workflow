@@ -105,6 +105,8 @@ Wichtig:
 - `dev-sim` zeigt keine kuenstlichen Demo-Benutzer mehr.
 - Die Simulations-Login-Seite listet nur lokal synchronisierte Verzeichnisidentitaeten.
 - Dafuer braucht die lokal gestartete API gueltige `ENTRA_*`-Variablen und einen erfolgreichen Directory-Sync.
+- Im deployten Web-Container sind nur `dev-sim` und `entra` als gueltige Auth-Modi erlaubt.
+- Wenn `app-config.js` `authMode=entra` setzt, muessen `entraClientId`, `entraTenantId`, `entraAudience` und `entraRedirectUri` explizit gesetzt sein. Ein stiller Fallback auf alte Demo- oder Redirect-Defaults findet nicht mehr statt.
 
 Fuer den kompletten Ablauf siehe [`../SETUP.md`](../SETUP.md).
 

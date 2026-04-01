@@ -266,8 +266,10 @@ Noch offen oder nur teilweise umgesetzt:
 **Warum:** Aktuell scheint `/health` zu stark an externe Microsoft-Erreichbarkeit gekoppelt.
 
 **Aktueller Stand:**
-- teilweise umgesetzt: `/health/live` existiert bereits als einfacher Liveness-Check
-- offen: `/health` mischt weiterhin lokale und externe Abhängigkeiten statt sauberer Readiness-/Deep-Health-Trennung
+- erledigt: `/health/live` bleibt der einfache Liveness-Check
+- erledigt: `/health/ready` prueft nur noch die Datenbank und liefert bei fehlender lokaler Betriebsbereitschaft `503`
+- erledigt: `/health` ist jetzt ein Deep-Health-Endpoint mit Status-JSON fuer DB plus Entra-Reichweite, aber ohne `503`-Probe-Semantik
+- erledigt: `compose.prod.yml`, Setup-Doku und Route-Validierung wurden auf das Drei-Probe-Modell nachgezogen
 
 **Konkrete Aufgaben:**
 1. Analysiere aktuellen Health-Endpoint.
@@ -286,14 +288,105 @@ Noch offen oder nur teilweise umgesetzt:
 
 ---
 
+### Design (Claude) – Implementierung durch Codex
+
+#### Ist-Problem
+
+In `api/API/Extensions/OnboardingApplicationExtensions.cs` (Zeile 83–166):
+
+`/health` kombiniert einen DB-Check (`NpgsqlConnection + SELECT 1`) mit einem externen HTTP-Call gegen `login.microsoftonline.com/.well-known/openid-configuration`. Wenn Microsoft temporär unerreichbar ist, gibt der Endpoint HTTP 503 zurück. Wird dieser Endpoint als Container-Probe oder Load-Balancer-Healthcheck verwendet, löst das unnötige Neustarts oder Deregistrierungen aus, obwohl die App selbst funktionstüchtig ist.
+
+#### Zielmodell – 3 Probes
+
+**1. `/health/live` – unverändert lassen**
+- Zweck: Prozess lebt und kann HTTP beantworten
+- Prüft: nichts außer dem Handler selbst
+- HTTP-Status: immer 200
+- Response: `{"status": "ok"}`
+- Verwendung: Docker/K8s Liveness-Probe
+
+**2. `/health/ready` – neu anlegen**
+- Zweck: App ist bereit, produktive Requests zu bedienen
+- Prüft: ausschließlich DB-Verbindung (`NpgsqlConnection + SELECT 1`)
+- Prüft NICHT: externe Dienste (Entra, Graph, Mail)
+- HTTP-Status: 200 wenn DB erreichbar, 503 wenn nicht
+- Response-Schema:
+  ```json
+  {
+    "status": "ok" | "degraded",
+    "database": "ok" | "unreachable" | "not_configured"
+  }
+  ```
+- Verwendung: Docker/K8s Readiness-Probe; dies ersetzt `/health` als Probe-Endpunkt
+
+**3. `/health` – umbauen zu reinem Deep-Health (Ops-Only)**
+- Zweck: Vollständiger Betriebszustand für Ops-Monitoring und manuelle Diagnose
+- Prüft: DB-Status + Auth-Konfiguration + Entra-OIDC-Erreichbarkeit (wenn `AUTH_MODE=entra`)
+- HTTP-Status: Kann weiterhin 200/503 zurückgeben – aber dieser Endpoint wird **nicht** als Container-Probe konfiguriert
+- Response-Schema: bisheriges Schema bleibt erhalten (kompatibel)
+- Verwendung: manuelles Ops-Monitoring, Dashboards, Alerting – nicht als Probe-Endpoint
+
+#### Änderungen im Code
+
+**Datei: `api/API/Extensions/OnboardingApplicationExtensions.cs`**
+
+1. Bestehenden `/health/live`-Handler: **keine Änderung**
+
+2. Neuen `/health/ready`-Handler hinzufügen (vor `/health`):
+   - `runtimeSettings` per DI holen (wie in `/health` bereits gemacht)
+   - DB-Check identisch zu aktuellem `/health`: `NpgsqlConnection` + `SELECT 1`
+   - Rückgabe: `{"status": "ok"|"degraded", "database": "ok"|"unreachable"|"not_configured"}`
+   - HTTP 200 wenn `database == "ok"`, HTTP 503 sonst
+   - `.WithTags("Operations")` anhängen
+
+3. Bestehenden `/health`-Handler: **DB-Block herauslösen** (liegt jetzt in `/health/ready`), Auth/Entra-Check bleibt. DB-Status als zusätzliches Info-Feld im Response behalten (DB-Check kann für Vollständigkeit optional drin bleiben, aber der Status steuert **nicht** mehr den HTTP-Code alleine). Alternativ: `/health` ruft intern dasselbe DB-Check-Ergebnis ab und zeigt es als zusätzliches Feld an.
+   - Empfehlung: DB-Check in `/health` drin lassen, aber **HTTP-Status 200 immer zurückgeben** (nur der JSON-Body zeigt `status: "degraded"` wenn etwas down ist). So wird `/health` nicht versehentlich als Probe missbraucht.
+
+4. `.WithTags("Operations")` an allen drei Endpunkten sicherstellen.
+
+**Datei: `api/API/Extensions/OnboardingApplicationExtensions.cs` – `ValidateLifecycleRouteRegistration`**
+
+`requiredRoutes`-Array um `/health/ready` erweitern:
+```csharp
+var requiredRoutes = new[]
+{
+    "/health",
+    "/health/live",
+    "/health/ready",
+    "/me",
+    "/auth/current-user"
+};
+```
+
+**Datei: `api/API/Extensions/OnboardingServiceCollectionExtensions.cs`**
+
+Der `"health"`-Named-HttpClient (Zeile 119–122, Timeout 3s) bleibt – er wird weiterhin im `/health`-Deep-Health-Handler benötigt.
+
+#### Compose / Monitoring
+
+Falls in `compose.yml`, `compose.prod.yml` oder Caddy ein Healthcheck auf `/health` konfiguriert ist:
+- Liveness-Probe → `/health/live`
+- Readiness-Probe → `/health/ready`
+- `/health` nur für Ops-Diagnose verwenden, nicht als automatischen Probe-Endpunkt
+
+#### Nicht ändern
+
+- Response-Schema von `/health` bleibt rückwärtskompatibel (kein Breaking Change für bestehende Monitoring-Clients)
+- Keine neuen Abhängigkeiten oder Packages notwendig
+- Kein eigenes Health-Check-Framework (wie `Microsoft.Extensions.Diagnostics.HealthChecks`) – die drei Minimal-API-Handler sind ausreichend und konsistent mit dem bestehenden Code-Stil
+
+---
+
 ## TASK P1.2 – CORS-, Auth- und Redirect-Konfiguration pro Umgebung härten
 **Ziel:** Umgebungsabhängige Security-Konfigurationen müssen explizit und nachvollziehbar sein.
 
 **Warum:** Dev-lastige Defaults kurz vor Produktion sind riskant.
 
 **Aktueller Stand:**
-- teilweise umgesetzt: Auth-Modi und `PUBLIC_BASE_URL`/CORS-Validierung sind bereits expliziter als früher
-- offen: Das Thema ist noch nicht als vollständig gehärtetes, knapp dokumentiertes Endmodell abgeschlossen
+- erledigt: Production-Startup lehnt jetzt nicht-HTTPS-`PUBLIC_BASE_URL`- und CORS-Origin-Konfigurationen ab
+- erledigt: Der deployte Web-Container akzeptiert nur noch gueltige Auth-Modi (`dev-sim`, `entra`) statt alter Demo-Defaults
+- erledigt: `app-config.js` verlangt bei `authMode=entra` jetzt explizite Entra-Werte inklusive `ENTRA_REDIRECT_URI`; nur lokale Vite-Entwicklung darf den Redirect noch aus dem aktuellen Origin ableiten
+- erledigt: Compose-, Beispiel- und Setup-Doku spiegeln das explizite Auth-/Redirect-Modell jetzt knapp und konsistent
 
 **Konkrete Aufgaben:**
 1. Prüfe CORS-Regeln, Redirect-URIs, Auth-Modes, Demo-Flags und Frontend-Build-Args.
@@ -315,6 +408,11 @@ Noch offen oder nur teilweise umgesetzt:
 
 **Warum:** Das aktuelle Handoff zeigt Prozessschwächen.
 
+**Aktueller Stand:**
+- erledigt: `scripts/Prepare-Handoff.ps1` schliesst jetzt auch lokale Env-Dateien, Logs, Testresultate, `.vs` und weitere Workspace-Reste aus
+- erledigt: Das Skript validiert das erzeugte ZIP nach dem Packen auf verbotene Artefakte
+- erledigt: `SETUP.md` beschreibt jetzt den reproduzierbaren Handoff-Befehl und die bewussten Ausschluesse
+
 **Konkrete Aufgaben:**
 1. Prüfe bestehendes `Prepare-Handoff.ps1` oder ähnliche Skripte.
 2. Stelle sicher, dass Artefakte Dinge wie `.git`, `node_modules`, `dist`, lokale Caches usw. ausschließen.
@@ -335,8 +433,8 @@ Noch offen oder nur teilweise umgesetzt:
 **Warum:** Kurz vor Go-Live scheitern viele Projekte an verstreutem Konfigurationswissen.
 
 **Aktueller Stand:**
-- teilweise umgesetzt: `SETUP.md` dokumentiert bereits Env-Variablen, Startreihenfolge und Smoke-Checks
-- offen: Eine wirklich knappe, checklistenartige Produktionsdatei fehlt noch
+- erledigt: `PRODUCTION_CHECKLIST.md` erstellt mit Entra-Voraussetzungen, Pflicht-Env-Variablen, Startreihenfolge, Smoke-Tests, Secret-Rotation und häufigen Fehlerbildern
+- erledigt: `SETUP.md` dokumentiert weiterhin Env-Variablen, Startreihenfolge und Smoke-Checks als Detailreferenz
 
 **Konkrete Aufgaben:**
 1. Erstelle eine kompakte `PRODUCTION_CHECKLIST.md` oder erweitere bestehende Doku.

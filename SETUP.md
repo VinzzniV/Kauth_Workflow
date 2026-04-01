@@ -76,6 +76,7 @@ Wichtig:
 - Swagger ist lokal standardmaessig aktiv. Bei Bedarf kann er ueber `SWAGGER_ENABLED=false` abgeschaltet werden.
 - Die Login-Liste kommt aus synchronisierten Verzeichnisidentitaeten.
 - Ohne gueltige `ENTRA_*`-Werte bleibt diese Liste leer, bis ein Directory-Sync erfolgreich war.
+- Lokales Vite darf fuer Entra-Tests den Redirect auf den aktuellen Dev-Origin ableiten; der deployte Web-Container erwartet dagegen einen expliziten `ENTRA_REDIRECT_URI`.
 
 ### 3. Web lokal starten
 
@@ -112,6 +113,7 @@ Sinnvolle lokale Smoke-Checks:
 
 ```powershell
 curl http://127.0.0.1:5001/health/live
+curl http://127.0.0.1:5001/health/ready
 curl http://127.0.0.1:5001/health
 curl http://127.0.0.1:5001/auth/provider-info
 curl http://127.0.0.1:5001/me
@@ -120,7 +122,8 @@ curl http://127.0.0.1:5001/me
 Erwartung:
 
 - `/health/live` liefert `200`
-- `/health` liefert `200` oder `503` mit Status-JSON, aber nicht `404`
+- `/health/ready` liefert `200` bei erreichbarer DB, sonst `503`
+- `/health` liefert immer ein Status-JSON fuer Deep Health und sollte nicht als Container-Probe verwendet werden
 - `/auth/provider-info` zeigt den aktiven Auth-Modus
 - `/me` liefert ohne gueltige Session typischerweise `401`
 
@@ -180,11 +183,13 @@ Wichtig:
 
 - `PUBLIC_BASE_URL` muss exakt zur oeffentlichen HTTPS-URL passen.
 - Dieselbe URL muss als Entra SPA Redirect URI gepflegt sein.
+- Production akzeptiert nur `https://`-basierte `PUBLIC_BASE_URL`- und CORS-Origin-Konfigurationen.
 - `ENTRA_AUDIENCE` muss die API App-ID-URI sein, aus der das Frontend den Scope `<audience>/access_as_user` anfordert.
 - Mindestens eines aus `ENTRA_CLIENT_SECRET` oder `GRAPH_CLIENT_SECRET` muss gesetzt sein, sonst ist weder lokaler Directory-Sync noch produktive Entra-/Graph-Nutzung vollstaendig konfiguriert.
 - `GRAPH_CLIENT_SECRET` ueberschreibt nur das fuer Graph/Mail verwendete Secret; Tenant und Client ID kommen weiterhin aus `ENTRA_TENANT_ID` und `ENTRA_CLIENT_ID`.
 - Graph-Credentials werden nicht mehr in der Datenbank gepflegt. Rotation erfolgt ueber Environment bzw. Secret-Store und einen API-/Container-Neustart.
 - Swagger ist in Production standardmaessig deaktiviert und darf dort nicht per `SWAGGER_ENABLED=true` aktiviert werden. Das Startup bricht in diesem Fall bewusst ab.
+- Der deployte Web-Container nutzt `app-config.js`; bei `AUTH_MODE=entra` muessen dort `ENTRA_CLIENT_ID`, `ENTRA_TENANT_ID`, `ENTRA_AUDIENCE` und `ENTRA_REDIRECT_URI` explizit gesetzt sein.
 
 ### 2. Produktionsstack starten
 
@@ -203,6 +208,7 @@ Sinnvolle Checks nach dem Deploy:
 
 ```bash
 curl -k https://<PUBLIC_HOSTNAME>/api/health/live
+curl -k https://<PUBLIC_HOSTNAME>/api/health/ready
 curl -k https://<PUBLIC_HOSTNAME>/api/health
 curl -k https://<PUBLIC_HOSTNAME>/api/auth/provider-info
 curl -k -i https://<PUBLIC_HOSTNAME>/api/me
@@ -211,7 +217,8 @@ curl -k -i https://<PUBLIC_HOSTNAME>/api/me
 Erwartung:
 
 - `/api/health/live` liefert `200`
-- `/api/health` liefert `200` oder `503`, aber nicht `404`
+- `/api/health/ready` liefert `200` bei erreichbarer DB, sonst `503`
+- `/api/health` liefert immer ein Status-JSON fuer Deep Health und ist fuer Ops-Diagnose gedacht, nicht fuer Probes
 - `/api/auth/provider-info` zeigt `mode=entra`
 - `/api/me` liefert ohne Login typischerweise `401`, aber nicht `404`
 
@@ -227,6 +234,7 @@ Erwartung:
 
 - `compose.prod.yml` setzt `AUTH_MODE=entra`
 - Das Web bekommt Laufzeitwerte ueber `app-config.js`
+- `ENTRA_REDIRECT_URI` wird dort explizit aus `PUBLIC_BASE_URL` gespiegelt
 - URL-/Entra-Aenderungen brauchen dadurch keinen Frontend-Neubuild
 
 ## Datenbank-Initialisierung
@@ -258,6 +266,31 @@ Sie prueft auf Pushes nach `main` oder `master` sowie auf Pull Requests:
 - Frontend Lint
 - Frontend Tests
 - Frontend Build
+
+## Health-Probes
+
+- `/health/live` bzw. `/api/health/live` prueft nur, ob der Prozess lebt und HTTP beantworten kann.
+- `/health/ready` bzw. `/api/health/ready` prueft die lokale Betriebsbereitschaft ueber die Datenbank und ist der richtige Probe-Endpunkt fuer Container- oder Load-Balancer-Healthchecks.
+- `/health` bzw. `/api/health` ist Deep Health fuer Ops-Diagnose. Der Endpoint zeigt auch externe Abhaengigkeiten wie Entra-Reichweite, soll aber nicht als automatische Restart- oder Deregistrierungsprobe verwendet werden.
+
+## Handoff / Release-ZIP
+
+Ein bereinigtes Uebergabe-Artefakt laesst sich aus dem Repo mit folgendem Skript erzeugen:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/Prepare-Handoff.ps1
+```
+
+Das ZIP landet unter `handoff/` und schliesst bewusst keine lokalen oder generierten Artefakte ein, insbesondere:
+
+- `.git`
+- `node_modules`
+- `dist`
+- `bin` / `obj`
+- `TestResults`
+- lokale Dateien wie `.env.prod`, `web/.env.local` und `*.log`
+
+Das Handoff-ZIP soll aus Quelltext und betriebsrelevanter Doku bestehen; Build-Artefakte werden nicht als Source of Truth mitgegeben.
 
 ## Wichtige Konfigurationsschalter
 

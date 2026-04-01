@@ -51,7 +51,7 @@ services:
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
       ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-}
-      ENTRA_REDIRECT_URI: ${PUBLIC_BASE_URL:-}
+      ENTRA_REDIRECT_URI: ${PUBLIC_BASE_URL:-http://localhost:5173}
     depends_on:
       - api
 

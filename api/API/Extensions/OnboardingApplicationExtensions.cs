@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using System.Net.Http;
 
 namespace API;
 
@@ -73,6 +74,17 @@ internal static class LifecycleApplicationExtensions
 
     public static WebApplication MapLifecycleApiEndpoints(this WebApplication app)
     {
+        app.MapLifecycleHealthEndpoints();
+        app.MapAuthEndpoints();
+        app.MapAdminEndpoints();
+        app.MapWorkflowEndpoints();
+        app.MapTaskEndpoints();
+
+        return app;
+    }
+
+    public static IEndpointRouteBuilder MapLifecycleHealthEndpoints(this IEndpointRouteBuilder app)
+    {
         app.MapGet("/health/live", () => Results.Json(
             new
             {
@@ -80,36 +92,34 @@ internal static class LifecycleApplicationExtensions
             },
             statusCode: StatusCodes.Status200OK)).WithTags("Operations");
 
+        app.MapGet("/health/ready", async () =>
+        {
+            var runtimeSettings = app.ServiceProvider.GetRequiredService<LifecycleRuntimeSettings>();
+            var databaseStatus = await CheckDatabaseStatusAsync(runtimeSettings.ConnectionString);
+            var overallStatus = databaseStatus == "ok" ? "ok" : "degraded";
+            var statusCode = databaseStatus == "ok"
+                ? StatusCodes.Status200OK
+                : StatusCodes.Status503ServiceUnavailable;
+
+            return Results.Json(
+                new
+                {
+                    status = overallStatus,
+                    database = databaseStatus
+                },
+                statusCode: statusCode);
+        }).WithTags("Operations");
+
         app.MapGet("/health", async (IHttpClientFactory httpClientFactory) =>
         {
-            var runtimeSettings = app.Services.GetRequiredService<LifecycleRuntimeSettings>();
-            var connectionString = runtimeSettings.ConnectionString;
+            var runtimeSettings = app.ServiceProvider.GetRequiredService<LifecycleRuntimeSettings>();
             var entraEnabled = runtimeSettings.EntraAuthEnabled;
             var devSimulationActive = runtimeSettings.DevSimulationEnabled;
             var tenantId = runtimeSettings.EntraTenantId;
             var clientId = runtimeSettings.EntraClientId;
             var audience = runtimeSettings.EntraAudience;
 
-            var databaseStatus = "ok";
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                databaseStatus = "not_configured";
-            }
-            else
-            {
-                try
-                {
-                    await using var connection = new NpgsqlConnection(connectionString);
-                    await connection.OpenAsync();
-                    await using var command = new NpgsqlCommand("SELECT 1;", connection);
-                    await command.ExecuteScalarAsync();
-                }
-                catch
-                {
-                    databaseStatus = "unreachable";
-                }
-            }
-
+            var databaseStatus = await CheckDatabaseStatusAsync(runtimeSettings.ConnectionString);
             var authStatus = "disabled";
             var authReachability = "not_applicable";
             if (entraEnabled)
@@ -145,10 +155,6 @@ internal static class LifecycleApplicationExtensions
                     ? "ok"
                     : "degraded";
 
-            var statusCode = overallStatus == "ok"
-                ? StatusCodes.Status200OK
-                : StatusCodes.Status503ServiceUnavailable;
-
             return Results.Json(
                 new
                 {
@@ -162,13 +168,8 @@ internal static class LifecycleApplicationExtensions
                         devSimulationActive
                     }
                 },
-                statusCode: statusCode);
+                statusCode: StatusCodes.Status200OK);
         }).WithTags("Operations");
-
-        app.MapAuthEndpoints();
-        app.MapAdminEndpoints();
-        app.MapWorkflowEndpoints();
-        app.MapTaskEndpoints();
 
         return app;
     }
@@ -204,6 +205,7 @@ internal static class LifecycleApplicationExtensions
         {
             "/health",
             "/health/live",
+            "/health/ready",
             "/me",
             "/auth/current-user"
         };
@@ -236,5 +238,26 @@ internal static class LifecycleApplicationExtensions
         return trimmed.StartsWith("/", StringComparison.Ordinal)
             ? trimmed
             : $"/{trimmed}";
+    }
+
+    private static async Task<string> CheckDatabaseStatusAsync(string? connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return "not_configured";
+        }
+
+        try
+        {
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand("SELECT 1;", connection);
+            await command.ExecuteScalarAsync();
+            return "ok";
+        }
+        catch
+        {
+            return "unreachable";
+        }
     }
 }

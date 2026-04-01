@@ -163,6 +163,12 @@ internal static class LifecycleStartupValidationExtensions
                 $"{settingName} must be an absolute URL. Value '{value}' is invalid. Startup aborted.");
         }
 
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"{settingName} must use https in Production. Startup aborted.");
+        }
+
         if (!string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
         {
             throw new InvalidOperationException(

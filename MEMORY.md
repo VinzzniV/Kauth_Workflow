@@ -22,7 +22,7 @@ Do not use this file for:
 
 ## Current Focus
 
-- P0.3 bis P0.7 sind umgesetzt; naechster sinnvoller Fokus sind P1.1 oder P1.2.
+- P1.3 ist umgesetzt; naechster sinnvoller Fokus ist P1.4.
 
 ## Latest Findings
 
@@ -33,16 +33,20 @@ Do not use this file for:
 - Swagger wird nur noch ausserhalb von Production aktiviert; `SWAGGER_ENABLED=true` ist in Production jetzt ein harter Startup-Fehler.
 - Die minimale GitHub-Actions-Pipeline validiert jetzt Backend Build/Tests sowie Frontend Lint/Tests/Build.
 - Der volle `api/API.Tests`-Lauf ist wieder gruen; der `42P08`-Cluster in den Admin-Config-Integrations-Tests war ein Nullable-Parameter-Typfehler in zwei Repository-Queries.
+- Health-Probes sind jetzt getrennt: `/health/live` fuer Liveness, `/health/ready` fuer DB-Readiness und `/health` als Deep-Health ohne Restart-Semantik bei externer Entra-Stoerung.
+- `compose.prod.yml` nutzt fuer API- und Proxy-Healthchecks jetzt `/health/ready` statt Deep-Health.
+- Production-Startup erzwingt jetzt `https://` fuer `PUBLIC_BASE_URL` und CORS-Origins.
+- Der deployte Web-Container nutzt keine alten `demo`-Defaults mehr; `app-config.js` akzeptiert nur `dev-sim` oder `entra`, und `entra` braucht explizite Runtime-Werte inklusive Redirect-URI.
+- `scripts/Prepare-Handoff.ps1` erzeugt jetzt ein bereinigtes Handoff-ZIP und validiert nach dem Packen, dass keine `.git`-, `node_modules`-, `dist`-, `bin/obj`-, `TestResults`-, Log- oder lokale Env-Artefakte enthalten sind.
 
 ## Active Risks / Watchouts
 
 - Eine lokal laufende Debug-API sperrt `api/API/bin/Debug/net8.0/API.dll` und stoert Debug-Testlaeufe.
-- Das Backend-Testsuite ist insgesamt noch nicht vollstaendig gruen; fuer P0.3 sollten gezielte oder Release-basierte Testlaeufe genutzt werden, bis der Admin-Config-Cluster separat behoben ist.
+- Lokale Release- oder Debug-Testlaeufe koennen durch parallel laufendes `dotnet run` bzw. `dotnet watch` an gesperrten Build-Artefakten scheitern.
 
 ## Next Steps
 
-- P1.1 Health-Checks sauber in Liveness / Readiness / Deep Health trennen.
-- P1.2 CORS-, Auth- und Redirect-Konfiguration pro Umgebung weiter haerten.
+- P1.4 Produktionskonfiguration als kompakte Checkliste dokumentieren.
 
 ## Cleanup Candidates
 
