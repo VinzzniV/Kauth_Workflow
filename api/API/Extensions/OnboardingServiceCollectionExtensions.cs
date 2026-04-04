@@ -107,6 +107,11 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<ICurrentUserResolver, CurrentUserResolver>();
         services.AddScoped<IUserContext, CurrentUserContext>();
         services.AddScoped<IAuthorizationPolicyService, AuthorizationPolicyService>();
+        services.AddScoped<IWorkflowVisibilityService, WorkflowVisibilityService>();
+        services.AddScoped<IWorkflowNotificationDispatchService, WorkflowNotificationDispatchService>();
+        services.AddScoped<IWorkflowCatalogService, WorkflowCatalogService>();
+        services.AddScoped<IWorkflowRuntimeService, WorkflowRuntimeService>();
+        services.AddScoped<ITaskApplicationService, TaskApplicationService>();
         services.AddScoped<ISupervisorStepService, PostgresSupervisorStepService>();
         services.Configure<NotificationEmailOptions>(
             configuration.GetSection(NotificationEmailOptions.SectionName));

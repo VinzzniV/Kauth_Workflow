@@ -1,37 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AdminDepartmentsSection } from "../src/components/admin-config/AdminDepartmentsSection";
-import type { AdminDepartmentAssignment, AdminUser } from "../src/types/auth";
-
-function createDepartment(overrides: Partial<AdminDepartmentAssignment> = {}): AdminDepartmentAssignment {
-  return {
-    departmentId: 1,
-    departmentName: "IT",
-    departmentLeadUserId: 10,
-    departmentLeadDisplayName: "Lea Lead",
-    requirementOwnerUserId: 11,
-    requirementOwnerDisplayName: "Mia Manager",
-    updatedAt: "2026-03-24T08:00:00.000Z",
-    ...overrides,
-  };
-}
-
-function createUser(overrides: Partial<AdminUser> = {}): AdminUser {
-  return {
-    userId: 10,
-    externalKey: "lea.lead",
-    displayName: "Lea Lead",
-    email: "lea.lead@demo.local",
-    notificationEmail: null,
-    isActive: true,
-    hasManagerAccess: true,
-    departmentId: 1,
-    departmentName: "IT",
-    roles: [],
-    groups: [],
-    ...overrides,
-  };
-}
+import { createAdminDepartmentAssignment, createAdminUser } from "./testUtils";
 
 describe("AdminDepartmentsSection", () => {
   it("disables create and save actions until input is valid or changed", () => {
@@ -39,9 +9,22 @@ describe("AdminDepartmentsSection", () => {
 
     render(
       <AdminDepartmentsSection
-        sortedDepartments={[createDepartment()]}
-        sortedUsers={[createUser(), createUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" })]}
-        eligibleSupervisorUsers={[createUser(), createUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" })]}
+        sortedDepartments={[
+          createAdminDepartmentAssignment({
+            departmentLeadUserId: 10,
+            departmentLeadDisplayName: "Lea Lead",
+            requirementOwnerUserId: 11,
+            requirementOwnerDisplayName: "Mia Manager",
+          }),
+        ]}
+        sortedUsers={[
+          createAdminUser({ userId: 10 }),
+          createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
+        ]}
+        eligibleSupervisorUsers={[
+          createAdminUser({ userId: 10 }),
+          createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
+        ]}
         departmentDrafts={{
           1: {
             departmentLeadUserId: "10",
@@ -73,15 +56,17 @@ describe("AdminDepartmentsSection", () => {
     render(
       <AdminDepartmentsSection
         sortedDepartments={[
-          createDepartment({
+          createAdminDepartmentAssignment({
             departmentLeadUserId: 99,
             departmentLeadDisplayName: "Alte Leitung",
+            requirementOwnerUserId: 11,
+            requirementOwnerDisplayName: "Mia Manager",
           }),
         ]}
         sortedUsers={[
-          createUser({ userId: 20, displayName: "Neue Leitung", externalKey: "neue.leitung" }),
-          createUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
-          createUser({
+          createAdminUser({ userId: 20, displayName: "Neue Leitung", externalKey: "neue.leitung" }),
+          createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
+          createAdminUser({
             userId: 99,
             displayName: "Alte Leitung",
             externalKey: "alte.leitung",
@@ -90,8 +75,8 @@ describe("AdminDepartmentsSection", () => {
           }),
         ]}
         eligibleSupervisorUsers={[
-          createUser({ userId: 20, displayName: "Neue Leitung", externalKey: "neue.leitung" }),
-          createUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
+          createAdminUser({ userId: 20, displayName: "Neue Leitung", externalKey: "neue.leitung" }),
+          createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
         ]}
         departmentDrafts={{
           1: {

@@ -2,15 +2,13 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminConfigPage from "../src/pages/AdminConfigPage";
 import * as adminApi from "../src/services/adminApi";
-import { renderWithApp } from "./testUtils";
+import { createAdminDepartmentAssignment, createAdminUser, renderWithApp } from "./testUtils";
 import type {
-  AdminDepartmentAssignment,
   AdminGraphApplicationConfiguration,
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminResponsibilityOwner,
   AdminRole,
-  AdminUser,
 } from "../src/types/auth";
 import type { WorkflowConfig } from "../src/types/workflow";
 
@@ -48,45 +46,6 @@ const mockedGetAdminResponsibilityOwners = vi.mocked(adminApi.getAdminResponsibi
 const mockedGetAdminRoles = vi.mocked(adminApi.getAdminRoles);
 const mockedGetAdminUsers = vi.mocked(adminApi.getAdminUsers);
 const mockedGetAdminWorkflowConfig = vi.mocked(adminApi.getAdminWorkflowConfig);
-
-function createUser(overrides: Partial<AdminUser> = {}): AdminUser {
-  return {
-    userId: 1,
-    externalKey: "lea.lead",
-    displayName: "Lea Lead",
-    email: "lea.lead@demo.local",
-    notificationEmail: null,
-    isActive: true,
-    hasManagerAccess: true,
-    departmentId: 1,
-    departmentName: "IT",
-    directorySynced: false,
-    departmentSource: "manual",
-    departmentOverrideActive: false,
-    directoryIdentityId: null,
-    userPrincipalName: null,
-    directoryDisplayName: null,
-    roles: [],
-    groups: [],
-    effectiveRoles: [],
-    permissionOverrides: [],
-    effectivePermissions: [],
-    ...overrides,
-  };
-}
-
-function createDepartment(overrides: Partial<AdminDepartmentAssignment> = {}): AdminDepartmentAssignment {
-  return {
-    departmentId: 1,
-    departmentName: "IT",
-    departmentLeadUserId: 1,
-    departmentLeadDisplayName: "Lea Lead",
-    requirementOwnerUserId: 2,
-    requirementOwnerDisplayName: "Mia Manager",
-    updatedAt: "2026-03-24T08:00:00.000Z",
-    ...overrides,
-  };
-}
 
 function createResponsibility(
   overrides: Partial<AdminResponsibilityOwner> = {}
@@ -213,15 +172,15 @@ function createWorkflowConfig(): WorkflowConfig {
 
 function mockSuccessfulLoad() {
   mockedGetAdminUsers.mockResolvedValue([
-    createUser(),
-    createUser({
+    createAdminUser(),
+    createAdminUser({
       userId: 2,
       externalKey: "mia.manager",
       displayName: "Mia Manager",
       email: "mia.manager@demo.local",
     }),
   ]);
-  mockedGetAdminDepartmentAssignments.mockResolvedValue([createDepartment()]);
+  mockedGetAdminDepartmentAssignments.mockResolvedValue([createAdminDepartmentAssignment()]);
   mockedGetAdminResponsibilityOwners.mockResolvedValue([createResponsibility()]);
   mockedGetAdminGraphApplicationConfiguration.mockResolvedValue(createGraphConfiguration());
   mockedGetAdminNotificationEmailConfiguration.mockResolvedValue(createNotificationConfiguration());
@@ -247,7 +206,7 @@ describe("AdminConfigPage", () => {
     mockedGetAdminGroups.mockReset();
     mockSuccessfulLoad();
     mockedCreateAdminUser.mockResolvedValue(
-      createUser({
+      createAdminUser({
         userId: 3,
         externalKey: "neue.person",
         displayName: "Neue Person",

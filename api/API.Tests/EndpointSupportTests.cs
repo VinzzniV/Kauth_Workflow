@@ -2,17 +2,18 @@ using Xunit;
 
 namespace API.Tests;
 
-public sealed class EndpointSupportTests
+public sealed class WorkflowVisibilityServiceTests
 {
     private readonly AuthorizationPolicyService _authorizationPolicy = new();
 
     [Fact]
     public void ApplyWorkflowTaskPermissions_ClearsComments_ForReaderOnlyUser()
     {
+        var sut = new WorkflowVisibilityService(null!, _authorizationPolicy);
         var workflow = CreateWorkflowDetailWithComments();
         var reader = CreateUser(AuthorizationRoles.Reader);
 
-        EndpointSupport.ApplyWorkflowTaskPermissions(workflow, reader, _authorizationPolicy);
+        sut.ApplyWorkflowTaskPermissions(workflow, reader);
 
         Assert.Empty(workflow.Tasks[0].Comments);
     }
@@ -20,10 +21,11 @@ public sealed class EndpointSupportTests
     [Fact]
     public void ApplyWorkflowTaskPermissions_KeepsComments_ForHrUser()
     {
+        var sut = new WorkflowVisibilityService(null!, _authorizationPolicy);
         var workflow = CreateWorkflowDetailWithComments();
         var hr = CreateUser(AuthorizationRoles.Hr);
 
-        EndpointSupport.ApplyWorkflowTaskPermissions(workflow, hr, _authorizationPolicy);
+        sut.ApplyWorkflowTaskPermissions(workflow, hr);
 
         Assert.Single(workflow.Tasks[0].Comments);
     }

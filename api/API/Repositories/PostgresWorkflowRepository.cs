@@ -31,30 +31,6 @@ internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository
         public string? LastName { get; init; }
     }
 
-    // Diese Regeln definieren den erlaubten Lebenszyklus einzelner Aufgaben.
-    private static readonly HashSet<string> AllowedTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "open",
-        "ready",
-        "in_progress",
-        "blocked",
-        "done"
-    };
-
-    private static readonly HashSet<string> TerminalTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "done"
-    };
-
-    private static readonly Dictionary<string, HashSet<string>> AllowedTaskTransitions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["open"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready", "in_progress", "blocked", "done" },
-        ["ready"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "in_progress", "blocked", "done" },
-        ["in_progress"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "done", "blocked" },
-        ["blocked"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ready" },
-        ["done"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-    };
-
     private enum TaskGenerationStage
     {
         Initial,

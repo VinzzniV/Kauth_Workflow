@@ -1,440 +1,121 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import PageHeader from "../components/layout/PageHeader";
-import CreateWorkflowButton from "../components/workflows/CreateWorkflowButton";
-import EmployeeForm from "../components/workflows/EmployeeForm";
-import RoleSelection from "../components/workflows/RoleSelection";
-import TargetPersonSelection from "../components/workflows/TargetPersonSelection";
-import { useWorkflowCreation, type WorkflowCreationStep } from "../hooks/useWorkflowCreation";
-
-type StepDefinition = {
-  key: WorkflowCreationStep;
-  title: string;
-};
+import { useWorkflowCreation } from "../hooks/useWorkflowCreation";
+import { buildCreateWorkflowPageViewModel } from "./createWorkflowPageModel";
+import {
+  CreateWorkflowContextStep,
+  CreateWorkflowProcessStep,
+  CreateWorkflowReviewStep,
+  WorkflowCreationStepper,
+} from "./CreateWorkflowPageSections";
 
 export default function CreateWorkflowPage() {
   const { capabilities } = useCurrentUser();
-  const {
-    currentStep,
-    processTypes,
-    processTypesLoading,
-    selectedProcessTypeKey,
-    selectedProcessType,
-    requiresTargetPerson,
-    employee,
-    selectedDepartmentId,
-    selectedRoleId,
-    selectedDepartment,
-    selectedRole,
-    selectedCompletedOnboarding,
-    completedOnboardingSearch,
-    completedOnboardings,
-    completedOnboardingsLoading,
-    completedOnboardingsError,
-    roles,
-    departments,
-    availableRoles,
-    rolesLoading,
-    rolesError,
-    workflowConfig,
-    submitState,
-    submitError,
-    submitSuccessMessage,
-    createdWorkflowUid,
-    setProcessType,
-    goToProcessStep,
-    goToContextStep,
-    goToReviewStep,
-    setEmployeeField,
-    setSelectedDepartment,
-    setSelectedRole,
-    setCompletedOnboardingSearch,
-    setSelectedCompletedOnboarding,
-    submitWorkflow,
-    canGoToContextStep,
-    canGoToReviewStep,
-    canSubmit,
-    reloadRoles,
-  } = useWorkflowCreation();
-
+  const workflowCreation = useWorkflowCreation();
   const [hasAttemptedProcessNext, setHasAttemptedProcessNext] = useState(false);
   const [hasAttemptedContextNext, setHasAttemptedContextNext] = useState(false);
-  const isHrEntry = capabilities.hasHrRole || capabilities.hasAdminRole;
-  const pageTitle = isHrEntry ? "Neuer Vorgang" : "Änderung starten";
-  const contextStepTitle = requiresTargetPerson ? "Bestehende Person wählen" : "Neue Person erfassen";
-  const reviewPersonLabel = requiresTargetPerson ? "Zielperson" : "Neue Person";
-  const reviewDepartmentLabel = requiresTargetPerson ? "Aktuelle Abteilung" : "Abteilung";
-  const reviewRoleLabel = requiresTargetPerson ? "Aktuelle Stelle" : "Stelle";
-  const roleRecommendationCount =
-    (workflowConfig?.roleRecommendations.defaultValues.length ?? 0) +
-    (workflowConfig?.roleRecommendations.defaultSelectedOptions.length ?? 0);
-  const hasDerivedContextGap = Boolean(
-    requiresTargetPerson &&
-      selectedCompletedOnboarding &&
-      (!selectedCompletedOnboarding.departmentId ||
-        !selectedCompletedOnboarding.roleId ||
-        selectedCompletedOnboarding.employeeNumber <= 0 ||
-        selectedCompletedOnboarding.badgeNumber <= 0)
-  );
-  const processStepIssues = selectedProcessType
-    ? []
-    : ["Bitte einen Vorgang wählen."];
-  const employeeFieldErrors = requiresTargetPerson
-    ? {}
-    : {
-        firstName: employee.firstName.trim() ? undefined : "Vorname ist erforderlich.",
-        lastName: employee.lastName.trim() ? undefined : "Nachname ist erforderlich.",
-        employeeNumber: employee.employeeNumber > 0 ? undefined : "Positive Personalnummer eingeben.",
-        badgeNumber: employee.badgeNumber > 0 ? undefined : "Positive Kartennummer eingeben.",
-      };
-  const departmentError =
-    !requiresTargetPerson && selectedDepartmentId === null ? "Bitte eine Abteilung auswählen." : null;
-  const roleError =
-    !requiresTargetPerson && selectedDepartmentId !== null && selectedRoleId === null
-      ? !rolesLoading && !rolesError && availableRoles.length === 0
-        ? "In der gewählten Abteilung ist keine aktive Stelle hinterlegt."
-        : "Bitte eine Stelle auswählen."
-      : null;
-  const targetPersonSelectionError =
-    requiresTargetPerson && !selectedCompletedOnboarding && !completedOnboardingsLoading
-      ? "Bitte ein abgeschlossenes Onboarding auswählen."
-      : null;
-  const contextStepIssues = requiresTargetPerson
-    ? [
-        ...(completedOnboardingsError ? ["Die Suche nach abgeschlossenen Onboardings ist fehlgeschlagen."] : []),
-        ...(targetPersonSelectionError ? [targetPersonSelectionError] : []),
-        ...(hasDerivedContextGap
-          ? ["Für die gewählte Person fehlen vollständige Angaben zu Abteilung, Stelle, Personalnummer oder Kartennummer."]
-          : []),
-      ]
-    : [
-        ...(rolesError ? ["Stellen und Abteilungen konnten nicht geladen werden."] : []),
-        ...Object.values(employeeFieldErrors).filter((value): value is string => Boolean(value)),
-        ...(departmentError ? [departmentError] : []),
-        ...(roleError ? [roleError] : []),
-      ];
-
-  const steps: StepDefinition[] = [
-    {
-      key: "process",
-      title: "Vorgang wählen",
-    },
-    {
-      key: "context",
-      title: contextStepTitle,
-    },
-    {
-      key: "review",
-      title: "Prüfen und anlegen",
-    },
-  ];
-
-  const currentStepIndex = steps.findIndex((step) => step.key === currentStep);
+  const view = buildCreateWorkflowPageViewModel({
+    currentStep: workflowCreation.currentStep,
+    capabilities,
+    selectedProcessType: workflowCreation.selectedProcessType,
+    selectedProcessTypeKey: workflowCreation.selectedProcessTypeKey,
+    processTypes: workflowCreation.processTypes,
+    requiresTargetPerson: workflowCreation.requiresTargetPerson,
+    employee: workflowCreation.employee,
+    selectedDepartmentId: workflowCreation.selectedDepartmentId,
+    selectedRoleId: workflowCreation.selectedRoleId,
+    selectedCompletedOnboarding: workflowCreation.selectedCompletedOnboarding,
+    completedOnboardingsLoading: workflowCreation.completedOnboardingsLoading,
+    completedOnboardingsError: workflowCreation.completedOnboardingsError,
+    rolesLoading: workflowCreation.rolesLoading,
+    rolesError: workflowCreation.rolesError,
+    availableRoles: workflowCreation.availableRoles,
+    workflowConfig: workflowCreation.workflowConfig,
+  });
 
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader title={pageTitle} />
+        <PageHeader title={view.pageTitle} />
 
-        <ol className="wizard-stepper">
-          {steps.map((step, index) => {
-            const stateClass =
-              index < currentStepIndex
-                ? "wizard-stepper__item wizard-stepper__item--done"
-                : index === currentStepIndex
-                  ? "wizard-stepper__item wizard-stepper__item--active"
-                  : "wizard-stepper__item wizard-stepper__item--pending";
+        <WorkflowCreationStepper steps={view.steps} currentStepIndex={view.currentStepIndex} />
 
-            return (
-              <li key={step.key} className={stateClass} aria-current={index === currentStepIndex ? "step" : undefined}>
-                <p className="wizard-stepper__title">{step.title}</p>
-              </li>
-            );
-          })}
-        </ol>
-
-        {currentStep === "process" ? (
-          <section className="panel">
-            <h2>Vorgang wählen</h2>
-
-            {processTypesLoading ? <p className="panel-text">Verfügbare Vorgänge werden geladen...</p> : null}
-
-            {!processTypesLoading && processTypes.length === 0 ? (
-              <div className="panel panel-muted">
-                <h3 className="panel-title">Für Ihre Rolle ist aktuell kein Vorgang freigegeben.</h3>
-                <p className="panel-text">Bitte Prozessfreigaben prüfen oder Administration kontaktieren.</p>
-              </div>
-            ) : null}
-
-            {!processTypesLoading && processTypes.length > 0 ? (
-              <>
-                <div className="process-type-grid">
-                  {processTypes.map((processType) => (
-                    (() => {
-                      const isSelected = selectedProcessTypeKey === processType.key;
-                      const processContextLabel = processType.requiresTargetPerson ? "Bestehende Person" : "Neue Person";
-                      const processDescription = processType.description?.trim() || processContextLabel;
-
-                      return (
-                        <button
-                          key={processType.key}
-                          type="button"
-                          aria-pressed={isSelected}
-                          className={`process-type-card${isSelected ? " process-type-card--selected" : ""}`}
-                          onClick={() => setProcessType(processType.key)}
-                        >
-                          <div className="process-type-card__head">
-                            <span className="process-type-card__name">{processType.name}</span>
-                            <span className="process-type-card__meta">{processContextLabel}</span>
-                          </div>
-                          <span className="process-type-card__description">{processDescription}</span>
-                          <span className="process-type-card__selection">{isSelected ? "Ausgewählt" : "Auswählen"}</span>
-                        </button>
-                      );
-                    })()
-                  ))}
-                </div>
-
-                {hasAttemptedProcessNext && processStepIssues.length > 0 ? (
-                  <section className="panel panel-warning wizard-inline-note" role="status" aria-live="polite">
-                    <h3 className="panel-title">Zum Weitergehen fehlt noch</h3>
-                    <ul className="validation-list">
-                      {processStepIssues.map((issue) => (
-                        <li key={issue}>{issue}</li>
-                      ))}
-                    </ul>
-                  </section>
-                ) : null}
-
-                <div className="wizard-actions">
-                  <span />
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={!canGoToContextStep}
-                    onClick={() => {
-                      if (canGoToContextStep) {
-                        goToContextStep();
-                      } else {
-                        setHasAttemptedProcessNext(true);
-                      }
-                    }}
-                  >
-                    {requiresTargetPerson ? "Weiter zur Personenauswahl" : "Weiter zur Person"}
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </section>
+        {workflowCreation.currentStep === "process" ? (
+          <CreateWorkflowProcessStep
+            processTypesLoading={workflowCreation.processTypesLoading}
+            processTypes={workflowCreation.processTypes}
+            selectedProcessTypeKey={workflowCreation.selectedProcessTypeKey}
+            canGoToContextStep={workflowCreation.canGoToContextStep}
+            requiresTargetPerson={workflowCreation.requiresTargetPerson}
+            hasAttemptedProcessNext={hasAttemptedProcessNext}
+            processStepIssues={view.processStepIssues}
+            onSelectProcessType={workflowCreation.setProcessType}
+            onGoToContextStep={workflowCreation.goToContextStep}
+            onAttemptBlockedNext={() => setHasAttemptedProcessNext(true)}
+          />
         ) : null}
 
-        {currentStep === "context" ? (
-          <div className="content-stack">
-            <section className="panel">
-              <h2>{contextStepTitle}</h2>
-            </section>
-
-            {requiresTargetPerson ? (
-              <TargetPersonSelection
-                processTypeName={selectedProcessType?.name ?? "den Vorgang"}
-                searchValue={completedOnboardingSearch}
-                onSearchChange={setCompletedOnboardingSearch}
-                completedOnboardings={completedOnboardings}
-                selectedWorkflowUid={selectedCompletedOnboarding?.workflowUid ?? null}
-                selectedOnboarding={selectedCompletedOnboarding}
-                isLoading={completedOnboardingsLoading}
-                error={completedOnboardingsError}
-                selectionError={targetPersonSelectionError}
-                onSelectOnboarding={(onboarding) => setSelectedCompletedOnboarding(onboarding)}
-              />
-            ) : (
-              <>
-                <EmployeeForm value={employee} onChange={setEmployeeField} fieldErrors={employeeFieldErrors} />
-
-                <RoleSelection
-                  roles={roles}
-                  departments={departments}
-                  selectedDepartmentId={selectedDepartmentId}
-                  selectedRoleId={selectedRoleId}
-                  isLoading={rolesLoading}
-                  error={rolesError}
-                  departmentError={departmentError}
-                  roleError={roleError}
-                  onDepartmentChange={setSelectedDepartment}
-                  onRoleChange={setSelectedRole}
-                  onRetry={reloadRoles}
-                />
-
-                {!rolesLoading && !rolesError && selectedDepartmentId !== null && availableRoles.length === 0 ? (
-                  <section className="panel panel-warning" role="status" aria-live="polite">
-                    <h3 className="panel-title">In dieser Abteilung ist keine Stelle hinterlegt.</h3>
-                    <p className="panel-text">
-                      Bitte andere Abteilung wählen oder Stammdaten prüfen.
-                    </p>
-                  </section>
-                ) : null}
-              </>
-            )}
-
-            {hasDerivedContextGap ? (
-              <section className="panel panel-warning" role="status" aria-live="polite">
-                <h3 className="panel-title">Kontext der Zielperson ist unvollständig</h3>
-                <p className="panel-text">
-                  Für die gewählte Person fehlen Angaben zu Abteilung, Stelle, Personalnummer oder Kartennummer.
-                </p>
-              </section>
-            ) : null}
-
-            {hasAttemptedContextNext && contextStepIssues.length > 0 ? (
-              <section className="panel panel-warning" role="status" aria-live="polite">
-                <h3 className="panel-title">Bitte noch prüfen</h3>
-                <ul className="validation-list">
-                  {contextStepIssues.map((issue) => (
-                    <li key={issue}>{issue}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
-            <section className="panel">
-              <div className="wizard-actions">
-                <button type="button" className="btn btn-secondary" onClick={goToProcessStep}>
-                  Zurück zur Vorgangsauswahl
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={!canGoToReviewStep}
-                  onClick={() => {
-                    if (canGoToReviewStep) {
-                      goToReviewStep();
-                    } else {
-                      setHasAttemptedContextNext(true);
-                    }
-                  }}
-                >
-                  Zur Prüfung
-                </button>
-              </div>
-            </section>
-          </div>
+        {workflowCreation.currentStep === "context" ? (
+          <CreateWorkflowContextStep
+            contextStepTitle={view.contextStepTitle}
+            requiresTargetPerson={workflowCreation.requiresTargetPerson}
+            selectedProcessType={workflowCreation.selectedProcessType}
+            completedOnboardingSearch={workflowCreation.completedOnboardingSearch}
+            completedOnboardings={workflowCreation.completedOnboardings}
+            selectedCompletedOnboarding={workflowCreation.selectedCompletedOnboarding}
+            completedOnboardingsLoading={workflowCreation.completedOnboardingsLoading}
+            completedOnboardingsError={workflowCreation.completedOnboardingsError}
+            targetPersonSelectionError={view.targetPersonSelectionError}
+            employee={workflowCreation.employee}
+            employeeFieldErrors={view.employeeFieldErrors}
+            roles={workflowCreation.roles}
+            departments={workflowCreation.departments}
+            selectedDepartmentId={workflowCreation.selectedDepartmentId}
+            selectedRoleId={workflowCreation.selectedRoleId}
+            rolesLoading={workflowCreation.rolesLoading}
+            rolesError={workflowCreation.rolesError}
+            departmentError={view.departmentError}
+            roleError={view.roleError}
+            availableRoles={workflowCreation.availableRoles}
+            hasDerivedContextGap={view.hasDerivedContextGap}
+            hasAttemptedContextNext={hasAttemptedContextNext}
+            contextStepIssues={view.contextStepIssues}
+            onSearchChange={workflowCreation.setCompletedOnboardingSearch}
+            onSelectOnboarding={workflowCreation.setSelectedCompletedOnboarding}
+            onEmployeeChange={workflowCreation.setEmployeeField}
+            onDepartmentChange={workflowCreation.setSelectedDepartment}
+            onRoleChange={workflowCreation.setSelectedRole}
+            onRetryRoles={() => void workflowCreation.reloadRoles()}
+            onGoBack={workflowCreation.goToProcessStep}
+            onGoReview={workflowCreation.goToReviewStep}
+            canGoToReviewStep={workflowCreation.canGoToReviewStep}
+            onAttemptBlockedNext={() => setHasAttemptedContextNext(true)}
+          />
         ) : null}
 
-        {currentStep === "review" ? (
-          <div className="content-stack">
-            <section className="panel">
-              <h2>Prüfen und anlegen</h2>
-
-              <div className="wizard-review-grid">
-                <div className="panel panel-muted">
-                  <h3 className="panel-title">Vorgang</h3>
-                  <dl className="workflow-kv-grid">
-                    <div>
-                      <dt>Prozesstyp</dt>
-                      <dd>{selectedProcessType?.name ?? "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Kontext</dt>
-                      <dd>{requiresTargetPerson ? "Bestehende Person" : "Neue Person"}</dd>
-                    </div>
-                  </dl>
-                </div>
-
-                <div className="panel panel-muted">
-                  <h3 className="panel-title">{reviewPersonLabel}</h3>
-                  <dl className="workflow-kv-grid">
-                    <div>
-                      <dt>Name</dt>
-                      <dd>
-                        {requiresTargetPerson
-                          ? selectedCompletedOnboarding?.displayName ?? "-"
-                          : `${employee.firstName} ${employee.lastName}`.trim() || "-"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Personalnummer</dt>
-                      <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.employeeNumber ?? "-" : employee.employeeNumber || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Kartennummer</dt>
-                      <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.badgeNumber ?? "-" : employee.badgeNumber || "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Deadline</dt>
-                      <dd>{employee.deadlineDate || "Keine Deadline gesetzt"}</dd>
-                    </div>
-                    {requiresTargetPerson ? (
-                      <div>
-                        <dt>Quell-Onboarding</dt>
-                        <dd>{selectedCompletedOnboarding?.workflowUid ?? "-"}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </div>
-
-                <div className="panel panel-muted">
-                  <h3 className="panel-title">Zuordnung</h3>
-                  <dl className="workflow-kv-grid">
-                    <div>
-                      <dt>{reviewDepartmentLabel}</dt>
-                      <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.departmentName ?? "-" : selectedDepartment?.name ?? "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>{reviewRoleLabel}</dt>
-                      <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.roleName ?? "-" : selectedRole?.name ?? "-"}</dd>
-                    </div>
-                    <div>
-                      <dt>Anforderungen</dt>
-                      <dd>{workflowConfig?.requirements.length ?? 0}</dd>
-                    </div>
-                    <div>
-                      <dt>Vorbelegungen</dt>
-                      <dd>{roleRecommendationCount}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-            </section>
-
-            {submitError ? (
-              <section className="panel panel-error" role="status" aria-live="polite">
-                <h3 className="panel-title">Vorgang konnte nicht gestartet werden.</h3>
-                <p className="panel-text">{submitError}</p>
-              </section>
-            ) : null}
-
-            {submitSuccessMessage ? (
-              <section className="panel panel-success" role="status" aria-live="polite">
-                <h3 className="panel-title">Vorgang erfolgreich gestartet.</h3>
-                <p className="panel-text">{submitSuccessMessage}</p>
-                {createdWorkflowUid ? (
-                  <div className="action-row">
-                    <Link className="btn btn-primary" to={`/workflows/${createdWorkflowUid}`}>
-                      Zum neuen Vorgang
-                    </Link>
-                    <Link className="btn btn-secondary" to="/workflows">
-                      Zur Übersicht
-                    </Link>
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
-
-            <section className="panel">
-              <div className="wizard-actions">
-                <button type="button" className="btn btn-secondary" onClick={goToContextStep}>
-                  Zurück zur Person
-                </button>
-                <CreateWorkflowButton
-                  isLoading={submitState === "loading"}
-                  disabled={!canSubmit || submitState === "success"}
-                  label={isHrEntry ? "Vorgang anlegen" : "Änderung anlegen"}
-                  onSubmit={submitWorkflow}
-                />
-              </div>
-            </section>
-          </div>
+        {workflowCreation.currentStep === "review" ? (
+          <CreateWorkflowReviewStep
+            requiresTargetPerson={workflowCreation.requiresTargetPerson}
+            selectedProcessType={workflowCreation.selectedProcessType}
+            selectedCompletedOnboarding={workflowCreation.selectedCompletedOnboarding}
+            employee={workflowCreation.employee}
+            selectedDepartment={workflowCreation.selectedDepartment}
+            selectedRole={workflowCreation.selectedRole}
+            workflowConfig={workflowCreation.workflowConfig}
+            roleRecommendationCount={view.roleRecommendationCount}
+            reviewPersonLabel={view.reviewPersonLabel}
+            reviewDepartmentLabel={view.reviewDepartmentLabel}
+            reviewRoleLabel={view.reviewRoleLabel}
+            submitError={workflowCreation.submitError}
+            submitSuccessMessage={workflowCreation.submitSuccessMessage}
+            createdWorkflowUid={workflowCreation.createdWorkflowUid}
+            submitState={workflowCreation.submitState}
+            canSubmit={workflowCreation.canSubmit}
+            isHrEntry={capabilities.hasHrRole || capabilities.hasAdminRole}
+            onGoBack={workflowCreation.goToContextStep}
+            onSubmit={workflowCreation.submitWorkflow}
+          />
         ) : null}
       </div>
     </main>

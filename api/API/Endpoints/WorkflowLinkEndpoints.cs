@@ -13,6 +13,7 @@ internal static class WorkflowLinkEndpoints
         app.MapGet("/workflows/{uid:guid}/links", async (
             Guid uid,
             IWorkflowRepository repository,
+            IWorkflowVisibilityService workflowVisibilityService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -32,17 +33,13 @@ internal static class WorkflowLinkEndpoints
             }
 
             var currentUser = access.User!;
-            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                currentUser,
-                repository,
-                authorizationPolicy);
+            var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
 
-            if (!EndpointSupport.CanObserveWorkflow(
+            if (!workflowVisibilityService.CanObserveWorkflow(
                 currentUser,
                 workflow.DepartmentId,
                 workflow.WorkflowStatus,
-                observableDepartmentIds,
-                authorizationPolicy))
+                observableDepartmentIds))
             {
                 return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
             }
@@ -56,6 +53,7 @@ internal static class WorkflowLinkEndpoints
         app.MapGet("/workflows/{uid:guid}/related", async (
             Guid uid,
             IWorkflowRepository repository,
+            IWorkflowVisibilityService workflowVisibilityService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -75,29 +73,24 @@ internal static class WorkflowLinkEndpoints
             }
 
             var currentUser = access.User!;
-            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                currentUser,
-                repository,
-                authorizationPolicy);
+            var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
 
-            if (!EndpointSupport.CanObserveWorkflow(
+            if (!workflowVisibilityService.CanObserveWorkflow(
                 currentUser,
                 workflow.DepartmentId,
                 workflow.WorkflowStatus,
-                observableDepartmentIds,
-                authorizationPolicy))
+                observableDepartmentIds))
             {
                 return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
             }
 
             var relatedWorkflows = await repository.GetRelatedWorkflows(uid);
             var visibleRelatedWorkflows = relatedWorkflows
-                .Where(related => EndpointSupport.CanObserveWorkflow(
+                .Where(related => workflowVisibilityService.CanObserveWorkflow(
                     currentUser,
                     related.DepartmentId,
                     related.WorkflowStatus,
-                    observableDepartmentIds,
-                    authorizationPolicy))
+                    observableDepartmentIds))
                 .ToList();
 
             return Results.Ok(visibleRelatedWorkflows);

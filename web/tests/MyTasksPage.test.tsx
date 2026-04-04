@@ -55,4 +55,48 @@ describe("MyTasksPage", () => {
     expect(within(visibleTaskCard.closest("article") ?? document.body).getByText("Microsoft-365-Konto aktivieren")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Notebook vorbereiten" })).toBeNull();
   });
+
+  it("groups tasks by their visible status buckets", async () => {
+    mockedGetMyTasks.mockResolvedValue([
+      createTaskWithWorkflow({
+        title: "Notebook vorbereiten",
+        description: "Notebook bereitstellen",
+        status: "ready",
+      }),
+      createTaskWithWorkflow(
+        {
+          id: 2,
+          taskKey: "account_setup",
+          title: "Zugang einrichten",
+          description: "Microsoft-365-Konto aktivieren",
+          status: "in_progress",
+        },
+        {
+          workflowUid: "wf-2",
+          firstName: "Ben",
+          lastName: "Beispiel",
+        }
+      ),
+      createTaskWithWorkflow(
+        {
+          id: 3,
+          taskKey: "archive",
+          title: "Archivieren",
+          description: "Dokumente ablegen",
+          status: "done",
+        },
+        {
+          workflowUid: "wf-3",
+          firstName: "Cara",
+          lastName: "Closing",
+        }
+      ),
+    ]);
+
+    renderWithApp(<MyTasksPage />, { roleKeys: ["auth_worker"] });
+
+    expect(await screen.findByRole("heading", { name: "Offen" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "In Bearbeitung" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Erledigt" })).toBeTruthy();
+  });
 });

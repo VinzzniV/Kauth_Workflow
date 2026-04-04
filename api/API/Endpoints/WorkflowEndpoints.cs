@@ -7,15 +7,6 @@ namespace API;
 
 internal static class WorkflowEndpoints
 {
-    private static readonly HashSet<string> SupportedWorkflowRuntimeStatuses = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "draft",
-        "waiting_for_supervisor",
-        "waiting_for_department",
-        "in_progress",
-        "completed"
-    };
-
     public static IEndpointRouteBuilder MapWorkflowEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapWorkflowMasterDataEndpoints();
@@ -24,8 +15,7 @@ internal static class WorkflowEndpoints
 
         app.MapPost("/workflows", async (
             [FromBody] CreateWorkflowRequest request,
-            IWorkflowRepository repository,
-            IWorkflowEmailNotificationSender emailNotificationSender,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -40,121 +30,22 @@ internal static class WorkflowEndpoints
 
             try
             {
-                var currentUser = access.User!;
-                if (string.IsNullOrWhiteSpace(request.ProcessTypeKey))
-                {
-                    return Results.BadRequest(new { message = "Der Prozesstyp ist erforderlich." });
-                }
-
-                var normalizedProcessTypeKey = request.ProcessTypeKey.Trim().ToLowerInvariant();
-                var managerCreatableProcessType = await repository.IsManagerCreatableProcessType(normalizedProcessTypeKey);
-                if (!authorizationPolicy.CanCreateWorkflowForProcessType(currentUser, normalizedProcessTypeKey, managerCreatableProcessType))
-                {
-                    return EndpointSupport.Forbidden("Der gewählte Prozesstyp ist für Ihre Rolle nicht freigegeben.");
-                }
-
-                var selectedProcessType = (await repository.GetActiveProcessTypes())
-                    .FirstOrDefault(processType => string.Equals(processType.Key, normalizedProcessTypeKey, StringComparison.OrdinalIgnoreCase));
-                if (selectedProcessType is null)
-                {
-                    return Results.BadRequest(new { message = $"Unbekannter oder inaktiver Prozesstyp '{normalizedProcessTypeKey}'." });
-                }
-
-                var requestValidationError = ValidateCreateWorkflowRequest(request, selectedProcessType);
-                if (requestValidationError is not null)
-                {
-                    return Results.BadRequest(new { message = requestValidationError });
-                }
-
-                var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                    currentUser,
-                    repository,
-                    authorizationPolicy);
-
-                PersonWorkflowHistoryDto? targetPersonHistory = null;
-                if (request.TargetPersonId.HasValue)
-                {
-                    targetPersonHistory = await repository.GetPersonWorkflowHistory(request.TargetPersonId.Value);
-                }
-
-                if (observableDepartmentIds is not null && request.TargetPersonId.HasValue)
-                {
-                    if (targetPersonHistory is null)
-                    {
-                        return Results.BadRequest(new { message = "Die angegebene Zielperson wurde nicht gefunden." });
-                    }
-
-                    if (!targetPersonHistory.DepartmentId.HasValue
-                        || !observableDepartmentIds.Contains(targetPersonHistory.DepartmentId.Value))
-                    {
-                        return EndpointSupport.Forbidden(
-                            "Die ausgewählte Zielperson liegt außerhalb Ihrer freigegebenen Abteilungen.");
-                    }
-                }
-
-                var requestedDepartmentId = request.DepartmentId
-                    ?? targetPersonHistory?.DepartmentId;
-
-                if (requestedDepartmentId.HasValue
-                    && authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.WorkflowCreate(normalizedProcessTypeKey))
-                    && !authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.WorkflowCreate(normalizedProcessTypeKey), requestedDepartmentId.Value)
-                    && !authorizationPolicy.HasPermission(currentUser, AuthorizationPermissions.WorkflowsViewAll)
-                    && !authorizationPolicy.HasAnyRole(currentUser, AuthorizationRoles.Hr, AuthorizationRoles.Admin))
-                {
-                    return EndpointSupport.Forbidden("Der gewählte Vorgang ist nicht für die ausgewählte Abteilung freigegeben.");
-                }
-
-                if (request.DeadlineDate.HasValue
-                    && request.DeadlineDate.Value < DateOnly.FromDateTime(DateTime.Today))
-                {
-                    return Results.BadRequest(new { message = "Die Deadline darf nicht in der Vergangenheit liegen." });
-                }
-
-                var creation = await repository.CreateWorkflow(request, currentUser.UserId);
-                var dispatchResults = await emailNotificationSender.SendNotificationsAsync(
-                    creation.Uid,
-                    creation.NotificationTargets);
-
-                if (dispatchResults.Count > 0)
-                {
-                    await repository.ApplyNotificationDispatchResults(dispatchResults);
-                }
-
-                var workflow = await repository.GetWorkflowByUid(creation.Uid);
-                if (workflow is null)
-                {
-                    return Results.Problem(
-                        detail: "Workflow was created but could not be loaded afterwards.",
-                        statusCode: StatusCodes.Status500InternalServerError);
-                }
-
-                var taskCount = workflow.Tasks.Count;
-                var assignmentCount = workflow.Tasks.Sum(task => task.Assignments.Count);
-                var pendingNotifications = workflow.Notifications.Count(notification => notification.Status == "pending");
-                var failedNotifications = workflow.Notifications.Count(notification => notification.Status == "failed");
-
-                return Results.Created(
-                    $"/workflows/{creation.Uid}",
-                    new WorkflowCreateResponse
-                    {
-                        Uid = creation.Uid,
-                        NotificationTargets = workflow.Notifications.Count,
-                        FailedNotifications = failedNotifications,
-                        Summary = new WorkflowCreateSummaryDto
-                        {
-                            WorkflowStatus = workflow.WorkflowStatus,
-                            TaskCount = taskCount,
-                            ReadyTaskCount = workflow.Tasks.Count(task => task.Status == "ready"),
-                            BlockedTaskCount = workflow.Tasks.Count(task => task.Status == "blocked"),
-                            DoneTaskCount = workflow.Tasks.Count(task => task.Status == "done"),
-                            AssignmentCount = assignmentCount,
-                            PendingNotifications = pendingNotifications
-                        }
-                    });
+                var response = await workflowRuntimeService.CreateWorkflowAsync(request, access.User!);
+                return Results.Created($"/workflows/{response.Uid}", response);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
             }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
+            }
+            catch (WorkflowRuntimeConsistencyException ex)
+            {
+                return Results.Problem(
+                    detail: ex.Message,
+                    statusCode: StatusCodes.Status500InternalServerError);
             }
         }).Produces<WorkflowCreateResponse>(StatusCodes.Status201Created)
           .Produces(StatusCodes.Status400BadRequest);
@@ -167,7 +58,7 @@ internal static class WorkflowEndpoints
             [FromQuery] string? responsibility,
             [FromQuery] int? limit,
             [FromQuery] int? offset,
-            IWorkflowRepository repository,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -180,71 +71,28 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
-            if (limit.HasValue && limit.Value <= 0)
+            try
             {
-                return Results.BadRequest(new { message = "limit must be greater than 0." });
+                var result = await workflowRuntimeService.GetWorkflowsAsync(
+                    status,
+                    department,
+                    processTypeKey,
+                    search,
+                    responsibility,
+                    limit,
+                    offset,
+                    access.User!);
+                return Results.Ok(result);
             }
-
-            if (offset.HasValue && offset.Value < 0)
+            catch (InvalidOperationException ex)
             {
-                return Results.BadRequest(new { message = "offset must be greater than or equal to 0." });
+                return Results.BadRequest(new { message = ex.Message });
             }
-
-            var normalizedStatus = string.IsNullOrWhiteSpace(status)
-                ? null
-                : status.Trim().ToLowerInvariant();
-            if (normalizedStatus is not null && !SupportedWorkflowRuntimeStatuses.Contains(normalizedStatus))
-            {
-                return Results.BadRequest(new { message = $"status '{status}' is not supported." });
-            }
-
-            var normalizedSearch = string.IsNullOrWhiteSpace(search)
-                ? null
-                : search.Trim().ToLowerInvariant();
-            var normalizedProcessTypeKey = string.IsNullOrWhiteSpace(processTypeKey)
-                ? null
-                : processTypeKey.Trim().ToLowerInvariant();
-            var normalizedResponsibility = string.IsNullOrWhiteSpace(responsibility)
-                ? null
-                : responsibility.Trim();
-
-            var currentUser = access.User!;
-            var isPaged = limit.HasValue || offset.HasValue;
-            var effectiveOffset = offset ?? 0;
-
-            var query = new WorkflowListQuery
-            {
-                ReaderOnly = !authorizationPolicy.CanCreateWorkflow(currentUser),
-                Status = normalizedStatus,
-                ProcessTypeKey = normalizedProcessTypeKey,
-                Search = normalizedSearch,
-                DepartmentId = department,
-                Responsibility = normalizedResponsibility,
-                Limit = limit,
-                Offset = effectiveOffset,
-                IncludeFilterOptions = isPaged,
-                ObservableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                    currentUser,
-                    repository,
-                    authorizationPolicy)
-            };
-
-            var result = await repository.GetFilteredWorkflows(query);
-
-            return Results.Ok(new WorkflowListPageDto
-            {
-                Items = result.Items,
-                Count = result.TotalCount,
-                Offset = effectiveOffset,
-                Limit = limit,
-                DepartmentOptions = result.DepartmentOptions,
-                ResponsibilityOptions = result.ResponsibilityOptions
-            });
         }).Produces<WorkflowListPageDto>(StatusCodes.Status200OK);
 
         app.MapGet("/workflows/{uid:guid}", async (
             Guid uid,
-            IWorkflowRepository repository,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -257,30 +105,20 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
-            var workflow = await repository.GetWorkflowByUid(uid);
-            if (workflow is null)
+            try
             {
-                return Results.NotFound(new { message = "Workflow not found." });
+                var workflow = await workflowRuntimeService.GetWorkflowByUidAsync(uid, access.User!);
+                if (workflow is null)
+                {
+                    return Results.NotFound(new { message = "Workflow not found." });
+                }
+
+                return Results.Ok(workflow);
             }
-
-            var currentUser = access.User!;
-            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                currentUser,
-                repository,
-                authorizationPolicy);
-
-            if (!EndpointSupport.CanObserveWorkflow(
-                currentUser,
-                workflow.DepartmentId,
-                workflow.WorkflowStatus,
-                observableDepartmentIds,
-                authorizationPolicy))
+            catch (UnauthorizedAccessException ex)
             {
-                return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
+                return EndpointSupport.Forbidden(ex.Message);
             }
-
-            EndpointSupport.ApplyWorkflowTaskPermissions(workflow, currentUser, authorizationPolicy);
-            return Results.Ok(workflow);
         }).Produces<WorkflowDetailDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
@@ -289,7 +127,7 @@ internal static class WorkflowEndpoints
             Guid uid,
             [FromQuery] int? limit,
             [FromQuery] int? offset,
-            IWorkflowRepository repository,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -304,41 +142,28 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
-            if (limit.HasValue && limit.Value <= 0)
+            try
             {
-                return Results.BadRequest(new { message = "limit must be greater than 0." });
-            }
+                var auditLog = await workflowRuntimeService.GetWorkflowAuditLogAsync(
+                    uid,
+                    limit ?? 200,
+                    offset ?? 0,
+                    access.User!);
+                if (auditLog is null)
+                {
+                    return Results.NotFound(new { message = "Workflow not found." });
+                }
 
-            if (offset.HasValue && offset.Value < 0)
+                return Results.Ok(auditLog);
+            }
+            catch (UnauthorizedAccessException ex)
             {
-                return Results.BadRequest(new { message = "offset must be greater than or equal to 0." });
+                return EndpointSupport.Forbidden(ex.Message);
             }
-
-            var workflow = await repository.GetWorkflowByUid(uid);
-            if (workflow is null)
+            catch (InvalidOperationException ex)
             {
-                return Results.NotFound(new { message = "Workflow not found." });
+                return Results.BadRequest(new { message = ex.Message });
             }
-
-            var currentUser = access.User!;
-            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                currentUser,
-                repository,
-                authorizationPolicy);
-
-            if (!EndpointSupport.CanObserveWorkflow(
-                currentUser,
-                workflow.DepartmentId,
-                workflow.WorkflowStatus,
-                observableDepartmentIds,
-                authorizationPolicy))
-            {
-                return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
-            }
-
-            var effectiveLimit = Math.Min(limit ?? 200, 500);
-            var effectiveOffset = offset ?? 0;
-            return Results.Ok(await repository.GetWorkflowAuditLog(uid, effectiveLimit, effectiveOffset));
         }).Produces<List<WorkflowAuditEntryDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
@@ -346,7 +171,7 @@ internal static class WorkflowEndpoints
 
         app.MapGet("/workflows/{uid:guid}/tasks", async (
             Guid uid,
-            IWorkflowRepository repository,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -359,38 +184,27 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
-            var workflow = await repository.GetWorkflowByUid(uid);
-            if (workflow is null)
+            try
             {
-                return Results.NotFound(new { message = "Workflow not found." });
+                var tasks = await workflowRuntimeService.GetWorkflowTasksAsync(uid, access.User!);
+                if (tasks is null)
+                {
+                    return Results.NotFound(new { message = "Workflow not found." });
+                }
+
+                return Results.Ok(tasks.Select(task => task.Task).ToList());
             }
-
-            var currentUser = access.User!;
-            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                currentUser,
-                repository,
-                authorizationPolicy);
-
-            if (!EndpointSupport.CanObserveWorkflow(
-                currentUser,
-                workflow.DepartmentId,
-                workflow.WorkflowStatus,
-                observableDepartmentIds,
-                authorizationPolicy))
+            catch (UnauthorizedAccessException ex)
             {
-                return EndpointSupport.Forbidden("Workflow visibility depends on the current workflow phase and role.");
+                return EndpointSupport.Forbidden(ex.Message);
             }
-
-            EndpointSupport.ApplyWorkflowTaskPermissions(workflow, currentUser, authorizationPolicy);
-            return Results.Ok(workflow.Tasks);
         }).Produces<List<WorkflowTaskDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
 
-        // Workflow-Lifecycle: Archivierung (nur abgeschlossene) und Draft-Löschung (nur vor dem Start).
         app.MapPost("/workflows/{uid:guid}/archive", async (
             Guid uid,
-            IWorkflowRepository repository,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -403,7 +217,7 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
-            var archived = await repository.ArchiveWorkflow(uid, access.User!.UserId);
+            var archived = await workflowRuntimeService.ArchiveWorkflowAsync(uid, access.User!);
             if (!archived)
             {
                 return Results.BadRequest(new { message = "Workflow kann nicht archiviert werden. Nur abgeschlossene, noch nicht archivierte Vorgänge können archiviert werden." });
@@ -416,7 +230,7 @@ internal static class WorkflowEndpoints
 
         app.MapDelete("/workflows/{uid:guid}", async (
             Guid uid,
-            IWorkflowRepository repository,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -429,7 +243,7 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
-            var deleted = await repository.DeleteDraftWorkflow(uid);
+            var deleted = await workflowRuntimeService.DeleteWorkflowAsync(uid, access.User!);
             if (!deleted)
             {
                 return Results.BadRequest(new { message = "Workflow kann nicht gelöscht werden. Nur Entwürfe (Status: draft) können gelöscht werden." });
@@ -442,7 +256,7 @@ internal static class WorkflowEndpoints
 
         app.MapGet("/people/{personId:long}/workflows", async (
             long personId,
-            IWorkflowRepository repository,
+            IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -455,68 +269,24 @@ internal static class WorkflowEndpoints
                 return access.Error;
             }
 
-            var history = await repository.GetPersonWorkflowHistory(personId);
-            if (history is null)
+            try
             {
-                return Results.NotFound(new { message = "Person nicht gefunden." });
+                var history = await workflowRuntimeService.GetPersonWorkflowHistoryAsync(personId, access.User!);
+                if (history is null)
+                {
+                    return Results.NotFound(new { message = "Person nicht gefunden." });
+                }
+
+                return Results.Ok(history);
             }
-
-            var currentUser = access.User!;
-            var observableDepartmentIds = await EndpointSupport.GetObservableWorkflowDepartmentIds(
-                currentUser,
-                repository,
-                authorizationPolicy);
-
-            if (observableDepartmentIds is not null
-                && (!history.DepartmentId.HasValue || !observableDepartmentIds.Contains(history.DepartmentId.Value)))
+            catch (UnauthorizedAccessException ex)
             {
-                return EndpointSupport.Forbidden("Die Person liegt außerhalb Ihrer freigegebenen Abteilungen.");
+                return EndpointSupport.Forbidden(ex.Message);
             }
-
-            return Results.Ok(history);
         }).Produces<PersonWorkflowHistoryDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status404NotFound)
           .Produces(StatusCodes.Status403Forbidden);
 
         return app;
-    }
-
-    private static string? ValidateCreateWorkflowRequest(
-        CreateWorkflowRequest request,
-        WorkflowProcessTypeDto selectedProcessType)
-    {
-        if (selectedProcessType.RequiresTargetPerson)
-        {
-            return request.TargetPersonId.HasValue
-                ? null
-                : $"Der Prozesstyp '{selectedProcessType.Name}' erfordert eine bestehende Zielperson.";
-        }
-
-        if (request.TargetPersonId.HasValue)
-        {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' darf nicht mit einer bestehenden Zielperson angelegt werden.";
-        }
-
-        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
-        {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert Vorname und Nachname der neuen Person.";
-        }
-
-        if (!request.EmployeeNumber.HasValue || request.EmployeeNumber.Value <= 0)
-        {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert eine gültige Personalnummer.";
-        }
-
-        if (!request.BadgeNumber.HasValue || request.BadgeNumber.Value <= 0)
-        {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert eine gültige Kartennummer.";
-        }
-
-        if (!request.DepartmentId.HasValue || !request.RoleId.HasValue)
-        {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert Abteilung und Stelle.";
-        }
-
-        return null;
     }
 }

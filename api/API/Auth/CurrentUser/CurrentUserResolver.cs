@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace API;
 
@@ -6,13 +7,16 @@ internal sealed class CurrentUserResolver : ICurrentUserResolver
 {
     private readonly IIdentityProvider _identityProvider;
     private readonly IUserAuthorizationRepository _userAuthorizationRepository;
+    private readonly ILogger<CurrentUserResolver> _logger;
 
     public CurrentUserResolver(
         IIdentityProvider identityProvider,
-        IUserAuthorizationRepository userAuthorizationRepository)
+        IUserAuthorizationRepository userAuthorizationRepository,
+        ILogger<CurrentUserResolver> logger)
     {
         _identityProvider = identityProvider;
         _userAuthorizationRepository = userAuthorizationRepository;
+        _logger = logger;
     }
 
     public async Task<CurrentUser?> ResolveCurrentUser(
@@ -33,13 +37,27 @@ internal sealed class CurrentUserResolver : ICurrentUserResolver
             && string.Equals(identity.Provider, "entra", StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(identity.ExternalKey))
         {
+            _logger.LogInformation(
+                "Provisioning current user from external identity provider {Provider}.",
+                identity.Provider);
             currentUser = await _userAuthorizationRepository.FindOrCreateFromExternalIdentity(
                 identity, cancellationToken);
         }
 
         if (currentUser is null)
         {
+            _logger.LogWarning(
+                "Identity resolved for provider {Provider} but no current user mapping was found.",
+                identity.Provider);
             return null;
+        }
+
+        if (!currentUser.IsActive)
+        {
+            _logger.LogWarning(
+                "Inactive current user {UserId} resolved for provider {Provider}.",
+                currentUser.UserId,
+                identity.Provider);
         }
 
         return IsDevelopmentSimulationIdentity(identity.Provider)

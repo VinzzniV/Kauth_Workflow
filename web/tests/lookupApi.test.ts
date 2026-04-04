@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/services/api/client", () => ({
   requestJson: vi.fn(),
@@ -6,12 +6,12 @@ vi.mock("../src/services/api/client", () => ({
   setDemoAuthToken: vi.fn(),
 }));
 
-import { getProcessTypes } from "../src/services/lifecycleApi";
 import { requestJson } from "../src/services/api/client";
+import { getProcessTypes } from "../src/services/lookupApi";
 
 const mockedRequestJson = vi.mocked(requestJson);
 
-describe("lifecycleApi.getProcessTypes", () => {
+describe("lookupApi.getProcessTypes", () => {
   beforeEach(() => {
     mockedRequestJson.mockReset();
   });

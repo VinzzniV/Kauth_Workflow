@@ -72,8 +72,6 @@ internal static class WorkflowSupervisorEndpoints
             Guid uid,
             [FromBody] SupervisorStepUpdateRequest request,
             ISupervisorStepService supervisorStepService,
-            IWorkflowRepository repository,
-            IWorkflowEmailNotificationSender emailNotificationSender,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -95,16 +93,6 @@ internal static class WorkflowSupervisorEndpoints
                 if (workflow is null)
                 {
                     return Results.NotFound(new { message = "Workflow not found." });
-                }
-
-                var notificationTargets = await repository.CreateReadyTaskNotifications(uid);
-                if (notificationTargets.Count > 0)
-                {
-                    var dispatchResults = await emailNotificationSender.SendNotificationsAsync(uid, notificationTargets);
-                    if (dispatchResults.Count > 0)
-                    {
-                        await repository.ApplyNotificationDispatchResults(dispatchResults);
-                    }
                 }
 
                 return Results.Ok(workflow);

@@ -95,6 +95,37 @@ describe("WorkflowListPage", () => {
     );
   });
 
+  it("initializes filter and page state from the URL query parameters", async () => {
+    mockedGetWorkflowPage.mockResolvedValue(
+      createWorkflowPageResponse({
+        items: [
+          createWorkflowSummary({
+            uid: "wf-completed",
+            firstName: "Clara",
+            lastName: "Completed",
+            workflowStatus: "completed",
+            processType: { key: "offboarding", name: "Offboarding" },
+          }),
+        ],
+        count: 21,
+        offset: 20,
+        limit: 20,
+      })
+    );
+
+    renderWithApp(<WorkflowListPage />, {
+      roleKeys: ["auth_hr"],
+      route: "/workflows?status=completed&type=offboarding&page=2",
+    });
+
+    expect(await screen.findByText("Clara Completed")).toBeTruthy();
+    expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
+      20,
+      20,
+      expect.objectContaining({ status: "completed", processTypeKey: "offboarding" })
+    );
+  });
+
   it("shows departments that are not present on the current page", async () => {
     mockedGetWorkflowPage.mockResolvedValue(createWorkflowPageResponse({
       items: [

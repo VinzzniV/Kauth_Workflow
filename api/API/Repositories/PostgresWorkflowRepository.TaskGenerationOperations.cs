@@ -80,7 +80,7 @@ FOR UPDATE;";
 
         foreach (var task in initialTasks)
         {
-            if (TerminalTaskStatuses.Contains(task.Status))
+            if (TaskStatusRules.TerminalTaskStatuses.Contains(task.Status))
             {
                 continue;
             }
@@ -124,7 +124,7 @@ FOR UPDATE;";
             return true;
         }
 
-        if (TerminalTaskStatuses.Contains(currentStatus))
+        if (TaskStatusRules.TerminalTaskStatuses.Contains(currentStatus))
         {
             throw new InvalidOperationException($"Task '{taskKey}' can no longer be completed.");
         }
@@ -165,7 +165,7 @@ FOR UPDATE;";
             .ToDictionary(group => group.Key, group => group.ToList());
 
         var postSupervisorTemplateIds = workflowContext.RequiresSupervisorStep
-            ? GetPostSupervisorTemplateIds(
+            ? TaskConditionEvaluator.GetPostSupervisorTemplateIds(
                 templates,
                 dependencies,
                 workflowContext.ApprovalTaskTemplateKey)
@@ -188,7 +188,7 @@ FOR UPDATE;";
             {
                 conditionsByTemplateId.TryGetValue(template.Id, out var templateConditions);
                 templateConditions ??= new List<TaskTemplateConditionRecord>();
-                return ShouldCreateTask(templateConditions, answersByKey);
+                return TaskConditionEvaluator.ShouldCreateTask(templateConditions, answersByKey);
             })
             .OrderBy(template => template.SortOrder)
             .ThenBy(template => template.Id)
@@ -280,7 +280,7 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
                 && templateDependencies.Any(dependency => selectedTemplateIds.Contains(dependency.DependsOnTaskTemplateId));
 
             var status = hasSelectedDependency ? "blocked" : "ready";
-            var taskDescription = BuildTaskDescription(template, answersByKey);
+            var taskDescription = TaskConditionEvaluator.BuildTaskDescription(template, answersByKey);
 
             long workflowTaskId;
             await using (var insertTaskCommand = new NpgsqlCommand(insertTaskSql, connection, transaction))
@@ -414,7 +414,7 @@ LIMIT 1;";
             ProcessTypeId = reader.GetInt32(0),
             ProcessTypeName = reader.GetString(1),
             RequiresSupervisorStep = reader.GetBoolean(2),
-            ApprovalTaskTemplateKey = EnsureApprovalTaskConfiguration(
+            ApprovalTaskTemplateKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
                 reader.GetString(1),
                 reader.GetBoolean(2),
                 reader.IsDBNull(3) ? null : reader.GetString(3))
@@ -443,54 +443,6 @@ LIMIT 1;";
 
         var deadlineDate = (DateOnly)scalar;
         return TaskDueDateRules.ToWorkflowDeadlineDueAt(deadlineDate);
-    }
-
-    private static HashSet<int> GetPostSupervisorTemplateIds(
-        IReadOnlyList<TaskTemplateRecord> templates,
-        IReadOnlyList<TaskTemplateDependencyRecord> dependencies,
-        string? approvalTaskTemplateKey)
-    {
-        if (string.IsNullOrWhiteSpace(approvalTaskTemplateKey))
-        {
-            return new HashSet<int>();
-        }
-
-        var supervisorTemplateId = templates
-            .FirstOrDefault(template => template.TemplateKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase))
-            ?.Id;
-
-        if (!supervisorTemplateId.HasValue)
-        {
-            throw new InvalidOperationException(
-                $"Der konfigurierte Approval-Task '{approvalTaskTemplateKey}' existiert nicht unter den aktiven Task-Templates des Prozesstyps.");
-        }
-
-        var dependentsByTemplateId = dependencies
-            .GroupBy(dependency => dependency.DependsOnTaskTemplateId)
-            .ToDictionary(group => group.Key, group => group.Select(item => item.TaskTemplateId).ToList());
-
-        var postSupervisorTemplateIds = new HashSet<int>();
-        var queue = new Queue<int>();
-        queue.Enqueue(supervisorTemplateId.Value);
-
-        while (queue.Count > 0)
-        {
-            var currentTemplateId = queue.Dequeue();
-            if (!dependentsByTemplateId.TryGetValue(currentTemplateId, out var dependentTemplateIds))
-            {
-                continue;
-            }
-
-            foreach (var dependentTemplateId in dependentTemplateIds)
-            {
-                if (postSupervisorTemplateIds.Add(dependentTemplateId))
-                {
-                    queue.Enqueue(dependentTemplateId);
-                }
-            }
-        }
-
-        return postSupervisorTemplateIds;
     }
 
     private static async Task<List<TaskTemplateRecord>> LoadTaskTemplates(
@@ -615,121 +567,4 @@ ORDER BY d.task_template_id, d.id;";
         return dependencies;
     }
 
-    private static bool ShouldCreateTask(
-        IReadOnlyList<TaskTemplateConditionRecord> conditions,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
-    {
-        if (conditions.Count == 0)
-        {
-            return true;
-        }
-
-        foreach (var conditionGroup in conditions.GroupBy(condition => condition.ConditionGroup))
-        {
-            if (conditionGroup.All(condition => EvaluateCondition(condition, answersByKey)))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool EvaluateCondition(
-        TaskTemplateConditionRecord condition,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
-    {
-        if (!answersByKey.TryGetValue(condition.AnswerKey, out var answer))
-        {
-            return false;
-        }
-
-        return condition.Operator switch
-        {
-            "is_true" => answer.ValueBoolean == true,
-            "is_false" => answer.ValueBoolean == false,
-            "is_null" => IsAnswerEmpty(answer),
-            "is_not_null" => !IsAnswerEmpty(answer),
-            "eq" => EvaluateEquality(answer, condition),
-            "neq" => !EvaluateEquality(answer, condition),
-            _ => false
-        };
-    }
-
-    private static bool EvaluateEquality(StoredWorkflowAnswerRecord answer, TaskTemplateConditionRecord condition)
-    {
-        if (condition.ExpectedValueBoolean.HasValue)
-        {
-            return answer.ValueBoolean.HasValue && answer.ValueBoolean.Value == condition.ExpectedValueBoolean.Value;
-        }
-
-        if (condition.ExpectedValueNumber.HasValue)
-        {
-            return answer.ValueNumber.HasValue && answer.ValueNumber.Value == condition.ExpectedValueNumber.Value;
-        }
-
-        if (!string.IsNullOrWhiteSpace(condition.ExpectedValueText))
-        {
-            var expected = condition.ExpectedValueText.Trim();
-            if (!string.IsNullOrWhiteSpace(answer.ValueText)
-                && string.Equals(answer.ValueText.Trim(), expected, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(answer.SelectedOptionValue)
-                && string.Equals(answer.SelectedOptionValue.Trim(), expected, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return answer.SelectedOptionValues.Any(
-                optionValue => string.Equals(optionValue.Trim(), expected, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return false;
-    }
-
-    private static bool IsAnswerEmpty(StoredWorkflowAnswerRecord answer)
-    {
-        return answer.ValueBoolean is null
-               && string.IsNullOrWhiteSpace(answer.ValueText)
-               && answer.ValueNumber is null
-               && answer.SelectedOptionId is null
-               && answer.SelectedOptionIds.Count == 0;
-    }
-
-    private static string BuildTaskDescription(
-        TaskTemplateRecord template,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
-    {
-        var description = template.Description.Trim();
-
-        return template.TemplateKey switch
-        {
-            "permissions_from_reference_user" => AppendTaskContext(
-                description,
-                GetTextAnswer(answersByKey, RequirementKeys.ComparisonUserName) is { Length: > 0 } comparisonUserName
-                    ? $"Referenzuser: {comparisonUserName}."
-                    : null),
-            "hardware_procure" or "hardware_setup" or "hardware_handover" => AppendTaskContext(
-                description,
-                GetHardwareTypeText(answersByKey) is { Length: > 0 } hardwareType
-                    ? $"Gewünschte Hardware: {hardwareType}."
-                    : null),
-            _ => description
-        };
-    }
-
-    private static string AppendTaskContext(string description, string? context)
-    {
-        if (string.IsNullOrWhiteSpace(context))
-        {
-            return description;
-        }
-
-        return string.IsNullOrWhiteSpace(description)
-            ? context.Trim()
-            : $"{description} {context.Trim()}";
-    }
 }

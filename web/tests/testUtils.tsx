@@ -6,6 +6,7 @@ import { CurrentUserContext } from "../src/auth/useCurrentUser";
 import { canAccessFeature, deriveRoleCapabilities, toRoleLabel } from "../src/auth/roleModel";
 import { ConfirmationDialogProvider } from "../src/components/feedback/ConfirmationDialogProvider";
 import { ToastProvider } from "../src/components/feedback/ToastProvider";
+import type { AdminDepartmentAssignment, AdminUser } from "../src/types/auth";
 import type { TaskWithWorkflow, WorkflowRequirementSnapshot, WorkflowSummary, WorkflowTask } from "../src/types/workflow";
 
 type RenderOptions = {
@@ -218,6 +219,47 @@ export function createRequirementSnapshot(
       selectedOptionLabel: null,
       selectedOptions: [],
     },
+    ...overrides,
+  };
+}
+
+export function createAdminUser(overrides: Partial<AdminUser> = {}): AdminUser {
+  return {
+    userId: 1,
+    externalKey: "lea.lead",
+    displayName: "Lea Lead",
+    email: "lea.lead@demo.local",
+    notificationEmail: null,
+    isActive: true,
+    hasManagerAccess: true,
+    departmentId: 1,
+    departmentName: "IT",
+    directorySynced: false,
+    departmentSource: "manual",
+    departmentOverrideActive: false,
+    directoryIdentityId: null,
+    userPrincipalName: null,
+    directoryDisplayName: null,
+    roles: [],
+    groups: [],
+    effectiveRoles: [],
+    permissionOverrides: [],
+    effectivePermissions: [],
+    ...overrides,
+  };
+}
+
+export function createAdminDepartmentAssignment(
+  overrides: Partial<AdminDepartmentAssignment> = {}
+): AdminDepartmentAssignment {
+  return {
+    departmentId: 1,
+    departmentName: "IT",
+    departmentLeadUserId: 1,
+    departmentLeadDisplayName: "Lea Lead",
+    requirementOwnerUserId: 2,
+    requirementOwnerDisplayName: "Mia Manager",
+    updatedAt: "2026-03-24T08:00:00.000Z",
     ...overrides,
   };
 }

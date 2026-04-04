@@ -319,7 +319,7 @@ LIMIT 1;";
             Key = reader.GetString(1),
             Name = reader.GetString(2),
             RequiresSupervisorStep = reader.GetBoolean(3),
-            ApprovalTaskTemplateKey = NormalizeTaskTemplateKey(reader.IsDBNull(4) ? null : reader.GetString(4)),
+            ApprovalTaskTemplateKey = reader.IsDBNull(4) ? null : reader.GetString(4).Trim(),
             RequiresTargetPerson = reader.GetBoolean(5),
             IsActive = reader.GetBoolean(6)
         };
@@ -329,15 +329,8 @@ LIMIT 1;";
             throw new InvalidOperationException($"Der Prozesstyp '{record.Name}' ist deaktiviert.");
         }
 
-        EnsureApprovalTaskConfiguration(record.Name, record.RequiresSupervisorStep, record.ApprovalTaskTemplateKey);
+        WorkflowStatusRules.EnsureApprovalTaskConfiguration(record.Name, record.RequiresSupervisorStep, record.ApprovalTaskTemplateKey);
         return record;
-    }
-
-    private static string? NormalizeTaskTemplateKey(string? taskTemplateKey)
-    {
-        return string.IsNullOrWhiteSpace(taskTemplateKey)
-            ? null
-            : taskTemplateKey.Trim();
     }
 
     private static async Task<bool> HasProcessTypeManagerCreationColumn(
@@ -355,21 +348,6 @@ SELECT EXISTS(
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         return (bool)(await command.ExecuteScalarAsync() ?? false);
-    }
-
-    private static string? EnsureApprovalTaskConfiguration(
-        string processTypeName,
-        bool requiresSupervisorStep,
-        string? approvalTaskTemplateKey)
-    {
-        var normalizedApprovalTaskTemplateKey = NormalizeTaskTemplateKey(approvalTaskTemplateKey);
-        if (requiresSupervisorStep && string.IsNullOrWhiteSpace(normalizedApprovalTaskTemplateKey))
-        {
-            throw new InvalidOperationException(
-                $"Der Prozesstyp '{processTypeName}' verlangt einen Supervisor-Schritt, aber kein Approval-Task ist konfiguriert.");
-        }
-
-        return normalizedApprovalTaskTemplateKey;
     }
 
     private static async Task<TargetPersonRecord> LoadTargetPerson(

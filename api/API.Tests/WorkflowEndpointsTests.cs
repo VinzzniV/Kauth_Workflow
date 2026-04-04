@@ -1084,6 +1084,11 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddSingleton<IUserAuthorizationRepository, StubUserAuthorizationRepository>();
         builder.Services.AddSingleton<IUserContext>(new StubUserContext(user ?? CreateAdminHrUser()));
         builder.Services.AddSingleton<IAuthorizationPolicyService, AuthorizationPolicyService>();
+        builder.Services.AddSingleton<IWorkflowVisibilityService, WorkflowVisibilityService>();
+        builder.Services.AddSingleton<IWorkflowNotificationDispatchService, WorkflowNotificationDispatchService>();
+        builder.Services.AddSingleton<IWorkflowCatalogService, WorkflowCatalogService>();
+        builder.Services.AddSingleton<IWorkflowRuntimeService, WorkflowRuntimeService>();
+        builder.Services.AddSingleton<ITaskApplicationService, TaskApplicationService>();
         builder.Services.AddSingleton<IGraphApplicationConfigurationService, StubGraphApplicationConfigurationService>();
         builder.Services.AddSingleton<IWorkflowEmailNotificationSender, StubWorkflowEmailNotificationSender>();
         builder.Services.AddSingleton<INotificationEmailTestSender, StubNotificationEmailTestSender>();

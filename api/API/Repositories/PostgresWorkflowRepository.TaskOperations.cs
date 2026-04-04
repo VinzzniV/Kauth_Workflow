@@ -7,7 +7,7 @@ internal sealed partial class PostgresWorkflowRepository
     // Statuswechsel aktualisieren Aufgabe, Abhaengigkeiten und daraus abgeleiteten Workflow-Status in einer Transaktion.
     public async Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId)
     {
-        var normalizedStatus = NormalizeTaskStatus(status);
+        var normalizedStatus = TaskStatusRules.NormalizeTaskStatus(status);
 
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -25,7 +25,7 @@ internal sealed partial class PostgresWorkflowRepository
         }
 
         var (workflowId, currentStatus, _, taskKey, isApprovalTask, taskTitle) = taskRecord.Value;
-        EnsureTaskTransitionAllowed(currentStatus, normalizedStatus);
+        TaskStatusRules.EnsureTaskTransitionAllowed(currentStatus, normalizedStatus);
 
         if (currentStatus.Equals(normalizedStatus, StringComparison.OrdinalIgnoreCase))
         {
@@ -33,13 +33,13 @@ internal sealed partial class PostgresWorkflowRepository
             return await GetTaskById(taskId);
         }
 
-        if (isApprovalTask && TerminalTaskStatuses.Contains(normalizedStatus))
+        if (isApprovalTask && TaskStatusRules.TerminalTaskStatuses.Contains(normalizedStatus))
         {
             throw new InvalidOperationException(
                 "Die Anforderungen der Abteilungsleitung muessen ueber den Schritt der Abteilungsleitung abgeschlossen werden.");
         }
 
-        if (RequiresSatisfiedDependencies(normalizedStatus)
+        if (TaskStatusRules.RequiresSatisfiedDependencies(normalizedStatus)
             && !await AreTaskDependenciesSatisfied(connection, transaction, taskId))
         {
             throw new InvalidOperationException("Task dependencies are not satisfied for the requested status.");
@@ -93,7 +93,7 @@ internal sealed partial class PostgresWorkflowRepository
         }
 
         var (workflowId, currentStatus, _, _, _, taskTitle) = taskRecord.Value;
-        if (TerminalTaskStatuses.Contains(currentStatus))
+        if (TaskStatusRules.TerminalTaskStatuses.Contains(currentStatus))
         {
             throw new InvalidOperationException("Assignment changes are not allowed for terminal task states.");
         }
@@ -219,7 +219,7 @@ VALUES (
             throw new InvalidOperationException("Kommentare sind fuer abgeschlossene Workflows nicht mehr erlaubt.");
         }
 
-        if (TerminalTaskStatuses.Contains(currentStatus))
+        if (TaskStatusRules.TerminalTaskStatuses.Contains(currentStatus))
         {
             throw new InvalidOperationException("Kommentare sind fuer beendete Aufgaben nicht mehr erlaubt.");
         }

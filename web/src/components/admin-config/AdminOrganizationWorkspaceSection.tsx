@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import AdminOrganizationRelationsPanel from "./AdminOrganizationRelationsPanel";
 import { AdminOrganizationDepartmentEditor } from "./AdminOrganizationDepartmentEditor";
 import { AdminOrganizationResponsibilityEditor } from "./AdminOrganizationResponsibilityEditor";
@@ -9,16 +8,9 @@ import type {
   AdminResponsibilityOwner,
   AdminUser,
 } from "../../types/auth";
-import {
-  getDepartmentRelations,
-  getResponsibilityRelations,
-  getUserRelations,
-  hasDepartmentAssignmentChanges,
-  hasResponsibilityAssignmentChanges,
-  hasUserMasterDataChanges,
-  type AdminOrganizationEntity,
-} from "./adminWorkspaceModel";
+import { type AdminOrganizationEntity } from "./adminWorkspaceModel";
 import type { DepartmentDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
+import { useAdminOrganizationWorkspaceView } from "./useAdminOrganizationWorkspaceView";
 
 type AdminOrganizationWorkspaceSectionProps = {
   organizationEntity: AdminOrganizationEntity;
@@ -78,27 +70,6 @@ type AdminOrganizationWorkspaceSectionProps = {
   onSaveResponsibilityAssignment: (responsibilityId: number) => void | Promise<void>;
 };
 
-function buildSupervisorOptions(
-  selectedUserId: string,
-  sortedUsers: AdminUser[],
-  eligibleSupervisorUsers: AdminUser[]
-): AdminUser[] {
-  if (!selectedUserId) {
-    return eligibleSupervisorUsers;
-  }
-
-  const selectedUser = sortedUsers.find((user) => String(user.userId) === selectedUserId);
-  if (!selectedUser) {
-    return eligibleSupervisorUsers;
-  }
-
-  if (eligibleSupervisorUsers.some((user) => user.userId === selectedUser.userId)) {
-    return eligibleSupervisorUsers;
-  }
-
-  return [...eligibleSupervisorUsers, selectedUser];
-}
-
 export function AdminOrganizationWorkspaceSection({
   organizationEntity,
   selectedEntityId,
@@ -156,113 +127,43 @@ export function AdminOrganizationWorkspaceSection({
   onResponsibilityDraftChange,
   onSaveResponsibilityAssignment,
 }: AdminOrganizationWorkspaceSectionProps) {
-  const selectedDepartment = useMemo(
-    () =>
-      organizationEntity === "department"
-        ? sortedDepartments.find((department) => department.departmentId === selectedEntityId) ?? null
-        : null,
-    [organizationEntity, selectedEntityId, sortedDepartments]
-  );
-  const selectedResponsibility = useMemo(
-    () =>
-      organizationEntity === "responsibility"
-        ? sortedResponsibilities.find((responsibility) => responsibility.responsibilityId === selectedEntityId) ?? null
-        : null,
-    [organizationEntity, selectedEntityId, sortedResponsibilities]
-  );
-
-  const userRelations = useMemo(
-    () =>
-      selectedUser
-        ? getUserRelations({
-            user: selectedUser,
-            departments: sortedDepartments,
-            responsibilities: sortedResponsibilities,
-          })
-        : null,
-    [selectedUser, sortedDepartments, sortedResponsibilities]
-  );
-  const departmentRelations = useMemo(
-    () =>
-      selectedDepartment
-        ? getDepartmentRelations({
-            department: selectedDepartment,
-            users: sortedUsers,
-            responsibilities: sortedResponsibilities,
-          })
-        : null,
-    [selectedDepartment, sortedResponsibilities, sortedUsers]
-  );
-  const responsibilityRelations = useMemo(
-    () =>
-      selectedResponsibility
-        ? getResponsibilityRelations({
-            responsibility: selectedResponsibility,
-            users: sortedUsers,
-            departments: sortedDepartments,
-          })
-        : null,
-    [selectedResponsibility, sortedDepartments, sortedUsers]
-  );
-
-  const canCreateUser =
-    !isCreatingUser
-    && newUserDisplayNameDraft.trim().length > 0
-    && newUserEmailDraft.trim().length > 0;
-  const canSaveUser =
-    selectedUser !== null
-    && !isSavingUserMasterData
-    && userDisplayNameDraft.trim().length > 0
-    && userEmailDraft.trim().length > 0
-    && hasUserMasterDataChanges({
-      selectedUser,
-      userExternalKeyDraft,
-      userDisplayNameDraft,
-      userEmailDraft,
-      userNotificationEmailDraft,
-      userDepartmentIdDraft,
-      userIsActiveDraft,
-    });
-
-  const selectedDepartmentDraft = selectedDepartment
-    ? departmentDrafts[selectedDepartment.departmentId] ?? {
-        departmentLeadUserId: "",
-        requirementOwnerUserId: "",
-      }
-    : null;
-  const selectedDepartmentLeadOptions =
-    selectedDepartmentDraft
-      ? buildSupervisorOptions(
-          selectedDepartmentDraft.departmentLeadUserId,
-          sortedUsers,
-          eligibleSupervisorUsers
-        )
-      : [];
-  const selectedDepartmentOwnerOptions =
-    selectedDepartmentDraft
-      ? buildSupervisorOptions(
-          selectedDepartmentDraft.requirementOwnerUserId,
-          sortedUsers,
-          eligibleSupervisorUsers
-        )
-      : [];
-  const canSaveDepartment =
-    selectedDepartment !== null
-    && selectedDepartmentDraft !== null
-    && hasDepartmentAssignmentChanges(selectedDepartment, selectedDepartmentDraft)
-    && savingDepartmentId !== selectedDepartment.departmentId;
-
-  const selectedResponsibilityDraft = selectedResponsibility
-    ? responsibilityDrafts[selectedResponsibility.responsibilityId] ?? {
-        appUserId: "",
-        departmentId: "",
-      }
-    : null;
-  const canSaveResponsibility =
-    selectedResponsibility !== null
-    && selectedResponsibilityDraft !== null
-    && hasResponsibilityAssignmentChanges(selectedResponsibility, selectedResponsibilityDraft)
-    && savingResponsibilityId !== selectedResponsibility.responsibilityId;
+  const {
+    selectedDepartment,
+    selectedResponsibility,
+    userRelations,
+    departmentRelations,
+    responsibilityRelations,
+    canCreateUser,
+    canSaveUser,
+    selectedDepartmentDraft,
+    selectedDepartmentLeadOptions,
+    selectedDepartmentOwnerOptions,
+    canSaveDepartment,
+    selectedResponsibilityDraft,
+    canSaveResponsibility,
+  } = useAdminOrganizationWorkspaceView({
+    organizationEntity,
+    selectedEntityId,
+    sortedUsers,
+    sortedDepartments,
+    sortedResponsibilities,
+    eligibleSupervisorUsers,
+    selectedUser,
+    userDisplayNameDraft,
+    userEmailDraft,
+    userNotificationEmailDraft,
+    userExternalKeyDraft,
+    userDepartmentIdDraft,
+    userIsActiveDraft,
+    newUserDisplayNameDraft,
+    newUserEmailDraft,
+    isCreatingUser,
+    isSavingUserMasterData,
+    departmentDrafts,
+    responsibilityDrafts,
+    savingDepartmentId,
+    savingResponsibilityId,
+  });
 
   return (
     <div className="content-stack">

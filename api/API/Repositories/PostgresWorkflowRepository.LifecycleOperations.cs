@@ -111,7 +111,7 @@ FOR UPDATE OF w;";
             workflowStatus = reader.GetString(4);
             workflowProcessTypeName = reader.GetString(5);
             requiresSupervisorStep = reader.GetBoolean(6);
-            approvalTaskTemplateKey = EnsureApprovalTaskConfiguration(
+            approvalTaskTemplateKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
                 workflowProcessTypeName,
                 requiresSupervisorStep,
                 reader.IsDBNull(7) ? null : reader.GetString(7));

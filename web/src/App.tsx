@@ -1,4 +1,5 @@
 // Zentrale App-Huelle fuer Auth-Status, Layout und geschuetzte Routen.
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/useAuth";
 import { useCurrentUser } from "./auth/useCurrentUser";
@@ -6,17 +7,31 @@ import { isEntraMode } from "./auth/IdentityProvider";
 import LoadingState from "./components/feedback/LoadingState";
 import AppLayout from "./components/layout/AppLayout";
 import RouteGuard from "./navigation/RouteGuard";
-import AdminConfigPage from "./pages/AdminConfigPage";
-import CreateWorkflowPage from "./pages/CreateWorkflowPage";
 import DashboardPage from "./pages/DashboardPage";
 import EntraLoginPage from "./pages/EntraLoginPage";
-import MyTasksPage from "./pages/MyTasksPage";
 import SimulationLoginPage from "./pages/SimulationLoginPage";
-import SupervisorStepPage from "./pages/SupervisorStepPage";
-import WorkflowDetailPage from "./pages/WorkflowDetailPage";
-import WorkflowListPage from "./pages/WorkflowListPage";
-import WorkflowSearchPage from "./pages/WorkflowSearchPage";
-import PersonWorkflowHistoryPage from "./pages/PersonWorkflowHistoryPage";
+
+const CreateWorkflowPage = lazy(() => import("./pages/CreateWorkflowPage"));
+const SupervisorStepPage = lazy(() => import("./pages/SupervisorStepPage"));
+const MyTasksPage = lazy(() => import("./pages/MyTasksPage"));
+const WorkflowListPage = lazy(() => import("./pages/WorkflowListPage"));
+const WorkflowDetailPage = lazy(() => import("./pages/WorkflowDetailPage"));
+const WorkflowSearchPage = lazy(() => import("./pages/WorkflowSearchPage"));
+const PersonWorkflowHistoryPage = lazy(() => import("./pages/PersonWorkflowHistoryPage"));
+const AdminConfigPage = lazy(() => import("./pages/AdminConfigPage"));
+
+function RouteLoadingFallback() {
+  return (
+    <LoadingState
+      title="Seite wird geladen..."
+      description="Die angeforderte Ansicht wird vorbereitet."
+    />
+  );
+}
+
+function LazyRoute({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<RouteLoadingFallback />}>{children}</Suspense>;
+}
 
 export default function App() {
   const { status } = useAuth();
@@ -56,7 +71,9 @@ export default function App() {
           path="/create"
           element={
             <RouteGuard feature="workflowCreate">
-              <CreateWorkflowPage />
+              <LazyRoute>
+                <CreateWorkflowPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />
@@ -64,7 +81,9 @@ export default function App() {
           path="/supervisor"
           element={
             <RouteGuard feature="supervisorStep">
-              <SupervisorStepPage />
+              <LazyRoute>
+                <SupervisorStepPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />
@@ -72,7 +91,9 @@ export default function App() {
           path="/tasks/my"
           element={
             <RouteGuard feature="technicalTasks">
-              <MyTasksPage />
+              <LazyRoute>
+                <MyTasksPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />
@@ -80,7 +101,9 @@ export default function App() {
           path="/workflows"
           element={
             <RouteGuard feature="workflowOverview">
-              <WorkflowListPage />
+              <LazyRoute>
+                <WorkflowListPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />
@@ -89,7 +112,9 @@ export default function App() {
           path="/workflows/:uid"
           element={
             <RouteGuard feature="workflowOverview">
-              <WorkflowDetailPage />
+              <LazyRoute>
+                <WorkflowDetailPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />
@@ -97,7 +122,9 @@ export default function App() {
           path="/search"
           element={
             <RouteGuard feature="workflowSearch">
-              <WorkflowSearchPage />
+              <LazyRoute>
+                <WorkflowSearchPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />
@@ -105,7 +132,9 @@ export default function App() {
           path="/people/:personId"
           element={
             <RouteGuard feature="workflowOverview">
-              <PersonWorkflowHistoryPage />
+              <LazyRoute>
+                <PersonWorkflowHistoryPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />
@@ -113,7 +142,9 @@ export default function App() {
           path="/admin/config"
           element={
             <RouteGuard feature="adminConfig">
-              <AdminConfigPage />
+              <LazyRoute>
+                <AdminConfigPage />
+              </LazyRoute>
             </RouteGuard>
           }
         />

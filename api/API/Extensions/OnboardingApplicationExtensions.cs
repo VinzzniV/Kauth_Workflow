@@ -22,7 +22,12 @@ internal static class LifecycleApplicationExtensions
                 var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
                 if (exception is not null)
                 {
-                    app.Logger.LogError(exception, "Unhandled exception while processing request {Method} {Path}.", context.Request.Method, context.Request.Path);
+                    app.Logger.LogError(
+                        exception,
+                        "Unhandled exception while processing request {Method} {Path} (TraceIdentifier: {TraceIdentifier}).",
+                        context.Request.Method,
+                        context.Request.Path,
+                        context.TraceIdentifier);
                 }
 
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;

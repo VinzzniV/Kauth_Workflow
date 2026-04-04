@@ -415,7 +415,7 @@ ORDER BY wt.sort_order, wt.id;";
 
     private static string ResolveTaskSlaStatus(string taskStatus, DateTime? dueAt)
     {
-        return TaskDueDateRules.ResolveSlaStatus(taskStatus, dueAt, TerminalTaskStatuses);
+        return TaskDueDateRules.ResolveSlaStatus(taskStatus, dueAt, TaskStatusRules.TerminalTaskStatuses);
     }
 
     private static DateTime? ResolveEffectiveTaskDueAt(DateOnly? workflowDeadlineDate, DateTime? taskDueAt)

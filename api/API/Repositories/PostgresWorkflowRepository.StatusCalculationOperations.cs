@@ -4,54 +4,6 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    private static string NormalizeTaskStatus(string status)
-    {
-        if (string.IsNullOrWhiteSpace(status))
-        {
-            throw new InvalidOperationException("Status is required.");
-        }
-
-        var normalizedStatus = status.Trim().ToLowerInvariant();
-        if (!AllowedTaskStatuses.Contains(normalizedStatus))
-        {
-            throw new InvalidOperationException($"Task status '{status}' is invalid.");
-        }
-
-        return normalizedStatus;
-    }
-
-    private static void EnsureTaskTransitionAllowed(string currentStatus, string requestedStatus)
-    {
-        if (currentStatus.Equals(requestedStatus, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        if (!AllowedTaskTransitions.TryGetValue(currentStatus, out var allowedTransitions))
-        {
-            throw new InvalidOperationException($"Current task status '{currentStatus}' is not supported.");
-        }
-
-        if (!allowedTransitions.Contains(requestedStatus))
-        {
-            throw new InvalidOperationException(
-                $"Task transition from '{currentStatus}' to '{requestedStatus}' is not allowed.");
-        }
-    }
-
-    private static bool RequiresSatisfiedDependencies(string requestedStatus)
-    {
-        return requestedStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
-               || requestedStatus.Equals("in_progress", StringComparison.OrdinalIgnoreCase)
-               || requestedStatus.Equals("done", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool CanAutoBlockTask(string currentStatus)
-    {
-        return currentStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
-               || currentStatus.Equals("open", StringComparison.OrdinalIgnoreCase);
-    }
-
     private static async Task<bool> TryLockWorkflowForTaskStatusUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -192,7 +144,7 @@ WHERE id = @taskId;";
         long taskId,
         string taskStatus)
     {
-        if (!TerminalTaskStatuses.Contains(taskStatus))
+        if (!TaskStatusRules.TerminalTaskStatuses.Contains(taskStatus))
         {
             return;
         }
@@ -271,7 +223,7 @@ ORDER BY d.workflow_task_id, d.id;";
             var taskId = taskEntry.Key;
             var currentStatus = taskEntry.Value;
 
-            if (TerminalTaskStatuses.Contains(currentStatus))
+            if (TaskStatusRules.TerminalTaskStatuses.Contains(currentStatus))
             {
                 continue;
             }
@@ -314,7 +266,7 @@ WHERE id = @taskId;";
                 continue;
             }
 
-            if (hasUnsatisfiedDependencies && CanAutoBlockTask(currentStatus))
+            if (hasUnsatisfiedDependencies && TaskStatusRules.CanAutoBlockTask(currentStatus))
             {
                 const string markBlockedSql = @"
 UPDATE workflow_tasks
@@ -359,7 +311,7 @@ FOR UPDATE OF w;";
                 currentWorkflowStatus = reader.IsDBNull(0) ? null : reader.GetString(0);
                 processTypeName = reader.GetString(1);
                 requiresSupervisorStep = reader.GetBoolean(2);
-                approvalTaskTemplateKey = EnsureApprovalTaskConfiguration(
+                approvalTaskTemplateKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
                     processTypeName,
                     requiresSupervisorStep,
                     reader.IsDBNull(3) ? null : reader.GetString(3));
@@ -391,7 +343,7 @@ WHERE workflow_id = @workflowId;";
             : completionRelevantStatuses.All(status =>
                     status.Equals("done", StringComparison.OrdinalIgnoreCase))
                 ? "completed"
-                : DetermineActiveWorkflowStatus(taskStates, processTypeName, requiresSupervisorStep, approvalTaskTemplateKey);
+                : WorkflowStatusRules.DetermineActiveWorkflowStatus(taskStates, processTypeName, requiresSupervisorStep, approvalTaskTemplateKey);
 
         const string workflowStatusUpdateSql = @"
 UPDATE workflows
@@ -425,56 +377,5 @@ WHERE id = @workflowId;";
                 currentWorkflowStatus,
                 nextWorkflowStatus);
         }
-    }
-
-    private static string DetermineActiveWorkflowStatus(
-        IReadOnlyList<(string TaskKey, string Status, bool IsRequired)> taskStates,
-        string processTypeName,
-        bool requiresSupervisorStep,
-        string? approvalTaskTemplateKey)
-    {
-        approvalTaskTemplateKey = EnsureApprovalTaskConfiguration(
-            processTypeName,
-            requiresSupervisorStep,
-            approvalTaskTemplateKey);
-
-        var supervisorTask = taskStates.FirstOrDefault(task =>
-            !string.IsNullOrWhiteSpace(approvalTaskTemplateKey)
-            && task.TaskKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase));
-        var departmentTasks = taskStates
-            .Where(task =>
-                string.IsNullOrWhiteSpace(approvalTaskTemplateKey)
-                || !task.TaskKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        var hasDepartmentTasksInProgress = departmentTasks.Any(task =>
-            task.Status.Equals("in_progress", StringComparison.OrdinalIgnoreCase));
-        var hasActiveDepartmentTasks = departmentTasks.Any(task =>
-            task.Status.Equals("open", StringComparison.OrdinalIgnoreCase)
-            || task.Status.Equals("ready", StringComparison.OrdinalIgnoreCase)
-            || task.Status.Equals("blocked", StringComparison.OrdinalIgnoreCase)
-            || task.Status.Equals("in_progress", StringComparison.OrdinalIgnoreCase));
-
-        if (requiresSupervisorStep && !string.IsNullOrWhiteSpace(supervisorTask.TaskKey))
-        {
-            if (supervisorTask.Status.Equals("ready", StringComparison.OrdinalIgnoreCase)
-                || supervisorTask.Status.Equals("in_progress", StringComparison.OrdinalIgnoreCase))
-            {
-                return "waiting_for_supervisor";
-            }
-
-            if (supervisorTask.Status.Equals("done", StringComparison.OrdinalIgnoreCase))
-            {
-                return hasDepartmentTasksInProgress ? "in_progress" : "waiting_for_department";
-            }
-
-            return "draft";
-        }
-
-        if (hasDepartmentTasksInProgress)
-        {
-            return "in_progress";
-        }
-
-        return hasActiveDepartmentTasks ? "waiting_for_department" : "draft";
     }
 }
