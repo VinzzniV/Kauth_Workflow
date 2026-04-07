@@ -13,6 +13,7 @@ export const queryKeys = {
     detail: (uid: string) => ["workflows", uid] as const,
     config: (roleId: number | null, processTypeKey: string | null) =>
       ["workflows", "config", roleId ?? null, processTypeKey ?? null] as const,
+    targetPersonSources: (search: string) => ["workflows", "target-person-sources", search] as const,
     completedOnboardings: (search: string) => ["workflows", "completed-onboardings", search] as const,
     tasks: (uid: string) => ["workflows", uid, "tasks"] as const,
     related: (uid: string) => ["workflows", uid, "related"] as const,

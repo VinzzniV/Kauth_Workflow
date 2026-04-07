@@ -128,7 +128,7 @@ export function deriveRoleCapabilities(
   const hasProcessActorRole = hasHr || hasManager || hasWorker;
   const canCreateWorkflow = hasWorkflowCreatePermission || hasHr || hasManager || hasAdmin;
   const canAccessSupervisorStep = hasPermission("tasks.execute.supervisor") || hasManager;
-  const canAccessTechnicalTasks = hasPermission("tasks.execute.department") || hasWorker;
+  const canAccessTechnicalTasks = hasPermission("tasks.execute.department") || hasWorker || canAccessSupervisorStep;
   const canManageAdminConfiguration =
     hasPermission("admin.permissions.manage") || hasPermission("admin.directory.manage") || hasAdmin;
   const canAccessWorkflowOverview =

@@ -42,16 +42,16 @@ export function AdminAnswerDefinitionSection({
   });
 
   const panelTitle = isCreatingNew
-    ? "Neues Antwortfeld"
+    ? "Neues Feld"
     : selectedDefinition
-      ? `Antwortfeld bearbeiten: ${selectedDefinition.title}`
-      : "Antwortfeld auswählen";
+      ? `Feld bearbeiten: ${selectedDefinition.title}`
+      : "Feld auswählen";
 
   return (
     <div className="content-stack">
       <div className="master-detail-layout">
         <section className="panel admin-detail-sidebar master-detail-sidebar">
-          <SectionHeader title="Antwortfelder" />
+          <SectionHeader title="Felder definieren" />
 
           <div className="toolbar-row admin-detail-toolbar">
             <label className="field admin-detail-process-field">
@@ -76,19 +76,19 @@ export function AdminAnswerDefinitionSection({
               disabled={!selectedProcessTypeId || isLoadingDefinitions || isSaving || isDeleting}
               onClick={startCreatingDefinition}
             >
-              Neues Antwortfeld
+              Neues Feld
             </button>
           </div>
 
           {!selectedProcessTypeId ? <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p> : null}
-          {isLoadingDefinitions ? <p className="panel-note">Antwortfelder werden geladen...</p> : null}
+          {isLoadingDefinitions ? <p className="panel-note">Felder werden geladen...</p> : null}
 
           {!isLoadingDefinitions && selectedProcessTypeId && definitions.length === 0 ? (
-            <p className="panel-note">Für diesen Prozesstyp sind noch keine Antwortfelder vorhanden.</p>
+            <p className="panel-note">Für diesen Prozesstyp sind noch keine Felder vorhanden.</p>
           ) : null}
 
           {!isLoadingDefinitions && definitions.length > 0 ? (
-            <div className="selection-list" aria-label="Antwortfelder">
+            <div className="selection-list" aria-label="Felder">
               {definitions.map((definition) => {
                 const isSelected = !isCreatingNew && selectedDefinition?.id === definition.id;
 
@@ -114,7 +114,7 @@ export function AdminAnswerDefinitionSection({
             {!selectedProcessTypeId ? (
               <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p>
             ) : !isCreatingNew && !selectedDefinition ? (
-              <p className="panel-note">Bitte links ein Antwortfeld auswählen oder ein neues anlegen.</p>
+              <p className="panel-note">Bitte links ein Feld auswählen oder ein neues anlegen.</p>
             ) : (
               <div className="content-stack">
                 <div
@@ -226,7 +226,7 @@ export function AdminAnswerDefinitionSection({
                       disabled={isSaving || isDeleting}
                       onClick={() => void createDefinition()}
                     >
-                      {isSaving ? "Wird angelegt..." : "Antwortfeld anlegen"}
+                      {isSaving ? "Wird angelegt..." : "Feld anlegen"}
                     </button>
                   ) : (
                     <button
@@ -245,7 +245,7 @@ export function AdminAnswerDefinitionSection({
                     disabled={!selectedDefinition || isCreatingNew || isSaving || isDeleting}
                     onClick={() => void removeDefinition()}
                   >
-                    {isDeleting ? "Wird gelöscht..." : "Antwortfeld löschen"}
+                    {isDeleting ? "Wird gelöscht..." : "Feld löschen"}
                   </button>
                 </div>
               </div>

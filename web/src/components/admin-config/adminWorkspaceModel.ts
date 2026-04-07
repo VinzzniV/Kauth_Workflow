@@ -18,23 +18,42 @@ export type AdminWorkspaceSection =
   | "operations";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
 export type AdminWorkspaceArea = "organization" | "configuration" | "access" | "system";
+export type AdminWorkspaceWarningCategory =
+  | "department_lead"
+  | "department_owner"
+  | "responsibility_user"
+  | "responsibility_department"
+  | "mail_configuration";
 
 export type AdminWorkspaceSectionMeta = {
   key: AdminWorkspaceSection;
   label: string;
   description: string;
+  navLabel: string;
+  navDescription: string;
   area: AdminWorkspaceArea | null;
+  introTitle: string;
+  introDescription: string;
+  whatYouCanDo: string[];
+  affectedObjects: string[];
+  impactNote: string;
+  riskNote: string;
+  visibleInSubnav?: boolean;
+  groupedWithSection?: AdminWorkspaceSection;
 };
 
 export type AdminWorkspaceAreaMeta = {
   key: AdminWorkspaceArea;
   label: string;
+  description: string;
   defaultSection: AdminWorkspaceSection;
   sections: AdminWorkspaceSection[];
 };
 
 export type AdminWorkspaceWarning = {
   key: string;
+  category: AdminWorkspaceWarningCategory;
+  subjectLabel: string;
   title: string;
   detail: string;
   actionLabel: string;
@@ -43,85 +62,219 @@ export type AdminWorkspaceWarning = {
   targetSection?: AdminWorkspaceSection;
 };
 
+export type AdminWorkspaceWarningGroup = {
+  category: AdminWorkspaceWarningCategory;
+  title: string;
+  detail: string;
+  count: number;
+  affectedLabels: string[];
+  actionLabel: string;
+  targetEntity?: AdminOrganizationEntity;
+  targetSection?: AdminWorkspaceSection;
+};
+
 export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
   {
     key: "overview",
     label: "Übersicht",
-    description: "Gesamtzustand prüfen und offene Punkte angehen.",
+    description: "Systemzustand prüfen und offene Admin-Aufgaben priorisieren.",
+    navLabel: "Übersicht",
+    navDescription: "Systemzustand prüfen und offene Admin-Aufgaben priorisieren.",
     area: null,
+    introTitle: "Gesamtzustand und offene Punkte im Blick behalten",
+    introDescription:
+      "Die Übersicht bündelt den aktuellen Zustand der Administration und zeigt, welche Themen zuerst Aufmerksamkeit brauchen.",
+    whatYouCanDo: [
+      "Offene Warnungen und Systemhinweise priorisieren",
+      "In den passenden Bereich für die Bearbeitung springen",
+      "Den aktuellen Zustand von Organisation, Rechten und System prüfen",
+    ],
+    affectedObjects: ["gesamte Administration", "offene Prüfaufgaben", "Betriebszustand der App"],
+    impactNote: "Von hier aus ändern Sie noch nichts direkt, sondern entscheiden, was als Nächstes geprüft oder bearbeitet werden sollte.",
+    riskNote: "Warnungen auf der Übersicht sind Hinweise auf fehlende Zuordnungen oder Konfigurationen, die in anderen Bereichen bereinigt werden sollten.",
   },
   {
     key: "organization",
-    label: "Organisation",
-    description: "Personen, Abteilungen und Zuständigkeiten pflegen.",
+    label: "Personen & Organisation",
+    description: "Personen verwalten, Abteilungen pflegen und Zuständigkeiten sauber zuordnen.",
+    navLabel: "Personen & Organisation",
+    navDescription: "Personen, Abteilungen und Zuständigkeiten verständlich pflegen.",
     area: "organization",
+    introTitle: "Personen, Bereiche und Verantwortungen aktuell halten",
+    introDescription:
+      "Hier pflegen Sie die organisatorische Grundlage der App. Änderungen wirken auf Verantwortlichkeiten, Bereichszuordnungen und Auswahlmöglichkeiten im laufenden Betrieb.",
+    whatYouCanDo: [
+      "Personen anlegen und Stammdaten pflegen",
+      "Abteilungen mit Leitung und Anforderungsverantwortung hinterlegen",
+      "Zuständigkeiten sauber einer Person oder einem Bereich zuordnen",
+    ],
+    affectedObjects: ["Benutzerkonten", "Abteilungen", "fachliche Zuständigkeiten"],
+    impactNote: "Änderungen wirken sofort auf Zuordnungen, Filter, Verantwortlichkeiten und Prüfhinweise in der Administration.",
+    riskNote: "Fehlende Leitung, fehlende Anforderungsverantwortung oder unklare Bereichszuordnungen erzeugen Lücken in nachgelagerten Prozessen.",
   },
   {
     key: "templates",
-    label: "Aufgabenvorlagen",
-    description: "Aufgabenlogik für neue Vorgänge steuern.",
+    label: "Aufgaben",
+    description: "Aufgaben für neue Vorgänge strukturieren und die entstehende Vorgangslogik pflegen.",
+    navLabel: "Aufgaben",
+    navDescription: "Vorlagen für automatisch entstehende Aufgaben in neuen Vorgängen pflegen.",
     area: "configuration",
+    introTitle: "Aufgaben definieren, die in neuen Vorgängen entstehen",
+    introDescription:
+      "Hier legen Sie fest, welche Aufgaben in einem Vorgang angelegt werden und unter welchen Bedingungen sie sichtbar oder abhängig voneinander sind.",
+    whatYouCanDo: [
+      "Aufgabenvorlagen pro Prozesstyp anlegen und pflegen",
+      "Abhängigkeiten zwischen Aufgaben festlegen",
+      "Bedingungen definieren, wann Aufgaben entstehen oder sichtbar werden",
+    ],
+    affectedObjects: ["Aufgabenvorlagen", "Abhängigkeiten", "Bedingungen und Vorgangslogik"],
+    impactNote: "Änderungen wirken in der Regel auf neue Vorgänge. Laufende Vorgänge übernehmen diese Logik normalerweise nicht rückwirkend.",
+    riskNote: "Falsch gesetzte Bedingungen oder Abhängigkeiten können dazu führen, dass Aufgaben zu früh, zu spät oder gar nicht erscheinen.",
   },
   {
     key: "answers",
-    label: "Antwortfelder",
-    description: "Eingabefelder und Antwortlogik pflegen.",
+    label: "Felder & Vorgaben",
+    description: "Felder für neue Vorgänge definieren und Vorgaben je Rolle vorbereiten.",
+    navLabel: "Felder & Vorgaben",
+    navDescription: "Formularfelder und Vorgaben für neue Vorgänge gemeinsam steuern.",
     area: "configuration",
+    introTitle: "Felder und Vorgaben für neue Vorgänge steuern",
+    introDescription:
+      "Hier definieren Sie Eingabefelder und legen fest, welche Vorgaben neue Vorgänge je Rolle oder Bereich mitbringen.",
+    whatYouCanDo: [
+      "Felder für einzelne Prozesstypen anlegen und pflegen",
+      "Pflichtfelder, Eingabetypen und Sortierung festlegen",
+      "Vorgaben je Rolle für neue Vorgänge vorbelegen",
+    ],
+    affectedObjects: ["Antwortfelder", "Vorgaben je Rolle", "Formulare in neuen Vorgängen"],
+    impactNote: "Neue oder geänderte Felder prägen die Formulare neuer Vorgänge. Vorgaben helfen dabei, Eingaben für Rollen oder Bereiche vorzubereiten.",
+    riskNote: "Strukturänderungen an Feldern sollten bewusst erfolgen, damit Folgekonfigurationen und bestehende Auswertungen verständlich bleiben.",
   },
   {
     key: "defaults",
-    label: "Standardwerte",
-    description: "Vorauswahlen für Rollen und Bereiche setzen.",
+    label: "Vorgaben je Rolle",
+    description: "Vorgaben für neue Vorgänge je Rolle und Prozesstyp festlegen.",
+    navLabel: "Vorgaben je Rolle",
+    navDescription: "Vorgaben für neue Vorgänge je Rolle vorbereiten.",
     area: "configuration",
+    introTitle: "Vorgaben für neue Vorgänge je Rolle festlegen",
+    introDescription:
+      "Hier bereiten Sie Vorauswahlen für neue Vorgänge vor, damit Rollen und Bereiche passende Werte bereits mitbringen.",
+    whatYouCanDo: [
+      "Vorgaben je Prozesstyp und Rolle pflegen",
+      "Vorauswahlen für Eingabefelder festlegen",
+      "Neue Vorgänge für typische Bearbeitungsfälle vorbereiten",
+    ],
+    affectedObjects: ["Vorgaben je Rolle", "Prozesstypen", "Formulare in neuen Vorgängen"],
+    impactNote: "Diese Vorgaben werden bei neuen Vorgängen als vorbereitete Werte genutzt und beschleunigen die Bearbeitung.",
+    riskNote: "Unpassende Vorgaben können in neuen Vorgängen falsche Vorauswahlen setzen und dadurch Folgearbeit verursachen.",
+    visibleInSubnav: false,
+    groupedWithSection: "answers",
   },
   {
     key: "access",
-    label: "Zugriffe & Gruppen",
-    description: "Rechte, Gruppen und Ausnahmen verwalten.",
+    label: "App-Rechte",
+    description: "Standardzugriff über Rollen steuern und gezielte Ausnahmen für einzelne Personen pflegen.",
+    navLabel: "App-Rechte",
+    navDescription: "Standardrechte, Gruppen und Ausnahmen verständlich steuern.",
     area: "access",
+    introTitle: "Standardzugriff und Ausnahmen verständlich steuern",
+    introDescription:
+      "Hier definieren Sie, welche Rechte Rollen grundsätzlich mitbringen und wo einzelne Personen oder Gruppen bewusst abweichend behandelt werden.",
+    whatYouCanDo: [
+      "Rollen als Standardzugriff pflegen",
+      "Gruppen und direkte Rollen für einzelne Personen zuordnen",
+      "Gezielte Ausnahmen für einzelne Benutzer dokumentieren",
+    ],
+    affectedObjects: ["Rollen", "Gruppen", "Berechtigungen und Benutzer-Ausnahmen"],
+    impactNote: "Änderungen an Rollen oder Gruppen können viele Nutzer gleichzeitig betreffen. Direkte Ausnahmen wirken gezielt auf einzelne Personen.",
+    riskNote: "Bitte immer prüfen, ob Rechte direkt, über Gruppen oder über Rollen wirken. Kombinationen können mehr oder weniger Zugriff erzeugen als beabsichtigt.",
   },
   {
     key: "directory",
-    label: "Entra-Verzeichnis",
-    description: "Entra-Gruppen synchronisieren und Rollen verknüpfen.",
+    label: "Verzeichnis & Gruppen",
+    description: "Externe Gruppen abgleichen, Identitäten prüfen und Gruppen mit App-Rollen verbinden.",
+    navLabel: "Verzeichnis & Gruppen",
+    navDescription: "Externe Gruppen holen, prüfen und mit App-Rollen verknüpfen.",
     area: "access",
+    introTitle: "Verzeichnis-Sync und Gruppenanbindung verwalten",
+    introDescription:
+      "Hier holen Sie externe Gruppen und Identitäten in die App und koppeln Gruppenmitgliedschaften an Rollen in der Anwendung.",
+    whatYouCanDo: [
+      "Gruppen und Identitäten aus dem Verzeichnis synchronisieren",
+      "Verknüpfte Identitäten prüfen",
+      "Verzeichnisgruppen mit App-Rollen oder Bereichen verbinden",
+    ],
+    affectedObjects: ["externe Gruppen", "Identitäten", "Gruppen-Rollen-Zuordnungen"],
+    impactNote: "Neue Gruppen-Zuordnungen wirken für alle Mitglieder der jeweiligen Gruppe, sobald die Mitgliedschaft beim Login ausgewertet wird.",
+    riskNote: "Falsche Gruppen-Mappings verteilen Rechte schnell breit. Änderungen deshalb zuerst mit kleiner Gruppe oder nach gezieltem Sync prüfen.",
   },
   {
     key: "system",
-    label: "Benachrichtigungen & System",
-    description: "E-Mail-Versand und Systemeinstellungen konfigurieren.",
+    label: "Benachrichtigungen & Vorgänge",
+    description: "Mailversand, Prozesstypen und Workflow-Grundkonfiguration für den laufenden Betrieb steuern.",
+    navLabel: "Benachrichtigungen & Vorgänge",
+    navDescription: "Laufenden Systembetrieb, Versand und Prozessgrundlagen konfigurieren.",
     area: "system",
+    introTitle: "Laufenden Systembetrieb konfigurieren",
+    introDescription:
+      "Hier steuern Sie, wie Benachrichtigungen versendet werden, welche Prozesstypen verfügbar sind und welche Grundkonfiguration die App verwendet.",
+    whatYouCanDo: [
+      "Mailversand und Sandbox-Verhalten konfigurieren",
+      "Prozesstypen und Workflow-Grundlagen pflegen",
+      "Technische Anbindungen und App-Konfiguration prüfen",
+    ],
+    affectedObjects: ["Benachrichtigungen", "Prozesstypen", "Workflow- und Systemkonfiguration"],
+    impactNote: "Viele Änderungen wirken sofort im laufenden Betrieb, etwa beim Mailversand oder bei der Verfügbarkeit von Prozesstypen.",
+    riskNote: "Produktive Mail- oder Systemänderungen sollten bewusst geprüft werden, weil sie unmittelbar Nutzer und laufende Prozesse betreffen können.",
   },
   {
     key: "operations",
-    label: "Massenänderungen",
-    description: "Serienaktionen mit breiter Wirkung ausführen.",
+    label: "Massenaktionen",
+    description: "Serienaktionen vorbereitet prüfen und erst nach Vorschau gezielt ausführen.",
+    navLabel: "Massenaktionen",
+    navDescription: "Serienaktionen mit Vorschau absichern und kontrolliert ausführen.",
     area: "system",
+    introTitle: "Serienaktionen mit Vorschau absichern",
+    introDescription:
+      "Hier führen Sie Änderungen aus, die viele Datensätze oder Mitarbeitende gleichzeitig betreffen können.",
+    whatYouCanDo: [
+      "Massenläufe vorbereiten",
+      "Vorschau prüfen, bevor reale Vorgänge erstellt werden",
+      "Ergebnisse und Ausnahmen nach dem Lauf kontrollieren",
+    ],
+    affectedObjects: ["viele Personen oder Vorgänge gleichzeitig", "Zielabteilungen", "neu erzeugte Vorgänge"],
+    impactNote: "Nach dem Ausführen entstehen reale Vorgänge oder breite Änderungen. Die Vorschau hilft, Umfang und Auswirkungen vorab zu prüfen.",
+    riskNote: "Dieser Bereich ist bewusst risikobehaftet. Reale Aktionen sollten nur mit frischer Vorschau und klar geprüften Parametern gestartet werden.",
   },
 ];
 
 export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
   {
     key: "organization",
-    label: "Organisation",
+    label: "Personen & Organisation",
+    description: "Stammdaten, Abteilungen und Zuständigkeiten pflegen.",
     defaultSection: "organization",
     sections: ["organization"],
   },
   {
     key: "configuration",
-    label: "Vorlagen & Felder",
+    label: "Vorgangsaufbau",
+    description: "Aufgaben, Felder und Vorgaben für neue Vorgänge definieren.",
     defaultSection: "templates",
     sections: ["templates", "answers", "defaults"],
   },
   {
     key: "access",
-    label: "Rechte & Zugriff",
+    label: "App-Zugriff",
+    description: "Rechte, Gruppen und Verzeichnisanbindung gemeinsam steuern.",
     defaultSection: "access",
     sections: ["access", "directory"],
   },
   {
     key: "system",
-    label: "System",
+    label: "Betrieb & Versand",
+    description: "Laufende Systemkonfiguration und Serienaktionen steuern.",
     defaultSection: "system",
     sections: ["system", "operations"],
   },
@@ -147,7 +300,14 @@ export function getAdminWorkspaceAreaMeta(area: AdminWorkspaceArea): AdminWorksp
 
 export function getAdminWorkspaceSectionsForArea(area: AdminWorkspaceArea): AdminWorkspaceSectionMeta[] {
   const areaMeta = getAdminWorkspaceAreaMeta(area);
-  return areaMeta.sections.map((section) => getAdminWorkspaceSectionMeta(section));
+  return areaMeta.sections
+    .map((section) => getAdminWorkspaceSectionMeta(section))
+    .filter((sectionMeta) => sectionMeta.visibleInSubnav !== false);
+}
+
+export function getAdminWorkspacePresentationSection(section: AdminWorkspaceSection): AdminWorkspaceSection {
+  const meta = getAdminWorkspaceSectionMeta(section);
+  return meta.groupedWithSection ?? section;
 }
 
 export function normalizeAdminWorkspaceSection(value: string | null): AdminWorkspaceSection {
@@ -424,6 +584,8 @@ export function buildAdminOverviewWarnings(args: {
     if (!hasValidLead) {
       warnings.push({
         key: `department-lead-${department.departmentId}`,
+        category: "department_lead",
+        subjectLabel: department.departmentName,
         title: `Abteilung ohne gültige Leitung: ${department.departmentName}`,
         detail: "Die gespeicherte Leitung fehlt oder hat keine aktive Manager-Berechtigung.",
         actionLabel: "Abteilung öffnen",
@@ -438,6 +600,8 @@ export function buildAdminOverviewWarnings(args: {
     if (!hasValidOwner) {
       warnings.push({
         key: `department-owner-${department.departmentId}`,
+        category: "department_owner",
+        subjectLabel: department.departmentName,
         title: `Abteilung ohne gültige Anforderungsverantwortung: ${department.departmentName}`,
         detail: "Die gespeicherte anforderungsverantwortliche Person fehlt oder ist nicht mehr gültig.",
         actionLabel: "Abteilung öffnen",
@@ -451,6 +615,8 @@ export function buildAdminOverviewWarnings(args: {
     if (!responsibility.appUserId) {
       warnings.push({
         key: `responsibility-user-${responsibility.responsibilityId}`,
+        category: "responsibility_user",
+        subjectLabel: responsibility.responsibilityName,
         title: `Zuständigkeit ohne feste Person: ${responsibility.responsibilityName}`,
         detail: "Die Zuständigkeit ist aktuell nur über die Abteilung oder den Standardfall abgesichert.",
         actionLabel: "Zuständigkeit öffnen",
@@ -462,6 +628,8 @@ export function buildAdminOverviewWarnings(args: {
     if (!responsibility.departmentId) {
       warnings.push({
         key: `responsibility-department-${responsibility.responsibilityId}`,
+        category: "responsibility_department",
+        subjectLabel: responsibility.responsibilityName,
         title: `Zuständigkeit ohne Bereich: ${responsibility.responsibilityName}`,
         detail: "Die Zuständigkeit hat aktuell keine saubere Bereichszuordnung.",
         actionLabel: "Zuständigkeit öffnen",
@@ -474,6 +642,8 @@ export function buildAdminOverviewWarnings(args: {
   if (notificationEmailConfiguration?.configurationStatus === "incomplete") {
     warnings.push({
       key: "mail-incomplete",
+      category: "mail_configuration",
+      subjectLabel: "Mail-Konfiguration",
       title: "Mail-Konfiguration unvollständig",
       detail: notificationEmailConfiguration.configurationMessage ?? "Die Mail-Konfiguration ist noch nicht vollständig.",
       actionLabel: "System öffnen",
@@ -487,6 +657,8 @@ export function buildAdminOverviewWarnings(args: {
   ) {
     warnings.push({
       key: "mail-no-sandbox",
+      category: "mail_configuration",
+      subjectLabel: "Mailversand",
       title: "Mailversand aktiv ohne Sandbox",
       detail: "Aktiver Versand ohne Weiterleitungsadresse sendet an die hinterlegten Empfänger.",
       actionLabel: "System öffnen",
@@ -495,4 +667,80 @@ export function buildAdminOverviewWarnings(args: {
   }
 
   return warnings;
+}
+
+const ADMIN_WARNING_GROUP_META: Record<AdminWorkspaceWarningCategory, {
+  title: string;
+  detail: string;
+  actionLabel: string;
+  targetEntity?: AdminOrganizationEntity;
+  targetSection?: AdminWorkspaceSection;
+}> = {
+  department_lead: {
+    title: "Abteilungen ohne gültige Leitung",
+    detail: "In diesen Bereichen fehlt eine aktive Person mit Manager-Berechtigung.",
+    actionLabel: "Abteilungen prüfen",
+    targetEntity: "department",
+  },
+  department_owner: {
+    title: "Abteilungen ohne Anforderungsverantwortung",
+    detail: "Für diese Abteilungen ist keine gültige anforderungsverantwortliche Person hinterlegt.",
+    actionLabel: "Abteilungen prüfen",
+    targetEntity: "department",
+  },
+  responsibility_user: {
+    title: "Zuständigkeiten ohne feste Person",
+    detail: "Diese Zuständigkeiten sind aktuell nicht eindeutig einer Person zugeordnet.",
+    actionLabel: "Zuständigkeiten prüfen",
+    targetEntity: "responsibility",
+  },
+  responsibility_department: {
+    title: "Zuständigkeiten ohne Bereich",
+    detail: "Bei diesen Zuständigkeiten fehlt die organisatorische Bereichszuordnung.",
+    actionLabel: "Zuständigkeiten prüfen",
+    targetEntity: "responsibility",
+  },
+  mail_configuration: {
+    title: "Mail- und Versandkonfiguration",
+    detail: "Systemeinstellungen für Benachrichtigungen brauchen eine Prüfung.",
+    actionLabel: "System prüfen",
+    targetSection: "system",
+  },
+};
+
+const ADMIN_WARNING_GROUP_ORDER: AdminWorkspaceWarningCategory[] = [
+  "department_lead",
+  "department_owner",
+  "responsibility_user",
+  "responsibility_department",
+  "mail_configuration",
+];
+
+export function groupAdminOverviewWarnings(
+  warnings: AdminWorkspaceWarning[]
+): AdminWorkspaceWarningGroup[] {
+  const groups: AdminWorkspaceWarningGroup[] = [];
+
+  for (const category of ADMIN_WARNING_GROUP_ORDER) {
+    const categoryWarnings = warnings.filter((warning) => warning.category === category);
+
+    if (categoryWarnings.length === 0) {
+      continue;
+    }
+
+    const meta = ADMIN_WARNING_GROUP_META[category];
+
+    groups.push({
+      category,
+      title: meta.title,
+      detail: meta.detail,
+      count: categoryWarnings.length,
+      affectedLabels: categoryWarnings.slice(0, 4).map((warning) => warning.subjectLabel),
+      actionLabel: meta.actionLabel,
+      targetEntity: meta.targetEntity,
+      targetSection: meta.targetSection,
+    });
+  }
+
+  return groups;
 }

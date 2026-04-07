@@ -1,0 +1,806 @@
+using System.Text.Json;
+
+namespace API;
+
+internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionValidationService
+{
+    private static readonly HashSet<string> SupportedDecisionOperators = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "eq",
+        "neq",
+        "is_true",
+        "is_false",
+        "is_null",
+        "is_not_null"
+    };
+
+    private static readonly HashSet<string> AllowedNodeTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "start",
+        "form",
+        "approval",
+        "task",
+        "decision",
+        "end"
+    };
+
+    public string NormalizeDefinitionKey(string? definitionKey)
+    {
+        var normalized = NormalizeRequiredKey(definitionKey, "Definition key");
+        return normalized;
+    }
+
+    public WorkflowDefinitionDraftValidationResult ValidateAndNormalize(ReplaceWorkflowDefinitionVersionRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var nodes = request.Nodes ?? [];
+        var edges = request.Edges ?? [];
+
+        var normalizedNodes = new List<WorkflowDefinitionDraftNode>(nodes.Count);
+        var nodeByKey = new Dictionary<string, WorkflowDefinitionDraftNode>(StringComparer.Ordinal);
+        var errors = new List<string>();
+
+        for (var index = 0; index < nodes.Count; index += 1)
+        {
+            var node = nodes[index];
+            var nodeKey = TryNormalizeRequiredKey(node.NodeKey, $"Node[{index}].nodeKey", errors);
+            var nodeType = TryNormalizeRequiredKey(node.NodeType, $"Node[{index}].nodeType", errors);
+            if (nodeKey is null || nodeType is null)
+            {
+                continue;
+            }
+
+            if (!AllowedNodeTypes.Contains(nodeType))
+            {
+                errors.Add($"Node '{nodeKey}' uses unsupported node_type '{nodeType}'.");
+                continue;
+            }
+
+            if (!nodeByKey.TryAdd(nodeKey, new WorkflowDefinitionDraftNode
+                {
+                    NodeKey = nodeKey,
+                    NodeType = nodeType,
+                    Title = NormalizeOptionalText(node.Title),
+                    SortOrder = node.SortOrder,
+                    Config = CloneConfig(node.Config)
+                }))
+            {
+                errors.Add($"Duplicate node key '{nodeKey}'.");
+            }
+        }
+
+        normalizedNodes.AddRange(nodeByKey.Values.OrderBy(node => node.SortOrder).ThenBy(node => node.NodeKey, StringComparer.Ordinal));
+
+        var normalizedEdges = new List<WorkflowDefinitionDraftEdge>(edges.Count);
+        var prioritiesBySource = new HashSet<(string SourceNodeKey, int Priority)>();
+        for (var index = 0; index < edges.Count; index += 1)
+        {
+            var edge = edges[index];
+            var sourceNodeKey = TryNormalizeRequiredKey(edge.SourceNodeKey, $"Edge[{index}].sourceNodeKey", errors);
+            var targetNodeKey = TryNormalizeRequiredKey(edge.TargetNodeKey, $"Edge[{index}].targetNodeKey", errors);
+            if (sourceNodeKey is null || targetNodeKey is null)
+            {
+                continue;
+            }
+
+            if (string.Equals(sourceNodeKey, targetNodeKey, StringComparison.Ordinal))
+            {
+                errors.Add($"Edge '{sourceNodeKey}' -> '{targetNodeKey}' is not allowed because self-loops are not supported.");
+            }
+
+            if (!prioritiesBySource.Add((sourceNodeKey, edge.Priority)))
+            {
+                errors.Add($"Source node '{sourceNodeKey}' uses duplicate edge priority '{edge.Priority}'.");
+            }
+
+            normalizedEdges.Add(new WorkflowDefinitionDraftEdge
+            {
+                SourceNodeKey = sourceNodeKey,
+                TargetNodeKey = targetNodeKey,
+                Priority = edge.Priority,
+                ConditionExpression = NormalizeOptionalText(edge.ConditionExpression)
+            });
+        }
+
+        ValidateGraphStructure(normalizedNodes, normalizedEdges, nodeByKey, errors);
+        ValidateNodeConfigurations(normalizedNodes, errors);
+        ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, errors);
+
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException(string.Join(" ", errors));
+        }
+
+        return new WorkflowDefinitionDraftValidationResult
+        {
+            Name = NormalizeOptionalText(request.Name),
+            Description = NormalizeOptionalText(request.Description),
+            Nodes = normalizedNodes,
+            Edges = normalizedEdges
+        };
+    }
+
+    public WorkflowDefinitionValidationSnapshot ValidateSnapshot(WorkflowDefinitionValidationContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var issues = new List<WorkflowDefinitionValidationIssue>();
+        var normalizedNodes = new List<WorkflowDefinitionDraftNode>(context.Nodes.Count);
+        var nodeByKey = new Dictionary<string, WorkflowDefinitionDraftNode>(StringComparer.Ordinal);
+
+        for (var index = 0; index < context.Nodes.Count; index += 1)
+        {
+            var node = context.Nodes[index];
+            var nodeKey = TryNormalizeRequiredKey(node.NodeKey, $"Node[{index}].nodeKey", issues, "workflow_node");
+            var nodeType = TryNormalizeRequiredKey(node.NodeType, $"Node[{index}].nodeType", issues, "workflow_node");
+            if (nodeKey is null || nodeType is null)
+            {
+                continue;
+            }
+
+            if (!AllowedNodeTypes.Contains(nodeType))
+            {
+                issues.Add(CreateIssue(
+                    "unsupported_node_type",
+                    $"Node '{nodeKey}' uses unsupported node_type '{nodeType}'.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+
+            if (!nodeByKey.TryAdd(nodeKey, new WorkflowDefinitionDraftNode
+                {
+                    NodeKey = nodeKey,
+                    NodeType = nodeType,
+                    Title = NormalizeOptionalText(node.Title),
+                    SortOrder = node.SortOrder,
+                    Config = CloneConfig(node.Config)
+                }))
+            {
+                issues.Add(CreateIssue(
+                    "duplicate_node_key",
+                    $"Duplicate node key '{nodeKey}'.",
+                    "workflow_node",
+                    nodeKey));
+            }
+        }
+
+        normalizedNodes.AddRange(nodeByKey.Values.OrderBy(node => node.SortOrder).ThenBy(node => node.NodeKey, StringComparer.Ordinal));
+
+        var normalizedEdges = new List<WorkflowDefinitionDraftEdge>(context.Edges.Count);
+        var prioritiesBySource = new HashSet<(string SourceNodeKey, int Priority)>();
+        for (var index = 0; index < context.Edges.Count; index += 1)
+        {
+            var edge = context.Edges[index];
+            var sourceNodeKey = TryNormalizeRequiredKey(edge.SourceNodeKey, $"Edge[{index}].sourceNodeKey", issues, "workflow_edge");
+            var targetNodeKey = TryNormalizeRequiredKey(edge.TargetNodeKey, $"Edge[{index}].targetNodeKey", issues, "workflow_edge");
+            if (sourceNodeKey is null || targetNodeKey is null)
+            {
+                continue;
+            }
+
+            if (string.Equals(sourceNodeKey, targetNodeKey, StringComparison.Ordinal))
+            {
+                issues.Add(CreateIssue(
+                    "self_loop_not_supported",
+                    $"Edge '{sourceNodeKey}' -> '{targetNodeKey}' is not allowed because self-loops are not supported.",
+                    "workflow_edge",
+                    sourceNodeKey));
+            }
+
+            if (!prioritiesBySource.Add((sourceNodeKey, edge.Priority)))
+            {
+                issues.Add(CreateIssue(
+                    "duplicate_edge_priority",
+                    $"Source node '{sourceNodeKey}' uses duplicate edge priority '{edge.Priority}'.",
+                    "workflow_edge",
+                    sourceNodeKey));
+            }
+
+            normalizedEdges.Add(new WorkflowDefinitionDraftEdge
+            {
+                SourceNodeKey = sourceNodeKey,
+                TargetNodeKey = targetNodeKey,
+                Priority = edge.Priority,
+                ConditionExpression = NormalizeOptionalText(edge.ConditionExpression)
+            });
+        }
+
+        ValidateGraphStructure(normalizedNodes, normalizedEdges, nodeByKey, issues);
+        ValidateNodeConfigurations(normalizedNodes, issues);
+        ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, issues);
+
+        foreach (var referenceIssue in context.ReferenceIssues ?? [])
+        {
+            issues.Add(referenceIssue);
+        }
+
+        return new WorkflowDefinitionValidationSnapshot
+        {
+            CanSaveDraft = !issues.Any(issue => string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase)),
+            CanPublish = !issues.Any(issue => string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase)),
+            Issues = issues
+        };
+    }
+
+    private static void ValidateGraphStructure(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        IReadOnlyDictionary<string, WorkflowDefinitionDraftNode> nodeByKey,
+        List<string> errors)
+    {
+        var startNodes = nodes.Where(node => string.Equals(node.NodeType, "start", StringComparison.Ordinal)).ToList();
+        if (startNodes.Count != 1)
+        {
+            errors.Add(startNodes.Count == 0
+                ? "A workflow definition draft must contain exactly one start node."
+                : "A workflow definition draft must not contain more than one start node.");
+        }
+
+        var endNodeCount = nodes.Count(node => string.Equals(node.NodeType, "end", StringComparison.Ordinal));
+        if (endNodeCount == 0)
+        {
+            errors.Add("A workflow definition draft must contain at least one end node.");
+        }
+
+        var incomingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var outgoingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var node in nodes)
+        {
+            incomingCounts[node.NodeKey] = 0;
+            outgoingCounts[node.NodeKey] = 0;
+        }
+
+        foreach (var edge in edges)
+        {
+            if (!nodeByKey.ContainsKey(edge.SourceNodeKey))
+            {
+                errors.Add($"Edge source node '{edge.SourceNodeKey}' does not exist in this definition version.");
+                continue;
+            }
+
+            if (!nodeByKey.ContainsKey(edge.TargetNodeKey))
+            {
+                errors.Add($"Edge target node '{edge.TargetNodeKey}' does not exist in this definition version.");
+                continue;
+            }
+
+            outgoingCounts[edge.SourceNodeKey] += 1;
+            incomingCounts[edge.TargetNodeKey] += 1;
+        }
+
+        foreach (var node in nodes)
+        {
+            var incoming = incomingCounts[node.NodeKey];
+            var outgoing = outgoingCounts[node.NodeKey];
+
+            if (string.Equals(node.NodeType, "start", StringComparison.Ordinal))
+            {
+                if (incoming > 0)
+                {
+                    errors.Add($"Start node '{node.NodeKey}' must not have incoming edges.");
+                }
+
+                continue;
+            }
+
+            if (string.Equals(node.NodeType, "end", StringComparison.Ordinal))
+            {
+                if (outgoing > 0)
+                {
+                    errors.Add($"End node '{node.NodeKey}' must not have outgoing edges.");
+                }
+
+                continue;
+            }
+
+            if (incoming == 0)
+            {
+                errors.Add($"Node '{node.NodeKey}' must have at least one incoming edge.");
+            }
+
+            if (outgoing == 0)
+            {
+                errors.Add($"Node '{node.NodeKey}' must have at least one outgoing edge.");
+            }
+        }
+    }
+
+    private static void ValidateGraphStructure(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        IReadOnlyDictionary<string, WorkflowDefinitionDraftNode> nodeByKey,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        var startNodes = nodes.Where(node => string.Equals(node.NodeType, "start", StringComparison.Ordinal)).ToList();
+        if (startNodes.Count != 1)
+        {
+            issues.Add(CreateIssue(
+                startNodes.Count == 0 ? "missing_start_node" : "multiple_start_nodes",
+                startNodes.Count == 0
+                    ? "A workflow definition draft must contain exactly one start node."
+                    : "A workflow definition draft must not contain more than one start node.",
+                "workflow_definition"));
+        }
+
+        var endNodeCount = nodes.Count(node => string.Equals(node.NodeType, "end", StringComparison.Ordinal));
+        if (endNodeCount == 0)
+        {
+            issues.Add(CreateIssue(
+                "missing_end_node",
+                "A workflow definition draft must contain at least one end node.",
+                "workflow_definition"));
+        }
+
+        var incomingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var outgoingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var node in nodes)
+        {
+            incomingCounts[node.NodeKey] = 0;
+            outgoingCounts[node.NodeKey] = 0;
+        }
+
+        foreach (var edge in edges)
+        {
+            if (!nodeByKey.ContainsKey(edge.SourceNodeKey))
+            {
+                issues.Add(CreateIssue(
+                    "missing_edge_source",
+                    $"Edge source node '{edge.SourceNodeKey}' does not exist in this definition version.",
+                    "workflow_edge",
+                    edge.SourceNodeKey));
+                continue;
+            }
+
+            if (!nodeByKey.ContainsKey(edge.TargetNodeKey))
+            {
+                issues.Add(CreateIssue(
+                    "missing_edge_target",
+                    $"Edge target node '{edge.TargetNodeKey}' does not exist in this definition version.",
+                    "workflow_edge",
+                    edge.TargetNodeKey));
+                continue;
+            }
+
+            outgoingCounts[edge.SourceNodeKey] += 1;
+            incomingCounts[edge.TargetNodeKey] += 1;
+        }
+
+        foreach (var node in nodes)
+        {
+            var incoming = incomingCounts[node.NodeKey];
+            var outgoing = outgoingCounts[node.NodeKey];
+
+            if (string.Equals(node.NodeType, "start", StringComparison.Ordinal))
+            {
+                if (incoming > 0)
+                {
+                    issues.Add(CreateIssue(
+                        "start_node_incoming_edge",
+                        $"Start node '{node.NodeKey}' must not have incoming edges.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
+                continue;
+            }
+
+            if (string.Equals(node.NodeType, "end", StringComparison.Ordinal))
+            {
+                if (outgoing > 0)
+                {
+                    issues.Add(CreateIssue(
+                        "end_node_outgoing_edge",
+                        $"End node '{node.NodeKey}' must not have outgoing edges.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
+                continue;
+            }
+
+            if (incoming == 0)
+            {
+                issues.Add(CreateIssue(
+                    "missing_incoming_edge",
+                    $"Node '{node.NodeKey}' must have at least one incoming edge.",
+                    "workflow_node",
+                    node.NodeKey));
+            }
+
+            if (outgoing == 0)
+            {
+                issues.Add(CreateIssue(
+                    "missing_outgoing_edge",
+                    $"Node '{node.NodeKey}' must have at least one outgoing edge.",
+                    "workflow_node",
+                    node.NodeKey));
+            }
+        }
+    }
+
+    private static void ValidateNodeConfigurations(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        List<string> errors)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node.NodeType)
+            {
+                case "start":
+                case "end":
+                    if (HasConfig(node.Config))
+                    {
+                        errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' must not define a config.");
+                    }
+                    break;
+                case "form":
+                    ValidateRequiredStringConfig(node, "legacyProcessTypeKey", errors);
+                    break;
+                case "task":
+                case "approval":
+                    ValidateRequiredStringConfig(node, "legacyTemplateKey", errors);
+                    break;
+            }
+        }
+    }
+
+    private static void ValidateNodeConfigurations(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node.NodeType)
+            {
+                case "start":
+                case "end":
+                    if (HasConfig(node.Config))
+                    {
+                        issues.Add(CreateIssue(
+                            "config_not_allowed",
+                            $"Node '{node.NodeKey}' of type '{node.NodeType}' must not define a config.",
+                            "workflow_node",
+                            node.NodeKey));
+                    }
+                    break;
+                case "form":
+                    ValidateRequiredStringConfig(node, "legacyProcessTypeKey", issues);
+                    break;
+                case "task":
+                case "approval":
+                    ValidateRequiredStringConfig(node, "legacyTemplateKey", issues);
+                    break;
+            }
+        }
+    }
+
+    private static void ValidateRequiredStringConfig(
+        WorkflowDefinitionDraftNode node,
+        string propertyName,
+        List<string> errors)
+    {
+        if (!HasConfig(node.Config))
+        {
+            errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' requires a config object with '{propertyName}'.");
+            return;
+        }
+
+        var config = node.Config!.Value;
+        if (config.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' requires a JSON object config.");
+            return;
+        }
+
+        if (!config.TryGetProperty(propertyName, out var property)
+            || property.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(property.GetString()))
+        {
+            errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' requires config property '{propertyName}' as non-empty string.");
+        }
+    }
+
+    private static void ValidateRequiredStringConfig(
+        WorkflowDefinitionDraftNode node,
+        string propertyName,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        if (!HasConfig(node.Config))
+        {
+            issues.Add(CreateIssue(
+                "missing_node_config",
+                $"Node '{node.NodeKey}' of type '{node.NodeType}' requires a config object with '{propertyName}'.",
+                "workflow_node",
+                node.NodeKey));
+            return;
+        }
+
+        var config = node.Config!.Value;
+        if (config.ValueKind != JsonValueKind.Object)
+        {
+            issues.Add(CreateIssue(
+                "invalid_node_config_kind",
+                $"Node '{node.NodeKey}' of type '{node.NodeType}' requires a JSON object config.",
+                "workflow_node",
+                node.NodeKey));
+            return;
+        }
+
+        if (!config.TryGetProperty(propertyName, out var property)
+            || property.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(property.GetString()))
+        {
+            issues.Add(CreateIssue(
+                "missing_required_node_config_property",
+                $"Node '{node.NodeKey}' of type '{node.NodeType}' requires config property '{propertyName}' as non-empty string.",
+                "workflow_node",
+                node.NodeKey));
+        }
+    }
+
+    private static void ValidateDecisionConditions(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        IReadOnlyDictionary<string, WorkflowDefinitionDraftNode> nodeByKey,
+        List<string> errors)
+    {
+        foreach (var edge in edges)
+        {
+            if (!nodeByKey.TryGetValue(edge.SourceNodeKey, out var sourceNode)
+                || !string.Equals(sourceNode.NodeType, "decision", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(edge.ConditionExpression))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(edge.ConditionExpression);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' must use a JSON object condition.");
+                    continue;
+                }
+
+                if (!root.TryGetProperty("answerKey", out var answerKeyProperty)
+                    || answerKeyProperty.ValueKind != JsonValueKind.String
+                    || string.IsNullOrWhiteSpace(answerKeyProperty.GetString()))
+                {
+                    errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' requires answerKey.");
+                }
+
+                if (!root.TryGetProperty("operator", out var operatorProperty)
+                    || operatorProperty.ValueKind != JsonValueKind.String
+                    || string.IsNullOrWhiteSpace(operatorProperty.GetString()))
+                {
+                    errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' requires operator.");
+                    continue;
+                }
+
+                var @operator = operatorProperty.GetString()!.Trim().ToLowerInvariant();
+                if (!SupportedDecisionOperators.Contains(@operator))
+                {
+                    errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' uses unsupported operator '{@operator}'.");
+                }
+            }
+            catch (JsonException ex)
+            {
+                errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' is not valid JSON: {ex.Message}");
+            }
+        }
+    }
+
+    private static void ValidateDecisionConditions(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        IReadOnlyDictionary<string, WorkflowDefinitionDraftNode> nodeByKey,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        foreach (var edge in edges)
+        {
+            if (!nodeByKey.TryGetValue(edge.SourceNodeKey, out var sourceNode)
+                || !string.Equals(sourceNode.NodeType, "decision", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(edge.ConditionExpression))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(edge.ConditionExpression);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    issues.Add(CreateIssue(
+                        "invalid_decision_condition",
+                        $"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' must use a JSON object condition.",
+                        "workflow_edge",
+                        edge.SourceNodeKey));
+                    continue;
+                }
+
+                if (!root.TryGetProperty("answerKey", out var answerKeyProperty)
+                    || answerKeyProperty.ValueKind != JsonValueKind.String
+                    || string.IsNullOrWhiteSpace(answerKeyProperty.GetString()))
+                {
+                    issues.Add(CreateIssue(
+                        "missing_decision_answer_key",
+                        $"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' requires answerKey.",
+                        "workflow_edge",
+                        edge.SourceNodeKey));
+                }
+
+                if (!root.TryGetProperty("operator", out var operatorProperty)
+                    || operatorProperty.ValueKind != JsonValueKind.String
+                    || string.IsNullOrWhiteSpace(operatorProperty.GetString()))
+                {
+                    issues.Add(CreateIssue(
+                        "missing_decision_operator",
+                        $"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' requires operator.",
+                        "workflow_edge",
+                        edge.SourceNodeKey));
+                    continue;
+                }
+
+                var @operator = operatorProperty.GetString()!.Trim().ToLowerInvariant();
+                if (!SupportedDecisionOperators.Contains(@operator))
+                {
+                    issues.Add(CreateIssue(
+                        "unsupported_decision_operator",
+                        $"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' uses unsupported operator '{@operator}'.",
+                        "workflow_edge",
+                        edge.SourceNodeKey));
+                }
+            }
+            catch (JsonException ex)
+            {
+                issues.Add(CreateIssue(
+                    "invalid_decision_condition_json",
+                    $"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' is not valid JSON: {ex.Message}",
+                    "workflow_edge",
+                    edge.SourceNodeKey));
+            }
+        }
+    }
+
+    private static string NormalizeRequiredKey(string? value, string fieldName)
+    {
+        var normalized = NormalizeOptionalText(value)?.ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException($"{fieldName} is required.");
+        }
+
+        return normalized;
+    }
+
+    private static string? TryNormalizeRequiredKey(string? value, string fieldName, List<string> errors)
+    {
+        var normalized = NormalizeOptionalText(value)?.ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            return normalized;
+        }
+
+        errors.Add($"{fieldName} is required.");
+        return null;
+    }
+
+    private static string? TryNormalizeRequiredKey(
+        string? value,
+        string fieldName,
+        List<WorkflowDefinitionValidationIssue> issues,
+        string scope)
+    {
+        var normalized = NormalizeOptionalText(value)?.ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(normalized))
+        {
+            return normalized;
+        }
+
+        issues.Add(CreateIssue(
+            "required_value_missing",
+            $"{fieldName} is required.",
+            scope));
+        return null;
+    }
+
+    private static WorkflowDefinitionValidationIssue CreateIssue(
+        string code,
+        string message,
+        string scope,
+        string? referenceKey = null)
+    {
+        return new WorkflowDefinitionValidationIssue
+        {
+            Code = code,
+            Severity = "error",
+            Scope = scope,
+            Message = message,
+            ReferenceKey = referenceKey
+        };
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static bool HasConfig(JsonElement? config)
+    {
+        return config.HasValue
+               && config.Value.ValueKind is not JsonValueKind.Null
+               && config.Value.ValueKind is not JsonValueKind.Undefined;
+    }
+
+    private static JsonElement? CloneConfig(JsonElement? config)
+    {
+        if (!HasConfig(config))
+        {
+            return null;
+        }
+
+        return config!.Value.Clone();
+    }
+}
+
+internal sealed class WorkflowDefinitionValidationContext
+{
+    public required IReadOnlyList<WorkflowDefinitionNodeDto> Nodes { get; init; }
+    public required IReadOnlyList<WorkflowDefinitionEdgeDto> Edges { get; init; }
+    public IReadOnlyList<WorkflowDefinitionValidationIssue> ReferenceIssues { get; init; } = [];
+}
+
+internal sealed class WorkflowDefinitionValidationSnapshot
+{
+    public required bool CanSaveDraft { get; init; }
+    public required bool CanPublish { get; init; }
+    public required List<WorkflowDefinitionValidationIssue> Issues { get; init; }
+}
+
+internal sealed class WorkflowDefinitionValidationIssue
+{
+    public required string Code { get; init; }
+    public required string Severity { get; init; }
+    public required string Scope { get; init; }
+    public required string Message { get; init; }
+    public string? ReferenceKey { get; init; }
+}
+
+internal sealed class WorkflowDefinitionDraftValidationResult
+{
+    public string? Name { get; init; }
+    public string? Description { get; init; }
+    public required List<WorkflowDefinitionDraftNode> Nodes { get; init; }
+    public required List<WorkflowDefinitionDraftEdge> Edges { get; init; }
+}
+
+internal sealed class WorkflowDefinitionDraftNode
+{
+    public required string NodeKey { get; init; }
+    public required string NodeType { get; init; }
+    public string? Title { get; init; }
+    public int SortOrder { get; init; }
+    public JsonElement? Config { get; init; }
+}
+
+internal sealed class WorkflowDefinitionDraftEdge
+{
+    public required string SourceNodeKey { get; init; }
+    public required string TargetNodeKey { get; init; }
+    public int Priority { get; init; }
+    public string? ConditionExpression { get; init; }
+}

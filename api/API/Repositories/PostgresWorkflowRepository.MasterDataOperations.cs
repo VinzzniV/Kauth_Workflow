@@ -189,17 +189,20 @@ LEFT JOIN LATERAL (
         w.last_name,
         w.created_at
     FROM workflows w
-    WHERE w.target_person_id = p.id
-       OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
-       OR (
-            w.employee_number > 0
-            AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
-                COALESCE(
-                    NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
-                    u.display_name,
-                    'Person #' || p.id::text
-                )
-       )
+    WHERE w.workflow_definition_version_id IS NULL
+      AND (
+            w.target_person_id = p.id
+            OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
+            OR (
+                w.employee_number > 0
+                AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
+                    COALESCE(
+                        NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+                        u.display_name,
+                        'Person #' || p.id::text
+                    )
+            )
+      )
     ORDER BY w.created_at DESC
     LIMIT 1
 ) latest ON TRUE
@@ -255,7 +258,7 @@ LIMIT @limit;";
         return people;
     }
 
-    public async Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(
+    public async Task<List<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSources(
         string? search,
         int limit = 20,
         IReadOnlyCollection<int>? observableDepartmentIds = null)
@@ -265,23 +268,23 @@ LIMIT @limit;";
 
         const string sql = @"
 SELECT
-    onboarding.uid,
+    source_workflow.uid,
     p.id,
     COALESCE(
-        NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name, onboarding.first_name), COALESCE(p.last_name, latest.last_name, onboarding.last_name))), ''),
+        NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name, source_workflow.first_name), COALESCE(p.last_name, latest.last_name, source_workflow.last_name))), ''),
         u.display_name,
         'Person #' || p.id::text
     ) AS display_name,
-    COALESCE(p.first_name, latest.first_name, onboarding.first_name) AS first_name,
-    COALESCE(p.last_name, latest.last_name, onboarding.last_name) AS last_name,
-    COALESCE(latest.department_id, onboarding.department_id, p.department_id, u.department_id) AS department_id,
+    COALESCE(p.first_name, latest.first_name, source_workflow.first_name) AS first_name,
+    COALESCE(p.last_name, latest.last_name, source_workflow.last_name) AS last_name,
+    COALESCE(latest.department_id, source_workflow.department_id, p.department_id, u.department_id) AS department_id,
     d.name AS department_name,
-    COALESCE(latest.position_role_id, onboarding.position_role_id) AS position_role_id,
+    COALESCE(latest.position_role_id, source_workflow.position_role_id) AS position_role_id,
     r.name AS role_name,
-    COALESCE(latest.employee_number, p.employee_number, onboarding.employee_number) AS employee_number,
-    COALESCE(latest.badge_number, p.badge_number, onboarding.badge_number) AS badge_number,
-    onboarding.completed_at,
-    onboarding.archived_at
+    COALESCE(latest.employee_number, p.employee_number, source_workflow.employee_number) AS employee_number,
+    COALESCE(latest.badge_number, p.badge_number, source_workflow.badge_number) AS badge_number,
+    source_workflow.completed_at,
+    source_workflow.archived_at
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
 LEFT JOIN LATERAL (
@@ -293,21 +296,24 @@ LEFT JOIN LATERAL (
         w.first_name,
         w.last_name
     FROM workflows w
-    WHERE w.target_person_id = p.id
-       OR (
-            p.employee_number IS NOT NULL
-            AND w.employee_number = p.employee_number
-       )
-       OR (
-            w.employee_number IS NOT NULL
-            AND w.employee_number > 0
-            AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
-                COALESCE(
-                    NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
-                    u.display_name,
-                    'Person #' || p.id::text
-                )
-       )
+    WHERE w.workflow_definition_version_id IS NULL
+      AND (
+            w.target_person_id = p.id
+            OR (
+                p.employee_number IS NOT NULL
+                AND w.employee_number = p.employee_number
+            )
+            OR (
+                w.employee_number IS NOT NULL
+                AND w.employee_number > 0
+                AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
+                    COALESCE(
+                        NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+                        u.display_name,
+                        'Person #' || p.id::text
+                    )
+            )
+      )
     ORDER BY w.created_at DESC
     LIMIT 1
 ) latest ON TRUE
@@ -326,6 +332,7 @@ JOIN LATERAL (
     JOIN process_types pt ON pt.id = w.process_type_id
     WHERE pt.key = 'onboarding'
       AND w.status = 'completed'
+      AND w.workflow_definition_version_id IS NULL
       AND (
             w.target_person_id = p.id
             OR (
@@ -344,26 +351,26 @@ JOIN LATERAL (
       )
     ORDER BY COALESCE(w.completed_at, w.created_at) DESC, w.id DESC
     LIMIT 1
-) onboarding ON TRUE
-LEFT JOIN departments d ON d.id = COALESCE(latest.department_id, onboarding.department_id, p.department_id, u.department_id)
-LEFT JOIN app_roles r ON r.id = COALESCE(latest.position_role_id, onboarding.position_role_id)
+) source_workflow ON TRUE
+LEFT JOIN departments d ON d.id = COALESCE(latest.department_id, source_workflow.department_id, p.department_id, u.department_id)
+LEFT JOIN app_roles r ON r.id = COALESCE(latest.position_role_id, source_workflow.position_role_id)
 WHERE (
         @departmentIds IS NULL
-        OR COALESCE(latest.department_id, onboarding.department_id, p.department_id, u.department_id) = ANY(@departmentIds)
+        OR COALESCE(latest.department_id, source_workflow.department_id, p.department_id, u.department_id) = ANY(@departmentIds)
   )
   AND (
         @search = ''
         OR COALESCE(
-            NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name, onboarding.first_name), COALESCE(p.last_name, latest.last_name, onboarding.last_name))), ''),
+            NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name, source_workflow.first_name), COALESCE(p.last_name, latest.last_name, source_workflow.last_name))), ''),
             u.display_name,
             'Person #' || p.id::text
         ) ILIKE @pattern
-        OR TRIM(onboarding.first_name || ' ' || onboarding.last_name) ILIKE @pattern
-        OR CAST(COALESCE(latest.employee_number, p.employee_number, onboarding.employee_number) AS TEXT) ILIKE @pattern
+        OR TRIM(source_workflow.first_name || ' ' || source_workflow.last_name) ILIKE @pattern
+        OR CAST(COALESCE(latest.employee_number, p.employee_number, source_workflow.employee_number) AS TEXT) ILIKE @pattern
         OR COALESCE(d.name, '') ILIKE @pattern
         OR COALESCE(r.name, '') ILIKE @pattern
   )
-ORDER BY onboarding.completed_at DESC, display_name
+ORDER BY source_workflow.completed_at DESC, display_name
 LIMIT @limit;";
 
         await using var command = new NpgsqlCommand(sql, connection);
@@ -377,32 +384,17 @@ LIMIT @limit;";
                 : observableDepartmentIds.ToArray();
 
         await using var reader = await command.ExecuteReaderAsync();
-        var results = new List<CompletedOnboardingSearchResultDto>();
+        var results = new List<WorkflowTargetPersonSourceDto>();
         while (await reader.ReadAsync())
         {
-            results.Add(new CompletedOnboardingSearchResultDto
-            {
-                WorkflowUid = reader.GetGuid(0),
-                PersonId = reader.GetInt64(1),
-                DisplayName = reader.GetString(2),
-                FirstName = reader.GetString(3),
-                LastName = reader.GetString(4),
-                DepartmentId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-                DepartmentName = reader.IsDBNull(6) ? null : reader.GetString(6),
-                RoleId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-                RoleName = reader.IsDBNull(8) ? null : reader.GetString(8),
-                EmployeeNumber = reader.GetInt32(9),
-                BadgeNumber = reader.GetInt32(10),
-                CompletedAt = reader.GetDateTime(11),
-                ArchivedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12)
-            });
+            results.Add(MapWorkflowTargetPersonSource(reader));
         }
 
         return results;
     }
 
     // Anforderungen und Rollenempfehlungen bilden die Eingabemaske fuer neue Workflows.
-    public async Task<List<RequirementDto>> GetRequirements(string? processTypeKey = null)
+    public async Task<List<RequirementDto>> GetRequirements(string processTypeKey)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -411,7 +403,7 @@ LIMIT @limit;";
         return await LoadRequirements(connection, null, processTypeId);
     }
 
-    public async Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string? processTypeKey = null)
+    public async Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -431,6 +423,26 @@ LIMIT @limit;";
         {
             Requirements = requirements,
             RoleRecommendations = roleRecommendations
+        };
+    }
+
+    private static WorkflowTargetPersonSourceDto MapWorkflowTargetPersonSource(NpgsqlDataReader reader)
+    {
+        return new WorkflowTargetPersonSourceDto
+        {
+            WorkflowUid = reader.GetGuid(0),
+            PersonId = reader.GetInt64(1),
+            DisplayName = reader.GetString(2),
+            FirstName = reader.GetString(3),
+            LastName = reader.GetString(4),
+            DepartmentId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+            DepartmentName = reader.IsDBNull(6) ? null : reader.GetString(6),
+            RoleId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+            RoleName = reader.IsDBNull(8) ? null : reader.GetString(8),
+            EmployeeNumber = reader.GetInt32(9),
+            BadgeNumber = reader.GetInt32(10),
+            CompletedAt = reader.GetDateTime(11),
+            ArchivedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12)
         };
     }
 
@@ -528,9 +540,12 @@ WHERE key = @processTypeKey
   AND is_active = TRUE
 LIMIT 1;";
 
-        var normalizedProcessTypeKey = string.IsNullOrWhiteSpace(processTypeKey)
-            ? "onboarding"
-            : processTypeKey.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(processTypeKey))
+        {
+            throw new InvalidOperationException("processTypeKey is required.");
+        }
+
+        var normalizedProcessTypeKey = processTypeKey.Trim().ToLowerInvariant();
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("processTypeKey", normalizedProcessTypeKey);

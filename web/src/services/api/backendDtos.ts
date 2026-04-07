@@ -1,5 +1,4 @@
 import type {
-  CompletedOnboardingSearchResult,
   Department,
   DerivedAnswer,
   LinkableWorkflow,
@@ -8,6 +7,7 @@ import type {
   Role,
   WorkflowLink,
   WorkflowTargetPerson,
+  WorkflowTargetPersonSource,
 } from "../../types/workflow";
 import type {
   AdminDepartmentAssignment,
@@ -296,8 +296,10 @@ export type BackendWorkflowTaskDependencyDto = {
 
 export type BackendWorkflowTaskDto = {
   id: number;
+  nodeInstanceId: number | null;
   taskTemplateId: number | null;
   taskKey: string;
+  isRuntimeNodeTask: boolean;
   isApprovalTask: boolean;
   title: string;
   description: string;
@@ -316,6 +318,7 @@ export type BackendWorkflowTaskDto = {
   processArea: string | null;
   isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
+  canDecideApproval: boolean;
   canAddComment: boolean;
   assignments: BackendWorkflowTaskAssignmentDto[];
   dependencies: BackendWorkflowTaskDependencyDto[];
@@ -392,7 +395,8 @@ export type BackendWorkflowLinkDto = WorkflowLink;
 export type BackendLinkableWorkflowDto = LinkableWorkflow;
 export type BackendRelatedWorkflowSummaryDto = RelatedWorkflowSummary;
 export type BackendWorkflowTargetPersonDto = WorkflowTargetPerson;
-export type BackendCompletedOnboardingSearchResultDto = CompletedOnboardingSearchResult;
+export type BackendWorkflowTargetPersonSourceDto = WorkflowTargetPersonSource;
+export type BackendCompletedOnboardingSearchResultDto = WorkflowTargetPersonSource;
 export type BackendDerivedAnswerDto = DerivedAnswer;
 export type BackendAdminProcessTypeDto = AdminProcessType;
 export type BackendAdminTaskTemplateDto = AdminTaskTemplate;

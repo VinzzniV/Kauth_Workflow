@@ -42,3 +42,7 @@
 \i /docker-entrypoint-sql/38_permission_model.sql
 \i /docker-entrypoint-sql/39_graph_application_settings.sql
 \i /docker-entrypoint-sql/40_remove_secret_persistence.sql
+\i /docker-entrypoint-sql/41_workflow_definition_layer.sql
+\i /docker-entrypoint-sql/42_workflow_runtime_layer.sql
+\i /docker-entrypoint-sql/43_workflow_definition_mappings.sql
+\i /docker-entrypoint-sql/44_runtime_task_bridge.sql

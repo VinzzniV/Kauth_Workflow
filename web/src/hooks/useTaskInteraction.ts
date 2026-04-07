@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useToast } from "../components/feedback/useToast";
 import {
   useAddTaskComment,
+  useDecideTaskApproval,
   useUpdateTaskStatus,
 } from "../services/mutations/workflowMutations";
 import {
@@ -22,11 +23,13 @@ type TaskStatusChangeArgs = TaskInteractionArgs & {
 
 export function useTaskInteraction() {
   const [savingTaskIds, setSavingTaskIds] = useState<Record<number, boolean>>({});
+  const [savingApprovalTaskIds, setSavingApprovalTaskIds] = useState<Record<number, boolean>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
   const [savingCommentTaskIds, setSavingCommentTaskIds] = useState<Record<number, boolean>>({});
   const { showError, showSuccess } = useToast();
   const updateTaskStatusMutation = useUpdateTaskStatus();
   const addTaskCommentMutation = useAddTaskComment();
+  const decideTaskApprovalMutation = useDecideTaskApproval();
 
   const handleStatusChange = useCallback(
     async ({ taskId, workflowUid, status, currentStatus }: TaskStatusChangeArgs) => {
@@ -77,11 +80,37 @@ export function useTaskInteraction() {
     [addTaskCommentMutation, commentDrafts, showError, showSuccess]
   );
 
+  const handleApprovalDecision = useCallback(
+    async ({ taskId, workflowUid, approved }: TaskInteractionArgs & { approved: boolean }) => {
+      const draft = (commentDrafts[taskId] ?? "").trim();
+      setSavingApprovalTaskIds((current) => ({ ...current, [taskId]: true }));
+
+      try {
+        await decideTaskApprovalMutation.mutateAsync({
+          workflowUid,
+          taskId,
+          approved,
+          commentText: draft || undefined,
+        });
+        setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
+        showSuccess(approved ? "Freigabe wurde gespeichert." : "Ablehnung wurde gespeichert.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Freigabeentscheidung konnte nicht gespeichert werden.";
+        showError(message);
+      } finally {
+        setSavingApprovalTaskIds((current) => ({ ...current, [taskId]: false }));
+      }
+    },
+    [commentDrafts, decideTaskApprovalMutation, showError, showSuccess]
+  );
+
   return {
     savingTaskIds,
+    savingApprovalTaskIds,
     commentDrafts,
     savingCommentTaskIds,
     handleStatusChange,
+    handleApprovalDecision,
     handleCommentDraftChange,
     handleTaskCommentSubmit,
   };

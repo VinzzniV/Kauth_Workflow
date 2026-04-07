@@ -60,14 +60,14 @@ export function AdminTechnicalAccessSection({
     <div className="content-stack">
       <section className="panel">
         <div className="panel-head">
-          <h2>Zugriffe & Gruppen</h2>
+          <h2>Direkte Rollen und Gruppen</h2>
         </div>
 
         {isLoadingTechnicalAccess ? <LoadingState title="Rechte werden geladen..." /> : null}
 
         {!isLoadingTechnicalAccess && sortedUsers.length > 0 ? (
           <label className="field compact">
-            <span>Person für Einzelpflege</span>
+            <span>Person für Einzelprüfung</span>
             <select
               aria-label="Person"
               value={selectedUser?.userId ?? ""}
@@ -93,7 +93,7 @@ export function AdminTechnicalAccessSection({
         <div className="content-stack">
           <section className="panel">
             <div className="panel-head">
-              <h2>Direkte Rollen: {selectedUser.displayName}</h2>
+              <h2>Direkte Rollen für {selectedUser.displayName}</h2>
             </div>
 
             <div className="chips-row" aria-label="Rollen Auswahl">
@@ -166,14 +166,14 @@ export function AdminTechnicalAccessSection({
       {!isLoadingTechnicalAccess && !selectedUser ? (
         <EmptyState
           title="Person auswählen"
-          description="Person für Einzelrechte oder Gruppen auswählen."
+          description="Wählen Sie eine Person, um direkte Rollen und Gruppenzuordnungen zu prüfen."
         />
       ) : null}
 
       {!isLoadingTechnicalAccess && groups.length > 0 ? (
         <section className="panel">
           <div className="panel-head">
-            <h2>Gruppenrollen</h2>
+            <h2>Rollen je Gruppe</h2>
           </div>
 
           <label className="field compact">

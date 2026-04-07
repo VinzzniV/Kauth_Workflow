@@ -214,6 +214,29 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         return MatchesTaskAssignment(user, task);
     }
 
+    public bool CanDecideTaskApproval(CurrentUser user, TaskWithWorkflowDto task)
+    {
+        if (WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus)
+            || !task.Task.IsApprovalTask
+            || TerminalTaskStatuses.Contains(task.Task.Status))
+        {
+            return false;
+        }
+
+        if (HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+            || HasAnyRole(user, AuthorizationRoles.Admin))
+        {
+            return true;
+        }
+
+        if (!CanAccessSupervisorStep(user))
+        {
+            return false;
+        }
+
+        return MatchesTaskAssignment(user, task);
+    }
+
     // Umverteilungen bleiben ein expliziter Admin-Eingriff und sind keine regulaere Fachbearbeitung.
     public bool CanUpdateTaskAssignment(CurrentUser user, TaskWithWorkflowDto task)
     {

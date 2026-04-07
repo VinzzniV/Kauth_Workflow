@@ -196,7 +196,7 @@ function collectActionKeys(args: {
   }
 
   addKey("supervisorInbox", capabilities.hasManagerRole && canAccessFeature("supervisorStep"));
-  addKey("departmentTasks", capabilities.hasWorkerRole && canAccessFeature("technicalTasks"));
+  addKey("departmentTasks", canAccessFeature("technicalTasks"));
   addKey("adminConfig", capabilities.canManageAdminConfiguration && canAccessFeature("adminConfig"));
 
   return keys;

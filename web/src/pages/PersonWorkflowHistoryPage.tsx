@@ -58,8 +58,17 @@ export default function PersonWorkflowHistoryPage() {
         </nav>
 
         <PageHeader
+          variant="detail"
+          eyebrow="Mitarbeiterakte"
           title={displayName}
-          description="Bisherige Vorgänge dieser Person schnell nachvollziehen und einordnen."
+          description="Bisherige Vorgänge dieser Person in chronologischer Reihenfolge."
+          actions={
+            history ? (
+              <a href={createUrl} className="btn btn-primary">
+                Neuen Vorgang anlegen
+              </a>
+            ) : undefined
+          }
         />
 
         {isLoading ? <LoadingState title="Mitarbeiterakte wird geladen..." /> : null}

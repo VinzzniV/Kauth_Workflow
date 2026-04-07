@@ -65,36 +65,38 @@
 .card-list,
 .card-stat {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
+  border-radius: 14px;
+  background: var(--surface-list-background);
   box-shadow: var(--surface-card-shadow);
 }
 
 .card-primary {
   padding: 1rem;
-  background: var(--surface-focus-background);
+  background: var(--surface-hero-background);
   border-color: var(--surface-focus-border);
   box-shadow: var(--surface-focus-shadow);
 }
 
 .card-list {
-  padding: 0.85rem;
+  padding: 0.95rem 1rem;
+  box-shadow: none;
   transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .card-stat {
-  padding: 0.85rem;
+  padding: 0.95rem 1rem;
   position: relative;
   overflow: hidden;
-  background: var(--surface-card-subtle);
+  background: var(--surface-elevated);
+  box-shadow: none;
 }
 
 .card-stat::before {
   content: "";
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--brand);
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 35%, transparent));
 }
 
 .dashboard-grid {
@@ -114,7 +116,7 @@
 
 .dashboard-card:hover {
   border-color: var(--brand-border-soft);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
@@ -150,7 +152,7 @@
 
 .workflow-card--summary,
 .workflow-card--related {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 92%, transparent), color-mix(in srgb, var(--surface-card-subtle) 84%, transparent));
+  background: var(--surface-list-background);
 }
 
 .workflow-card--summary .btn,
@@ -162,16 +164,15 @@
 .panel {
   background: var(--surface-panel);
   border: 1px solid var(--surface-panel-border);
-  border-radius: var(--radius-md);
-  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  padding: 1.15rem 1.25rem;
   box-shadow: var(--surface-panel-shadow);
-  backdrop-filter: blur(18px);
 }
 
 .panel-muted {
   background: var(--surface-card-subtle);
   border-color: var(--surface-card-border);
-  box-shadow: var(--surface-card-shadow);
+  box-shadow: none;
 }
 
 .panel-success {
@@ -356,7 +357,7 @@
 .panel-title {
   font-size: 1.12rem;
   font-weight: 780;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
 }
 
@@ -503,13 +504,13 @@
 .field input,
 .field select {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
+  border-radius: 10px;
+  background: var(--surface-card-subtle);
   color: var(--text-primary);
   font: inherit;
   font-size: 0.875rem;
-  padding: 0.5rem 0.65rem;
-  transition: border-color 100ms ease;
+  padding: 0.58rem 0.75rem;
+  transition: border-color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
 }
 
 .field input:hover,
@@ -524,7 +525,13 @@
 }
 
 .field input:focus,
-.field select:focus,
+.field select:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: var(--brand);
+  background: var(--surface-elevated);
+}
+
 .btn:focus {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
@@ -574,11 +581,11 @@
   gap: 0.16rem;
   border: 1px solid var(--surface-card-border);
   border-radius: var(--radius-md);
-  background: var(--surface-elevated);
+  background: var(--surface-list-background);
   padding: 0.8rem 0.85rem;
   cursor: pointer;
   text-align: left;
-  box-shadow: var(--surface-card-shadow);
+  box-shadow: none;
   transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
@@ -590,7 +597,7 @@
 .selection-list-item--active {
   border-color: var(--brand);
   background: var(--surface-focus-background);
-  box-shadow: 0 0 0 1px var(--brand-ring), var(--surface-focus-shadow);
+  box-shadow: 0 0 0 1px var(--brand-ring);
 }
 
 .selection-list-item:focus-visible {
@@ -717,7 +724,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   border: 1px solid transparent;
   font-weight: 600;
   font-size: 0.85rem;
@@ -752,7 +759,7 @@
   background: var(--button-secondary-bg);
   border-color: var(--button-secondary-border);
   color: var(--text-primary);
-  box-shadow: var(--surface-card-shadow);
+  box-shadow: none;
 }
 
 .btn-secondary:hover:not(:disabled) {

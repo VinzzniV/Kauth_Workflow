@@ -1,9 +1,9 @@
 import type {
-  CompletedOnboardingSearchResult,
   Department,
   EmployeeFormData,
   ProcessType,
   Role,
+  WorkflowTargetPersonSource,
   WorkflowCreationPayload,
 } from "../types/workflow";
 
@@ -15,7 +15,7 @@ export type WorkflowStartFormState = {
   employee: EmployeeFormData;
   departmentId: number | null;
   roleId: number | null;
-  completedOnboardingSearch: string;
+  targetPersonSourceSearch: string;
 };
 
 export const EMPTY_EMPLOYEE: EmployeeFormData = {
@@ -32,7 +32,7 @@ export function createInitialWorkflowStartFormState(): WorkflowStartFormState {
     employee: EMPTY_EMPLOYEE,
     departmentId: null,
     roleId: null,
-    completedOnboardingSearch: "",
+    targetPersonSourceSearch: "",
   };
 }
 
@@ -89,26 +89,26 @@ export function getAvailableRoles(selectedDepartmentId: number | null, roles: Ro
   return roles.filter((role) => role.departmentId === selectedDepartmentId);
 }
 
-export function resolveSelectedCompletedOnboarding(
-  completedOnboardings: CompletedOnboardingSearchResult[],
-  selectedCompletedOnboardingSnapshot: CompletedOnboardingSearchResult | null
-): CompletedOnboardingSearchResult | null {
-  if (!selectedCompletedOnboardingSnapshot) {
+export function resolveSelectedTargetPersonSource(
+  targetPersonSources: WorkflowTargetPersonSource[],
+  selectedTargetPersonSourceSnapshot: WorkflowTargetPersonSource | null
+): WorkflowTargetPersonSource | null {
+  if (!selectedTargetPersonSourceSnapshot) {
     return null;
   }
 
   return (
-    completedOnboardings.find(
-      (result) => result.workflowUid === selectedCompletedOnboardingSnapshot.workflowUid
-    ) ?? selectedCompletedOnboardingSnapshot
+    targetPersonSources.find(
+      (result) => result.workflowUid === selectedTargetPersonSourceSnapshot.workflowUid
+    ) ?? selectedTargetPersonSourceSnapshot
   );
 }
 
 type WorkflowCreationContextCompletionArgs = {
   selectedProcessTypeKey: string | null;
   requiresTargetPerson: boolean;
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
-  completedOnboardingsLoading: boolean;
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  targetPersonSourcesLoading: boolean;
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
@@ -120,8 +120,8 @@ type WorkflowCreationContextCompletionArgs = {
 export function isWorkflowCreationContextComplete({
   selectedProcessTypeKey,
   requiresTargetPerson,
-  selectedCompletedOnboarding,
-  completedOnboardingsLoading,
+  selectedTargetPersonSource,
+  targetPersonSourcesLoading,
   employee,
   selectedDepartmentId,
   selectedRoleId,
@@ -135,12 +135,12 @@ export function isWorkflowCreationContextComplete({
 
   if (requiresTargetPerson) {
     return Boolean(
-      selectedCompletedOnboarding &&
-        selectedCompletedOnboarding.departmentId &&
-        selectedCompletedOnboarding.roleId &&
-        selectedCompletedOnboarding.employeeNumber > 0 &&
-        selectedCompletedOnboarding.badgeNumber > 0 &&
-        !completedOnboardingsLoading
+      selectedTargetPersonSource &&
+        selectedTargetPersonSource.departmentId &&
+        selectedTargetPersonSource.roleId &&
+        selectedTargetPersonSource.employeeNumber > 0 &&
+        selectedTargetPersonSource.badgeNumber > 0 &&
+        !targetPersonSourcesLoading
     );
   }
 
@@ -155,7 +155,7 @@ export function isWorkflowCreationContextComplete({
 type WorkflowCreationPayloadArgs = {
   selectedProcessTypeKey: string;
   requiresTargetPerson: boolean;
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
@@ -164,20 +164,20 @@ type WorkflowCreationPayloadArgs = {
 export function buildWorkflowCreationPayload({
   selectedProcessTypeKey,
   requiresTargetPerson,
-  selectedCompletedOnboarding,
+  selectedTargetPersonSource,
   employee,
   selectedDepartmentId,
   selectedRoleId,
 }: WorkflowCreationPayloadArgs): WorkflowCreationPayload {
-  if (requiresTargetPerson && selectedCompletedOnboarding) {
+  if (requiresTargetPerson && selectedTargetPersonSource) {
     return {
       processTypeKey: selectedProcessTypeKey,
-      targetPersonId: selectedCompletedOnboarding.personId,
-      sourceWorkflowUid: selectedCompletedOnboarding.workflowUid,
-      firstName: selectedCompletedOnboarding.firstName,
-      lastName: selectedCompletedOnboarding.lastName,
-      employeeNumber: selectedCompletedOnboarding.employeeNumber,
-      badgeNumber: selectedCompletedOnboarding.badgeNumber,
+      targetPersonId: selectedTargetPersonSource.personId,
+      sourceWorkflowUid: selectedTargetPersonSource.workflowUid,
+      firstName: selectedTargetPersonSource.firstName,
+      lastName: selectedTargetPersonSource.lastName,
+      employeeNumber: selectedTargetPersonSource.employeeNumber,
+      badgeNumber: selectedTargetPersonSource.badgeNumber,
       deadlineDate: employee.deadlineDate.trim() || null,
       departmentId: null,
       roleId: null,
@@ -200,18 +200,18 @@ type WorkflowCreationSuccessMessageArgs = {
   processTypeName: string;
   createdWorkflowUid: string;
   requiresTargetPerson: boolean;
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
 };
 
 export function buildWorkflowCreationSuccessMessage({
   processTypeName,
   createdWorkflowUid,
   requiresTargetPerson,
-  selectedCompletedOnboarding,
+  selectedTargetPersonSource,
 }: WorkflowCreationSuccessMessageArgs): string {
   return `${processTypeName} ${createdWorkflowUid} angelegt.${
-    requiresTargetPerson && selectedCompletedOnboarding
-      ? " Automatisch mit abgeschlossenem Onboarding verknüpft."
+    requiresTargetPerson && selectedTargetPersonSource
+      ? " Automatisch mit bestehendem Quellworkflow verknüpft."
       : ""
   } Nächster Schritt: Der zuständige Prozessschritt kann jetzt im Tool weiterbearbeitet werden.`;
 }

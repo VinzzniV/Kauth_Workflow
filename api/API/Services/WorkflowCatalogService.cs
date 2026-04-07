@@ -23,14 +23,14 @@ internal sealed class WorkflowCatalogService(
         return await repository.GetActiveProcessTypes(managerOnly);
     }
 
-    public async Task<IReadOnlyList<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardingsAsync(
+    public async Task<IReadOnlyList<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSourcesAsync(
         string? search,
         CurrentUser currentUser,
         int limit = 20,
         CancellationToken cancellationToken = default)
     {
         var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
-        return await repository.SearchCompletedOnboardings(search, limit, observableDepartmentIds);
+        return await repository.SearchWorkflowTargetPersonSources(search, limit, observableDepartmentIds);
     }
 
     public async Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchWorkflowTargetPeopleAsync(
@@ -45,11 +45,21 @@ internal sealed class WorkflowCatalogService(
 
     public async Task<IReadOnlyList<RequirementDto>> GetRequirementsAsync(string? processTypeKey, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(processTypeKey))
+        {
+            throw new InvalidOperationException("processTypeKey is required.");
+        }
+
         return await repository.GetRequirements(processTypeKey);
     }
 
     public async Task<WorkflowConfigDto?> GetWorkflowConfigAsync(int? roleId, string? processTypeKey, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(processTypeKey))
+        {
+            throw new InvalidOperationException("processTypeKey is required.");
+        }
+
         return await repository.GetWorkflowConfig(roleId, processTypeKey);
     }
 }

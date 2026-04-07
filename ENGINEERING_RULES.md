@@ -1,74 +1,99 @@
 # ENGINEERING_RULES.md
 
-## Core Principles
+## Kernprinzipien
 
-- Backend is Source of Truth
-- No business logic drift into frontend
-- Roles and Responsibilities must stay separated
-- assignment_type must always be respected
-- `skipped` is not allowed
-
----
-
-## Change Rules
-
-- Only change what is required for the task
-- No unrelated refactors
-- No guessing → call out uncertainty
-- Do not silently change behavior
+- Backend bleibt Source of Truth
+- Keine Business-Logik-Drift ins Frontend
+- Rollen und Responsibilities bleiben getrennt
+- `assignment_type` bleibt strikt
+- Workflow-Definition ist nicht gleich Task-Generierung
+- Migration erfolgt inkrementell, nicht als Big Bang
 
 ---
 
-## Documentation Rules
+## Aenderungsregeln
 
-- Read `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md` and `MEMORY.md` before larger changes
-- Update the relevant docs in the same pass when code, structure or runtime behavior changes
-- Keep stable truth in `PROJECT_CONTEXT.md`, not in ad-hoc notes
-- Keep temporary findings in `MEMORY.md`, not in long-term architecture files
-- Do not duplicate setup, structure and decision content across multiple docs without need
-
----
-
-## File Size Rules
-
-Avoid large files:
-- Frontend components > 400–500 lines → split
-- Backend classes > 500–700 lines → split
-
-Never:
-- add new logic to already large files without evaluating split
+- Nur aendern, was fuer den aktuellen Schritt erforderlich ist
+- Keine unstrukturierten Nebenbei-Refactors
+- Unsicherheit offen benennen statt raten
+- Verhalten nicht stillschweigend aendern
+- Alte und neue Architektur zunaechst parallel halten
 
 ---
 
-## API Rules
+## Architekturregeln
 
-- No in-memory filtering/pagination
-- Always query at DB level
-- One endpoint = one response shape
-
----
-
-## Frontend Rules
-
-- No duplicate business logic
-- Avoid multiple requests for same data
-- Cache static data (e.g. process types)
-- Debounce search inputs
+- Keine neue onboarding-spezifische Kernlogik ergaenzen
+- Neue Prozessarten nicht weiter primaer per Seed-SQL aufbauen
+- Keine freien technischen Actions fuer Admins einfuehren
+- Versionierung und Validierung vor Komfort-Features priorisieren
+- Bei Kernumbauten erst Modell und Migrationsschnitt klaeren, dann implementieren
 
 ---
 
-## Security Rules
+## Dokumentationsregeln
 
-- No open demo endpoints without explicit flag
-- No secrets in plain text (DB or config)
-- Validate all input
+- Vor groesseren Aenderungen `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md` und `MEMORY.md` lesen
+- Bei Architektur-, Datenmodell- oder Runtime-Arbeit auch `Workflow_Plattform_Implementation_Plan.md` lesen
+- Relevante Dokus im selben Arbeitsgang aktualisieren
+- Stabile Wahrheit in `PROJECT_CONTEXT.md` oder `DECISIONS.md`, nicht in ad-hoc Notizen
+- Temporare Findings in `MEMORY.md`, nicht in Langzeitdokus
 
 ---
 
-## Handoff Rules
+## Arbeitsmodus
 
-- No node_modules
-- No dist
-- No bin/obj
-- No .git
-- Build must work from source only
+- Fuer Datenmodell, Migration, Runtime und mehrschichtige Aenderungen zuerst klein schneiden und in pruefbare Inkremente zerlegen
+- Reihenfolge bevorzugen:
+  1. Datenmodell / Migration
+  2. Domainmodell / Repository
+  3. Service / Runtime
+  4. API
+  5. UI
+  6. Tests
+  7. Doku
+
+---
+
+## Dateigroessen
+
+Grosse Dateien vermeiden:
+- Frontend-Komponenten > 400-500 Zeilen pruefen und bei Bedarf schneiden
+- Backend-Klassen > 500-700 Zeilen pruefen und bei Bedarf schneiden
+
+Nie:
+- neue Logik in ohnehin ueberladene Dateien kippen, ohne Split zu bewerten
+
+---
+
+## API-Regeln
+
+- Keine In-Memory-Filterung/Paginierung fuer produktive Datenpfade
+- Ein Endpoint = eine klare Response-Form
+- Fehler- und Validierungsverhalten konsistent halten
+
+---
+
+## Frontend-Regeln
+
+- Keine doppelte Business-Logik
+- Keine Builder- oder Admin-UI mit freier technischer Ausfuehrung
+- Legacy- und neue Runtime-Flows nur dort parallel zeigen, wo die Migration es erfordert
+
+---
+
+## Sicherheitsregeln
+
+- Keine offenen Demo-Endpunkte ohne expliziten Dev-Guard
+- Keine Secrets im Klartext in Repo, Artefakten oder DB als Standardmodell
+- Alle Node-Configs und Action-Parameter validieren
+
+---
+
+## Handoff-Regeln
+
+- Kein `node_modules`
+- Kein `dist`
+- Kein `bin` / `obj`
+- Kein `.git`
+- Artefakte sind nie Source of Truth

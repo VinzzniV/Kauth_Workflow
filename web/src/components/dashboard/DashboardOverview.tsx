@@ -1,4 +1,5 @@
 // Rollenspezifisches Dashboard mit Kennzahlen und dem naechsten sinnvollen Arbeitsschritt.
+// Struktur: Zone 1 (Focus/Naechster Schritt), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit).
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
@@ -9,8 +10,6 @@ import {
 } from "../../utils/workflowStatus";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
-import Card from "../ui/Card";
-import SectionHeader from "../ui/SectionHeader";
 import { useDashboardInsights } from "./useDashboardInsights";
 
 export default function DashboardOverview() {
@@ -43,6 +42,10 @@ export default function DashboardOverview() {
   const priorityItem = insights?.queueItems[0] ?? null;
   const secondaryQueueItems = insights?.queueItems.slice(1) ?? [];
   const employeeItems = insights?.employeeItems ?? [];
+  const meaningfulStats = useMemo(
+    () => (insights?.stats ?? []).filter((stat) => stat.value > 0),
+    [insights?.stats]
+  );
 
   if (dashboardActions.length === 0) {
     return (
@@ -70,94 +73,104 @@ export default function DashboardOverview() {
 
       {!isInsightsLoading && !isProcessTypeLoading && !insightsError && insights ? (
         <>
-          <section className="dashboard-priority-panel">
-            <div className="dashboard-top-row">
-              <SectionHeader title={dashboardContext.title} />
-              {supportsProcessTypeFilter && processTypes.length > 1 ? (
-                <label className="field compact dashboard-filter-field">
-                  <span>Prozesstyp</span>
-                  <select
-                    value={effectiveProcessTypeKey}
-                    onChange={(event) => setSelectedProcessTypeKey(event.target.value)}
-                    disabled={isInsightsLoading || isProcessTypeLoading}
-                  >
-                    <option value="all">Alle</option>
-                    {processTypes.map((processType) => (
-                      <option key={processType.key} value={processType.key}>
-                        {processType.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
+          {/* ─── Zone 1: Focus — nächster Schritt + Filter + Aktualisieren ─── */}
+          <section className="panel dashboard-focus">
+            <div className="dashboard-focus__head">
+              <h2>{dashboardContext.title}</h2>
+              <div className="dashboard-focus__controls">
+                {supportsProcessTypeFilter && processTypes.length > 1 ? (
+                  <label className="field compact">
+                    <span>Prozesstyp</span>
+                    <select
+                      value={effectiveProcessTypeKey}
+                      onChange={(event) => setSelectedProcessTypeKey(event.target.value)}
+                      disabled={isInsightsLoading || isProcessTypeLoading}
+                    >
+                      <option value="all">Alle</option>
+                      {processTypes.map((processType) => (
+                        <option key={processType.key} value={processType.key}>
+                          {processType.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => void reloadInsights()}
+                  disabled={isInsightsLoading || isProcessTypeLoading}
+                >
+                  {isInsightsLoading ? "Aktualisiere..." : "Aktualisieren"}
+                </button>
+              </div>
             </div>
 
             {priorityItem ? (
-              <Link to={priorityItem.to} className="dashboard-priority-card dashboard-priority-card--action card-primary">
+              <Link to={priorityItem.to} className="dashboard-next-step dashboard-next-step--action">
                 <div>
-                  <p className="dashboard-priority-kicker">Jetzt prüfen</p>
-                  <p className="dashboard-priority-title">{insights.nextStep}</p>
-                  <p className="dashboard-priority-detail">{priorityItem.title}</p>
+                  <p className="dashboard-next-step__kicker">Nächster Schritt</p>
+                  <p className="dashboard-next-step__title">{insights.nextStep}</p>
+                  <p className="dashboard-next-step__detail">{priorityItem.title}</p>
                 </div>
-                <span className="dashboard-priority-action">{priorityItem.actionLabel}</span>
+                <span className="dashboard-next-step__cta">{priorityItem.actionLabel}</span>
               </Link>
             ) : (
-              <article className="dashboard-priority-card card-primary">
-                <div>
-                  <p className="dashboard-priority-kicker">Jetzt prüfen</p>
-                  <p className="dashboard-priority-title">{insights.nextStep}</p>
-                  <p className="dashboard-priority-detail">{insights.emptyQueueText}</p>
-                </div>
-              </article>
+              <div className="dashboard-next-step">
+                <p className="dashboard-next-step__kicker">Aktueller Stand</p>
+                <p className="dashboard-next-step__title">{insights.nextStep}</p>
+                <p className="dashboard-next-step__detail">{insights.emptyQueueText}</p>
+              </div>
             )}
           </section>
 
-          {insights.stats.length > 0 ? (
-            <section className="section-stack">
-              <SectionHeader title="Kennzahlen" />
-                <div className="dashboard-stats-grid" aria-label="Rollenspezifische Übersicht">
-                  {insights.stats.map((stat) => (
-                    <Card
-                      key={stat.label}
-                      variant="stat"
-                      className={`dashboard-stat-card${stat.tone ? ` dashboard-stat-card--${stat.tone}` : ""}`}
-                    >
-                      <p className="dashboard-stat-label">{stat.label}</p>
-                      <p className="dashboard-stat-value">{stat.value}</p>
-                    </Card>
-                  ))}
-                </div>
-              </section>
+          {/* ─── Zone 2: Kennzahlen — nur wenn mindestens ein Wert > 0 ─── */}
+          {meaningfulStats.length > 0 ? (
+            <div className="dashboard-metrics" role="region" aria-label="Kennzahlen">
+              {meaningfulStats.map((stat) => (
+                <article
+                  key={stat.label}
+                  className={`dashboard-metric${stat.tone ? ` dashboard-metric--${stat.tone}` : ""}`}
+                >
+                  <span className="dashboard-metric__value">{stat.value}</span>
+                  <span className="dashboard-metric__label">{stat.label}</span>
+                </article>
+              ))}
+            </div>
           ) : null}
 
+          {/* ─── Zone 3: Offene Arbeit — Queue-Items ─── */}
           {secondaryQueueItems.length > 0 ? (
-            <section className="section-stack dashboard-queue">
-              <SectionHeader title={insights.queueTitle} />
-              <ul className="dashboard-queue-list">
+            <section className="panel panel-muted">
+              <div className="panel-head">
+                <h2>{insights.queueTitle}</h2>
+              </div>
+              <ul className="dashboard-work-list">
                 {secondaryQueueItems.map((item) => (
-                  <Card key={item.key} as="li" variant="list" className="dashboard-queue-item">
+                  <li key={item.key} className="dashboard-work-item">
                     <div>
-                      <p className="dashboard-queue-title">{item.title}</p>
-                      <p className="dashboard-queue-detail">{item.detail}</p>
+                      <p className="dashboard-work-item__title">{item.title}</p>
+                      <p className="dashboard-work-item__detail">{item.detail}</p>
                     </div>
                     <Link to={item.to} className="btn btn-secondary">
                       {item.actionLabel}
                     </Link>
-                  </Card>
+                  </li>
                 ))}
               </ul>
             </section>
           ) : null}
 
+          {/* ─── Zone 3: Offene Arbeit — Mitarbeitende (nur Manager) ─── */}
           {dashboardPersona === "manager" && employeeItems.length > 0 ? (
-            <section className="section-stack dashboard-queue">
-              <SectionHeader
-                title={insights.employeeListTitle ?? "Mitarbeitende"}
-                description={insights.employeeListDescription}
-              />
-              <ul className="dashboard-employee-list" aria-label="Mitarbeitende mit Vorgängen">
+            <section className="panel panel-muted">
+              <div className="panel-head">
+                <h2>{insights.employeeListTitle ?? "Mitarbeitende"}</h2>
+                {insights.employeeListDescription ? <p>{insights.employeeListDescription}</p> : null}
+              </div>
+              <ul className="dashboard-employee-list">
                 {employeeItems.map((item) => (
-                  <Card key={item.key} as="li" variant="list" className="dashboard-employee-item">
+                  <li key={item.key} className="dashboard-employee-item">
                     <div className="dashboard-employee-main">
                       <div className="dashboard-employee-head">
                         <div className="dashboard-employee-copy">
@@ -168,37 +181,23 @@ export default function DashboardOverview() {
                           {getWorkflowRuntimeStatusLabel(item.workflowStatus)}
                         </span>
                       </div>
-
-                      <div className="chips-row dashboard-employee-chips" aria-label="Vorgangskontext">
+                      <div className="chips-row" aria-label="Vorgangskontext">
                         <span className="chip">{item.processTypeName}</span>
                         {item.departmentName ? <span className="chip">{item.departmentName}</span> : null}
                       </div>
-
                       <p className="dashboard-employee-context">{item.contextText}</p>
                       <p className="dashboard-employee-date">
                         {item.dateLabel}: {item.dateValue}
                       </p>
                     </div>
-
                     <Link to={item.to} className="btn btn-secondary">
                       {item.actionLabel}
                     </Link>
-                  </Card>
+                  </li>
                 ))}
               </ul>
             </section>
           ) : null}
-
-          <div className="dashboard-refresh-row">
-            <button
-              type="button"
-              className="btn-text"
-              onClick={() => void reloadInsights()}
-              disabled={isInsightsLoading || isProcessTypeLoading}
-            >
-              {isInsightsLoading ? "Aktualisiere..." : "Übersicht aktualisieren"}
-            </button>
-          </div>
         </>
       ) : null}
     </div>

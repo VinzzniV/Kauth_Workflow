@@ -1,4 +1,4 @@
-import type { CompletedOnboardingSearchResult, EmployeeFormData, ProcessType, Role, WorkflowConfig } from "../types/workflow";
+import type { EmployeeFormData, ProcessType, Role, WorkflowConfig, WorkflowTargetPersonSource } from "../types/workflow";
 import type { WorkflowCreationStep } from "../hooks/useWorkflowCreation";
 
 export type StepDefinition = {
@@ -16,9 +16,9 @@ type CreateWorkflowPageViewModelArgs = {
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
-  completedOnboardingsLoading: boolean;
-  completedOnboardingsError: string | null;
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  targetPersonSourcesLoading: boolean;
+  targetPersonSourcesError: string | null;
   rolesLoading: boolean;
   rolesError: string | null;
   availableRoles: Role[];
@@ -35,9 +35,9 @@ export function buildCreateWorkflowPageViewModel({
   employee,
   selectedDepartmentId,
   selectedRoleId,
-  selectedCompletedOnboarding,
-  completedOnboardingsLoading,
-  completedOnboardingsError,
+  selectedTargetPersonSource,
+  targetPersonSourcesLoading,
+  targetPersonSourcesError,
   rolesLoading,
   rolesError,
   availableRoles,
@@ -54,11 +54,11 @@ export function buildCreateWorkflowPageViewModel({
     (workflowConfig?.roleRecommendations.defaultSelectedOptions.length ?? 0);
   const hasDerivedContextGap = Boolean(
     requiresTargetPerson &&
-      selectedCompletedOnboarding &&
-      (!selectedCompletedOnboarding.departmentId ||
-        !selectedCompletedOnboarding.roleId ||
-        selectedCompletedOnboarding.employeeNumber <= 0 ||
-        selectedCompletedOnboarding.badgeNumber <= 0)
+      selectedTargetPersonSource &&
+      (!selectedTargetPersonSource.departmentId ||
+        !selectedTargetPersonSource.roleId ||
+        selectedTargetPersonSource.employeeNumber <= 0 ||
+        selectedTargetPersonSource.badgeNumber <= 0)
   );
   const processStepIssues = selectedProcessType ? [] : ["Bitte einen Vorgang wählen."];
   const employeeFieldErrors = requiresTargetPerson
@@ -77,12 +77,12 @@ export function buildCreateWorkflowPageViewModel({
         : "Bitte eine Stelle auswählen."
       : null;
   const targetPersonSelectionError =
-    requiresTargetPerson && !selectedCompletedOnboarding && !completedOnboardingsLoading
-      ? "Bitte ein abgeschlossenes Onboarding auswählen."
+    requiresTargetPerson && !selectedTargetPersonSource && !targetPersonSourcesLoading
+      ? "Bitte einen passenden Quellworkflow auswählen."
       : null;
   const contextStepIssues = requiresTargetPerson
     ? [
-        ...(completedOnboardingsError ? ["Die Suche nach abgeschlossenen Onboardings ist fehlgeschlagen."] : []),
+        ...(targetPersonSourcesError ? ["Die Suche nach Quellworkflows ist fehlgeschlagen."] : []),
         ...(targetPersonSelectionError ? [targetPersonSelectionError] : []),
         ...(hasDerivedContextGap
           ? ["Für die gewählte Person fehlen vollständige Angaben zu Abteilung, Stelle, Personalnummer oder Kartennummer."]

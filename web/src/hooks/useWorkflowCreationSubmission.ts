@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { createWorkflow } from "../services/workflowApi";
-import type { CompletedOnboardingSearchResult, EmployeeFormData, ProcessType } from "../types/workflow";
+import type { EmployeeFormData, ProcessType, WorkflowTargetPersonSource } from "../types/workflow";
 import {
   buildWorkflowCreationPayload,
   buildWorkflowCreationSuccessMessage,
@@ -13,7 +13,7 @@ type UseWorkflowCreationSubmissionArgs = {
   requiresTargetPerson: boolean;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
   employee: EmployeeFormData;
 };
 
@@ -32,7 +32,7 @@ export function useWorkflowCreationSubmission({
   requiresTargetPerson,
   selectedDepartmentId,
   selectedRoleId,
-  selectedCompletedOnboarding,
+  selectedTargetPersonSource,
   employee,
 }: UseWorkflowCreationSubmissionArgs): UseWorkflowCreationSubmissionResult {
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
@@ -60,9 +60,9 @@ export function useWorkflowCreationSubmission({
       return;
     }
 
-    if (requiresTargetPerson && !selectedCompletedOnboarding) {
+    if (requiresTargetPerson && !selectedTargetPersonSource) {
       setSubmitState("error");
-      setSubmitError("Bitte zuerst ein abgeschlossenes Onboarding auswählen.");
+      setSubmitError("Bitte zuerst einen passenden Quellworkflow auswählen.");
       return;
     }
 
@@ -75,7 +75,7 @@ export function useWorkflowCreationSubmission({
     const payload = buildWorkflowCreationPayload({
       selectedProcessTypeKey,
       requiresTargetPerson,
-      selectedCompletedOnboarding,
+      selectedTargetPersonSource,
       employee,
       selectedDepartmentId,
       selectedRoleId,
@@ -90,7 +90,7 @@ export function useWorkflowCreationSubmission({
           processTypeName,
           createdWorkflowUid: response.uid,
           requiresTargetPerson,
-          selectedCompletedOnboarding,
+          selectedTargetPersonSource,
         })
       );
     } catch (err) {
@@ -100,7 +100,7 @@ export function useWorkflowCreationSubmission({
   }, [
     employee,
     requiresTargetPerson,
-    selectedCompletedOnboarding,
+    selectedTargetPersonSource,
     selectedDepartmentId,
     selectedProcessType,
     selectedProcessTypeKey,

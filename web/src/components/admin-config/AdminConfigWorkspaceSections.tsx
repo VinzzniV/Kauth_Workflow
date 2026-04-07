@@ -1,22 +1,37 @@
-import { AdminAnswerDefinitionSection } from "./AdminAnswerDefinitionSection";
+import type { ReactNode } from "react";
 import { AdminBulkOperationsSection } from "./AdminBulkOperationsSection";
 import { AdminDirectorySyncSection } from "./AdminDirectorySyncSection";
+import { AdminFieldConfigurationWorkspaceSection } from "./AdminFieldConfigurationWorkspaceSection";
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
 import { AdminOrganizationWorkspaceSection } from "./AdminOrganizationWorkspaceSection";
 import { AdminOverviewWorkspaceSection } from "./AdminOverviewWorkspaceSection";
 import { AdminPermissionsSection } from "./AdminPermissionsSection";
-import { AdminRoleAnswerDefaultsSection } from "./AdminRoleAnswerDefaultsSection";
 import { AdminSystemWorkspaceSection } from "./AdminSystemWorkspaceSection";
 import { AdminTaskTemplateSection } from "./AdminTaskTemplateSection";
 import { AdminTechnicalAccessSection } from "./AdminTechnicalAccessSection";
+import { AdminWorkspaceIntro } from "./AdminWorkspaceIntro";
 import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceContentTypes";
+import {
+  getAdminWorkspacePresentationSection,
+  getAdminWorkspaceSectionMeta,
+  type AdminWorkspaceSection,
+} from "./adminWorkspaceModel";
+
+function renderWorkspaceWithIntro(section: AdminWorkspaceSection, content: ReactNode) {
+  const meta = getAdminWorkspaceSectionMeta(getAdminWorkspacePresentationSection(section));
+
+  return (
+    <div className="content-stack">
+      <AdminWorkspaceIntro meta={meta} />
+      {content}
+    </div>
+  );
+}
 
 export function renderOverviewWorkspace(props: AdminConfigWorkspaceContentProps) {
   return (
     <AdminOverviewWorkspaceSection
       departmentCount={props.departmentAssignments.length}
-      userCount={props.users.length}
-      responsibilityCount={props.responsibilityOwners.length}
       warningCount={props.warnings.length}
       hasLoadedTechnicalAccess={props.hasLoadedTechnicalAccess}
       roleCount={props.sortedRoles.length}
@@ -30,7 +45,8 @@ export function renderOverviewWorkspace(props: AdminConfigWorkspaceContentProps)
 }
 
 export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return (
+  return renderWorkspaceWithIntro(
+    "organization",
     <AdminOrganizationWorkspaceSection
       organizationEntity={props.organizationEntity}
       selectedEntityId={props.selectedEntityId}
@@ -92,7 +108,8 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
 }
 
 export function renderAccessWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return (
+  return renderWorkspaceWithIntro(
+    "access",
     <div className="content-stack">
       <AdminTechnicalAccessSection
         isTechnicalAccessOpen={true}
@@ -141,7 +158,8 @@ export function renderAccessWorkspace(props: AdminConfigWorkspaceContentProps) {
 }
 
 export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return (
+  return renderWorkspaceWithIntro(
+    "directory",
     <div className="content-stack">
       <AdminDirectorySyncSection
         status={props.directoryStatus}
@@ -166,7 +184,8 @@ export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps
 }
 
 export function renderSystemWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return (
+  return renderWorkspaceWithIntro(
+    "system",
     <AdminSystemWorkspaceSection
       graphApplicationConfiguration={props.graphApplicationConfiguration}
       notificationEmailConfiguration={props.notificationEmailConfiguration}
@@ -198,7 +217,8 @@ export function renderSystemWorkspace(props: AdminConfigWorkspaceContentProps) {
 }
 
 export function renderTemplateWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return (
+  return renderWorkspaceWithIntro(
+    "templates",
     <AdminTaskTemplateSection
       departments={props.departmentAssignments}
       responsibilities={props.responsibilityOwners}
@@ -209,13 +229,32 @@ export function renderTemplateWorkspace(props: AdminConfigWorkspaceContentProps)
 }
 
 export function renderAnswerWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return <AdminAnswerDefinitionSection onNotice={props.onNotice} onError={props.onError} />;
+  return renderWorkspaceWithIntro(
+    "answers",
+    <AdminFieldConfigurationWorkspaceSection
+      section="answers"
+      onSelectSection={props.onSelectSection}
+      onNotice={props.onNotice}
+      onError={props.onError}
+    />
+  );
 }
 
 export function renderDefaultWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return <AdminRoleAnswerDefaultsSection onNotice={props.onNotice} onError={props.onError} />;
+  return renderWorkspaceWithIntro(
+    "defaults",
+    <AdminFieldConfigurationWorkspaceSection
+      section="defaults"
+      onSelectSection={props.onSelectSection}
+      onNotice={props.onNotice}
+      onError={props.onError}
+    />
+  );
 }
 
 export function renderOperationsWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return <AdminBulkOperationsSection departments={props.departmentAssignments} />;
+  return renderWorkspaceWithIntro(
+    "operations",
+    <AdminBulkOperationsSection departments={props.departmentAssignments} />
+  );
 }

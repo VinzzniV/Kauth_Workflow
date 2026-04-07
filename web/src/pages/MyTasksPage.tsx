@@ -11,7 +11,11 @@ export default function MyTasksPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader title="Meine Aufgaben" />
+        <PageHeader
+          variant="workspace"
+          title="Meine Aufgaben"
+          description="Aufgaben, die dir direkt oder über deinen Fachbereich zugewiesen sind."
+        />
 
         <section className="panel panel-muted">
           <div className="panel-head">
@@ -106,9 +110,11 @@ export default function MyTasksPage() {
           <MyTaskGroups
             visibleGroups={view.visibleGroups}
             savingTaskIds={view.savingTaskIds}
+            savingApprovalTaskIds={view.savingApprovalTaskIds}
             commentDrafts={view.commentDrafts}
             savingCommentTaskIds={view.savingCommentTaskIds}
             onStatusChange={view.handleStatusChange}
+            onApprovalDecision={view.handleApprovalDecision}
             onCommentDraftChange={view.handleCommentDraftChange}
             onCommentSubmit={view.handleTaskCommentSubmit}
           />

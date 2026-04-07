@@ -25,6 +25,7 @@ type TaskGroup = {
 type MyTaskGroupsProps = {
   visibleGroups: TaskGroup[];
   savingTaskIds: Record<number, boolean>;
+  savingApprovalTaskIds: Record<number, boolean>;
   commentDrafts: Record<number, string>;
   savingCommentTaskIds: Record<number, boolean>;
   onStatusChange: (args: {
@@ -33,6 +34,7 @@ type MyTaskGroupsProps = {
     status: VisibleTaskStatus;
     currentStatus: TaskWithWorkflow["task"]["status"];
   }) => Promise<void>;
+  onApprovalDecision: (args: { taskId: number; workflowUid: string; approved: boolean }) => Promise<void>;
   onCommentDraftChange: (taskId: number, value: string) => void;
   onCommentSubmit: (args: { taskId: number; workflowUid: string }) => Promise<void>;
 };
@@ -40,9 +42,11 @@ type MyTaskGroupsProps = {
 export function MyTaskGroups({
   visibleGroups,
   savingTaskIds,
+  savingApprovalTaskIds,
   commentDrafts,
   savingCommentTaskIds,
   onStatusChange,
+  onApprovalDecision,
   onCommentDraftChange,
   onCommentSubmit,
 }: MyTaskGroupsProps) {
@@ -66,7 +70,9 @@ export function MyTaskGroups({
               const visibleStatus = getVisibleTaskStatus(effectiveStatus);
               const availableStatuses = getAvailableVisibleTaskStatuses(effectiveStatus);
               const isSavingTask = savingTaskIds[row.task.id] === true;
+              const isSavingApproval = savingApprovalTaskIds[row.task.id] === true;
               const canChangeStatus = row.task.canUpdateStatus && availableStatuses.length > 1;
+              const canDecideApproval = row.task.isApprovalTask && row.task.canDecideApproval;
 
               return (
                 <li key={statusKey} className="task-card">
@@ -125,7 +131,26 @@ export function MyTaskGroups({
                       </dl>
 
                       <div className="toolbar-row task-actions-row">
-                        {canChangeStatus ? (
+                        {canDecideApproval ? (
+                          <div className="task-approval-actions">
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              disabled={isSavingApproval}
+                              onClick={() => void onApprovalDecision({ taskId: row.task.id, workflowUid, approved: true })}
+                            >
+                              {isSavingApproval ? "Speichere..." : "Freigeben"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={isSavingApproval}
+                              onClick={() => void onApprovalDecision({ taskId: row.task.id, workflowUid, approved: false })}
+                            >
+                              {isSavingApproval ? "Speichere..." : "Ablehnen"}
+                            </button>
+                          </div>
+                        ) : canChangeStatus ? (
                           <label className="field compact">
                             <span>Status</span>
                             <select

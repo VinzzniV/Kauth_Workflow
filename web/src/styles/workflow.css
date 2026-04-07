@@ -162,15 +162,16 @@
 
 .task-group {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  padding: 0.85rem;
-  background: var(--surface-elevated);
-  box-shadow: var(--surface-card-shadow);
+  border-radius: 16px;
+  padding: 0.95rem;
+  background: var(--surface-panel);
+  box-shadow: none;
 }
 
 .task-group--current {
-  border-color: var(--brand-border-strong);
-  box-shadow: 0 0 0 1px var(--brand-border-soft), var(--surface-focus-shadow);
+  border-color: var(--surface-focus-border);
+  background: var(--surface-focus-background);
+  box-shadow: 0 0 0 1px var(--brand-ring);
 }
 
 .task-group--done {
@@ -264,18 +265,19 @@
 
 .task-card {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  padding: 0.85rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 92%, transparent), color-mix(in srgb, var(--surface-card-subtle) 86%, transparent));
+  border-radius: 14px;
+  padding: 0.9rem 0.95rem;
+  background: var(--surface-list-background);
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  box-shadow: var(--surface-card-shadow);
+  box-shadow: none;
 }
 
 .task-card--active {
   border-color: var(--surface-focus-border);
-  box-shadow: var(--surface-focus-shadow);
+  background: var(--surface-focus-background);
+  box-shadow: 0 0 0 1px var(--brand-ring);
 }
 
 .task-card--done {
@@ -532,12 +534,10 @@
 }
 
 .workflow-detail-focus-card {
-  border: 1px solid color-mix(in srgb, var(--surface-focus-border) 86%, var(--surface-card-border));
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--brand) 18%, transparent), transparent 42%),
-    var(--dashboard-priority-gradient);
-  box-shadow: var(--dashboard-priority-ring);
+  border: 1px solid var(--surface-focus-border);
+  border-radius: 20px;
+  background: var(--surface-hero-background);
+  box-shadow: var(--surface-focus-shadow);
   padding: 1.15rem;
   display: grid;
   gap: 0.85rem;
@@ -581,13 +581,13 @@
 
 .workflow-detail-kpi {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 92%, transparent), color-mix(in srgb, var(--surface-card-subtle) 80%, transparent));
-  padding: 0.8rem 0.85rem;
+  border-radius: 14px;
+  background: var(--surface-list-background);
+  padding: 0.85rem 0.95rem;
   display: flex;
   flex-direction: column;
   gap: 0.24rem;
-  box-shadow: var(--surface-card-shadow);
+  box-shadow: none;
 }
 
 .workflow-detail-kpi-label {
@@ -620,9 +620,9 @@
 
 .workflow-area-card {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 92%, transparent), color-mix(in srgb, var(--surface-card-subtle) 80%, transparent));
-  padding: 0.85rem;
+  border-radius: 14px;
+  background: var(--surface-list-background);
+  padding: 0.9rem 0.95rem;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -630,13 +630,14 @@
   text-align: left;
   font: inherit;
   color: inherit;
-  box-shadow: var(--surface-card-shadow);
+  box-shadow: none;
   transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .workflow-area-card:hover {
   border-color: var(--brand-border-soft);
-  box-shadow: var(--shadow-md);
+  background: var(--surface-row-hover);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
@@ -646,9 +647,9 @@
 }
 
 .workflow-area-card.current {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 1px var(--brand-ring), var(--surface-focus-shadow);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--brand-soft-strong) 58%, transparent), color-mix(in srgb, var(--surface-elevated) 96%, transparent));
+  border-color: var(--surface-focus-border);
+  box-shadow: 0 0 0 1px var(--brand-ring);
+  background: var(--surface-focus-background);
 }
 
 .workflow-area-card-eyebrow {
@@ -755,10 +756,10 @@
 
 .workflow-step-column {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-  padding: 0.7rem;
-  box-shadow: var(--surface-card-shadow);
+  border-radius: 14px;
+  background: var(--surface-list-background);
+  padding: 0.75rem;
+  box-shadow: none;
 }
 
 .workflow-step-column h3 {
@@ -777,8 +778,8 @@
 
 .workflow-step-item {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface-card-subtle) 92%, transparent);
+  border-radius: 10px;
+  background: var(--surface-card-subtle);
   padding: 0.55rem;
   display: flex;
   align-items: center;
@@ -807,10 +808,10 @@
 
 .workflow-detail-category-card {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-  padding: 0.65rem;
-  box-shadow: var(--surface-card-shadow);
+  border-radius: 14px;
+  background: var(--surface-list-background);
+  padding: 0.75rem;
+  box-shadow: none;
 }
 
 /* ─── Requirements ─── */
@@ -830,10 +831,10 @@
 
 .requirement-group {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  padding: 0.85rem;
-  background: var(--surface-elevated);
-  box-shadow: var(--surface-card-shadow);
+  border-radius: 16px;
+  padding: 0.95rem;
+  background: var(--surface-panel);
+  box-shadow: none;
 }
 
 .requirement-group-head {
@@ -858,16 +859,17 @@
 
 .requirement-item {
   border: 1px solid var(--surface-card-border);
-  border-radius: var(--radius-md);
-  padding: 0.85rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 92%, transparent), color-mix(in srgb, var(--surface-card-subtle) 86%, transparent));
-  box-shadow: var(--surface-card-shadow);
+  border-radius: 14px;
+  padding: 0.9rem 0.95rem;
+  background: var(--surface-list-background);
+  box-shadow: none;
   transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .requirement-item:hover {
   border-color: var(--brand-border-soft);
-  box-shadow: var(--shadow-md);
+  background: var(--surface-row-hover);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
@@ -970,10 +972,10 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--surface-card-border);
-  background: color-mix(in srgb, var(--surface-card-subtle) 90%, transparent);
+  background: var(--surface-card-subtle);
   padding: 0.45rem;
   overflow: hidden;
-  box-shadow: var(--surface-card-shadow);
+  box-shadow: none;
 }
 
 .req-icon--md {
@@ -1008,8 +1010,8 @@
 
 .toggle-btn {
   border: 1px solid var(--surface-card-border);
-  background: var(--surface-elevated);
-  border-radius: var(--radius-sm);
+  background: var(--surface-list-background);
+  border-radius: 10px;
   padding: 0.32rem 0.65rem;
   font: inherit;
   font-size: 0.82rem;
@@ -1047,7 +1049,7 @@
   padding: 0.2rem 0.55rem;
   font-size: 0.75rem;
   font-weight: 600;
-  background: color-mix(in srgb, var(--surface-card-subtle) 94%, transparent);
+  background: var(--surface-card-subtle);
   color: var(--text-secondary);
 }
 

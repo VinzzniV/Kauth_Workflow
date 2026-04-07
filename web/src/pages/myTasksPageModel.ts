@@ -21,9 +21,11 @@ export function useMyTasksPageView() {
   const myTasksQuery = useMyTasks();
   const {
     savingTaskIds,
+    savingApprovalTaskIds,
     commentDrafts,
     savingCommentTaskIds,
     handleStatusChange,
+    handleApprovalDecision,
     handleCommentDraftChange,
     handleTaskCommentSubmit,
   } = useTaskInteraction();
@@ -140,6 +142,7 @@ export function useMyTasksPageView() {
     isRefreshing,
     error,
     savingTaskIds,
+    savingApprovalTaskIds,
     commentDrafts,
     savingCommentTaskIds,
     setSearch,
@@ -148,6 +151,7 @@ export function useMyTasksPageView() {
     setResponsibilityFilter,
     reload,
     handleStatusChange,
+    handleApprovalDecision,
     handleCommentDraftChange,
     handleTaskCommentSubmit,
   };

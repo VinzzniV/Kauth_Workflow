@@ -5,11 +5,11 @@ import RoleSelection from "../components/workflows/RoleSelection";
 import TargetPersonSelection from "../components/workflows/TargetPersonSelection";
 import type { StepDefinition } from "./createWorkflowPageModel";
 import type {
-  CompletedOnboardingSearchResult,
   Department,
   EmployeeFormData,
   ProcessType,
   Role,
+  WorkflowTargetPersonSource,
   WorkflowConfig,
 } from "../types/workflow";
 export function WorkflowCreationStepper({
@@ -140,11 +140,11 @@ export function CreateWorkflowContextStep(props: {
   contextStepTitle: string;
   requiresTargetPerson: boolean;
   selectedProcessType: ProcessType | null;
-  completedOnboardingSearch: string;
-  completedOnboardings: CompletedOnboardingSearchResult[];
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
-  completedOnboardingsLoading: boolean;
-  completedOnboardingsError: string | null;
+  targetPersonSourceSearch: string;
+  targetPersonSources: WorkflowTargetPersonSource[];
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  targetPersonSourcesLoading: boolean;
+  targetPersonSourcesError: string | null;
   targetPersonSelectionError: string | null;
   employee: EmployeeFormData;
   employeeFieldErrors: Record<string, string | undefined>;
@@ -161,7 +161,7 @@ export function CreateWorkflowContextStep(props: {
   hasAttemptedContextNext: boolean;
   contextStepIssues: string[];
   onSearchChange: (value: string) => void;
-  onSelectOnboarding: (onboarding: CompletedOnboardingSearchResult | null) => void;
+  onSelectTargetPersonSource: (source: WorkflowTargetPersonSource | null) => void;
   onEmployeeChange: (field: keyof EmployeeFormData, value: string | number) => void;
   onDepartmentChange: (departmentId: number | null) => void;
   onRoleChange: (roleId: number | null) => void;
@@ -175,11 +175,11 @@ export function CreateWorkflowContextStep(props: {
     contextStepTitle,
     requiresTargetPerson,
     selectedProcessType,
-    completedOnboardingSearch,
-    completedOnboardings,
-    selectedCompletedOnboarding,
-    completedOnboardingsLoading,
-    completedOnboardingsError,
+    targetPersonSourceSearch,
+    targetPersonSources,
+    selectedTargetPersonSource,
+    targetPersonSourcesLoading,
+    targetPersonSourcesError,
     targetPersonSelectionError,
     employee,
     employeeFieldErrors,
@@ -196,7 +196,7 @@ export function CreateWorkflowContextStep(props: {
     hasAttemptedContextNext,
     contextStepIssues,
     onSearchChange,
-    onSelectOnboarding,
+    onSelectTargetPersonSource,
     onEmployeeChange,
     onDepartmentChange,
     onRoleChange,
@@ -216,15 +216,15 @@ export function CreateWorkflowContextStep(props: {
       {requiresTargetPerson ? (
         <TargetPersonSelection
           processTypeName={selectedProcessType?.name ?? "den Vorgang"}
-          searchValue={completedOnboardingSearch}
+          searchValue={targetPersonSourceSearch}
           onSearchChange={onSearchChange}
-          completedOnboardings={completedOnboardings}
-          selectedWorkflowUid={selectedCompletedOnboarding?.workflowUid ?? null}
-          selectedOnboarding={selectedCompletedOnboarding}
-          isLoading={completedOnboardingsLoading}
-          error={completedOnboardingsError}
+          targetPersonSources={targetPersonSources}
+          selectedWorkflowUid={selectedTargetPersonSource?.workflowUid ?? null}
+          selectedSource={selectedTargetPersonSource}
+          isLoading={targetPersonSourcesLoading}
+          error={targetPersonSourcesError}
           selectionError={targetPersonSelectionError}
-          onSelectOnboarding={onSelectOnboarding}
+          onSelectSource={onSelectTargetPersonSource}
         />
       ) : (
         <>
@@ -301,7 +301,7 @@ export function CreateWorkflowContextStep(props: {
 export function CreateWorkflowReviewStep(props: {
   requiresTargetPerson: boolean;
   selectedProcessType: ProcessType | null;
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
   employee: EmployeeFormData;
   selectedDepartment: Department | null;
   selectedRole: Role | null;
@@ -322,7 +322,7 @@ export function CreateWorkflowReviewStep(props: {
   const {
     requiresTargetPerson,
     selectedProcessType,
-    selectedCompletedOnboarding,
+    selectedTargetPersonSource,
     employee,
     selectedDepartment,
     selectedRole,
@@ -368,17 +368,17 @@ export function CreateWorkflowReviewStep(props: {
                 <dt>Name</dt>
                 <dd>
                   {requiresTargetPerson
-                    ? selectedCompletedOnboarding?.displayName ?? "-"
+                    ? selectedTargetPersonSource?.displayName ?? "-"
                     : `${employee.firstName} ${employee.lastName}`.trim() || "-"}
                 </dd>
               </div>
               <div>
                 <dt>Personalnummer</dt>
-                <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.employeeNumber ?? "-" : employee.employeeNumber || "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.employeeNumber ?? "-" : employee.employeeNumber || "-"}</dd>
               </div>
               <div>
                 <dt>Kartennummer</dt>
-                <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.badgeNumber ?? "-" : employee.badgeNumber || "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.badgeNumber ?? "-" : employee.badgeNumber || "-"}</dd>
               </div>
               <div>
                 <dt>Deadline</dt>
@@ -386,8 +386,8 @@ export function CreateWorkflowReviewStep(props: {
               </div>
               {requiresTargetPerson ? (
                 <div>
-                  <dt>Quell-Onboarding</dt>
-                  <dd>{selectedCompletedOnboarding?.workflowUid ?? "-"}</dd>
+                  <dt>Quellworkflow</dt>
+                  <dd>{selectedTargetPersonSource?.workflowUid ?? "-"}</dd>
                 </div>
               ) : null}
             </dl>
@@ -398,11 +398,11 @@ export function CreateWorkflowReviewStep(props: {
             <dl className="workflow-kv-grid">
               <div>
                 <dt>{reviewDepartmentLabel}</dt>
-                <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.departmentName ?? "-" : selectedDepartment?.name ?? "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.departmentName ?? "-" : selectedDepartment?.name ?? "-"}</dd>
               </div>
               <div>
                 <dt>{reviewRoleLabel}</dt>
-                <dd>{requiresTargetPerson ? selectedCompletedOnboarding?.roleName ?? "-" : selectedRole?.name ?? "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.roleName ?? "-" : selectedRole?.name ?? "-"}</dd>
               </div>
               <div>
                 <dt>Anforderungen</dt>

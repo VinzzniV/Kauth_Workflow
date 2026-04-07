@@ -22,7 +22,7 @@ FOR UPDATE OF w;";
         return await command.ExecuteScalarAsync() is not null;
     }
 
-    private static async Task<(long WorkflowId, string CurrentStatus, bool IsRequired, string TaskKey, bool IsApprovalTask, string TaskTitle)?> LoadTaskStateForUpdate(
+    private static async Task<(long WorkflowId, Guid WorkflowUid, string CurrentStatus, bool IsRequired, string TaskKey, bool IsApprovalTask, string TaskTitle, long? NodeInstanceId, bool IsRuntimeNodeTask)?> LoadTaskStateForUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId)
@@ -30,17 +30,23 @@ FOR UPDATE OF w;";
         const string sql = @"
 SELECT
     wt.workflow_id,
+    w.uid,
     wt.status,
     wt.is_required,
     wt.task_key,
     CASE
+        WHEN wt.node_instance_id IS NOT NULL THEN COALESCE(n.node_type = 'approval', FALSE)
         WHEN pt.approval_task_template_key IS NULL THEN FALSE
         ELSE wt.task_key = pt.approval_task_template_key
     END,
-    wt.title
+    wt.title,
+    wt.node_instance_id,
+    wt.node_instance_id IS NOT NULL
 FROM workflow_tasks wt
 JOIN workflows w ON w.id = wt.workflow_id
 JOIN process_types pt ON pt.id = w.process_type_id
+LEFT JOIN workflow_node_instances ni ON ni.id = wt.node_instance_id
+LEFT JOIN workflow_nodes n ON n.id = ni.workflow_node_id
 WHERE wt.id = @taskId
 FOR UPDATE OF wt;";
 
@@ -55,11 +61,14 @@ FOR UPDATE OF wt;";
 
         return (
             reader.GetInt64(0),
-            reader.GetString(1),
-            reader.GetBoolean(2),
-            reader.GetString(3),
-            reader.GetBoolean(4),
-            reader.GetString(5));
+            reader.GetGuid(1),
+            reader.GetString(2),
+            reader.GetBoolean(3),
+            reader.GetString(4),
+            reader.GetBoolean(5),
+            reader.GetString(6),
+            reader.IsDBNull(7) ? null : reader.GetInt64(7),
+            reader.GetBoolean(8));
     }
 
     private static async Task<bool> AreTaskDependenciesSatisfied(

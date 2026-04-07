@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { useCurrentUser } from "../auth/useCurrentUser";
 import PageHeader from "../components/layout/PageHeader";
 import { WorkflowListFilters } from "./WorkflowListFilters";
 import { WorkflowListResults } from "./WorkflowListResults";
@@ -5,11 +7,23 @@ import { useWorkflowListPageView } from "./workflowListPageModel";
 
 export default function WorkflowListPage() {
   const view = useWorkflowListPageView();
+  const { capabilities } = useCurrentUser();
 
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader title="Laufende Vorgänge" />
+        <PageHeader
+          variant="workspace"
+          title="Laufende Vorgänge"
+          description="Alle aktiven Prozesse filtern, verfolgen und weiterbearbeiten."
+          actions={
+            capabilities.canCreateWorkflow ? (
+              <Link to="/create" className="btn btn-primary">
+                Neuer Vorgang
+              </Link>
+            ) : undefined
+          }
+        />
 
         <WorkflowListFilters
           search={view.search}

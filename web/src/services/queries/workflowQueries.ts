@@ -5,7 +5,7 @@ import {
   getWorkflowConfig,
   getWorkflowPage,
   getRelatedWorkflows,
-  searchCompletedOnboardings,
+  searchWorkflowTargetPersonSources,
   getWorkflowTasks,
   type WorkflowQueryOptions,
 } from "../workflowApi";
@@ -50,10 +50,10 @@ export function useWorkflowConfig(
   });
 }
 
-export function useCompletedOnboardingsSearch(search: string, enabled = true) {
+export function useWorkflowTargetPersonSourcesSearch(search: string, enabled = true) {
   return useQuery({
-    queryKey: queryKeys.workflows.completedOnboardings(search),
-    queryFn: () => searchCompletedOnboardings(search),
+    queryKey: queryKeys.workflows.targetPersonSources(search),
+    queryFn: () => searchWorkflowTargetPersonSources(search),
     enabled,
     staleTime: 30 * 1000,
     placeholderData: keepPreviousData,

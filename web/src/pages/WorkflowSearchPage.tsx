@@ -102,7 +102,11 @@ export default function WorkflowSearchPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader title="Vorgänge gezielt suchen" />
+        <PageHeader
+          variant="workspace"
+          title="Vorgänge suchen"
+          description="Bekannte Person, Personalnummer oder Workflow-ID gezielt finden."
+        />
 
         <section className="panel">
           <div className="panel-head">
@@ -113,9 +117,6 @@ export default function WorkflowSearchPage() {
               Zum Überblick laufender Vorgänge
             </Link>
           </div>
-          <p className="panel-note">
-            Bekannte Person, Personalnummer oder Workflow-ID gezielt finden.
-          </p>
 
           <div className="toolbar-row workflow-filter-bar">
             <label className="field compact grow">

@@ -1,36 +1,36 @@
-import type { CompletedOnboardingSearchResult } from "../../types/workflow";
+import type { WorkflowTargetPersonSource } from "../../types/workflow";
 import { formatDateTime } from "../../utils/dateFormat";
 
 type Props = {
   processTypeName: string;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  completedOnboardings: CompletedOnboardingSearchResult[];
+  targetPersonSources: WorkflowTargetPersonSource[];
   selectedWorkflowUid: string | null;
-  selectedOnboarding: CompletedOnboardingSearchResult | null;
+  selectedSource: WorkflowTargetPersonSource | null;
   isLoading: boolean;
   error: string | null;
   selectionError?: string | null;
-  onSelectOnboarding: (onboarding: CompletedOnboardingSearchResult) => void;
+  onSelectSource: (source: WorkflowTargetPersonSource) => void;
 };
 
 export default function TargetPersonSelection({
   processTypeName,
   searchValue,
   onSearchChange,
-  completedOnboardings,
+  targetPersonSources,
   selectedWorkflowUid,
-  selectedOnboarding,
+  selectedSource,
   isLoading,
   error,
   selectionError,
-  onSelectOnboarding,
+  onSelectSource,
 }: Props) {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Abgeschlossenes Onboarding auswählen</h2>
-        <p>Onboarding für {processTypeName} wählen.</p>
+        <h2>Quellworkflow auswählen</h2>
+        <p>Bestehenden Workflow für {processTypeName} auswählen.</p>
       </div>
 
       <label className="field">
@@ -45,34 +45,34 @@ export default function TargetPersonSelection({
 
       {error ? <p className="text-error">{error}</p> : null}
       {selectionError ? <p className="field-error">{selectionError}</p> : null}
-      {isLoading ? <p className="text-muted">Abgeschlossene Onboardings werden geladen...</p> : null}
-      {!isLoading && completedOnboardings.length === 0 ? (
-        <p className="text-muted">Kein passendes abgeschlossenes Onboarding gefunden.</p>
+      {isLoading ? <p className="text-muted">Quellworkflows werden geladen...</p> : null}
+      {!isLoading && targetPersonSources.length === 0 ? (
+        <p className="text-muted">Kein passender Quellworkflow gefunden.</p>
       ) : null}
 
-      {!isLoading && completedOnboardings.length > 0 ? (
+      {!isLoading && targetPersonSources.length > 0 ? (
         <div className="wizard-choice-list">
-          {completedOnboardings.map((onboarding) => (
+          {targetPersonSources.map((source) => (
             (() => {
-              const isSelected = selectedWorkflowUid === onboarding.workflowUid;
+              const isSelected = selectedWorkflowUid === source.workflowUid;
 
               return (
             <label
-              key={onboarding.workflowUid}
+              key={source.workflowUid}
               className={`wizard-choice-card${isSelected ? " wizard-choice-card--selected" : ""}`}
             >
               <span className="wizard-choice-card__head">
                 <input
                   type="radio"
-                  name="completedOnboarding"
+                  name="targetPersonSource"
                   checked={isSelected}
-                  onChange={() => onSelectOnboarding(onboarding)}
+                  onChange={() => onSelectSource(source)}
                 />
-                <strong>{onboarding.displayName}</strong>
+                <strong>{source.displayName}</strong>
               </span>
               <span className="wizard-choice-card__meta">
-                {onboarding.departmentName ?? "Keine Abteilung"} | {onboarding.roleName ?? "Keine Stelle"} |{" "}
-                {formatDateTime(onboarding.completedAt)}
+                {source.departmentName ?? "Keine Abteilung"} | {source.roleName ?? "Keine Stelle"} |{" "}
+                {formatDateTime(source.completedAt)}
               </span>
             </label>
               );
@@ -81,37 +81,37 @@ export default function TargetPersonSelection({
         </div>
       ) : null}
 
-      {selectedOnboarding ? (
+      {selectedSource ? (
         <div style={{ marginTop: "1rem" }}>
           <h3>Übernommener Kontext</h3>
           <dl className="workflow-kv-grid">
             <div>
-              <dt>Quell-Onboarding</dt>
-              <dd>{selectedOnboarding.workflowUid}</dd>
+              <dt>Quellworkflow</dt>
+              <dd>{selectedSource.workflowUid}</dd>
             </div>
             <div>
               <dt>Person</dt>
-              <dd>{selectedOnboarding.displayName}</dd>
+              <dd>{selectedSource.displayName}</dd>
             </div>
             <div>
               <dt>Abteilung</dt>
-              <dd>{selectedOnboarding.departmentName ?? "Nicht ableitbar"}</dd>
+              <dd>{selectedSource.departmentName ?? "Nicht ableitbar"}</dd>
             </div>
             <div>
               <dt>Stelle</dt>
-              <dd>{selectedOnboarding.roleName ?? "Nicht ableitbar"}</dd>
+              <dd>{selectedSource.roleName ?? "Nicht ableitbar"}</dd>
             </div>
             <div>
               <dt>Personalnummer</dt>
-              <dd>{selectedOnboarding.employeeNumber}</dd>
+              <dd>{selectedSource.employeeNumber}</dd>
             </div>
             <div>
               <dt>Kartennummer</dt>
-              <dd>{selectedOnboarding.badgeNumber}</dd>
+              <dd>{selectedSource.badgeNumber}</dd>
             </div>
             <div>
               <dt>Abgeschlossen</dt>
-              <dd>{formatDateTime(selectedOnboarding.completedAt)}</dd>
+              <dd>{formatDateTime(selectedSource.completedAt)}</dd>
             </div>
           </dl>
         </div>

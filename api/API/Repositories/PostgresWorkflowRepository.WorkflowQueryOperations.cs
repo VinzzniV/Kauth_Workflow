@@ -361,7 +361,10 @@ LEFT JOIN app_responsibilities ar ON ar.id = sa.assignee_responsibility_id
         bool includeDept,
         bool includeResp)
     {
-        var conditions = new List<string> { "w.archived_at IS NULL" };
+        var conditions = new List<string>
+        {
+            "w.archived_at IS NULL"
+        };
 
         if (query.ReaderOnly)
         {

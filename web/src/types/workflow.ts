@@ -385,8 +385,10 @@ export type WorkflowTaskDependency = {
 
 export type WorkflowTask = {
   id: number;
+  nodeInstanceId: number | null;
   taskTemplateId: number | null;
   taskKey: string;
+  isRuntimeNodeTask: boolean;
   isApprovalTask: boolean;
   title: string;
   description: string;
@@ -405,6 +407,7 @@ export type WorkflowTask = {
   processArea: WorkflowTaskArea | null;
   isDepartmentPhaseTask: boolean;
   canUpdateStatus: boolean;
+  canDecideApproval: boolean;
   canAddComment: boolean;
   assignments: WorkflowTaskAssignment[];
   dependencies: WorkflowTaskDependency[];
@@ -485,7 +488,7 @@ export type WorkflowTargetPerson = {
   lastName: string | null;
 };
 
-export type CompletedOnboardingSearchResult = {
+export type WorkflowTargetPersonSource = {
   workflowUid: string;
   personId: number;
   displayName: string;
@@ -500,6 +503,8 @@ export type CompletedOnboardingSearchResult = {
   completedAt: string;
   archivedAt: string | null;
 };
+
+export type CompletedOnboardingSearchResult = WorkflowTargetPersonSource;
 
 export type DerivedAnswer = {
   targetAnswerKey: string;

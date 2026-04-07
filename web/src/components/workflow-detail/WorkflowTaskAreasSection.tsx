@@ -24,12 +24,14 @@ import {
 type WorkflowTaskAreasSectionProps = {
   tasksByArea: ProcessAreaGroup[];
   savingTaskIds: Record<number, boolean>;
+  savingApprovalTaskIds: Record<number, boolean>;
   commentDrafts: Record<number, string>;
   savingCommentTaskIds: Record<number, boolean>;
   usesAdminOverride: boolean;
   canManageAdminConfiguration: boolean;
   isReaderOnlyView: boolean;
   onTaskStatusChange: (taskId: number, status: VisibleTaskStatus, currentStatus: WorkflowTask["status"]) => Promise<void>;
+  onTaskApprovalDecision: (taskId: number, approved: boolean) => Promise<void>;
   onCommentDraftChange: (taskId: number, value: string) => void;
   onTaskCommentSubmit: (taskId: number) => Promise<void>;
 };
@@ -41,12 +43,14 @@ function getAreaStatusClass(status: ReturnType<typeof toAreaStatus>): string {
 export default function WorkflowTaskAreasSection({
   tasksByArea,
   savingTaskIds,
+  savingApprovalTaskIds,
   commentDrafts,
   savingCommentTaskIds,
   usesAdminOverride,
   canManageAdminConfiguration,
   isReaderOnlyView,
   onTaskStatusChange,
+  onTaskApprovalDecision,
   onCommentDraftChange,
   onTaskCommentSubmit,
 }: WorkflowTaskAreasSectionProps) {
@@ -179,8 +183,10 @@ export default function WorkflowTaskAreasSection({
                           const visibleStatus = getVisibleTaskStatus(task.status);
                           const availableStatuses = getAvailableVisibleTaskStatuses(task.status);
                           const isSavingTask = savingTaskIds[task.id] === true;
+                          const isSavingApproval = savingApprovalTaskIds[task.id] === true;
                           const canChangeTaskStatus =
                             canManageAdminConfiguration && task.canUpdateStatus && availableStatuses.length > 1;
+                          const canDecideApproval = task.isApprovalTask && task.canDecideApproval;
                           return (
                             <li key={task.id} className={`task-card${isTaskDone ? " task-card--done" : ""}${!isTaskDone ? " task-card--active" : ""}`}>
                               <div className="task-card-top">
@@ -216,7 +222,28 @@ export default function WorkflowTaskAreasSection({
                                 </dl>
                               ) : null}
 
-                              {canChangeTaskStatus ? (
+                              {canDecideApproval ? (
+                                <div className="toolbar-row task-actions-row">
+                                  <div className="task-approval-actions">
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary"
+                                      disabled={isSavingApproval}
+                                      onClick={() => void onTaskApprovalDecision(task.id, true)}
+                                    >
+                                      {isSavingApproval ? "Speichere..." : "Freigeben"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary"
+                                      disabled={isSavingApproval}
+                                      onClick={() => void onTaskApprovalDecision(task.id, false)}
+                                    >
+                                      {isSavingApproval ? "Speichere..." : "Ablehnen"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : canChangeTaskStatus ? (
                                 <div className="toolbar-row task-actions-row">
                                   <label className="field compact">
                                     <span>{usesAdminOverride ? "Status (Admin-Override)" : "Status"}</span>

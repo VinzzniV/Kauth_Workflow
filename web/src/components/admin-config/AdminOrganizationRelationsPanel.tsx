@@ -36,7 +36,7 @@ export default function AdminOrganizationRelationsPanel({
       return (
         <section className="panel">
           <div className="panel-head">
-            <h2>Wird verwendet in ...</h2>
+            <h2>Auswirkungen und Verwendungen</h2>
           </div>
         </section>
       );
@@ -45,7 +45,7 @@ export default function AdminOrganizationRelationsPanel({
     return (
       <section className="panel">
         <div className="panel-head">
-          <h2>Wird verwendet in ...</h2>
+          <h2>Auswirkungen und Verwendungen</h2>
         </div>
 
         <div className="content-stack">
@@ -137,7 +137,7 @@ export default function AdminOrganizationRelationsPanel({
       return (
         <section className="panel">
           <div className="panel-head">
-            <h2>Verknüpfte Organisation</h2>
+            <h2>Auswirkungen und Verwendungen</h2>
           </div>
         </section>
       );
@@ -146,7 +146,7 @@ export default function AdminOrganizationRelationsPanel({
     return (
       <section className="panel">
         <div className="panel-head">
-          <h2>Verknüpfte Organisation</h2>
+          <h2>Auswirkungen und Verwendungen</h2>
         </div>
 
         <div className="content-stack">
@@ -200,7 +200,7 @@ export default function AdminOrganizationRelationsPanel({
     return (
       <section className="panel">
         <div className="panel-head">
-          <h2>Verknüpfte Organisation</h2>
+          <h2>Auswirkungen und Verwendungen</h2>
         </div>
       </section>
     );
@@ -209,7 +209,7 @@ export default function AdminOrganizationRelationsPanel({
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Verknüpfte Organisation</h2>
+        <h2>Auswirkungen und Verwendungen</h2>
       </div>
 
       <div className="content-stack">

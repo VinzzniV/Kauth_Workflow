@@ -17,6 +17,7 @@ internal static class TaskEndpoints
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
                 currentUser => authorizationPolicy.CanAccessTechnicalTasks(currentUser)
+                    || authorizationPolicy.CanAccessSupervisorStep(currentUser)
                     || authorizationPolicy.CanManageAdminConfiguration(currentUser),
                 "Fachbereich oder Admin-Override ist erforderlich.");
             if (access.Error is not null)
@@ -36,6 +37,7 @@ internal static class TaskEndpoints
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
                 currentUser => authorizationPolicy.CanAccessTechnicalTasks(currentUser)
+                    || authorizationPolicy.CanAccessSupervisorStep(currentUser)
                     || authorizationPolicy.CanManageAdminConfiguration(currentUser),
                 "Fachbereich oder Admin-Override ist erforderlich.");
             if (access.Error is not null)
@@ -79,6 +81,46 @@ internal static class TaskEndpoints
             try
             {
                 var task = await taskApplicationService.UpdateTaskStatusAsync(id, request, access.User!);
+                if (task is null)
+                {
+                    return Results.NotFound(new { message = "Task not found." });
+                }
+
+                return Results.Ok(task);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<TaskWithWorkflowDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/tasks/{id:long}/approval-decision", async (
+            long id,
+            [FromBody] TaskApprovalDecisionRequest request,
+            ITaskApplicationService taskApplicationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                currentUser => authorizationPolicy.CanAccessSupervisorStep(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "Abteilungsleitung oder Admin-Override ist erforderlich.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var task = await taskApplicationService.DecideTaskApprovalAsync(id, request, access.User!);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });

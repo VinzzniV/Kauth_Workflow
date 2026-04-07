@@ -10,6 +10,7 @@ internal static class AdminRuntimeConfigEndpoints
     public static IEndpointRouteBuilder MapAdminRuntimeConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/workflow", async (
+            [FromQuery] string? processTypeKey,
             [FromServices] IWorkflowRepository repository,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
@@ -23,9 +24,15 @@ internal static class AdminRuntimeConfigEndpoints
                 return access.Error;
             }
 
-            var workflowConfig = await repository.GetWorkflowConfig(null);
+            if (string.IsNullOrWhiteSpace(processTypeKey))
+            {
+                return Results.BadRequest(new { message = "processTypeKey is required." });
+            }
+
+            var workflowConfig = await repository.GetWorkflowConfig(null, processTypeKey);
             return Results.Ok(workflowConfig);
         }).Produces<WorkflowConfigDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

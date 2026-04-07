@@ -2,15 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDepartments, useRoles } from "../services/queries/roleQueries";
 import { useProcessTypes } from "../services/queries/processTypeQueries";
 import {
-  useCompletedOnboardingsSearch,
+  useWorkflowTargetPersonSourcesSearch,
   useWorkflowConfig,
 } from "../services/queries/workflowQueries";
 import type {
-  CompletedOnboardingSearchResult,
   Department,
   EmployeeFormData,
   ProcessType,
   Role,
+  WorkflowTargetPersonSource,
   WorkflowConfig,
 } from "../types/workflow";
 import { useWorkflowCreationSubmission } from "./useWorkflowCreationSubmission";
@@ -19,7 +19,7 @@ import {
   EMPTY_EMPLOYEE,
   getAvailableRoles,
   isWorkflowCreationContextComplete,
-  resolveSelectedCompletedOnboarding,
+  resolveSelectedTargetPersonSource,
   resolveSelectedDepartment,
   resolveSelectedProcessTypeKey,
   resolveSelectedRoleId,
@@ -42,11 +42,11 @@ type UseWorkflowCreationResult = {
   selectedRoleId: number | null;
   selectedDepartment: Department | null;
   selectedRole: Role | null;
-  selectedCompletedOnboarding: CompletedOnboardingSearchResult | null;
-  completedOnboardingSearch: string;
-  completedOnboardings: CompletedOnboardingSearchResult[];
-  completedOnboardingsLoading: boolean;
-  completedOnboardingsError: string | null;
+  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  targetPersonSourceSearch: string;
+  targetPersonSources: WorkflowTargetPersonSource[];
+  targetPersonSourcesLoading: boolean;
+  targetPersonSourcesError: string | null;
   availableRoles: Role[];
   roles: Role[];
   departments: Department[];
@@ -66,8 +66,8 @@ type UseWorkflowCreationResult = {
   setEmployeeField: (field: keyof EmployeeFormData, value: string | number) => void;
   setSelectedDepartment: (departmentId: number | null) => void;
   setSelectedRole: (roleId: number | null) => void;
-  setCompletedOnboardingSearch: (value: string) => void;
-  setSelectedCompletedOnboarding: (onboarding: CompletedOnboardingSearchResult | null) => void;
+  setTargetPersonSourceSearch: (value: string) => void;
+  setSelectedTargetPersonSource: (source: WorkflowTargetPersonSource | null) => void;
   submitWorkflow: () => Promise<void>;
   canGoToContextStep: boolean;
   canGoToReviewStep: boolean;
@@ -78,9 +78,9 @@ type UseWorkflowCreationResult = {
 export function useWorkflowCreation(): UseWorkflowCreationResult {
   const [currentStep, setCurrentStep] = useState<WorkflowCreationStep>("process");
   const [formState, setFormState] = useState<WorkflowStartFormState>(createInitialWorkflowStartFormState);
-  const [selectedCompletedOnboardingSnapshot, setSelectedCompletedOnboardingSnapshot] =
-    useState<CompletedOnboardingSearchResult | null>(null);
-  const [debouncedCompletedOnboardingSearch, setDebouncedCompletedOnboardingSearch] = useState("");
+  const [selectedTargetPersonSourceSnapshot, setSelectedTargetPersonSourceSnapshot] =
+    useState<WorkflowTargetPersonSource | null>(null);
+  const [debouncedTargetPersonSourceSearch, setDebouncedTargetPersonSourceSearch] = useState("");
   const processTypesQuery = useProcessTypes();
   const processTypes = useMemo(() => processTypesQuery.data ?? [], [processTypesQuery.data]);
   const processTypesLoading = processTypesQuery.isLoading;
@@ -115,17 +115,17 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   );
 
   const requiresTargetPerson = selectedProcessType?.requiresTargetPerson ?? false;
-  const completedOnboardingSearchValue = requiresTargetPerson
-    ? formState.completedOnboardingSearch
+  const targetPersonSourceSearchValue = requiresTargetPerson
+    ? formState.targetPersonSourceSearch
     : "";
 
   useEffect(() => {
     const timeoutHandle = window.setTimeout(() => {
-      setDebouncedCompletedOnboardingSearch(completedOnboardingSearchValue);
+      setDebouncedTargetPersonSourceSearch(targetPersonSourceSearchValue);
     }, 250);
 
     return () => window.clearTimeout(timeoutHandle);
-  }, [completedOnboardingSearchValue]);
+  }, [targetPersonSourceSearchValue]);
 
   const selectedDepartment = useMemo(
     () => resolveSelectedDepartment(formState.departmentId, departments),
@@ -147,30 +147,30 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     return getAvailableRoles(selectedDepartmentId, roles);
   }, [roles, selectedDepartmentId]);
 
-  const completedOnboardingsQuery = useCompletedOnboardingsSearch(
-    debouncedCompletedOnboardingSearch,
+  const targetPersonSourcesQuery = useWorkflowTargetPersonSourcesSearch(
+    debouncedTargetPersonSourceSearch,
     requiresTargetPerson
   );
-  const completedOnboardings = useMemo(
-    () => completedOnboardingsQuery.data ?? [],
-    [completedOnboardingsQuery.data]
+  const targetPersonSources = useMemo(
+    () => targetPersonSourcesQuery.data ?? [],
+    [targetPersonSourcesQuery.data]
   );
-  const completedOnboardingsLoading = requiresTargetPerson && completedOnboardingsQuery.isFetching;
-  const completedOnboardingsError =
-    requiresTargetPerson && completedOnboardingsQuery.error instanceof Error
-      ? completedOnboardingsQuery.error.message
-      : requiresTargetPerson && completedOnboardingsQuery.error
-        ? "Abgeschlossene Onboardings konnten nicht geladen werden."
+  const targetPersonSourcesLoading = requiresTargetPerson && targetPersonSourcesQuery.isFetching;
+  const targetPersonSourcesError =
+    requiresTargetPerson && targetPersonSourcesQuery.error instanceof Error
+      ? targetPersonSourcesQuery.error.message
+      : requiresTargetPerson && targetPersonSourcesQuery.error
+        ? "Quellworkflows konnten nicht geladen werden."
         : null;
 
-  const selectedCompletedOnboarding = useMemo(() => {
-    return resolveSelectedCompletedOnboarding(
-      completedOnboardings,
-      selectedCompletedOnboardingSnapshot
+  const selectedTargetPersonSource = useMemo(() => {
+    return resolveSelectedTargetPersonSource(
+      targetPersonSources,
+      selectedTargetPersonSourceSnapshot
     );
-  }, [completedOnboardings, selectedCompletedOnboardingSnapshot]);
+  }, [selectedTargetPersonSourceSnapshot, targetPersonSources]);
   const effectiveRoleIdForConfig = requiresTargetPerson
-    ? selectedCompletedOnboarding?.roleId ?? null
+    ? selectedTargetPersonSource?.roleId ?? null
     : selectedRoleId;
 
   const workflowConfigQuery = useWorkflowConfig(
@@ -202,7 +202,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     requiresTargetPerson,
     selectedDepartmentId,
     selectedRoleId,
-    selectedCompletedOnboarding,
+    selectedTargetPersonSource,
     employee: formState.employee,
   });
 
@@ -213,13 +213,13 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
       processTypeKey: key,
       departmentId: null,
       roleId: null,
-      completedOnboardingSearch: "",
+      targetPersonSourceSearch: "",
       employee: {
         ...EMPTY_EMPLOYEE,
         deadlineDate: previous.employee.deadlineDate,
       },
     }));
-    setSelectedCompletedOnboardingSnapshot(null);
+    setSelectedTargetPersonSourceSnapshot(null);
   };
 
   const setEmployeeField = (field: keyof EmployeeFormData, value: string | number) => {
@@ -271,27 +271,27 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     }));
   };
 
-  const setCompletedOnboardingSearch = (value: string) => {
+  const setTargetPersonSourceSearch = (value: string) => {
     resetSubmissionState();
     setFormState((previous) => ({
       ...previous,
-      completedOnboardingSearch: value,
+      targetPersonSourceSearch: value,
     }));
   };
 
-  const setSelectedCompletedOnboarding = (onboarding: CompletedOnboardingSearchResult | null) => {
+  const setSelectedTargetPersonSource = (source: WorkflowTargetPersonSource | null) => {
     resetSubmissionState();
-    setSelectedCompletedOnboardingSnapshot(onboarding);
+    setSelectedTargetPersonSourceSnapshot(source);
     setFormState((previous) => ({
       ...previous,
-      departmentId: onboarding?.departmentId ?? null,
-      roleId: onboarding?.roleId ?? null,
+      departmentId: source?.departmentId ?? null,
+      roleId: source?.roleId ?? null,
       employee: {
         ...previous.employee,
-        firstName: onboarding?.firstName ?? "",
-        lastName: onboarding?.lastName ?? "",
-        employeeNumber: onboarding?.employeeNumber ?? 0,
-        badgeNumber: onboarding?.badgeNumber ?? 0,
+        firstName: source?.firstName ?? "",
+        lastName: source?.lastName ?? "",
+        employeeNumber: source?.employeeNumber ?? 0,
+        badgeNumber: source?.badgeNumber ?? 0,
       },
     }));
   };
@@ -300,8 +300,8 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     return isWorkflowCreationContextComplete({
       selectedProcessTypeKey,
       requiresTargetPerson,
-      selectedCompletedOnboarding,
-      completedOnboardingsLoading,
+      selectedTargetPersonSource,
+      targetPersonSourcesLoading,
       employee: formState.employee,
       selectedDepartmentId,
       selectedRoleId,
@@ -310,16 +310,16 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
       rolesError,
     });
   }, [
-    completedOnboardingsLoading,
     formState.employee,
     requiresTargetPerson,
     roles,
     rolesError,
     rolesLoading,
-    selectedCompletedOnboarding,
+    selectedTargetPersonSource,
     selectedDepartmentId,
     selectedRoleId,
     selectedProcessTypeKey,
+    targetPersonSourcesLoading,
   ]);
 
   const canGoToContextStep = selectedProcessTypeKey !== null;
@@ -361,11 +361,11 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     selectedRoleId,
     selectedDepartment,
     selectedRole,
-    selectedCompletedOnboarding,
-    completedOnboardingSearch: formState.completedOnboardingSearch,
-    completedOnboardings: requiresTargetPerson ? completedOnboardings : [],
-    completedOnboardingsLoading: requiresTargetPerson ? completedOnboardingsLoading : false,
-    completedOnboardingsError: requiresTargetPerson ? completedOnboardingsError : null,
+    selectedTargetPersonSource,
+    targetPersonSourceSearch: formState.targetPersonSourceSearch,
+    targetPersonSources: requiresTargetPerson ? targetPersonSources : [],
+    targetPersonSourcesLoading: requiresTargetPerson ? targetPersonSourcesLoading : false,
+    targetPersonSourcesError: requiresTargetPerson ? targetPersonSourcesError : null,
     availableRoles,
     roles,
     departments,
@@ -385,8 +385,8 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     setEmployeeField,
     setSelectedDepartment,
     setSelectedRole,
-    setCompletedOnboardingSearch,
-    setSelectedCompletedOnboarding,
+    setTargetPersonSourceSearch,
+    setSelectedTargetPersonSource,
     submitWorkflow,
     canGoToContextStep,
     canGoToReviewStep,

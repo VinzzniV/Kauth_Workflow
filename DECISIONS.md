@@ -1,159 +1,123 @@
 # DECISIONS.md
 
-## 1. Workflow system, not form app
-This is a real workflow engine with tasks, ownership, and phases.
-Do not simplify into form submission logic.
+## 1. Produktziel
+Die Anwendung entwickelt sich zu einer versionierten internen Workflow-Plattform.
+Nicht weiter zu einem groesseren spezialisierten Onboarding-Tool.
 
 ---
 
-## 2. Backend is source of truth
-All business rules (status, assignment, completion, visibility) must be correct in backend.
-Frontend is display only.
+## 2. Backend ist Source of Truth
+Alle Business-Regeln muessen im Backend korrekt sein.
+Frontend ist Darstellung und Bedienoberflaeche, nicht zweite Regelquelle.
 
 ---
 
-## 3. Roles ≠ Responsibilities
-- Roles = access
-- Responsibilities = ownership
-Never merge.
+## 3. Rollen != Responsibilities
+- Rollen = Zugriff
+- Responsibilities = fachliche Ownership
+Niemals vermischen.
 
 ---
 
-## 4. assignment_type is strict
-- `user` = personal
-- `responsibility` = shared
-No leakage or shortcuts.
+## 4. Assignment bleibt strikt
+- `user` = persoenlich
+- `responsibility` = geteilte fachliche Zustaendigkeit
+Keine Leaks oder impliziten Kurzschluesse.
 
 ---
 
-## 5. Completion rule
-Workflow completes only when all relevant tasks are done.
-No UI-based shortcuts.
+## 5. Workflow-Definition ist eigener Kern
+Die Plattform braucht einen expliziten Definition Layer.
+Task Templates und Prozessarten allein sind nicht das Endmodell.
 
 ---
 
-## 6. Parallel work
-Multiple departments can work simultaneously.
-Do not force linear flows.
+## 6. Versionierung ist Pflicht
+Workflow-Definitionen muessen versioniert werden.
+Laufende Instanzen duerfen durch spaetere Admin-Aenderungen nicht brechen.
 
 ---
 
-## 7. Status must stay consistent
-- Do not map `cancelled` → `completed`
-- Do not hide status differences
-- Do not use `skipped` as task-state workaround; non-needed tasks must not be generated
+## 7. Runtime ist mehr als Task-Generierung
+Tasks sind nur eine moegliche Laufzeitwirkung.
+Die Engine darf nicht weiter nur als Task-Generator gedacht werden.
 
 ---
 
-## 8. Task generation is data-driven
-Use templates, conditions, dependencies.
-Avoid hardcoding tasks.
+## 8. Migration statt Big Bang
+Neue Architektur wird parallel zur Altwelt eingefuehrt.
+Altlogik erst nach Stabilitaet und Paritaet zurueckbauen.
 
 ---
 
-## 9. Generated tasks are mandatory
-Once generated and relevant → must be respected in workflow.
+## 9. Keine freie technische Magie im Builder
+Admins duerfen fachliche Konfiguration pflegen.
+Admins duerfen keine freie PowerShell-, SQL- oder HTTP-Automation hinterlegen.
 
 ---
 
-## 10. Hardware logic stays explicit
-Do not flatten branching logic.
+## 10. Actions sind kontrollierte Produktelemente
+Technische Actions wie `CreateAdUser` oder `SendWelcomeMail` sind freigegebene, validierte Bausteine.
+Keine lose Scripting-Funktion.
 
 ---
 
-## 11. Admin is not default actor
-Admin can override, but not replace real ownership.
+## 11. Completion-Regel bleibt streng
+Ein Workflow gilt erst als abgeschlossen, wenn alle relevanten Laufzeitpfade sauber beendet sind.
+Keine UI-Abkuerzungen.
 
 ---
 
-## 12. Move toward configurability
-Future:
-- templates
-- responsibilities
-- mappings
-- notifications
-configurable via UI
-
-But:
-- no overengineering
-- no unsafe free editing
+## 12. Statuskonsistenz bleibt Pflicht
+- `cancelled` nicht auf `completed` mappen
+- Statusunterschiede nicht verstecken
+- `skipped` nicht als Reparatur fuer falsch generierte Tasks missbrauchen
 
 ---
 
-## 13. Product direction
-From onboarding → employee lifecycle system:
-- onboarding
-- offboarding
-- employee changes
-
-Do not hardcode new features to onboarding only.
+## 13. Parallelitaet bleibt erlaubt
+Mehrere Teams oder Rollen koennen parallel arbeiten.
+Das Modell darf keine unnoetige serielle Einbahnstrasse erzwingen.
 
 ---
 
-## 14. Prototype rule
-Missing polish is ok.
-Broken business logic is NOT.
+## 14. Bestehendes Fachwissen bleibt wertvoll
+Task Templates, Conditions, Dependencies, Audit und Assignment-Konzepte werden weiterverwendet.
+Sie werden in das neue Plattformmodell ueberfuehrt statt verworfen.
 
 ---
 
-## 15. Refactors must be justified
-No large refactors during bugfixes.
+## 15. Onboarding ist nur ein Workflow
+Onboarding bleibt wichtig, aber kein versteckter Produktkern.
+Neue Kernlogik darf nicht onboarding-spezifisch verengt werden.
 
 ---
 
-## 16. AI usage
-- small scope
-- one task at a time
-- review diffs
-- protect business logic
+## 16. Identity-Grundsatz bleibt bestehen
+- Die App ist nicht das fuehrende Benutzersystem
+- AD bzw. Entra liefern technische Identitaet
+- Person und technische Identity bleiben getrennt
 
 ---
 
-## 17. Hygiene matters
-No build artifacts as source of truth.
+## 17. Gruppen sind Standard fuer Zugriff
+Standardzugriff kommt ueber Gruppen-Mapping.
+Lokale Sonderfaelle bleiben Ausnahme, nicht Primarmodell.
 
 ---
 
-## 18. Prefer archive over delete (long-term)
-Protect historical workflows.
+## 18. Refactors brauchen einen klaren Grund
+Keine grossen unstrukturierten Refactors nebenbei.
+Bei Kernumbauten zuerst Zielmodell und Migrationsschnitt klaeren.
 
 ---
 
-## 19. Identity source of truth
-- The app is NOT the leading user directory
-- On-prem AD is the leading source
-- Entra ID is the productive auth and integration layer
-- Do not build product logic around local demo identities
+## 19. Sicherheit vor Bequemlichkeit
+Keine freien technischen Seiteneffekte fuer Nicht-Entwickler.
+Keine Secrets in Artefakten oder unklaren Runtime-Pfaden.
 
 ---
 
-## 20. No manual user CRUD as default product model
-- Users should not be created manually in the app as the normal path
-- The app may project, map and enrich external identities
-- Local manual overrides must stay the exception, not the base model
-
----
-
-## 21. Identity != Employee
-- Technical identity and employee master data are different concepts
-- Do not couple employee records 1:1 to local app users
-- Do not resolve productive identity via mutable strings like display name
-
----
-
-## 22. Groups are the default access model
-- Standard access should come from AD/Entra groups
-- App-specific responsibilities may stay local
-- Roles = access, responsibilities = domain ownership, keep the split strict
-
----
-
-## 23. Productive auth is now a critical path item
-- Proper auth is NOT a late nice-to-have anymore
-- No production rollout before productive auth, group mapping and secret handling are solved
-
----
-
-## 24. On-prem hosting still needs modern auth
-- Running on-prem does not justify custom auth shortcuts
-- Use Entra-based login even if API and web are hosted on an internal Docker server
+## 20. Dokumentation ist Teil der Architekturarbeit
+Zielbild, Migration und Begriffe muessen im Repo nachvollziehbar sein.
+Architekturarbeit ohne Doku gilt nicht als fertig.

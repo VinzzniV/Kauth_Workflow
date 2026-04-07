@@ -1,138 +1,120 @@
 # PROJECT_CONTEXT.md
 
-## Goal
+## Ziel
 
-Internal onboarding workflow system → evolving into a configurable employee lifecycle platform.
+Das Projekt entwickelt sich von einem konfigurierbaren Employee-Lifecycle-Tool zu einer versionierten internen Workflow-Plattform.
 
-Current focus:
-- onboarding
-Future:
-- offboarding
-- employee changes (name, department, access, hardware, etc.)
+Kurzfristig wichtig:
+- bestehende Workflows stabil halten
+- Produktkern von onboarding-spezifischen Annahmen entkoppeln
+- Definition Layer und Runtime parallel zur Altwelt einfuehren
 
-Productive direction:
-- app hosted on-prem in Docker
-- identity comes from on-prem AD via Entra sync
-- app maps external identities and groups instead of owning them
-
-Current implementation direction:
-- multiple process types exist beyond pure onboarding
-- local development uses `dev-sim` with synced directory identities
-- server-near and productive auth run via Microsoft Entra ID
-- admin configuration already includes directory sync, group mapping, permission management and runtime system settings
+Langfristig wichtig:
+- neue Workflows ohne Quellcodeaenderung aus sicheren Bausteinen konfigurieren
+- Human Tasks, Entscheidungen, Benachrichtigungen und kontrollierte Automationen in einem Plattformkern abbilden
 
 ---
 
-## Core Model
+## Aktueller Architekturstand
 
-Workflow contains:
-- person data
-- selected requirements
-- generated tasks
-- status
-- assignments
-- notifications
+Bereits vorhanden:
+- Workflow-Instanzen
+- Tasks, Assignments, Kommentare, Deadlines, Audit
+- formular- und antwortgetriebene Konfiguration
+- Conditions, Dependencies, Task Templates
+- mehrere Prozessarten
+- Admin-Konfiguration, Directory-Sync, Rollen-/Responsibility-Modell
 
-Flow:
-1. HR creates workflow
-2. Supervisor selects requirements
-3. Tasks are generated
-4. Departments process tasks
-5. Workflow completes when all relevant tasks are done
+Noch nicht im Zielbild:
+- versionierte Workflow-Definitionen als eigener Kern
+- eigenstaendige Runtime-/Orchestrierungsschicht
+- kontrollierter Automation Layer als eigenes Subsystem
+- generischer Builder fuer Workflow-Definitionen
 
----
-
-## Critical Rules
-
-### Backend is truth
-- All business logic must be correct in backend
-- Frontend must not redefine logic
-
-### Roles vs Responsibilities
-- Roles = access (Admin, HR, Manager, Worker, Reader)
-- Responsibilities = domain (IT, QS, AV, QMB)
-- NEVER merge these
-
-### Assignment
-- `user` = only that user
-- `responsibility` = shared domain
-- No leaking between them
-
-### Workflow completion
-- Only when ALL relevant tasks are done
-- No shortcuts
-
-### Status consistency
-- `completed` and `cancelled` must not be mixed or mapped incorrectly
-
-### Task relevance
-- Once generated → must be treated as required for workflow
-- Tasks that should not exist must not be generated later just to be skipped
-
-### Hardware logic
-- requested=false → no tasks
-- requested=true + available=true → setup + handover
-- requested=true + available=false → procure + setup + handover
+Wichtige Diagnose:
+- Das Problem ist nicht nur "zu viel hardcoded".
+- Das aktuelle Kernmodell ist fuer das Produktziel zu eng und noch zu task-generator-lastig.
 
 ---
 
-## Architecture
+## Zielkern
 
-Frontend → API → DB
+Die Zielarchitektur besteht aus diesen Schichten:
 
-- React + TS + Vite
-- ASP.NET Core API
-- PostgreSQL
-
-Frontend NEVER talks to DB.
-
-Identity and access target:
-- authentication via Microsoft Entra ID
-- backend validates tokens and stays source of truth for authorization
-- app-specific responsibilities remain local
-- employee records must be separated from technical identities
+- Fachobjekte: Person, technische Identity, Department, Responsibility, Workflow Instance, Task, Kommentar, Notification, Audit
+- Workflow Definition Layer: Definitionen, Versionen, Nodes, Edges, Node-Configs
+- Runtime Layer: aktiviert Nodes, fuehrt Definitionen aus, erzeugt Laufzeiteffekte, behandelt Fehlerpfade
+- Task-System: Human Tasks, Kommentare, Fristen, Status, Eskalation, Zuweisung
+- Automation Layer: Action Definitions, Jobs, Worker, Logging, Retry, Idempotenz
+- Admin / Builder Layer: Definition anlegen, konfigurieren, validieren, veroeffentlichen
 
 ---
 
-## Direction
+## Kritische Regeln
 
-Move toward:
-- less frontend logic
-- more data-driven behavior
-- configurable workflows/templates
-- admin-managed data via UI (safe, validated)
-- reuse for multiple process types
-- productive auth and group-based authorization
-- external identity mapping instead of manual in-app user lifecycle
-- admin UI for sync status, group mapping, responsibilities and exceptions
+### Backend ist Source of Truth
+- Geschaeftslogik muss im Backend korrekt sein.
+- Das Frontend darf Regeln nicht neu definieren.
+
+### Rollen und Verantwortlichkeiten bleiben getrennt
+- Rollen = Zugriff
+- Responsibilities = fachliche Ownership
+- Niemals vermischen
+
+### Assignment bleibt strikt
+- `user` = genau dieser Benutzer
+- `responsibility` = geteilte fachliche Zustaendigkeit
+- Keine impliziten Abkuerzungen
+
+### Workflow-Definition ist nicht gleich Task-Generierung
+- Tasks sind nur eine moegliche Laufzeitwirkung.
+- Die Engine darf nicht weiter nur ein Task-Generator sein.
+
+### Versionierung ist Pflicht
+- Laufende Instanzen muessen auf einer festen Definition-Version weiterlaufen.
+- Admin-Aenderungen duerfen laufende Instanzen nicht zerstoeren.
+
+### Automationen bleiben kontrolliert
+- Keine freie PowerShell
+- Kein freies SQL
+- Keine beliebigen HTTP-Requests mit Secrets aus dem Admin-UI
+- Nur freigegebene, validierte Actions
+
+### Migration statt Big Bang
+- Bestehende Prozesse bleiben zunaechst lauffaehig.
+- Neue Architektur wird parallel eingefuehrt.
+- Altlogik erst nach Paritaet zurueckbauen.
 
 ---
 
-## Do NOT
+## Richtung
 
-- merge roles/responsibilities
-- break assignment_type logic
-- complete workflows early
-- move business logic into frontend
-- hardcode new logic unnecessarily
-- introduce large refactors casually
-- treat demo auth as a productive fallback
-- use the app as the primary user directory
-- couple employee identity to mutable display-name matching
+Wir bewegen uns in diese Richtung:
+- weniger implizite Prozesslogik
+- mehr versionierte Definitionen
+- generische Runtime statt Prozessart-Spezialfaelle
+- UI-gestuetzte fachliche Konfiguration mit Guardrails
+- kontrollierte technische Integrationen
+- mehrere Workflows auf einem gemeinsamen Plattformkern
 
 ---
 
-## AI Rules
+## Nicht tun
 
-- read context before coding
-- change only what is needed
-- keep backend truth
-- avoid refactors
-- explain changes
+- neue Prozessarten primaer per Seed-SQL weiterbauen
+- onboarding-spezifische Kernlogik weiter aufblasen
+- freie technische Aktionen fuer Admins anbieten
+- Business-Regeln ins Frontend verschieben
+- Altlogik voreilig loeschen
+- grosse Refactors ohne klaren Migrationsschnitt machen
 
-## Working Docs
+---
 
-- `DOCS_CONTROL.md` = which docs to read first, when to update which file, and where temporary vs stable knowledge belongs
-- `PROJECT_CONTEXT.md` = stable project truth and guardrails
-- `MEMORY.md` = current working memory for next session, active findings, open risks and immediate next steps
-- `TODO.md` = larger production-readiness backlog and prioritised work packages
+## Arbeitsdokumente
+
+- `DOCS_CONTROL.md` = Lesereihenfolge, Schreibziele, Doku-Hygiene
+- `Workflow_Plattform_Implementation_Plan.md` = zentrale Umsetzungsanweisung fuer die Migration
+- `PRODUCTIVE_TARGET_ARCHITECTURE.md` = stabiles Sollbild der Plattform
+- `DECISIONS.md` = langfristige Architekturentscheidungen
+- `MEMORY.md` = kurzfristiger Session-Kontext
+- `TODO.md` = priorisierte Arbeitspakete entlang der Migrationsphasen

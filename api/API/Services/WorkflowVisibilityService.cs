@@ -86,6 +86,7 @@ internal sealed class WorkflowVisibilityService(
             };
 
             task.CanUpdateStatus = authorizationPolicyService.CanUpdateTaskStatus(currentUser, taskContext);
+            task.CanDecideApproval = authorizationPolicyService.CanDecideTaskApproval(currentUser, taskContext);
             task.CanAddComment = authorizationPolicyService.CanAddTaskComment(currentUser, taskContext);
 
             if (shouldRedactComments)
@@ -117,6 +118,7 @@ internal sealed class WorkflowVisibilityService(
     public void ApplyTaskPermissions(TaskWithWorkflowDto task, CurrentUser currentUser)
     {
         task.Task.CanUpdateStatus = authorizationPolicyService.CanUpdateTaskStatus(currentUser, task);
+        task.Task.CanDecideApproval = authorizationPolicyService.CanDecideTaskApproval(currentUser, task);
         task.Task.CanAddComment = authorizationPolicyService.CanAddTaskComment(currentUser, task);
         if (ShouldRedactTaskComments(currentUser))
         {

@@ -15,7 +15,9 @@ internal sealed class TaskApplicationService(
         if (!authorizationPolicyService.CanManageAdminConfiguration(currentUser))
         {
             tasks = tasks
-                .Where(task => authorizationPolicyService.CanUpdateTaskStatus(currentUser, task))
+                .Where(task =>
+                    authorizationPolicyService.CanUpdateTaskStatus(currentUser, task)
+                    || authorizationPolicyService.CanDecideTaskApproval(currentUser, task))
                 .ToList();
         }
 
@@ -32,10 +34,47 @@ internal sealed class TaskApplicationService(
         }
 
         if (!authorizationPolicyService.CanManageAdminConfiguration(currentUser)
-            && !authorizationPolicyService.CanUpdateTaskStatus(currentUser, task))
+            && !authorizationPolicyService.CanUpdateTaskStatus(currentUser, task)
+            && !authorizationPolicyService.CanDecideTaskApproval(currentUser, task))
         {
             throw new UnauthorizedAccessException("Task visibility requires matching phase responsibility and assignment.");
         }
+
+        workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
+        return task;
+    }
+
+    public async Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(
+        long taskId,
+        TaskApprovalDecisionRequest request,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var currentTask = await repository.GetTaskById(taskId);
+        if (currentTask is null)
+        {
+            return null;
+        }
+
+        if (!authorizationPolicyService.CanDecideTaskApproval(currentUser, currentTask))
+        {
+            logger.LogWarning(
+                "User {UserId} denied approval decision for task {TaskId} (workflow {WorkflowUid}).",
+                currentUser.UserId,
+                taskId,
+                currentTask.Workflow.WorkflowUid);
+            throw new UnauthorizedAccessException("Approval decisions require the assigned supervisor responsibility or Admin override.");
+        }
+
+        var task = await repository.DecideTaskApproval(taskId, request, currentUser.UserId);
+        if (task is null)
+        {
+            return null;
+        }
+
+        await workflowNotificationDispatchService.DispatchTaskStatusChangeNotificationsAsync(
+            task.Workflow.WorkflowUid,
+            cancellationToken);
 
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;

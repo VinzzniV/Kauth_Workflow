@@ -1078,9 +1078,11 @@ ON CONFLICT (name) DO NOTHING;";
 WITH scoped_identities AS (
     SELECT DISTINCT
         di.id AS directory_identity_id,
+        di.app_user_id,
         di.entra_object_id,
         di.user_principal_name,
         di.mail,
+        COALESCE(di.mail, di.user_principal_name, di.entra_object_id::text || '@directory.local') AS resolved_email,
         di.display_name,
         di.department_name,
         di.account_enabled,
@@ -1089,6 +1091,23 @@ WITH scoped_identities AS (
     JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
     JOIN directory_groups dg ON dg.id = dgm.directory_group_id
     LEFT JOIN departments department ON LOWER(department.name) = LOWER(di.department_name)
+),
+insert_candidates AS (
+    SELECT DISTINCT ON (LOWER(scoped.resolved_email))
+        scoped.entra_object_id,
+        scoped.department_id,
+        scoped.display_name,
+        scoped.resolved_email,
+        scoped.account_enabled
+    FROM scoped_identities scoped
+    WHERE scoped.app_user_id IS NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM app_users existing
+        WHERE existing.entra_object_id = scoped.entra_object_id
+           OR LOWER(existing.email) = LOWER(scoped.resolved_email)
+    )
+    ORDER BY LOWER(scoped.resolved_email), scoped.directory_identity_id
 ),
 upserted_users AS (
     INSERT INTO app_users (
@@ -1109,7 +1128,7 @@ upserted_users AS (
         scoped.entra_object_id,
         scoped.department_id,
         scoped.display_name,
-        COALESCE(scoped.mail, scoped.user_principal_name, scoped.entra_object_id::text || '@directory.local'),
+        scoped.resolved_email,
         NULL,
         scoped.account_enabled,
         TRUE,
@@ -1119,12 +1138,7 @@ upserted_users AS (
             ELSE 'directory'
         END,
         FALSE
-    FROM scoped_identities scoped
-    WHERE NOT EXISTS (
-        SELECT 1
-        FROM app_users existing
-        WHERE existing.entra_object_id = scoped.entra_object_id
-    )
+    FROM insert_candidates scoped
     RETURNING id, entra_object_id
 )
 UPDATE app_users u
@@ -1150,6 +1164,8 @@ WHERE u.entra_object_id = di.entra_object_id;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        await AutoLinkIdentitiesToAppUsers(connection, cancellationToken);
 
         const string linkSql = @"
 UPDATE directory_identities di

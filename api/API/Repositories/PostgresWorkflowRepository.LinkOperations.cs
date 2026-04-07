@@ -102,6 +102,7 @@ WITH base_workflow AS (
         w.employee_number
     FROM workflows w
     WHERE w.uid = @uid
+      AND w.workflow_definition_version_id IS NULL
     LIMIT 1
 )
 SELECT
@@ -115,6 +116,7 @@ SELECT
 FROM base_workflow base
 JOIN workflows related
     ON related.uid <> base.uid
+   AND related.workflow_definition_version_id IS NULL
    AND (
         (base.target_person_id IS NOT NULL AND related.target_person_id = base.target_person_id)
         OR (
@@ -263,6 +265,7 @@ FROM workflows w
 JOIN departments d ON d.id = w.department_id
 JOIN process_types pt ON pt.id = w.process_type_id
 WHERE w.employee_number = @employeeNumber
+  AND w.workflow_definition_version_id IS NULL
   AND (@excludeUid IS NULL OR w.uid <> @excludeUid)
 ORDER BY w.created_at DESC;";
 
@@ -313,6 +316,7 @@ SELECT
 FROM workflows w
 JOIN process_types pt ON pt.id = w.process_type_id
 WHERE w.uid = @uid
+  AND w.workflow_definition_version_id IS NULL
 LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -549,28 +553,57 @@ LEFT JOIN workflow_answer_options selected_option ON selected_option.id = a.sele
 WHERE a.workflow_id = @workflowId
 ORDER BY a.answer_definition_id, a.id;";
 
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("workflowId", workflowId);
-        await using var reader = await command.ExecuteReaderAsync();
-
         var answers = new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase);
-        while (await reader.ReadAsync())
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
         {
-            var answerKey = reader.GetString(2);
-            answers[answerKey] = new StoredWorkflowAnswerRecord
+            command.Parameters.AddWithValue("workflowId", workflowId);
+            await using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
             {
-                WorkflowAnswerId = reader.GetInt64(0),
-                AnswerDefinitionId = reader.GetInt32(1),
-                AnswerKey = answerKey,
-                InputType = reader.GetString(3),
-                ValueBoolean = reader.IsDBNull(4) ? null : reader.GetBoolean(4),
-                ValueText = reader.IsDBNull(5) ? null : reader.GetString(5),
-                ValueNumber = reader.IsDBNull(6) ? null : reader.GetDecimal(6),
-                SelectedOptionId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-                SelectedOptionValue = reader.IsDBNull(8) ? null : reader.GetString(8),
-                SelectedOptionIds = new List<int>(),
-                SelectedOptionValues = new List<string>()
-            };
+                var answerKey = reader.GetString(2);
+                answers[answerKey] = new StoredWorkflowAnswerRecord
+                {
+                    WorkflowAnswerId = reader.GetInt64(0),
+                    AnswerDefinitionId = reader.GetInt32(1),
+                    AnswerKey = answerKey,
+                    InputType = reader.GetString(3),
+                    ValueBoolean = reader.IsDBNull(4) ? null : reader.GetBoolean(4),
+                    ValueText = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    ValueNumber = reader.IsDBNull(6) ? null : reader.GetDecimal(6),
+                    SelectedOptionId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                    SelectedOptionValue = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    SelectedOptionIds = new List<int>(),
+                    SelectedOptionValues = new List<string>()
+                };
+            }
+        }
+
+        const string multiSelectSql = @"
+SELECT
+    a.answer_key,
+    o.id,
+    o.option_value
+FROM workflow_answers a
+JOIN workflow_answer_selected_options aso ON aso.workflow_answer_id = a.id
+JOIN workflow_answer_options o ON o.id = aso.answer_option_id
+WHERE a.workflow_id = @workflowId
+ORDER BY a.answer_definition_id, a.id, o.sort_order, o.id;";
+
+        await using var multiSelectCommand = new NpgsqlCommand(multiSelectSql, connection, transaction);
+        multiSelectCommand.Parameters.AddWithValue("workflowId", workflowId);
+        await using var multiSelectReader = await multiSelectCommand.ExecuteReaderAsync();
+
+        while (await multiSelectReader.ReadAsync())
+        {
+            var answerKey = multiSelectReader.GetString(0);
+            if (!answers.TryGetValue(answerKey, out var answer))
+            {
+                continue;
+            }
+
+            answer.SelectedOptionIds.Add(multiSelectReader.GetInt32(1));
+            answer.SelectedOptionValues.Add(multiSelectReader.GetString(2));
         }
 
         return answers;

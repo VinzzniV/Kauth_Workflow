@@ -184,7 +184,11 @@ export default function SupervisorStepPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader title="Bedarf festlegen" />
+        <PageHeader
+          variant="workspace"
+          title="Anforderungen freigeben"
+          description="Offene Freigaben prüfen und Anforderungen für neue Mitarbeiter bestätigen."
+        />
 
         <section className="panel">
           <div className="panel-head">

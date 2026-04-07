@@ -23,3 +23,14 @@ export async function addTaskComment(taskId: number, commentText: string): Promi
   });
   return mapTaskWithWorkflow(data);
 }
+
+export async function decideTaskApproval(taskId: number, approved: boolean, commentText?: string): Promise<TaskWithWorkflow> {
+  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeURIComponent(String(taskId))}/approval-decision`, {
+    method: "POST",
+    body: {
+      approved,
+      commentText: commentText?.trim() ? commentText.trim() : undefined,
+    },
+  });
+  return mapTaskWithWorkflow(data);
+}

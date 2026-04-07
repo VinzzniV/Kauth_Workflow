@@ -20,14 +20,14 @@ vi.mock("../src/services/workflowApi", async () => {
   return {
     ...actual,
     getWorkflowConfig: vi.fn(),
-    searchCompletedOnboardings: vi.fn(),
+    searchWorkflowTargetPersonSources: vi.fn(),
     createWorkflow: vi.fn(),
   };
 });
 
 const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
 const mockedGetWorkflowConfig = vi.mocked(workflowApi.getWorkflowConfig);
-const mockedSearchCompletedOnboardings = vi.mocked(workflowApi.searchCompletedOnboardings);
+const mockedSearchWorkflowTargetPersonSources = vi.mocked(workflowApi.searchWorkflowTargetPersonSources);
 const mockedGetRoles = vi.mocked(lookupApi.getRoles);
 const mockedGetDepartments = vi.mocked(lookupApi.getDepartments);
 
@@ -36,7 +36,7 @@ describe("CreateWorkflowPage", () => {
     vi.useRealTimers();
     mockedGetProcessTypes.mockReset();
     mockedGetWorkflowConfig.mockReset();
-    mockedSearchCompletedOnboardings.mockReset();
+    mockedSearchWorkflowTargetPersonSources.mockReset();
     mockedGetRoles.mockReset();
     mockedGetDepartments.mockReset();
 
@@ -48,7 +48,7 @@ describe("CreateWorkflowPage", () => {
         defaultSelectedOptions: [],
       },
     });
-    mockedSearchCompletedOnboardings.mockResolvedValue([
+    mockedSearchWorkflowTargetPersonSources.mockResolvedValue([
       {
         workflowUid: "wf-completed-1",
         personId: 22,
@@ -149,11 +149,11 @@ describe("CreateWorkflowPage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
 
-    expect(screen.getByRole("heading", { name: "Abgeschlossenes Onboarding auswählen" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Quellworkflow auswählen" })).toBeTruthy();
     expect(screen.queryByText("Daten der neuen Person")).toBeNull();
   });
 
-  it("does not refetch completed onboardings endlessly after selecting a person", async () => {
+  it("does not refetch target-person sources endlessly after selecting a person", async () => {
     mockedGetProcessTypes.mockResolvedValue([
       {
         key: "department_change",
@@ -168,14 +168,14 @@ describe("CreateWorkflowPage", () => {
     expect(await screen.findByText("Änderung starten")).toBeTruthy();
     expect(await screen.findByText("Abteilungswechsel")).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
-    expect(await screen.findByRole("heading", { name: "Abgeschlossenes Onboarding auswählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Quellworkflow auswählen" })).toBeTruthy();
 
-    await waitFor(() => expect(mockedSearchCompletedOnboardings).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedSearchWorkflowTargetPersonSources).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("radio"));
 
     await new Promise((resolve) => window.setTimeout(resolve, 400));
-    await waitFor(() => expect(mockedSearchCompletedOnboardings).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedSearchWorkflowTargetPersonSources).toHaveBeenCalledTimes(1));
   });
 
   it("resets stale context when the process type changes", async () => {
@@ -208,7 +208,7 @@ describe("CreateWorkflowPage", () => {
     fireEvent.click(screen.getByText("Offboarding"));
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
 
-    expect(await screen.findByRole("heading", { name: "Abgeschlossenes Onboarding auswählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Quellworkflow auswählen" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Zurück zur Vorgangsauswahl" }));
     expect(await screen.findByText("Onboarding")).toBeTruthy();

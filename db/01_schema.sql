@@ -345,6 +345,7 @@ CREATE TABLE workflows (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     uid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE RESTRICT,
+    workflow_definition_version_id BIGINT,
     department_id INTEGER NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
     position_role_id INTEGER NOT NULL REFERENCES app_roles(id) ON DELETE RESTRICT,
     created_by_user_id BIGINT REFERENCES app_users(id) ON DELETE SET NULL,
@@ -354,6 +355,7 @@ CREATE TABLE workflows (
     employee_number INTEGER NOT NULL,
     badge_number INTEGER NOT NULL,
     deadline_date DATE,
+    current_runtime_status VARCHAR(32),
     status VARCHAR(40) NOT NULL DEFAULT 'draft'
         CHECK (status IN ('draft', 'in_progress', 'waiting_for_supervisor', 'waiting_for_department', 'completed')),
     started_at TIMESTAMPTZ,
@@ -445,6 +447,7 @@ CREATE TABLE task_template_dependencies (
 CREATE TABLE workflow_tasks (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    node_instance_id BIGINT REFERENCES workflow_node_instances(id) ON DELETE SET NULL,
     task_template_id INTEGER REFERENCES task_templates(id) ON DELETE SET NULL,
     task_key VARCHAR(120) NOT NULL,
     title VARCHAR(220) NOT NULL,
@@ -465,6 +468,10 @@ CREATE TABLE workflow_tasks (
     completed_at TIMESTAMPTZ,
     UNIQUE (workflow_id, task_key)
 );
+
+CREATE UNIQUE INDEX ux_workflow_tasks_node_instance_id
+    ON workflow_tasks(node_instance_id)
+    WHERE node_instance_id IS NOT NULL;
 
 CREATE TABLE workflow_task_dependencies (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -532,6 +539,89 @@ CREATE TABLE workflow_notifications (
     sent_at TIMESTAMPTZ
 );
 
+CREATE TABLE workflow_definitions (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    definition_key VARCHAR(120) NOT NULL UNIQUE,
+    name VARCHAR(220) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE workflow_definition_versions (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_definition_id INTEGER NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
+    version_number INTEGER NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'published', 'retired')),
+    name VARCHAR(220),
+    description TEXT,
+    primary_legacy_process_type_id INTEGER REFERENCES process_types(id) ON DELETE RESTRICT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMPTZ,
+    UNIQUE (workflow_definition_id, version_number)
+);
+
+ALTER TABLE workflows
+    ADD CONSTRAINT fk_workflows_workflow_definition_version
+    FOREIGN KEY (workflow_definition_version_id)
+    REFERENCES workflow_definition_versions(id)
+    ON DELETE SET NULL;
+
+CREATE TABLE workflow_nodes (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_definition_version_id BIGINT NOT NULL REFERENCES workflow_definition_versions(id) ON DELETE CASCADE,
+    node_key VARCHAR(120) NOT NULL,
+    node_type VARCHAR(32) NOT NULL
+        CHECK (node_type IN ('start', 'form', 'approval', 'task', 'decision', 'end')),
+    title VARCHAR(220),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (workflow_definition_version_id, node_key)
+);
+
+CREATE TABLE workflow_edges (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_definition_version_id BIGINT NOT NULL REFERENCES workflow_definition_versions(id) ON DELETE CASCADE,
+    source_workflow_node_id BIGINT NOT NULL REFERENCES workflow_nodes(id) ON DELETE CASCADE,
+    target_workflow_node_id BIGINT NOT NULL REFERENCES workflow_nodes(id) ON DELETE CASCADE,
+    priority INTEGER NOT NULL DEFAULT 0,
+    condition_expression TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (workflow_definition_version_id, source_workflow_node_id, priority)
+);
+
+CREATE TABLE workflow_node_configs (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_node_id BIGINT NOT NULL REFERENCES workflow_nodes(id) ON DELETE CASCADE,
+    config_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (workflow_node_id)
+);
+
+CREATE TABLE workflow_node_instances (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    workflow_node_id BIGINT NOT NULL REFERENCES workflow_nodes(id) ON DELETE CASCADE,
+    status VARCHAR(32) NOT NULL
+        CHECK (status IN ('pending', 'active', 'done', 'failed', 'cancelled')),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    result_json JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (workflow_id, workflow_node_id)
+);
+
+CREATE TABLE workflow_runtime_events (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    workflow_node_instance_id BIGINT REFERENCES workflow_node_instances(id) ON DELETE SET NULL,
+    event_type VARCHAR(80) NOT NULL,
+    payload_json JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX idx_app_roles_department_kind ON app_roles(department_id, role_kind);
 CREATE INDEX idx_app_responsibilities_department_type ON app_responsibilities(department_id, responsibility_type);
 CREATE UNIQUE INDEX uq_people_app_user_id ON people(app_user_id);
@@ -565,3 +655,22 @@ CREATE UNIQUE INDEX uq_task_assignments_primary_per_task
     WHERE is_primary = TRUE;
 CREATE INDEX idx_workflow_audit_log_workflow_id ON workflow_audit_log(workflow_id, created_at DESC);
 CREATE INDEX idx_workflow_notifications_workflow_id ON workflow_notifications(workflow_id);
+CREATE INDEX idx_workflow_definition_versions_definition_id
+    ON workflow_definition_versions(workflow_definition_id, version_number DESC);
+CREATE UNIQUE INDEX uq_workflow_definition_versions_published_per_definition
+    ON workflow_definition_versions(workflow_definition_id)
+    WHERE status = 'published';
+CREATE INDEX idx_workflow_nodes_version_id
+    ON workflow_nodes(workflow_definition_version_id, sort_order, node_key);
+CREATE INDEX idx_workflow_edges_version_id
+    ON workflow_edges(workflow_definition_version_id, source_workflow_node_id, priority);
+CREATE INDEX idx_workflows_definition_version_id
+    ON workflows(workflow_definition_version_id)
+    WHERE workflow_definition_version_id IS NOT NULL;
+CREATE INDEX idx_workflows_current_runtime_status
+    ON workflows(current_runtime_status)
+    WHERE current_runtime_status IS NOT NULL;
+CREATE INDEX idx_workflow_node_instances_workflow_id
+    ON workflow_node_instances(workflow_id, status, id);
+CREATE INDEX idx_workflow_runtime_events_workflow_id
+    ON workflow_runtime_events(workflow_id, created_at, id);

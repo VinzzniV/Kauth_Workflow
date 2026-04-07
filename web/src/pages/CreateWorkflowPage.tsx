@@ -25,9 +25,9 @@ export default function CreateWorkflowPage() {
     employee: workflowCreation.employee,
     selectedDepartmentId: workflowCreation.selectedDepartmentId,
     selectedRoleId: workflowCreation.selectedRoleId,
-    selectedCompletedOnboarding: workflowCreation.selectedCompletedOnboarding,
-    completedOnboardingsLoading: workflowCreation.completedOnboardingsLoading,
-    completedOnboardingsError: workflowCreation.completedOnboardingsError,
+    selectedTargetPersonSource: workflowCreation.selectedTargetPersonSource,
+    targetPersonSourcesLoading: workflowCreation.targetPersonSourcesLoading,
+    targetPersonSourcesError: workflowCreation.targetPersonSourcesError,
     rolesLoading: workflowCreation.rolesLoading,
     rolesError: workflowCreation.rolesError,
     availableRoles: workflowCreation.availableRoles,
@@ -37,7 +37,10 @@ export default function CreateWorkflowPage() {
   return (
     <main className="app-shell">
       <div className="page-container">
-        <PageHeader title={view.pageTitle} />
+        <PageHeader
+          variant="workspace"
+          title={view.pageTitle}
+        />
 
         <WorkflowCreationStepper steps={view.steps} currentStepIndex={view.currentStepIndex} />
 
@@ -61,11 +64,11 @@ export default function CreateWorkflowPage() {
             contextStepTitle={view.contextStepTitle}
             requiresTargetPerson={workflowCreation.requiresTargetPerson}
             selectedProcessType={workflowCreation.selectedProcessType}
-            completedOnboardingSearch={workflowCreation.completedOnboardingSearch}
-            completedOnboardings={workflowCreation.completedOnboardings}
-            selectedCompletedOnboarding={workflowCreation.selectedCompletedOnboarding}
-            completedOnboardingsLoading={workflowCreation.completedOnboardingsLoading}
-            completedOnboardingsError={workflowCreation.completedOnboardingsError}
+            targetPersonSourceSearch={workflowCreation.targetPersonSourceSearch}
+            targetPersonSources={workflowCreation.targetPersonSources}
+            selectedTargetPersonSource={workflowCreation.selectedTargetPersonSource}
+            targetPersonSourcesLoading={workflowCreation.targetPersonSourcesLoading}
+            targetPersonSourcesError={workflowCreation.targetPersonSourcesError}
             targetPersonSelectionError={view.targetPersonSelectionError}
             employee={workflowCreation.employee}
             employeeFieldErrors={view.employeeFieldErrors}
@@ -81,8 +84,8 @@ export default function CreateWorkflowPage() {
             hasDerivedContextGap={view.hasDerivedContextGap}
             hasAttemptedContextNext={hasAttemptedContextNext}
             contextStepIssues={view.contextStepIssues}
-            onSearchChange={workflowCreation.setCompletedOnboardingSearch}
-            onSelectOnboarding={workflowCreation.setSelectedCompletedOnboarding}
+            onSearchChange={workflowCreation.setTargetPersonSourceSearch}
+            onSelectTargetPersonSource={workflowCreation.setSelectedTargetPersonSource}
             onEmployeeChange={workflowCreation.setEmployeeField}
             onDepartmentChange={workflowCreation.setSelectedDepartment}
             onRoleChange={workflowCreation.setSelectedRole}
@@ -98,7 +101,7 @@ export default function CreateWorkflowPage() {
           <CreateWorkflowReviewStep
             requiresTargetPerson={workflowCreation.requiresTargetPerson}
             selectedProcessType={workflowCreation.selectedProcessType}
-            selectedCompletedOnboarding={workflowCreation.selectedCompletedOnboarding}
+            selectedTargetPersonSource={workflowCreation.selectedTargetPersonSource}
             employee={workflowCreation.employee}
             selectedDepartment={workflowCreation.selectedDepartment}
             selectedRole={workflowCreation.selectedRole}

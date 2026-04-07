@@ -82,6 +82,7 @@ SELECT
 FROM workflows w
 JOIN process_types pt ON pt.id = w.process_type_id
 WHERE w.uid = @workflowUid
+  AND w.workflow_definition_version_id IS NULL
 LIMIT 1
 FOR UPDATE OF w;";
 

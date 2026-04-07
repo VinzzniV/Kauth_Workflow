@@ -1,89 +1,98 @@
 # DOCS_CONTROL.md
 
-## Purpose
+## Zweck
 
-This file defines how the repository documentation should be read and maintained.
-It is the control file for documentation flow, not the place for business rules or implementation detail.
+Diese Datei steuert, wie die Repo-Dokumentation gelesen und gepflegt wird.
+Sie ist die Ordnungsdatei fuer Dokumentationsfluss, nicht der Ort fuer Fachlogik oder Implementierungsdetails.
 
 ---
 
-## Read First
+## Zuerst lesen
 
-Always read these before making non-trivial changes:
+Vor allen nicht-trivialen Aenderungen:
 - `DOCS_CONTROL.md`
 - `PROJECT_CONTEXT.md`
 - `MEMORY.md`
 
-Read these when they match the task:
-- `PROJECT_STRUCTURE.md` for file ownership, entry points and module layout
-- `SETUP.md` for local runtime, deployment and environment handling
-- `PRODUCTIVE_TARGET_ARCHITECTURE.md` for target state and migration direction
-- `DECISIONS.md` for stable architectural decisions
-- `ENGINEERING_RULES.md` for implementation and handoff constraints
-- `FRONTEND_TODO.md` for UI guardrails and frontend review criteria
-- `TODO.md` for larger backlog and production-readiness work
-- `web/README.md` for frontend-specific orientation
+Zusatzlich je nach Aufgabe:
+- `Workflow_Plattform_Implementation_Plan.md` bei Architektur-, Migrations-, Datenmodell-, Runtime- oder Plattformarbeit
+- `PROJECT_STRUCTURE.md` fuer Dateilayout, Module und Einstiegspunkte
+- `PRODUCTIVE_TARGET_ARCHITECTURE.md` fuer das stabile Sollbild
+- `DECISIONS.md` fuer langfristige Architektur- und Produktentscheidungen
+- `ENGINEERING_RULES.md` fuer Umsetzungs- und Handoff-Regeln
+- `SETUP.md` fuer lokale Entwicklung, Deployment und Laufzeitkonfiguration
+- `TODO.md` fuer den priorisierten Umsetzungs-Backlog
+- `web/README.md` fuer Frontend-Orientierung
 
 ---
 
-## Write Here
+## Schreibziele
 
-Use the following write targets deliberately:
+Verwende diese Dateien bewusst:
 
-- stable project truth and guardrails -> `PROJECT_CONTEXT.md`
-- architecture or product decisions that should remain valid long-term -> `DECISIONS.md`
-- temporary findings, current risks, next steps for the next session -> `MEMORY.md`
-- local setup, deployment steps, env handling, smoke tests -> `SETUP.md`
-- repository/module structure, important entry points, relevant folders -> `PROJECT_STRUCTURE.md`
-- target architecture and migration direction -> `PRODUCTIVE_TARGET_ARCHITECTURE.md`
-- broader backlog and release-readiness work packages -> `TODO.md`
-- frontend-specific open work and UI guardrails -> `FRONTEND_TODO.md`
-- frontend-oriented quick orientation -> `web/README.md`
-
----
-
-## Minimum Doc Updates After Changes
-
-When code changes affect these areas, update the matching docs in the same work pass:
-
-- auth mode, env vars, compose, deployment, URLs -> `SETUP.md`
-- added/removed folders, new entry points, renamed modules -> `PROJECT_STRUCTURE.md`
-- changed stable rules or product direction -> `PROJECT_CONTEXT.md` and possibly `DECISIONS.md`
-- changed frontend module boundaries or frontend workflows -> `web/README.md`
-- changed target-state assumptions -> `PRODUCTIVE_TARGET_ARCHITECTURE.md`
-- new ongoing risks or unfinished follow-ups -> `MEMORY.md`
+- stabile Projektwahrheit und Guardrails -> `PROJECT_CONTEXT.md`
+- verbindliche Zielarchitektur der Plattform -> `PRODUCTIVE_TARGET_ARCHITECTURE.md`
+- konkrete Umsetzungsreihenfolge und Phasen -> `Workflow_Plattform_Implementation_Plan.md`
+- langfristige Architektur- und Produktentscheidungen -> `DECISIONS.md`
+- kurzfristiger Session-Kontext, aktive Risiken, naechste Schritte -> `MEMORY.md`
+- Repo-/Modulstruktur und wichtige Einstiegspunkte -> `PROJECT_STRUCTURE.md`
+- lokale Setup-, Deploy- und Laufzeitdoku -> `SETUP.md`
+- groesserer Backlog und priorisierte Arbeitspakete -> `TODO.md`
+- Frontend-spezifische Orientierung -> `web/README.md`
 
 ---
 
-## Practical Reading Order By Task
+## Mindest-Updates nach Aenderungen
 
-For backend or full-stack feature work:
+Wenn sich diese Bereiche aendern, muessen die passenden Dokus im selben Arbeitsgang mitgezogen werden:
+
+- Zielbild, Plattformbegriffe, Migrationsannahmen -> `PRODUCTIVE_TARGET_ARCHITECTURE.md` und ggf. `DECISIONS.md`
+- Architekturphasen, Reihenfolge oder Deliverables -> `Workflow_Plattform_Implementation_Plan.md` oder `TODO.md`
+- stabile Produktregeln oder Guardrails -> `PROJECT_CONTEXT.md`
+- neue Ordner, neue Entry-Points, umbenannte Module -> `PROJECT_STRUCTURE.md`
+- veraendertes Runtime-, Compose-, Deploy- oder Env-Verhalten -> `SETUP.md`
+- neue offene Risiken oder bewusst unvollstaendige Nacharbeiten -> `MEMORY.md`
+- veraenderte Frontend-Modulgrenzen oder Admin-/Builder-Flows -> `web/README.md`
+
+---
+
+## Lesereihenfolge nach Aufgabentyp
+
+Fuer Architektur-, Datenmodell- oder Runtime-Arbeit:
+1. `DOCS_CONTROL.md`
+2. `PROJECT_CONTEXT.md`
+3. `Workflow_Plattform_Implementation_Plan.md`
+4. `PRODUCTIVE_TARGET_ARCHITECTURE.md`
+5. `MEMORY.md`
+6. `PROJECT_STRUCTURE.md`
+
+Fuer Backend- oder Full-Stack-Feature-Arbeit:
 1. `DOCS_CONTROL.md`
 2. `PROJECT_CONTEXT.md`
 3. `MEMORY.md`
 4. `PROJECT_STRUCTURE.md`
-5. task-specific docs
+5. aufgabenspezifische Dokus
 
-For frontend work:
+Fuer Frontend-Arbeit:
 1. `DOCS_CONTROL.md`
 2. `PROJECT_CONTEXT.md`
-3. `FRONTEND_TODO.md`
+3. `Workflow_Plattform_Implementation_Plan.md`, falls Builder/Workflow-UI betroffen ist
 4. `web/README.md`
 5. `MEMORY.md`
 
-For infra, auth or deployment work:
+Fuer Infra, Auth oder Deployment:
 1. `DOCS_CONTROL.md`
 2. `PROJECT_CONTEXT.md`
 3. `SETUP.md`
 4. `PRODUCTIVE_TARGET_ARCHITECTURE.md`
-5. `.env.prod.example` and compose files
+5. `.env.prod.example` und Compose-Dateien
 
 ---
 
-## Hygiene Rules
+## Hygiene-Regeln
 
-- Do not duplicate the same truth across multiple files without a reason.
-- Stable information should not live only in `MEMORY.md`.
-- Temporary or uncertain notes should not be promoted into `PROJECT_CONTEXT.md` too early.
-- If a file stops matching its real purpose, either rewrite its description or move the content.
-- Prefer short, explicit status notes over vague "mostly done" wording.
+- Dieselbe Wahrheit nicht ohne Grund in mehreren Dateien pflegen.
+- Stabile Informationen gehoeren nicht nur in `MEMORY.md`.
+- Unsichere oder temporaere Notizen gehoeren nicht vorschnell in `PROJECT_CONTEXT.md`.
+- Der Implementierungsplan ist die Arbeitsanweisung fuer die Migration, nicht der Ort fuer Session-Notizen.
+- Wenn eine Datei ihren Zweck nicht mehr trifft, Inhalt verschieben oder Beschreibung anpassen.

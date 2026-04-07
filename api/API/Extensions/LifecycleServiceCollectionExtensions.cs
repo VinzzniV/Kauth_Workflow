@@ -59,6 +59,8 @@ internal static class LifecycleServiceCollectionExtensions
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Employee Lifecycle API", Version = "v1" });
         });
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();
+        services.AddScoped<IWorkflowDefinitionRuntimeRepository, PostgresWorkflowRepository>();
+        services.AddScoped<IWorkflowDefinitionValidationService, WorkflowDefinitionValidationService>();
         services.AddHttpContextAccessor();
         services.AddSingleton(runtimeSettings);
 
@@ -111,6 +113,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IWorkflowNotificationDispatchService, WorkflowNotificationDispatchService>();
         services.AddScoped<IWorkflowCatalogService, WorkflowCatalogService>();
         services.AddScoped<IWorkflowRuntimeService, WorkflowRuntimeService>();
+        services.AddScoped<IWorkflowDefinitionRuntimeService, WorkflowDefinitionRuntimeService>();
         services.AddScoped<ITaskApplicationService, TaskApplicationService>();
         services.AddScoped<ISupervisorStepService, PostgresSupervisorStepService>();
         services.Configure<NotificationEmailOptions>(

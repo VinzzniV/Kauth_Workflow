@@ -5,13 +5,11 @@ import type {
   AdminWorkspaceSection,
   AdminWorkspaceWarning,
 } from "./adminWorkspaceModel";
-import Card from "../ui/Card";
+import { groupAdminOverviewWarnings } from "./adminWorkspaceModel";
 import SectionHeader from "../ui/SectionHeader";
 
 type AdminOverviewWorkspaceSectionProps = {
   departmentCount: number;
-  userCount: number;
-  responsibilityCount: number;
   warningCount: number;
   hasLoadedTechnicalAccess: boolean;
   roleCount: number;
@@ -24,8 +22,6 @@ type AdminOverviewWorkspaceSectionProps = {
 
 export function AdminOverviewWorkspaceSection({
   departmentCount,
-  userCount,
-  responsibilityCount,
   warningCount,
   hasLoadedTechnicalAccess,
   roleCount,
@@ -35,126 +31,82 @@ export function AdminOverviewWorkspaceSection({
   onOpenOrganization,
   onOpenSection,
 }: AdminOverviewWorkspaceSectionProps) {
+  const warningGroups = groupAdminOverviewWarnings(warnings);
   const technicalAccessSummary = hasLoadedTechnicalAccess
     ? `${roleCount} Rollen | ${groupCount} Gruppen`
     : "Rollen und Gruppen bei Bedarf laden";
   const notificationSummary = `${notificationModeLabel(notificationEmailConfiguration)} | ${notificationConfigurationStatusLabel(notificationEmailConfiguration)} | ${warningCount} Warnungen`;
+  const statusTitle = warningCount === 0 ? "System ist sauber konfiguriert" : `${warningCount} offene Warnungen`;
+  const statusDescription = warningCount === 0
+    ? "Aktuell gibt es keine Admin-Warnungen in Organisation, Zuständigkeiten oder Benachrichtigungen."
+    : "Die wichtigsten Problemgruppen sind unten zusammengefasst, damit du gezielt in den richtigen Bereich springen kannst.";
 
   return (
     <div className="content-stack">
-      <section className="panel">
-        <SectionHeader title="Arbeitsbereiche" />
+      <section className={`panel admin-health-panel ${warningCount === 0 ? "admin-health-panel--clear" : "admin-health-panel--warning"}`}>
+        <SectionHeader
+          title="Systemstatus"
+          description="Kritische Konfigurationslücken und Admin-Aufgaben auf einen Blick."
+          className="admin-health-head"
+        />
 
-        <div className="admin-overview-grid" aria-label="Bereiche der Administration">
-          <Card variant="primary" className="admin-overview-card admin-overview-card--organization">
-            <SectionHeader
-              title="Organisation"
-              description={`${userCount} Personen | ${departmentCount} Abteilungen | ${responsibilityCount} Zuständigkeiten`}
-              className="admin-overview-card-head"
-              headingTag="h3"
-            />
-            <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-primary" onClick={() => onOpenOrganization("user", null)}>
-                Personen
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onOpenOrganization("department", null)}>
-                Abteilungen
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onOpenOrganization("responsibility", null)}>
-                Zuständigkeiten
-              </button>
-            </div>
-          </Card>
+        <div className="admin-health-summary">
+          <div className="admin-health-status">
+            <p className="admin-health-count">{statusTitle}</p>
+            <p className="panel-text">{statusDescription}</p>
+          </div>
 
-          <Card variant="primary" className="admin-overview-card admin-overview-card--templates">
-            <SectionHeader
-              title="Vorlagen & Felder"
-              description="Vorlagen | Felder | Standardwerte"
-              className="admin-overview-card-head"
-              headingTag="h3"
-            />
-            <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-primary" onClick={() => onOpenSection("templates")}>
-                Aufgabenvorlagen
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("answers")}>
-                Antwortfelder
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("defaults")}>
-                Standardwerte
-              </button>
+          <div className="admin-health-meta">
+            <div className="admin-health-metric">
+              <span>Organisation</span>
+              <strong>{departmentCount} Abteilungen</strong>
             </div>
-          </Card>
-
-          <Card variant="primary" className="admin-overview-card admin-overview-card--access">
-            <SectionHeader
-              title="Rechte & Zugriff"
-              description={technicalAccessSummary}
-              className="admin-overview-card-head"
-              headingTag="h3"
-            />
-            <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-primary" onClick={() => onOpenSection("access")}>
-                Zugriffe & Gruppen
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("directory")}>
-                Entra-Verzeichnis
-              </button>
+            <div className="admin-health-metric">
+              <span>Zugriff</span>
+              <strong>{technicalAccessSummary}</strong>
             </div>
-          </Card>
-
-          <Card variant="primary" className="admin-overview-card admin-overview-card--system">
-            <SectionHeader
-              title="System"
-              description={notificationSummary}
-              className="admin-overview-card-head"
-              headingTag="h3"
-            />
-            <div className="action-row admin-overview-actions">
-              <button type="button" className="btn btn-primary" onClick={() => onOpenSection("system")}>
-                Benachrichtigungen
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onOpenSection("operations")}>
-                Massenänderungen
-              </button>
+            <div className="admin-health-metric">
+              <span>Benachrichtigungen</span>
+              <strong>{notificationSummary}</strong>
             </div>
-          </Card>
+          </div>
         </div>
-      </section>
 
-      <section className="section-stack">
-        <SectionHeader title="Warnungen" />
-
-        {warnings.length === 0 ? (
-          <p className="panel-note">Keine offenen Warnungen.</p>
-        ) : (
-          <div className="dashboard-grid" aria-label="Warnhinweise der Administration">
-            {warnings.map((warning) => (
-              <Card key={warning.key} variant="list" className="dashboard-card">
-                <h2>{warning.title}</h2>
-                <p>{warning.detail}</p>
-                <div className="action-row">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      if (warning.targetSection && warning.targetSection !== "organization") {
-                        onOpenSection(warning.targetSection);
-                        return;
-                      }
-
-                      if (warning.targetEntity) {
-                        onOpenOrganization(warning.targetEntity, warning.targetId ?? null);
-                      }
-                    }}
-                  >
-                    {warning.actionLabel}
-                  </button>
+        {warningGroups.length > 0 ? (
+          <div className="admin-warning-group-list" aria-label="Gruppierte Admin-Warnungen">
+            {warningGroups.map((group) => (
+              <article key={group.category} className="admin-warning-group-row">
+                <div className="admin-warning-group-copy">
+                  <div className="admin-warning-group-title-row">
+                    <h3 className="admin-warning-group-title">{group.title}</h3>
+                    <span className="admin-warning-group-count">{group.count}</span>
+                  </div>
+                  <p className="admin-warning-group-detail">{group.detail}</p>
+                  <p className="admin-warning-group-preview">
+                    Betroffen: {group.affectedLabels.join(", ")}
+                    {group.count > group.affectedLabels.length ? " ..." : ""}
+                  </p>
                 </div>
-              </Card>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    if (group.targetSection) {
+                      onOpenSection(group.targetSection);
+                      return;
+                    }
+
+                    if (group.targetEntity) {
+                      onOpenOrganization(group.targetEntity, null);
+                    }
+                  }}
+                >
+                  {group.actionLabel}
+                </button>
+              </article>
             ))}
           </div>
-        )}
+        ) : null}
       </section>
     </div>
   );

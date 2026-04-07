@@ -41,24 +41,33 @@
   --danger: #dc2626;
   --success: #059669;
   --warning: #d97706;
-  --shadow-sm: 0 10px 24px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 18px 36px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 28px 68px rgba(15, 23, 42, 0.12);
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
+  --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 14px 32px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 24px 54px rgba(15, 23, 42, 0.12);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
   --sidebar-width: 260px;
-  --surface-content-plane: radial-gradient(circle at top right, rgba(209, 224, 245, 0.42), transparent 32%), linear-gradient(180deg, #f8fbff 0%, #edf2f8 100%);
-  --surface-panel: rgba(255, 255, 255, 0.84);
-  --surface-panel-border: rgba(148, 163, 184, 0.24);
-  --surface-panel-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
-  --surface-card-border: rgba(148, 163, 184, 0.22);
-  --surface-card-shadow: 0 16px 34px rgba(15, 23, 42, 0.06);
-  --surface-focus-background: linear-gradient(180deg, rgba(230, 240, 255, 0.98), rgba(247, 250, 255, 0.98));
-  --surface-focus-border: rgba(96, 138, 214, 0.34);
-  --surface-focus-shadow: 0 18px 44px rgba(37, 99, 235, 0.12);
-  --surface-elevated: rgba(255, 255, 255, 0.94);
-  --surface-card-subtle: rgba(247, 250, 255, 0.82);
+  --surface-content-plane: linear-gradient(180deg, #f7f8fb 0%, #eff3f8 100%);
+  --surface-panel: #ffffff;
+  --surface-panel-border: rgba(15, 23, 42, 0.1);
+  --surface-panel-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+  --surface-card-border: rgba(15, 23, 42, 0.08);
+  --surface-card-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  --surface-focus-background: linear-gradient(180deg, #f7f9ff 0%, #edf3ff 100%);
+  --surface-focus-border: rgba(37, 99, 235, 0.22);
+  --surface-focus-shadow: 0 16px 34px rgba(37, 99, 235, 0.1);
+  --surface-elevated: #ffffff;
+  --surface-card-subtle: #f7f9fc;
+  --surface-list-background: #ffffff;
+  --surface-row-hover: #f8fafc;
+  --surface-hero-background: linear-gradient(135deg, #103a8a 0%, #2563eb 45%, #3b82f6 100%);
+  --surface-hero-foreground: #ffffff;
+  --surface-hero-muted: rgba(219, 234, 254, 0.88);
+  --surface-hero-chip-bg: rgba(255, 255, 255, 0.12);
+  --surface-hero-chip-border: rgba(255, 255, 255, 0.2);
+  --surface-hero-inner-bg: rgba(255, 255, 255, 0.08);
+  --surface-hero-inner-border: rgba(255, 255, 255, 0.16);
   --surface-nav: linear-gradient(180deg, #122036 0%, #16253d 100%);
   --surface-nav-border: rgba(148, 163, 184, 0.16);
   --surface-nav-hover: rgba(148, 197, 255, 0.1);
@@ -123,9 +132,9 @@
   --theme-toggle-hover-border: var(--border-strong);
   --theme-toggle-shadow: var(--shadow-sm);
   --button-primary-shadow: 0 12px 28px rgba(37, 99, 235, 0.18);
-  --button-secondary-bg: rgba(255, 255, 255, 0.84);
-  --button-secondary-hover-bg: rgba(237, 244, 255, 0.88);
-  --button-secondary-border: rgba(148, 163, 184, 0.26);
+  --button-secondary-bg: #ffffff;
+  --button-secondary-hover-bg: #f8fafc;
+  --button-secondary-border: rgba(15, 23, 42, 0.12);
   --graph-edge-done: #0f766e;
   --graph-edge-ready: #0ea5e9;
   --graph-edge-in-progress: #f59e0b;
@@ -169,17 +178,17 @@
 
 :root[data-theme="dark"] {
   color: #e5eef8;
-  background: #0b1220;
-  --bg-body: #08111d;
-  --bg-card: #142033;
-  --bg-card-muted: #19283f;
+  background: #111827;
+  --bg-body: #111827;
+  --bg-card: #1f2937;
+  --bg-card-muted: #243041;
   --bg-card-success: #102117;
   --bg-card-warning: #2b2311;
   --bg-card-caution: #302112;
   --bg-card-error: #2a171a;
   --text-primary: #e5eef8;
-  --text-secondary: #9db0c7;
-  --text-tertiary: #7f93ac;
+  --text-secondary: #aebdd0;
+  --text-tertiary: #8f9db2;
   --text-danger: #fca5a5;
   --text-warning: #fbbf24;
   --text-success: #6ee7b7;
@@ -203,20 +212,29 @@
   --danger: #f87171;
   --success: #34d399;
   --warning: #fbbf24;
-  --shadow-sm: 0 12px 28px rgba(2, 6, 23, 0.24);
-  --shadow-md: 0 18px 42px rgba(2, 6, 23, 0.36);
-  --shadow-lg: 0 30px 76px rgba(2, 6, 23, 0.48);
-  --surface-content-plane: radial-gradient(circle at top right, rgba(36, 74, 128, 0.24), transparent 30%), linear-gradient(180deg, #0b1423 0%, #09111e 100%);
-  --surface-panel: rgba(15, 24, 39, 0.82);
-  --surface-panel-border: rgba(71, 85, 105, 0.4);
-  --surface-panel-shadow: 0 22px 48px rgba(2, 6, 23, 0.32);
-  --surface-card-border: rgba(84, 102, 128, 0.34);
-  --surface-card-shadow: 0 18px 36px rgba(2, 6, 23, 0.22);
-  --surface-focus-background: linear-gradient(180deg, rgba(19, 50, 87, 0.94), rgba(15, 24, 39, 0.98));
+  --shadow-sm: 0 8px 20px rgba(2, 6, 23, 0.22);
+  --shadow-md: 0 14px 32px rgba(2, 6, 23, 0.3);
+  --shadow-lg: 0 24px 54px rgba(2, 6, 23, 0.42);
+  --surface-content-plane: linear-gradient(180deg, #1b2433 0%, #141d2b 100%);
+  --surface-panel: rgba(31, 41, 55, 0.92);
+  --surface-panel-border: rgba(148, 163, 184, 0.18);
+  --surface-panel-shadow: 0 16px 34px rgba(2, 6, 23, 0.24);
+  --surface-card-border: rgba(148, 163, 184, 0.16);
+  --surface-card-shadow: 0 10px 24px rgba(2, 6, 23, 0.2);
+  --surface-focus-background: linear-gradient(180deg, rgba(29, 78, 128, 0.28), rgba(31, 41, 55, 0.98));
   --surface-focus-border: rgba(91, 170, 250, 0.34);
-  --surface-focus-shadow: 0 20px 46px rgba(27, 65, 130, 0.26);
-  --surface-elevated: rgba(18, 31, 49, 0.94);
-  --surface-card-subtle: rgba(20, 31, 49, 0.82);
+  --surface-focus-shadow: 0 18px 40px rgba(37, 99, 235, 0.2);
+  --surface-elevated: rgba(24, 34, 48, 0.96);
+  --surface-card-subtle: rgba(37, 48, 64, 0.9);
+  --surface-list-background: rgba(24, 34, 48, 0.94);
+  --surface-row-hover: rgba(45, 58, 76, 0.88);
+  --surface-hero-background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 52%, #2563eb 100%);
+  --surface-hero-foreground: #ffffff;
+  --surface-hero-muted: rgba(219, 234, 254, 0.84);
+  --surface-hero-chip-bg: rgba(15, 23, 42, 0.2);
+  --surface-hero-chip-border: rgba(147, 197, 253, 0.22);
+  --surface-hero-inner-bg: rgba(15, 23, 42, 0.16);
+  --surface-hero-inner-border: rgba(147, 197, 253, 0.2);
   --surface-nav: linear-gradient(180deg, #0d1626 0%, #101a2e 100%);
   --surface-nav-border: rgba(71, 85, 105, 0.34);
   --surface-nav-hover: rgba(96, 165, 250, 0.12);
@@ -281,9 +299,9 @@
   --theme-toggle-hover-border: rgba(148, 163, 184, 0.3);
   --theme-toggle-shadow: 0 12px 24px rgba(2, 6, 23, 0.24);
   --button-primary-shadow: 0 14px 30px rgba(59, 130, 246, 0.26);
-  --button-secondary-bg: rgba(20, 31, 49, 0.84);
-  --button-secondary-hover-bg: rgba(25, 43, 68, 0.92);
-  --button-secondary-border: rgba(84, 102, 128, 0.36);
+  --button-secondary-bg: rgba(31, 41, 55, 0.96);
+  --button-secondary-hover-bg: rgba(43, 56, 74, 0.96);
+  --button-secondary-border: rgba(148, 163, 184, 0.18);
   --graph-edge-done: #2dd4bf;
   --graph-edge-ready: #38bdf8;
   --graph-edge-in-progress: #fbbf24;
@@ -629,35 +647,88 @@ h1, h2, h3, h4, p {
 }
 
 /* ─── Page Header ─── */
+/*
+ * Three variants with distinct visual weight:
+ *   section   – Major landing areas. Largest, most authoritative.
+ *   workspace – Default. Standard working surfaces.
+ *   detail    – Entity-focused pages. Compact, with optional eyebrow.
+ */
 .page-header {
-  padding: 0.15rem 0 0.75rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.page-header--with-description {
-  padding-bottom: 0.85rem;
+.page-header__main {
+  min-width: 0;
 }
 
-.page-header--compact {
-  padding-bottom: 0.6rem;
+/* Small context label used in detail headers (e.g. "Onboarding") */
+.page-header__eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand);
+  margin: 0 0 0.3rem;
 }
 
+.page-header__actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Nudge actions to align with the first line of the title */
+  padding-top: 0.1rem;
+}
+
+/* ── Base title (workspace default) ── */
 .page-title {
-  font-size: 1.75rem;
-  font-weight: 800;
+  font-size: clamp(1.2rem, 0.9rem + 0.75vw, 1.4rem);
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.2;
   margin: 0;
 }
 
 .page-description {
-  margin-top: 0.25rem;
-  font-size: 0.84rem;
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
-  max-width: 56ch;
-  line-height: 1.45;
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+/* ── Variant: section ── */
+/* Major landing areas (Übersicht, Administration). */
+.page-header--section {
+  padding-bottom: 1.4rem;
+}
+
+.page-header--section .page-title {
+  font-size: clamp(1.5rem, 1.1rem + 1.1vw, 1.85rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+/* ── Variant: workspace ── */
+/* Default. No overrides needed – .page-title base values apply. */
+
+/* ── Variant: detail ── */
+/* Entity-focused pages (Workflow, Personenhistorie). Compact + eyebrow. */
+.page-header--detail {
+  padding-bottom: 1rem;
+}
+
+.page-header--detail .page-title {
+  font-size: clamp(1.05rem, 0.8rem + 0.65vw, 1.25rem);
+  letter-spacing: -0.015em;
 }
 
 /* ─── Login Page (Simulation/Entra, unauthenticated) ─── */

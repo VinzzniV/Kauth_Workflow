@@ -42,9 +42,11 @@ export default function WorkflowDetailPage() {
     capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration;
   const {
     savingTaskIds,
+    savingApprovalTaskIds,
     commentDrafts,
     savingCommentTaskIds,
     handleStatusChange,
+    handleApprovalDecision,
     handleCommentDraftChange,
     handleTaskCommentSubmit,
   } = useTaskInteraction();
@@ -225,7 +227,24 @@ export default function WorkflowDetailPage() {
           <span>Vorgangsdetails</span>
         </nav>
 
-        <PageHeader title="Vorgangsdetails" />
+        <PageHeader
+          variant="detail"
+          eyebrow={workflow?.processType.name}
+          title={
+            workflow
+              ? `${workflow.firstName} ${workflow.lastName}`
+              : isLoading
+                ? "Vorgang wird geladen …"
+                : "Vorgangsdetails"
+          }
+          actions={
+            !isLoading ? (
+              <button type="button" className="btn btn-secondary" onClick={() => void reload()}>
+                Aktualisieren
+              </button>
+            ) : undefined
+          }
+        />
 
         {isLoading ? <LoadingState title="Vorgang wird geladen..." /> : null}
 
@@ -264,6 +283,7 @@ export default function WorkflowDetailPage() {
             <WorkflowTaskAreasSection
               tasksByArea={tasksByArea}
               savingTaskIds={savingTaskIds}
+              savingApprovalTaskIds={savingApprovalTaskIds}
               commentDrafts={commentDrafts}
               savingCommentTaskIds={savingCommentTaskIds}
               usesAdminOverride={usesAdminOverride}
@@ -271,6 +291,9 @@ export default function WorkflowDetailPage() {
               isReaderOnlyView={isReaderOnlyView}
               onTaskStatusChange={(taskId, status, currentStatus) =>
                 handleStatusChange({ taskId, workflowUid: uid, status, currentStatus })
+              }
+              onTaskApprovalDecision={(taskId, approved) =>
+                handleApprovalDecision({ taskId, workflowUid: uid, approved })
               }
               onCommentDraftChange={handleCommentDraftChange}
               onTaskCommentSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid: uid })}

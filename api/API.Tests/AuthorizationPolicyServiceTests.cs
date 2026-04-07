@@ -471,6 +471,41 @@ public sealed class AuthorizationPolicyServiceTests
     }
 
     [Fact]
+    public void CanDecideTaskApproval_Manager_ReturnsTrue_WithMatchingResponsibilityAssignment()
+    {
+        var user = CreateUserWithResponsibility(AuthorizationRoles.Manager, responsibilityId: 5);
+        var task = CreateTaskWithResponsibilityAssignment(
+            "department_approval_custom",
+            WorkflowStatusRules.WaitingForSupervisor,
+            responsibilityId: 5,
+            isApprovalTask: true);
+
+        Assert.True(_sut.CanDecideTaskApproval(user, task));
+    }
+
+    [Fact]
+    public void CanDecideTaskApproval_Worker_ReturnsFalse_ForApprovalTask()
+    {
+        var user = CreateUserWithResponsibility(AuthorizationRoles.Worker, responsibilityId: 5);
+        var task = CreateTaskWithResponsibilityAssignment(
+            "department_approval_custom",
+            WorkflowStatusRules.WaitingForSupervisor,
+            responsibilityId: 5,
+            isApprovalTask: true);
+
+        Assert.False(_sut.CanDecideTaskApproval(user, task));
+    }
+
+    [Fact]
+    public void CanDecideTaskApproval_ReturnsFalse_ForNonApprovalTask()
+    {
+        var admin = CreateUser(AuthorizationRoles.Admin);
+        var task = CreateTaskWithResponsibilityAssignment("hardware_setup", WorkflowStatusRules.InProgress, responsibilityId: 5);
+
+        Assert.False(_sut.CanDecideTaskApproval(admin, task));
+    }
+
+    [Fact]
     public void CanUpdateTaskStatus_Admin_ReturnsTrue_ForNonTerminalWorkflow()
     {
         var admin = CreateUser(AuthorizationRoles.Admin);

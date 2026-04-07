@@ -1,6 +1,7 @@
 # Web-Frontend
 
-Das Frontend ist die React/Vite-Oberflaeche fuer den Employee-Lifecycle-Workflow. Es steuert Login, Navigation, Workflow-Erstellung, Detailansichten, Aufgabenarbeit und die Admin-Workspaces.
+Das Frontend ist die React/Vite-Oberflaeche der internen Workflow-Plattform.
+Aktuell bedient es noch stark den bestehenden lifecycle-/task-getriebenen Kern und wird schrittweise auf Definition Layer, neue Runtime und spaeter den Guided Builder ausgerichtet.
 
 ## Einstiegspunkte
 
@@ -8,15 +9,15 @@ Das Frontend ist die React/Vite-Oberflaeche fuer den Employee-Lifecycle-Workflow
 Startet React, Router, React Query, Auth-/CurrentUser-Provider, Theme, Toasts und Dialoge.
 
 `src/App.tsx`
-Verdrahtet Login-Zustand, App-Layout und alle geschuetzten Routen.
+Verdrahtet Login-Zustand, Layout und geschuetzte Routen.
 
 ## Wichtige Ordner
 
 `src/pages/`
-Fachseiten wie Dashboard, Workflow-Liste, Workflow-Detail, Suche, Supervisor-Schritt, Aufgaben, Personenhistorie, Simulation-Login, Entra-Login und Administration.
+Fachseiten fuer Dashboard, Workflow-Liste, Suche, Erstellung, Details, Aufgaben, Login und Administration.
 
 `src/components/`
-Wiederverwendbare UI-Bausteine. Wichtig sind vor allem:
+Wiederverwendbare UI-Bausteine, besonders:
 - `components/layout`
 - `components/workflows`
 - `components/workflow-detail`
@@ -25,30 +26,36 @@ Wiederverwendbare UI-Bausteine. Wichtig sind vor allem:
 - `components/feedback`
 
 `src/auth/`
-Auth-Provider, Session-Wiederherstellung, aktueller Benutzer, Rollenmodell, MSAL/Entra-Integration und Auth-Modus-Abstraktion.
+Auth-Provider, Session-Wiederherstellung, aktueller Benutzer, Rollenmodell, MSAL/Entra-Integration.
 
 `src/navigation/`
 Route-Schutz und rollenabhaengige Navigation.
 
 `src/services/`
-HTTP-Clients, fachliche API-Module und React-Query-Layer. Das Frontend ist in mehrere Service- und Query-Module aufgeteilt.
-
-`src/theme/`
-Theme-Aufloesung und ThemeProvider.
-
-`src/types/`
-Gemeinsame Typen fuer Auth, Workflows und Admin-Daten.
+HTTP-Client, fachliche API-Module und React-Query-Layer.
 
 `src/config/`
-Runtime-Config fuer `app-config.js` und lokale Vite-Variablen.
+Runtime-Config aus `app-config.js` oder lokalen Vite-Variablen.
+
+## Frontend-Richtung
+
+Das Frontend soll sich in diese Richtung entwickeln:
+- Admin-UI fuer versionierte Workflow-Definitionen statt nur Prozessarten-/Template-Pflege
+- Runtime-Ansichten, die alte und neue Workflow-Instanzen voruebergehend parallel darstellen koennen
+- spaeter Guided Builder fuer Nodes, Edges, Node-Konfiguration und Veroeffentlichung
+
+Wichtig:
+- keine freie technische Automationskonfiguration im UI
+- keine Business-Regeln duplizieren
+- keine onboarding-spezifischen Kernannahmen weiter zementieren
 
 ## Service-Schnitt
 
 Wichtige Service-Bereiche:
-- `authApi.ts` fuer Login, Session und aktueller Benutzer
+- `authApi.ts` fuer Login, Session und aktuellen Benutzer
 - `workflowApi.ts`, `taskApi.ts`, `peopleApi.ts`, `lookupApi.ts` fuer Fachdaten
-- `adminApi.ts` und `adminConfigApi.ts` fuer Admin-, Permission-, Directory- und Runtime-Konfiguration
-- `services/api/*` fuer Backend-DTOs, Mappings und den Basis-Client
+- `adminApi.ts` und `adminConfigApi.ts` fuer Administration und Konfiguration
+- `services/api/*` fuer DTOs, Mapping und Basis-Client
 - `services/queries/*` und `services/mutations/*` fuer React Query
 
 ## Wo aendere ich was?
@@ -57,10 +64,7 @@ Neue oder geaenderte Seiten:
 `src/pages/`
 
 Login, Session oder Auth-Modus:
-`src/auth/AuthContext.tsx`, `src/auth/IdentityProvider.ts`, `src/auth/EntraIdentityProvider.ts`
-
-Rollen, Freigaben, Default-Routen:
-`src/auth/roleModel.ts`
+`src/auth/`
 
 Navigation oder Route-Schutz:
 `src/navigation/`
@@ -68,18 +72,15 @@ Navigation oder Route-Schutz:
 HTTP-Client, DTO-Mapping oder Endpunktvertraege:
 `src/services/` und `src/services/api/`
 
-React-Query-Queries oder Mutations:
-`src/services/queries/` und `src/services/mutations/`
-
-Admin-Workspaces:
+Admin-Workspaces und spaeter Builder-nahe Pflege:
 `src/components/admin-config/` und `src/pages/AdminConfigPage.tsx`
 
-Workflow-Detail, Audit-Log und Verknuepfungen:
+Workflow-Detail, Audit-Log und Aufgabenansichten:
 `src/components/workflow-detail/`
 
 ## Entwicklung
 
-Die normale lokale Entwicklung laeuft ueber:
+Normale lokale Entwicklung:
 - lokale DB per Docker
 - API lokal per `dotnet run`
 - Frontend lokal per Vite
@@ -98,17 +99,13 @@ VITE_AUTH_MODE=entra
 VITE_ENTRA_CLIENT_ID=
 VITE_ENTRA_TENANT_ID=
 VITE_ENTRA_AUDIENCE=api://00000000-0000-0000-0000-000000000000
-VITE_ENTRA_REDIRECT_URI=https://onboarding-test.example.local
+VITE_ENTRA_REDIRECT_URI=https://workflow-test.example.local
 ```
 
 Wichtig:
-- `dev-sim` zeigt keine kuenstlichen Demo-Benutzer mehr.
-- Die Simulations-Login-Seite listet nur lokal synchronisierte Verzeichnisidentitaeten.
-- Dafuer braucht die lokal gestartete API gueltige `ENTRA_*`-Variablen und einen erfolgreichen Directory-Sync.
-- Im deployten Web-Container sind nur `dev-sim` und `entra` als gueltige Auth-Modi erlaubt.
-- Wenn `app-config.js` `authMode=entra` setzt, muessen `entraClientId`, `entraTenantId`, `entraAudience` und `entraRedirectUri` explizit gesetzt sein. Ein stiller Fallback auf alte Demo- oder Redirect-Defaults findet nicht mehr statt.
-
-Fuer den kompletten Ablauf siehe [`../SETUP.md`](../SETUP.md).
+- `dev-sim` zeigt keine kuenstlichen Demo-Benutzer.
+- Die Simulations-Login-Seite basiert auf synchronisierten Verzeichnisidentitaeten.
+- Bei `authMode=entra` muessen alle Entra-Runtime-Werte explizit gesetzt sein.
 
 ## Befehle
 

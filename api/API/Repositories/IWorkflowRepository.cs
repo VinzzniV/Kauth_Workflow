@@ -27,8 +27,8 @@ internal interface IWorkflowRepository
     Task<List<DepartmentDto>> GetDepartments();
     Task<List<RoleDto>> GetRoles();
     Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false);
-    Task<List<RequirementDto>> GetRequirements(string? processTypeKey = null);
-    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string? processTypeKey = null);
+    Task<List<RequirementDto>> GetRequirements(string processTypeKey);
+    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey);
     Task<bool> IsManagerCreatableProcessType(string processTypeKey);
     Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId);
     Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId);
@@ -45,6 +45,7 @@ internal interface IWorkflowRepository
     Task<List<TaskWithWorkflowDto>> GetTasks();
     Task<TaskWithWorkflowDto?> GetTaskById(long taskId);
     Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId);
+    Task<TaskWithWorkflowDto?> DecideTaskApproval(long taskId, TaskApprovalDecisionRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> AddTaskComment(long taskId, string commentText, long actorUserId);
     Task<bool> ArchiveWorkflow(Guid workflowUid, long actorUserId);
@@ -54,7 +55,7 @@ internal interface IWorkflowRepository
     Task<List<RelatedWorkflowSummaryDto>> GetRelatedWorkflows(Guid workflowUid);
     Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId);
     Task<bool> DeleteWorkflowLink(Guid workflowUid, long linkId, long actorUserId);
-    Task<List<CompletedOnboardingSearchResultDto>> SearchCompletedOnboardings(
+    Task<List<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSources(
         string? search,
         int limit = 20,
         IReadOnlyCollection<int>? observableDepartmentIds = null);
@@ -65,6 +66,15 @@ internal interface IWorkflowRepository
     Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null);
     Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey);
     Task<BulkOperationResultDto> BulkCreateDepartmentChangeWorkflows(BulkDepartmentChangeRequest request, long actorUserId);
+    Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions();
+    Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request);
+    Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(
+        int definitionId,
+        CreateWorkflowDefinitionVersionRequest request);
+    Task<WorkflowDefinitionVersionDetailDto?> GetAdminWorkflowDefinitionVersion(long versionId);
+    Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(
+        long versionId,
+        ReplaceWorkflowDefinitionVersionRequest request);
     Task<List<AdminProcessTypeDto>> GetAdminProcessTypes();
     Task<AdminProcessTypeDto?> UpdateProcessType(int processTypeId, AdminProcessTypeUpdateRequest request);
     Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int processTypeId);

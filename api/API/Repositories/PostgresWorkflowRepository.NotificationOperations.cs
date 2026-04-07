@@ -448,20 +448,30 @@ RETURNING id;";
     {
         var recipients = new Dictionary<long, (string DisplayName, string Email, string IdentityKey, string PreferredPath)>();
 
-        var hrResponsibilityId = await LoadResponsibilityIdByKey(connection, transaction, "hr_onboarding");
-        if (hrResponsibilityId.HasValue)
+        var workflowCreatedResponsibilityId = await ResolveWorkflowCreatedResponsibilityId(
+            connection,
+            transaction,
+            processTypeKey);
+        if (workflowCreatedResponsibilityId.HasValue)
         {
-            var hrUserId = await ResolvePrimaryAssigneeUserId(connection, transaction, hrResponsibilityId.Value, departmentId);
-            if (hrUserId.HasValue)
+            var workflowCreatedUserId = await ResolvePrimaryAssigneeUserId(
+                connection,
+                transaction,
+                workflowCreatedResponsibilityId.Value,
+                departmentId);
+            if (workflowCreatedUserId.HasValue)
             {
-                var hrRecipient = await LoadActiveUserNotificationRecipient(connection, transaction, hrUserId.Value);
-                if (hrRecipient.HasValue)
+                var workflowCreatedRecipient = await LoadActiveUserNotificationRecipient(
+                    connection,
+                    transaction,
+                    workflowCreatedUserId.Value);
+                if (workflowCreatedRecipient.HasValue)
                 {
-                    recipients[hrRecipient.Value.UserId] = (
-                        hrRecipient.Value.DisplayName,
-                        hrRecipient.Value.Email,
-                        hrRecipient.Value.IdentityKey,
-                        hrRecipient.Value.PreferredPath);
+                    recipients[workflowCreatedRecipient.Value.UserId] = (
+                        workflowCreatedRecipient.Value.DisplayName,
+                        workflowCreatedRecipient.Value.Email,
+                        workflowCreatedRecipient.Value.IdentityKey,
+                        workflowCreatedRecipient.Value.PreferredPath);
                 }
             }
         }
@@ -523,6 +533,45 @@ RETURNING id;";
         return targets;
     }
 
+    private static async Task<int?> ResolveWorkflowCreatedResponsibilityId(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string processTypeKey)
+    {
+        var preferredResponsibilityId = await LoadWorkflowCreatedResponsibilityIdFromProcessTasks(
+            connection,
+            transaction,
+            processTypeKey);
+        if (preferredResponsibilityId.HasValue)
+        {
+            return preferredResponsibilityId.Value;
+        }
+
+        return await LoadResponsibilityIdByKey(connection, transaction, "hr_onboarding");
+    }
+
+    private static async Task<int?> LoadWorkflowCreatedResponsibilityIdFromProcessTasks(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string processTypeKey)
+    {
+        const string sql = @"
+SELECT tt.default_responsibility_id
+FROM task_templates tt
+JOIN process_types pt ON pt.id = tt.process_type_id
+WHERE pt.key = @processTypeKey
+  AND pt.is_active = TRUE
+  AND tt.is_active = TRUE
+  AND tt.default_responsibility_id IS NOT NULL
+ORDER BY tt.sort_order, tt.id
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("processTypeKey", processTypeKey);
+        var scalar = await command.ExecuteScalarAsync();
+        return scalar is null || scalar is DBNull ? null : (int?)scalar;
+    }
+
     private static async Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -543,7 +592,11 @@ JOIN task_assignments ta
    AND ta.is_primary = TRUE
 WHERE wt.workflow_id = @workflowId
   AND wt.status IN ('open', 'ready')
-  AND (pt.approval_task_template_key IS NULL OR wt.task_key <> pt.approval_task_template_key)
+  AND (
+      wt.node_instance_id IS NOT NULL
+      OR pt.approval_task_template_key IS NULL
+      OR wt.task_key <> pt.approval_task_template_key
+  )
   AND ta.assignee_user_id IS NOT NULL
   AND (
       (

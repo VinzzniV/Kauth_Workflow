@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AdminConfigWorkspaceContent } from "../components/admin-config/AdminConfigWorkspaceContent";
-import { AdminWorkspaceNavigation, AdminWorkspaceSubNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
+import { AdminWorkspaceNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
 import {
   normalizeAdminOrganizationEntity,
   normalizeAdminWorkspaceSection,
@@ -295,47 +295,46 @@ export default function AdminConfigPage() {
 
   return (
     <main className="app-shell">
-      <div className="page-container">
-        <PageHeader title="Administration" />
+      <div className="page-container admin-settings-page">
+        <PageHeader
+          variant="section"
+          title="Administration"
+          description={undefined}
+        />
 
-        {!isLoading && notice ? (
-          <section className="panel panel-success">
-            <p className="panel-text">{notice}</p>
-          </section>
-        ) : null}
+        <div className="admin-settings-shell">
+          <aside className="admin-settings-sidebar">
+            <AdminWorkspaceNavigation
+              section={section}
+              onSelectSection={handleSelectSection}
+            />
+          </aside>
 
-        {!isLoading && error && hasAnyData ? (
-          <section className="panel panel-error" role="alert">
-            <p className="panel-text text-error">{error}</p>
-          </section>
-        ) : null}
-
-        {isLoading ? <LoadingState title="Stammdaten werden geladen..." /> : null}
-        {!isLoading && error && !hasAnyData ? (
-          <EmptyState title="Stammdaten konnten nicht geladen werden." description={error} />
-        ) : null}
-
-        {!isLoading && (!error || hasAnyData) ? (
-          <>
-            {section !== "overview" ? (
-              <>
-                <AdminWorkspaceNavigation
-                  section={section}
-                  onSelectSection={handleSelectSection}
-                />
-
-                <AdminWorkspaceSubNavigation
-                  section={section}
-                  onSelectSection={handleSelectSection}
-                />
-              </>
+          <section className="admin-settings-main" aria-label="Admin-Arbeitsbereich">
+            {!isLoading && notice ? (
+              <section className="panel panel-success">
+                <p className="panel-text">{notice}</p>
+              </section>
             ) : null}
 
-            <section className="content-stack">
-              <AdminConfigWorkspaceContent {...workspaceContentProps} />
-            </section>
-          </>
-        ) : null}
+            {!isLoading && error && hasAnyData ? (
+              <section className="panel panel-error" role="alert">
+                <p className="panel-text text-error">{error}</p>
+              </section>
+            ) : null}
+
+            {isLoading ? <LoadingState title="Stammdaten werden geladen..." /> : null}
+            {!isLoading && error && !hasAnyData ? (
+              <EmptyState title="Stammdaten konnten nicht geladen werden." description={error} />
+            ) : null}
+
+            {!isLoading && (!error || hasAnyData) ? (
+              <section className="content-stack">
+                <AdminConfigWorkspaceContent {...workspaceContentProps} />
+              </section>
+            ) : null}
+          </section>
+        </div>
       </div>
     </main>
   );

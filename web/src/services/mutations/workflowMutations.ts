@@ -6,6 +6,7 @@ import {
 } from "../workflowApi";
 import {
   addTaskComment,
+  decideTaskApproval,
   updateTaskStatus,
 } from "../taskApi";
 import { queryKeys } from "../queryKeys";
@@ -22,6 +23,11 @@ type UpdateTaskStatusVariables = TaskMutationVariables & {
 
 type AddTaskCommentVariables = TaskMutationVariables & {
   text: string;
+};
+
+type DecideTaskApprovalVariables = TaskMutationVariables & {
+  approved: boolean;
+  commentText?: string;
 };
 
 function invalidateWorkflowTaskQueries(
@@ -84,6 +90,21 @@ export function useAddTaskComment() {
     onSuccess: (_, { workflowUid }) => {
       invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid);
       queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
+    },
+  });
+}
+
+export function useDecideTaskApproval() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskId, approved, commentText }: DecideTaskApprovalVariables) =>
+      decideTaskApproval(taskId, approved, commentText),
+    onSuccess: (_, { workflowUid }) => {
+      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid);
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
     },
   });
 }

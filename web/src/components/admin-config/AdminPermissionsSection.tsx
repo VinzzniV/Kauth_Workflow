@@ -128,14 +128,13 @@ export function AdminPermissionsSection({
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Permission-Bundles und lokale Overrides</h2>
-        <p>Rollen liefern Standardrechte. Benutzer-Overrides ergänzen oder entziehen diese Rechte gezielt.</p>
+        <h2>Standardrechte und gezielte Ausnahmen</h2>
       </div>
 
       <div className="content-stack">
         <section className="panel panel-muted">
           <div className="panel-head">
-            <h2>Rollen-Permissions</h2>
+            <h2>Rollen als Standardzugriff</h2>
           </div>
 
           <div className="action-row">
@@ -158,7 +157,7 @@ export function AdminPermissionsSection({
                 void onSaveRolePermissions();
               }}
             >
-              {isSavingRolePermissions ? "Speichert..." : "Rollen-Permissions speichern"}
+              {isSavingRolePermissions ? "Speichert..." : "Standardrechte speichern"}
             </button>
           </div>
 
@@ -188,10 +187,10 @@ export function AdminPermissionsSection({
 
         <section className="panel panel-muted">
           <div className="panel-head">
-            <h2>Benutzer-Overrides</h2>
+            <h2>Gezielte Ausnahmen für einzelne Personen</h2>
           </div>
 
-          {!selectedUser ? <p className="panel-note">Links zuerst einen Benutzer auswählen.</p> : null}
+          {!selectedUser ? <p className="panel-note">Wählen Sie oben zuerst eine Person aus.</p> : null}
 
           {selectedUser ? (
             <>
@@ -241,13 +240,13 @@ export function AdminPermissionsSection({
                 <label className="field">
                   <span>Effekt</span>
                   <select value={newOverrideEffect} onChange={(event) => setNewOverrideEffect(event.target.value)}>
-                    <option value="allow">Allow</option>
-                    <option value="deny">Deny</option>
+                    <option value="allow">Erlauben</option>
+                    <option value="deny">Entziehen</option>
                   </select>
                 </label>
 
                 <label className="field">
-                  <span>Scope</span>
+                  <span>Geltungsbereich</span>
                   <select value={newOverrideScope} onChange={(event) => setNewOverrideScope(event.target.value)}>
                     <option value="global">Global</option>
                     <option value="department">Abteilung</option>
@@ -279,7 +278,7 @@ export function AdminPermissionsSection({
                   onClick={addOverride}
                   disabled={!newOverridePermissionId || (newOverrideScope === "department" && !newOverrideScopeDepartmentId)}
                 >
-                  Override hinzufügen
+                  Ausnahme hinzufügen
                 </button>
                 <button
                   type="button"
@@ -289,12 +288,12 @@ export function AdminPermissionsSection({
                   }}
                   disabled={isSavingUserOverrides}
                 >
-                  {isSavingUserOverrides ? "Speichert..." : "Overrides speichern"}
+                  {isSavingUserOverrides ? "Speichert..." : "Ausnahmen speichern"}
                 </button>
               </div>
 
               <div className="chips-row">
-                {userOverrideDrafts.length === 0 ? <span className="panel-note">Keine lokalen Overrides.</span> : null}
+                {userOverrideDrafts.length === 0 ? <span className="panel-note">Keine individuellen Ausnahmen.</span> : null}
                 {userOverrideDrafts.map((overrideDraft) => {
                   const permission = permissions.find((item) => item.permissionId === overrideDraft.permissionId);
                   const departmentName =
@@ -321,7 +320,7 @@ export function AdminPermissionsSection({
         {auditEntries.length > 0 ? (
           <section className="panel panel-muted">
             <div className="panel-head">
-              <h2>Audit</h2>
+              <h2>Änderungsprotokoll</h2>
             </div>
             <table className="table">
               <thead>

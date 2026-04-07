@@ -349,8 +349,10 @@ public sealed class WorkflowTaskDependencyDto
 public sealed class WorkflowTaskDto
 {
     public required long Id { get; init; }
+    public long? NodeInstanceId { get; init; }
     public int? TaskTemplateId { get; init; }
     public required string TaskKey { get; init; }
+    public bool IsRuntimeNodeTask { get; init; }
     public bool IsApprovalTask { get; init; }
     public required string Title { get; init; }
     public required string Description { get; init; }
@@ -369,6 +371,7 @@ public sealed class WorkflowTaskDto
     public string? ProcessArea { get; set; }
     public bool IsDepartmentPhaseTask { get; set; }
     public bool CanUpdateStatus { get; set; }
+    public bool CanDecideApproval { get; set; }
     public bool CanAddComment { get; set; }
     public required List<WorkflowTaskAssignmentDto> Assignments { get; init; }
     public required List<WorkflowTaskDependencyDto> Dependencies { get; init; }
@@ -412,6 +415,12 @@ public sealed class TaskAssignRequest
 public sealed class TaskCommentCreateRequest
 {
     public required string CommentText { get; init; }
+}
+
+public sealed class TaskApprovalDecisionRequest
+{
+    public required bool Approved { get; init; }
+    public string? CommentText { get; init; }
 }
 
 public sealed class SupervisorStepUpdateRequest
@@ -535,6 +544,23 @@ public sealed class WorkflowTargetPersonDto
     public int? BadgeNumber { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+}
+
+public sealed class WorkflowTargetPersonSourceDto
+{
+    public required Guid WorkflowUid { get; init; }
+    public required long PersonId { get; init; }
+    public required string DisplayName { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required int EmployeeNumber { get; init; }
+    public required int BadgeNumber { get; init; }
+    public int? DepartmentId { get; init; }
+    public string? DepartmentName { get; init; }
+    public int? RoleId { get; init; }
+    public string? RoleName { get; init; }
+    public required DateTime CompletedAt { get; init; }
+    public DateTime? ArchivedAt { get; init; }
 }
 
 public sealed class CompletedOnboardingSearchResultDto

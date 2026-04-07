@@ -4,8 +4,10 @@ using NpgsqlTypes;
 namespace API;
 
 // Kapselt den kompletten PostgreSQL-Zugriff fuer Workflows, Anforderungen, Aufgaben und Benachrichtigungen.
-internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository
+internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository, IWorkflowDefinitionRuntimeRepository
 {
+    private readonly IWorkflowDefinitionValidationService _workflowDefinitionValidationService;
+
     private sealed class ProcessTypeCreateRecord
     {
         public required int Id { get; init; }
@@ -44,6 +46,16 @@ internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository
         "position_change",
         "role_change"
     ];
+
+    public PostgresWorkflowRepository()
+        : this(new WorkflowDefinitionValidationService())
+    {
+    }
+
+    internal PostgresWorkflowRepository(IWorkflowDefinitionValidationService workflowDefinitionValidationService)
+    {
+        _workflowDefinitionValidationService = workflowDefinitionValidationService;
+    }
 
     // Die Verbindung wird bewusst direkt aus der Umgebung gelesen, damit API und Container identisch konfiguriert bleiben.
     private static string GetConnectionString()

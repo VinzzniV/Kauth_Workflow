@@ -1,248 +1,169 @@
 # Produktive Zielarchitektur
 
-Dieses Dokument beschreibt das Sollbild fuer den produktiven Ausbau des Projekts und verortet kurz, was davon im Repo bereits sichtbar ist. Es ersetzt keine Umsetzungsdetails, definiert aber die Leitplanken fuer weitere Architekturarbeit.
+Dieses Dokument beschreibt das stabile Sollbild fuer den Ausbau zur internen Workflow-Plattform.
+Die operative Umsetzungsreihenfolge steht in `Workflow_Plattform_Implementation_Plan.md`.
 
 ## Statusbild April 2026
 
-Bereits im Repo sichtbar:
-- Entra-basierte Produktivrichtung ist technisch verankert
-- lokaler `dev-sim` nutzt synchronisierte Verzeichnisidentitaeten statt alter Demo-Benutzer
-- Directory-Projektion, Gruppen-Mapping und Audit-Tabellen existieren
-- Admin-UI deckt bereits Directory-Sync, Gruppen-Mapping, Permissions, Mail-Runtime-Konfiguration und read-only Graph-Status ab
-- mehrere Prozessarten und Workflow-Verknuepfungen sind im Datenmodell vorhanden
+Bereits sichtbar:
+- Backend, Frontend und PostgreSQL als tragfaehige Produktbasis
+- Workflow-Instanzen, Tasks, Kommentare, Deadlines, Audit und Admin-Konfiguration
+- Directory-/Identity-Richtung mit Entra, Gruppen-Mapping und lokaler Responsibility-Logik
+- mehrere Prozessarten und konfigurierbare Formular-/Task-Bausteine
 
-Noch nicht am Ziel:
-- Security- und Betriebsmodell sind weiter in Haertung, auch wenn Lint, Tests, Swagger-Gating und minimale CI inzwischen stehen
-- User- und Gruppenkonfiguration enthaelt weiterhin Uebergangsanteile von lokalem CRUD
-- Release-/CI-Haertung ist eingefuehrt, aber noch nicht das vollstaendige Betriebsendmodell
-
----
-
-## 1. Zielbild
-
-Die Anwendung soll produktiv als internes Employee-Lifecycle-System betrieben werden.
-
-Rahmenbedingungen:
-- fuehrendes Identitaetssystem ist das on-prem Active Directory
-- AD wird nach Entra synchronisiert
-- die Anwendung laeuft on-prem in Docker
-- Entra ist die produktive Authentifizierungs- und Integrationsschicht
-
-Kernprinzip:
-- Identitaet kommt aus AD/Entra
-- die App projiziert, mappt und erweitert
-- fachliche Prozesslogik, Verantwortlichkeiten, Ausnahmen und Workflow-Daten bleiben in der App
+Noch nicht im Zielbild:
+- expliziter Definition Layer mit Versionierung
+- eigenstaendige Runtime-/Orchestrierungsschicht
+- Automation Layer mit kontrollierten Actions und Jobs
+- Guided Builder fuer neue Workflow-Definitionen
 
 ---
 
-## 2. Authentifizierung
+## 1. Produktziel
 
-Produktiv darf die Anwendung nicht auf lokale Demo- oder Pseudo-Auth bauen.
+Die Anwendung soll produktiv als versionierte, kontrollierte Workflow-Plattform betrieben werden.
 
-Sollzustand:
-- Frontend meldet Benutzer ueber Microsoft Entra ID an
-- API validiert Access Tokens serverseitig
-- Benutzerkontext wird aus stabilen externen Identitaetsmerkmalen aufgebaut
-- lokaler `dev-sim` bleibt nur Entwicklungsmodus
+Beispiele fuer Workflows:
+- Onboarding
+- Offboarding
+- Department Change
+- Rollenwechsel
+- Namensaenderung
+- weitere interne Genehmigungs- und Lifecycle-Prozesse
 
-Pflichtfelder im Identitaetskontext:
-- `entra_object_id`
-- `user_principal_name`
-- `display_name`
-- `mail`
-- serverseitig aufgeloeste Gruppen- oder Mappinginformationen
-
-Regeln:
-- kein produktiver Login ueber Simulations-Endpunkte
-- keine Header-basierte Pseudo-Authentifizierung
-- keine Mail- oder Deep-Link-Mechanik, die implizit Sessions erzeugt
+Ein Nicht-Entwickler soll fachliche Workflows aus sicheren Bausteinen konfigurieren koennen, ohne Quellcode zu aendern.
 
 ---
 
-## 3. Rollen, Permissions und Verantwortlichkeiten
+## 2. Architektur-Schichten
 
-Die App verwendet ein hybrides Berechtigungsmodell.
+### Fachobjekte
 
-### Basiszugang
+Relativ stabile Kernobjekte:
+- Person
+- technische Identity
+- Department
+- Responsibility
+- Workflow Instance
+- Task
+- Kommentar
+- Notification
+- Audit
 
-Steuert, wer die Anwendung ueberhaupt verwenden darf, typischerweise ueber Entra-Gruppen.
+### Workflow Definition Layer
 
-### Standardrollen
+Neue fachliche Quelle des Ablaufs:
+- `workflow_definitions`
+- `workflow_definition_versions`
+- `workflow_nodes`
+- `workflow_edges`
+- `workflow_node_configs`
 
-Zugriffsrollen kommen standardmaessig aus Gruppen-Mappings.
-Beispiele:
-- HR
-- Manager
-- Worker
-- Reader
-- Admin
+### Runtime / Orchestrierung
 
-### App-spezifische Fachzuordnungen
+Fuehrt Definitionen aus:
+- aktiviert Nodes
+- wertet Entscheidungen aus
+- startet Tasks, Benachrichtigungen und Automationen
+- protokolliert Runtime-Ereignisse
+- behandelt Fehler- und Abbruchpfade
 
-Lokal in der App bleiben:
-- Verantwortlichkeiten
-- Freigabeverantwortungen
-- Vertretungen
-- Ausnahmen
-- ggf. bereichsbezogene Scopes auf Permissions oder Rollen
+### Task-System
 
-Regeln:
-- Rollen = Zugriff
-- Verantwortlichkeiten = fachliche Ownership
-- Standardrechte aus Gruppen
-- lokale Sonderfaelle bleiben Ausnahmen, nicht Primarmodell
+Bleibt eigenstaendig:
+- Human Tasks
+- Kommentare
+- Deadlines
+- Status
+- Eskalation
+- Zuweisung
 
----
+### Automation Layer
 
-## 4. Mapping-Modell
+Strikt kontrolliertes Integrationssystem:
+- `action_definitions`
+- `workflow_node_actions`
+- `automation_jobs`
+- `automation_job_attempts`
+- `automation_job_logs`
 
-Empfohlenes Zielbild:
-- externe Gruppen werden in `directory_groups` projiziert
-- Gruppenmitgliedschaften werden lokal gespiegelt
-- Gruppen werden ueber Mappingtabellen auf App-Rollen und ggf. Scopes abgebildet
-- lokale Permission-Overrides bleiben moeglich, aber selten
+### Admin / Builder Layer
 
-Damit gilt:
-- die App ist nicht die fuehrende Benutzerquelle
-- Benutzer sollen produktiv nicht manuell als Normalfall angelegt werden
-- lokale Pflege dient Mapping, Ausnahmen und Fachanreicherung
-
----
-
-## 5. Datenmodell-Soll
-
-### Identitaet
-
-Technische Identitaet aus AD/Entra, z. B. in `directory_identities`.
-
-Wichtige Merkmale:
-- `entra_object_id`
-- `user_principal_name`
-- `mail`
-- `display_name`
-- `account_enabled`
-- `last_synced_at`
-
-### Mitarbeiter / Person
-
-Fachlicher Mitarbeiterdatensatz bleibt getrennt von technischer Identitaet.
-
-Regeln:
-- Person bzw. Employee ist nicht synonym zu Login
-- historische Workflow-Daten duerfen nicht an mutable Strings wie Anzeigenamen gekoppelt werden
-- Verknuepfung zwischen Person und Identitaet ist moeglich, aber nicht identisch
-
-### Gruppen
-
-Externe Gruppen werden als Projektion gefuehrt und lokal mit Rollen/Scopes verknuepft.
-
-### Workflow-Daten
-
-Workflow-, Aufgaben-, Antwort- und Audit-Daten bleiben Fachobjekte der Anwendung.
-Sie duerfen nicht ueber Auth-Abkuerzungen oder UI-Hilfsannahmen modelliert werden.
+Zunaechst als Guided Builder:
+- Definition anlegen
+- Version erstellen
+- Nodes und Edges pflegen
+- Konfiguration validieren
+- veroeffentlichen
 
 ---
 
-## 6. Admin-UI-Soll
+## 3. Zentrale Prinzipien
 
-Die Admin-Oberflaeche ist langfristig kein User-CRUD-Werkzeug, sondern ein Steuerungsbereich fuer:
-
-- Organisationspflege
-- Aufgabenlogik und Antwortdefinitionen
-- Rollen, Permissions und Gruppen
-- Directory-Sync und Gruppen-Mapping
-- System- und Mail-Konfiguration
-- Bulk-Operationen und Betriebswarnungen
-
-Was langfristig nicht das Primarmodell sein soll:
-- Benutzer lokal manuell als Standardweg anlegen
-- Gruppen vollstaendig in der App nachbauen
-- technische Identitaetsfuehrung in der App halten
+- Workflow-Definition ist nicht gleich Task-Generierung.
+- Versionierung ist Pflicht.
+- Migration erfolgt parallel zur Altwelt.
+- Actions sind Produktelemente, keine losen Skripte.
+- Nicht-Entwickler konfigurieren fachlich, nicht technisch frei.
+- Onboarding darf kein versteckter Produktkern bleiben.
 
 ---
 
-## 7. Betriebsmodell
+## 4. Runtime-Zielbild
 
-Produktiv bedeutet mindestens:
-- TLS vor der Anwendung
-- Reverse Proxy
-- getrennte Dev-/Prod-Konfiguration
-- Entra-Login statt lokaler Simulationsauth
-- kein produktiver Klartext-Secret-Standard in DB
-- Logging, Monitoring und Health-Checks
-- reproduzierbare DB-Initialisierung und Migration
-- klarer Update- und Restore-Pfad
+`workflow_instances` referenzieren eine Definition-Version.
+Neue Runtime-Objekte:
+- `workflow_node_instances`
+- `workflow_runtime_events`
 
-Health-Modell:
-- Liveness prueft nur den Prozess
-- Readiness prueft nur lokale Betriebsfaehigkeit wie die Datenbank
-- Deep Health darf externe Provider wie Entra einbeziehen, darf aber keine Container-Restarts ausloesen
+Minimal zu tragende Node-Typen:
+- `start`
+- `form`
+- `approval`
+- `task`
+- `decision`
+- `end`
 
-Konfigurationsmodell:
-- Production nutzt nur explizite `https://`-basierte Origins fuer `PUBLIC_BASE_URL` und CORS
-- Das Web bekommt seinen Auth-Modus und Entra-Werte ueber Runtime-Config statt implizite Build-Defaults
-- Der Entra-SPA-Redirect wird produktiv explizit auf die oeffentliche Basis-URL gespiegelt, nicht aus Frontend-Fallbacks erraten
-
-Wichtige Betriebsentscheidung:
-- On-prem Hosting rechtfertigt keine proprietaeren Auth-Abkuerzungen
-- on-prem und moderne Cloud-Authentifizierung schliessen sich nicht aus
+Spaeter ausbaubar um:
+- `parallel_split`
+- `parallel_join`
+- `wait`
+- `notification`
+- `automation`
+- `subworkflow`
 
 ---
 
-## 8. Mail und Graph
+## 5. Identity- und Betriebsmodell
 
-Sollzustand:
-- produktive Authentifizierung gegen Microsoft Graph
-- Secret-Verwaltung ueber sichere Laufzeitmechanismen oder Secret Store
-- keine Demo-Links oder Session-Abkuerzungen in Benachrichtigungen
-- stabile Links auf regulaere App-Routen
-
-Aktueller Architekturhinweis:
-- Die Admin-Oberflaeche hat weiterhin Mail-Konfiguration und einen read-only Graph-Status
-- produktive Graph-/Mail-Secrets kommen aus Runtime-Konfiguration, nicht mehr aus DB-Persistenz
+Diese Richtung bleibt bestehen:
+- AD bzw. Entra liefert technische Identitaet
+- das Backend validiert Auth und bleibt Source of Truth
+- Rollen = Zugriff, Responsibilities = fachliche Ownership
+- Person und technische Identity bleiben getrennte Konzepte
+- produktive Secrets und Runtime-Konfiguration kommen aus sicheren Laufzeitmechanismen
 
 ---
 
-## 9. Migrationspfad Ohne Big Bang
+## 6. Migrationspfad
 
-### Phase 1: Produktivblocker haerten
-
-- Swagger produktiv absichern oder deaktivieren
-- Klartext-/DB-Secret-Modell fuer weitere potenzielle Secret-Pfade konsequent vermeiden
-- Release-Checks und CI einfuehren
-
-### Phase 2: Identitaetsbasis festziehen
-
-- Entra-Login und Token-Handling weiter haerten
-- stabile externe Identifikatoren konsequent verwenden
-- lokale Simulationswelt nur als Entwicklungsmodus behandeln
-
-### Phase 3: Gruppen- und Permission-Modell konsolidieren
-
-- Gruppenprojektion und Mapping als Standard
-- lokale Sonderrechte explizit und auditierbar halten
-- User-CRUD weiter zur Ausnahme zurueckdruecken
-
-### Phase 4: Fachmodell weiter bereinigen
-
-- People/Employee sauber von technischer Identitaet getrennt halten
-- historische Zuordnungen robust machen
-- stringbasierte Aufloesung ueber Namen vermeiden
-
-### Phase 5: Betrieb haerten
-
-- Health-Modell scharf trennen
-- Observability erweitern
-- Migrations- und Deploymentprozess standardisieren
+1. Artefakt- und Secret-Hygiene
+2. Produktkern ent-onboarden
+3. Zielarchitektur dokumentieren und Begriffe harmonisieren
+4. Definition Layer einfuehren
+5. Runtime parallel einfuehren
+6. bestehende Workflows mappen
+7. Task-System an Node-Runtime anbinden
+8. generische Validierung einfuehren
+9. Automation Layer bauen
+10. Guided Builder ausbauen
+11. Altwelt gezielt zurueckbauen
 
 ---
 
-## 10. Klare Entscheidungen
+## 7. Klare Entscheidungen
 
-Fuer die weitere Entwicklung gelten diese Entscheidungen:
-- die App ist nicht das fuehrende Benutzersystem
-- AD bzw. Entra liefern Identitaet und Gruppenbasis
-- gruppenbasierte Rechte sind der Standard
-- lokale Zuordnungen bleiben fuer Fachlogik, Ausnahmen und Scopes
-- `Employee` bzw. Person und technische Identitaet sind getrennte Konzepte
-- Produktionsbetrieb braucht ein Betriebsmodell, nicht nur einen funktionierenden Docker-Start
+- Die App entwickelt sich zu einer Workflow-Plattform, nicht zu einem groesseren Spezial-Onboarding-Tool.
+- Das bestehende Fachwissen in Templates, Conditions und Dependencies wird migriert, nicht weggeworfen.
+- Der Plattformkern wird versioniert, kontrolliert und validierbar.
+- Sicherheit und Kontrollierbarkeit gehen vor maximaler Flexibilitaet.

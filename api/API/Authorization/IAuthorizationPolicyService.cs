@@ -20,6 +20,7 @@ internal interface IAuthorizationPolicyService
     bool CanObserveWorkflow(CurrentUser user, int workflowDepartmentId, string workflowStatus, IReadOnlySet<int>? observableDepartmentIds);
     bool CanAccessAssignedSupervisorWorkflow(CurrentUser user, int workflowDepartmentId, string workflowStatus, IReadOnlySet<int> assignedDepartmentIds);
     bool CanUpdateTaskStatus(CurrentUser user, TaskWithWorkflowDto task);
+    bool CanDecideTaskApproval(CurrentUser user, TaskWithWorkflowDto task);
     bool CanUpdateTaskAssignment(CurrentUser user, TaskWithWorkflowDto task);
     bool CanAddTaskComment(CurrentUser user, TaskWithWorkflowDto task);
 }

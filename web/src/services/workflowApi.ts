@@ -1,5 +1,4 @@
 import type {
-  CompletedOnboardingSearchResult,
   DerivedAnswer,
   LinkableWorkflow,
   RelatedWorkflowSummary,
@@ -15,14 +14,15 @@ import type {
   WorkflowRuntimeStatus,
   WorkflowSummary,
   WorkflowTargetPerson,
+  WorkflowTargetPersonSource,
   WorkflowTask,
 } from "../types/workflow";
 import { requestJson } from "./api/client";
 import type {
-  BackendCompletedOnboardingSearchResultDto,
   BackendDerivedAnswerDto,
   BackendLinkableWorkflowDto,
   BackendRelatedWorkflowSummaryDto,
+  BackendWorkflowTargetPersonSourceDto,
   BackendWorkflowAuditEntryDto,
   BackendWorkflowConfigDto,
   BackendWorkflowDetailDto,
@@ -224,14 +224,21 @@ export async function searchWorkflowTargetPeople(
 export async function searchCompletedOnboardings(
   search?: string,
   limit = 20
-): Promise<CompletedOnboardingSearchResult[]> {
+): Promise<WorkflowTargetPersonSource[]> {
+  return searchWorkflowTargetPersonSources(search, limit);
+}
+
+export async function searchWorkflowTargetPersonSources(
+  search?: string,
+  limit = 20
+): Promise<WorkflowTargetPersonSource[]> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (search && search.trim()) {
-    params.set("search", search.trim());
+    params.set("query", search.trim());
   }
 
-  return requestJson<BackendCompletedOnboardingSearchResultDto[]>(
-    `/workflows/completed-onboardings?${params.toString()}`
+  return requestJson<BackendWorkflowTargetPersonSourceDto[]>(
+    `/workflow-target-person-sources?${params.toString()}`
   );
 }
 

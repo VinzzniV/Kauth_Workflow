@@ -57,7 +57,7 @@ export function AdminDirectorySyncSection({
   return (
     <section className="panel">
       <div className="panel-head">
-        <h2>Verzeichnis-Synchronisierung</h2>
+        <h2>Verzeichnis abgleichen</h2>
       </div>
 
       <div className="dashboard-grid" aria-label="Verzeichnisstatus">

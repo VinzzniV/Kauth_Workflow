@@ -1,38 +1,37 @@
 # MEMORY.md
 
-## Purpose
+## Zweck
 
-This file is short-lived working memory only.
-It is not a backlog, not a changelog, and not a second project documentation file.
+Diese Datei ist nur kurzfristiges Arbeitsgedaechtnis.
+Sie ist kein Backlog, kein Changelog und keine zweite Architektur-Doku.
 
-Use it only for:
-- current focus
-- active traps or local workflow issues
-- 1-3 temporary findings that are likely useful in the next session
-
-Do not let this file grow continuously.
-If an entry is no longer useful soon, remove it.
-If something became stable project truth, move it to the proper documentation instead of keeping it here.
+Verwende sie nur fuer:
+- aktuellen Fokus
+- aktive Stolperfallen
+- wenige temporaere Hinweise fuer die naechsten Sessions
 
 ---
 
 ## Current Focus
 
-- The documented P0-P3 backlog is currently complete.
-- Next work should start only from a newly defined task block, not by continuing old cleanup indefinitely.
+- Die Root-Dokumentation wurde auf den neuen Implementierungsplan fuer die Workflow-Plattform harmonisiert.
+- T6 ist umgesetzt: `onboarding`, `offboarding` und `department_change` sind als publizierte, admin-only nutzbare Workflow-Definitionen gemappt.
 
 ## Active Risks / Watchouts
 
-- A locally running `dotnet run` or `dotnet watch` can lock backend build artifacts and interfere with local backend test runs.
-- The frontend build is green, but Vite still warns that the main chunk is above the 500 kB warning threshold. That is optimization territory, not an active blocker.
+- Der Code spiegelt die neue Zielarchitektur noch nicht vollstaendig; die Dokumentation ist absichtlich schon weiter als der Ist-Stand.
+- Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
+- Mehrere sichtbare Legacy-Vertraege bleiben bewusst bestehen, vor allem `completed-onboardings`, `CompletedOnboardingSearchResultDto`, `workflows.create.onboarding` und `hr_onboarding`.
+- Die drei T6-Mappings sind bewusst linearisiert; Parallel-Splits/-Joins und echte Task-Anbindung folgen erst in spaeteren Phasen.
 
 ## Temporary Notes
 
-- `TODO.md` is the authoritative backlog file. `MEMORY.md` should only keep short-lived session context.
-- Recent frontend refactors are complete and verified with `npm run lint`, `npm test`, and `npm run build`.
+- `Workflow_Plattform_Implementation_Plan.md` ist jetzt die primaere Migrationsanweisung fuer Architekturarbeit.
+- `PRODUCTIVE_TARGET_ARCHITECTURE.md` beschreibt das stabile Sollbild, `TODO.md` die priorisierte Reihenfolge.
+- `ONBOARDING_COUPLING_INVENTORY.md` ist die Referenz fuer Phase 1 / T2 und trennt `A` Benennung, `B` Kernkopplung und `C` Legacy-Vertrag.
+- `LEGACY_WORKFLOW_MAPPING.md` dokumentiert die T6-Abbildung der ersten drei Legacy-Prozesse in den Definition Layer.
 
 ## Cleanup Rule
 
-- Remove entries once they stop being useful for the next few sessions.
-- Do not keep historical implementation summaries here.
-- If this file starts reading like a backlog or release notes, trim it immediately.
+- Eintraege entfernen, sobald sie fuer die naechsten Sessions nicht mehr helfen.
+- Keine historischen Zusammenfassungen hier sammeln.
