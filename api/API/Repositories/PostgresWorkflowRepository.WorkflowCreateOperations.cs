@@ -8,11 +8,17 @@ internal sealed partial class PostgresWorkflowRepository
     // Erstellt den Workflow, initialisiert Benachrichtigungen und liefert anschliessend die neue UID zurueck.
     public async Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId)
     {
+        var processTypeKey = request.ProcessTypeKey;
+        if (string.IsNullOrWhiteSpace(processTypeKey))
+        {
+            throw new InvalidOperationException("processTypeKey ist erforderlich.");
+        }
+
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        var processType = await LoadProcessTypeForCreate(connection, transaction, request.ProcessTypeKey);
+        var processType = await LoadProcessTypeForCreate(connection, transaction, processTypeKey);
         var requiresNewPersonFields = !processType.RequiresTargetPerson;
 
         if (processType.RequiresTargetPerson)

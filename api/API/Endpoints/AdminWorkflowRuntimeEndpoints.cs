@@ -12,8 +12,8 @@ internal static class AdminWorkflowRuntimeEndpoints
         app.MapPost("/admin/runtime/workflow-instances", async (
             [FromBody] CreateWorkflowDefinitionInstanceRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -41,8 +41,8 @@ internal static class AdminWorkflowRuntimeEndpoints
         app.MapGet("/admin/runtime/workflow-instances/{uid:guid}", async (
             Guid uid,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -65,8 +65,8 @@ internal static class AdminWorkflowRuntimeEndpoints
         app.MapGet("/admin/runtime/workflow-instances/{uid:guid}/events", async (
             Guid uid,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -82,13 +82,33 @@ internal static class AdminWorkflowRuntimeEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapGet("/admin/runtime/workflow-instances/{uid:guid}/automation-jobs", async (
+            Guid uid,
+            [FromServices] IWorkflowAutomationService automationService,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await automationService.GetWorkflowAutomationJobsAsync(uid));
+        }).Produces<List<AutomationJobDetailDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPost("/admin/runtime/workflow-instances/{uid:guid}/nodes/{nodeInstanceId:long}/form-completions", async (
             Guid uid,
             long nodeInstanceId,
             [FromBody] CompleteRuntimeFormNodeRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -121,8 +141,8 @@ internal static class AdminWorkflowRuntimeEndpoints
             long nodeInstanceId,
             [FromBody] CompleteRuntimeApprovalNodeRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -155,8 +175,8 @@ internal static class AdminWorkflowRuntimeEndpoints
             long nodeInstanceId,
             [FromBody] CompleteRuntimeTaskNodeRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,

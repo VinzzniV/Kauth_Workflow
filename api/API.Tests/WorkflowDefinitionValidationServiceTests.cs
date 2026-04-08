@@ -14,8 +14,8 @@ public sealed class WorkflowDefinitionValidationServiceTests
         {
             Nodes =
             [
-                CreateNode("Start", "start"),
-                CreateNode("Form_A", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Start", "start", positionX: 60, positionY: 40),
+                CreateNode("Form_A", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}""", positionX: 320, positionY: 40),
                 CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
                 CreateNode("End", "end")
             ],
@@ -29,6 +29,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
 
         Assert.Equal(["end", "form_a", "start", "task_a"], result.Nodes.Select(node => node.NodeKey).OrderBy(key => key).ToArray());
         Assert.Equal("form_a", result.Edges[1].SourceNodeKey);
+        Assert.Contains(result.Nodes, node => node.NodeKey == "form_a" && node.PositionX == 320 && node.PositionY == 40);
     }
 
     [Fact]
@@ -57,6 +58,35 @@ public sealed class WorkflowDefinitionValidationServiceTests
         Assert.Equal(4, result.Edges.Count);
     }
 
+    [Fact]
+    public void ValidateAndNormalize_AllowsAutomationNodeWithActions()
+    {
+        var result = _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode(
+                    "Auto",
+                    "automation",
+                    actions:
+                    [
+                        CreateAction("CreateAdUser", 10, """{"employeeNumber":{"source":"workflow","property":"employeeNumber"}}"""),
+                        CreateAction("AssignGroups", 20, """{"groups":{"source":"static","value":["grp-a","grp-b"]}}""")
+                    ]),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Auto", 0),
+                CreateEdge("Auto", "End", 0)
+            ]
+        });
+
+        var automationNode = Assert.Single(result.Nodes, node => node.NodeType == "automation");
+        Assert.Equal(2, automationNode.Actions.Count);
+    }
+
     [Theory]
     [InlineData("missing_start")]
     [InlineData("multiple_starts")]
@@ -71,6 +101,8 @@ public sealed class WorkflowDefinitionValidationServiceTests
     [InlineData("unsupported_type")]
     [InlineData("invalid_decision_json")]
     [InlineData("unsupported_decision_operator")]
+    [InlineData("missing_automation_actions")]
+    [InlineData("duplicate_action_order")]
     public void ValidateAndNormalize_RejectsInvalidDrafts(string scenario)
     {
         var request = scenario switch
@@ -145,6 +177,30 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 Nodes = [CreateNode("Start", "start"), CreateNode("Decision", "decision"), CreateNode("End", "end")],
                 Edges = [CreateEdge("Start", "Decision", 0), CreateEdge("Decision", "End", 0, """{"answerKey":"mailbox_requested","operator":"gt"}""")]
             },
+            "missing_automation_actions" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes = [CreateNode("Start", "start"), CreateNode("Auto", "automation"), CreateNode("End", "end")],
+                Edges = [CreateEdge("Start", "Auto", 0), CreateEdge("Auto", "End", 0)]
+            },
+            "duplicate_action_order" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes =
+                [
+                    CreateNode(
+                        "Start",
+                        "start"),
+                    CreateNode(
+                        "Auto",
+                        "automation",
+                        actions:
+                        [
+                            CreateAction("CreateAdUser", 10),
+                            CreateAction("AssignGroups", 10)
+                        ]),
+                    CreateNode("End", "end")
+                ],
+                Edges = [CreateEdge("Start", "Auto", 0), CreateEdge("Auto", "End", 0)]
+            },
             _ => throw new InvalidOperationException($"Unknown scenario '{scenario}'.")
         };
 
@@ -198,14 +254,35 @@ public sealed class WorkflowDefinitionValidationServiceTests
         string nodeKey,
         string nodeType,
         int sortOrder = 0,
-        string? configJson = null)
+        string? configJson = null,
+        int? positionX = null,
+        int? positionY = null,
+        params WorkflowNodeActionDto[] actions)
     {
         return new WorkflowDefinitionNodeDto
         {
             NodeKey = nodeKey,
             NodeType = nodeType,
             SortOrder = sortOrder,
-            Config = configJson is null ? null : JsonDocument.Parse(configJson).RootElement.Clone()
+            PositionX = positionX,
+            PositionY = positionY,
+            Config = configJson is null ? null : JsonDocument.Parse(configJson).RootElement.Clone(),
+            Actions = actions.ToList()
+        };
+    }
+
+    private static WorkflowNodeActionDto CreateAction(
+        string actionKey,
+        int executionOrder,
+        string? inputMappingJson = null,
+        string onErrorBehavior = "fail_workflow")
+    {
+        return new WorkflowNodeActionDto
+        {
+            ActionKey = actionKey,
+            ExecutionOrder = executionOrder,
+            OnErrorBehavior = onErrorBehavior,
+            InputMapping = inputMappingJson is null ? null : JsonDocument.Parse(inputMappingJson).RootElement.Clone()
         };
     }
 

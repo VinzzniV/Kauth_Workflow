@@ -1,7 +1,9 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Route, Routes } from "react-router-dom";
 import AdminConfigPage from "../src/pages/AdminConfigPage";
 import * as adminApi from "../src/services/adminApi";
+import * as adminConfigApi from "../src/services/adminConfigApi";
 import { createAdminDepartmentAssignment, createAdminUser, renderWithApp } from "./testUtils";
 import type {
   AdminGraphApplicationConfiguration,
@@ -11,6 +13,16 @@ import type {
   AdminRole,
 } from "../src/types/auth";
 import type { WorkflowConfig } from "../src/types/workflow";
+
+vi.mock("@xyflow/react", () => ({
+  Background: () => null,
+  Controls: () => null,
+  MiniMap: () => null,
+  Handle: () => null,
+  Position: { Left: "left", Right: "right" },
+  MarkerType: { ArrowClosed: "arrowclosed" },
+  ReactFlow: ({ children }: { children?: any }) => <div>{children}</div>,
+}));
 
 vi.mock("../src/services/adminApi", async () => {
   const actual = await vi.importActual<typeof import("../src/services/adminApi")>(
@@ -33,7 +45,28 @@ vi.mock("../src/services/adminApi", async () => {
   };
 });
 
+vi.mock("../src/services/adminConfigApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/adminConfigApi")>(
+    "../src/services/adminConfigApi"
+  );
+
+  return {
+    ...actual,
+    createAdminWorkflowDefinition: vi.fn(),
+    createAdminWorkflowDefinitionVersion: vi.fn(),
+    getAdminWorkflowActionDefinitions: vi.fn(),
+    getAdminWorkflowDefinitionVersion: vi.fn(),
+    getAdminWorkflowDefinitions: vi.fn(),
+    publishAdminWorkflowDefinitionVersion: vi.fn(),
+    replaceAdminWorkflowDefinitionVersion: vi.fn(),
+    updateAdminWorkflowDefinition: vi.fn(),
+  };
+});
+
 const mockedCreateAdminUser = vi.mocked(adminApi.createAdminUser);
+const mockedGetAdminWorkflowActionDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowActionDefinitions);
+const mockedGetAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.getAdminWorkflowDefinitionVersion);
+const mockedGetAdminWorkflowDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowDefinitions);
 const mockedGetAdminDepartmentAssignments = vi.mocked(adminApi.getAdminDepartmentAssignments);
 const mockedGetAdminGroups = vi.mocked(adminApi.getAdminGroups);
 const mockedGetAdminGraphApplicationConfiguration = vi.mocked(adminApi.getAdminGraphApplicationConfiguration);
@@ -194,6 +227,9 @@ function mockSuccessfulLoad() {
 describe("AdminConfigPage", () => {
   beforeEach(() => {
     mockedCreateAdminUser.mockReset();
+    mockedGetAdminWorkflowActionDefinitions.mockReset();
+    mockedGetAdminWorkflowDefinitionVersion.mockReset();
+    mockedGetAdminWorkflowDefinitions.mockReset();
     mockedGetAdminUsers.mockReset();
     mockedGetAdminDepartmentAssignments.mockReset();
     mockedGetAdminResponsibilityOwners.mockReset();
@@ -205,6 +241,53 @@ describe("AdminConfigPage", () => {
     mockedGetAdminRoles.mockReset();
     mockedGetAdminGroups.mockReset();
     mockSuccessfulLoad();
+    mockedGetAdminWorkflowDefinitions.mockResolvedValue([
+      {
+        id: 1,
+        key: "onboarding",
+        name: "Onboarding",
+        description: "Definition",
+        versions: [
+          {
+            id: 10,
+            workflowDefinitionId: 1,
+            versionNumber: 1,
+            status: "draft",
+            name: "Draft 1",
+            description: "Initial draft",
+            primaryLegacyProcessTypeKey: "onboarding",
+            createdAt: "2026-04-08T10:00:00Z",
+            updatedAt: "2026-04-08T10:00:00Z",
+            publishedAt: null,
+            canPublish: true,
+            validationIssues: [],
+          },
+        ],
+      },
+    ]);
+    mockedGetAdminWorkflowActionDefinitions.mockResolvedValue([]);
+    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValue({
+      id: 10,
+      workflowDefinitionId: 1,
+      definitionKey: "onboarding",
+      definitionName: "Onboarding",
+      definitionDescription: "Definition",
+      versionNumber: 1,
+      status: "draft",
+      name: "Draft 1",
+      description: "Initial draft",
+      primaryLegacyProcessTypeKey: "onboarding",
+      createdAt: "2026-04-08T10:00:00Z",
+      updatedAt: "2026-04-08T10:00:00Z",
+      publishedAt: null,
+      canPublish: true,
+      validationIssues: [],
+      nodes: [
+        { nodeKey: "start", nodeType: "start", title: "Start", sortOrder: 1, positionX: 80, positionY: 60, config: null, actions: [] },
+        { nodeKey: "end", nodeType: "end", title: "Ende", sortOrder: 2, positionX: 420, positionY: 60, config: null, actions: [] },
+      ],
+      edges: [{ sourceNodeKey: "start", targetNodeKey: "end", priority: 1, conditionExpression: null }],
+    });
     mockedCreateAdminUser.mockResolvedValue(
       createAdminUser({
         userId: 3,
@@ -222,7 +305,7 @@ describe("AdminConfigPage", () => {
     });
 
     expect(await screen.findByText("Arbeitsbereiche")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Personen" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Personen & Organisation/i })).toBeTruthy();
     expect(mockedGetAdminRoles).not.toHaveBeenCalled();
     expect(mockedGetAdminGroups).not.toHaveBeenCalled();
   });
@@ -253,12 +336,27 @@ describe("AdminConfigPage", () => {
       route: "/admin/config?section=access",
     });
 
-    expect(await screen.findByRole("heading", { name: "Zugriffe & Gruppen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Direkte Rollen und Gruppen" })).toBeTruthy();
 
     await waitFor(() => {
       expect(mockedGetAdminRoles).toHaveBeenCalled();
       expect(mockedGetAdminGroups).toHaveBeenCalled();
     });
+  });
+
+  it("redirects legacy builder sections to the standalone builder page", async () => {
+    renderWithApp(
+      <Routes>
+        <Route path="/admin/config" element={<AdminConfigPage />} />
+        <Route path="/builder" element={<div>Builder Route</div>} />
+      </Routes>,
+      {
+      roleKeys: ["auth_admin"],
+      route: "/admin/config?section=templates",
+      }
+    );
+
+    expect(await screen.findByText("Builder Route")).toBeTruthy();
   });
 
   it("allows selecting a user directly inside the access section", async () => {
@@ -267,13 +365,13 @@ describe("AdminConfigPage", () => {
       route: "/admin/config?section=access",
     });
 
-    expect(await screen.findByRole("heading", { name: "Zugriffe & Gruppen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Direkte Rollen und Gruppen" })).toBeTruthy();
 
     fireEvent.change(screen.getByRole("combobox", { name: "Person" }), {
       target: { value: "2" },
     });
 
-    expect(await screen.findByText("Direkte Rollen: Mia Manager")).toBeTruthy();
+    expect(await screen.findByText("Direkte Rollen für Mia Manager")).toBeTruthy();
     expect(screen.getByText("Gruppen für Mia Manager")).toBeTruthy();
   });
 

@@ -6,6 +6,9 @@ Sie ist operative Doku fuer lokale Entwicklung, servernahes Deployment und Laufz
 Architekturhinweis:
 - Der aktuelle Code laeuft noch auf dem bestehenden lifecycle-/task-getriebenen Kern.
 - Die Zielarchitektur zur Workflow-Plattform steht in `Workflow_Plattform_Implementation_Plan.md` und `PRODUCTIVE_TARGET_ARCHITECTURE.md`.
+- Seit T9 laeuft der erste Automation Layer als API-interner Hosted Service; es gibt lokal und produktiv keinen separaten Worker-Container.
+- Seit T10 steht in `/admin/config?section=builder` ein formularbasierter Guided Builder fuer Definitionen, Versionen, Nodes, Edges und Automation-Actions zur Verfuegung.
+- Seit T11 nutzt der normale Start-Flow `/workflows/create` publizierte Workflow-Definitionen; `processTypeKey` und `/process-types` bleiben nur noch als Legacy-Alias fuer eine Uebergangsrelease bestehen.
 
 ## Repo-Struktur fuer Betrieb
 
@@ -41,10 +44,16 @@ dotnet run --project api/API/API.csproj --launch-profile API
 Das lokale Launch-Profil setzt u. a.:
 - `ASPNETCORE_ENVIRONMENT=Development`
 - `AUTH_MODE=dev-sim`
+- `ConnectionStrings__Default=Host=localhost;Port=25432;...;GSS Encryption Mode=Disable;SSL Mode=Disable`
 - `PUBLIC_BASE_URL=http://localhost:5173`
 - `DIRECTORY_GROUP_PREFIX=Onboarding-App-`
 - `DIRECTORY_SYNC_SCHEDULED=true`
 - `SWAGGER_ENABLED=true`
+
+Hinweis:
+- `automation`-Jobs werden von der API selbst gepollt und verarbeitet, sobald die Anwendung laeuft.
+- Die ersten Actions sind simuliert; fuer lokale Entwicklung ist deshalb kein externer Provisioning-Adapter noetig.
+- Der Guided Builder speichert Drafts weiter ueber den bestehenden Vollersatz-Endpunkt; lokale JSON-Fehler in Node-`config` oder Action-`inputMapping` blockieren Save bereits im UI.
 
 Fuer lokalen Directory-Sync braucht die API gueltige `ENTRA_*`-Werte.
 
@@ -94,6 +103,9 @@ npm run lint
 npm test
 npm run build
 ```
+
+Hinweis:
+- DB-gebundene Backend-Tests erwarten lokal PostgreSQL auf `127.0.0.1:25432`; ohne laufenden Docker-DB-Container schlagen diese Tests fehl.
 
 ## Linux-VM Deployment
 

@@ -12,9 +12,14 @@ internal sealed partial class PostgresWorkflowRepository
         await using var transaction = await connection.BeginTransactionAsync();
 
         const string workflowSql = @"
-SELECT w.id, pt.key, pt.name
+SELECT
+    w.id,
+    COALESCE(d.definition_key, pt.key),
+    COALESCE(NULLIF(BTRIM(v.name), ''), d.name, pt.name)
 FROM workflows w
 JOIN process_types pt ON pt.id = w.process_type_id
+LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
+LEFT JOIN workflow_definitions d ON d.id = v.workflow_definition_id
 WHERE w.uid = @workflowUid
 LIMIT 1
 FOR UPDATE OF w;";
@@ -149,9 +154,16 @@ FOR UPDATE;";
         await using var transaction = await connection.BeginTransactionAsync();
 
         const string workflowSql = @"
-SELECT w.id, w.created_by_user_id, w.status, pt.key, pt.name
+SELECT
+    w.id,
+    w.created_by_user_id,
+    w.status,
+    COALESCE(d.definition_key, pt.key),
+    COALESCE(NULLIF(BTRIM(v.name), ''), d.name, pt.name)
 FROM workflows w
 JOIN process_types pt ON pt.id = w.process_type_id
+LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
+LEFT JOIN workflow_definitions d ON d.id = v.workflow_definition_id
 WHERE uid = @workflowUid
 LIMIT 1
 FOR UPDATE OF w;";
@@ -376,9 +388,13 @@ LIMIT 1;";
         long workflowId)
     {
         const string sql = @"
-SELECT pt.key, pt.name
+SELECT
+    COALESCE(d.definition_key, pt.key),
+    COALESCE(NULLIF(BTRIM(v.name), ''), d.name, pt.name)
 FROM workflows w
 JOIN process_types pt ON pt.id = w.process_type_id
+LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
+LEFT JOIN workflow_definitions d ON d.id = v.workflow_definition_id
 WHERE w.id = @workflowId
 LIMIT 1;";
 

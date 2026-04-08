@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDepartments, useRoles } from "../services/queries/roleQueries";
-import { useProcessTypes } from "../services/queries/processTypeQueries";
+import { useStartableWorkflowDefinitions } from "../services/queries/processTypeQueries";
 import {
   useWorkflowTargetPersonSourcesSearch,
   useWorkflowConfig,
@@ -8,8 +8,8 @@ import {
 import type {
   Department,
   EmployeeFormData,
-  ProcessType,
   Role,
+  StartableWorkflowDefinition,
   WorkflowTargetPersonSource,
   WorkflowConfig,
 } from "../types/workflow";
@@ -21,7 +21,7 @@ import {
   isWorkflowCreationContextComplete,
   resolveSelectedTargetPersonSource,
   resolveSelectedDepartment,
-  resolveSelectedProcessTypeKey,
+  resolveSelectedWorkflowDefinitionKey,
   resolveSelectedRoleId,
   type SubmitState,
   type WorkflowCreationStep,
@@ -32,10 +32,10 @@ export type { WorkflowCreationStep } from "./workflowCreationModel";
 
 type UseWorkflowCreationResult = {
   currentStep: WorkflowCreationStep;
-  processTypes: ProcessType[];
-  processTypesLoading: boolean;
-  selectedProcessTypeKey: string | null;
-  selectedProcessType: ProcessType | null;
+  workflowDefinitions: StartableWorkflowDefinition[];
+  workflowDefinitionsLoading: boolean;
+  selectedWorkflowDefinitionKey: string | null;
+  selectedWorkflowDefinition: StartableWorkflowDefinition | null;
   requiresTargetPerson: boolean;
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
@@ -59,7 +59,7 @@ type UseWorkflowCreationResult = {
   submitError: string | null;
   submitSuccessMessage: string | null;
   createdWorkflowUid: string | null;
-  setProcessType: (key: string) => void;
+  setWorkflowDefinition: (key: string) => void;
   goToProcessStep: () => void;
   goToContextStep: () => void;
   goToReviewStep: () => void;
@@ -81,9 +81,12 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   const [selectedTargetPersonSourceSnapshot, setSelectedTargetPersonSourceSnapshot] =
     useState<WorkflowTargetPersonSource | null>(null);
   const [debouncedTargetPersonSourceSearch, setDebouncedTargetPersonSourceSearch] = useState("");
-  const processTypesQuery = useProcessTypes();
-  const processTypes = useMemo(() => processTypesQuery.data ?? [], [processTypesQuery.data]);
-  const processTypesLoading = processTypesQuery.isLoading;
+  const workflowDefinitionsQuery = useStartableWorkflowDefinitions();
+  const workflowDefinitions = useMemo(
+    () => workflowDefinitionsQuery.data ?? [],
+    [workflowDefinitionsQuery.data]
+  );
+  const workflowDefinitionsLoading = workflowDefinitionsQuery.isLoading;
 
   const rolesQuery = useRoles();
   const departmentsQuery = useDepartments();
@@ -105,16 +108,22 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     await Promise.all([rolesQuery.refetch(), departmentsQuery.refetch()]);
   }, [departmentsQuery, rolesQuery]);
 
-  const selectedProcessTypeKey = useMemo(() => {
-    return resolveSelectedProcessTypeKey(formState.processTypeKey, processTypes);
-  }, [formState.processTypeKey, processTypes]);
+  const selectedWorkflowDefinitionKey = useMemo(() => {
+    return resolveSelectedWorkflowDefinitionKey(
+      formState.workflowDefinitionKey,
+      workflowDefinitions
+    );
+  }, [formState.workflowDefinitionKey, workflowDefinitions]);
 
-  const selectedProcessType = useMemo(
-    () => processTypes.find((pt) => pt.key === selectedProcessTypeKey) ?? null,
-    [processTypes, selectedProcessTypeKey]
+  const selectedWorkflowDefinition = useMemo(
+    () =>
+      workflowDefinitions.find(
+        (definition) => definition.definitionKey === selectedWorkflowDefinitionKey
+      ) ?? null,
+    [workflowDefinitions, selectedWorkflowDefinitionKey]
   );
 
-  const requiresTargetPerson = selectedProcessType?.requiresTargetPerson ?? false;
+  const requiresTargetPerson = selectedWorkflowDefinition?.requiresTargetPerson ?? false;
   const targetPersonSourceSearchValue = requiresTargetPerson
     ? formState.targetPersonSourceSearch
     : "";
@@ -175,18 +184,22 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
 
   const workflowConfigQuery = useWorkflowConfig(
     effectiveRoleIdForConfig,
-    selectedProcessTypeKey,
-    Boolean(selectedProcessTypeKey)
+    selectedWorkflowDefinition?.primaryLegacyProcessTypeKey ?? null,
+    Boolean(selectedWorkflowDefinition?.primaryLegacyProcessTypeKey)
   );
   const workflowConfig = useMemo<WorkflowConfig | null>(
-    () => (selectedProcessTypeKey ? workflowConfigQuery.data ?? null : null),
-    [selectedProcessTypeKey, workflowConfigQuery.data]
+    () =>
+      selectedWorkflowDefinition?.primaryLegacyProcessTypeKey
+        ? workflowConfigQuery.data ?? null
+        : null,
+    [selectedWorkflowDefinition?.primaryLegacyProcessTypeKey, workflowConfigQuery.data]
   );
-  const workflowConfigLoading = Boolean(selectedProcessTypeKey) && workflowConfigQuery.isFetching;
+  const workflowConfigLoading =
+    Boolean(selectedWorkflowDefinition?.primaryLegacyProcessTypeKey) && workflowConfigQuery.isFetching;
   const workflowConfigError =
-    selectedProcessTypeKey && workflowConfigQuery.error instanceof Error
+    selectedWorkflowDefinition?.primaryLegacyProcessTypeKey && workflowConfigQuery.error instanceof Error
       ? workflowConfigQuery.error.message
-      : selectedProcessTypeKey && workflowConfigQuery.error
+      : selectedWorkflowDefinition?.primaryLegacyProcessTypeKey && workflowConfigQuery.error
         ? "Workflow-Konfiguration konnte nicht geladen werden."
         : null;
   const {
@@ -197,8 +210,9 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     resetSubmissionState,
     submitWorkflow,
   } = useWorkflowCreationSubmission({
-    selectedProcessTypeKey,
-    selectedProcessType,
+    selectedWorkflowDefinitionKey,
+    selectedLegacyProcessTypeKey: selectedWorkflowDefinition?.primaryLegacyProcessTypeKey ?? null,
+    selectedWorkflowDefinition,
     requiresTargetPerson,
     selectedDepartmentId,
     selectedRoleId,
@@ -206,11 +220,11 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     employee: formState.employee,
   });
 
-  const setProcessType = (key: string) => {
+  const setWorkflowDefinition = (key: string) => {
     resetSubmissionState();
     setFormState((previous) => ({
       ...previous,
-      processTypeKey: key,
+      workflowDefinitionKey: key,
       departmentId: null,
       roleId: null,
       targetPersonSourceSearch: "",
@@ -298,7 +312,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
 
   const isContextComplete = useMemo(() => {
     return isWorkflowCreationContextComplete({
-      selectedProcessTypeKey,
+      selectedWorkflowDefinitionKey,
       requiresTargetPerson,
       selectedTargetPersonSource,
       targetPersonSourcesLoading,
@@ -318,11 +332,11 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     selectedTargetPersonSource,
     selectedDepartmentId,
     selectedRoleId,
-    selectedProcessTypeKey,
+    selectedWorkflowDefinitionKey,
     targetPersonSourcesLoading,
   ]);
 
-  const canGoToContextStep = selectedProcessTypeKey !== null;
+  const canGoToContextStep = selectedWorkflowDefinitionKey !== null;
   const canGoToReviewStep = isContextComplete;
   const canSubmit = currentStep === "review" && isContextComplete;
 
@@ -332,13 +346,13 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   }, [resetSubmissionState]);
 
   const goToContextStep = useCallback(() => {
-    if (!selectedProcessTypeKey) {
+    if (!selectedWorkflowDefinitionKey) {
       return;
     }
 
     resetSubmissionState();
     setCurrentStep("context");
-  }, [resetSubmissionState, selectedProcessTypeKey]);
+  }, [resetSubmissionState, selectedWorkflowDefinitionKey]);
 
   const goToReviewStep = useCallback(() => {
     if (!isContextComplete) {
@@ -351,10 +365,10 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
 
   return {
     currentStep,
-    processTypes,
-    processTypesLoading,
-    selectedProcessTypeKey,
-    selectedProcessType,
+    workflowDefinitions,
+    workflowDefinitionsLoading,
+    selectedWorkflowDefinitionKey,
+    selectedWorkflowDefinition,
     requiresTargetPerson,
     employee: formState.employee,
     selectedDepartmentId,
@@ -378,7 +392,7 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     submitError,
     submitSuccessMessage,
     createdWorkflowUid,
-    setProcessType,
+    setWorkflowDefinition,
     goToProcessStep,
     goToContextStep,
     goToReviewStep,

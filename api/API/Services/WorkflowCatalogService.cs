@@ -5,6 +5,42 @@ internal sealed class WorkflowCatalogService(
     IAuthorizationPolicyService authorizationPolicyService,
     IWorkflowVisibilityService workflowVisibilityService) : IWorkflowCatalogService
 {
+    public async Task<IReadOnlyList<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitionsAsync(
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var definitions = await repository.GetStartableWorkflowDefinitions();
+        var canCreateAny = authorizationPolicyService.HasAnyRole(
+            currentUser,
+            AuthorizationRoles.Hr,
+            AuthorizationRoles.Admin);
+
+        if (canCreateAny)
+        {
+            return definitions;
+        }
+
+        var result = new List<WorkflowStartableDefinitionDto>();
+        foreach (var definition in definitions)
+        {
+            if (authorizationPolicyService.HasPermission(
+                    currentUser,
+                    AuthorizationPermissions.WorkflowCreate(definition.DefinitionKey)))
+            {
+                result.Add(definition);
+                continue;
+            }
+
+            var managerCreatable = await repository.IsManagerCreatableProcessType(definition.PrimaryLegacyProcessTypeKey);
+            if (managerCreatable && authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Manager))
+            {
+                result.Add(definition);
+            }
+        }
+
+        return result;
+    }
+
     public async Task<IReadOnlyList<DepartmentDto>> GetDepartmentsAsync(CancellationToken cancellationToken = default)
     {
         return await repository.GetDepartments();

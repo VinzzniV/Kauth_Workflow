@@ -121,9 +121,9 @@ ORDER BY u.display_name;";
             var firstName = emp.FirstName ?? emp.DisplayName.Split(' ').FirstOrDefault() ?? emp.DisplayName;
             var lastName = emp.LastName ?? emp.DisplayName.Split(' ').Skip(1).FirstOrDefault() ?? "";
 
-            var createRequest = new CreateWorkflowRequest
+            var createRequest = new CreateWorkflowDefinitionInstanceRequest
             {
-                ProcessTypeKey = "department_change",
+                WorkflowDefinitionKey = "department_change",
                 DepartmentId = request.TargetDepartmentId,
                 RoleId = request.TargetRoleId,
                 TargetPersonId = emp.PersonId,
@@ -136,13 +136,13 @@ ORDER BY u.display_name;";
 
             try
             {
-                var result = await CreateWorkflow(createRequest, actorUserId);
+                var result = await CreateWorkflowDefinitionInstance(createRequest, actorUserId);
                 items.Add(new BulkOperationItemDto
                 {
                     PersonId = emp.PersonId,
                     DisplayName = emp.DisplayName,
                     Status = "created",
-                    WorkflowUid = result.Uid,
+                    WorkflowUid = result.WorkflowUid,
                 });
                 createdCount++;
             }

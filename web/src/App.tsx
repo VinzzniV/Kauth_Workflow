@@ -19,6 +19,7 @@ const WorkflowDetailPage = lazy(() => import("./pages/WorkflowDetailPage"));
 const WorkflowSearchPage = lazy(() => import("./pages/WorkflowSearchPage"));
 const PersonWorkflowHistoryPage = lazy(() => import("./pages/PersonWorkflowHistoryPage"));
 const AdminConfigPage = lazy(() => import("./pages/AdminConfigPage"));
+const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
 
 function RouteLoadingFallback() {
   return (
@@ -134,6 +135,16 @@ export default function App() {
             <RouteGuard feature="workflowOverview">
               <LazyRoute>
                 <PersonWorkflowHistoryPage />
+              </LazyRoute>
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/builder"
+          element={
+            <RouteGuard feature="workflowBuilder">
+              <LazyRoute>
+                <WorkflowBuilderPage />
               </LazyRoute>
             </RouteGuard>
           }

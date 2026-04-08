@@ -6,6 +6,15 @@ export type ProcessType = {
   requiresTargetPerson: boolean;
 };
 
+export type StartableWorkflowDefinition = {
+  definitionKey: string;
+  name: string;
+  description?: string | null;
+  requiresTargetPerson: boolean;
+  primaryLegacyProcessTypeKey: string;
+  latestPublishedVersionNumber: number;
+};
+
 export type Role = {
   id: number;
   departmentId: number;
@@ -136,7 +145,8 @@ export type EmployeeFormData = {
 };
 
 export type WorkflowCreationPayload = {
-  processTypeKey: string;
+  workflowDefinitionKey?: string | null;
+  processTypeKey?: string | null;
   departmentId?: number | null;
   roleId?: number | null;
   targetPersonId?: number | null;

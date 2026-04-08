@@ -6,24 +6,37 @@ CREATE TABLE IF NOT EXISTS graph_application_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO graph_application_settings (
-    id,
-    tenant_id,
-    client_id,
-    client_secret,
-    updated_at
-)
-SELECT
-    1,
-    tenant_id,
-    client_id,
-    client_secret,
-    COALESCE(updated_at, NOW())
-FROM notification_email_settings
-WHERE id = 1
-  AND (
-      tenant_id IS NOT NULL
-      OR client_id IS NOT NULL
-      OR client_secret IS NOT NULL
-  )
-ON CONFLICT (id) DO NOTHING;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'notification_email_settings'
+          AND column_name = 'tenant_id'
+    ) THEN
+        EXECUTE $sql$
+            INSERT INTO graph_application_settings (
+                id,
+                tenant_id,
+                client_id,
+                client_secret,
+                updated_at
+            )
+            SELECT
+                1,
+                nes.tenant_id,
+                nes.client_id,
+                nes.client_secret,
+                COALESCE(nes.updated_at, NOW())
+            FROM notification_email_settings nes
+            WHERE nes.id = 1
+              AND (
+                  nes.tenant_id IS NOT NULL
+                  OR nes.client_id IS NOT NULL
+                  OR nes.client_secret IS NOT NULL
+              )
+            ON CONFLICT (id) DO NOTHING
+        $sql$;
+    END IF;
+END $$;

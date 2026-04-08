@@ -20,6 +20,18 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
 
     [Theory]
     [InlineData("db/01_schema.sql")]
+    [InlineData("db/41_workflow_definition_layer.sql")]
+    [InlineData("db/46_workflow_builder_positions.sql")]
+    public async Task SqlArtifacts_DefineWorkflowBuilderPositionArtifacts(string relativePath)
+    {
+        var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
+
+        Assert.Contains("position_x", content);
+        Assert.Contains("position_y", content);
+    }
+
+    [Theory]
+    [InlineData("db/01_schema.sql")]
     [InlineData("db/42_workflow_runtime_layer.sql")]
     public async Task SqlArtifacts_DefineWorkflowRuntimeLayerArtifacts(string relativePath)
     {
@@ -31,6 +43,22 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
         Assert.Contains("primary_legacy_process_type_id", content);
         Assert.Contains("workflow_node_instances", content);
         Assert.Contains("workflow_runtime_events", content);
+    }
+
+    [Theory]
+    [InlineData("db/01_schema.sql")]
+    [InlineData("db/45_automation_layer.sql")]
+    public async Task SqlArtifacts_DefineAutomationLayerArtifacts(string relativePath)
+    {
+        var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
+
+        Assert.Contains("action_definitions", content);
+        Assert.Contains("workflow_node_actions", content);
+        Assert.Contains("automation_jobs", content);
+        Assert.Contains("automation_job_attempts", content);
+        Assert.Contains("automation_job_logs", content);
+        Assert.Contains("CreateAdUser", content);
+        Assert.Contains("SendWelcomeMail", content);
     }
 
     [Theory]
@@ -67,6 +95,8 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
         Assert.Contains("/docker-entrypoint-sql/42_workflow_runtime_layer.sql", content);
         Assert.Contains("/docker-entrypoint-sql/43_workflow_definition_mappings.sql", content);
         Assert.Contains("/docker-entrypoint-sql/44_runtime_task_bridge.sql", content);
+        Assert.Contains("/docker-entrypoint-sql/45_automation_layer.sql", content);
+        Assert.Contains("/docker-entrypoint-sql/46_workflow_builder_positions.sql", content);
     }
 
     private static string FindRepositoryFile(string relativePath)

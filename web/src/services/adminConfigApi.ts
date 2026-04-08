@@ -12,6 +12,10 @@ import type {
   AdminTaskTemplate,
   AdminTaskTemplateCondition,
   AdminTaskTemplateDependency,
+  AdminWorkflowActionDefinition,
+  AdminWorkflowDefinitionSummary,
+  AdminWorkflowDefinitionVersionDetail,
+  AdminWorkflowDefinitionVersionSummary,
 } from "../types/auth";
 import type { BulkDepartmentChangePayload, BulkOperationResult } from "../types/workflow";
 import { requestJson } from "./api/client";
@@ -30,6 +34,10 @@ import type {
   BackendAdminTaskTemplateConditionDto,
   BackendAdminTaskTemplateDependencyDto,
   BackendAdminTaskTemplateDto,
+  BackendAdminWorkflowActionDefinitionDto,
+  BackendAdminWorkflowDefinitionSummaryDto,
+  BackendAdminWorkflowDefinitionVersionDetailDto,
+  BackendAdminWorkflowDefinitionVersionSummaryDto,
 } from "./api/backendDtos";
 
 export async function getAdminDirectoryStatus(): Promise<AdminDirectorySyncStatus> {
@@ -325,4 +333,124 @@ export async function updateAdminRoleAnswerDefaults(payload: {
     method: "PATCH",
     body: payload,
   });
+}
+
+export async function getAdminWorkflowDefinitions(): Promise<AdminWorkflowDefinitionSummary[]> {
+  return requestJson<BackendAdminWorkflowDefinitionSummaryDto[]>("/admin/config/workflow-definitions");
+}
+
+export async function createAdminWorkflowDefinition(payload: {
+  key: string;
+  name: string;
+  description: string | null;
+}): Promise<AdminWorkflowDefinitionSummary> {
+  return requestJson<BackendAdminWorkflowDefinitionSummaryDto>("/admin/config/workflow-definitions", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function updateAdminWorkflowDefinition(
+  definitionId: number,
+  payload: {
+    name: string;
+    description: string | null;
+  }
+): Promise<AdminWorkflowDefinitionSummary> {
+  return requestJson<BackendAdminWorkflowDefinitionSummaryDto>(
+    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}`,
+    {
+      method: "PATCH",
+      body: payload,
+    }
+  );
+}
+
+export async function createAdminWorkflowDefinitionVersion(
+  definitionId: number,
+  payload: {
+    name: string | null;
+    description: string | null;
+  }
+): Promise<AdminWorkflowDefinitionVersionSummary> {
+  return requestJson<BackendAdminWorkflowDefinitionVersionSummaryDto>(
+    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}/versions`,
+    {
+      method: "POST",
+      body: payload,
+    }
+  );
+}
+
+export async function getAdminWorkflowDefinitionVersion(
+  versionId: number
+): Promise<AdminWorkflowDefinitionVersionDetail> {
+  return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
+    `/admin/config/workflow-definition-versions/${encodeURIComponent(String(versionId))}`
+  );
+}
+
+export async function replaceAdminWorkflowDefinitionVersion(
+  versionId: number,
+  payload: {
+    name: string | null;
+    description: string | null;
+    primaryLegacyProcessTypeKey: string | null;
+    nodes: Array<{
+      nodeKey: string | null;
+      nodeType: string | null;
+      title: string | null;
+      sortOrder: number;
+      positionX: number | null;
+      positionY: number | null;
+      config: unknown | null;
+      actions: Array<{
+        actionKey: string | null;
+        inputMapping: unknown | null;
+        executionOrder: number;
+        onErrorBehavior: string | null;
+      }>;
+    }>;
+    edges: Array<{
+      sourceNodeKey: string | null;
+      targetNodeKey: string | null;
+      priority: number;
+      conditionExpression: string | null;
+    }>;
+  }
+): Promise<AdminWorkflowDefinitionVersionDetail> {
+  return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
+    `/admin/config/workflow-definition-versions/${encodeURIComponent(String(versionId))}`,
+    {
+      method: "PUT",
+      body: payload,
+    }
+  );
+}
+
+export async function publishAdminWorkflowDefinitionVersion(
+  versionId: number
+): Promise<AdminWorkflowDefinitionVersionDetail> {
+  return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
+    `/admin/config/workflow-definition-versions/${encodeURIComponent(String(versionId))}/publish`,
+    {
+      method: "POST",
+      body: {},
+    }
+  );
+}
+
+export async function getAdminWorkflowActionDefinitions(): Promise<AdminWorkflowActionDefinition[]> {
+  const definitions = await requestJson<BackendAdminWorkflowActionDefinitionDto[]>("/admin/config/action-definitions");
+  return definitions.map((definition) => ({
+    id: definition.id,
+    actionKey: definition.key,
+    displayName: definition.name,
+    description: definition.description,
+    handlerKey: definition.handlerType,
+    isIdempotent: definition.isIdempotent,
+    isActive: definition.isActive,
+    requiresApproval: definition.requiresApproval,
+    inputSchema: definition.parameterSchema,
+  }));
 }

@@ -55,7 +55,8 @@ internal static class LifecycleStartupValidationExtensions
         ValidateSwaggerConfiguration(logger, runtimeSettings);
         ValidateEntraConfiguration(logger, runtimeSettings);
         ValidateProductionPublicUrls(configuration, runtimeSettings, logger);
-        var validationService = app.Services.GetRequiredService<IWorkflowDefinitionValidationService>();
+        using var scope = app.Services.CreateScope();
+        var validationService = scope.ServiceProvider.GetRequiredService<IWorkflowDefinitionValidationService>();
         ValidateDatabaseConfigurationAsync(logger, runtimeSettings, validationService).GetAwaiter().GetResult();
         return app;
     }
@@ -417,7 +418,8 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
                     NodeType = reader.GetString(4),
                     Title = reader.IsDBNull(5) ? null : reader.GetString(5),
                     SortOrder = reader.GetInt32(6),
-                    Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+                    Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7)),
+                    Actions = new List<WorkflowNodeActionDto>()
                 });
             }
 
@@ -443,6 +445,57 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
         }
 
         await reader.CloseAsync();
+
+        const string actionSql = """
+SELECT
+    d.definition_key,
+    v.version_number,
+    n.node_key,
+    ad.action_key,
+    wna.input_mapping_json::text,
+    wna.execution_order,
+    wna.on_error_behavior
+FROM workflow_definition_versions v
+INNER JOIN workflow_definitions d
+    ON d.id = v.workflow_definition_id
+INNER JOIN workflow_nodes n
+    ON n.workflow_definition_version_id = v.id
+INNER JOIN workflow_node_actions wna
+    ON wna.workflow_node_id = n.id
+INNER JOIN action_definitions ad
+    ON ad.id = wna.action_definition_id
+WHERE v.status = 'published'
+ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, wna.execution_order, wna.id;
+""";
+
+        await using (var actionCommand = new NpgsqlCommand(actionSql, connection))
+        await using (var actionReader = await actionCommand.ExecuteReaderAsync())
+        {
+            while (await actionReader.ReadAsync())
+            {
+                var recordKey = $"{actionReader.GetString(0)}::{actionReader.GetInt32(1)}";
+                if (!definitions.TryGetValue(recordKey, out var definition))
+                {
+                    continue;
+                }
+
+                var nodeKey = actionReader.GetString(2);
+                var node = definition.Nodes.FirstOrDefault(existing =>
+                    string.Equals(existing.NodeKey, nodeKey, StringComparison.Ordinal));
+                if (node is null)
+                {
+                    continue;
+                }
+
+                node.Actions.Add(new WorkflowNodeActionDto
+                {
+                    ActionKey = actionReader.GetString(3),
+                    InputMapping = actionReader.IsDBNull(4) ? null : ParseJsonElement(actionReader.GetString(4)),
+                    ExecutionOrder = actionReader.GetInt32(5),
+                    OnErrorBehavior = actionReader.GetString(6)
+                });
+            }
+        }
 
         foreach (var definition in definitions.Values)
         {
@@ -492,6 +545,29 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
                         Message = $"Node '{node.NodeKey}' references unknown or inactive legacyTemplateKey '{templateKey}'.",
                         ReferenceKey = node.NodeKey
                     });
+                }
+
+                if (string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (var action in node.Actions)
+                    {
+                        if (string.IsNullOrWhiteSpace(action.ActionKey))
+                        {
+                            continue;
+                        }
+
+                        if (!await ActionDefinitionExists(connection, action.ActionKey, requireActive: true))
+                        {
+                            definition.ReferenceIssues.Add(new WorkflowDefinitionValidationIssue
+                            {
+                                Code = "unknown_action_definition",
+                                Severity = "error",
+                                Scope = "workflow_node",
+                                Message = $"Node '{node.NodeKey}' references unknown or inactive action '{action.ActionKey}'.",
+                                ReferenceKey = node.NodeKey
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -556,6 +632,25 @@ LIMIT 1;
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("templateKey", templateKey.Trim().ToLowerInvariant());
+        command.Parameters.AddWithValue("requireActive", requireActive);
+        return await command.ExecuteScalarAsync() is not null;
+    }
+
+    private static async Task<bool> ActionDefinitionExists(
+        NpgsqlConnection connection,
+        string actionKey,
+        bool requireActive)
+    {
+        const string sql = """
+SELECT 1
+FROM action_definitions
+WHERE LOWER(action_key) = LOWER(@actionKey)
+  AND (@requireActive = FALSE OR is_active = TRUE)
+LIMIT 1;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("actionKey", actionKey.Trim());
         command.Parameters.AddWithValue("requireActive", requireActive);
         return await command.ExecuteScalarAsync() is not null;
     }

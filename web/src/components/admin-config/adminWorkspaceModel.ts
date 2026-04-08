@@ -10,6 +10,7 @@ export type AdminWorkspaceSection =
   | "overview"
   | "organization"
   | "templates"
+  | "builder"
   | "answers"
   | "defaults"
   | "access"
@@ -130,6 +131,25 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     affectedObjects: ["Aufgabenvorlagen", "Abhängigkeiten", "Bedingungen und Vorgangslogik"],
     impactNote: "Änderungen wirken in der Regel auf neue Vorgänge. Laufende Vorgänge übernehmen diese Logik normalerweise nicht rückwirkend.",
     riskNote: "Falsch gesetzte Bedingungen oder Abhängigkeiten können dazu führen, dass Aufgaben zu früh, zu spät oder gar nicht erscheinen.",
+  },
+  {
+    key: "builder",
+    label: "Workflow Builder",
+    description: "Workflow-Definitionen, Versionen, Nodes und Edges gefuehrt konfigurieren.",
+    navLabel: "Workflow Builder",
+    navDescription: "Versionierte Workflow-Definitionen als Draft pflegen und veroeffentlichen.",
+    area: "configuration",
+    introTitle: "Workflow-Definitionen gefuehrt modellieren",
+    introDescription:
+      "Hier entsteht der erste formularbasierte Builder fuer versionierte Workflow-Definitionen inklusive Nodes, Edges, Validierung und Veroeffentlichung.",
+    whatYouCanDo: [
+      "Workflow-Definitionen anlegen und Versionen als Draft pflegen",
+      "Nodes und Kanten ohne freien JSON-Grafikeditor bearbeiten",
+      "Validierungsfehler pruefen und gueltige Drafts veroeffentlichen",
+    ],
+    affectedObjects: ["Workflow-Definitionen", "Versionen", "Runtime-faehige Node- und Edge-Strukturen"],
+    impactNote: "Aenderungen wirken zunaechst auf Drafts und erst nach Publish auf neu gestartete Runtime-Instanzen.",
+    riskNote: "Ungespeicherte Entwurfsstaende gehen beim Wechsel verloren. Publish sollte erst nach gepruefter Validierung erfolgen.",
   },
   {
     key: "answers",
@@ -258,13 +278,6 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
     sections: ["organization"],
   },
   {
-    key: "configuration",
-    label: "Vorgangsaufbau",
-    description: "Aufgaben, Felder und Vorgaben für neue Vorgänge definieren.",
-    defaultSection: "templates",
-    sections: ["templates", "answers", "defaults"],
-  },
-  {
     key: "access",
     label: "App-Zugriff",
     description: "Rechte, Gruppen und Verzeichnisanbindung gemeinsam steuern.",
@@ -313,14 +326,16 @@ export function getAdminWorkspacePresentationSection(section: AdminWorkspaceSect
 export function normalizeAdminWorkspaceSection(value: string | null): AdminWorkspaceSection {
   switch ((value ?? "").trim().toLowerCase()) {
     case "organization":
-    case "templates":
-    case "answers":
-    case "defaults":
+    case "builder":
     case "access":
     case "directory":
     case "system":
     case "operations":
       return value!.trim().toLowerCase() as AdminWorkspaceSection;
+    case "templates":
+    case "answers":
+    case "defaults":
+      return "builder";
     default:
       return "overview";
   }

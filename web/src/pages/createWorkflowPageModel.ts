@@ -1,4 +1,10 @@
-import type { EmployeeFormData, ProcessType, Role, WorkflowConfig, WorkflowTargetPersonSource } from "../types/workflow";
+import type {
+  EmployeeFormData,
+  Role,
+  StartableWorkflowDefinition,
+  WorkflowConfig,
+  WorkflowTargetPersonSource,
+} from "../types/workflow";
 import type { WorkflowCreationStep } from "../hooks/useWorkflowCreation";
 
 export type StepDefinition = {
@@ -9,9 +15,9 @@ export type StepDefinition = {
 type CreateWorkflowPageViewModelArgs = {
   currentStep: WorkflowCreationStep;
   capabilities: { hasHrRole: boolean; hasAdminRole: boolean };
-  selectedProcessType: ProcessType | null;
-  selectedProcessTypeKey: string | null;
-  processTypes: ProcessType[];
+  selectedWorkflowDefinition: StartableWorkflowDefinition | null;
+  selectedWorkflowDefinitionKey: string | null;
+  workflowDefinitions: StartableWorkflowDefinition[];
   requiresTargetPerson: boolean;
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
@@ -28,9 +34,9 @@ type CreateWorkflowPageViewModelArgs = {
 export function buildCreateWorkflowPageViewModel({
   currentStep,
   capabilities,
-  selectedProcessType,
-  selectedProcessTypeKey,
-  processTypes,
+  selectedWorkflowDefinition,
+  selectedWorkflowDefinitionKey,
+  workflowDefinitions,
   requiresTargetPerson,
   employee,
   selectedDepartmentId,
@@ -44,7 +50,7 @@ export function buildCreateWorkflowPageViewModel({
   workflowConfig,
 }: CreateWorkflowPageViewModelArgs) {
   const isHrEntry = capabilities.hasHrRole || capabilities.hasAdminRole;
-  const pageTitle = isHrEntry ? "Neuer Vorgang" : "Änderung starten";
+  const pageTitle = isHrEntry ? "Neuer Workflow" : "Änderung starten";
   const contextStepTitle = requiresTargetPerson ? "Bestehende Person wählen" : "Neue Person erfassen";
   const reviewPersonLabel = requiresTargetPerson ? "Zielperson" : "Neue Person";
   const reviewDepartmentLabel = requiresTargetPerson ? "Aktuelle Abteilung" : "Abteilung";
@@ -60,7 +66,7 @@ export function buildCreateWorkflowPageViewModel({
         selectedTargetPersonSource.employeeNumber <= 0 ||
         selectedTargetPersonSource.badgeNumber <= 0)
   );
-  const processStepIssues = selectedProcessType ? [] : ["Bitte einen Vorgang wählen."];
+  const processStepIssues = selectedWorkflowDefinition ? [] : ["Bitte einen Workflow wählen."];
   const employeeFieldErrors = requiresTargetPerson
     ? {}
     : {
@@ -96,7 +102,7 @@ export function buildCreateWorkflowPageViewModel({
       ];
 
   const steps: StepDefinition[] = [
-    { key: "process", title: "Vorgang wählen" },
+    { key: "process", title: "Workflow wählen" },
     { key: "context", title: contextStepTitle },
     { key: "review", title: "Prüfen und anlegen" },
   ];
@@ -117,7 +123,7 @@ export function buildCreateWorkflowPageViewModel({
     contextStepIssues,
     steps,
     currentStepIndex: steps.findIndex((step) => step.key === currentStep),
-    hasProcessTypes: processTypes.length > 0,
-    isProcessSelected: Boolean(selectedProcessTypeKey),
+    hasWorkflowDefinitions: workflowDefinitions.length > 0,
+    isWorkflowSelected: Boolean(selectedWorkflowDefinitionKey),
   };
 }

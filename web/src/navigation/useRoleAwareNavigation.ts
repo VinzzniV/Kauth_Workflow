@@ -83,6 +83,14 @@ const clipboardListIcon = createIcon(
   createElement("path", { d: "M9 13.5h6" }),
   createElement("path", { d: "M9 17h3.5" })
 );
+const workflowBuilderIcon = createIcon(
+  createElement("circle", { cx: "6.5", cy: "6.5", r: "1.5", fill: "currentColor", stroke: "none" }),
+  createElement("circle", { cx: "17.5", cy: "6.5", r: "1.5", fill: "currentColor", stroke: "none" }),
+  createElement("circle", { cx: "12", cy: "17.5", r: "1.5", fill: "currentColor", stroke: "none" }),
+  createElement("path", { d: "M8 7h8" }),
+  createElement("path", { d: "M7.5 8 11 16" }),
+  createElement("path", { d: "M16.5 8 13 16" })
+);
 const cogIcon = createIcon(
   createElement("circle", { cx: "12", cy: "12", r: "2.75" }),
   createElement("path", {
@@ -112,6 +120,13 @@ const ACTIONS = {
     description: "Einen Änderungsprozess für Mitarbeitende starten.",
     feature: "workflowCreate",
     icon: plusCircleIcon,
+  },
+  workflowBuilder: {
+    to: "/builder",
+    label: "Workflow Builder",
+    description: "Workflow-Definitionen visuell bauen und Drafts pflegen.",
+    feature: "workflowBuilder",
+    icon: workflowBuilderIcon,
   },
   hrWorkflows: {
     to: "/workflows",
@@ -189,6 +204,7 @@ function collectActionKeys(args: {
   addKey("dashboard", canAccessFeature("dashboard"));
   addKey("hrCreate", capabilities.hasHrRole && canAccessFeature("workflowCreate"));
   addKey("managerCreate", capabilities.hasManagerRole && !capabilities.hasHrRole && canAccessFeature("workflowCreate"));
+  addKey("workflowBuilder", canAccessFeature("workflowBuilder"));
   addKey("hrWorkflows", canAccessFeature("workflowOverview"));
 
   if (surface === "header") {

@@ -4,6 +4,7 @@ namespace API;
 
 internal sealed class WorkflowRuntimeService(
     IWorkflowRepository repository,
+    IWorkflowDefinitionRuntimeRepository workflowDefinitionRuntimeRepository,
     IAuthorizationPolicyService authorizationPolicyService,
     IWorkflowVisibilityService workflowVisibilityService,
     IWorkflowNotificationDispatchService workflowNotificationDispatchService,
@@ -23,32 +24,8 @@ internal sealed class WorkflowRuntimeService(
         CurrentUser currentUser,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.ProcessTypeKey))
-        {
-            throw new InvalidOperationException("Der Prozesstyp ist erforderlich.");
-        }
-
-        var normalizedProcessTypeKey = request.ProcessTypeKey.Trim().ToLowerInvariant();
-        var managerCreatableProcessType = await repository.IsManagerCreatableProcessType(normalizedProcessTypeKey);
-        if (!authorizationPolicyService.CanCreateWorkflowForProcessType(currentUser, normalizedProcessTypeKey, managerCreatableProcessType))
-        {
-            logger.LogWarning("User {UserId} denied workflow creation for process type {ProcessTypeKey}: insufficient role.",
-                currentUser.UserId, normalizedProcessTypeKey);
-            throw new UnauthorizedAccessException("Der gewählte Prozesstyp ist für Ihre Rolle nicht freigegeben.");
-        }
-
-        var selectedProcessType = (await repository.GetActiveProcessTypes())
-            .FirstOrDefault(processType => string.Equals(processType.Key, normalizedProcessTypeKey, StringComparison.OrdinalIgnoreCase));
-        if (selectedProcessType is null)
-        {
-            throw new InvalidOperationException($"Unbekannter oder inaktiver Prozesstyp '{normalizedProcessTypeKey}'.");
-        }
-
-        var requestValidationError = ValidateCreateWorkflowRequest(request, selectedProcessType);
-        if (requestValidationError is not null)
-        {
-            throw new InvalidOperationException(requestValidationError);
-        }
+        var startableDefinitions = await repository.GetStartableWorkflowDefinitions();
+        var selectedDefinition = ResolveRequestedWorkflowDefinition(request, startableDefinitions);
 
         var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
 
@@ -73,15 +50,23 @@ internal sealed class WorkflowRuntimeService(
         }
 
         var requestedDepartmentId = request.DepartmentId ?? targetPersonHistory?.DepartmentId;
+        var normalizedLegacyProcessTypeKey = string.IsNullOrWhiteSpace(request.ProcessTypeKey)
+            ? null
+            : request.ProcessTypeKey.Trim().ToLowerInvariant();
+        var primaryPermissionKey = selectedDefinition?.DefinitionKey ?? normalizedLegacyProcessTypeKey;
+        var legacyPermissionKey = selectedDefinition?.PrimaryLegacyProcessTypeKey ?? normalizedLegacyProcessTypeKey;
         if (requestedDepartmentId.HasValue
-            && authorizationPolicyService.HasPermission(currentUser, AuthorizationPermissions.WorkflowCreate(normalizedProcessTypeKey))
-            && !authorizationPolicyService.HasPermission(currentUser, AuthorizationPermissions.WorkflowCreate(normalizedProcessTypeKey), requestedDepartmentId.Value)
+            && HasUnscopedWorkflowCreatePermission(currentUser, primaryPermissionKey, legacyPermissionKey)
+            && !HasScopedWorkflowCreatePermission(currentUser, requestedDepartmentId.Value, primaryPermissionKey, legacyPermissionKey)
             && !authorizationPolicyService.HasPermission(currentUser, AuthorizationPermissions.WorkflowsViewAll)
             && !authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Hr, AuthorizationRoles.Admin))
         {
-            logger.LogWarning("User {UserId} denied workflow creation for process type {ProcessTypeKey}: department {DepartmentId} not permitted.",
-                currentUser.UserId, normalizedProcessTypeKey, requestedDepartmentId.Value);
-            throw new UnauthorizedAccessException("Der gewählte Vorgang ist nicht für die ausgewählte Abteilung freigegeben.");
+            logger.LogWarning(
+                "User {UserId} denied workflow creation for key {WorkflowKey}: department {DepartmentId} not permitted.",
+                currentUser.UserId,
+                primaryPermissionKey,
+                requestedDepartmentId.Value);
+            throw new UnauthorizedAccessException("Der gewählte Workflow ist nicht für die ausgewählte Abteilung freigegeben.");
         }
 
         if (request.DeadlineDate.HasValue && request.DeadlineDate.Value < DateOnly.FromDateTime(DateTime.Today))
@@ -89,13 +74,94 @@ internal sealed class WorkflowRuntimeService(
             throw new InvalidOperationException("Die Deadline darf nicht in der Vergangenheit liegen.");
         }
 
-        var creation = await repository.CreateWorkflow(request, currentUser.UserId);
-        await workflowNotificationDispatchService.DispatchWorkflowCreatedNotificationsAsync(
-            creation.Uid,
-            creation.NotificationTargets,
-            cancellationToken);
+        Guid workflowUid;
+        if (selectedDefinition is not null)
+        {
+            var managerCreatableDefinition = await repository.IsManagerCreatableProcessType(selectedDefinition.PrimaryLegacyProcessTypeKey);
+            if (!CanCreateWorkflowDefinition(currentUser, selectedDefinition.DefinitionKey, selectedDefinition.PrimaryLegacyProcessTypeKey, managerCreatableDefinition))
+            {
+                logger.LogWarning(
+                    "User {UserId} denied workflow creation for definition {DefinitionKey}: insufficient role.",
+                    currentUser.UserId,
+                    selectedDefinition.DefinitionKey);
+                throw new UnauthorizedAccessException("Der gewählte Workflow ist für Ihre Rolle nicht freigegeben.");
+            }
 
-        var workflow = await repository.GetWorkflowByUid(creation.Uid);
+            var requestValidationError = ValidateCreateWorkflowRequest(
+                request,
+                selectedDefinition.Name,
+                selectedDefinition.RequiresTargetPerson);
+            if (requestValidationError is not null)
+            {
+                throw new InvalidOperationException(requestValidationError);
+            }
+
+            var created = await workflowDefinitionRuntimeRepository.CreateWorkflowDefinitionInstance(
+                new CreateWorkflowDefinitionInstanceRequest
+                {
+                    WorkflowDefinitionKey = selectedDefinition.DefinitionKey,
+                    DepartmentId = request.DepartmentId,
+                    RoleId = request.RoleId,
+                    TargetPersonId = request.TargetPersonId,
+                    SourceWorkflowUid = request.SourceWorkflowUid,
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    EmployeeNumber = request.EmployeeNumber,
+                    BadgeNumber = request.BadgeNumber,
+                    DeadlineDate = request.DeadlineDate
+                },
+                currentUser.UserId);
+
+            workflowUid = created.WorkflowUid;
+            await workflowNotificationDispatchService.DispatchWorkflowCreatedNotificationsAsync(
+                workflowUid,
+                await repository.GetWorkflowCreatedNotificationDispatchTargets(workflowUid),
+                cancellationToken);
+            await workflowNotificationDispatchService.DispatchReadyTaskNotificationsAsync(
+                workflowUid,
+                cancellationToken);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(normalizedLegacyProcessTypeKey))
+            {
+                throw new InvalidOperationException("workflowDefinitionKey oder processTypeKey ist erforderlich.");
+            }
+
+            var normalizedProcessTypeKey = normalizedLegacyProcessTypeKey;
+            var managerCreatableProcessType = await repository.IsManagerCreatableProcessType(normalizedProcessTypeKey);
+            if (!authorizationPolicyService.CanCreateWorkflowForProcessType(currentUser, normalizedProcessTypeKey, managerCreatableProcessType))
+            {
+                logger.LogWarning("User {UserId} denied workflow creation for process type {ProcessTypeKey}: insufficient role.",
+                    currentUser.UserId, normalizedProcessTypeKey);
+                throw new UnauthorizedAccessException("Der gewählte Prozesstyp ist für Ihre Rolle nicht freigegeben.");
+            }
+
+            var selectedProcessType = (await repository.GetActiveProcessTypes())
+                .FirstOrDefault(processType => string.Equals(processType.Key, normalizedProcessTypeKey, StringComparison.OrdinalIgnoreCase));
+            if (selectedProcessType is null)
+            {
+                throw new InvalidOperationException($"Unbekannter oder inaktiver Prozesstyp '{normalizedProcessTypeKey}'.");
+            }
+
+            var requestValidationError = ValidateCreateWorkflowRequest(
+                request,
+                selectedProcessType.Name,
+                selectedProcessType.RequiresTargetPerson);
+            if (requestValidationError is not null)
+            {
+                throw new InvalidOperationException(requestValidationError);
+            }
+
+            var creation = await repository.CreateWorkflow(request, currentUser.UserId);
+            workflowUid = creation.Uid;
+            await workflowNotificationDispatchService.DispatchWorkflowCreatedNotificationsAsync(
+                creation.Uid,
+                creation.NotificationTargets,
+                cancellationToken);
+        }
+
+        var workflow = await repository.GetWorkflowByUid(workflowUid);
         if (workflow is null)
         {
             throw new WorkflowRuntimeConsistencyException("Workflow was created but could not be loaded afterwards.");
@@ -107,12 +173,12 @@ internal sealed class WorkflowRuntimeService(
         var failedNotifications = workflow.Notifications.Count(notification => notification.Status == "failed");
 
         logger.LogInformation(
-            "Workflow {WorkflowUid} created by user {UserId} (process: {ProcessTypeKey}, tasks: {TaskCount}, notifications: {NotificationCount}, failed: {FailedNotifications}).",
-            creation.Uid, currentUser.UserId, normalizedProcessTypeKey, taskCount, workflow.Notifications.Count, failedNotifications);
+            "Workflow {WorkflowUid} created by user {UserId} (tasks: {TaskCount}, notifications: {NotificationCount}, failed: {FailedNotifications}).",
+            workflowUid, currentUser.UserId, taskCount, workflow.Notifications.Count, failedNotifications);
 
         return new WorkflowCreateResponse
         {
-            Uid = creation.Uid,
+            Uid = workflowUid,
             NotificationTargets = workflow.Notifications.Count,
             FailedNotifications = failedNotifications,
             Summary = new WorkflowCreateSummaryDto
@@ -330,38 +396,123 @@ internal sealed class WorkflowRuntimeService(
 
     private static string? ValidateCreateWorkflowRequest(
         CreateWorkflowRequest request,
-        WorkflowProcessTypeDto selectedProcessType)
+        string workflowLabel,
+        bool requiresTargetPerson)
     {
-        if (selectedProcessType.RequiresTargetPerson)
+        if (requiresTargetPerson)
         {
             return request.TargetPersonId.HasValue
                 ? null
-                : $"Der Prozesstyp '{selectedProcessType.Name}' erfordert eine bestehende Zielperson.";
+                : $"Der Workflow '{workflowLabel}' erfordert eine bestehende Zielperson.";
         }
 
         if (request.TargetPersonId.HasValue)
         {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' darf nicht mit einer bestehenden Zielperson angelegt werden.";
+            return $"Der Workflow '{workflowLabel}' darf nicht mit einer bestehenden Zielperson angelegt werden.";
         }
 
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
         {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert Vorname und Nachname der neuen Person.";
+            return $"Der Workflow '{workflowLabel}' erfordert Vorname und Nachname der neuen Person.";
         }
 
         if (!request.EmployeeNumber.HasValue || request.EmployeeNumber.Value <= 0)
         {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert eine gültige Personalnummer.";
+            return $"Der Workflow '{workflowLabel}' erfordert eine gültige Personalnummer.";
         }
 
         if (!request.BadgeNumber.HasValue || request.BadgeNumber.Value <= 0)
         {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert eine gültige Kartennummer.";
+            return $"Der Workflow '{workflowLabel}' erfordert eine gültige Kartennummer.";
         }
 
         if (!request.DepartmentId.HasValue || !request.RoleId.HasValue)
         {
-            return $"Der Prozesstyp '{selectedProcessType.Name}' erfordert Abteilung und Stelle.";
+            return $"Der Workflow '{workflowLabel}' erfordert Abteilung und Stelle.";
+        }
+
+        return null;
+    }
+
+    private bool CanCreateWorkflowDefinition(
+        CurrentUser currentUser,
+        string workflowDefinitionKey,
+        string? primaryLegacyProcessTypeKey,
+        bool managerCreatableDefinition)
+    {
+        if (authorizationPolicyService.HasPermission(
+                currentUser,
+                AuthorizationPermissions.WorkflowCreate(workflowDefinitionKey)))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryLegacyProcessTypeKey)
+            && authorizationPolicyService.HasPermission(
+                currentUser,
+                AuthorizationPermissions.WorkflowCreate(primaryLegacyProcessTypeKey)))
+        {
+            return true;
+        }
+
+        if (authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Admin, AuthorizationRoles.Hr))
+        {
+            return true;
+        }
+
+        return managerCreatableDefinition
+            && authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Manager);
+    }
+
+    private bool HasUnscopedWorkflowCreatePermission(
+        CurrentUser currentUser,
+        string? workflowDefinitionKey,
+        string? legacyProcessTypeKey)
+    {
+        return HasWorkflowCreatePermission(currentUser, workflowDefinitionKey)
+            || HasWorkflowCreatePermission(currentUser, legacyProcessTypeKey);
+    }
+
+    private bool HasScopedWorkflowCreatePermission(
+        CurrentUser currentUser,
+        int departmentId,
+        string? workflowDefinitionKey,
+        string? legacyProcessTypeKey)
+    {
+        return HasWorkflowCreatePermission(currentUser, workflowDefinitionKey, departmentId)
+            || HasWorkflowCreatePermission(currentUser, legacyProcessTypeKey, departmentId);
+    }
+
+    private bool HasWorkflowCreatePermission(CurrentUser currentUser, string? workflowKey, int? departmentId = null)
+    {
+        if (string.IsNullOrWhiteSpace(workflowKey))
+        {
+            return false;
+        }
+
+        var permissionKey = AuthorizationPermissions.WorkflowCreate(workflowKey);
+        return departmentId.HasValue
+            ? authorizationPolicyService.HasPermission(currentUser, permissionKey, departmentId.Value)
+            : authorizationPolicyService.HasPermission(currentUser, permissionKey);
+    }
+
+    private static WorkflowStartableDefinitionDto? ResolveRequestedWorkflowDefinition(
+        CreateWorkflowRequest request,
+        IReadOnlyList<WorkflowStartableDefinitionDto> definitions)
+    {
+        if (!string.IsNullOrWhiteSpace(request.WorkflowDefinitionKey))
+        {
+            var normalizedDefinitionKey = request.WorkflowDefinitionKey.Trim().ToLowerInvariant();
+            return definitions.FirstOrDefault(definition =>
+                string.Equals(definition.DefinitionKey, normalizedDefinitionKey, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ProcessTypeKey))
+        {
+            var normalizedProcessTypeKey = request.ProcessTypeKey.Trim().ToLowerInvariant();
+            return definitions.FirstOrDefault(definition =>
+                string.Equals(definition.DefinitionKey, normalizedProcessTypeKey, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(definition.PrimaryLegacyProcessTypeKey, normalizedProcessTypeKey, StringComparison.OrdinalIgnoreCase));
         }
 
         return null;

@@ -14,6 +14,7 @@ export type DashboardPersona = "admin" | "hr" | "manager" | "worker" | "reader" 
 export type AppFeature =
   | "dashboard"
   | "workflowCreate"
+  | "workflowBuilder"
   | "workflowOverview"
   | "workflowSearch"
   | "technicalTasks"
@@ -176,6 +177,7 @@ export function canAccessFeature(capabilities: RoleCapabilities, feature: AppFea
     case "dashboard":
       return capabilities.hasReadRole;
     case "workflowCreate":
+    case "workflowBuilder":
       return capabilities.canCreateWorkflow;
     case "workflowOverview":
     case "workflowSearch":

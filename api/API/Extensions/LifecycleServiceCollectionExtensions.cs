@@ -60,6 +60,7 @@ internal static class LifecycleServiceCollectionExtensions
         });
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();
         services.AddScoped<IWorkflowDefinitionRuntimeRepository, PostgresWorkflowRepository>();
+        services.AddScoped<IWorkflowAutomationRepository, PostgresWorkflowRepository>();
         services.AddScoped<IWorkflowDefinitionValidationService, WorkflowDefinitionValidationService>();
         services.AddHttpContextAccessor();
         services.AddSingleton(runtimeSettings);
@@ -114,6 +115,13 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IWorkflowCatalogService, WorkflowCatalogService>();
         services.AddScoped<IWorkflowRuntimeService, WorkflowRuntimeService>();
         services.AddScoped<IWorkflowDefinitionRuntimeService, WorkflowDefinitionRuntimeService>();
+        services.AddScoped<IWorkflowAutomationService, WorkflowAutomationService>();
+        services.AddSingleton<IWorkflowAutomationActionHandler, CreateAdUserAutomationHandler>();
+        services.AddSingleton<IWorkflowAutomationActionHandler, CreateMailboxAutomationHandler>();
+        services.AddSingleton<IWorkflowAutomationActionHandler, AssignGroupsAutomationHandler>();
+        services.AddSingleton<IWorkflowAutomationActionHandler, CreateErpEmployeeAutomationHandler>();
+        services.AddSingleton<IWorkflowAutomationActionHandler, SendWelcomeMailAutomationHandler>();
+        services.AddSingleton<IWorkflowAutomationHandlerRegistry, WorkflowAutomationHandlerRegistry>();
         services.AddScoped<ITaskApplicationService, TaskApplicationService>();
         services.AddScoped<ISupervisorStepService, PostgresSupervisorStepService>();
         services.Configure<NotificationEmailOptions>(
@@ -124,6 +132,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<INotificationEmailTestSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<IDirectorySyncService, EntraDirectorySyncService>();
         services.AddHostedService<DirectorySyncHostedService>();
+        services.AddHostedService<WorkflowAutomationHostedService>();
         services.AddHttpClient("health", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(3);

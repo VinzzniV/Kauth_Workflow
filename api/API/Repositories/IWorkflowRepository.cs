@@ -27,6 +27,7 @@ internal interface IWorkflowRepository
     Task<List<DepartmentDto>> GetDepartments();
     Task<List<RoleDto>> GetRoles();
     Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false);
+    Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions();
     Task<List<RequirementDto>> GetRequirements(string processTypeKey);
     Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey);
     Task<bool> IsManagerCreatableProcessType(string processTypeKey);
@@ -68,6 +69,7 @@ internal interface IWorkflowRepository
     Task<BulkOperationResultDto> BulkCreateDepartmentChangeWorkflows(BulkDepartmentChangeRequest request, long actorUserId);
     Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions();
     Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request);
+    Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request);
     Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(
         int definitionId,
         CreateWorkflowDefinitionVersionRequest request);

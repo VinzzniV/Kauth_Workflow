@@ -7,6 +7,51 @@ namespace API;
 internal sealed partial class PostgresWorkflowRepository
 {
     private const string WorkflowDefinitionDraftStatus = "draft";
+    private const string WorkflowDefinitionPublishedStatus = "published";
+
+    public async Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions()
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = """
+SELECT
+    d.definition_key,
+    COALESCE(NULLIF(BTRIM(v.name), ''), d.name) AS effective_name,
+    COALESCE(NULLIF(BTRIM(v.description), ''), d.description) AS effective_description,
+    pt.requires_target_person,
+    pt.key AS primary_legacy_process_type_key,
+    v.version_number
+FROM workflow_definition_versions v
+INNER JOIN workflow_definitions d
+    ON d.id = v.workflow_definition_id
+INNER JOIN process_types pt
+    ON pt.id = v.primary_legacy_process_type_id
+WHERE v.status = @publishedStatus
+  AND pt.is_active = TRUE
+ORDER BY effective_name, d.definition_key, v.version_number DESC;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("publishedStatus", WorkflowDefinitionPublishedStatus);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var definitions = new List<WorkflowStartableDefinitionDto>();
+        while (await reader.ReadAsync())
+        {
+            definitions.Add(new WorkflowStartableDefinitionDto
+            {
+                DefinitionKey = reader.GetString(0),
+                Name = reader.GetString(1),
+                Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                RequiresTargetPerson = reader.GetBoolean(3),
+                PrimaryLegacyProcessTypeKey = reader.GetString(4),
+                LatestPublishedVersionNumber = reader.GetInt32(5)
+            });
+        }
+
+        return definitions;
+    }
 
     public async Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions()
     {
@@ -132,6 +177,46 @@ RETURNING id;
                 $"Workflow definition key '{definitionKey}' already exists.",
                 ex);
         }
+    }
+
+    public async Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(
+        int definitionId,
+        UpdateWorkflowDefinitionRequest request)
+    {
+        if (definitionId <= 0)
+        {
+            throw new InvalidOperationException("definitionId must be greater than zero.");
+        }
+
+        ArgumentNullException.ThrowIfNull(request);
+
+        var definitionName = NormalizeWorkflowDefinitionRequiredText(request.Name, "Name");
+        var description = NormalizeWorkflowDefinitionOptionalText(request.Description);
+
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        if (!await WorkflowDefinitionExists(connection, null, definitionId))
+        {
+            return null;
+        }
+
+        const string sql = """
+UPDATE workflow_definitions
+SET
+    name = @name,
+    description = @description,
+    updated_at = NOW()
+WHERE id = @definitionId;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("definitionId", definitionId);
+        command.Parameters.AddWithValue("name", definitionName);
+        command.Parameters.AddWithValue("description", (object?)description ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync();
+
+        return await GetAdminWorkflowDefinitionById(connection, null, definitionId);
     }
 
     public async Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(
@@ -284,14 +369,18 @@ INSERT INTO workflow_nodes (
     node_key,
     node_type,
     title,
-    sort_order
+    sort_order,
+    position_x,
+    position_y
 )
 VALUES (
     @versionId,
     @nodeKey,
     @nodeType,
     @title,
-    @sortOrder
+    @sortOrder,
+    @positionX,
+    @positionY
 )
 RETURNING id;
 """;
@@ -307,6 +396,23 @@ VALUES (
 );
 """;
 
+        const string insertNodeActionSql = """
+INSERT INTO workflow_node_actions (
+    workflow_node_id,
+    action_definition_id,
+    input_mapping_json,
+    execution_order,
+    on_error_behavior
+)
+VALUES (
+    @workflowNodeId,
+    @actionDefinitionId,
+    @inputMappingJson,
+    @executionOrder,
+    @onErrorBehavior
+);
+""";
+
         foreach (var node in validatedDraft.Nodes)
         {
             await using var insertNodeCommand = new NpgsqlCommand(insertNodeSql, connection, transaction);
@@ -315,6 +421,8 @@ VALUES (
             insertNodeCommand.Parameters.AddWithValue("nodeType", node.NodeType);
             insertNodeCommand.Parameters.AddWithValue("title", (object?)node.Title ?? DBNull.Value);
             insertNodeCommand.Parameters.AddWithValue("sortOrder", node.SortOrder);
+            insertNodeCommand.Parameters.AddWithValue("positionX", (object?)node.PositionX ?? DBNull.Value);
+            insertNodeCommand.Parameters.AddWithValue("positionY", (object?)node.PositionY ?? DBNull.Value);
 
             var createdNodeId = await insertNodeCommand.ExecuteScalarAsync();
             if (createdNodeId is not long workflowNodeId)
@@ -324,19 +432,38 @@ VALUES (
 
             nodeIdByKey.Add(node.NodeKey, workflowNodeId);
 
-            if (!node.Config.HasValue)
+            if (node.Config.HasValue)
             {
-                continue;
+                await using var insertConfigCommand = new NpgsqlCommand(insertConfigSql, connection, transaction);
+                insertConfigCommand.Parameters.AddWithValue("workflowNodeId", workflowNodeId);
+                insertConfigCommand.Parameters.Add(
+                    new NpgsqlParameter("configJson", NpgsqlDbType.Jsonb)
+                    {
+                        Value = JsonSerializer.Serialize(node.Config.Value)
+                    });
+                await insertConfigCommand.ExecuteNonQueryAsync();
             }
 
-            await using var insertConfigCommand = new NpgsqlCommand(insertConfigSql, connection, transaction);
-            insertConfigCommand.Parameters.AddWithValue("workflowNodeId", workflowNodeId);
-            insertConfigCommand.Parameters.Add(
-                new NpgsqlParameter("configJson", NpgsqlDbType.Jsonb)
-                {
-                    Value = JsonSerializer.Serialize(node.Config.Value)
-                });
-            await insertConfigCommand.ExecuteNonQueryAsync();
+            foreach (var action in node.Actions)
+            {
+                var actionDefinitionId = await ResolveActionDefinitionIdByKey(
+                    connection,
+                    transaction,
+                    action.ActionKey!,
+                    requireActive: false);
+
+                await using var insertActionCommand = new NpgsqlCommand(insertNodeActionSql, connection, transaction);
+                insertActionCommand.Parameters.AddWithValue("workflowNodeId", workflowNodeId);
+                insertActionCommand.Parameters.AddWithValue("actionDefinitionId", actionDefinitionId);
+                insertActionCommand.Parameters.Add(
+                    new NpgsqlParameter("inputMappingJson", NpgsqlDbType.Jsonb)
+                    {
+                        Value = action.InputMapping.HasValue ? JsonSerializer.Serialize(action.InputMapping.Value) : DBNull.Value
+                    });
+                insertActionCommand.Parameters.AddWithValue("executionOrder", action.ExecutionOrder);
+                insertActionCommand.Parameters.AddWithValue("onErrorBehavior", action.OnErrorBehavior);
+                await insertActionCommand.ExecuteNonQueryAsync();
+            }
         }
 
         const string insertEdgeSql = """
@@ -492,6 +619,7 @@ WHERE v.id = @versionId;
         NpgsqlTransaction? transaction,
         long versionId)
     {
+        var hasBuilderPositionColumns = await HasWorkflowNodePositionColumns(connection, transaction);
         const string headerSql = """
 SELECT
     v.id,
@@ -548,12 +676,30 @@ WHERE v.id = @versionId;
             };
         }
 
-        const string nodeSql = """
+        var nodeSql = hasBuilderPositionColumns
+            ? """
 SELECT
     n.node_key,
     n.node_type,
     n.title,
     n.sort_order,
+    n.position_x,
+    n.position_y,
+    nc.config_json::text
+FROM workflow_nodes n
+LEFT JOIN workflow_node_configs nc
+    ON nc.workflow_node_id = n.id
+WHERE n.workflow_definition_version_id = @versionId
+ORDER BY n.sort_order, n.node_key, n.id;
+"""
+            : """
+SELECT
+    n.node_key,
+    n.node_type,
+    n.title,
+    n.sort_order,
+    NULL::integer AS position_x,
+    NULL::integer AS position_y,
     nc.config_json::text
 FROM workflow_nodes n
 LEFT JOIN workflow_node_configs nc
@@ -575,9 +721,57 @@ ORDER BY n.sort_order, n.node_key, n.id;
                     NodeType = reader.GetString(1),
                     Title = reader.IsDBNull(2) ? null : reader.GetString(2),
                     SortOrder = reader.GetInt32(3),
-                    Config = reader.IsDBNull(4) ? null : ParseJsonElement(reader.GetString(4))
+                    PositionX = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                    PositionY = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    Config = reader.IsDBNull(6) ? null : ParseJsonElement(reader.GetString(6)),
+                    Actions = new List<WorkflowNodeActionDto>()
                 });
             }
+        }
+
+        const string actionSql = """
+SELECT
+    n.node_key,
+    ad.action_key,
+    wna.input_mapping_json::text,
+    wna.execution_order,
+    wna.on_error_behavior
+FROM workflow_node_actions wna
+INNER JOIN workflow_nodes n
+    ON n.id = wna.workflow_node_id
+INNER JOIN action_definitions ad
+    ON ad.id = wna.action_definition_id
+WHERE n.workflow_definition_version_id = @versionId
+ORDER BY n.sort_order, n.node_key, wna.execution_order, wna.id;
+""";
+
+        try
+        {
+            await using var actionCommand = new NpgsqlCommand(actionSql, connection, transaction);
+            actionCommand.Parameters.AddWithValue("versionId", versionId);
+            await using var reader = await actionCommand.ExecuteReaderAsync();
+
+            var nodeByKey = detail.Nodes.ToDictionary(node => node.NodeKey ?? string.Empty, StringComparer.Ordinal);
+            while (await reader.ReadAsync())
+            {
+                var nodeKey = reader.GetString(0);
+                if (!nodeByKey.TryGetValue(nodeKey, out var node))
+                {
+                    continue;
+                }
+
+                node.Actions.Add(new WorkflowNodeActionDto
+                {
+                    ActionKey = reader.GetString(1),
+                    InputMapping = reader.IsDBNull(2) ? null : ParseJsonElement(reader.GetString(2)),
+                    ExecutionOrder = reader.GetInt32(3),
+                    OnErrorBehavior = reader.GetString(4)
+                });
+            }
+        }
+        catch (PostgresException ex) when (IsMissingWorkflowBuilderAutomationSchema(ex))
+        {
+            // Old local schemas may not have the automation tables yet.
         }
 
         const string edgeSql = """
@@ -691,6 +885,26 @@ ORDER BY source_node.node_key, e.priority, target_node.node_key, e.id;
                         $"Node '{node.NodeKey}' references unknown or inactive legacyTemplateKey '{templateKey}'.",
                         "workflow_node",
                         node.NodeKey));
+                }
+            }
+
+            if (string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var action in node.Actions)
+                {
+                    if (string.IsNullOrWhiteSpace(action.ActionKey))
+                    {
+                        continue;
+                    }
+
+                    if (!await ActionDefinitionExists(connection, transaction, action.ActionKey, requireActive: true))
+                    {
+                        referenceIssues.Add(CreateDefinitionReferenceIssue(
+                            "unknown_action_definition",
+                            $"Node '{node.NodeKey}' references unknown or inactive action '{action.ActionKey}'.",
+                            "workflow_node",
+                            node.NodeKey));
+                    }
                 }
             }
         }
@@ -839,6 +1053,23 @@ FOR UPDATE;
     {
         using var document = JsonDocument.Parse(json);
         return document.RootElement.Clone();
+    }
+
+    private static async Task<bool> HasWorkflowNodePositionColumns(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction)
+    {
+        const string sql = """
+SELECT COUNT(*)
+FROM information_schema.columns
+WHERE table_schema = current_schema()
+  AND table_name = 'workflow_nodes'
+  AND column_name IN ('position_x', 'position_y');
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        var scalar = await command.ExecuteScalarAsync();
+        return scalar is long count && count >= 2;
     }
 
     private static string NormalizeWorkflowDefinitionRequiredText(string? value, string fieldName)

@@ -46,3 +46,5 @@
 \i /docker-entrypoint-sql/42_workflow_runtime_layer.sql
 \i /docker-entrypoint-sql/43_workflow_definition_mappings.sql
 \i /docker-entrypoint-sql/44_runtime_task_bridge.sql
+\i /docker-entrypoint-sql/45_automation_layer.sql
+\i /docker-entrypoint-sql/46_workflow_builder_positions.sql

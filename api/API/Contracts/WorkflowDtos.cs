@@ -120,7 +120,8 @@ public sealed class RequirementSelectionInputDto
 
 public sealed class CreateWorkflowRequest
 {
-    public required string ProcessTypeKey { get; init; }
+    public string? WorkflowDefinitionKey { get; init; }
+    public string? ProcessTypeKey { get; init; }
     public int? DepartmentId { get; init; }
     public int? RoleId { get; init; }
     public long? TargetPersonId { get; init; }

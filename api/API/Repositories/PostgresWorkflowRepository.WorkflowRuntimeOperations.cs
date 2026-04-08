@@ -6,7 +6,6 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    private const string WorkflowDefinitionPublishedStatus = "published";
     private const string WorkflowDefinitionRetiredStatus = "retired";
     private const string RuntimeStatusRunning = "running";
     private const string RuntimeStatusWaitingOnNode = "waiting_on_node";
@@ -350,6 +349,15 @@ RETURNING id, uid;
             startNode,
             await LoadStoredAnswersByKey(connection, transaction, workflowId),
             createdByUserId);
+
+        await CreateWorkflowNotifications(
+            connection,
+            transaction,
+            workflowId,
+            departmentId,
+            processType.RequiresSupervisorStep,
+            publishedVersion.WorkflowDefinitionKey,
+            publishedVersion.WorkflowDefinitionName);
 
         await transaction.CommitAsync();
 
@@ -853,11 +861,60 @@ ORDER BY e.source_workflow_node_id, e.priority, e.id;
             }
         }
 
+        const string actionSql = """
+SELECT
+    wna.workflow_node_id,
+    wna.id,
+    wna.action_definition_id,
+    wna.execution_order,
+    wna.on_error_behavior,
+    wna.input_mapping_json::text,
+    ad.action_key,
+    ad.name,
+    ad.handler_type,
+    ad.is_idempotent
+FROM workflow_node_actions wna
+INNER JOIN action_definitions ad ON ad.id = wna.action_definition_id
+INNER JOIN workflow_nodes n ON n.id = wna.workflow_node_id
+WHERE n.workflow_definition_version_id = @versionId
+ORDER BY wna.workflow_node_id, wna.execution_order, wna.id;
+""";
+
+        var nodeActionsByNodeId = new Dictionary<long, List<WorkflowNodeActionRecord>>();
+        await using (var actionCommand = new NpgsqlCommand(actionSql, connection, transaction))
+        {
+            actionCommand.Parameters.AddWithValue("versionId", versionId);
+            await using var reader = await actionCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var workflowNodeId = reader.GetInt64(0);
+                if (!nodeActionsByNodeId.TryGetValue(workflowNodeId, out var actions))
+                {
+                    actions = new List<WorkflowNodeActionRecord>();
+                    nodeActionsByNodeId.Add(workflowNodeId, actions);
+                }
+
+                actions.Add(new WorkflowNodeActionRecord
+                {
+                    Id = reader.GetInt64(1),
+                    ActionDefinitionId = reader.GetInt64(2),
+                    ExecutionOrder = reader.GetInt32(3),
+                    OnErrorBehavior = reader.GetString(4),
+                    InputMapping = reader.IsDBNull(5) ? null : ParseJsonElement(reader.GetString(5)),
+                    ActionKey = reader.GetString(6),
+                    ActionName = reader.GetString(7),
+                    HandlerType = reader.GetString(8),
+                    IsIdempotent = reader.GetBoolean(9)
+                });
+            }
+        }
+
         return new WorkflowDefinitionGraphRecord
         {
             Nodes = nodes,
             Edges = edges,
             NodeById = nodes.ToDictionary(node => node.NodeId),
+            NodeActionsByNodeId = nodeActionsByNodeId,
             OutgoingEdgesBySourceNodeId = edges
                 .GroupBy(edge => edge.SourceNodeId)
                 .ToDictionary(group => group.Key, group => group.OrderBy(edge => edge.Priority).ThenBy(edge => edge.EdgeId).ToList())
@@ -1019,7 +1076,7 @@ RETURNING id;
         WorkflowDefinitionGraphRecord graph,
         WorkflowDefinitionNodeRecord completedNode,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
-        long actorUserId)
+        long? actorUserId)
     {
         await SetWorkflowRuntimeState(connection, transaction, workflowId, RuntimeStatusRunning, "in_progress", null);
 
@@ -1142,6 +1199,7 @@ RETURNING id;
                 case "form":
                 case "approval":
                 case "task":
+                case "automation":
                 {
                     long activeNodeInstanceId;
                     try
@@ -1179,6 +1237,50 @@ RETURNING id;
                                 workflowId,
                                 activeNodeInstanceId,
                                 nextNode);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
+                            return;
+                        }
+                    }
+                    else if (string.Equals(nextNode.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!graph.NodeActionsByNodeId.TryGetValue(nextNode.NodeId, out var actions)
+                            || actions.Count == 0)
+                        {
+                            await FailRuntimeWorkflow(
+                                connection,
+                                transaction,
+                                workflowId,
+                                actorUserId,
+                                $"Automation node '{nextNode.NodeKey}' has no configured actions.");
+                            return;
+                        }
+
+                        var firstAction = actions
+                            .OrderBy(action => action.ExecutionOrder)
+                            .ThenBy(action => action.Id)
+                            .First();
+
+                        try
+                        {
+                            var payload = await BuildAutomationJobPayload(
+                                connection,
+                                transaction,
+                                workflowId,
+                                firstAction.InputMapping,
+                                answersByKey,
+                                CancellationToken.None);
+                            await CreateAutomationJob(
+                                connection,
+                                transaction,
+                                workflowId,
+                                activeNodeInstanceId,
+                                firstAction.Id,
+                                firstAction.ActionDefinitionId,
+                                payload,
+                                CancellationToken.None);
                         }
                         catch (InvalidOperationException ex)
                         {
@@ -1924,7 +2026,7 @@ WHERE id = @workflowId;
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
-        long actorUserId,
+        long? actorUserId,
         string runtimeStatus,
         string eventType)
     {
@@ -1951,7 +2053,7 @@ WHERE id = @workflowId;
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
-        long actorUserId,
+        long? actorUserId,
         string reason)
     {
         await SetWorkflowRuntimeState(connection, transaction, workflowId, RuntimeStatusFailed, "completed", DateTime.UtcNow);
@@ -2010,6 +2112,7 @@ WHERE id = @workflowId;
         public required List<WorkflowDefinitionNodeRecord> Nodes { get; init; }
         public required List<WorkflowDefinitionEdgeRecord> Edges { get; init; }
         public required Dictionary<long, WorkflowDefinitionNodeRecord> NodeById { get; init; }
+        public required Dictionary<long, List<WorkflowNodeActionRecord>> NodeActionsByNodeId { get; init; }
         public required Dictionary<long, List<WorkflowDefinitionEdgeRecord>> OutgoingEdgesBySourceNodeId { get; init; }
     }
 

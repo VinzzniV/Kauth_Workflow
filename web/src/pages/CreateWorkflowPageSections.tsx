@@ -7,8 +7,8 @@ import type { StepDefinition } from "./createWorkflowPageModel";
 import type {
   Department,
   EmployeeFormData,
-  ProcessType,
   Role,
+  StartableWorkflowDefinition,
   WorkflowTargetPersonSource,
   WorkflowConfig,
 } from "../types/workflow";
@@ -40,62 +40,66 @@ export function WorkflowCreationStepper({
 }
 
 export function CreateWorkflowProcessStep({
-  processTypesLoading,
-  processTypes,
-  selectedProcessTypeKey,
+  workflowDefinitionsLoading,
+  workflowDefinitions,
+  selectedWorkflowDefinitionKey,
   canGoToContextStep,
   requiresTargetPerson,
   hasAttemptedProcessNext,
   processStepIssues,
-  onSelectProcessType,
+  onSelectWorkflowDefinition,
   onGoToContextStep,
   onAttemptBlockedNext,
 }: {
-  processTypesLoading: boolean;
-  processTypes: ProcessType[];
-  selectedProcessTypeKey: string | null;
+  workflowDefinitionsLoading: boolean;
+  workflowDefinitions: StartableWorkflowDefinition[];
+  selectedWorkflowDefinitionKey: string | null;
   canGoToContextStep: boolean;
   requiresTargetPerson: boolean;
   hasAttemptedProcessNext: boolean;
   processStepIssues: string[];
-  onSelectProcessType: (key: string) => void;
+  onSelectWorkflowDefinition: (key: string) => void;
   onGoToContextStep: () => void;
   onAttemptBlockedNext: () => void;
 }) {
   return (
     <section className="panel">
-      <h2>Vorgang wählen</h2>
+      <h2>Workflow wählen</h2>
 
-      {processTypesLoading ? <p className="panel-text">Verfügbare Vorgänge werden geladen...</p> : null}
+      {workflowDefinitionsLoading ? <p className="panel-text">Startbare Workflows werden geladen...</p> : null}
 
-      {!processTypesLoading && processTypes.length === 0 ? (
+      {!workflowDefinitionsLoading && workflowDefinitions.length === 0 ? (
         <div className="panel panel-muted">
-          <h3 className="panel-title">Für Ihre Rolle ist aktuell kein Vorgang freigegeben.</h3>
-          <p className="panel-text">Bitte Prozessfreigaben prüfen oder Administration kontaktieren.</p>
+          <h3 className="panel-title">Für Ihre Rolle ist aktuell kein Workflow freigegeben.</h3>
+          <p className="panel-text">Bitte Workflow-Freigaben prüfen oder Administration kontaktieren.</p>
         </div>
       ) : null}
 
-      {!processTypesLoading && processTypes.length > 0 ? (
+      {!workflowDefinitionsLoading && workflowDefinitions.length > 0 ? (
         <>
           <div className="process-type-grid">
-            {processTypes.map((processType) => {
-              const isSelected = selectedProcessTypeKey === processType.key;
-              const processContextLabel = processType.requiresTargetPerson ? "Bestehende Person" : "Neue Person";
-              const processDescription = processType.description?.trim() || processContextLabel;
+            {workflowDefinitions.map((workflowDefinition) => {
+              const isSelected =
+                selectedWorkflowDefinitionKey === workflowDefinition.definitionKey;
+              const workflowContextLabel = workflowDefinition.requiresTargetPerson
+                ? "Bestehende Person"
+                : "Neue Person";
+              const workflowDescription =
+                workflowDefinition.description?.trim() || workflowContextLabel;
 
               return (
                 <button
-                  key={processType.key}
+                  key={workflowDefinition.definitionKey}
                   type="button"
                   aria-pressed={isSelected}
                   className={`process-type-card${isSelected ? " process-type-card--selected" : ""}`}
-                  onClick={() => onSelectProcessType(processType.key)}
+                  onClick={() => onSelectWorkflowDefinition(workflowDefinition.definitionKey)}
                 >
                   <div className="process-type-card__head">
-                    <span className="process-type-card__name">{processType.name}</span>
-                    <span className="process-type-card__meta">{processContextLabel}</span>
+                    <span className="process-type-card__name">{workflowDefinition.name}</span>
+                    <span className="process-type-card__meta">{workflowContextLabel}</span>
                   </div>
-                  <span className="process-type-card__description">{processDescription}</span>
+                  <span className="process-type-card__description">{workflowDescription}</span>
                   <span className="process-type-card__selection">{isSelected ? "Ausgewählt" : "Auswählen"}</span>
                 </button>
               );
@@ -139,7 +143,7 @@ export function CreateWorkflowProcessStep({
 export function CreateWorkflowContextStep(props: {
   contextStepTitle: string;
   requiresTargetPerson: boolean;
-  selectedProcessType: ProcessType | null;
+  selectedWorkflowDefinition: StartableWorkflowDefinition | null;
   targetPersonSourceSearch: string;
   targetPersonSources: WorkflowTargetPersonSource[];
   selectedTargetPersonSource: WorkflowTargetPersonSource | null;
@@ -174,7 +178,7 @@ export function CreateWorkflowContextStep(props: {
   const {
     contextStepTitle,
     requiresTargetPerson,
-    selectedProcessType,
+    selectedWorkflowDefinition,
     targetPersonSourceSearch,
     targetPersonSources,
     selectedTargetPersonSource,
@@ -215,7 +219,7 @@ export function CreateWorkflowContextStep(props: {
 
       {requiresTargetPerson ? (
         <TargetPersonSelection
-          processTypeName={selectedProcessType?.name ?? "den Vorgang"}
+          processTypeName={selectedWorkflowDefinition?.name ?? "den Workflow"}
           searchValue={targetPersonSourceSearch}
           onSearchChange={onSearchChange}
           targetPersonSources={targetPersonSources}
@@ -276,7 +280,7 @@ export function CreateWorkflowContextStep(props: {
       <section className="panel">
         <div className="wizard-actions">
           <button type="button" className="btn btn-secondary" onClick={onGoBack}>
-            Zurück zur Vorgangsauswahl
+            Zurück zur Workflow-Auswahl
           </button>
           <button
             type="button"
@@ -300,7 +304,7 @@ export function CreateWorkflowContextStep(props: {
 
 export function CreateWorkflowReviewStep(props: {
   requiresTargetPerson: boolean;
-  selectedProcessType: ProcessType | null;
+  selectedWorkflowDefinition: StartableWorkflowDefinition | null;
   selectedTargetPersonSource: WorkflowTargetPersonSource | null;
   employee: EmployeeFormData;
   selectedDepartment: Department | null;
@@ -321,7 +325,7 @@ export function CreateWorkflowReviewStep(props: {
 }) {
   const {
     requiresTargetPerson,
-    selectedProcessType,
+    selectedWorkflowDefinition,
     selectedTargetPersonSource,
     employee,
     selectedDepartment,
@@ -348,11 +352,11 @@ export function CreateWorkflowReviewStep(props: {
 
         <div className="wizard-review-grid">
           <div className="panel panel-muted">
-            <h3 className="panel-title">Vorgang</h3>
+            <h3 className="panel-title">Workflow</h3>
             <dl className="workflow-kv-grid">
               <div>
-                <dt>Prozesstyp</dt>
-                <dd>{selectedProcessType?.name ?? "-"}</dd>
+                <dt>Definition</dt>
+                <dd>{selectedWorkflowDefinition?.name ?? "-"}</dd>
               </div>
               <div>
                 <dt>Kontext</dt>
@@ -419,14 +423,14 @@ export function CreateWorkflowReviewStep(props: {
 
       {submitError ? (
         <section className="panel panel-error" role="status" aria-live="polite">
-          <h3 className="panel-title">Vorgang konnte nicht gestartet werden.</h3>
+          <h3 className="panel-title">Workflow konnte nicht gestartet werden.</h3>
           <p className="panel-text">{submitError}</p>
         </section>
       ) : null}
 
       {submitSuccessMessage ? (
         <section className="panel panel-success" role="status" aria-live="polite">
-          <h3 className="panel-title">Vorgang erfolgreich gestartet.</h3>
+          <h3 className="panel-title">Workflow erfolgreich gestartet.</h3>
           <p className="panel-text">{submitSuccessMessage}</p>
           {createdWorkflowUid ? (
             <div className="action-row">
@@ -449,7 +453,7 @@ export function CreateWorkflowReviewStep(props: {
           <CreateWorkflowButton
             isLoading={submitState === "loading"}
             disabled={!canSubmit || submitState === "success"}
-            label={isHrEntry ? "Vorgang anlegen" : "Änderung anlegen"}
+            label={isHrEntry ? "Workflow anlegen" : "Änderung anlegen"}
             onSubmit={onSubmit}
           />
         </div>

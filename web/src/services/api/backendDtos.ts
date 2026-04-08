@@ -35,6 +35,13 @@ import type {
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
+  AdminWorkflowDefinitionSummary,
+  AdminWorkflowDefinitionVersionDetail,
+  AdminWorkflowDefinitionVersionSummary,
+  AdminWorkflowDefinitionNode,
+  AdminWorkflowDefinitionEdge,
+  AdminWorkflowNodeAction,
+  AdminWorkflowValidationIssue,
   SimulationLoginUserOption,
   Me,
 } from "../../types/auth";
@@ -397,6 +404,7 @@ export type BackendRelatedWorkflowSummaryDto = RelatedWorkflowSummary;
 export type BackendWorkflowTargetPersonDto = WorkflowTargetPerson;
 export type BackendWorkflowTargetPersonSourceDto = WorkflowTargetPersonSource;
 export type BackendCompletedOnboardingSearchResultDto = WorkflowTargetPersonSource;
+export type BackendWorkflowStartableDefinitionDto = import("../../types/workflow").StartableWorkflowDefinition;
 export type BackendDerivedAnswerDto = DerivedAnswer;
 export type BackendAdminProcessTypeDto = AdminProcessType;
 export type BackendAdminTaskTemplateDto = AdminTaskTemplate;
@@ -407,6 +415,26 @@ export type BackendAdminDependencyGraphEdgeDto = AdminDependencyGraphEdge;
 export type BackendAdminDependencyGraphDto = AdminDependencyGraph;
 export type BackendAdminAnswerDefinitionDto = AdminAnswerDefinition;
 export type BackendAdminRoleAnswerDefaultDto = AdminRoleAnswerDefault;
+export type BackendAdminWorkflowValidationIssueDto = AdminWorkflowValidationIssue;
+export type BackendAdminWorkflowNodeActionDto = AdminWorkflowNodeAction;
+export type BackendAdminWorkflowDefinitionNodeDto = AdminWorkflowDefinitionNode;
+export type BackendAdminWorkflowDefinitionEdgeDto = AdminWorkflowDefinitionEdge;
+export type BackendAdminWorkflowDefinitionVersionSummaryDto = AdminWorkflowDefinitionVersionSummary;
+export type BackendAdminWorkflowDefinitionSummaryDto = AdminWorkflowDefinitionSummary;
+export type BackendAdminWorkflowDefinitionVersionDetailDto = AdminWorkflowDefinitionVersionDetail;
+export type BackendAdminWorkflowActionDefinitionDto = {
+  id: number;
+  key: string;
+  name: string;
+  description: string | null;
+  handlerType: string;
+  parameterSchema: unknown | null;
+  isActive: boolean;
+  requiresApproval: boolean;
+  isIdempotent: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type BackendPersonWorkflowSummaryDto = {
   uid: string;

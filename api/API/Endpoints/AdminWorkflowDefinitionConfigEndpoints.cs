@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using System.Text.Json;
 
 namespace API;
 
@@ -10,14 +11,14 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
     public static IEndpointRouteBuilder MapAdminWorkflowDefinitionConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/workflow-definitions", async (
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
+                authorizationPolicy.CanAccessWorkflowBuilder,
+                "Workflow Builder access is required.");
             if (access.Error is not null)
             {
                 return access.Error;
@@ -28,16 +29,35 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
-        app.MapPost("/admin/config/workflow-definitions", async (
-            [FromBody] CreateWorkflowDefinitionRequest request,
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+        app.MapGet("/admin/config/action-definitions", async (
+            [FromServices] IWorkflowAutomationService automationService,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
+                authorizationPolicy.CanManageWorkflowBuilderAdvanced,
+                "Advanced Workflow Builder access is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await automationService.GetActionDefinitionsAsync());
+        }).Produces<List<ActionDefinitionDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPost("/admin/config/workflow-definitions", async (
+            [FromBody] CreateWorkflowDefinitionRequest request,
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageWorkflowBuilderAdvanced,
+                "Advanced Workflow Builder access is required.");
             if (access.Error is not null)
             {
                 return access.Error;
@@ -56,17 +76,50 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
-        app.MapPost("/admin/config/workflow-definitions/{definitionId:int}/versions", async (
+        app.MapPatch("/admin/config/workflow-definitions/{definitionId:int}", async (
             int definitionId,
-            [FromBody] CreateWorkflowDefinitionVersionRequest request,
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromBody] UpdateWorkflowDefinitionRequest request,
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
+                authorizationPolicy.CanManageWorkflowBuilderAdvanced,
+                "Advanced Workflow Builder access is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var updated = await repository.UpdateAdminWorkflowDefinition(definitionId, request);
+                return updated is null
+                    ? Results.NotFound(new { message = "Workflow definition not found." })
+                    : Results.Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<WorkflowDefinitionSummaryDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPost("/admin/config/workflow-definitions/{definitionId:int}/versions", async (
+            int definitionId,
+            [FromBody] CreateWorkflowDefinitionVersionRequest request,
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageWorkflowBuilderAdvanced,
+                "Advanced Workflow Builder access is required.");
             if (access.Error is not null)
             {
                 return access.Error;
@@ -91,14 +144,14 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
 
         app.MapGet("/admin/config/workflow-definition-versions/{versionId:long}", async (
             long versionId,
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
+                authorizationPolicy.CanAccessWorkflowBuilder,
+                "Workflow Builder access is required.");
             if (access.Error is not null)
             {
                 return access.Error;
@@ -124,14 +177,14 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
         app.MapPut("/admin/config/workflow-definition-versions/{versionId:long}", async (
             long versionId,
             [FromBody] ReplaceWorkflowDefinitionVersionRequest request,
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
+                authorizationPolicy.CanAccessWorkflowBuilder,
+                "Workflow Builder access is required.");
             if (access.Error is not null)
             {
                 return access.Error;
@@ -139,6 +192,21 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
 
             try
             {
+                if (!authorizationPolicy.CanManageWorkflowBuilderAdvanced(access.User!))
+                {
+                    var existingVersion = await repository.GetAdminWorkflowDefinitionVersion(versionId);
+                    if (existingVersion is null)
+                    {
+                        return Results.NotFound(new { message = "Workflow definition version not found." });
+                    }
+
+                    if (HasRestrictedAutomationChanges(existingVersion, request))
+                    {
+                        return EndpointSupport.Forbidden(
+                            "Automation nodes and actions require advanced Workflow Builder access.");
+                    }
+                }
+
                 var updated = await repository.ReplaceAdminWorkflowDefinitionVersion(versionId, request);
                 return updated is null
                     ? Results.NotFound(new { message = "Workflow definition version not found." })
@@ -157,13 +225,13 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
         app.MapPost("/admin/config/workflow-definition-versions/{versionId:long}/publish", async (
             long versionId,
             [FromServices] IWorkflowDefinitionRuntimeRepository runtimeRepository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
+                authorizationPolicy.CanManageWorkflowBuilderAdvanced,
+                "Advanced Workflow Builder access is required.");
             if (access.Error is not null)
             {
                 return access.Error;
@@ -187,5 +255,126 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         return app;
+    }
+
+    private static bool HasRestrictedAutomationChanges(
+        WorkflowDefinitionVersionDetailDto existingVersion,
+        ReplaceWorkflowDefinitionVersionRequest request)
+    {
+        var existingNodesByKey = existingVersion.Nodes
+            .Where(node => !string.IsNullOrWhiteSpace(node.NodeKey))
+            .ToDictionary(
+                node => node.NodeKey!.Trim().ToLowerInvariant(),
+                node => node,
+                StringComparer.OrdinalIgnoreCase);
+        var requestNodesByKey = request.Nodes
+            .Where(node => !string.IsNullOrWhiteSpace(node.NodeKey))
+            .ToDictionary(
+                node => node.NodeKey!.Trim().ToLowerInvariant(),
+                node => node,
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var requestNode in request.Nodes)
+        {
+            var requestNodeType = Normalize(requestNode.NodeType);
+            if (!string.Equals(requestNodeType, "automation", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var requestKey = Normalize(requestNode.NodeKey);
+            if (requestKey is null
+                || !existingNodesByKey.TryGetValue(requestKey, out var existingNode)
+                || !string.Equals(Normalize(existingNode.NodeType), "automation", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!ActionsEquivalent(existingNode.Actions, requestNode.Actions))
+            {
+                return true;
+            }
+        }
+
+        foreach (var existingNode in existingVersion.Nodes)
+        {
+            var existingNodeType = Normalize(existingNode.NodeType);
+            if (!string.Equals(existingNodeType, "automation", StringComparison.OrdinalIgnoreCase))
+            {
+                var existingKey = Normalize(existingNode.NodeKey);
+                if (existingKey is not null
+                    && requestNodesByKey.TryGetValue(existingKey, out var requestNode)
+                    && string.Equals(Normalize(requestNode.NodeType), "automation", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            var existingKeyNormalized = Normalize(existingNode.NodeKey);
+            if (existingKeyNormalized is null
+                || !requestNodesByKey.TryGetValue(existingKeyNormalized, out var matchingRequestNode)
+                || !string.Equals(Normalize(matchingRequestNode.NodeType), "automation", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!ActionsEquivalent(existingNode.Actions, matchingRequestNode.Actions))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ActionsEquivalent(
+        IReadOnlyList<WorkflowNodeActionDto> existingActions,
+        IReadOnlyList<WorkflowNodeActionDto> requestActions)
+    {
+        if (existingActions.Count != requestActions.Count)
+        {
+            return false;
+        }
+
+        var normalizedExisting = existingActions
+            .Select(NormalizeAction)
+            .OrderBy(item => item)
+            .ToArray();
+        var normalizedRequest = requestActions
+            .Select(NormalizeAction)
+            .OrderBy(item => item)
+            .ToArray();
+
+        return normalizedExisting.SequenceEqual(normalizedRequest, StringComparer.Ordinal);
+    }
+
+    private static string NormalizeAction(WorkflowNodeActionDto action)
+    {
+        return string.Join("|", new[]
+        {
+            Normalize(action.ActionKey) ?? string.Empty,
+            action.ExecutionOrder.ToString(),
+            Normalize(action.OnErrorBehavior) ?? string.Empty,
+            NormalizeJson(action.InputMapping),
+        });
+    }
+
+    private static string NormalizeJson(JsonElement? element)
+    {
+        if (element is null)
+        {
+            return string.Empty;
+        }
+
+        return JsonSerializer.Serialize(element.Value);
+    }
+
+    private static string? Normalize(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim().ToLowerInvariant();
     }
 }

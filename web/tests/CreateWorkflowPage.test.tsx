@@ -9,7 +9,7 @@ vi.mock("../src/services/lookupApi", async () => {
   const actual = await vi.importActual<typeof import("../src/services/lookupApi")>("../src/services/lookupApi");
   return {
     ...actual,
-    getProcessTypes: vi.fn(),
+    getStartableWorkflowDefinitions: vi.fn(),
     getRoles: vi.fn(),
     getDepartments: vi.fn(),
   };
@@ -25,7 +25,7 @@ vi.mock("../src/services/workflowApi", async () => {
   };
 });
 
-const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
+const mockedGetStartableWorkflowDefinitions = vi.mocked(lookupApi.getStartableWorkflowDefinitions);
 const mockedGetWorkflowConfig = vi.mocked(workflowApi.getWorkflowConfig);
 const mockedSearchWorkflowTargetPersonSources = vi.mocked(workflowApi.searchWorkflowTargetPersonSources);
 const mockedGetRoles = vi.mocked(lookupApi.getRoles);
@@ -34,7 +34,7 @@ const mockedGetDepartments = vi.mocked(lookupApi.getDepartments);
 describe("CreateWorkflowPage", () => {
   beforeEach(() => {
     vi.useRealTimers();
-    mockedGetProcessTypes.mockReset();
+    mockedGetStartableWorkflowDefinitions.mockReset();
     mockedGetWorkflowConfig.mockReset();
     mockedSearchWorkflowTargetPersonSources.mockReset();
     mockedGetRoles.mockReset();
@@ -87,42 +87,48 @@ describe("CreateWorkflowPage", () => {
     ]);
   });
 
-  it("starts with an explicit process step even when only one process type is available", async () => {
-    mockedGetProcessTypes.mockResolvedValue([
+  it("starts with an explicit workflow step even when only one definition is available", async () => {
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
       {
-        key: "department_change",
+        definitionKey: "department_change",
         name: "Abteilungswechsel",
         description: "Mitarbeiter in eine neue Abteilung versetzen.",
         requiresTargetPerson: true,
+        primaryLegacyProcessTypeKey: "department_change",
+        latestPublishedVersionNumber: 1,
       },
     ]);
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_manager"] });
 
-    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Workflow wählen" })).toBeTruthy();
     expect(await screen.findByText("Abteilungswechsel")).toBeTruthy();
     expect(screen.queryByText("Daten der neuen Person")).toBeNull();
   });
 
-  it("shows the new-person form for HR onboarding after process selection", async () => {
-    mockedGetProcessTypes.mockResolvedValue([
+  it("shows the new-person form for HR onboarding after workflow selection", async () => {
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
       {
-        key: "onboarding",
+        definitionKey: "onboarding",
         name: "Onboarding",
         description: "Neue Person anlegen.",
         requiresTargetPerson: false,
+        primaryLegacyProcessTypeKey: "onboarding",
+        latestPublishedVersionNumber: 1,
       },
       {
-        key: "offboarding",
+        definitionKey: "offboarding",
         name: "Offboarding",
         description: "Bestehende Person austreten lassen.",
         requiresTargetPerson: true,
+        primaryLegacyProcessTypeKey: "offboarding",
+        latestPublishedVersionNumber: 1,
       },
     ]);
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_hr"] });
 
-    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Workflow wählen" })).toBeTruthy();
     expect(await screen.findByText("Onboarding")).toBeTruthy();
 
     fireEvent.click(screen.getByText("Onboarding"));
@@ -133,12 +139,14 @@ describe("CreateWorkflowPage", () => {
   });
 
   it("shows the existing-person selection for managers and never the new-person form", async () => {
-    mockedGetProcessTypes.mockResolvedValue([
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
       {
-        key: "department_change",
+        definitionKey: "department_change",
         name: "Abteilungswechsel",
         description: "Bestehende Person in eine neue Abteilung verschieben.",
         requiresTargetPerson: true,
+        primaryLegacyProcessTypeKey: "department_change",
+        latestPublishedVersionNumber: 1,
       },
     ]);
 
@@ -154,12 +162,14 @@ describe("CreateWorkflowPage", () => {
   });
 
   it("does not refetch target-person sources endlessly after selecting a person", async () => {
-    mockedGetProcessTypes.mockResolvedValue([
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
       {
-        key: "department_change",
+        definitionKey: "department_change",
         name: "Abteilungswechsel",
         description: "Bestehende Person in eine neue Abteilung verschieben.",
         requiresTargetPerson: true,
+        primaryLegacyProcessTypeKey: "department_change",
+        latestPublishedVersionNumber: 1,
       },
     ]);
 
@@ -178,39 +188,43 @@ describe("CreateWorkflowPage", () => {
     await waitFor(() => expect(mockedSearchWorkflowTargetPersonSources).toHaveBeenCalledTimes(1));
   });
 
-  it("resets stale context when the process type changes", async () => {
-    mockedGetProcessTypes.mockResolvedValue([
+  it("resets stale context when the workflow changes", async () => {
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
       {
-        key: "onboarding",
+        definitionKey: "onboarding",
         name: "Onboarding",
         description: "Neue Person anlegen.",
         requiresTargetPerson: false,
+        primaryLegacyProcessTypeKey: "onboarding",
+        latestPublishedVersionNumber: 1,
       },
       {
-        key: "offboarding",
+        definitionKey: "offboarding",
         name: "Offboarding",
         description: "Bestehende Person auswählen.",
         requiresTargetPerson: true,
+        primaryLegacyProcessTypeKey: "offboarding",
+        latestPublishedVersionNumber: 1,
       },
     ]);
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_hr"] });
 
-    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Workflow wählen" })).toBeTruthy();
     expect(await screen.findByText("Onboarding")).toBeTruthy();
 
     fireEvent.click(screen.getByText("Onboarding"));
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));
     fireEvent.change(screen.getByPlaceholderText("Max"), { target: { value: "Ada" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Vorgangsauswahl" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Workflow-Auswahl" }));
     expect(await screen.findByText("Offboarding")).toBeTruthy();
     fireEvent.click(screen.getByText("Offboarding"));
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
 
     expect(await screen.findByRole("heading", { name: "Quellworkflow auswählen" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Vorgangsauswahl" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Workflow-Auswahl" }));
     expect(await screen.findByText("Onboarding")).toBeTruthy();
     fireEvent.click(screen.getByText("Onboarding"));
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));
@@ -220,18 +234,20 @@ describe("CreateWorkflowPage", () => {
   });
 
   it("shows a review step with the selected onboarding context", async () => {
-    mockedGetProcessTypes.mockResolvedValue([
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
       {
-        key: "onboarding",
+        definitionKey: "onboarding",
         name: "Onboarding",
         description: "Neue Person anlegen.",
         requiresTargetPerson: false,
+        primaryLegacyProcessTypeKey: "onboarding",
+        latestPublishedVersionNumber: 1,
       },
     ]);
 
     renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_hr"] });
 
-    expect(await screen.findByRole("heading", { name: "Vorgang wählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Workflow wählen" })).toBeTruthy();
     expect(await screen.findByText("Onboarding")).toBeTruthy();
 
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));

@@ -1,0 +1,144 @@
+using Microsoft.Extensions.Logging.Abstractions;
+using Xunit;
+
+namespace API.Tests;
+
+public sealed class WorkflowAutomationServiceTests
+{
+    [Fact]
+    public async Task TryProcessNextPendingJobAsync_ReturnsFalseWhenNoJobExists()
+    {
+        var repository = new StubWorkflowAutomationRepository();
+        var service = new WorkflowAutomationService(
+            repository,
+            new StubWorkflowAutomationHandlerRegistry(_ => throw new InvalidOperationException("no handler")),
+            NullLogger<WorkflowAutomationService>.Instance);
+
+        var processed = await service.TryProcessNextPendingJobAsync();
+
+        Assert.False(processed);
+    }
+
+    [Fact]
+    public async Task TryProcessNextPendingJobAsync_SchedulesRetryForFirstIdempotentFailure()
+    {
+        var repository = new StubWorkflowAutomationRepository
+        {
+            ClaimedJob = new ClaimedAutomationJobRecord
+            {
+                JobId = 1,
+                WorkflowId = 2,
+                WorkflowUid = Guid.NewGuid(),
+                WorkflowNodeInstanceId = 3,
+                WorkflowNodeId = 4,
+                NodeKey = "auto",
+                NodeType = "automation",
+                WorkflowNodeActionId = 5,
+                ExecutionOrder = 10,
+                OnErrorBehavior = "fail_workflow",
+                ActionDefinitionId = 6,
+                ActionKey = "CreateAdUser",
+                ActionName = "Create AD User",
+                HandlerType = "simulated_directory",
+                IsIdempotent = true,
+                AttemptNumber = 1,
+                CreatedByUserId = 99
+            }
+        };
+
+        var service = new WorkflowAutomationService(
+            repository,
+            new StubWorkflowAutomationHandlerRegistry(_ => new ThrowingAutomationHandler("CreateAdUser")),
+            NullLogger<WorkflowAutomationService>.Instance);
+
+        var processed = await service.TryProcessNextPendingJobAsync();
+
+        Assert.True(processed);
+        Assert.True(repository.LastFailureShouldRetry);
+        Assert.NotNull(repository.LastFailureRetryAvailableAt);
+    }
+
+    [Fact]
+    public async Task TryProcessNextPendingJobAsync_CompletesFailureWithoutRetryForNonIdempotentAction()
+    {
+        var repository = new StubWorkflowAutomationRepository
+        {
+            ClaimedJob = new ClaimedAutomationJobRecord
+            {
+                JobId = 1,
+                WorkflowId = 2,
+                WorkflowUid = Guid.NewGuid(),
+                WorkflowNodeInstanceId = 3,
+                WorkflowNodeId = 4,
+                NodeKey = "auto",
+                NodeType = "automation",
+                WorkflowNodeActionId = 5,
+                ExecutionOrder = 10,
+                OnErrorBehavior = "fail_workflow",
+                ActionDefinitionId = 6,
+                ActionKey = "CreateErpEmployee",
+                ActionName = "Create ERP Employee",
+                HandlerType = "simulated_erp",
+                IsIdempotent = false,
+                AttemptNumber = 1,
+                CreatedByUserId = 99
+            }
+        };
+
+        var service = new WorkflowAutomationService(
+            repository,
+            new StubWorkflowAutomationHandlerRegistry(_ => new ThrowingAutomationHandler("CreateErpEmployee")),
+            NullLogger<WorkflowAutomationService>.Instance);
+
+        await service.TryProcessNextPendingJobAsync();
+
+        Assert.False(repository.LastFailureShouldRetry);
+        Assert.Null(repository.LastFailureRetryAvailableAt);
+    }
+
+    private sealed class StubWorkflowAutomationRepository : IWorkflowAutomationRepository
+    {
+        public ClaimedAutomationJobRecord? ClaimedJob { get; set; }
+        public bool LastFailureShouldRetry { get; private set; }
+        public DateTime? LastFailureRetryAvailableAt { get; private set; }
+
+        public Task<IReadOnlyList<ActionDefinitionDto>> GetAdminActionDefinitions(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ActionDefinitionDto>>([]);
+
+        public Task<IReadOnlyList<AutomationJobDetailDto>> GetAutomationJobs(Guid workflowUid, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AutomationJobDetailDto>>([]);
+
+        public Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default)
+            => Task.FromResult(ClaimedJob);
+
+        public Task CompleteAutomationJobSuccess(ClaimedAutomationJobRecord job, WorkflowAutomationHandlerResult result, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task CompleteAutomationJobFailure(
+            ClaimedAutomationJobRecord job,
+            string errorMessage,
+            bool shouldRetry,
+            DateTime? retryAvailableAt,
+            IReadOnlyList<WorkflowAutomationLogEntry> logs,
+            CancellationToken cancellationToken = default)
+        {
+            LastFailureShouldRetry = shouldRetry;
+            LastFailureRetryAvailableAt = retryAvailableAt;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubWorkflowAutomationHandlerRegistry(Func<string, IWorkflowAutomationActionHandler> factory)
+        : IWorkflowAutomationHandlerRegistry
+    {
+        public IWorkflowAutomationActionHandler Resolve(string actionKey) => factory(actionKey);
+    }
+
+    private sealed class ThrowingAutomationHandler(string actionKey) : IWorkflowAutomationActionHandler
+    {
+        public string ActionKey => actionKey;
+
+        public Task<WorkflowAutomationHandlerResult> ExecuteAsync(WorkflowAutomationHandlerContext context, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException($"Handler failed for {actionKey}.");
+    }
+}

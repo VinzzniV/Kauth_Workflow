@@ -189,8 +189,7 @@ LEFT JOIN LATERAL (
         w.last_name,
         w.created_at
     FROM workflows w
-    WHERE w.workflow_definition_version_id IS NULL
-      AND (
+    WHERE (
             w.target_person_id = p.id
             OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
             OR (
@@ -296,8 +295,7 @@ LEFT JOIN LATERAL (
         w.first_name,
         w.last_name
     FROM workflows w
-    WHERE w.workflow_definition_version_id IS NULL
-      AND (
+    WHERE (
             w.target_person_id = p.id
             OR (
                 p.employee_number IS NOT NULL
@@ -330,9 +328,14 @@ JOIN LATERAL (
         w.archived_at
     FROM workflows w
     JOIN process_types pt ON pt.id = w.process_type_id
+    LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
+    LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
     WHERE pt.key = 'onboarding'
+      AND (
+            w.workflow_definition_version_id IS NULL
+            OR vpt.key = 'onboarding'
+      )
       AND w.status = 'completed'
-      AND w.workflow_definition_version_id IS NULL
       AND (
             w.target_person_id = p.id
             OR (

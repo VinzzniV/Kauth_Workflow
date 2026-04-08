@@ -1,6 +1,10 @@
 import { useCallback, useState } from "react";
 import { createWorkflow } from "../services/workflowApi";
-import type { EmployeeFormData, ProcessType, WorkflowTargetPersonSource } from "../types/workflow";
+import type {
+  EmployeeFormData,
+  StartableWorkflowDefinition,
+  WorkflowTargetPersonSource,
+} from "../types/workflow";
 import {
   buildWorkflowCreationPayload,
   buildWorkflowCreationSuccessMessage,
@@ -8,8 +12,9 @@ import {
 } from "./workflowCreationModel";
 
 type UseWorkflowCreationSubmissionArgs = {
-  selectedProcessTypeKey: string | null;
-  selectedProcessType: ProcessType | null;
+  selectedWorkflowDefinitionKey: string | null;
+  selectedLegacyProcessTypeKey: string | null;
+  selectedWorkflowDefinition: StartableWorkflowDefinition | null;
   requiresTargetPerson: boolean;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
@@ -27,8 +32,9 @@ type UseWorkflowCreationSubmissionResult = {
 };
 
 export function useWorkflowCreationSubmission({
-  selectedProcessTypeKey,
-  selectedProcessType,
+  selectedWorkflowDefinitionKey,
+  selectedLegacyProcessTypeKey,
+  selectedWorkflowDefinition,
   requiresTargetPerson,
   selectedDepartmentId,
   selectedRoleId,
@@ -48,9 +54,9 @@ export function useWorkflowCreationSubmission({
   }, []);
 
   const submitWorkflow = useCallback(async () => {
-    if (!selectedProcessTypeKey) {
+    if (!selectedWorkflowDefinitionKey || !selectedLegacyProcessTypeKey) {
       setSubmitState("error");
-      setSubmitError("Bitte zuerst einen Prozesstyp wählen.");
+      setSubmitError("Bitte zuerst einen Workflow wählen.");
       return;
     }
 
@@ -71,9 +77,10 @@ export function useWorkflowCreationSubmission({
     setSubmitSuccessMessage(null);
     setCreatedWorkflowUid(null);
 
-    const processTypeName = selectedProcessType?.name ?? selectedProcessTypeKey;
+    const workflowName = selectedWorkflowDefinition?.name ?? selectedWorkflowDefinitionKey;
     const payload = buildWorkflowCreationPayload({
-      selectedProcessTypeKey,
+      selectedWorkflowDefinitionKey,
+      selectedLegacyProcessTypeKey,
       requiresTargetPerson,
       selectedTargetPersonSource,
       employee,
@@ -87,7 +94,7 @@ export function useWorkflowCreationSubmission({
       setSubmitState("success");
       setSubmitSuccessMessage(
         buildWorkflowCreationSuccessMessage({
-          processTypeName,
+          workflowName,
           createdWorkflowUid: response.uid,
           requiresTargetPerson,
           selectedTargetPersonSource,
@@ -100,10 +107,11 @@ export function useWorkflowCreationSubmission({
   }, [
     employee,
     requiresTargetPerson,
+    selectedLegacyProcessTypeKey,
     selectedTargetPersonSource,
     selectedDepartmentId,
-    selectedProcessType,
-    selectedProcessTypeKey,
+    selectedWorkflowDefinition,
+    selectedWorkflowDefinitionKey,
     selectedRoleId,
   ]);
 

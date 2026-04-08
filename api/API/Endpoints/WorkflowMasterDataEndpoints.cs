@@ -60,6 +60,23 @@ internal static class WorkflowMasterDataEndpoints
             return Results.Ok(await workflowCatalogService.GetProcessTypesAsync(access.User!));
         }).Produces<List<WorkflowProcessTypeDto>>(StatusCodes.Status200OK);
 
+        app.MapGet("/workflow-definitions/startable", async (
+            IWorkflowCatalogService workflowCatalogService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanCreateWorkflow,
+                "HR, Abteilungsleitung oder Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await workflowCatalogService.GetStartableWorkflowDefinitionsAsync(access.User!));
+        }).Produces<List<WorkflowStartableDefinitionDto>>(StatusCodes.Status200OK);
+
         app.MapGet("/workflows/completed-onboardings", async (
             [FromQuery] string? search,
             [FromQuery] int? limit,

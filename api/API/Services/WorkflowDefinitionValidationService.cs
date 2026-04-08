@@ -21,6 +21,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         "approval",
         "task",
         "decision",
+        "automation",
         "end"
     };
 
@@ -63,7 +64,10 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     NodeType = nodeType,
                     Title = NormalizeOptionalText(node.Title),
                     SortOrder = node.SortOrder,
-                    Config = CloneConfig(node.Config)
+                    PositionX = node.PositionX,
+                    PositionY = node.PositionY,
+                    Config = CloneConfig(node.Config),
+                    Actions = NormalizeNodeActions(node, errors, $"Node[{index}]")
                 }))
             {
                 errors.Add($"Duplicate node key '{nodeKey}'.");
@@ -105,6 +109,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
 
         ValidateGraphStructure(normalizedNodes, normalizedEdges, nodeByKey, errors);
         ValidateNodeConfigurations(normalizedNodes, errors);
+        ValidateNodeActions(normalizedNodes, errors);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, errors);
 
         if (errors.Count > 0)
@@ -155,7 +160,10 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     NodeType = nodeType,
                     Title = NormalizeOptionalText(node.Title),
                     SortOrder = node.SortOrder,
-                    Config = CloneConfig(node.Config)
+                    PositionX = node.PositionX,
+                    PositionY = node.PositionY,
+                    Config = CloneConfig(node.Config),
+                    Actions = NormalizeNodeActions(node, issues, $"Node[{index}]", nodeKey)
                 }))
             {
                 issues.Add(CreateIssue(
@@ -209,6 +217,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
 
         ValidateGraphStructure(normalizedNodes, normalizedEdges, nodeByKey, issues);
         ValidateNodeConfigurations(normalizedNodes, issues);
+        ValidateNodeActions(normalizedNodes, issues);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, issues);
 
         foreach (var referenceIssue in context.ReferenceIssues ?? [])
@@ -444,6 +453,12 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 case "approval":
                     ValidateRequiredStringConfig(node, "legacyTemplateKey", errors);
                     break;
+                case "automation":
+                    if (HasConfig(node.Config))
+                    {
+                        errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' must not define a config.");
+                    }
+                    break;
             }
         }
     }
@@ -473,6 +488,16 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 case "task":
                 case "approval":
                     ValidateRequiredStringConfig(node, "legacyTemplateKey", issues);
+                    break;
+                case "automation":
+                    if (HasConfig(node.Config))
+                    {
+                        issues.Add(CreateIssue(
+                            "config_not_allowed",
+                            $"Node '{node.NodeKey}' of type '{node.NodeType}' must not define a config.",
+                            "workflow_node",
+                            node.NodeKey));
+                    }
                     break;
             }
         }
@@ -539,6 +564,126 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 $"Node '{node.NodeKey}' of type '{node.NodeType}' requires config property '{propertyName}' as non-empty string.",
                 "workflow_node",
                 node.NodeKey));
+        }
+    }
+
+    private static void ValidateNodeActions(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        List<string> errors)
+    {
+        foreach (var node in nodes)
+        {
+            if (!string.Equals(node.NodeType, "automation", StringComparison.Ordinal))
+            {
+                if (node.Actions.Count > 0)
+                {
+                    errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' must not define actions.");
+                }
+
+                continue;
+            }
+
+            if (node.Actions.Count == 0)
+            {
+                errors.Add($"Node '{node.NodeKey}' of type 'automation' requires at least one action.");
+                continue;
+            }
+
+            var seenExecutionOrders = new HashSet<int>();
+            foreach (var action in node.Actions)
+            {
+                if (!seenExecutionOrders.Add(action.ExecutionOrder))
+                {
+                    errors.Add($"Node '{node.NodeKey}' uses duplicate action execution_order '{action.ExecutionOrder}'.");
+                }
+
+                if (string.IsNullOrWhiteSpace(action.ActionKey))
+                {
+                    errors.Add($"Node '{node.NodeKey}' contains an action without actionKey.");
+                }
+
+                if (!string.Equals(action.OnErrorBehavior, "fail_workflow", StringComparison.Ordinal))
+                {
+                    errors.Add($"Node '{node.NodeKey}' action '{action.ActionKey}' uses unsupported onErrorBehavior '{action.OnErrorBehavior}'.");
+                }
+
+                if (HasConfig(action.InputMapping) && action.InputMapping!.Value.ValueKind != JsonValueKind.Object)
+                {
+                    errors.Add($"Node '{node.NodeKey}' action '{action.ActionKey}' requires inputMapping to be a JSON object.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateNodeActions(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        foreach (var node in nodes)
+        {
+            if (!string.Equals(node.NodeType, "automation", StringComparison.Ordinal))
+            {
+                if (node.Actions.Count > 0)
+                {
+                    issues.Add(CreateIssue(
+                        "actions_not_allowed",
+                        $"Node '{node.NodeKey}' of type '{node.NodeType}' must not define actions.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
+                continue;
+            }
+
+            if (node.Actions.Count == 0)
+            {
+                issues.Add(CreateIssue(
+                    "missing_automation_actions",
+                    $"Node '{node.NodeKey}' of type 'automation' requires at least one action.",
+                    "workflow_node",
+                    node.NodeKey));
+                continue;
+            }
+
+            var seenExecutionOrders = new HashSet<int>();
+            foreach (var action in node.Actions)
+            {
+                if (!seenExecutionOrders.Add(action.ExecutionOrder))
+                {
+                    issues.Add(CreateIssue(
+                        "duplicate_action_execution_order",
+                        $"Node '{node.NodeKey}' uses duplicate action execution_order '{action.ExecutionOrder}'.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
+                if (string.IsNullOrWhiteSpace(action.ActionKey))
+                {
+                    issues.Add(CreateIssue(
+                        "missing_action_key",
+                        $"Node '{node.NodeKey}' contains an action without actionKey.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
+                if (!string.Equals(action.OnErrorBehavior, "fail_workflow", StringComparison.Ordinal))
+                {
+                    issues.Add(CreateIssue(
+                        "unsupported_action_error_behavior",
+                        $"Node '{node.NodeKey}' action '{action.ActionKey}' uses unsupported onErrorBehavior '{action.OnErrorBehavior}'.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
+                if (HasConfig(action.InputMapping) && action.InputMapping!.Value.ValueKind != JsonValueKind.Object)
+                {
+                    issues.Add(CreateIssue(
+                        "invalid_action_input_mapping",
+                        $"Node '{node.NodeKey}' action '{action.ActionKey}' requires inputMapping to be a JSON object.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+            }
         }
     }
 
@@ -755,6 +900,77 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
 
         return config!.Value.Clone();
     }
+
+    private static List<WorkflowDefinitionDraftNodeAction> NormalizeNodeActions(
+        WorkflowDefinitionNodeDto node,
+        List<string> errors,
+        string fieldPrefix)
+    {
+        var actions = node.Actions ?? [];
+        var normalized = new List<WorkflowDefinitionDraftNodeAction>(actions.Count);
+        for (var index = 0; index < actions.Count; index += 1)
+        {
+            var action = actions[index];
+            var actionKey = NormalizeOptionalText(action.ActionKey);
+            var onErrorBehavior = NormalizeOptionalText(action.OnErrorBehavior)?.ToLowerInvariant() ?? "fail_workflow";
+
+            if (string.IsNullOrWhiteSpace(actionKey))
+            {
+                errors.Add($"{fieldPrefix}.actions[{index}].actionKey is required.");
+            }
+
+            normalized.Add(new WorkflowDefinitionDraftNodeAction
+            {
+                ActionKey = actionKey,
+                ExecutionOrder = action.ExecutionOrder,
+                OnErrorBehavior = onErrorBehavior,
+                InputMapping = CloneConfig(action.InputMapping)
+            });
+        }
+
+        return normalized
+            .OrderBy(action => action.ExecutionOrder)
+            .ThenBy(action => action.ActionKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<WorkflowDefinitionDraftNodeAction> NormalizeNodeActions(
+        WorkflowDefinitionNodeDto node,
+        List<WorkflowDefinitionValidationIssue> issues,
+        string fieldPrefix,
+        string nodeKey)
+    {
+        var actions = node.Actions ?? [];
+        var normalized = new List<WorkflowDefinitionDraftNodeAction>(actions.Count);
+        for (var index = 0; index < actions.Count; index += 1)
+        {
+            var action = actions[index];
+            var actionKey = NormalizeOptionalText(action.ActionKey);
+            var onErrorBehavior = NormalizeOptionalText(action.OnErrorBehavior)?.ToLowerInvariant() ?? "fail_workflow";
+
+            if (string.IsNullOrWhiteSpace(actionKey))
+            {
+                issues.Add(CreateIssue(
+                    "required_value_missing",
+                    $"{fieldPrefix}.actions[{index}].actionKey is required.",
+                    "workflow_node",
+                    nodeKey));
+            }
+
+            normalized.Add(new WorkflowDefinitionDraftNodeAction
+            {
+                ActionKey = actionKey,
+                ExecutionOrder = action.ExecutionOrder,
+                OnErrorBehavior = onErrorBehavior,
+                InputMapping = CloneConfig(action.InputMapping)
+            });
+        }
+
+        return normalized
+            .OrderBy(action => action.ExecutionOrder)
+            .ThenBy(action => action.ActionKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }
 
 internal sealed class WorkflowDefinitionValidationContext
@@ -794,7 +1010,10 @@ internal sealed class WorkflowDefinitionDraftNode
     public required string NodeType { get; init; }
     public string? Title { get; init; }
     public int SortOrder { get; init; }
+    public int? PositionX { get; init; }
+    public int? PositionY { get; init; }
     public JsonElement? Config { get; init; }
+    public required List<WorkflowDefinitionDraftNodeAction> Actions { get; init; }
 }
 
 internal sealed class WorkflowDefinitionDraftEdge
@@ -803,4 +1022,12 @@ internal sealed class WorkflowDefinitionDraftEdge
     public required string TargetNodeKey { get; init; }
     public int Priority { get; init; }
     public string? ConditionExpression { get; init; }
+}
+
+internal sealed class WorkflowDefinitionDraftNodeAction
+{
+    public string? ActionKey { get; init; }
+    public int ExecutionOrder { get; init; }
+    public required string OnErrorBehavior { get; init; }
+    public JsonElement? InputMapping { get; init; }
 }

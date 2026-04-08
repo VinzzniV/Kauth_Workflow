@@ -53,6 +53,42 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
     }
 
     [Fact]
+    public async Task UpdateDefinitionEndpoint_ReturnsUpdatedDefinition()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            UpdatedDefinition = new WorkflowDefinitionSummaryDto
+            {
+                Id = 7,
+                Key = "hr-onboarding",
+                Name = "HR Onboarding",
+                Description = "Updated description",
+                Versions = new List<WorkflowDefinitionVersionSummaryDto>()
+            }
+        };
+
+        var app = CreateApp(repository);
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definitions/{definitionId:int}", HttpMethods.Patch);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Patch,
+            "/admin/config/workflow-definitions/7",
+            new UpdateWorkflowDefinitionRequest
+            {
+                Name = "HR Onboarding",
+                Description = "Updated description"
+            },
+            ("definitionId", 7));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.UpdateAdminWorkflowDefinitionCallCount);
+        Assert.Equal(7, repository.LastUpdateAdminWorkflowDefinitionId);
+    }
+
+    [Fact]
     public async Task ReplaceDefinitionVersionEndpoint_ReturnsBadRequestForInvalidDraft()
     {
         var repository = new StubWorkflowDefinitionRepository
@@ -79,6 +115,120 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         using var reader = new StreamReader(context.Response.Body, leaveOpen: true);
         var body = await reader.ReadToEndAsync();
         Assert.Contains("exactly one start node", body);
+    }
+
+    [Fact]
+    public async Task ReplaceDefinitionVersionEndpoint_RoundtripsNodePositions()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            ReplacedVersion = new WorkflowDefinitionVersionDetailDto
+            {
+                Id = 12,
+                WorkflowDefinitionId = 7,
+                DefinitionKey = "hr-onboarding",
+                DefinitionName = "HR Onboarding",
+                DefinitionDescription = "Updated description",
+                VersionNumber = 3,
+                Status = "draft",
+                Name = "Canvas Draft",
+                Description = "Roundtrip positions",
+                PrimaryLegacyProcessTypeKey = "onboarding",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                PublishedAt = null,
+                CanPublish = false,
+                ValidationIssues = new List<ValidationIssueDto>(),
+                Nodes =
+                [
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "start",
+                        NodeType = "start",
+                        Title = "Start",
+                        SortOrder = 1,
+                        PositionX = 120,
+                        PositionY = 80
+                    },
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "end",
+                        NodeType = "end",
+                        Title = "End",
+                        SortOrder = 2,
+                        PositionX = 420,
+                        PositionY = 80
+                    }
+                ],
+                Edges =
+                [
+                    new WorkflowDefinitionEdgeDto
+                    {
+                        SourceNodeKey = "start",
+                        TargetNodeKey = "end",
+                        Priority = 1
+                    }
+                ]
+            }
+        };
+
+        var app = CreateApp(repository);
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definition-versions/{versionId:long}", HttpMethods.Put);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Put,
+            "/admin/config/workflow-definition-versions/12",
+            new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Name = "Canvas Draft",
+                Description = "Roundtrip positions",
+                Nodes =
+                [
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "Start",
+                        NodeType = "start",
+                        Title = "Start",
+                        SortOrder = 1,
+                        PositionX = 120,
+                        PositionY = 80
+                    },
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "End",
+                        NodeType = "end",
+                        Title = "End",
+                        SortOrder = 2,
+                        PositionX = 420,
+                        PositionY = 80
+                    }
+                ],
+                Edges =
+                [
+                    new WorkflowDefinitionEdgeDto
+                    {
+                        SourceNodeKey = "Start",
+                        TargetNodeKey = "End",
+                        Priority = 1
+                    }
+                ]
+            },
+            ("versionId", 12L));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.ReplaceAdminWorkflowDefinitionVersionCallCount);
+        Assert.NotNull(repository.LastReplaceAdminWorkflowDefinitionVersionRequest);
+        Assert.Equal(120, repository.LastReplaceAdminWorkflowDefinitionVersionRequest!.Nodes[0].PositionX);
+        Assert.Equal(80, repository.LastReplaceAdminWorkflowDefinitionVersionRequest.Nodes[0].PositionY);
+
+        context.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        var nodes = document.RootElement.GetProperty("nodes");
+        Assert.Equal(120, nodes[0].GetProperty("positionX").GetInt32());
+        Assert.Equal(80, nodes[0].GetProperty("positionY").GetInt32());
     }
 
     [Fact]
@@ -124,13 +274,327 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         Assert.Equal(12L, repository.LastPublishWorkflowDefinitionVersionId);
     }
 
-    private static WebApplication CreateApp(StubWorkflowDefinitionRepository repository)
+    [Fact]
+    public async Task GetDefinitionsEndpoint_AllowsBuilderUser()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            WorkflowDefinitions =
+            [
+                new WorkflowDefinitionSummaryDto
+                {
+                    Id = 7,
+                    Key = "hr-onboarding",
+                    Name = "HR Onboarding",
+                    Description = "Definition",
+                    Versions = new List<WorkflowDefinitionVersionSummaryDto>()
+                }
+            ]
+        };
+
+        var app = CreateApp(repository, CreateBuilderUser());
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definitions", HttpMethods.Get);
+        var context = CreateJsonRequestContext(app.Services, endpoint, HttpMethods.Get, "/admin/config/workflow-definitions", new { });
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetAdminWorkflowDefinitionsCallCount);
+    }
+
+    [Fact]
+    public async Task GetDefinitionVersionEndpoint_AllowsBuilderUser()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            VersionDetailForGet = CreateDraftVersionDetail()
+        };
+
+        var app = CreateApp(repository, CreateBuilderUser());
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definition-versions/{versionId:long}", HttpMethods.Get);
+        var context = CreateJsonRequestContext(app.Services, endpoint, HttpMethods.Get, "/admin/config/workflow-definition-versions/12", new { }, ("versionId", 12L));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetAdminWorkflowDefinitionVersionCallCount);
+    }
+
+    [Fact]
+    public async Task ReplaceDefinitionVersionEndpoint_AllowsBuilderUser_WhenNoAutomationChanges()
+    {
+        var existingVersion = CreateDraftVersionDetail();
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            VersionDetailForGet = existingVersion,
+            ReplacedVersion = existingVersion
+        };
+
+        var app = CreateApp(repository, CreateBuilderUser());
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definition-versions/{versionId:long}", HttpMethods.Put);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Put,
+            "/admin/config/workflow-definition-versions/12",
+            new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Name = "Draft",
+                Description = "Edited",
+                Nodes =
+                [
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "start",
+                        NodeType = "start",
+                        Title = "Start",
+                        SortOrder = 1
+                    },
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "end",
+                        NodeType = "end",
+                        Title = "End",
+                        SortOrder = 2
+                    }
+                ],
+                Edges =
+                [
+                    new WorkflowDefinitionEdgeDto
+                    {
+                        SourceNodeKey = "start",
+                        TargetNodeKey = "end",
+                        Priority = 1
+                    }
+                ]
+            },
+            ("versionId", 12L));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.ReplaceAdminWorkflowDefinitionVersionCallCount);
+    }
+
+    [Fact]
+    public async Task ReplaceDefinitionVersionEndpoint_ForbidsBuilderUser_WhenAutomationActionsChange()
+    {
+        var existingVersion = CreateAutomationDraftVersionDetail();
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            VersionDetailForGet = existingVersion,
+            ReplacedVersion = existingVersion
+        };
+
+        var app = CreateApp(repository, CreateBuilderUser());
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definition-versions/{versionId:long}", HttpMethods.Put);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Put,
+            "/admin/config/workflow-definition-versions/12",
+            new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Name = "Draft",
+                Description = "Edited",
+                Nodes =
+                [
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "start",
+                        NodeType = "start",
+                        Title = "Start",
+                        SortOrder = 1
+                    },
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "automation_step",
+                        NodeType = "automation",
+                        Title = "Automation",
+                        SortOrder = 2,
+                        Actions =
+                        [
+                            new WorkflowNodeActionDto
+                            {
+                                ActionKey = "CreateMailbox",
+                                ExecutionOrder = 1,
+                                OnErrorBehavior = "fail_workflow"
+                            }
+                        ]
+                    },
+                    new WorkflowDefinitionNodeDto
+                    {
+                        NodeKey = "end",
+                        NodeType = "end",
+                        Title = "End",
+                        SortOrder = 3
+                    }
+                ],
+                Edges =
+                [
+                    new WorkflowDefinitionEdgeDto
+                    {
+                        SourceNodeKey = "start",
+                        TargetNodeKey = "automation_step",
+                        Priority = 1
+                    },
+                    new WorkflowDefinitionEdgeDto
+                    {
+                        SourceNodeKey = "automation_step",
+                        TargetNodeKey = "end",
+                        Priority = 1
+                    }
+                ]
+            },
+            ("versionId", 12L));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+        Assert.Equal(0, repository.ReplaceAdminWorkflowDefinitionVersionCallCount);
+    }
+
+    [Fact]
+    public async Task PublishDefinitionVersionEndpoint_ForbidsBuilderUser()
+    {
+        var repository = new StubWorkflowDefinitionRepository();
+        var app = CreateApp(repository, CreateBuilderUser());
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definition-versions/{versionId:long}/publish", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/admin/config/workflow-definition-versions/12/publish",
+            new { },
+            ("versionId", 12L));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+        Assert.Equal(0, repository.PublishWorkflowDefinitionVersionCallCount);
+    }
+
+    private static WorkflowDefinitionVersionDetailDto CreateDraftVersionDetail()
+    {
+        return new WorkflowDefinitionVersionDetailDto
+        {
+            Id = 12,
+            WorkflowDefinitionId = 7,
+            DefinitionKey = "hr-onboarding",
+            DefinitionName = "HR Onboarding",
+            VersionNumber = 1,
+            Status = "draft",
+            Name = "Draft",
+            Description = "Draft detail",
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CanPublish = false,
+            ValidationIssues = new List<ValidationIssueDto>(),
+            Nodes =
+            [
+                new WorkflowDefinitionNodeDto
+                {
+                    NodeKey = "start",
+                    NodeType = "start",
+                    Title = "Start",
+                    SortOrder = 1
+                },
+                new WorkflowDefinitionNodeDto
+                {
+                    NodeKey = "end",
+                    NodeType = "end",
+                    Title = "End",
+                    SortOrder = 2
+                }
+            ],
+            Edges =
+            [
+                new WorkflowDefinitionEdgeDto
+                {
+                    SourceNodeKey = "start",
+                    TargetNodeKey = "end",
+                    Priority = 1
+                }
+            ]
+        };
+    }
+
+    private static WorkflowDefinitionVersionDetailDto CreateAutomationDraftVersionDetail()
+    {
+        return new WorkflowDefinitionVersionDetailDto
+        {
+            Id = 12,
+            WorkflowDefinitionId = 7,
+            DefinitionKey = "hr-onboarding",
+            DefinitionName = "HR Onboarding",
+            VersionNumber = 1,
+            Status = "draft",
+            Name = "Draft",
+            Description = "Draft detail",
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            CanPublish = false,
+            ValidationIssues = new List<ValidationIssueDto>(),
+            Nodes =
+            [
+                new WorkflowDefinitionNodeDto
+                {
+                    NodeKey = "start",
+                    NodeType = "start",
+                    Title = "Start",
+                    SortOrder = 1
+                },
+                new WorkflowDefinitionNodeDto
+                {
+                    NodeKey = "automation_step",
+                    NodeType = "automation",
+                    Title = "Automation",
+                    SortOrder = 2,
+                    Actions =
+                    [
+                        new WorkflowNodeActionDto
+                        {
+                            ActionKey = "CreateAdUser",
+                            ExecutionOrder = 1,
+                            OnErrorBehavior = "fail_workflow"
+                        }
+                    ]
+                },
+                new WorkflowDefinitionNodeDto
+                {
+                    NodeKey = "end",
+                    NodeType = "end",
+                    Title = "End",
+                    SortOrder = 3
+                }
+            ],
+            Edges =
+            [
+                new WorkflowDefinitionEdgeDto
+                {
+                    SourceNodeKey = "start",
+                    TargetNodeKey = "automation_step",
+                    Priority = 1
+                },
+                new WorkflowDefinitionEdgeDto
+                {
+                    SourceNodeKey = "automation_step",
+                    TargetNodeKey = "end",
+                    Priority = 1
+                }
+            ]
+        };
+    }
+
+    private static WebApplication CreateApp(StubWorkflowDefinitionRepository repository, CurrentUser? user = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddRouting();
         builder.Services.AddSingleton<IWorkflowRepository>(repository);
         builder.Services.AddSingleton<IWorkflowDefinitionRuntimeRepository>(repository);
-        builder.Services.AddSingleton<IUserContext>(new StubUserContext(CreateAdminUser()));
+        builder.Services.AddSingleton<IUserContext>(new StubUserContext(user ?? CreateAdminUser()));
         builder.Services.AddSingleton<IAuthorizationPolicyService, AuthorizationPolicyService>();
 
         var app = builder.Build();
@@ -216,6 +680,37 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         };
     }
 
+    private static CurrentUser CreateBuilderUser()
+    {
+        return new CurrentUser
+        {
+            UserId = 100,
+            ExternalKey = "builder.test",
+            DisplayName = "Builder Test",
+            Email = "builder.test@example.com",
+            IsActive = true,
+            DepartmentId = null,
+            DepartmentName = null,
+            IdentityProvider = "test",
+            Groups = new List<CurrentUserGroup>(),
+            DirectRoles = new List<CurrentUserRole>(),
+            GroupRoles = new List<CurrentUserRole>(),
+            EffectiveRoles = new List<CurrentUserRole>(),
+            EffectivePermissions =
+            [
+                new CurrentUserPermission
+                {
+                    PermissionId = 1,
+                    PermissionKey = "workflows.create.onboarding",
+                    PermissionName = "Workflow create onboarding"
+                }
+            ],
+            DirectResponsibilities = new List<CurrentUserResponsibility>(),
+            GroupResponsibilities = new List<CurrentUserResponsibility>(),
+            EffectiveResponsibilities = new List<CurrentUserResponsibility>()
+        };
+    }
+
     private sealed class StubUserContext(CurrentUser user) : IUserContext
     {
         public Task<CurrentUser?> GetCurrentUser(CancellationToken cancellationToken = default)
@@ -227,17 +722,27 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
     private sealed class StubWorkflowDefinitionRepository : IWorkflowRepository, IWorkflowDefinitionRuntimeRepository
     {
         public WorkflowDefinitionVersionSummaryDto? CreatedVersion { get; set; }
+        public WorkflowDefinitionVersionDetailDto? ReplacedVersion { get; set; }
         public WorkflowDefinitionVersionDetailDto? PublishedVersion { get; set; }
+        public WorkflowDefinitionSummaryDto? UpdatedDefinition { get; set; }
+        public List<WorkflowDefinitionSummaryDto> WorkflowDefinitions { get; set; } = new();
+        public WorkflowDefinitionVersionDetailDto? VersionDetailForGet { get; set; }
         public Exception? ReplaceAdminWorkflowDefinitionVersionException { get; set; }
         public int CreateAdminWorkflowDefinitionVersionCallCount { get; private set; }
+        public int UpdateAdminWorkflowDefinitionCallCount { get; private set; }
         public int ReplaceAdminWorkflowDefinitionVersionCallCount { get; private set; }
         public int PublishWorkflowDefinitionVersionCallCount { get; private set; }
+        public int GetAdminWorkflowDefinitionsCallCount { get; private set; }
+        public int GetAdminWorkflowDefinitionVersionCallCount { get; private set; }
         public int? LastCreateAdminWorkflowDefinitionVersionDefinitionId { get; private set; }
+        public int? LastUpdateAdminWorkflowDefinitionId { get; private set; }
         public long? LastPublishWorkflowDefinitionVersionId { get; private set; }
+        public ReplaceWorkflowDefinitionVersionRequest? LastReplaceAdminWorkflowDefinitionVersionRequest { get; private set; }
 
         public Task<List<DepartmentDto>> GetDepartments() => throw new NotSupportedException();
         public Task<List<RoleDto>> GetRoles() => throw new NotSupportedException();
         public Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false) => throw new NotSupportedException();
+        public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions() => throw new NotSupportedException();
         public Task<List<RequirementDto>> GetRequirements(string processTypeKey) => throw new NotSupportedException();
         public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey) => throw new NotSupportedException();
         public Task<bool> IsManagerCreatableProcessType(string processTypeKey) => throw new NotSupportedException();
@@ -271,8 +776,18 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null) => throw new NotSupportedException();
         public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey) => throw new NotSupportedException();
         public Task<BulkOperationResultDto> BulkCreateDepartmentChangeWorkflows(BulkDepartmentChangeRequest request, long actorUserId) => throw new NotSupportedException();
-        public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions() => throw new NotSupportedException();
+        public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions()
+        {
+            GetAdminWorkflowDefinitionsCallCount += 1;
+            return Task.FromResult(WorkflowDefinitions);
+        }
         public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request)
+        {
+            UpdateAdminWorkflowDefinitionCallCount += 1;
+            LastUpdateAdminWorkflowDefinitionId = definitionId;
+            return Task.FromResult(UpdatedDefinition);
+        }
 
         public Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(
             int definitionId,
@@ -283,19 +798,24 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             return Task.FromResult(CreatedVersion);
         }
 
-        public Task<WorkflowDefinitionVersionDetailDto?> GetAdminWorkflowDefinitionVersion(long versionId) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionVersionDetailDto?> GetAdminWorkflowDefinitionVersion(long versionId)
+        {
+            GetAdminWorkflowDefinitionVersionCallCount += 1;
+            return Task.FromResult(VersionDetailForGet);
+        }
 
         public Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(
             long versionId,
             ReplaceWorkflowDefinitionVersionRequest request)
         {
             ReplaceAdminWorkflowDefinitionVersionCallCount += 1;
+            LastReplaceAdminWorkflowDefinitionVersionRequest = request;
             if (ReplaceAdminWorkflowDefinitionVersionException is not null)
             {
                 throw ReplaceAdminWorkflowDefinitionVersionException;
             }
 
-            throw new NotSupportedException();
+            return Task.FromResult(ReplacedVersion);
         }
 
         public Task<WorkflowDefinitionVersionDetailDto?> PublishWorkflowDefinitionVersion(long versionId)

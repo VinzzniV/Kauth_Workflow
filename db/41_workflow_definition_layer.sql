@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS workflow_nodes (
         CHECK (node_type IN ('start', 'form', 'approval', 'task', 'decision', 'end')),
     title VARCHAR(220),
     sort_order INTEGER NOT NULL DEFAULT 0,
+    position_x INTEGER,
+    position_y INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (workflow_definition_version_id, node_key)
 );

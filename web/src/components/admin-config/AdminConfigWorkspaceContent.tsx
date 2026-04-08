@@ -1,4 +1,5 @@
 import {
+  renderBuilderWorkspace,
   renderAccessWorkspace,
   renderAnswerWorkspace,
   renderDefaultWorkspace,
@@ -23,6 +24,8 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       return renderDirectoryWorkspace(props);
     case "templates":
       return renderTemplateWorkspace(props);
+    case "builder":
+      return renderBuilderWorkspace(props);
     case "answers":
       return renderAnswerWorkspace(props);
     case "defaults":

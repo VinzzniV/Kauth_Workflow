@@ -347,3 +347,91 @@ export type AdminRoleAnswerDefault = {
   defaultValueText: string | null;
   defaultValueBoolean: boolean | null;
 };
+
+export type AdminWorkflowValidationIssue = {
+  code: string;
+  severity: string;
+  scope: string;
+  message: string;
+  referenceKey: string | null;
+};
+
+export type AdminWorkflowNodeAction = {
+  actionKey: string | null;
+  inputMapping: unknown | null;
+  executionOrder: number;
+  onErrorBehavior: string | null;
+};
+
+export type AdminWorkflowDefinitionNode = {
+  nodeKey: string | null;
+  nodeType: string | null;
+  title: string | null;
+  sortOrder: number;
+  positionX: number | null;
+  positionY: number | null;
+  config: unknown | null;
+  actions: AdminWorkflowNodeAction[];
+};
+
+export type AdminWorkflowDefinitionEdge = {
+  sourceNodeKey: string | null;
+  targetNodeKey: string | null;
+  priority: number;
+  conditionExpression: string | null;
+};
+
+export type AdminWorkflowDefinitionVersionSummary = {
+  id: number;
+  workflowDefinitionId: number;
+  versionNumber: number;
+  status: string;
+  name: string | null;
+  description: string | null;
+  primaryLegacyProcessTypeKey: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  canPublish: boolean;
+  validationIssues: AdminWorkflowValidationIssue[];
+};
+
+export type AdminWorkflowDefinitionSummary = {
+  id: number;
+  key: string;
+  name: string;
+  description: string | null;
+  versions: AdminWorkflowDefinitionVersionSummary[];
+};
+
+export type AdminWorkflowDefinitionVersionDetail = {
+  id: number;
+  workflowDefinitionId: number;
+  definitionKey: string;
+  definitionName: string;
+  definitionDescription: string | null;
+  versionNumber: number;
+  status: string;
+  name: string | null;
+  description: string | null;
+  primaryLegacyProcessTypeKey: string | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  canPublish: boolean;
+  validationIssues: AdminWorkflowValidationIssue[];
+  nodes: AdminWorkflowDefinitionNode[];
+  edges: AdminWorkflowDefinitionEdge[];
+};
+
+export type AdminWorkflowActionDefinition = {
+  id: number;
+  actionKey: string;
+  displayName: string;
+  description: string | null;
+  handlerKey: string;
+  isIdempotent: boolean;
+  isActive: boolean;
+  requiresApproval: boolean;
+  inputSchema: unknown | null;
+};

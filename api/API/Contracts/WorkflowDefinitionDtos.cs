@@ -11,6 +11,16 @@ public sealed class WorkflowDefinitionSummaryDto
     public required List<WorkflowDefinitionVersionSummaryDto> Versions { get; init; }
 }
 
+public sealed class WorkflowStartableDefinitionDto
+{
+    public required string DefinitionKey { get; init; }
+    public required string Name { get; init; }
+    public string? Description { get; init; }
+    public required bool RequiresTargetPerson { get; init; }
+    public required string PrimaryLegacyProcessTypeKey { get; init; }
+    public required int LatestPublishedVersionNumber { get; init; }
+}
+
 public sealed class WorkflowDefinitionVersionSummaryDto
 {
     public required long Id { get; init; }
@@ -63,7 +73,10 @@ public sealed class WorkflowDefinitionNodeDto
     public string? NodeType { get; init; }
     public string? Title { get; init; }
     public int SortOrder { get; init; }
+    public int? PositionX { get; init; }
+    public int? PositionY { get; init; }
     public JsonElement? Config { get; init; }
+    public List<WorkflowNodeActionDto> Actions { get; init; } = new();
 }
 
 public sealed class WorkflowDefinitionEdgeDto
@@ -74,9 +87,23 @@ public sealed class WorkflowDefinitionEdgeDto
     public string? ConditionExpression { get; init; }
 }
 
+public sealed class WorkflowNodeActionDto
+{
+    public string? ActionKey { get; init; }
+    public JsonElement? InputMapping { get; init; }
+    public int ExecutionOrder { get; init; }
+    public string? OnErrorBehavior { get; init; }
+}
+
 public sealed class CreateWorkflowDefinitionRequest
 {
     public string? Key { get; init; }
+    public string? Name { get; init; }
+    public string? Description { get; init; }
+}
+
+public sealed class UpdateWorkflowDefinitionRequest
+{
     public string? Name { get; init; }
     public string? Description { get; init; }
 }

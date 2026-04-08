@@ -512,7 +512,10 @@ SELECT
     w.status,
     w.created_at,
     w.completed_at,
-    w.archived_at
+    w.archived_at,
+    wd.definition_key,
+    COALESCE(NULLIF(BTRIM(v.name), ''), wd.name),
+    COALESCE(vpt.requires_target_person, pt.requires_target_person)
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
 LEFT JOIN LATERAL (
@@ -523,8 +526,7 @@ LEFT JOIN LATERAL (
         wl.first_name,
         wl.last_name
     FROM workflows wl
-    WHERE wl.workflow_definition_version_id IS NULL
-      AND (
+    WHERE (
             wl.target_person_id = p.id
             OR (p.employee_number IS NOT NULL AND wl.employee_number = p.employee_number)
       )
@@ -533,12 +535,14 @@ LEFT JOIN LATERAL (
 ) latest ON TRUE
 LEFT JOIN departments d ON d.id = COALESCE(latest.department_id, p.department_id, u.department_id)
 LEFT JOIN workflows w
-    ON w.workflow_definition_version_id IS NULL
-   AND (
+    ON (
         w.target_person_id = p.id
         OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
    )
 LEFT JOIN process_types pt ON pt.id = w.process_type_id
+LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
+LEFT JOIN workflow_definitions wd ON wd.id = v.workflow_definition_id
+LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
 LEFT JOIN app_roles r ON r.id = w.position_role_id
 LEFT JOIN departments w_dept ON w_dept.id = w.department_id
 WHERE p.id = @personId
@@ -582,9 +586,9 @@ ORDER BY w.created_at DESC NULLS LAST;";
                 Uid = reader.GetGuid(8),
                 ProcessType = new WorkflowProcessTypeDto
                 {
-                    Key = reader.GetString(9),
-                    Name = reader.GetString(10),
-                    RequiresTargetPerson = reader.GetBoolean(11)
+                    Key = reader.IsDBNull(20) ? reader.GetString(9) : reader.GetString(20),
+                    Name = reader.IsDBNull(21) ? reader.GetString(10) : reader.GetString(21),
+                    RequiresTargetPerson = reader.IsDBNull(22) ? reader.GetBoolean(11) : reader.GetBoolean(22)
                 },
                 FirstName = reader.GetString(12),
                 LastName = reader.GetString(13),

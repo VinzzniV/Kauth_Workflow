@@ -18,9 +18,9 @@ export default function CreateWorkflowPage() {
   const view = buildCreateWorkflowPageViewModel({
     currentStep: workflowCreation.currentStep,
     capabilities,
-    selectedProcessType: workflowCreation.selectedProcessType,
-    selectedProcessTypeKey: workflowCreation.selectedProcessTypeKey,
-    processTypes: workflowCreation.processTypes,
+    selectedWorkflowDefinition: workflowCreation.selectedWorkflowDefinition,
+    selectedWorkflowDefinitionKey: workflowCreation.selectedWorkflowDefinitionKey,
+    workflowDefinitions: workflowCreation.workflowDefinitions,
     requiresTargetPerson: workflowCreation.requiresTargetPerson,
     employee: workflowCreation.employee,
     selectedDepartmentId: workflowCreation.selectedDepartmentId,
@@ -46,14 +46,14 @@ export default function CreateWorkflowPage() {
 
         {workflowCreation.currentStep === "process" ? (
           <CreateWorkflowProcessStep
-            processTypesLoading={workflowCreation.processTypesLoading}
-            processTypes={workflowCreation.processTypes}
-            selectedProcessTypeKey={workflowCreation.selectedProcessTypeKey}
+            workflowDefinitionsLoading={workflowCreation.workflowDefinitionsLoading}
+            workflowDefinitions={workflowCreation.workflowDefinitions}
+            selectedWorkflowDefinitionKey={workflowCreation.selectedWorkflowDefinitionKey}
             canGoToContextStep={workflowCreation.canGoToContextStep}
             requiresTargetPerson={workflowCreation.requiresTargetPerson}
             hasAttemptedProcessNext={hasAttemptedProcessNext}
             processStepIssues={view.processStepIssues}
-            onSelectProcessType={workflowCreation.setProcessType}
+            onSelectWorkflowDefinition={workflowCreation.setWorkflowDefinition}
             onGoToContextStep={workflowCreation.goToContextStep}
             onAttemptBlockedNext={() => setHasAttemptedProcessNext(true)}
           />
@@ -63,7 +63,7 @@ export default function CreateWorkflowPage() {
           <CreateWorkflowContextStep
             contextStepTitle={view.contextStepTitle}
             requiresTargetPerson={workflowCreation.requiresTargetPerson}
-            selectedProcessType={workflowCreation.selectedProcessType}
+            selectedWorkflowDefinition={workflowCreation.selectedWorkflowDefinition}
             targetPersonSourceSearch={workflowCreation.targetPersonSourceSearch}
             targetPersonSources={workflowCreation.targetPersonSources}
             selectedTargetPersonSource={workflowCreation.selectedTargetPersonSource}
@@ -100,7 +100,7 @@ export default function CreateWorkflowPage() {
         {workflowCreation.currentStep === "review" ? (
           <CreateWorkflowReviewStep
             requiresTargetPerson={workflowCreation.requiresTargetPerson}
-            selectedProcessType={workflowCreation.selectedProcessType}
+            selectedWorkflowDefinition={workflowCreation.selectedWorkflowDefinition}
             selectedTargetPersonSource={workflowCreation.selectedTargetPersonSource}
             employee={workflowCreation.employee}
             selectedDepartment={workflowCreation.selectedDepartment}

@@ -1,7 +1,7 @@
 import { identityProvider } from "../../auth/IdentityProvider";
 import { getApiBase } from "../../config/appRuntimeConfig";
 
-type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export type RequestOptions = {
   method?: HttpMethod;

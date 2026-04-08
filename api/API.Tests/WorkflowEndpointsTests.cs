@@ -516,6 +516,102 @@ public sealed class WorkflowEndpointsTests
     }
 
     [Fact]
+    public async Task StartableWorkflowDefinitionsEndpoint_ReturnsDefinitionFirstCatalog()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            StartableWorkflowDefinitions =
+            [
+                new WorkflowStartableDefinitionDto
+                {
+                    DefinitionKey = "onboarding",
+                    Name = "Onboarding",
+                    Description = "Neue Person anlegen",
+                    RequiresTargetPerson = false,
+                    PrimaryLegacyProcessTypeKey = "onboarding",
+                    LatestPublishedVersionNumber = 3
+                }
+            ]
+        };
+
+        var app = CreateApp(repository, CreateUser(AuthorizationRoles.Hr));
+        var endpoint = GetWorkflowEndpoint(app, "/workflow-definitions/startable", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            "/workflow-definitions/startable",
+            "");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetStartableWorkflowDefinitionsCallCount);
+    }
+
+    [Fact]
+    public async Task CreateWorkflowEndpoint_UsesWorkflowDefinitionKey_WhenPublishedDefinitionIsStartable()
+    {
+        var workflowUid = Guid.NewGuid();
+        var repository = new StubWorkflowRepository
+        {
+            StartableWorkflowDefinitions =
+            [
+                new WorkflowStartableDefinitionDto
+                {
+                    DefinitionKey = "onboarding",
+                    Name = "Onboarding",
+                    Description = "Neue Person anlegen",
+                    RequiresTargetPerson = false,
+                    PrimaryLegacyProcessTypeKey = "onboarding",
+                    LatestPublishedVersionNumber = 1
+                }
+            ],
+            RuntimeWorkflowCreationResult = new WorkflowDefinitionRuntimeDetailDto
+            {
+                WorkflowId = 12,
+                WorkflowUid = workflowUid,
+                WorkflowDefinitionKey = "onboarding",
+                WorkflowDefinitionName = "Onboarding",
+                WorkflowDefinitionVersionId = 7,
+                WorkflowDefinitionVersionNumber = 1,
+                CurrentRuntimeStatus = "waiting",
+                LegacyWorkflowStatus = "draft",
+                PrimaryLegacyProcessTypeKey = "onboarding",
+                PrimaryLegacyProcessTypeName = "Onboarding",
+                DepartmentId = 1,
+                RoleId = 2,
+                CreatedAt = DateTime.UtcNow,
+                NodeInstances = new List<WorkflowNodeInstanceDto>()
+            },
+            Workflow = CreateWorkflowDetail(workflowUid)
+        };
+
+        var app = CreateApp(repository, CreateUser(AuthorizationRoles.Hr));
+        var endpoint = GetWorkflowEndpoint(app, "/workflows", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/workflows",
+            new CreateWorkflowRequest
+            {
+                WorkflowDefinitionKey = "onboarding",
+                DepartmentId = 1,
+                RoleId = 2,
+                FirstName = "Ada",
+                LastName = "Lovelace",
+                EmployeeNumber = 1001,
+                BadgeNumber = 2002
+            });
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status201Created, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetStartableWorkflowDefinitionsCallCount);
+        Assert.Equal(0, repository.CreateWorkflowCallCount);
+    }
+
+    [Fact]
     public async Task WorkflowListEndpoint_RestrictsManagerToObservableDepartments()
     {
         var repository = new StubWorkflowRepository
@@ -1107,6 +1203,7 @@ public sealed class WorkflowEndpointsTests
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddRouting();
         builder.Services.AddSingleton<IWorkflowRepository>(repository);
+        builder.Services.AddSingleton<IWorkflowDefinitionRuntimeRepository>(repository);
         builder.Services.AddSingleton<IUserAuthorizationRepository, StubUserAuthorizationRepository>();
         builder.Services.AddSingleton<IUserContext>(new StubUserContext(user ?? CreateAdminHrUser()));
         builder.Services.AddSingleton<IAuthorizationPolicyService, AuthorizationPolicyService>();
@@ -1482,7 +1579,7 @@ public sealed class WorkflowEndpointsTests
         }
     }
 
-    private sealed class StubWorkflowRepository : IWorkflowRepository
+    private sealed class StubWorkflowRepository : IWorkflowRepository, IWorkflowDefinitionRuntimeRepository
     {
         public WorkflowDetailDto? Workflow { get; set; }
         public List<WorkflowAuditEntryDto> AuditEntries { get; set; } = new();
@@ -1494,8 +1591,26 @@ public sealed class WorkflowEndpointsTests
         public List<DerivedAnswerDto> DerivedAnswers { get; set; } = new();
         public BulkOperationResultDto? BulkOperationResult { get; set; }
         public List<AdminProcessTypeDto> AdminProcessTypes { get; set; } = new();
+        public List<WorkflowStartableDefinitionDto> StartableWorkflowDefinitions { get; set; } = new();
         public AdminProcessTypeDto? UpdatedProcessType { get; set; }
         public Exception? UpdateProcessTypeException { get; set; }
+        public WorkflowDefinitionRuntimeDetailDto RuntimeWorkflowCreationResult { get; set; } = new()
+        {
+            WorkflowId = 1,
+            WorkflowUid = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            WorkflowDefinitionKey = "onboarding",
+            WorkflowDefinitionName = "Onboarding",
+            WorkflowDefinitionVersionId = 1,
+            WorkflowDefinitionVersionNumber = 1,
+            CurrentRuntimeStatus = "waiting",
+            LegacyWorkflowStatus = "draft",
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            PrimaryLegacyProcessTypeName = "Onboarding",
+            DepartmentId = 1,
+            RoleId = 2,
+            CreatedAt = DateTime.UtcNow,
+            NodeInstances = new List<WorkflowNodeInstanceDto>()
+        };
         public WorkflowListResult FilteredWorkflowsResult { get; set; } = new()
         {
             Items = new List<WorkflowListItemDto>(),
@@ -1518,6 +1633,7 @@ public sealed class WorkflowEndpointsTests
         public int GetAdminProcessTypesCallCount { get; private set; }
         public int UpdateProcessTypeCallCount { get; private set; }
         public int GetActiveProcessTypesCallCount { get; private set; }
+        public int GetStartableWorkflowDefinitionsCallCount { get; private set; }
         public int SearchWorkflowTargetPersonSourcesCallCount { get; private set; }
         public int SearchWorkflowTargetPeopleCallCount { get; private set; }
         public int CreateWorkflowCallCount { get; private set; }
@@ -1577,6 +1693,11 @@ public sealed class WorkflowEndpointsTests
             LastGetActiveProcessTypesManagerOnly = managerOnly;
             return Task.FromResult(ActiveProcessTypes);
         }
+        public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions()
+        {
+            GetStartableWorkflowDefinitionsCallCount += 1;
+            return Task.FromResult(StartableWorkflowDefinitions);
+        }
         public Task<List<RequirementDto>> GetRequirements(string processTypeKey) => throw new NotSupportedException();
         public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey) => throw new NotSupportedException();
         public Task<bool> IsManagerCreatableProcessType(string processTypeKey)
@@ -1601,7 +1722,7 @@ public sealed class WorkflowEndpointsTests
                     ? targets
                     : new List<WorkflowNotificationDispatchTarget>());
         }
-        public Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(Guid workflowUid) => throw new NotSupportedException();
+        public Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(Guid workflowUid) => Task.FromResult(new List<WorkflowNotificationDispatchTarget>());
         public Task<List<WorkflowNotificationDispatchTarget>> CreateWorkflowCompletionNotifications(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<Guid>> GetWorkflowUidsWithDisabledNotifications(string notificationType) => throw new NotSupportedException();
         public Task ApplyNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results)
@@ -1736,6 +1857,7 @@ public sealed class WorkflowEndpointsTests
 
         public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions() => throw new NotSupportedException();
         public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(int definitionId, CreateWorkflowDefinitionVersionRequest request) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> GetAdminWorkflowDefinitionVersion(long versionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(long versionId, ReplaceWorkflowDefinitionVersionRequest request) => throw new NotSupportedException();
@@ -1777,6 +1899,20 @@ public sealed class WorkflowEndpointsTests
         public Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int processTypeId) => throw new NotSupportedException();
         public Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int processTypeId) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionVersionDetailDto?> PublishWorkflowDefinitionVersion(long versionId) => throw new NotSupportedException();
+
+        public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowDefinitionInstance(
+            CreateWorkflowDefinitionInstanceRequest request,
+            long createdByUserId)
+        {
+            return Task.FromResult(RuntimeWorkflowCreationResult);
+        }
+
+        public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetail(Guid workflowUid) => throw new NotSupportedException();
+        public Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeFormNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeApprovalNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeTaskNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId) => throw new NotSupportedException();
     }
 
     private sealed class StubWorkflowEmailNotificationSender : IWorkflowEmailNotificationSender

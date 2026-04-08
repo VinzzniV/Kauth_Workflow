@@ -1,8 +1,8 @@
 import type {
   Department,
   EmployeeFormData,
-  ProcessType,
   Role,
+  StartableWorkflowDefinition,
   WorkflowTargetPersonSource,
   WorkflowCreationPayload,
 } from "../types/workflow";
@@ -11,7 +11,7 @@ export type SubmitState = "idle" | "loading" | "success" | "error";
 export type WorkflowCreationStep = "process" | "context" | "review";
 
 export type WorkflowStartFormState = {
-  processTypeKey: string | null;
+  workflowDefinitionKey: string | null;
   employee: EmployeeFormData;
   departmentId: number | null;
   roleId: number | null;
@@ -28,7 +28,7 @@ export const EMPTY_EMPLOYEE: EmployeeFormData = {
 
 export function createInitialWorkflowStartFormState(): WorkflowStartFormState {
   return {
-    processTypeKey: null,
+    workflowDefinitionKey: null,
     employee: EMPTY_EMPLOYEE,
     departmentId: null,
     roleId: null,
@@ -45,15 +45,18 @@ export function hasValidEmployeeData(employee: EmployeeFormData): boolean {
   );
 }
 
-export function resolveSelectedProcessTypeKey(
-  processTypeKey: string | null,
-  processTypes: ProcessType[]
+export function resolveSelectedWorkflowDefinitionKey(
+  workflowDefinitionKey: string | null,
+  workflowDefinitions: StartableWorkflowDefinition[]
 ): string | null {
-  if (processTypeKey && processTypes.some((type) => type.key === processTypeKey)) {
-    return processTypeKey;
+  if (
+    workflowDefinitionKey &&
+    workflowDefinitions.some((definition) => definition.definitionKey === workflowDefinitionKey)
+  ) {
+    return workflowDefinitionKey;
   }
 
-  return processTypes.length === 1 ? processTypes[0].key : null;
+  return workflowDefinitions.length === 1 ? workflowDefinitions[0].definitionKey : null;
 }
 
 export function resolveSelectedDepartment(
@@ -105,7 +108,7 @@ export function resolveSelectedTargetPersonSource(
 }
 
 type WorkflowCreationContextCompletionArgs = {
-  selectedProcessTypeKey: string | null;
+  selectedWorkflowDefinitionKey: string | null;
   requiresTargetPerson: boolean;
   selectedTargetPersonSource: WorkflowTargetPersonSource | null;
   targetPersonSourcesLoading: boolean;
@@ -118,7 +121,7 @@ type WorkflowCreationContextCompletionArgs = {
 };
 
 export function isWorkflowCreationContextComplete({
-  selectedProcessTypeKey,
+  selectedWorkflowDefinitionKey,
   requiresTargetPerson,
   selectedTargetPersonSource,
   targetPersonSourcesLoading,
@@ -129,7 +132,7 @@ export function isWorkflowCreationContextComplete({
   rolesLoading,
   rolesError,
 }: WorkflowCreationContextCompletionArgs): boolean {
-  if (!selectedProcessTypeKey) {
+  if (!selectedWorkflowDefinitionKey) {
     return false;
   }
 
@@ -153,7 +156,8 @@ export function isWorkflowCreationContextComplete({
 }
 
 type WorkflowCreationPayloadArgs = {
-  selectedProcessTypeKey: string;
+  selectedWorkflowDefinitionKey: string;
+  selectedLegacyProcessTypeKey: string;
   requiresTargetPerson: boolean;
   selectedTargetPersonSource: WorkflowTargetPersonSource | null;
   employee: EmployeeFormData;
@@ -162,7 +166,8 @@ type WorkflowCreationPayloadArgs = {
 };
 
 export function buildWorkflowCreationPayload({
-  selectedProcessTypeKey,
+  selectedWorkflowDefinitionKey,
+  selectedLegacyProcessTypeKey,
   requiresTargetPerson,
   selectedTargetPersonSource,
   employee,
@@ -171,7 +176,8 @@ export function buildWorkflowCreationPayload({
 }: WorkflowCreationPayloadArgs): WorkflowCreationPayload {
   if (requiresTargetPerson && selectedTargetPersonSource) {
     return {
-      processTypeKey: selectedProcessTypeKey,
+      workflowDefinitionKey: selectedWorkflowDefinitionKey,
+      processTypeKey: selectedLegacyProcessTypeKey,
       targetPersonId: selectedTargetPersonSource.personId,
       sourceWorkflowUid: selectedTargetPersonSource.workflowUid,
       firstName: selectedTargetPersonSource.firstName,
@@ -185,7 +191,8 @@ export function buildWorkflowCreationPayload({
   }
 
   return {
-    processTypeKey: selectedProcessTypeKey,
+    workflowDefinitionKey: selectedWorkflowDefinitionKey,
+    processTypeKey: selectedLegacyProcessTypeKey,
     firstName: employee.firstName.trim(),
     lastName: employee.lastName.trim(),
     employeeNumber: employee.employeeNumber,
@@ -197,19 +204,19 @@ export function buildWorkflowCreationPayload({
 }
 
 type WorkflowCreationSuccessMessageArgs = {
-  processTypeName: string;
+  workflowName: string;
   createdWorkflowUid: string;
   requiresTargetPerson: boolean;
   selectedTargetPersonSource: WorkflowTargetPersonSource | null;
 };
 
 export function buildWorkflowCreationSuccessMessage({
-  processTypeName,
+  workflowName,
   createdWorkflowUid,
   requiresTargetPerson,
   selectedTargetPersonSource,
 }: WorkflowCreationSuccessMessageArgs): string {
-  return `${processTypeName} ${createdWorkflowUid} angelegt.${
+  return `${workflowName} ${createdWorkflowUid} angelegt.${
     requiresTargetPerson && selectedTargetPersonSource
       ? " Automatisch mit bestehendem Quellworkflow verknüpft."
       : ""

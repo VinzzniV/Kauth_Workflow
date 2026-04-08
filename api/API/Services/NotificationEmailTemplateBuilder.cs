@@ -93,16 +93,11 @@ internal static class NotificationEmailTemplateBuilder
             ? "Workflow"
             : processTypeName.Trim();
 
-        return normalizedKey switch
-        {
-            "onboarding" => new ProcessTypeEmailContext(normalizedKey, normalizedName, "Onboarding-Workflow", "Onboarding-Prozess"),
-            "offboarding" => new ProcessTypeEmailContext(normalizedKey, normalizedName, "Offboarding-Workflow", "Offboarding-Prozess"),
-            "department_change" => new ProcessTypeEmailContext(normalizedKey, normalizedName, normalizedName, $"Prozess {normalizedName}"),
-            "name_change" => new ProcessTypeEmailContext(normalizedKey, normalizedName, normalizedName, $"Prozess {normalizedName}"),
-            "position_change" => new ProcessTypeEmailContext(normalizedKey, normalizedName, normalizedName, $"Prozess {normalizedName}"),
-            "role_change" => new ProcessTypeEmailContext(normalizedKey, normalizedName, normalizedName, $"Prozess {normalizedName}"),
-            _ => new ProcessTypeEmailContext(normalizedKey, normalizedName, $"{normalizedName}-Workflow", $"Prozess {normalizedName}")
-        };
+        return new ProcessTypeEmailContext(
+            normalizedKey,
+            normalizedName,
+            normalizedName,
+            $"Prozess {normalizedName}");
     }
 
     private static string BuildActionButton(string encodedUrl, string label)

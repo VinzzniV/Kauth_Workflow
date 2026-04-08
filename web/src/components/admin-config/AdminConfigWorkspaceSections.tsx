@@ -9,6 +9,7 @@ import { AdminPermissionsSection } from "./AdminPermissionsSection";
 import { AdminSystemWorkspaceSection } from "./AdminSystemWorkspaceSection";
 import { AdminTaskTemplateSection } from "./AdminTaskTemplateSection";
 import { AdminTechnicalAccessSection } from "./AdminTechnicalAccessSection";
+import { AdminWorkflowBuilderSection } from "./AdminWorkflowBuilderSection";
 import { AdminWorkspaceIntro } from "./AdminWorkspaceIntro";
 import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceContentTypes";
 import {
@@ -222,6 +223,16 @@ export function renderTemplateWorkspace(props: AdminConfigWorkspaceContentProps)
     <AdminTaskTemplateSection
       departments={props.departmentAssignments}
       responsibilities={props.responsibilityOwners}
+      onNotice={props.onNotice}
+      onError={props.onError}
+    />
+  );
+}
+
+export function renderBuilderWorkspace(props: AdminConfigWorkspaceContentProps) {
+  return renderWorkspaceWithIntro(
+    "builder",
+    <AdminWorkflowBuilderSection
       onNotice={props.onNotice}
       onError={props.onError}
     />

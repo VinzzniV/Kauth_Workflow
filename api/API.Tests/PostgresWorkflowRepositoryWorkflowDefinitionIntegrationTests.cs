@@ -52,9 +52,9 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                     Nodes =
                     [
                         WorkflowDefinitionTestData.FormNode("Start", "start"),
-                        WorkflowDefinitionTestData.FormNode("Collect_Data", "form", """{"legacyProcessTypeKey":"onboarding"}""", 10),
-                        WorkflowDefinitionTestData.FormNode("Approve_Manager", "approval", """{"legacyTemplateKey":"manager_approval"}""", 20),
-                        WorkflowDefinitionTestData.FormNode("Finish", "end", null, 30)
+                        WorkflowDefinitionTestData.FormNode("Collect_Data", "form", """{"legacyProcessTypeKey":"onboarding"}""", 10, 160, 80),
+                        WorkflowDefinitionTestData.FormNode("Approve_Manager", "approval", """{"legacyTemplateKey":"manager_approval"}""", 20, 480, 80),
+                        WorkflowDefinitionTestData.FormNode("Finish", "end", null, 30, 820, 80)
                     ],
                     Edges =
                     [
@@ -68,7 +68,11 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             Assert.Equal(definition.Key.ToLowerInvariant(), definition.Key);
             Assert.Equal(4, updatedVersion!.Nodes.Count);
             Assert.Equal(3, updatedVersion.Edges.Count);
-            Assert.Contains(updatedVersion.Nodes, node => node.NodeKey == "collect_data" && node.Config.HasValue);
+            Assert.Contains(updatedVersion.Nodes, node =>
+                node.NodeKey == "collect_data"
+                && node.Config.HasValue
+                && node.PositionX == 160
+                && node.PositionY == 80);
 
             var reloadedVersion = await repository.GetAdminWorkflowDefinitionVersion(createdVersion.Id);
 
@@ -77,7 +81,10 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             Assert.Equal("Initial Draft Updated", reloadedVersion.Name);
             Assert.Equal(definition.Key, reloadedVersion.DefinitionKey);
             Assert.Equal("Employee Lifecycle", reloadedVersion.DefinitionName);
-            Assert.Contains(reloadedVersion.Nodes, node => node.NodeType == "approval");
+            Assert.Contains(reloadedVersion.Nodes, node =>
+                node.NodeType == "approval"
+                && node.PositionX == 480
+                && node.PositionY == 80);
             Assert.Contains(reloadedVersion.Edges, edge => edge.SourceNodeKey == "approve_manager" && edge.TargetNodeKey == "finish");
         }
         finally
@@ -205,11 +212,12 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
 
-            var migrationPath = FindRepositoryFile("db", "41_workflow_definition_layer.sql");
-            var migrationSql = await File.ReadAllTextAsync(migrationPath);
-
-            await using var command = new NpgsqlCommand(migrationSql, connection);
-            await command.ExecuteNonQueryAsync();
+            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/46_workflow_builder_positions.sql" })
+            {
+                var migrationSql = await File.ReadAllTextAsync(FindRepositoryFile(migration.Replace('/', Path.DirectorySeparatorChar)));
+                await using var command = new NpgsqlCommand(migrationSql, connection);
+                await command.ExecuteNonQueryAsync();
+            }
             return true;
         }
         catch (NpgsqlException ex)
@@ -226,7 +234,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
 
-            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/42_workflow_runtime_layer.sql", "db/43_workflow_definition_mappings.sql" })
+            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/42_workflow_runtime_layer.sql", "db/43_workflow_definition_mappings.sql", "db/45_automation_layer.sql", "db/46_workflow_builder_positions.sql" })
             {
                 var migrationSql = await File.ReadAllTextAsync(FindRepositoryFile(migration.Replace('/', Path.DirectorySeparatorChar)));
                 await using var command = new NpgsqlCommand(migrationSql, connection);
@@ -484,13 +492,21 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 
     private static class WorkflowDefinitionTestData
     {
-        public static WorkflowDefinitionNodeDto FormNode(string nodeKey, string nodeType, string? configJson = null, int sortOrder = 0)
+        public static WorkflowDefinitionNodeDto FormNode(
+            string nodeKey,
+            string nodeType,
+            string? configJson = null,
+            int sortOrder = 0,
+            int? positionX = null,
+            int? positionY = null)
         {
             return new WorkflowDefinitionNodeDto
             {
                 NodeKey = nodeKey,
                 NodeType = nodeType,
                 SortOrder = sortOrder,
+                PositionX = positionX,
+                PositionY = positionY,
                 Config = configJson is null ? null : System.Text.Json.JsonDocument.Parse(configJson).RootElement.Clone()
             };
         }

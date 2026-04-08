@@ -3,6 +3,9 @@ import type { WorkflowQueryOptions } from "./workflowApi";
 
 export const queryKeys = {
   processTypes: () => ["process-types"] as const,
+  workflowDefinitions: {
+    startable: () => ["workflow-definitions", "startable"] as const,
+  },
   roles: () => ["roles"] as const,
   departments: () => ["departments"] as const,
 

@@ -126,6 +126,17 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
                || HasAnyRole(user, AuthorizationRoles.Worker, AuthorizationRoles.Admin);
     }
 
+    public bool CanAccessWorkflowBuilder(CurrentUser user)
+    {
+        return CanCreateWorkflow(user)
+               || CanManageWorkflowBuilderAdvanced(user);
+    }
+
+    public bool CanManageWorkflowBuilderAdvanced(CurrentUser user)
+    {
+        return CanManageAdminConfiguration(user);
+    }
+
     public bool CanManageAdminConfiguration(CurrentUser user)
     {
         return HasPermission(user, AuthorizationPermissions.AdminPermissionsManage)

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AdminConfigWorkspaceContent } from "../components/admin-config/AdminConfigWorkspaceContent";
 import { AdminWorkspaceNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
@@ -24,6 +24,11 @@ export default function AdminConfigPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const rawSection = (searchParams.get("section") ?? "").trim().toLowerCase();
+
+  if (rawSection === "builder" || rawSection === "templates" || rawSection === "answers" || rawSection === "defaults") {
+    return <Navigate to="/builder" replace />;
+  }
 
   const section = normalizeAdminWorkspaceSection(searchParams.get("section"));
   const organizationEntity = normalizeAdminOrganizationEntity(searchParams.get("entity"));
