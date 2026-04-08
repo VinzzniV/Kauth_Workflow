@@ -358,17 +358,47 @@ function buildFallbackPositions(
   }
 
   const positions = new Map<string, { x: number; y: number }>();
+  let previousLayerPositions = new Map<string, number>();
   for (const [layer, layerNodes] of [...nodesByLayer.entries()].sort((left, right) => left[0] - right[0])) {
-    layerNodes.sort(compareNodesForLayout);
+    layerNodes.sort((left, right) => {
+      const leftAnchor = getLayerAnchor(left.id, incoming, previousLayerPositions);
+      const rightAnchor = getLayerAnchor(right.id, incoming, previousLayerPositions);
+      if (leftAnchor !== rightAnchor) {
+        return leftAnchor - rightAnchor;
+      }
+
+      return compareNodesForLayout(left, right);
+    });
+
+    const layerHeight = Math.max(layerNodes.length - 1, 0) * DEFAULT_LAYOUT_Y;
+    const startY = layerHeight === 0 ? 0 : -Math.round(layerHeight / 2);
     layerNodes.forEach((node, index) => {
+      const y = startY + index * DEFAULT_LAYOUT_Y;
       positions.set(node.id, {
         x: layer * DEFAULT_LAYOUT_X,
-        y: index * DEFAULT_LAYOUT_Y,
+        y,
       });
     });
+    previousLayerPositions = new Map(layerNodes.map((node, index) => [node.id, startY + index * DEFAULT_LAYOUT_Y]));
   }
 
   return positions;
+}
+
+function getLayerAnchor(
+  nodeId: string,
+  incoming: Map<string, Set<string>>,
+  previousLayerPositions: Map<string, number>
+): number {
+  const sourcePositions = [...(incoming.get(nodeId) ?? [])]
+    .map((sourceId) => previousLayerPositions.get(sourceId))
+    .filter((value): value is number => typeof value === "number");
+
+  if (sourcePositions.length === 0) {
+    return 0;
+  }
+
+  return sourcePositions.reduce((sum, value) => sum + value, 0) / sourcePositions.length;
 }
 
 function compareNodesForLayout(
@@ -412,11 +442,11 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
   for (const node of draft.nodes) {
     const nodeKey = node.nodeKey.trim();
     if (!nodeKey) {
-      issues.push({ scope: "node", message: "Each node needs a node_key." });
+      issues.push({ scope: "node", message: "Jeder Schritt braucht einen Schritt-Key." });
     } else {
       const normalized = nodeKey.toLowerCase();
       if (normalizedNodeKeys.has(normalized)) {
-        issues.push({ scope: "node", message: `Duplicate node_key '${nodeKey}'.`, referenceKey: nodeKey });
+        issues.push({ scope: "node", message: `Der Schritt-Key '${nodeKey}' ist doppelt vergeben.`, referenceKey: nodeKey });
       }
       normalizedNodeKeys.add(normalized);
     }
@@ -433,33 +463,33 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
       try {
         const parsed = JSON.parse(node.configText);
         if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
-          issues.push({ scope: "node", message: `Node '${nodeKey || "?"}' needs a valid JSON object in config_json.` });
+          issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' braucht ein gueltiges JSON-Objekt in der technischen Konfiguration.` });
         }
       } catch {
-        issues.push({ scope: "node", message: `Node '${nodeKey || "?"}' has invalid JSON in config_json.` });
+        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' hat ungueltiges JSON in der technischen Konfiguration.` });
       }
     }
 
     if (node.nodeType !== "automation" && node.actions.length > 0) {
-      issues.push({ scope: "node", message: `Node '${nodeKey || "?"}' must not contain actions.` });
+      issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' darf keine automatischen Aktionen enthalten.` });
     }
 
     if (node.nodeType === "automation") {
       if (node.actions.length === 0) {
-        issues.push({ scope: "node", message: `Automation node '${nodeKey || "?"}' needs at least one action.` });
+        issues.push({ scope: "node", message: `Die Automatisierung '${nodeKey || "?"}' braucht mindestens eine Aktion.` });
       }
 
       const executionOrders = new Set<number>();
       for (const action of node.actions) {
         if (!action.actionKey.trim()) {
-          issues.push({ scope: "action", message: `Node '${nodeKey || "?"}' contains an action without action_key.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthaelt eine Aktion ohne Aktion-Key.` });
         }
 
         const parsedOrder = Number(action.executionOrder);
         if (!Number.isInteger(parsedOrder) || parsedOrder <= 0) {
-          issues.push({ scope: "action", message: `Node '${nodeKey || "?"}' contains an action with invalid execution_order.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthaelt eine Aktion mit ungueltiger Reihenfolge.` });
         } else if (executionOrders.has(parsedOrder)) {
-          issues.push({ scope: "action", message: `Node '${nodeKey || "?"}' contains duplicate execution_order '${parsedOrder}'.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' verwendet die Reihenfolge '${parsedOrder}' doppelt.` });
         } else {
           executionOrders.add(parsedOrder);
         }
@@ -468,10 +498,10 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
           try {
             const parsed = JSON.parse(action.inputMappingText);
             if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
-              issues.push({ scope: "action", message: `Action '${action.actionKey || "?"}' needs a JSON object in input_mapping.` });
+              issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' braucht ein JSON-Objekt im Eingabe-Mapping.` });
             }
           } catch {
-            issues.push({ scope: "action", message: `Action '${action.actionKey || "?"}' has invalid JSON in input_mapping.` });
+            issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' hat ungueltiges JSON im Eingabe-Mapping.` });
           }
         }
       }
@@ -479,11 +509,11 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
   }
 
   if (startCount !== 1) {
-    issues.push({ scope: "version", message: "A draft needs exactly one start node." });
+    issues.push({ scope: "version", message: "Ein Ablauf braucht genau einen Start." });
   }
 
   if (endCount < 1) {
-    issues.push({ scope: "version", message: "A draft needs at least one end node." });
+    issues.push({ scope: "version", message: "Ein Ablauf braucht mindestens ein Ende." });
   }
 
   const prioritiesBySource = new Set<string>();
@@ -493,16 +523,16 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
     const normalizedSourceNodeKey = normalizeNodeKey(sourceNodeKey);
     const normalizedTargetNodeKey = normalizeNodeKey(targetNodeKey);
     if (!sourceNodeKey || !targetNodeKey) {
-      issues.push({ scope: "edge", message: "Each edge needs source_node_key and target_node_key." });
+      issues.push({ scope: "edge", message: "Jede Verbindung braucht Quelle und Ziel." });
       continue;
     }
 
     if (normalizedSourceNodeKey === normalizedTargetNodeKey) {
-      issues.push({ scope: "edge", message: `Edge '${sourceNodeKey} -> ${targetNodeKey}' must not be a self-loop.` });
+      issues.push({ scope: "edge", message: `Die Verbindung '${sourceNodeKey} -> ${targetNodeKey}' darf kein Ruecksprung auf denselben Schritt sein.` });
     }
 
     if (!normalizedNodeKeys.has(normalizedSourceNodeKey) || !normalizedNodeKeys.has(normalizedTargetNodeKey)) {
-      issues.push({ scope: "edge", message: `Edge '${sourceNodeKey} -> ${targetNodeKey}' references unknown nodes.` });
+      issues.push({ scope: "edge", message: `Die Verbindung '${sourceNodeKey} -> ${targetNodeKey}' verweist auf unbekannte Schritte.` });
     }
 
     const priorityKey = edge.priority.trim();
@@ -511,7 +541,7 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
       if (prioritiesBySource.has(compositeKey)) {
         issues.push({
           scope: "edge",
-          message: `Source '${sourceNodeKey}' uses priority '${priorityKey}' more than once.`,
+          message: `Der Schritt '${sourceNodeKey}' verwendet die Reihenfolge '${priorityKey}' mehrfach.`,
           referenceKey: sourceNodeKey,
         });
       } else {

@@ -3,14 +3,20 @@ import {
   createAdminWorkflowDefinition,
   createAdminWorkflowDefinitionVersion,
   getAdminWorkflowActionDefinitions,
+  getAdminProcessTypes,
+  getAdminTaskTemplates,
   getAdminWorkflowDefinitionVersion,
   getAdminWorkflowDefinitions,
   publishAdminWorkflowDefinitionVersion,
   replaceAdminWorkflowDefinitionVersion,
   updateAdminWorkflowDefinition,
 } from "../services/adminConfigApi";
+import { getAdminResponsibilityOwners } from "../services/adminApi";
 import type {
   AdminWorkflowActionDefinition,
+  AdminProcessType,
+  AdminResponsibilityOwner,
+  AdminTaskTemplate,
   AdminWorkflowDefinitionSummary,
   AdminWorkflowDefinitionVersionDetail,
 } from "../types/auth";
@@ -41,6 +47,9 @@ type UseAdminWorkflowBuilderOptions = {
 export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }: UseAdminWorkflowBuilderOptions) {
   const [definitions, setDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
   const [actionDefinitions, setActionDefinitions] = useState<AdminWorkflowActionDefinition[]>([]);
+  const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
+  const [responsibilityOwners, setResponsibilityOwners] = useState<AdminResponsibilityOwner[]>([]);
+  const [taskTemplates, setTaskTemplates] = useState<AdminTaskTemplate[]>([]);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -93,6 +102,8 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   }) => {
     const loadedDefinitions = await getAdminWorkflowDefinitions();
     let loadedActionDefinitions: AdminWorkflowActionDefinition[] = [];
+    let loadedProcessTypes: AdminProcessType[] = [];
+    let loadedResponsibilityOwners: AdminResponsibilityOwner[] = [];
     let actionCatalogError: string | null = null;
 
     if (canManageAdvanced) {
@@ -101,14 +112,28 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       } catch (err) {
         actionCatalogError = err instanceof Error
           ? err.message
-          : "Der Action-Katalog konnte nicht geladen werden.";
+          : "Der Aktionskatalog konnte nicht geladen werden.";
       }
+    }
+
+    try {
+      loadedProcessTypes = await getAdminProcessTypes();
+    } catch {
+      loadedProcessTypes = [];
+    }
+
+    try {
+      loadedResponsibilityOwners = await getAdminResponsibilityOwners();
+    } catch {
+      loadedResponsibilityOwners = [];
     }
 
     setDefinitions(loadedDefinitions);
     setActionDefinitions(loadedActionDefinitions);
+    setProcessTypes(loadedProcessTypes);
+    setResponsibilityOwners(loadedResponsibilityOwners);
     if (actionCatalogError) {
-      onError(`Builder geladen, aber der Action-Katalog ist derzeit nicht verfuegbar. ${actionCatalogError}`);
+      onError(`Der Ablauf-Editor wurde geladen, aber der Aktionskatalog ist derzeit nicht verfuegbar. ${actionCatalogError}`);
     }
 
     const keepSelection = options?.keepSelection ?? true;
@@ -138,6 +163,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     if (!versionId) {
       setVersionDetail(null);
       setVersionDraft(createEmptyVersionDraft());
+      setTaskTemplates([]);
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
       setLocalValidationIssues([]);
@@ -151,6 +177,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       const nextDraft = toVersionDraft(detail);
       setVersionDetail(detail);
       setVersionDraft(nextDraft);
+      setTaskTemplates([]);
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
       setLocalValidationIssues([]);
@@ -165,7 +192,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     onError(null);
     void loadDefinitions({ keepSelection: false })
       .catch((err) => {
-        onError(err instanceof Error ? err.message : "Workflow-Definitionen konnten nicht geladen werden.");
+        onError(err instanceof Error ? err.message : "Die Ablaufvorlagen konnten nicht geladen werden.");
         setDefinitions([]);
         setActionDefinitions([]);
       })
@@ -188,13 +215,79 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   useEffect(() => {
     onError(null);
     void loadVersionDetail(selectedVersionId).catch((err) => {
-      onError(err instanceof Error ? err.message : "Workflow-Version konnte nicht geladen werden.");
+      onError(err instanceof Error ? err.message : "Der ausgewaehlte Stand konnte nicht geladen werden.");
       setVersionDetail(null);
       setVersionDraft(createEmptyVersionDraft());
+      setTaskTemplates([]);
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
     });
   }, [loadVersionDetail, onError, selectedVersionId]);
+
+  useEffect(() => {
+    const processTypeIdsToLoad = new Set<number>();
+    const referencedProcessKeys = new Set<string>();
+
+    if (versionDraft.primaryLegacyProcessTypeKey.trim()) {
+      referencedProcessKeys.add(versionDraft.primaryLegacyProcessTypeKey.trim().toLowerCase());
+    }
+
+    for (const node of versionDraft.nodes) {
+      try {
+        const parsed = node.configText.trim() ? JSON.parse(node.configText) as Record<string, unknown> : null;
+        const legacyProcessTypeKey = typeof parsed?.legacyProcessTypeKey === "string"
+          ? parsed.legacyProcessTypeKey.trim().toLowerCase()
+          : "";
+        if (legacyProcessTypeKey) {
+          referencedProcessKeys.add(legacyProcessTypeKey);
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    for (const processType of processTypes) {
+      if (referencedProcessKeys.has(processType.key.trim().toLowerCase())) {
+        processTypeIdsToLoad.add(processType.id);
+      }
+    }
+
+    if (processTypeIdsToLoad.size === 0) {
+      setTaskTemplates([]);
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.all(
+      [...processTypeIdsToLoad].map(async (processTypeId) => getAdminTaskTemplates(processTypeId))
+    )
+      .then((templateGroups) => {
+        if (cancelled) {
+          return;
+        }
+
+        const templatesByKey = new Map<string, AdminTaskTemplate>();
+        for (const group of templateGroups) {
+          for (const template of group) {
+            const normalizedKey = template.templateKey.trim().toLowerCase();
+            if (normalizedKey && !templatesByKey.has(normalizedKey)) {
+              templatesByKey.set(normalizedKey, template);
+            }
+          }
+        }
+
+        setTaskTemplates([...templatesByKey.values()]);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTaskTemplates([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [processTypes, versionDraft.nodes, versionDraft.primaryLegacyProcessTypeKey]);
 
   const confirmSelectionChange = useCallback(() => {
     if (!hasUnsavedChanges) {
@@ -260,7 +353,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
         || nextNodeType === "automation";
 
       if (touchesAutomationType && nextNodeType !== currentNode.nodeType) {
-        onError("Automation-Nodes und Automation-Typwechsel erfordern Admin Builder Rechte.");
+        onError("Automatisierungen und Typwechsel auf automatische Schritte erfordern den Admin-Modus.");
         return;
       }
     }
@@ -304,12 +397,12 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setIsDirty(true);
   }, []);
 
-  const addNode = useCallback(() => {
+  const addNode = useCallback((nodeType: WorkflowBuilderNodeDraft["nodeType"] = "task") => {
     const maxPositionX = versionDraft.nodes.reduce((currentMax, node) => {
       return Math.max(currentMax, node.positionX ?? 0);
     }, -280);
     const nextNode = {
-      ...createEmptyNodeDraft("task", versionDraft.nodes.length + 1),
+      ...createEmptyNodeDraft(nodeType, versionDraft.nodes.length + 1),
       positionX: maxPositionX + 280,
       positionY: 0,
     };
@@ -322,7 +415,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   const removeNode = useCallback((nodeId: string) => {
     const nodeToRemove = versionDraft.nodes.find((node) => node.id === nodeId) ?? null;
     if (!canManageAdvanced && nodeToRemove?.nodeType === "automation") {
-      onError("Automation-Nodes koennen nur im Admin Builder entfernt werden.");
+      onError("Automatisierungen koennen nur im Admin-Modus entfernt werden.");
       return;
     }
 
@@ -360,7 +453,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const removeSelectedNode = useCallback(() => {
     if (!selectedNode) {
-      onError("Bitte zuerst einen Node im Canvas auswaehlen.");
+      onError("Bitte zuerst einen Schritt im Canvas auswaehlen.");
       return;
     }
 
@@ -375,7 +468,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const addActionFromDefinition = useCallback((nodeId: string, actionKey: string) => {
     if (!canManageAdvanced) {
-      onError("Der Action Layer ist nur im Admin Builder editierbar.");
+      onError("Automatische Aktionen sind nur im Admin-Modus editierbar.");
       return;
     }
 
@@ -422,7 +515,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const updateAction = useCallback((nodeId: string, actionId: string, patch: Partial<WorkflowBuilderVersionDraft["nodes"][number]["actions"][number]>) => {
     if (!canManageAdvanced) {
-      onError("Action-Aenderungen erfordern Admin Builder Rechte.");
+      onError("Aenderungen an automatischen Aktionen erfordern den Admin-Modus.");
       return;
     }
 
@@ -442,7 +535,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const removeAction = useCallback((nodeId: string, actionId: string) => {
     if (!canManageAdvanced) {
-      onError("Action-Aenderungen erfordern Admin Builder Rechte.");
+      onError("Aenderungen an automatischen Aktionen erfordern den Admin-Modus.");
       return;
     }
 
@@ -503,12 +596,12 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       const targetNodeKey = targetNode?.nodeKey.trim() ?? "";
 
       if (!sourceNodeKey || !targetNodeKey) {
-        errorMessage = "Edges brauchen valide Quelle und Ziel mit Node Key.";
+        errorMessage = "Verbindungen brauchen gueltige Quelle und gueltiges Ziel mit Schritt-Key.";
         return current;
       }
 
       if (sourceNodeKey.toLowerCase() === targetNodeKey.toLowerCase()) {
-        errorMessage = "Self-Loops sind im Builder nicht erlaubt.";
+        errorMessage = "Verbindungen duerfen nicht auf denselben Schritt zurueckzeigen.";
         return current;
       }
 
@@ -553,7 +646,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const createDefinition = useCallback(async () => {
     if (!canManageAdvanced) {
-      onError("Neue Definitionen koennen nur im Admin Builder angelegt werden.");
+      onError("Neue Ablaeufe koennen nur im Admin-Modus angelegt werden.");
       return;
     }
 
@@ -571,9 +664,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       setSelectedDefinitionId(created.id);
       setSelectedVersionId(created.versions[0]?.id ?? null);
       setNewDefinitionDraft(createEmptyDefinitionDraft());
-      onNotice(`Workflow-Definition '${created.name}' wurde angelegt.`);
+      onNotice(`Ablauf '${created.name}' wurde angelegt.`);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Workflow-Definition konnte nicht angelegt werden.");
+      onError(err instanceof Error ? err.message : "Der Ablauf konnte nicht angelegt werden.");
     } finally {
       setIsCreatingDefinition(false);
     }
@@ -581,12 +674,12 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const createVersion = useCallback(async () => {
     if (!canManageAdvanced) {
-      onError("Neue Versionen koennen nur im Admin Builder angelegt werden.");
+      onError("Neue Staende koennen nur im Admin-Modus angelegt werden.");
       return;
     }
 
     if (!selectedDefinitionId) {
-      onError("Bitte zuerst eine Workflow-Definition auswaehlen.");
+      onError("Bitte zuerst einen Ablauf auswaehlen.");
       return;
     }
 
@@ -605,9 +698,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       });
       setSelectedVersionId(created.id);
       setNewVersionDraft(createEmptyVersionCreateDraft());
-      onNotice(`Version ${created.versionNumber} wurde als Draft angelegt.`);
+      onNotice(`Stand ${created.versionNumber} wurde als Entwurf angelegt.`);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Workflow-Version konnte nicht angelegt werden.");
+      onError(err instanceof Error ? err.message : "Stand konnte nicht angelegt werden.");
     } finally {
       setIsCreatingVersion(false);
     }
@@ -649,7 +742,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const saveVersion = useCallback(async () => {
     if (!selectedDefinition || !selectedVersionId) {
-      onError("Bitte zuerst eine Definition und Version auswaehlen.");
+      onError("Bitte zuerst einen Ablauf und einen Stand auswaehlen.");
       return;
     }
 
@@ -661,7 +754,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     const localValidationMessages = collectValidationMessages(normalizedDraft);
     setLocalValidationIssues(localValidationMessages);
     if (localValidationMessages.length > 0) {
-      onError("Der Draft enthaelt lokale Validierungsfehler.");
+      onError("Der aktuelle Stand enthaelt lokale Fehler.");
       return;
     }
 
@@ -672,7 +765,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     try {
       if (hasDefinitionMetadataChanges) {
         if (!canManageAdvanced) {
-          onError("Definition-Metadaten koennen nur im Admin Builder gespeichert werden.");
+          onError("Erweiterte Details zur Ablaufvorlage koennen nur im Admin-Modus gespeichert werden.");
           return;
         }
 
@@ -695,9 +788,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       setSelectedEdgeId(null);
       setLocalValidationIssues([]);
       setIsDirty(false);
-      onNotice(`Draft-Version ${saved.versionNumber} wurde gespeichert.`);
+      onNotice(`Stand ${saved.versionNumber} wurde gespeichert.`);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Draft konnte nicht gespeichert werden.");
+      onError(err instanceof Error ? err.message : "Stand konnte nicht gespeichert werden.");
     } finally {
       setIsSaving(false);
     }
@@ -705,12 +798,12 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const publishVersion = useCallback(async () => {
     if (!canManageAdvanced) {
-      onError("Publish ist nur im Admin Builder erlaubt.");
+      onError("Freigeben ist nur im Admin-Modus erlaubt.");
       return;
     }
 
     if (!selectedVersionId || !selectedVersionSummary?.canPublish) {
-      onError("Diese Version ist noch nicht publish-faehig.");
+      onError("Dieser Stand ist noch nicht freigabefaehig.");
       return;
     }
 
@@ -731,9 +824,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
       setIsDirty(false);
-      onNotice(`Version ${published.versionNumber} wurde veroeffentlicht.`);
+      onNotice(`Stand ${published.versionNumber} wurde freigegeben.`);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Version konnte nicht veroeffentlicht werden.");
+      onError(err instanceof Error ? err.message : "Stand konnte nicht freigegeben werden.");
     } finally {
       setIsPublishing(false);
     }
@@ -741,7 +834,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const validateDraft = useCallback(() => {
     if (!selectedVersionSummary) {
-      onError("Bitte zuerst eine Version auswaehlen.");
+      onError("Bitte zuerst einen Stand auswaehlen.");
       return;
     }
 
@@ -754,18 +847,21 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setLocalValidationIssues(localValidationMessages);
 
     if (localValidationMessages.length > 0) {
-      onError("Der Draft enthaelt lokale Validierungsfehler.");
+      onError("Der aktuelle Stand enthaelt lokale Fehler.");
       onNotice(null);
       return;
     }
 
     onError(null);
-    onNotice("Lokale Builder-Validierung erfolgreich.");
+    onNotice("Lokale Pruefung erfolgreich.");
   }, [collectValidationMessages, onError, onNotice, selectedVersionSummary, versionDraft]);
 
   return {
     definitions,
     actionDefinitions,
+    processTypes,
+    responsibilityOwners,
+    taskTemplates,
     selectedDefinition,
     selectedVersionSummary,
     selectedNode,

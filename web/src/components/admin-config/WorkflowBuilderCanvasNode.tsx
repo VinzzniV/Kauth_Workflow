@@ -1,23 +1,21 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { WORKFLOW_BUILDER_TECHNICAL_LABELS } from "./workflowBuilderLabels";
 
 export type WorkflowBuilderCanvasNodeData = {
   title: string;
   nodeType: string;
-  displayTypeLabel: string;
-  primaryHint: string;
-  secondaryHint: string;
-  statusTone: "success" | "info" | "warning" | "neutral";
-  statusText: string;
-  incomingCount: number;
-  outgoingCount: number;
+  typeLabel: string;
+  modeLabel: string;
+  responsibleLabel: string;
+  notificationLabel: string | null;
+  dueLabel: string | null;
+  effectText: string;
+  nextStepLabel: string;
   isSelected: boolean;
 };
 
 export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
   const nodeData = data as WorkflowBuilderCanvasNodeData;
   const typeStyle = getNodeTypeStyle(nodeData.nodeType, nodeData.isSelected);
-  const statusStyle = getStatusStyle(nodeData.statusTone);
   const canReceiveConnections = nodeData.nodeType !== "start";
   const canCreateConnections = nodeData.nodeType !== "end";
   const handleStyle = (isConnectable: boolean) => ({
@@ -38,84 +36,101 @@ export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
       />
       <div
         style={{
-          width: 280,
-          minHeight: 176,
-          borderRadius: "1rem",
+          width: 290,
+          minHeight: 194,
+          borderRadius: "1.15rem",
           border: `1px solid ${typeStyle.borderColor}`,
           background: typeStyle.background,
           boxShadow: nodeData.isSelected
-            ? "var(--graph-node-shadow-selected)"
-            : "var(--graph-node-shadow)",
+            ? "0 26px 44px rgba(15, 23, 42, 0.18)"
+            : "0 18px 34px rgba(15, 23, 42, 0.12)",
           overflow: "hidden",
         }}
       >
         <div
           style={{
-            padding: "0.95rem 1rem 0.8rem",
-            borderBottom: "1px solid var(--graph-node-header-border)",
+            padding: "0.9rem 1rem 0.82rem",
+            borderBottom: "1px solid rgba(148, 163, 184, 0.14)",
             background: typeStyle.headerBackground,
             display: "grid",
-            gap: "0.55rem",
+            gap: "0.65rem",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "flex-start" }}>
-            <span
-              className="badge badge--default"
-              style={{
-                color: typeStyle.badgeText,
-                background: typeStyle.badgeBackground,
-                borderColor: typeStyle.badgeBorder,
-                boxShadow: "var(--graph-chip-shadow)",
-              }}
-            >
-              {nodeData.displayTypeLabel}
-            </span>
-            <span
-              className="badge badge--default"
-              style={{
-                color: statusStyle.text,
-                background: statusStyle.background,
-                borderColor: statusStyle.border,
-                boxShadow: "var(--graph-chip-shadow)",
-              }}
-            >
-              {nodeData.statusText}
-            </span>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <span
+                className="badge badge--default"
+                style={{
+                  color: typeStyle.badgeText,
+                  background: typeStyle.badgeBackground,
+                  borderColor: typeStyle.badgeBorder,
+                  boxShadow: "var(--graph-chip-shadow)",
+                }}
+              >
+                {nodeData.typeLabel}
+              </span>
+              <span
+                className="badge badge--default"
+                style={{
+                  color: "var(--graph-node-title)",
+                  background: "rgba(255, 255, 255, 0.82)",
+                  borderColor: "rgba(148, 163, 184, 0.22)",
+                  boxShadow: "var(--graph-chip-shadow)",
+                }}
+              >
+                {nodeData.modeLabel}
+              </span>
+            </div>
           </div>
           <strong
             style={{
-              fontSize: "1rem",
-              lineHeight: 1.2,
+              fontSize: "1.02rem",
+              lineHeight: 1.15,
               color: "var(--graph-node-title)",
+              letterSpacing: "-0.02em",
             }}
           >
             {nodeData.title}
           </strong>
         </div>
-        <div style={{ padding: "0.9rem 1rem 1rem", display: "grid", gap: "0.75rem" }}>
-          <div style={{ display: "grid", gap: "0.35rem" }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.88rem",
-                lineHeight: 1.35,
-                color: "var(--graph-node-title)",
-                fontWeight: 600,
-              }}
-            >
-              {nodeData.primaryHint}
-            </p>
-            <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem", lineHeight: 1.35 }}>
-              {nodeData.secondaryHint}
+        <div style={{ padding: "0.92rem 1rem 1rem", display: "grid", gap: "0.82rem" }}>
+          <div
+            style={{
+              display: "grid",
+              gap: "0.48rem",
+              padding: "0.7rem 0.78rem",
+              borderRadius: "0.9rem",
+              background: "rgba(255, 255, 255, 0.72)",
+              border: "1px solid rgba(148, 163, 184, 0.14)",
+            }}
+          >
+            <NodeMetaRow label="Zustaendig" value={nodeData.responsibleLabel} />
+            {nodeData.notificationLabel ? <NodeMetaRow label="Benachrichtigt" value={nodeData.notificationLabel} /> : null}
+            {nodeData.dueLabel ? <NodeMetaRow label="Frist" value={nodeData.dueLabel} /> : null}
+          </div>
+          <div style={{ display: "grid", gap: "0.28rem" }}>
+            <span className="text-muted" style={{ fontSize: "0.75rem", letterSpacing: "0.01em" }}>
+              Wirkung
+            </span>
+            <p style={{ margin: 0, fontSize: "0.84rem", lineHeight: 1.42, color: "var(--graph-node-title)" }}>
+              {nodeData.effectText}
             </p>
           </div>
-          <div style={{ display: "flex", gap: "0.6rem" }}>
-            <MetricCard label={WORKFLOW_BUILDER_TECHNICAL_LABELS.incoming} value={String(nodeData.incomingCount)} />
-            <MetricCard label={WORKFLOW_BUILDER_TECHNICAL_LABELS.outgoing} value={String(nodeData.outgoingCount)} />
+          <div
+            style={{
+              display: "grid",
+              gap: "0.28rem",
+              borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+              paddingTop: "0.72rem",
+            }}
+          >
+            <span className="text-muted" style={{ fontSize: "0.75rem", letterSpacing: "0.01em" }}>
+              Danach
+            </span>
+            <p style={{ margin: 0, fontSize: "0.82rem", lineHeight: 1.35, color: "var(--text-secondary)" }}>
+              {nodeData.nextStepLabel}
+            </p>
           </div>
-          <p className="text-muted" style={{ margin: 0, fontSize: "0.82rem" }}>
-            Klick fuer Details, Ziehen fuer Position.
-          </p>
         </div>
       </div>
       <Handle
@@ -128,24 +143,13 @@ export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function NodeMetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        flex: 1,
-        minWidth: 0,
-        padding: "0.65rem 0.7rem",
-        borderRadius: "0.9rem",
-        background: "var(--graph-node-metric-background)",
-        border: "1px solid var(--graph-node-metric-border)",
-      }}
-    >
-      <div className="text-muted" style={{ fontSize: "0.72rem", lineHeight: 1.1, textTransform: "uppercase" }}>
+    <div style={{ display: "grid", gap: "0.08rem" }}>
+      <span className="text-muted" style={{ fontSize: "0.74rem", letterSpacing: "0.01em" }}>
         {label}
-      </div>
-      <strong style={{ display: "block", marginTop: "0.2rem", fontSize: "1rem", color: "var(--graph-node-title)" }}>
-        {value}
-      </strong>
+      </span>
+      <strong style={{ fontSize: "0.84rem", lineHeight: 1.25, color: "var(--graph-node-title)" }}>{value}</strong>
     </div>
   );
 }
@@ -161,35 +165,6 @@ function getNodeTypeStyle(nodeType: string, isSelected: boolean) {
     badgeBorder: tone.badgeBorder,
     badgeText: tone.badgeText,
   };
-}
-
-function getStatusStyle(statusTone: WorkflowBuilderCanvasNodeData["statusTone"]) {
-  switch (statusTone) {
-    case "success":
-      return {
-        background: "var(--graph-edge-done-bg)",
-        border: "var(--graph-edge-done-border)",
-        text: "var(--graph-edge-done-text)",
-      };
-    case "info":
-      return {
-        background: "var(--graph-edge-ready-bg)",
-        border: "var(--graph-edge-ready-border)",
-        text: "var(--graph-edge-ready-text)",
-      };
-    case "warning":
-      return {
-        background: "var(--graph-edge-in-progress-bg)",
-        border: "var(--graph-edge-in-progress-border)",
-        text: "var(--graph-edge-in-progress-text)",
-      };
-    default:
-      return {
-        background: "var(--graph-edge-open-bg)",
-        border: "var(--graph-edge-open-border)",
-        text: "var(--graph-edge-open-text)",
-      };
-  }
 }
 
 const NODE_TYPE_STYLES: Record<string, {

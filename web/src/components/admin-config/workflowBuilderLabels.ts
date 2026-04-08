@@ -11,30 +11,30 @@ export function getWorkflowBuilderNodeTypeLabel(
     case "approval":
       return "Freigabe";
     case "task":
-      return "Task";
+      return "Aufgabe";
     case "decision":
       return "Entscheidung";
     case "automation":
-      return "Automation";
+      return "Automatisierung";
     case "end":
       return "Ende";
     default:
-      return "Node";
+      return "Schritt";
   }
 }
 
 export const WORKFLOW_BUILDER_TECHNICAL_LABELS = {
-  sourceNode: "Source Node",
-  targetNode: "Target Node",
-  priority: "Priority",
-  conditionExpression: "Condition Expression",
-  processTypeKey: "Process Type Key",
-  templateKey: "Template Key",
-  nodeKey: "Node Key",
-  sortOrder: "Sort Order",
-  configJson: "Config JSON",
-  executionOrder: "Execution Order",
-  inputMappingJson: "Input Mapping (JSON)",
-  incoming: "Incoming",
-  outgoing: "Outgoing",
+  sourceNode: "Ausgangsschritt",
+  targetNode: "Naechster Schritt",
+  priority: "Pfad-Reihenfolge",
+  conditionExpression: "Bedingung",
+  processTypeKey: "Prozessbezug",
+  templateKey: "Vorlage",
+  nodeKey: "Technischer Schritt-Key",
+  sortOrder: "Sortierung",
+  configJson: "Technische Konfiguration",
+  executionOrder: "Aktions-Reihenfolge",
+  inputMappingJson: "Eingabe-Mapping (JSON)",
+  incoming: "Eingaenge",
+  outgoing: "Ausgaenge",
 } as const;

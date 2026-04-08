@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AdminWorkflowBuilderSection } from "../components/admin-config/AdminWorkflowBuilderSection";
-import PageHeader from "../components/layout/PageHeader";
 
 export default function WorkflowBuilderPage() {
   const { capabilities } = useCurrentUser();
@@ -12,24 +11,6 @@ export default function WorkflowBuilderPage() {
   return (
     <main className="app-shell">
       <div className="page-container builder-product-page">
-        <PageHeader
-          eyebrow="Workflow Plattform"
-          title="Workflow Builder"
-          description="Definitionen, Drafts und fachliche Ablauflogik in einem canvas-first Workspace."
-          actions={(
-            <div className="builder-mode-badges">
-              <span className={`badge badge--default ${canManageAdvanced ? "builder-mode-badge builder-mode-badge--advanced" : "builder-mode-badge"}`}>
-                {canManageAdvanced ? "Admin Builder" : "Builder"}
-              </span>
-              {!canManageAdvanced ? (
-                <span className="badge badge--default builder-mode-badge builder-mode-badge--locked">
-                  Automation gesperrt
-                </span>
-              ) : null}
-            </div>
-          )}
-        />
-
         {notice ? (
           <section className="panel panel-success">
             <p className="panel-text">{notice}</p>
@@ -42,7 +23,11 @@ export default function WorkflowBuilderPage() {
           </section>
         ) : null}
 
-        <AdminWorkflowBuilderSection onNotice={setNotice} onError={setError} />
+        <AdminWorkflowBuilderSection
+          onNotice={setNotice}
+          onError={setError}
+          pageModeLabel={canManageAdvanced ? "Admin-Modus" : "Bearbeitungsmodus"}
+        />
       </div>
     </main>
   );

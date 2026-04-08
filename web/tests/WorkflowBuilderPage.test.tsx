@@ -87,20 +87,20 @@ describe("WorkflowBuilderPage", () => {
   it("renders the standalone builder page in admin mode", async () => {
     renderWithApp(<WorkflowBuilderPage />, { roleKeys: ["auth_admin"] });
 
-    expect((await screen.findAllByRole("heading", { name: "Workflow Builder" })).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Admin Builder").length).toBeGreaterThan(0);
-    expect(await screen.findByRole("button", { name: "Definition anlegen" })).toBeTruthy();
+    expect((await screen.findAllByRole("heading", { name: "Ablauf-Editor" })).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Admin-Modus").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Verwaltung")).toBeTruthy();
   });
 
   it("renders the standalone builder page in limited builder mode", async () => {
     renderWithApp(<WorkflowBuilderPage />, { roleKeys: ["auth_manager"] });
 
-    expect((await screen.findAllByRole("heading", { name: "Workflow Builder" })).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Builder").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Automation gesperrt").length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole("heading", { name: "Ablauf-Editor" })).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Bearbeitungsmodus").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Automatisierung gesperrt").length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(mockedGetAdminWorkflowActionDefinitions).not.toHaveBeenCalled();
     });
-    expect(screen.queryByRole("button", { name: "Definition anlegen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ablauf anlegen" })).toBeNull();
   });
 });
