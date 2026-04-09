@@ -22,13 +22,15 @@ Verwende sie nur fuer:
 - T9 ist umgesetzt: Builder-relevante technische Labels und code-nahe Validierungs-/Formulartexte sind jetzt konsistent ohne Umlaute; die sichtbare Builder-Sprache wurde zusaetzlich weiter auf `Ablauf`, `Ablaufvorlage`, `Entwurf`, `Bausteine` und `Eigenschaften` vereinheitlicht.
 - Der Canvas zeigt Node-Karten jetzt staerker als echte Prozessbausteine: Titel, Typ, manuell/automatisch, Zustaendigkeit, optionale Benachrichtigte/Frist, Wirkung und Danach stehen vor technischen Hints; dafuer nutzt der Builder zusaetzlich Process Types, Task Templates und Responsibility-Owner als reine Frontend-Lookups.
 - T11 ist umgesetzt: der oeffentliche Create-Flow, Start-Katalog, Notification-Labeling und die ersten Lookup-Pfade sind definition-first; `processTypeKey`, `/process-types` und `/workflows/completed-onboardings` bleiben nur noch als Uebergangs-Aliasse.
+- Der Builder rendert Workflow-Struktur jetzt top-to-bottom mit sichtbaren Split-/Merge-Junctions statt als horizontales Band; fuer echte AND-Parallelitaet stehen im Definition Layer und in der Runtime jetzt zusaetzlich `parallel_split` und `parallel_join` zur Verfuegung.
 
 ## Active Risks / Watchouts
 
 - Der Code spiegelt die neue Zielarchitektur noch nicht vollstaendig; die Dokumentation ist absichtlich schon weiter als der Ist-Stand.
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
 - Mehrere sichtbare Legacy-Vertraege bleiben bewusst bestehen, vor allem `completed-onboardings`, `CompletedOnboardingSearchResultDto`, `workflows.create.onboarding` und `hr_onboarding`.
-- Die drei T6-Mappings sind bewusst linearisiert; Parallel-Splits/-Joins und echte Task-Anbindung folgen erst in spaeteren Phasen.
+- Die drei T6-Mappings sind bewusst linearisiert; die neuen `parallel_split`-/`parallel_join`-Gateways stehen jetzt zwar Builder und Runtime zur Verfuegung, die alten Legacy-Mappings nutzen sie aber weiterhin noch nicht.
+- Die alten T6-Legacy-Mappings bleiben bewusst linearisiert, auch wenn der Builder und die Runtime jetzt explizite `parallel_split`-/`parallel_join`-Gateways unterstuetzen; bestehende gemappte Definitionen werden dadurch nicht automatisch parallelisiert.
 - T6 liefert bewusst den sichtbaren Action Layer auf Basis des bestehenden Katalogs; tiefere Spezialeditoren fuer Mapping und Parameter bleiben weiter offen.
 - T8 oeffnet Read/Load/Save des Builders fuer Basis-Builder auf bestehender `workflowCreate`-Faehigkeit; Action-Katalog, Definition-/Versionsanlage und Publish bleiben bewusst Admin-Modus-only.
 - Nicht-Admin-Builder duerfen aktuell bestehende Drafts pflegen, aber keine Automation-Struktur, keine Definitionen/Versionen und keinen Publish veraendern.
@@ -49,6 +51,7 @@ Verwende sie nur fuer:
 - Der Canvas-Builder laeuft jetzt ueber die eigene Route `/builder`; `/admin/config?section=builder|templates|answers|defaults` redirectet auf diese Produktseite.
 - T9 fuehrt fuer den Builder eine klare Trennung zwischen technischen Labels (`Node Key`, `Node Type`, `Condition Expression`, `Input Mapping (JSON)`) und sichtbarer Produktsprache ein; keine Umlaute mehr in code-nahen Feldern und Validierungsnachrichten, sichtbare UI-Texte sprechen jetzt konsequenter deutsch und fachlich.
 - T11 blendet die alte Process-Type-/Template-/Answer-Definition-Konfiguration im Admin-Workspace aus; Builder + Definition Layer sind jetzt der sichtbare Pflegepfad.
+- Das neue Builder-Layout ignoriert alte freie XY-Kompositionen als primaere Leselogik; gespeicherte `position_x`/`position_y` werden jetzt aus dem strukturierten DAG-Layout abgeleitet und fuer persistente Lesbarkeit ueberschrieben.
 
 ## Cleanup Rule
 

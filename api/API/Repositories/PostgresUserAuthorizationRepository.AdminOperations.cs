@@ -1,5 +1,7 @@
 using Npgsql;
 using NpgsqlTypes;
+using System.Globalization;
+using System.Text;
 
 namespace API;
 
@@ -64,6 +66,113 @@ WHERE id = @departmentId;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("departmentId", departmentId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<AdminResponsibilityOwnerDto> CreateResponsibility(
+        string responsibilityName,
+        int? departmentId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedResponsibilityName = NormalizeRequired(
+            responsibilityName,
+            "Responsibility name is required.");
+        var normalizedDepartmentId = NormalizeNullableDepartmentId(departmentId);
+
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        if (normalizedDepartmentId.HasValue
+            && !await DepartmentExists(connection, transaction, normalizedDepartmentId.Value, cancellationToken))
+        {
+            throw new InvalidOperationException("Selected department is invalid.");
+        }
+
+        var responsibilityKey = await GenerateUniqueResponsibilityKey(
+            connection,
+            transaction,
+            normalizedResponsibilityName,
+            cancellationToken);
+        var systemKey = await GenerateUniqueSystemKey(
+            connection,
+            transaction,
+            normalizedResponsibilityName,
+            cancellationToken);
+
+        const string sql = """
+INSERT INTO app_responsibilities (
+    department_id,
+    responsibility_key,
+    system_key,
+    name,
+    responsibility_type,
+    description,
+    is_active
+)
+VALUES (
+    @departmentId,
+    @responsibilityKey,
+    @systemKey,
+    @name,
+    'application',
+    NULL,
+    TRUE
+)
+RETURNING id;
+""";
+
+        int responsibilityId;
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
+        {
+            var departmentParameter = command.Parameters.Add("departmentId", NpgsqlDbType.Integer);
+            departmentParameter.Value = (object?)normalizedDepartmentId ?? DBNull.Value;
+            command.Parameters.AddWithValue("responsibilityKey", responsibilityKey);
+            command.Parameters.AddWithValue("systemKey", systemKey);
+            command.Parameters.AddWithValue("name", normalizedResponsibilityName);
+
+            var scalar = await command.ExecuteScalarAsync(cancellationToken);
+            if (scalar is null)
+            {
+                throw new InvalidOperationException("Responsibility could not be created.");
+            }
+
+            responsibilityId = (int)scalar;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        var responsibilities = await LoadAdminResponsibilityOwners(connection, null, responsibilityId, cancellationToken);
+        return responsibilities.Single();
+    }
+
+    public async Task<bool> DeleteResponsibility(int responsibilityId, CancellationToken cancellationToken = default)
+    {
+        if (responsibilityId <= 0)
+        {
+            throw new InvalidOperationException("responsibilityId must be greater than zero.");
+        }
+
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        if (!await ResponsibilityExists(connection, transaction, responsibilityId, cancellationToken))
+        {
+            return false;
+        }
+
+        await EnsureResponsibilityDeletionAllowed(connection, transaction, responsibilityId, cancellationToken);
+
+        const string sql = """
+DELETE FROM app_responsibilities
+WHERE id = @responsibilityId;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
         await command.ExecuteNonQueryAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
@@ -479,12 +588,6 @@ ON CONFLICT (app_group_id, app_role_id) DO NOTHING;";
 
         var normalizedDepartmentLeadUserId = NormalizeNullableUserId(departmentLeadUserId);
         var normalizedRequirementOwnerUserId = NormalizeNullableUserId(requirementOwnerUserId);
-        var userIds = new[] { normalizedDepartmentLeadUserId, normalizedRequirementOwnerUserId }
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct()
-            .ToArray();
-
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -494,11 +597,29 @@ ON CONFLICT (app_group_id, app_role_id) DO NOTHING;";
             return null;
         }
 
-        await EnsureActiveUserIdsExist(connection, transaction, userIds, cancellationToken);
-        await EnsureUsersCanAccessSupervisorStep(connection, transaction, userIds, cancellationToken);
+        var selectedUserIds = new[] { normalizedDepartmentLeadUserId, normalizedRequirementOwnerUserId }
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToArray();
+
+        await EnsureActiveUserIdsExist(
+            connection,
+            transaction,
+            selectedUserIds,
+            cancellationToken);
+
+        if (normalizedDepartmentLeadUserId.HasValue)
+        {
+            await EnsureUsersCanAccessSupervisorStep(
+                connection,
+                transaction,
+                [normalizedDepartmentLeadUserId.Value],
+                cancellationToken);
+        }
 
         var personIdsByUserId = new Dictionary<long, long>();
-        foreach (var userId in userIds)
+        foreach (var userId in selectedUserIds)
         {
             personIdsByUserId[userId] = await UpsertPersonRecord(connection, transaction, userId, null, cancellationToken);
         }
@@ -933,6 +1054,60 @@ SELECT EXISTS(
             cancellationToken);
     }
 
+    private static async Task EnsureResponsibilityDeletionAllowed(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        int responsibilityId,
+        CancellationToken cancellationToken)
+    {
+        const string taskAssignmentSql = """
+SELECT EXISTS(
+    SELECT 1
+    FROM task_assignments
+    WHERE assignee_responsibility_id = @responsibilityId
+);
+""";
+
+        await EnsureNoReferencedRows(
+            connection,
+            transaction,
+            taskAssignmentSql,
+            "responsibilityId",
+            NpgsqlDbType.Integer,
+            responsibilityId,
+            "Responsibility cannot be deleted while workflow tasks still reference it.",
+            cancellationToken);
+
+        var responsibilityKey = await LoadResponsibilityKey(
+            connection,
+            transaction,
+            responsibilityId,
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(responsibilityKey))
+        {
+            const string workflowConfigSql = """
+SELECT EXISTS(
+    SELECT 1
+    FROM workflow_node_configs config
+    WHERE STRPOS(
+        config.config_json::text,
+        '"responsibilityKey": "' || @responsibilityKey || '"'
+    ) > 0
+);
+""";
+
+            await EnsureNoReferencedRows(
+                connection,
+                transaction,
+                workflowConfigSql,
+                "responsibilityKey",
+                NpgsqlDbType.Text,
+                responsibilityKey,
+                "Responsibility cannot be deleted while workflow definitions still reference it.",
+                cancellationToken);
+        }
+    }
+
     private static async Task EnsureNoReferencedRows(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -1023,39 +1198,14 @@ WHERE id = ANY(@userIds)
             return;
         }
 
-        var sql = $@"
-SELECT COUNT(*)
-FROM app_users u
-WHERE u.id = ANY(@userIds)
-  AND u.is_active = TRUE
-  AND EXISTS (
-      SELECT 1
-      FROM (
-          SELECT ur.app_role_id AS role_id
-          FROM app_user_roles ur
-          WHERE ur.app_user_id = u.id
-          UNION
-          SELECT gr.app_role_id AS role_id
-          FROM app_user_groups ug
-          JOIN app_group_roles gr ON gr.app_group_id = ug.app_group_id
-          JOIN app_groups g ON g.id = ug.app_group_id
-          WHERE ug.app_user_id = u.id
-            AND g.is_active = TRUE
-      ) assigned_roles
-      JOIN app_roles r ON r.id = assigned_roles.role_id
-      WHERE r.is_active = TRUE
-        AND r.role_kind = '{AuthorizationRoles.SystemRoleKind}'
-        AND r.role_key = '{AuthorizationRoles.Manager}'
-  );";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.Add("userIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = userIds;
-        var count = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken) ?? 0);
-
-        if (count != userIds.Length)
+        foreach (var userId in userIds)
         {
-            throw new InvalidOperationException(
-                "Department lead and requirement owner must be active users with manager access.");
+            var user = (await LoadAdminUsers(connection, transaction, userId, cancellationToken)).SingleOrDefault();
+            if (user is null || !AdminUserEligibility.CanAccessSupervisorStep(user))
+            {
+                throw new InvalidOperationException(
+                    "Department lead and requirement owner must be active users with supervisor access.");
+            }
         }
     }
 
@@ -1165,6 +1315,151 @@ LIMIT 1;";
 
         var scalar = await command.ExecuteScalarAsync(cancellationToken);
         return scalar is null || scalar is DBNull ? null : (int?)scalar;
+    }
+
+    private static async Task<string?> LoadResponsibilityKey(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        int responsibilityId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+SELECT responsibility_key
+FROM app_responsibilities
+WHERE id = @responsibilityId
+LIMIT 1;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
+
+        var scalar = await command.ExecuteScalarAsync(cancellationToken);
+        return scalar is null || scalar is DBNull ? null : (string?)scalar;
+    }
+
+    private static async Task<string> GenerateUniqueResponsibilityKey(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string responsibilityName,
+        CancellationToken cancellationToken)
+    {
+        return await GenerateUniqueResponsibilityIdentifier(
+            connection,
+            transaction,
+            responsibilityName,
+            "admin",
+            "responsibility_key",
+            120,
+            cancellationToken);
+    }
+
+    private static async Task<string> GenerateUniqueSystemKey(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string responsibilityName,
+        CancellationToken cancellationToken)
+    {
+        return await GenerateUniqueResponsibilityIdentifier(
+            connection,
+            transaction,
+            responsibilityName,
+            "system",
+            "system_key",
+            64,
+            cancellationToken);
+    }
+
+    private static async Task<string> GenerateUniqueResponsibilityIdentifier(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string sourceName,
+        string prefix,
+        string columnName,
+        int maxLength,
+        CancellationToken cancellationToken)
+    {
+        var slug = BuildResponsibilitySlug(sourceName);
+
+        for (var attempt = 0; attempt < 5; attempt += 1)
+        {
+            var suffix = Guid.NewGuid().ToString("N")[..8];
+            var candidate = $"{prefix}_{slug}_{suffix}";
+            if (candidate.Length > maxLength)
+            {
+                candidate = candidate[..maxLength];
+            }
+
+            if (!await ResponsibilityIdentifierExists(
+                    connection,
+                    transaction,
+                    columnName,
+                    candidate,
+                    cancellationToken))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException("Responsibility key could not be generated.");
+    }
+
+    private static async Task<bool> ResponsibilityIdentifierExists(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string columnName,
+        string value,
+        CancellationToken cancellationToken)
+    {
+        var sql = $"""
+SELECT EXISTS(
+    SELECT 1
+    FROM app_responsibilities
+    WHERE {columnName} = @value
+);
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("value", value);
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+    }
+
+    private static string BuildResponsibilitySlug(string sourceName)
+    {
+        var normalized = sourceName.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder();
+        var previousWasSeparator = false;
+
+        foreach (var character in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(character);
+            if (category == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (character <= sbyte.MaxValue && char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+                previousWasSeparator = false;
+                continue;
+            }
+
+            if (builder.Length == 0 || previousWasSeparator)
+            {
+                continue;
+            }
+
+            builder.Append('_');
+            previousWasSeparator = true;
+        }
+
+        var slug = builder.ToString().Trim('_');
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return "responsibility";
+        }
+
+        return slug.Length <= 40 ? slug : slug[..40].TrimEnd('_');
     }
 
     private static async Task EnsureRoleIdsExist(

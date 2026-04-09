@@ -2005,6 +2005,8 @@ public sealed class WorkflowEndpointsTests
         public Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminDepartmentAssignmentDto> CreateDepartment(string departmentName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> DeleteDepartment(int departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminResponsibilityOwnerDto> CreateResponsibility(string responsibilityName, int? departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> DeleteResponsibility(int responsibilityId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminUserDto> CreateUser(string? externalKey, string displayName, string email, string? notificationEmail, int? departmentId, bool isActive, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> DeleteUser(long userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminUserDto?> UpdateUserMasterData(long userId, string? externalKey, string displayName, string email, string? notificationEmail, int? departmentId, bool isActive, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { toNullableNumber } from "../components/admin-config/adminConfigHelpers";
+import type { NewResponsibilityDraft } from "../components/admin-config/adminOrganizationTypes";
 import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 import {
+  createAdminResponsibility,
   createAdminDepartment,
+  deleteAdminResponsibility,
   deleteAdminDepartment,
   updateAdminDepartmentAssignment,
   updateAdminResponsibilityOwner,
@@ -41,10 +44,16 @@ export function useAdminOrganizationManagement({
 }: UseAdminOrganizationManagementOptions) {
   const confirm = useConfirmationDialog();
   const [newDepartmentNameDraft, setNewDepartmentNameDraft] = useState<string>("");
+  const [newResponsibilityDraft, setNewResponsibilityDraft] = useState<NewResponsibilityDraft>({
+    responsibilityName: "",
+    departmentId: "",
+  });
   const [departmentDrafts, setDepartmentDrafts] = useState<Record<number, DepartmentDraft>>({});
   const [responsibilityDrafts, setResponsibilityDrafts] = useState<Record<number, ResponsibilityDraft>>({});
   const [isCreatingDepartment, setIsCreatingDepartment] = useState<boolean>(false);
+  const [isCreatingResponsibility, setIsCreatingResponsibility] = useState<boolean>(false);
   const [deletingDepartmentId, setDeletingDepartmentId] = useState<number | null>(null);
+  const [deletingResponsibilityId, setDeletingResponsibilityId] = useState<number | null>(null);
   const [savingDepartmentId, setSavingDepartmentId] = useState<number | null>(null);
   const [savingResponsibilityId, setSavingResponsibilityId] = useState<number | null>(null);
 
@@ -103,6 +112,44 @@ export function useAdminOrganizationManagement({
     }
   }, [newDepartmentNameDraft, onError, onNotice, setDepartmentAssignments]);
 
+  const createResponsibility = useCallback(async () => {
+    const nextResponsibilityName = newResponsibilityDraft.responsibilityName.trim();
+    if (!nextResponsibilityName) {
+      onNotice(null);
+      onError("Bitte einen Zuständigkeitsnamen eingeben.");
+      return null;
+    }
+
+    setIsCreatingResponsibility(true);
+    onNotice(null);
+    onError(null);
+
+    try {
+      const createdResponsibility = await createAdminResponsibility(
+        nextResponsibilityName,
+        toNullableNumber(newResponsibilityDraft.departmentId)
+      );
+      setResponsibilityOwners((current) =>
+        current
+          .concat(createdResponsibility)
+          .sort((left, right) => {
+            const leftKey = `${left.responsibilityType}|${left.departmentName ?? ""}|${left.responsibilityName}`;
+            const rightKey = `${right.responsibilityType}|${right.departmentName ?? ""}|${right.responsibilityName}`;
+            return leftKey.localeCompare(rightKey, "de");
+          })
+      );
+      setNewResponsibilityDraft({ responsibilityName: "", departmentId: "" });
+      onNotice(`Zuständigkeit ${createdResponsibility.responsibilityName} wurde angelegt.`);
+      return createdResponsibility;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Zuständigkeit konnte nicht angelegt werden.";
+      onError(message);
+      return null;
+    } finally {
+      setIsCreatingResponsibility(false);
+    }
+  }, [newResponsibilityDraft, onError, onNotice, setResponsibilityOwners]);
+
   const removeDepartment = useCallback(async (department: AdminDepartmentAssignment) => {
     const shouldDelete = await confirm({
       title: "Abteilung löschen?",
@@ -129,6 +176,42 @@ export function useAdminOrganizationManagement({
       setDeletingDepartmentId(null);
     }
   }, [confirm, onError, onNotice, reload]);
+
+  const removeResponsibility = useCallback(async (responsibility: AdminResponsibilityOwner) => {
+    const shouldDelete = await confirm({
+      title: "Zuständigkeit löschen?",
+      description: `Die Zuständigkeit "${responsibility.responsibilityName}" wird dauerhaft entfernt. Prüfen Sie vorher, ob Aufgaben oder Workflow-Definitionen noch darauf verweisen.`,
+      confirmLabel: "Zuständigkeit löschen",
+      tone: "danger",
+    });
+    if (!shouldDelete) {
+      return false;
+    }
+
+    setDeletingResponsibilityId(responsibility.responsibilityId);
+    onNotice(null);
+    onError(null);
+
+    try {
+      await deleteAdminResponsibility(responsibility.responsibilityId);
+      setResponsibilityOwners((current) =>
+        current.filter((item) => item.responsibilityId !== responsibility.responsibilityId)
+      );
+      setResponsibilityDrafts((current) => {
+        const nextDrafts = { ...current };
+        delete nextDrafts[responsibility.responsibilityId];
+        return nextDrafts;
+      });
+      onNotice(`Zuständigkeit ${responsibility.responsibilityName} wurde gelöscht.`);
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Zuständigkeit konnte nicht gelöscht werden.";
+      onError(message);
+      return false;
+    } finally {
+      setDeletingResponsibilityId(null);
+    }
+  }, [confirm, onError, onNotice, setResponsibilityOwners]);
 
   const saveDepartmentAssignment = useCallback(async (departmentId: number) => {
     const draft = departmentDrafts[departmentId];
@@ -189,17 +272,23 @@ export function useAdminOrganizationManagement({
 
   return {
     newDepartmentNameDraft,
+    newResponsibilityDraft,
     departmentDrafts,
     responsibilityDrafts,
     isCreatingDepartment,
+    isCreatingResponsibility,
     deletingDepartmentId,
+    deletingResponsibilityId,
     savingDepartmentId,
     savingResponsibilityId,
     setNewDepartmentNameDraft,
+    setNewResponsibilityDraft,
     setDepartmentDrafts,
     setResponsibilityDrafts,
     createDepartment,
+    createResponsibility,
     removeDepartment,
+    removeResponsibility,
     saveDepartmentAssignment,
     saveResponsibilityAssignment,
   };

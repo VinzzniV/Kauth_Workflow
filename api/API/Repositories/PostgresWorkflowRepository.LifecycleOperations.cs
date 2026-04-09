@@ -72,6 +72,7 @@ RETURNING id;";
         const string workflowSql = @"
 SELECT
     w.id,
+    w.workflow_definition_version_id,
     w.position_role_id,
     w.process_type_id,
     w.department_id,
@@ -82,11 +83,11 @@ SELECT
 FROM workflows w
 JOIN process_types pt ON pt.id = w.process_type_id
 WHERE w.uid = @workflowUid
-  AND w.workflow_definition_version_id IS NULL
 LIMIT 1
 FOR UPDATE OF w;";
 
         long workflowId;
+        long? workflowDefinitionVersionId;
         int workflowRoleId;
         int workflowProcessTypeId;
         int workflowDepartmentId;
@@ -106,16 +107,17 @@ FOR UPDATE OF w;";
             }
 
             workflowId = reader.GetInt64(0);
-            workflowRoleId = reader.GetInt32(1);
-            workflowProcessTypeId = reader.GetInt32(2);
-            workflowDepartmentId = reader.GetInt32(3);
-            workflowStatus = reader.GetString(4);
-            workflowProcessTypeName = reader.GetString(5);
-            requiresSupervisorStep = reader.GetBoolean(6);
+            workflowDefinitionVersionId = reader.IsDBNull(1) ? null : reader.GetInt64(1);
+            workflowRoleId = reader.GetInt32(2);
+            workflowProcessTypeId = reader.GetInt32(3);
+            workflowDepartmentId = reader.GetInt32(4);
+            workflowStatus = reader.GetString(5);
+            workflowProcessTypeName = reader.GetString(6);
+            requiresSupervisorStep = reader.GetBoolean(7);
             approvalTaskTemplateKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
                 workflowProcessTypeName,
                 requiresSupervisorStep,
-                reader.IsDBNull(7) ? null : reader.GetString(7));
+                reader.IsDBNull(8) ? null : reader.GetString(8));
         }
 
         if (!string.Equals(workflowStatus, "waiting_for_supervisor", StringComparison.OrdinalIgnoreCase))
@@ -123,7 +125,25 @@ FOR UPDATE OF w;";
             throw new InvalidOperationException("Der Schritt der Abteilungsleitung kann nur abgeschlossen werden, solange der Fall auf die Abteilungsleitung wartet.");
         }
 
-        if (!requiresSupervisorStep || string.IsNullOrWhiteSpace(approvalTaskTemplateKey))
+        if (!requiresSupervisorStep)
+        {
+            throw new InvalidOperationException("Fuer diesen Prozesstyp ist kein Supervisor-Schritt konfiguriert.");
+        }
+
+        if (workflowDefinitionVersionId.HasValue)
+        {
+            await CompleteRuntimeSupervisorGatekeeperStep(
+                connection,
+                transaction,
+                workflowUid,
+                selections,
+                actorUserId);
+
+            await transaction.CommitAsync();
+            return await GetWorkflowByUid(workflowUid);
+        }
+
+        if (string.IsNullOrWhiteSpace(approvalTaskTemplateKey))
         {
             throw new InvalidOperationException("Fuer diesen Prozesstyp ist kein Supervisor-Schritt konfiguriert.");
         }

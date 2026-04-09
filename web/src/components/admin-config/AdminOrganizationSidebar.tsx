@@ -31,6 +31,7 @@ type AdminOrganizationSidebarProps = {
   sortedDepartments: AdminDepartmentAssignment[];
   sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
   onSelectOrganizationEntity: (entity: AdminOrganizationEntity, id?: number | null) => void;
   onSelectUser: (user: AdminUser) => void;
 };
@@ -42,6 +43,7 @@ export function AdminOrganizationSidebar({
   sortedDepartments,
   sortedResponsibilities,
   eligibleSupervisorUsers,
+  eligibleRequirementOwnerUsers,
   onSelectOrganizationEntity,
   onSelectUser,
 }: AdminOrganizationSidebarProps) {
@@ -75,10 +77,12 @@ export function AdminOrganizationSidebar({
         leadFilter: departmentLeadFilter,
         ownerFilter: departmentOwnerFilter,
         eligibleSupervisorUsers,
+        eligibleRequirementOwnerUsers,
       }),
     [
       departmentLeadFilter,
       departmentOwnerFilter,
+      eligibleRequirementOwnerUsers,
       eligibleSupervisorUsers,
       organizationSearch,
       sortedDepartments,

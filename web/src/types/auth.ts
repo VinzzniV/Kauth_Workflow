@@ -61,6 +61,7 @@ export type AdminUser = {
   notificationEmail: string | null;
   isActive: boolean;
   hasManagerAccess: boolean;
+  canAccessSupervisorStep?: boolean;
   departmentId: number | null;
   departmentName: string | null;
   directorySynced: boolean;

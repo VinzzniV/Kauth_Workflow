@@ -232,6 +232,7 @@ export function createAdminUser(overrides: Partial<AdminUser> = {}): AdminUser {
     notificationEmail: null,
     isActive: true,
     hasManagerAccess: true,
+    canAccessSupervisorStep: true,
     departmentId: 1,
     departmentName: "IT",
     directorySynced: false,

@@ -21,6 +21,8 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         "approval",
         "task",
         "decision",
+        "parallel_split",
+        "parallel_join",
         "automation",
         "end"
     };
@@ -111,6 +113,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         ValidateNodeConfigurations(normalizedNodes, errors);
         ValidateNodeActions(normalizedNodes, errors);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, errors);
+        ValidateGatewayTopology(normalizedNodes, normalizedEdges, errors);
 
         if (errors.Count > 0)
         {
@@ -219,6 +222,8 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         ValidateNodeConfigurations(normalizedNodes, issues);
         ValidateNodeActions(normalizedNodes, issues);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, issues);
+        ValidateGatewayTopology(normalizedNodes, normalizedEdges, issues);
+        ValidateSupervisorGatekeeper(normalizedNodes, normalizedEdges, context, issues);
 
         foreach (var referenceIssue in context.ReferenceIssues ?? [])
         {
@@ -454,6 +459,8 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     ValidateRequiredStringConfig(node, "legacyTemplateKey", errors);
                     break;
                 case "automation":
+                case "parallel_split":
+                case "parallel_join":
                     if (HasConfig(node.Config))
                     {
                         errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' must not define a config.");
@@ -490,6 +497,8 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     ValidateRequiredStringConfig(node, "legacyTemplateKey", issues);
                     break;
                 case "automation":
+                case "parallel_split":
+                case "parallel_join":
                     if (HasConfig(node.Config))
                     {
                         issues.Add(CreateIssue(
@@ -901,6 +910,170 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         return config!.Value.Clone();
     }
 
+    private static void ValidateSupervisorGatekeeper(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        WorkflowDefinitionValidationContext context,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        if (!context.RequiresSupervisorStep)
+        {
+            return;
+        }
+
+        var evaluation = WorkflowDefinitionSupervisorGatekeeperRules.Evaluate(
+            nodes.Select(node => new WorkflowDefinitionSupervisorGatekeeperNode
+            {
+                NodeKey = node.NodeKey,
+                NodeType = node.NodeType,
+                LegacyProcessTypeKey = TryGetNodeConfigValue(node, "legacyProcessTypeKey")
+            }).ToList(),
+            edges.Select(edge => new WorkflowDefinitionSupervisorGatekeeperEdge
+            {
+                SourceNodeKey = edge.SourceNodeKey,
+                TargetNodeKey = edge.TargetNodeKey,
+                Priority = edge.Priority
+            }).ToList(),
+            context.PrimaryLegacyProcessTypeKey,
+            context.RequiresSupervisorStep);
+
+        if (!evaluation.IsSatisfied)
+        {
+            issues.Add(CreateIssue(
+                evaluation.FailureCode ?? "missing_supervisor_gatekeeper",
+                evaluation.FailureMessage ?? "Supervisor-pflichtige Workflow-Definitionen benötigen einen gültigen Gatekeeper.",
+                "workflow_definition"));
+        }
+    }
+
+    private static void ValidateGatewayTopology(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        List<string> errors)
+    {
+        var incomingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var outgoingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var node in nodes)
+        {
+            incomingCounts[node.NodeKey] = 0;
+            outgoingCounts[node.NodeKey] = 0;
+        }
+
+        foreach (var edge in edges)
+        {
+            if (outgoingCounts.ContainsKey(edge.SourceNodeKey))
+            {
+                outgoingCounts[edge.SourceNodeKey] += 1;
+            }
+
+            if (incomingCounts.ContainsKey(edge.TargetNodeKey))
+            {
+                incomingCounts[edge.TargetNodeKey] += 1;
+            }
+        }
+
+        foreach (var node in nodes)
+        {
+            var incoming = incomingCounts.GetValueOrDefault(node.NodeKey);
+            var outgoing = outgoingCounts.GetValueOrDefault(node.NodeKey);
+
+            if (string.Equals(node.NodeType, "decision", StringComparison.OrdinalIgnoreCase) && outgoing < 2)
+            {
+                errors.Add($"Decision node '{node.NodeKey}' requires at least two outgoing edges.");
+            }
+
+            if (string.Equals(node.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase) && outgoing < 2)
+            {
+                errors.Add($"Parallel split node '{node.NodeKey}' requires at least two outgoing edges.");
+            }
+
+            if (string.Equals(node.NodeType, "parallel_join", StringComparison.OrdinalIgnoreCase) && incoming < 2)
+            {
+                errors.Add($"Parallel join node '{node.NodeKey}' requires at least two incoming edges.");
+            }
+
+            if (!string.Equals(node.NodeType, "decision", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(node.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase)
+                && outgoing > 1)
+            {
+                errors.Add($"Node '{node.NodeKey}' uses {outgoing} outgoing edges, but only decision and parallel_split nodes may branch.");
+            }
+        }
+    }
+
+    private static void ValidateGatewayTopology(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        var incomingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var outgoingCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var node in nodes)
+        {
+            incomingCounts[node.NodeKey] = 0;
+            outgoingCounts[node.NodeKey] = 0;
+        }
+
+        foreach (var edge in edges)
+        {
+            if (outgoingCounts.ContainsKey(edge.SourceNodeKey))
+            {
+                outgoingCounts[edge.SourceNodeKey] += 1;
+            }
+
+            if (incomingCounts.ContainsKey(edge.TargetNodeKey))
+            {
+                incomingCounts[edge.TargetNodeKey] += 1;
+            }
+        }
+
+        foreach (var node in nodes)
+        {
+            var incoming = incomingCounts.GetValueOrDefault(node.NodeKey);
+            var outgoing = outgoingCounts.GetValueOrDefault(node.NodeKey);
+
+            if (string.Equals(node.NodeType, "decision", StringComparison.OrdinalIgnoreCase) && outgoing < 2)
+            {
+                issues.Add(CreateIssue(
+                    "decision_requires_multiple_outgoing_edges",
+                    $"Decision node '{node.NodeKey}' requires at least two outgoing edges.",
+                    "workflow_node",
+                    node.NodeKey));
+            }
+
+            if (string.Equals(node.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase) && outgoing < 2)
+            {
+                issues.Add(CreateIssue(
+                    "parallel_split_requires_multiple_outgoing_edges",
+                    $"Parallel split node '{node.NodeKey}' requires at least two outgoing edges.",
+                    "workflow_node",
+                    node.NodeKey));
+            }
+
+            if (string.Equals(node.NodeType, "parallel_join", StringComparison.OrdinalIgnoreCase) && incoming < 2)
+            {
+                issues.Add(CreateIssue(
+                    "parallel_join_requires_multiple_incoming_edges",
+                    $"Parallel join node '{node.NodeKey}' requires at least two incoming edges.",
+                    "workflow_node",
+                    node.NodeKey));
+            }
+
+            if (!string.Equals(node.NodeType, "decision", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(node.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase)
+                && outgoing > 1)
+            {
+                issues.Add(CreateIssue(
+                    "multiple_outgoing_edges_not_supported",
+                    $"Node '{node.NodeKey}' uses {outgoing} outgoing edges, but only decision and parallel_split nodes may branch.",
+                    "workflow_node",
+                    node.NodeKey));
+            }
+        }
+    }
+
     private static List<WorkflowDefinitionDraftNodeAction> NormalizeNodeActions(
         WorkflowDefinitionNodeDto node,
         List<string> errors,
@@ -971,12 +1144,31 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
             .ThenBy(action => action.ActionKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    private static string? TryGetNodeConfigValue(WorkflowDefinitionDraftNode node, string propertyName)
+    {
+        if (!node.Config.HasValue || node.Config.Value.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!node.Config.Value.TryGetProperty(propertyName, out var property)
+            || property.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(property.GetString()))
+        {
+            return null;
+        }
+
+        return property.GetString()!.Trim();
+    }
 }
 
 internal sealed class WorkflowDefinitionValidationContext
 {
     public required IReadOnlyList<WorkflowDefinitionNodeDto> Nodes { get; init; }
     public required IReadOnlyList<WorkflowDefinitionEdgeDto> Edges { get; init; }
+    public string? PrimaryLegacyProcessTypeKey { get; init; }
+    public bool RequiresSupervisorStep { get; init; }
     public IReadOnlyList<WorkflowDefinitionValidationIssue> ReferenceIssues { get; init; } = [];
 }
 

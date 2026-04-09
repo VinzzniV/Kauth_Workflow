@@ -3,6 +3,8 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 export type WorkflowBuilderCanvasNodeData = {
   title: string;
   nodeType: string;
+  isVirtual?: boolean;
+  junctionRole?: "exclusive_split" | "parallel_split" | "merge" | "parallel_join";
   typeLabel: string;
   modeLabel: string;
   responsibleLabel: string;
@@ -15,6 +17,10 @@ export type WorkflowBuilderCanvasNodeData = {
 
 export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
   const nodeData = data as WorkflowBuilderCanvasNodeData;
+  if (nodeData.isVirtual) {
+    return <WorkflowBuilderJunctionNode data={nodeData} />;
+  }
+
   const typeStyle = getNodeTypeStyle(nodeData.nodeType, nodeData.isSelected);
   const canReceiveConnections = nodeData.nodeType !== "start";
   const canCreateConnections = nodeData.nodeType !== "end";
@@ -30,7 +36,7 @@ export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
     <>
       <Handle
         type="target"
-        position={Position.Left}
+        position={Position.Top}
         isConnectable={canReceiveConnections}
         style={handleStyle(canReceiveConnections)}
       />
@@ -104,7 +110,7 @@ export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
               border: "1px solid rgba(148, 163, 184, 0.14)",
             }}
           >
-            <NodeMetaRow label="Zustaendig" value={nodeData.responsibleLabel} />
+            <NodeMetaRow label="Zuständig" value={nodeData.responsibleLabel} />
             {nodeData.notificationLabel ? <NodeMetaRow label="Benachrichtigt" value={nodeData.notificationLabel} /> : null}
             {nodeData.dueLabel ? <NodeMetaRow label="Frist" value={nodeData.dueLabel} /> : null}
           </div>
@@ -135,9 +141,69 @@ export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
       </div>
       <Handle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
         isConnectable={canCreateConnections}
         style={handleStyle(canCreateConnections)}
+      />
+    </>
+  );
+}
+
+function WorkflowBuilderJunctionNode({ data }: { data: WorkflowBuilderCanvasNodeData }) {
+  const role = data.junctionRole ?? "merge";
+  const tone = getJunctionTone(role);
+
+  return (
+    <>
+      <Handle
+        type="target"
+        position={Position.Top}
+        isConnectable={false}
+        style={{
+          background: tone.borderColor,
+          width: 8,
+          height: 8,
+          border: "2px solid rgba(255,255,255,0.9)",
+          opacity: 0.95,
+        }}
+      />
+      <div
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: role === "merge" ? "999px" : "0.6rem",
+          transform: role === "merge" ? undefined : "rotate(45deg)",
+          background: tone.background,
+          border: `2px solid ${tone.borderColor}`,
+          boxShadow: "0 8px 18px rgba(15, 23, 42, 0.16)",
+          display: "grid",
+          placeItems: "center",
+        }}
+        title={tone.label}
+      >
+        <span
+          style={{
+            transform: role === "merge" ? undefined : "rotate(-45deg)",
+            fontSize: "0.74rem",
+            fontWeight: 800,
+            color: tone.textColor,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {tone.symbol}
+        </span>
+      </div>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        isConnectable={false}
+        style={{
+          background: tone.borderColor,
+          width: 8,
+          height: 8,
+          border: "2px solid rgba(255,255,255,0.9)",
+          opacity: 0.95,
+        }}
       />
     </>
   );
@@ -233,6 +299,28 @@ const NODE_TYPE_STYLES: Record<string, {
     badgeBorder: "rgba(29, 78, 216, 0.18)",
     badgeText: "#1e40af",
   },
+  parallel_split: {
+    accent: "#7c3aed",
+    borderSoft: "rgba(124, 58, 237, 0.24)",
+    borderStrong: "rgba(124, 58, 237, 0.76)",
+    background: "linear-gradient(180deg, rgba(245, 243, 255, 0.98), rgba(255, 255, 255, 0.98))",
+    backgroundSelected: "linear-gradient(180deg, rgba(237, 233, 254, 0.98), rgba(255, 255, 255, 0.98))",
+    headerBackground: "linear-gradient(135deg, rgba(237, 233, 254, 0.98), rgba(248, 250, 252, 0.88))",
+    badgeBackground: "rgba(237, 233, 254, 0.98)",
+    badgeBorder: "rgba(124, 58, 237, 0.18)",
+    badgeText: "#6d28d9",
+  },
+  parallel_join: {
+    accent: "#9333ea",
+    borderSoft: "rgba(147, 51, 234, 0.24)",
+    borderStrong: "rgba(147, 51, 234, 0.76)",
+    background: "linear-gradient(180deg, rgba(250, 245, 255, 0.98), rgba(255, 255, 255, 0.98))",
+    backgroundSelected: "linear-gradient(180deg, rgba(243, 232, 255, 0.98), rgba(255, 255, 255, 0.98))",
+    headerBackground: "linear-gradient(135deg, rgba(243, 232, 255, 0.98), rgba(248, 250, 252, 0.88))",
+    badgeBackground: "rgba(243, 232, 255, 0.98)",
+    badgeBorder: "rgba(147, 51, 234, 0.18)",
+    badgeText: "#7e22ce",
+  },
   automation: {
     accent: "#15803d",
     borderSoft: "rgba(21, 128, 61, 0.24)",
@@ -256,3 +344,41 @@ const NODE_TYPE_STYLES: Record<string, {
     badgeText: "#334155",
   },
 };
+
+function getJunctionTone(role: NonNullable<WorkflowBuilderCanvasNodeData["junctionRole"]>) {
+  switch (role) {
+    case "exclusive_split":
+      return {
+        symbol: "X",
+        label: "Exklusive Verzweigung",
+        background: "linear-gradient(180deg, rgba(224, 231, 255, 0.98), rgba(255,255,255,0.98))",
+        borderColor: "rgba(29, 78, 216, 0.85)",
+        textColor: "#1e40af",
+      };
+    case "parallel_split":
+      return {
+        symbol: "+",
+        label: "Paralleler Split",
+        background: "linear-gradient(180deg, rgba(237, 233, 254, 0.98), rgba(255,255,255,0.98))",
+        borderColor: "rgba(124, 58, 237, 0.85)",
+        textColor: "#6d28d9",
+      };
+    case "parallel_join":
+      return {
+        symbol: "&",
+        label: "Paralleler Join",
+        background: "linear-gradient(180deg, rgba(243, 232, 255, 0.98), rgba(255,255,255,0.98))",
+        borderColor: "rgba(147, 51, 234, 0.85)",
+        textColor: "#7e22ce",
+      };
+    case "merge":
+    default:
+      return {
+        symbol: "M",
+        label: "Zusammenführung",
+        background: "linear-gradient(180deg, rgba(241, 245, 249, 0.98), rgba(255,255,255,0.98))",
+        borderColor: "rgba(71, 85, 105, 0.82)",
+        textColor: "#334155",
+      };
+  }
+}

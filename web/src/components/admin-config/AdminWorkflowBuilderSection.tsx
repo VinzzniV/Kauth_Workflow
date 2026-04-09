@@ -20,6 +20,7 @@ import {
   type WorkflowBuilderCanvasNodeData,
 } from "./WorkflowBuilderCanvasNode";
 import { WorkflowBuilderSidebar } from "./WorkflowBuilderSidebar";
+import { buildWorkflowBuilderStructuredLayout } from "./workflowBuilderStructuredLayout";
 
 type AdminWorkflowBuilderSectionProps = {
   onNotice: (message: string | null) => void;
@@ -110,29 +111,58 @@ export function AdminWorkflowBuilderSection({
     );
   }, [builder.versionDraft.nodes]);
 
+  const structuredLayout = useMemo(() => {
+    return buildWorkflowBuilderStructuredLayout(builder.versionDraft);
+  }, [builder.versionDraft]);
+
   const canvasNodes = useMemo<Node<WorkflowBuilderCanvasNodeData>[]>(() => {
-    return builder.versionDraft.nodes.map((node) => ({
-      id: node.id,
-      type: "workflowBuilderNode",
-      position: {
-        x: node.positionX ?? 0,
-        y: node.positionY ?? 0,
-      },
-      data: {
-        ...buildCanvasNodeSummary(
-          node,
-          builder.versionDraft,
-          nodesByKey,
-          actionDefinitionsByKey,
-          processTypesByKey,
-          taskTemplatesByKey,
-          responsibilityOwnersByKey,
-          responsibilityOwnersById
-        ),
-        title: node.title.trim() || node.nodeKey.trim() || "Neuer Schritt",
-        isSelected: builder.selectedNode?.id === node.id,
-      },
-    }));
+    const actualNodesById = new Map(builder.versionDraft.nodes.map((node) => [node.id, node] as const));
+    return structuredLayout.nodes.map((layoutNode) => {
+      const actualNode = layoutNode.sourceNodeId
+        ? actualNodesById.get(layoutNode.sourceNodeId) ?? null
+        : null;
+
+      return {
+        id: layoutNode.id,
+        type: "workflowBuilderNode",
+        position: {
+          x: layoutNode.x,
+          y: layoutNode.y,
+        },
+        draggable: !layoutNode.isVirtual,
+        selectable: !layoutNode.isVirtual,
+        connectable: !layoutNode.isVirtual,
+        data: layoutNode.isVirtual || !actualNode
+          ? {
+              title: "",
+              nodeType: layoutNode.nodeType,
+              isVirtual: true,
+              junctionRole: layoutNode.junctionRole,
+              typeLabel: "",
+              modeLabel: "",
+              responsibleLabel: "",
+              notificationLabel: null,
+              dueLabel: null,
+              effectText: "",
+              nextStepLabel: "",
+              isSelected: false,
+            }
+          : {
+              ...buildCanvasNodeSummary(
+                actualNode,
+                builder.versionDraft,
+                nodesByKey,
+                actionDefinitionsByKey,
+                processTypesByKey,
+                taskTemplatesByKey,
+                responsibilityOwnersByKey,
+                responsibilityOwnersById
+              ),
+              title: actualNode.title.trim() || actualNode.nodeKey.trim() || "Neuer Schritt",
+              isSelected: builder.selectedNode?.id === actualNode.id,
+            },
+      };
+    });
   }, [
     actionDefinitionsByKey,
     builder.selectedNode?.id,
@@ -141,44 +171,39 @@ export function AdminWorkflowBuilderSection({
     processTypesByKey,
     responsibilityOwnersById,
     responsibilityOwnersByKey,
+    structuredLayout.nodes,
     taskTemplatesByKey,
   ]);
 
   const canvasEdges = useMemo<Edge[]>(() => {
-    const nodeIdByKey = new Map<string, string>();
-    for (const node of builder.versionDraft.nodes) {
-      const normalizedKey = node.nodeKey.trim().toLowerCase();
-      if (normalizedKey) {
-        nodeIdByKey.set(normalizedKey, node.id);
-      }
-    }
+    return structuredLayout.edges.map((edge) => {
+      const isSelected = !edge.isVirtual && builder.selectedEdge?.id === edge.id;
 
-    const nextEdges: Edge[] = [];
-    for (const edge of builder.versionDraft.edges) {
-      const source = nodeIdByKey.get(edge.sourceNodeKey.trim().toLowerCase());
-      const target = nodeIdByKey.get(edge.targetNodeKey.trim().toLowerCase());
-      if (!source || !target) {
-        continue;
-      }
-
-      const isSelected = builder.selectedEdge?.id === edge.id;
-
-      nextEdges.push({
+      return {
         id: edge.id,
-        source,
-        target,
+        source: edge.source,
+        target: edge.target,
         animated: false,
-        selectable: true,
-        label: getEdgeLabel(edge),
+        selectable: !edge.isVirtual,
+        label: edge.label,
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: isSelected ? "var(--graph-edge-done)" : "var(--graph-edge-open)",
+          width: edge.isVirtual ? 16 : 20,
+          height: edge.isVirtual ? 16 : 20,
+          color: edge.isVirtual
+            ? "rgba(100, 116, 139, 0.78)"
+            : isSelected
+              ? "var(--graph-edge-done)"
+              : "var(--graph-edge-open)",
         },
         style: {
-          stroke: isSelected ? "var(--graph-edge-done)" : "var(--graph-edge-open)",
-          strokeWidth: isSelected ? 3 : 2,
+          stroke: edge.isVirtual
+            ? "rgba(100, 116, 139, 0.58)"
+            : isSelected
+              ? "var(--graph-edge-done)"
+              : "var(--graph-edge-open)",
+          strokeWidth: edge.isVirtual ? 1.8 : isSelected ? 3 : 2.4,
+          strokeDasharray: edge.isVirtual ? "4 4" : undefined,
         },
         labelStyle: {
           fill: "var(--graph-node-title)",
@@ -187,27 +212,27 @@ export function AdminWorkflowBuilderSection({
         },
         labelBgPadding: [8, 4] as [number, number],
         labelBgBorderRadius: 999,
-        labelBgStyle: {
-          fill: isSelected ? "rgba(219, 234, 254, 0.96)" : "rgba(255,255,255,0.92)",
-          fillOpacity: 1,
-          stroke: isSelected ? "rgba(59, 130, 246, 0.95)" : "rgba(148, 163, 184, 0.7)",
-        },
-      });
-    }
+        labelBgStyle: edge.label
+          ? {
+              fill: isSelected ? "rgba(219, 234, 254, 0.96)" : "rgba(255,255,255,0.92)",
+              fillOpacity: 1,
+              stroke: isSelected ? "rgba(59, 130, 246, 0.95)" : "rgba(148, 163, 184, 0.7)",
+            }
+          : undefined,
+      } satisfies Edge;
+    });
+  }, [builder.selectedEdge?.id, structuredLayout.edges]);
 
-    return nextEdges;
-  }, [builder.selectedEdge?.id, builder.versionDraft.edges, builder.versionDraft.nodes]);
-
-  const selectedWorkflowName = builder.selectedDefinition?.name ?? "Ablauf waehlen";
+  const selectedWorkflowName = builder.selectedDefinition?.name ?? "Ablauf wählen";
   const selectedStandLabel = builder.selectedVersionSummary
     ? `${formatVersionStatus(builder.selectedVersionSummary.status)} ${builder.selectedVersionSummary.versionNumber}`
-    : "Stand waehlen";
+    : "Stand wählen";
   const publishDisabledReason = !canManageAdvanced
     ? "Freigeben ist nur im Admin-Modus erlaubt."
     : builder.hasUnsavedChanges
       ? "Bitte erst speichern."
       : !builder.selectedVersionSummary?.canPublish
-        ? "Dieser Stand ist noch nicht freigabefaehig."
+        ? "Dieser Stand ist noch nicht freigabefähig."
         : undefined;
   const canDeleteSelectedNode = Boolean(
     builder.selectedVersionSummary
@@ -215,10 +240,10 @@ export function AdminWorkflowBuilderSection({
     && (canManageAdvanced || builder.selectedNode.nodeType !== "automation")
   );
   const workspaceStatusLabel = builder.selectedNode
-    ? `Eigenschaften offen fuer ${builder.selectedNode.title.trim() || builder.selectedNode.nodeKey.trim() || "Schritt"}`
+    ? `Eigenschaften offen für ${builder.selectedNode.title.trim() || builder.selectedNode.nodeKey.trim() || "Schritt"}`
     : builder.selectedVersionSummary
       ? "Bausteine sichtbar"
-      : "Noch kein Stand geoeffnet";
+      : "Noch kein Stand geöffnet";
   const localIssueCount = builder.localValidationIssues.length;
   const serverIssueCount = builder.versionDetail?.validationIssues.length ?? 0;
   const totalIssueCount = localIssueCount + serverIssueCount;
@@ -240,7 +265,7 @@ export function AdminWorkflowBuilderSection({
             </div>
             <h1>Ablauf-Editor</h1>
             <p className="text-muted">
-              Baue und lies Ablaeufe direkt im Canvas. Auswahl links, Ablauf in der Mitte, Eigenschaften rechts.
+              Baue und lies Abläufe direkt im Canvas. Auswahl links, Ablauf in der Mitte, Eigenschaften rechts.
             </p>
           </div>
 
@@ -264,7 +289,7 @@ export function AdminWorkflowBuilderSection({
           <div className="builder-studio-action-group">
             <button
               type="button"
-              className="button-primary"
+              className="button-primary builder-action-button builder-action-button--primary"
               onClick={() => void builder.saveVersion()}
               disabled={!builder.selectedVersionSummary || builder.isSaving || builder.isLoadingVersion}
             >
@@ -272,15 +297,15 @@ export function AdminWorkflowBuilderSection({
             </button>
             <button
               type="button"
-              className="button-secondary"
+              className="button-secondary builder-action-button builder-action-button--secondary"
               onClick={builder.validateDraft}
               disabled={!builder.selectedVersionSummary}
             >
-              Pruefen
+              Prüfen
             </button>
             <button
               type="button"
-              className="button-secondary"
+              className="button-secondary builder-action-button builder-action-button--secondary"
               onClick={() => void builder.publishVersion()}
               disabled={!canManageAdvanced || !builder.selectedVersionSummary?.canPublish || builder.isPublishing || builder.hasUnsavedChanges}
               title={publishDisabledReason}
@@ -290,12 +315,17 @@ export function AdminWorkflowBuilderSection({
           </div>
 
           <div className="builder-studio-action-group builder-studio-action-group--secondary">
-            <button type="button" className="button-secondary" onClick={builder.autoLayoutNodes} disabled={!builder.selectedVersionSummary}>
+            <button
+              type="button"
+              className="button-secondary builder-action-button builder-action-button--secondary"
+              onClick={builder.autoLayoutNodes}
+              disabled={!builder.selectedVersionSummary}
+            >
               Anordnen
             </button>
             <button
               type="button"
-              className="button-secondary"
+              className="button-secondary builder-action-button builder-action-button--secondary"
               onClick={() => {
                 if (flowInstance) {
                   setTimeout(() => {
@@ -309,18 +339,18 @@ export function AdminWorkflowBuilderSection({
             </button>
             <button
               type="button"
-              className="button-danger"
+              className="button-danger builder-action-button builder-action-button--danger"
               onClick={builder.removeSelectedNode}
               disabled={!canDeleteSelectedNode}
               title={
                 builder.selectedNode
                   ? canDeleteSelectedNode
-                    ? "Ausgewaehlten Schritt loeschen"
-                    : "Automatisierungen koennen nur im Admin-Modus geloescht werden."
-                  : "Bitte zuerst einen Schritt im Canvas auswaehlen."
+                    ? "Ausgewählten Schritt löschen"
+                    : "Automatisierungen können nur im Admin-Modus gelöscht werden."
+                  : "Bitte zuerst einen Schritt im Canvas auswählen."
               }
             >
-              Schritt loeschen
+              Schritt löschen
             </button>
           </div>
 
@@ -328,7 +358,7 @@ export function AdminWorkflowBuilderSection({
             <span className={`badge badge--default ${builder.hasUnsavedChanges ? "builder-mode-badge builder-mode-badge--locked" : "builder-mode-badge builder-mode-badge--advanced"}`}>
               {builder.hasUnsavedChanges ? "Ungespeichert" : "Gespeichert"}
             </span>
-            <span className="builder-validation-pill">Pruefung {totalIssueCount}</span>
+            <span className="builder-validation-pill">Prüfung {totalIssueCount}</span>
           </div>
         </div>
       </section>
@@ -339,10 +369,10 @@ export function AdminWorkflowBuilderSection({
             <section className="builder-studio-rail-panel panel content-stack">
               <div className="builder-rail-panel__header">
                 <span className="builder-sidebar-panel__eyebrow">Auswahl</span>
-                <h3>Ablaufe</h3>
-                <p className="text-muted">Waehle links den Ablauf, den ihr im Canvas bearbeiten wollt.</p>
+                <h3>Abläufe</h3>
+                <p className="text-muted">Wähle links den Ablauf, den ihr im Canvas bearbeiten wollt.</p>
               </div>
-              {builder.isLoading ? <p className="text-muted">Ablaufe werden geladen...</p> : null}
+              {builder.isLoading ? <p className="text-muted">Abläufe werden geladen...</p> : null}
               <div className="builder-selection-list">
                 {builder.definitions.map((definition) => (
                   <button
@@ -364,7 +394,7 @@ export function AdminWorkflowBuilderSection({
               <div className="builder-rail-panel__header">
                 <span className="builder-sidebar-panel__eyebrow">Stand</span>
                 <h3>Bearbeitungsstand</h3>
-                <p className="text-muted">Hier waehlt ihr den Stand, der im Canvas geoeffnet wird.</p>
+                <p className="text-muted">Hier wählt ihr den Stand, der im Canvas geöffnet wird.</p>
               </div>
               <div className="builder-selection-list">
                 {builder.selectedDefinition?.versions.map((version) => (
@@ -381,7 +411,7 @@ export function AdminWorkflowBuilderSection({
                       {version.name || "Ohne Namen"} · {version.validationIssues.length} Hinweis(e)
                     </span>
                   </button>
-                )) ?? <p className="text-muted">Bitte zuerst einen Ablauf auswaehlen.</p>}
+                )) ?? <p className="text-muted">Bitte zuerst einen Ablauf auswählen.</p>}
               </div>
             </section>
 
@@ -394,12 +424,12 @@ export function AdminWorkflowBuilderSection({
                 <div className="panel panel-muted content-stack" style={{ gap: "0.35rem" }}>
                   <span className="badge badge--default">Ablauf</span>
                   <strong>{selectedWorkflowName}</strong>
-                  <span className="text-muted">{builder.selectedDefinition?.description?.trim() || "Noch kein Ablauf gewaehlt."}</span>
+                  <span className="text-muted">{builder.selectedDefinition?.description?.trim() || "Noch kein Ablauf gewählt."}</span>
                 </div>
                 <div className="panel panel-muted content-stack" style={{ gap: "0.35rem" }}>
                   <span className="badge badge--default">Stand</span>
                   <strong>{selectedStandLabel}</strong>
-                  <span className="text-muted">{builder.versionDraft.name.trim() || "Noch kein Stand geoeffnet."}</span>
+                  <span className="text-muted">{builder.versionDraft.name.trim() || "Noch kein Stand geöffnet."}</span>
                 </div>
               </div>
             </section>
@@ -435,9 +465,9 @@ export function AdminWorkflowBuilderSection({
 
             {!builder.selectedVersionSummary ? (
               <div className="builder-empty-stage">
-                <h3>Bitte zuerst einen Ablauf und einen Stand waehlen.</h3>
+                <h3>Bitte zuerst einen Ablauf und einen Stand wählen.</h3>
                 <p className="text-muted">
-                  Links oeffnet ihr zuerst den Ablauf und den gewuenschten Stand. Danach wird der Ablauf im Canvas sichtbar.
+                  Links öffnet ihr zuerst den Ablauf und den gewünschten Stand. Danach wird der Ablauf im Canvas sichtbar.
                 </p>
               </div>
             ) : (
@@ -449,15 +479,27 @@ export function AdminWorkflowBuilderSection({
                   fitView
                   fitViewOptions={{ padding: 0.18 }}
                   onInit={(instance) => setFlowInstance(instance)}
-                  onNodeClick={(_, node) => builder.selectNode(node.id)}
-                  onEdgeClick={(_, edge) => builder.selectEdge(edge.id)}
+                  onNodeClick={(_, node) => {
+                    if (builder.versionDraft.nodes.some((draftNode) => draftNode.id === node.id)) {
+                      builder.selectNode(node.id);
+                    }
+                  }}
+                  onEdgeClick={(_, edge) => {
+                    if (builder.versionDraft.edges.some((draftEdge) => draftEdge.id === edge.id)) {
+                      builder.selectEdge(edge.id);
+                    }
+                  }}
                   onConnect={(connection) => builder.connectNodes(connection.source ?? null, connection.target ?? null)}
-                  onNodeDragStop={(_, node) => builder.updateNodePosition(node.id, node.position)}
+                  onNodeDragStop={(_, node) => {
+                    if (builder.versionDraft.nodes.some((draftNode) => draftNode.id === node.id)) {
+                      builder.updateNodePosition(node.id, node.position);
+                    }
+                  }}
                   onPaneClick={() => {
                     builder.selectNode(null);
                     builder.selectEdge(null);
                   }}
-                  nodesDraggable
+                  nodesDraggable={false}
                   nodesConnectable
                   elementsSelectable
                   connectOnClick={false}
@@ -561,7 +603,12 @@ function buildCanvasNodeSummary(
     : null;
   const responsibleLabel = configuredResponsibility?.responsibilityName
     ?? findResponsibilityNameById(taskTemplate?.defaultResponsibilityId ?? null, responsibilityOwnersById)
-    ?? (node.nodeType === "automation" || node.nodeType === "decision" || node.nodeType === "start" || node.nodeType === "end"
+    ?? (node.nodeType === "automation"
+      || node.nodeType === "decision"
+      || node.nodeType === "parallel_split"
+      || node.nodeType === "parallel_join"
+      || node.nodeType === "start"
+      || node.nodeType === "end"
       ? "System"
       : "Noch nicht festgelegt");
   const dueLabel = taskTemplate?.dueInDays
@@ -603,7 +650,7 @@ function buildCanvasNodeSummary(
         dueLabel: null,
         effectText: summaryText
           ?? processType?.description?.trim()
-          ?? "Hier werden die benoetigten Angaben fuer den weiteren Ablauf erfasst.",
+          ?? "Hier werden die benötigten Angaben für den weiteren Ablauf erfasst.",
         nextStepLabel,
       };
     case "approval":
@@ -616,7 +663,7 @@ function buildCanvasNodeSummary(
         dueLabel,
         effectText: summaryText
           ?? taskTemplate?.description?.trim()
-          ?? "Hier wird eine Freigabe fuer den weiteren Ablauf eingeholt.",
+          ?? "Hier wird eine Freigabe für den weiteren Ablauf eingeholt.",
         nextStepLabel,
       };
     case "decision":
@@ -627,7 +674,29 @@ function buildCanvasNodeSummary(
         responsibleLabel,
         notificationLabel: null,
         dueLabel: null,
-        effectText: summaryText ?? "Hier wird entschieden, welcher Weg danach weiterlaeuft.",
+        effectText: summaryText ?? "Hier wird entschieden, welcher Weg danach weiterläuft.",
+        nextStepLabel,
+      };
+    case "parallel_split":
+      return {
+        nodeType: node.nodeType,
+        typeLabel: getWorkflowBuilderNodeTypeLabel(node.nodeType),
+        modeLabel,
+        responsibleLabel,
+        notificationLabel: null,
+        dueLabel: null,
+        effectText: "Hier verzweigt sich der Ablauf in mehrere parallele Pfade.",
+        nextStepLabel,
+      };
+    case "parallel_join":
+      return {
+        nodeType: node.nodeType,
+        typeLabel: getWorkflowBuilderNodeTypeLabel(node.nodeType),
+        modeLabel,
+        responsibleLabel,
+        notificationLabel: null,
+        dueLabel: null,
+        effectText: "Hier laufen parallele Pfade wieder in einem gemeinsamen Schritt zusammen.",
         nextStepLabel,
       };
     case "automation":
@@ -704,7 +773,7 @@ function renderLeftRail({
               </label>
               <button
                 type="button"
-                className="button-secondary"
+                className="button-secondary builder-action-button builder-action-button--secondary"
                 onClick={() => void builder.createDefinition()}
                 disabled={builder.isCreatingDefinition}
               >
@@ -736,7 +805,7 @@ function renderLeftRail({
               </label>
               <button
                 type="button"
-                className="button-secondary"
+                className="button-secondary builder-action-button builder-action-button--secondary"
                 onClick={() => void builder.createVersion()}
                 disabled={!builder.selectedDefinition || builder.isCreatingVersion}
               >
@@ -747,7 +816,7 @@ function renderLeftRail({
         ) : (
           <div className="panel panel-info builder-lock-card">
             <p className="panel-text">
-              Neue Ablaeufe, neue Staende, Automatisierungen und Freigabe bleiben dem Admin-Modus vorbehalten.
+              Neue Abläufe, neue Stände, Automatisierungen und Freigabe bleiben dem Admin-Modus vorbehalten.
             </p>
           </div>
         )}
@@ -820,12 +889,19 @@ function renderLeftRail({
 }
 
 function isAutomaticNodeType(nodeType: WorkflowBuilderNodeDraft["nodeType"]) {
-  return nodeType === "start" || nodeType === "end" || nodeType === "decision" || nodeType === "automation";
+  return [
+    "start",
+    "end",
+    "decision",
+    "automation",
+    "parallel_split",
+    "parallel_join",
+  ].includes(nodeType);
 }
 
 function buildAutomationEffectText(firstActionLabel: string | null, additionalActions: number, actionDescription: string | null) {
   if (!firstActionLabel) {
-    return "Dieser Schritt fuehrt automatische Systemaktionen aus, sobald er erreicht wird.";
+    return "Dieser Schritt führt automatische Systemaktionen aus, sobald er erreicht wird.";
   }
 
   if (actionDescription?.trim()) {
@@ -836,7 +912,7 @@ function buildAutomationEffectText(firstActionLabel: string | null, additionalAc
     return `${firstActionLabel} startet zusammen mit ${additionalActions} weiteren automatischen Aktion(en).`;
   }
 
-  return `${firstActionLabel} wird automatisch ausgefuehrt.`;
+  return `${firstActionLabel} wird automatisch ausgeführt.`;
 }
 
 function buildNextStepLabel(
@@ -853,7 +929,7 @@ function buildNextStepLabel(
 
   if (outgoingEdges.length === 1) {
     const nextNode = nodesByKey.get(outgoingEdges[0]!.targetNodeKey.trim().toLowerCase()) ?? null;
-    const nextLabel = nextNode?.title.trim() || nextNode?.nodeKey.trim() || "naechster Schritt";
+    const nextLabel = nextNode?.title.trim() || nextNode?.nodeKey.trim() || "nächster Schritt";
     return nextLabel;
   }
 
@@ -867,7 +943,11 @@ function buildNextStepLabel(
     return `${namedTargets.slice(0, 2).join(" / ")}${namedTargets.length > 2 ? " ..." : ""}`;
   }
 
-  return `${outgoingEdges.length} moegliche Wege`;
+  if (node.nodeType === "parallel_split") {
+    return `${outgoingEdges.length} parallele Wege`;
+  }
+
+  return `${outgoingEdges.length} mögliche Wege`;
 }
 
 function findResponsibilityNameById(
@@ -887,28 +967,6 @@ function formatDueInDays(dueInDays: number) {
   }
 
   return `${dueInDays} Tage`;
-}
-
-function getEdgeLabel(edge: WorkflowBuilderVersionDraft["edges"][number]) {
-  const expression = edge.conditionExpression.trim();
-  if (!expression) {
-    const priority = Number(edge.priority);
-    return Number.isInteger(priority) && priority > 1 ? `Pfad ${priority}` : "Weiter";
-  }
-
-  try {
-    const parsed = JSON.parse(expression) as { operator?: string } | null;
-    switch (parsed?.operator) {
-      case "is_true":
-        return "Ja";
-      case "is_false":
-        return "Nein";
-      default:
-        return "Bedingung";
-    }
-  } catch {
-    return "Bedingung";
-  }
 }
 
 function formatVersionStatus(status: string) {

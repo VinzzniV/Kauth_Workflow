@@ -135,21 +135,21 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
   {
     key: "builder",
     label: "Workflow Builder",
-    description: "Workflow-Definitionen, Versionen, Nodes und Edges gefuehrt konfigurieren.",
+    description: "Workflow-Definitionen, Versionen, Nodes und Edges geführt konfigurieren.",
     navLabel: "Workflow Builder",
-    navDescription: "Versionierte Workflow-Definitionen als Draft pflegen und veroeffentlichen.",
+    navDescription: "Versionierte Workflow-Definitionen als Draft pflegen und veröffentlichen.",
     area: "configuration",
-    introTitle: "Workflow-Definitionen gefuehrt modellieren",
+    introTitle: "Workflow-Definitionen geführt modellieren",
     introDescription:
-      "Hier entsteht der erste formularbasierte Builder fuer versionierte Workflow-Definitionen inklusive Nodes, Edges, Validierung und Veroeffentlichung.",
+      "Hier entsteht der erste formularbasierte Builder für versionierte Workflow-Definitionen inklusive Nodes, Edges, Validierung und Veröffentlichung.",
     whatYouCanDo: [
       "Workflow-Definitionen anlegen und Versionen als Draft pflegen",
       "Nodes und Kanten ohne freien JSON-Grafikeditor bearbeiten",
-      "Validierungsfehler pruefen und gueltige Drafts veroeffentlichen",
+      "Validierungsfehler prüfen und gültige Drafts veröffentlichen",
     ],
-    affectedObjects: ["Workflow-Definitionen", "Versionen", "Runtime-faehige Node- und Edge-Strukturen"],
-    impactNote: "Aenderungen wirken zunaechst auf Drafts und erst nach Publish auf neu gestartete Runtime-Instanzen.",
-    riskNote: "Ungespeicherte Entwurfsstaende gehen beim Wechsel verloren. Publish sollte erst nach gepruefter Validierung erfolgen.",
+    affectedObjects: ["Workflow-Definitionen", "Versionen", "Runtime-fähige Node- und Edge-Strukturen"],
+    impactNote: "Änderungen wirken zunächst auf Drafts und erst nach Publish auf neu gestartete Runtime-Instanzen.",
+    riskNote: "Ungespeicherte Entwurfsstände gehen beim Wechsel verloren. Publish sollte erst nach geprüfter Validierung erfolgen.",
   },
   {
     key: "answers",
@@ -459,15 +459,17 @@ export function filterOrganizationDepartments(args: {
   leadFilter: "all" | "valid" | "invalid";
   ownerFilter: "all" | "valid" | "invalid";
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
 }): AdminDepartmentAssignment[] {
-  const { departments, search, leadFilter, ownerFilter, eligibleSupervisorUsers } = args;
-  const eligibleIds = new Set(eligibleSupervisorUsers.map((user) => user.userId));
+  const { departments, search, leadFilter, ownerFilter, eligibleSupervisorUsers, eligibleRequirementOwnerUsers } = args;
+  const eligibleLeadIds = new Set(eligibleSupervisorUsers.map((user) => user.userId));
+  const eligibleOwnerIds = new Set(eligibleRequirementOwnerUsers.map((user) => user.userId));
   const normalizedSearch = search.trim().toLowerCase();
 
   return departments.filter((department) => {
-    const hasValidLead = Boolean(department.departmentLeadUserId && eligibleIds.has(department.departmentLeadUserId));
+    const hasValidLead = Boolean(department.departmentLeadUserId && eligibleLeadIds.has(department.departmentLeadUserId));
     const hasValidOwner = Boolean(
-      department.requirementOwnerUserId && eligibleIds.has(department.requirementOwnerUserId)
+      department.requirementOwnerUserId && eligibleOwnerIds.has(department.requirementOwnerUserId)
     );
 
     if (leadFilter === "valid" && !hasValidLead) {
@@ -588,21 +590,25 @@ export function buildAdminOverviewWarnings(args: {
   departments: AdminDepartmentAssignment[];
   responsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
 }): AdminWorkspaceWarning[] {
-  const { departments, responsibilities, eligibleSupervisorUsers, notificationEmailConfiguration } = args;
-  const eligibleIds = new Set(eligibleSupervisorUsers.map((user) => user.userId));
+  const { departments, responsibilities, eligibleSupervisorUsers, eligibleRequirementOwnerUsers, notificationEmailConfiguration } = args;
+  const eligibleLeadIds = new Set(eligibleSupervisorUsers.map((user) => user.userId));
+  const eligibleOwnerIds = new Set(eligibleRequirementOwnerUsers.map((user) => user.userId));
   const warnings: AdminWorkspaceWarning[] = [];
 
   for (const department of departments) {
-    const hasValidLead = Boolean(department.departmentLeadUserId && eligibleIds.has(department.departmentLeadUserId));
+    const hasValidLead = Boolean(
+      department.departmentLeadUserId && eligibleLeadIds.has(department.departmentLeadUserId)
+    );
     if (!hasValidLead) {
       warnings.push({
         key: `department-lead-${department.departmentId}`,
         category: "department_lead",
         subjectLabel: department.departmentName,
         title: `Abteilung ohne gültige Leitung: ${department.departmentName}`,
-        detail: "Die gespeicherte Leitung fehlt oder hat keine aktive Manager-Berechtigung.",
+        detail: "Die gespeicherte Leitung fehlt oder hat keine aktive Supervisor-Berechtigung.",
         actionLabel: "Abteilung öffnen",
         targetEntity: "department",
         targetId: department.departmentId,
@@ -610,7 +616,7 @@ export function buildAdminOverviewWarnings(args: {
     }
 
     const hasValidOwner = Boolean(
-      department.requirementOwnerUserId && eligibleIds.has(department.requirementOwnerUserId)
+      department.requirementOwnerUserId && eligibleOwnerIds.has(department.requirementOwnerUserId)
     );
     if (!hasValidOwner) {
       warnings.push({
@@ -693,7 +699,7 @@ const ADMIN_WARNING_GROUP_META: Record<AdminWorkspaceWarningCategory, {
 }> = {
   department_lead: {
     title: "Abteilungen ohne gültige Leitung",
-    detail: "In diesen Bereichen fehlt eine aktive Person mit Manager-Berechtigung.",
+    detail: "In diesen Bereichen fehlt eine aktive Person mit Supervisor-Berechtigung.",
     actionLabel: "Abteilungen prüfen",
     targetEntity: "department",
   },

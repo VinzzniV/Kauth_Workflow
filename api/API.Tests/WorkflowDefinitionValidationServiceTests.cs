@@ -87,6 +87,36 @@ public sealed class WorkflowDefinitionValidationServiceTests
         Assert.Equal(2, automationNode.Actions.Count);
     }
 
+    [Fact]
+    public void ValidateAndNormalize_AllowsExplicitParallelSplitAndJoinGraph()
+    {
+        var result = _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Split", "parallel_split"),
+                CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Task_B", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Join", "parallel_join"),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Split", 0),
+                CreateEdge("Split", "Task_A", 0),
+                CreateEdge("Split", "Task_B", 1),
+                CreateEdge("Task_A", "Join", 0),
+                CreateEdge("Task_B", "Join", 0),
+                CreateEdge("Join", "End", 0)
+            ]
+        });
+
+        Assert.Equal(6, result.Nodes.Count);
+        Assert.Contains(result.Nodes, node => node.NodeType == "parallel_split");
+        Assert.Contains(result.Nodes, node => node.NodeType == "parallel_join");
+    }
+
     [Theory]
     [InlineData("missing_start")]
     [InlineData("multiple_starts")]
@@ -103,6 +133,9 @@ public sealed class WorkflowDefinitionValidationServiceTests
     [InlineData("unsupported_decision_operator")]
     [InlineData("missing_automation_actions")]
     [InlineData("duplicate_action_order")]
+    [InlineData("invalid_parallel_split")]
+    [InlineData("invalid_parallel_join")]
+    [InlineData("invalid_multi_outgoing_task")]
     public void ValidateAndNormalize_RejectsInvalidDrafts(string scenario)
     {
         var request = scenario switch
@@ -201,6 +234,32 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 ],
                 Edges = [CreateEdge("Start", "Auto", 0), CreateEdge("Auto", "End", 0)]
             },
+            "invalid_parallel_split" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes = [CreateNode("Start", "start"), CreateNode("Split", "parallel_split"), CreateNode("End", "end")],
+                Edges = [CreateEdge("Start", "Split", 0), CreateEdge("Split", "End", 0)]
+            },
+            "invalid_parallel_join" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes = [CreateNode("Start", "start"), CreateNode("Join", "parallel_join"), CreateNode("End", "end")],
+                Edges = [CreateEdge("Start", "Join", 0), CreateEdge("Join", "End", 0)]
+            },
+            "invalid_multi_outgoing_task" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes =
+                [
+                    CreateNode("Start", "start"),
+                    CreateNode("Task", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                    CreateNode("End_A", "end"),
+                    CreateNode("End_B", "end")
+                ],
+                Edges =
+                [
+                    CreateEdge("Start", "Task", 0),
+                    CreateEdge("Task", "End_A", 0),
+                    CreateEdge("Task", "End_B", 1)
+                ]
+            },
             _ => throw new InvalidOperationException($"Unknown scenario '{scenario}'.")
         };
 
@@ -248,6 +307,80 @@ public sealed class WorkflowDefinitionValidationServiceTests
 
         Assert.False(snapshot.CanPublish);
         Assert.Contains(snapshot.Issues, issue => issue.Code == "unknown_legacy_template");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_RejectsSupervisorRequiredDefinitionWithoutStartGatekeeper()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Task_A", 0),
+                CreateEdge("Task_A", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            RequiresSupervisorStep = true
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, issue => issue.Code == "supervisor_gatekeeper_must_be_form");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_RejectsSupervisorRequiredDefinitionWithMismatchedGatekeeperProcessType()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Gatekeeper", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Gatekeeper", 0),
+                CreateEdge("Gatekeeper", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            RequiresSupervisorStep = true
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, issue => issue.Code == "supervisor_gatekeeper_process_type_mismatch");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_AllowsSupervisorRequiredDefinitionWithMatchingStartGatekeeper()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Gatekeeper", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Gatekeeper", 0),
+                CreateEdge("Gatekeeper", "Task_A", 0),
+                CreateEdge("Task_A", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            RequiresSupervisorStep = true
+        });
+
+        Assert.True(snapshot.CanPublish);
+        Assert.DoesNotContain(snapshot.Issues, issue => issue.Scope == "workflow_definition");
     }
 
     private static WorkflowDefinitionNodeDto CreateNode(

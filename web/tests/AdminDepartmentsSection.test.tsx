@@ -25,6 +25,10 @@ describe("AdminDepartmentsSection", () => {
           createAdminUser({ userId: 10 }),
           createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
         ]}
+        eligibleRequirementOwnerUsers={[
+          createAdminUser({ userId: 10 }),
+          createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
+        ]}
         departmentDrafts={{
           1: {
             departmentLeadUserId: "10",
@@ -72,9 +76,14 @@ describe("AdminDepartmentsSection", () => {
             externalKey: "alte.leitung",
             isActive: false,
             hasManagerAccess: false,
+            canAccessSupervisorStep: false,
           }),
         ]}
         eligibleSupervisorUsers={[
+          createAdminUser({ userId: 20, displayName: "Neue Leitung", externalKey: "neue.leitung" }),
+          createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
+        ]}
+        eligibleRequirementOwnerUsers={[
           createAdminUser({ userId: 20, displayName: "Neue Leitung", externalKey: "neue.leitung" }),
           createAdminUser({ userId: 11, displayName: "Mia Manager", externalKey: "mia.manager" }),
         ]}
@@ -97,6 +106,7 @@ describe("AdminDepartmentsSection", () => {
     );
 
     expect(screen.getByText(/Ungültige Zuordnung:/)).toBeTruthy();
+    expect(screen.getAllByText(/Supervisor-Berechtigung/)).toHaveLength(2);
     expect((screen.getByRole("button", { name: "Zuständigkeit speichern" }) as HTMLButtonElement).disabled).toBe(
       true
     );
@@ -107,5 +117,62 @@ describe("AdminDepartmentsSection", () => {
       departmentLeadUserId: "20",
       requirementOwnerUserId: "11",
     });
+  });
+
+  it("allows active non-supervisor users as requirement owners", () => {
+    render(
+      <AdminDepartmentsSection
+        sortedDepartments={[
+          createAdminDepartmentAssignment({
+            departmentLeadUserId: 10,
+            departmentLeadDisplayName: "Lea Lead",
+            requirementOwnerUserId: null,
+            requirementOwnerDisplayName: null,
+          }),
+        ]}
+        sortedUsers={[
+          createAdminUser({ userId: 10, displayName: "Lea Lead", canAccessSupervisorStep: true }),
+          createAdminUser({
+            userId: 12,
+            displayName: "Nora Normal",
+            hasManagerAccess: false,
+            canAccessSupervisorStep: false,
+          }),
+        ]}
+        eligibleSupervisorUsers={[
+          createAdminUser({ userId: 10, displayName: "Lea Lead", canAccessSupervisorStep: true }),
+        ]}
+        eligibleRequirementOwnerUsers={[
+          createAdminUser({ userId: 10, displayName: "Lea Lead", canAccessSupervisorStep: true }),
+          createAdminUser({
+            userId: 12,
+            displayName: "Nora Normal",
+            hasManagerAccess: false,
+            canAccessSupervisorStep: false,
+          }),
+        ]}
+        departmentDrafts={{
+          1: {
+            departmentLeadUserId: "10",
+            requirementOwnerUserId: "12",
+          },
+        }}
+        newDepartmentNameDraft=""
+        isCreatingDepartment={false}
+        savingDepartmentId={null}
+        deletingDepartmentId={null}
+        onNewDepartmentNameChange={vi.fn()}
+        onDepartmentDraftChange={vi.fn()}
+        onCreateDepartment={vi.fn()}
+        onSaveDepartmentAssignment={vi.fn()}
+        onRemoveDepartment={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("option", { name: /Nora Normal/ })).toBeTruthy();
+    expect(screen.queryByText(/Ungültige Zuordnung:/)).toBeNull();
+    expect((screen.getByRole("button", { name: "Zuständigkeit speichern" }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
   });
 });

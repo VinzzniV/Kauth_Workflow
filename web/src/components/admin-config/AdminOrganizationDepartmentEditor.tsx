@@ -15,6 +15,7 @@ type AdminOrganizationDepartmentEditorProps = {
   selectedDepartmentLeadOptions: AdminUser[];
   selectedDepartmentOwnerOptions: AdminUser[];
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
   newDepartmentNameDraft: string;
   isCreatingDepartment: boolean;
   deletingDepartmentId: number | null;
@@ -75,7 +76,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
   );
   const hasInvalidDepartmentOwnerSelection = !isEligibleSupervisorSelection(
     selectedDepartmentDraft.requirementOwnerUserId,
-    props.eligibleSupervisorUsers
+    props.eligibleRequirementOwnerUsers
   );
 
   return (
@@ -124,7 +125,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
             {props.selectedDepartmentOwnerOptions.map((user) => (
               <option key={`owner-${selectedDepartment.departmentId}-${user.userId}`} value={user.userId}>
                 {userOptionLabel(user)}
-                {!props.eligibleSupervisorUsers.some((candidate) => candidate.userId === user.userId)
+                {!props.eligibleRequirementOwnerUsers.some((candidate) => candidate.userId === user.userId)
                   ? " | aktuell ungültig"
                   : ""}
               </option>
@@ -141,8 +142,9 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
 
       {hasInvalidDepartmentLeadSelection || hasInvalidDepartmentOwnerSelection ? (
         <p className="panel-note">
-          Ungültige Zuordnung: Gespeicherte Personen ohne aktive Manager-Berechtigung bleiben sichtbar, müssen
-          aber vor dem Speichern ersetzt oder entfernt werden.
+          Ungültige Zuordnung: Für die Leitung ist aktive Supervisor-Berechtigung nötig. Für die
+          anforderungsverantwortliche Person reicht ein aktiver Benutzer. Ungültige gespeicherte Personen bleiben
+          sichtbar, müssen aber vor dem Speichern ersetzt oder entfernt werden.
         </p>
       ) : null}
 

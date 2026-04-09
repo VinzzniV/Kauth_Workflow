@@ -131,6 +131,18 @@ WHERE id = @versionId;
         }
 
         var processType = await LoadProcessTypeForCreate(connection, transaction, publishedVersion.PrimaryLegacyProcessTypeKey);
+        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
+
+        var gatekeeperEvaluation = EvaluateSupervisorGatekeeper(
+            graph,
+            publishedVersion.PrimaryLegacyProcessTypeKey,
+            processType.RequiresSupervisorStep);
+        if (!gatekeeperEvaluation.IsSatisfied)
+        {
+            throw new InvalidOperationException(
+                gatekeeperEvaluation.FailureMessage
+                ?? "Die publizierte Workflow-Definition besitzt keinen gültigen Supervisor-Gatekeeper.");
+        }
 
         if (request.DeadlineDate.HasValue && request.DeadlineDate.Value < DateOnly.FromDateTime(DateTime.Today))
         {
@@ -310,7 +322,6 @@ RETURNING id, uid;
             RuntimeStatusRunning,
             publishedVersion.WorkflowDefinitionKey);
 
-        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
         var startNode = graph.Nodes.Single(node => string.Equals(node.NodeType, "start", StringComparison.OrdinalIgnoreCase));
 
         var startNodeInstanceId = await CreateWorkflowNodeInstance(
@@ -432,77 +443,13 @@ ORDER BY e.created_at, e.id;
         var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
         var nodeExecution = await LoadNodeExecutionForUpdate(connection, transaction, workflow.WorkflowId, nodeInstanceId);
         EnsureActiveRuntimeNode(nodeExecution, "form");
-        var activeNodeExecution = nodeExecution!;
-
-        var legacyProcessTypeKey = GetRequiredNodeConfigString(activeNodeExecution.Node, "legacyProcessTypeKey");
-        var legacyProcessTypeId = await ResolveWorkflowDefinitionLegacyProcessTypeId(
+        await CompleteRuntimeFormNodeInternal(
             connection,
             transaction,
-            legacyProcessTypeKey,
-            requireActive: true);
-        if (!legacyProcessTypeId.HasValue)
-        {
-            throw new InvalidOperationException(
-                $"Node '{activeNodeExecution.Node.NodeKey}' references unknown or inactive legacyProcessTypeKey '{legacyProcessTypeKey}'.");
-        }
-
-        await DeleteWorkflowAnswersForProcessType(connection, transaction, workflow.WorkflowId, legacyProcessTypeId.Value);
-
-        var answerDefinitions = await LoadAnswerDefinitionRecords(connection, transaction, legacyProcessTypeId.Value);
-        var roleDefaults = await LoadRoleDefaultRecords(connection, transaction, workflow.RoleId, legacyProcessTypeId.Value);
-        var persistedAnswers = await PersistWorkflowAnswers(
-            connection,
-            transaction,
-            workflow.WorkflowId,
-            request.RequirementSelections ?? [],
-            answerDefinitions,
-            roleDefaults);
-        var answersByKey = persistedAnswers
-            .GroupBy(answer => answer.AnswerKey, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
-        ValidateSupervisorSelections(answerDefinitions, answersByKey);
-
-        await UpdateNodeInstanceStatus(
-            connection,
-            transaction,
-            activeNodeExecution.NodeInstanceId,
-            NodeInstanceStatusDone,
-            CreateJsonbPayload(new
-            {
-                selectionCount = request.RequirementSelections?.Count ?? 0,
-                legacyProcessTypeKey
-            }));
-
-        await InsertWorkflowRuntimeEvent(
-            connection,
-            transaction,
-            workflow.WorkflowId,
-            activeNodeExecution.NodeInstanceId,
-            "form_completed",
-            CreateJsonbPayload(new
-            {
-                nodeKey = activeNodeExecution.Node.NodeKey,
-                selectionCount = request.RequirementSelections?.Count ?? 0
-            }));
-
-        await InsertAuditEntry(
-            connection,
-            transaction,
-            workflow.WorkflowId,
-            null,
-            actorUserId,
-            "runtime_form_completed",
-            null,
-            NodeInstanceStatusDone,
-            activeNodeExecution.Node.NodeKey);
-
-        await AdvanceRuntimeUntilWaitOrTerminal(
-            connection,
-            transaction,
-            workflow.WorkflowId,
+            workflow,
             graph,
-            activeNodeExecution.Node,
-            await LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
+            nodeExecution!,
+            request.RequirementSelections ?? [],
             actorUserId);
 
         await transaction.CommitAsync();
@@ -627,6 +574,119 @@ ORDER BY e.created_at, e.id;
 
         await transaction.CommitAsync();
         return await GetWorkflowDefinitionRuntimeDetailInternal(connection, null, workflowUid);
+    }
+
+    private async Task CompleteRuntimeSupervisorGatekeeperStep(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid workflowUid,
+        IReadOnlyList<RequirementSelectionInputDto> selections,
+        long actorUserId)
+    {
+        var workflow = await LoadRuntimeWorkflowHeader(connection, transaction, workflowUid)
+            ?? throw new InvalidOperationException("Workflow runtime instance was not found.");
+        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        var gatekeeperNodeExecution = await LoadActiveSupervisorGatekeeperNodeExecution(
+            connection,
+            transaction,
+            workflow.WorkflowId,
+            graph,
+            workflow.PrimaryLegacyProcessTypeKey,
+            workflow.RequiresSupervisorStep);
+        if (gatekeeperNodeExecution is null)
+        {
+            throw new InvalidOperationException("Für diesen Workflow ist kein aktiver Supervisor-Gatekeeper vorhanden.");
+        }
+
+        await CompleteRuntimeFormNodeInternal(
+            connection,
+            transaction,
+            workflow,
+            graph,
+            gatekeeperNodeExecution,
+            selections,
+            actorUserId);
+    }
+
+    private static async Task CompleteRuntimeFormNodeInternal(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        RuntimeWorkflowHeaderRecord workflow,
+        WorkflowDefinitionGraphRecord graph,
+        WorkflowNodeExecutionRecord activeNodeExecution,
+        IReadOnlyList<RequirementSelectionInputDto> selections,
+        long actorUserId)
+    {
+        var legacyProcessTypeKey = GetRequiredNodeConfigString(activeNodeExecution.Node, "legacyProcessTypeKey");
+        var legacyProcessTypeId = await ResolveWorkflowDefinitionLegacyProcessTypeId(
+            connection,
+            transaction,
+            legacyProcessTypeKey,
+            requireActive: true);
+        if (!legacyProcessTypeId.HasValue)
+        {
+            throw new InvalidOperationException(
+                $"Node '{activeNodeExecution.Node.NodeKey}' references unknown or inactive legacyProcessTypeKey '{legacyProcessTypeKey}'.");
+        }
+
+        await DeleteWorkflowAnswersForProcessType(connection, transaction, workflow.WorkflowId, legacyProcessTypeId.Value);
+
+        var answerDefinitions = await LoadAnswerDefinitionRecords(connection, transaction, legacyProcessTypeId.Value);
+        var roleDefaults = await LoadRoleDefaultRecords(connection, transaction, workflow.RoleId, legacyProcessTypeId.Value);
+        var persistedAnswers = await PersistWorkflowAnswers(
+            connection,
+            transaction,
+            workflow.WorkflowId,
+            selections,
+            answerDefinitions,
+            roleDefaults);
+        var answersByKey = persistedAnswers
+            .GroupBy(answer => answer.AnswerKey, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
+        ValidateSupervisorSelections(answerDefinitions, answersByKey);
+
+        await UpdateNodeInstanceStatus(
+            connection,
+            transaction,
+            activeNodeExecution.NodeInstanceId,
+            NodeInstanceStatusDone,
+            CreateJsonbPayload(new
+            {
+                selectionCount = selections.Count,
+                legacyProcessTypeKey
+            }));
+
+        await InsertWorkflowRuntimeEvent(
+            connection,
+            transaction,
+            workflow.WorkflowId,
+            activeNodeExecution.NodeInstanceId,
+            "form_completed",
+            CreateJsonbPayload(new
+            {
+                nodeKey = activeNodeExecution.Node.NodeKey,
+                selectionCount = selections.Count
+            }));
+
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflow.WorkflowId,
+            null,
+            actorUserId,
+            "runtime_form_completed",
+            null,
+            NodeInstanceStatusDone,
+            activeNodeExecution.Node.NodeKey);
+
+        await AdvanceRuntimeUntilWaitOrTerminal(
+            connection,
+            transaction,
+            workflow.WorkflowId,
+            graph,
+            activeNodeExecution.Node,
+            await LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
+            actorUserId);
     }
 
     private static async Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetailInternal(
@@ -915,6 +975,9 @@ ORDER BY wna.workflow_node_id, wna.execution_order, wna.id;
             Edges = edges,
             NodeById = nodes.ToDictionary(node => node.NodeId),
             NodeActionsByNodeId = nodeActionsByNodeId,
+            IncomingEdgesByTargetNodeId = edges
+                .GroupBy(edge => edge.TargetNodeId)
+                .ToDictionary(group => group.Key, group => group.OrderBy(edge => edge.Priority).ThenBy(edge => edge.EdgeId).ToList()),
             OutgoingEdgesBySourceNodeId = edges
                 .GroupBy(edge => edge.SourceNodeId)
                 .ToDictionary(group => group.Key, group => group.OrderBy(edge => edge.Priority).ThenBy(edge => edge.EdgeId).ToList())
@@ -1080,156 +1143,128 @@ RETURNING id;
     {
         await SetWorkflowRuntimeState(connection, transaction, workflowId, RuntimeStatusRunning, "in_progress", null);
 
-        var currentNode = completedNode;
-        while (true)
-        {
-            if (string.Equals(currentNode.NodeType, "end", StringComparison.OrdinalIgnoreCase))
-            {
-                await CompleteRuntimeWorkflow(connection, transaction, workflowId, actorUserId, RuntimeStatusCompleted, "workflow_completed");
-                return;
-            }
+        var pendingNodes = new Queue<WorkflowDefinitionNodeRecord>();
+        var scheduledNodeIds = new HashSet<long>();
 
-            WorkflowDefinitionNodeRecord? nextNode;
+        try
+        {
+            foreach (var nextNode in ResolveNextNodes(graph, completedNode, answersByKey))
+            {
+                EnqueueIfNeeded(pendingNodes, scheduledNodeIds, nextNode);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
+            return;
+        }
+
+        while (pendingNodes.Count > 0)
+        {
+            var nextNode = pendingNodes.Dequeue();
+            _ = scheduledNodeIds.Remove(nextNode.NodeId);
+
             try
             {
-                nextNode = ResolveNextNode(graph, currentNode, answersByKey);
-            }
-            catch (InvalidOperationException ex)
-            {
-                await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
-                return;
-            }
-
-            if (nextNode is null)
-            {
-                await FailRuntimeWorkflow(
-                    connection,
-                    transaction,
-                    workflowId,
-                    actorUserId,
-                    $"Node '{currentNode.NodeKey}' did not resolve a next node.");
-                return;
-            }
-
-            switch (nextNode.NodeType)
-            {
-                case "start":
-                case "decision":
-                case "end":
+                if (await LoadWorkflowNodeInstanceByWorkflowNodeId(connection, transaction, workflowId, nextNode.NodeId) is not null)
                 {
-                    long autoNodeInstanceId;
-                    try
+                    continue;
+                }
+
+                if (!await CanActivateRuntimeNode(connection, transaction, workflowId, graph, nextNode))
+                {
+                    continue;
+                }
+
+                switch (nextNode.NodeType)
+                {
+                    case "start":
+                    case "decision":
+                    case "parallel_split":
+                    case "parallel_join":
+                    case "end":
                     {
-                        autoNodeInstanceId = await CreateWorkflowNodeInstance(
+                        var autoNodeInstanceId = await CreateWorkflowNodeInstance(
                             connection,
                             transaction,
                             workflowId,
                             nextNode,
                             NodeInstanceStatusDone,
                             CreateJsonbPayload(new { auto = true }));
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
-                        return;
-                    }
-
-                    await InsertWorkflowRuntimeEvent(
-                        connection,
-                        transaction,
-                        workflowId,
-                        autoNodeInstanceId,
-                        "node_completed",
-                        CreateJsonbPayload(new { nodeKey = nextNode.NodeKey, nodeType = nextNode.NodeType, auto = true }));
-
-                    if (string.Equals(nextNode.NodeType, "decision", StringComparison.OrdinalIgnoreCase))
-                    {
-                        WorkflowDefinitionEdgeRecord? selectedEdge;
-                        WorkflowDefinitionNodeRecord? decisionTarget;
-                        try
-                        {
-                            decisionTarget = ResolveDecisionTarget(graph, nextNode, answersByKey, out selectedEdge);
-                        }
-                        catch (InvalidOperationException ex)
-                        {
-                            await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
-                            return;
-                        }
-
-                        if (decisionTarget is null || selectedEdge is null)
-                        {
-                            await FailRuntimeWorkflow(
-                                connection,
-                                transaction,
-                                workflowId,
-                                actorUserId,
-                                $"Decision node '{nextNode.NodeKey}' has no matching outgoing edge.");
-                            return;
-                        }
-
-                        await UpdateNodeInstanceStatus(
-                            connection,
-                            transaction,
-                            autoNodeInstanceId,
-                            NodeInstanceStatusDone,
-                            CreateJsonbPayload(new
-                            {
-                                auto = true,
-                                selectedTargetNodeKey = decisionTarget.NodeKey,
-                                selectedEdgeId = selectedEdge.EdgeId
-                            }));
 
                         await InsertWorkflowRuntimeEvent(
                             connection,
                             transaction,
                             workflowId,
                             autoNodeInstanceId,
-                            "decision_branch_selected",
-                            CreateJsonbPayload(new
-                            {
-                                nodeKey = nextNode.NodeKey,
-                                targetNodeKey = decisionTarget.NodeKey,
-                                edgePriority = selectedEdge.Priority
-                            }));
-                    }
+                            "node_completed",
+                            CreateJsonbPayload(new { nodeKey = nextNode.NodeKey, nodeType = nextNode.NodeType, auto = true }));
 
-                    currentNode = nextNode;
-                    continue;
-                }
-                case "form":
-                case "approval":
-                case "task":
-                case "automation":
-                {
-                    long activeNodeInstanceId;
-                    try
+                        if (string.Equals(nextNode.NodeType, "decision", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var decisionTarget = ResolveDecisionTarget(graph, nextNode, answersByKey, out var selectedEdge);
+                            if (decisionTarget is null || selectedEdge is null)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Decision node '{nextNode.NodeKey}' has no matching outgoing edge.");
+                            }
+
+                            await UpdateNodeInstanceStatus(
+                                connection,
+                                transaction,
+                                autoNodeInstanceId,
+                                NodeInstanceStatusDone,
+                                CreateJsonbPayload(new
+                                {
+                                    auto = true,
+                                    selectedTargetNodeKey = decisionTarget.NodeKey,
+                                    selectedEdgeId = selectedEdge.EdgeId
+                                }));
+
+                            await InsertWorkflowRuntimeEvent(
+                                connection,
+                                transaction,
+                                workflowId,
+                                autoNodeInstanceId,
+                                "decision_branch_selected",
+                                CreateJsonbPayload(new
+                                {
+                                    nodeKey = nextNode.NodeKey,
+                                    targetNodeKey = decisionTarget.NodeKey,
+                                    edgePriority = selectedEdge.Priority
+                                }));
+                        }
+
+                        foreach (var resolvedNode in ResolveNextNodes(graph, nextNode, answersByKey))
+                        {
+                            EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolvedNode);
+                        }
+
+                        break;
+                    }
+                    case "form":
+                    case "approval":
+                    case "task":
+                    case "automation":
                     {
-                        activeNodeInstanceId = await CreateWorkflowNodeInstance(
+                        var activeNodeInstanceId = await CreateWorkflowNodeInstance(
                             connection,
                             transaction,
                             workflowId,
                             nextNode,
                             NodeInstanceStatusActive,
                             null);
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
-                        return;
-                    }
 
-                    await InsertWorkflowRuntimeEvent(
-                        connection,
-                        transaction,
-                        workflowId,
-                        activeNodeInstanceId,
-                        "node_activated",
-                        CreateJsonbPayload(new { nodeKey = nextNode.NodeKey, nodeType = nextNode.NodeType }));
+                        await InsertWorkflowRuntimeEvent(
+                            connection,
+                            transaction,
+                            workflowId,
+                            activeNodeInstanceId,
+                            "node_activated",
+                            CreateJsonbPayload(new { nodeKey = nextNode.NodeKey, nodeType = nextNode.NodeType }));
 
-                    if (string.Equals(nextNode.NodeType, "task", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(nextNode.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
-                    {
-                        try
+                        if (string.Equals(nextNode.NodeType, "task", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(nextNode.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
                         {
                             await CreateRuntimeWorkflowTask(
                                 connection,
@@ -1238,33 +1273,20 @@ RETURNING id;
                                 activeNodeInstanceId,
                                 nextNode);
                         }
-                        catch (InvalidOperationException ex)
+                        else if (string.Equals(nextNode.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
                         {
-                            await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
-                            return;
-                        }
-                    }
-                    else if (string.Equals(nextNode.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!graph.NodeActionsByNodeId.TryGetValue(nextNode.NodeId, out var actions)
-                            || actions.Count == 0)
-                        {
-                            await FailRuntimeWorkflow(
-                                connection,
-                                transaction,
-                                workflowId,
-                                actorUserId,
-                                $"Automation node '{nextNode.NodeKey}' has no configured actions.");
-                            return;
-                        }
+                            if (!graph.NodeActionsByNodeId.TryGetValue(nextNode.NodeId, out var actions)
+                                || actions.Count == 0)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Automation node '{nextNode.NodeKey}' has no configured actions.");
+                            }
 
-                        var firstAction = actions
-                            .OrderBy(action => action.ExecutionOrder)
-                            .ThenBy(action => action.Id)
-                            .First();
+                            var firstAction = actions
+                                .OrderBy(action => action.ExecutionOrder)
+                                .ThenBy(action => action.Id)
+                                .First();
 
-                        try
-                        {
                             var payload = await BuildAutomationJobPayload(
                                 connection,
                                 transaction,
@@ -1282,43 +1304,350 @@ RETURNING id;
                                 payload,
                                 CancellationToken.None);
                         }
-                        catch (InvalidOperationException ex)
-                        {
-                            await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
-                            return;
-                        }
+
+                        await InsertAuditEntry(
+                            connection,
+                            transaction,
+                            workflowId,
+                            null,
+                            actorUserId,
+                            "runtime_node_waiting",
+                            null,
+                            nextNode.NodeType,
+                            nextNode.NodeKey);
+                        break;
                     }
-
-                    await SetWorkflowRuntimeState(
-                        connection,
-                        transaction,
-                        workflowId,
-                        RuntimeStatusWaitingOnNode,
-                        MapLegacyStatusForActiveNode(nextNode.NodeType),
-                        null);
-
-                    await InsertAuditEntry(
-                        connection,
-                        transaction,
-                        workflowId,
-                        null,
-                        actorUserId,
-                        "runtime_node_waiting",
-                        null,
-                        nextNode.NodeType,
-                        nextNode.NodeKey);
-                    return;
+                    default:
+                        throw new InvalidOperationException(
+                            $"Node type '{nextNode.NodeType}' is not supported by the runtime.");
                 }
-                default:
-                    await FailRuntimeWorkflow(
-                        connection,
-                        transaction,
-                        workflowId,
-                        actorUserId,
-                        $"Node type '{nextNode.NodeType}' is not supported by the runtime.");
-                    return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                await FailRuntimeWorkflow(connection, transaction, workflowId, actorUserId, ex.Message);
+                return;
             }
         }
+
+        var activeNodes = await LoadActiveRuntimeNodes(connection, transaction, workflowId);
+        if (activeNodes.Count > 0)
+        {
+            var workflowStatusContext = await LoadRuntimeWorkflowStatusContext(connection, transaction, workflowId);
+            await SetWorkflowRuntimeState(
+                connection,
+                transaction,
+                workflowId,
+                RuntimeStatusWaitingOnNode,
+                MapLegacyStatusForActiveNodes(
+                    graph,
+                    activeNodes,
+                    workflowStatusContext.PrimaryLegacyProcessTypeKey,
+                    workflowStatusContext.RequiresSupervisorStep),
+                null);
+            return;
+        }
+
+        await CompleteRuntimeWorkflow(connection, transaction, workflowId, actorUserId, RuntimeStatusCompleted, "workflow_completed");
+    }
+
+    private static void EnqueueIfNeeded(
+        Queue<WorkflowDefinitionNodeRecord> queue,
+        ISet<long> scheduledNodeIds,
+        WorkflowDefinitionNodeRecord node)
+    {
+        if (scheduledNodeIds.Add(node.NodeId))
+        {
+            queue.Enqueue(node);
+        }
+    }
+
+    private static IReadOnlyList<WorkflowDefinitionNodeRecord> ResolveNextNodes(
+        WorkflowDefinitionGraphRecord graph,
+        WorkflowDefinitionNodeRecord currentNode,
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
+    {
+        if (!graph.OutgoingEdgesBySourceNodeId.TryGetValue(currentNode.NodeId, out var outgoingEdges)
+            || outgoingEdges.Count == 0)
+        {
+            return [];
+        }
+
+        if (string.Equals(currentNode.NodeType, "decision", StringComparison.OrdinalIgnoreCase))
+        {
+            var decisionTarget = ResolveDecisionTarget(graph, currentNode, answersByKey, out _);
+            return decisionTarget is null ? [] : [decisionTarget];
+        }
+
+        if (string.Equals(currentNode.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase))
+        {
+            return outgoingEdges
+                .Select(edge => graph.NodeById.GetValueOrDefault(edge.TargetNodeId))
+                .Where(node => node is not null)
+                .Cast<WorkflowDefinitionNodeRecord>()
+                .ToList();
+        }
+
+        if (outgoingEdges.Count != 1)
+        {
+            throw new InvalidOperationException(
+                $"Node '{currentNode.NodeKey}' uses {outgoingEdges.Count} outgoing edges, but only decision and parallel_split nodes may branch.");
+        }
+
+        var nextNode = graph.NodeById.GetValueOrDefault(outgoingEdges[0].TargetNodeId);
+        return nextNode is null ? [] : [nextNode];
+    }
+
+    private static async Task<bool> CanActivateRuntimeNode(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        WorkflowDefinitionGraphRecord graph,
+        WorkflowDefinitionNodeRecord node)
+    {
+        if (!string.Equals(node.NodeType, "parallel_join", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!graph.IncomingEdgesByTargetNodeId.TryGetValue(node.NodeId, out var incomingEdges)
+            || incomingEdges.Count == 0)
+        {
+            return true;
+        }
+
+        var sourceNodeIds = incomingEdges
+            .Select(edge => edge.SourceNodeId)
+            .Distinct()
+            .ToArray();
+        var nodeInstanceStates = await LoadWorkflowNodeInstanceStates(connection, transaction, workflowId, sourceNodeIds);
+
+        return sourceNodeIds.All(sourceNodeId =>
+            nodeInstanceStates.TryGetValue(sourceNodeId, out var status)
+            && string.Equals(status, NodeInstanceStatusDone, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task<Dictionary<long, string>> LoadWorkflowNodeInstanceStates(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        IReadOnlyCollection<long> workflowNodeIds)
+    {
+        if (workflowNodeIds.Count == 0)
+        {
+            return new Dictionary<long, string>();
+        }
+
+        const string sql = """
+SELECT workflow_node_id, status
+FROM workflow_node_instances
+WHERE workflow_id = @workflowId
+  AND workflow_node_id = ANY(@workflowNodeIds);
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("workflowNodeIds", workflowNodeIds.ToArray());
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var result = new Dictionary<long, string>();
+        while (await reader.ReadAsync())
+        {
+            result[reader.GetInt64(0)] = reader.GetString(1);
+        }
+
+        return result;
+    }
+
+    private static async Task<WorkflowNodeInstanceRecord?> LoadWorkflowNodeInstanceByWorkflowNodeId(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        long workflowNodeId)
+    {
+        const string sql = """
+SELECT id, status
+FROM workflow_node_instances
+WHERE workflow_id = @workflowId
+  AND workflow_node_id = @workflowNodeId
+LIMIT 1
+FOR UPDATE;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("workflowNodeId", workflowNodeId);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new WorkflowNodeInstanceRecord
+        {
+            Id = reader.GetInt64(0),
+            Status = reader.GetString(1)
+        };
+    }
+
+    private static async Task<List<ActiveRuntimeNodeRecord>> LoadActiveRuntimeNodes(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = """
+SELECT
+    ni.id,
+    n.node_key,
+    n.node_type
+FROM workflow_node_instances ni
+JOIN workflow_nodes n ON n.id = ni.workflow_node_id
+WHERE ni.workflow_id = @workflowId
+  AND ni.status = @status;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("status", NodeInstanceStatusActive);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var activeNodes = new List<ActiveRuntimeNodeRecord>();
+        while (await reader.ReadAsync())
+        {
+            activeNodes.Add(new ActiveRuntimeNodeRecord
+            {
+                NodeInstanceId = reader.GetInt64(0),
+                NodeKey = reader.GetString(1),
+                NodeType = reader.GetString(2)
+            });
+        }
+
+        return activeNodes;
+    }
+
+    private static async Task<RuntimeWorkflowStatusContextRecord> LoadRuntimeWorkflowStatusContext(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = """
+SELECT
+    pt.key,
+    pt.requires_supervisor_step
+FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
+WHERE w.id = @workflowId
+LIMIT 1;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            throw new InvalidOperationException("Workflow runtime status context could not be loaded.");
+        }
+
+        return new RuntimeWorkflowStatusContextRecord
+        {
+            PrimaryLegacyProcessTypeKey = reader.GetString(0),
+            RequiresSupervisorStep = reader.GetBoolean(1)
+        };
+    }
+
+    private static WorkflowDefinitionSupervisorGatekeeperEvaluation EvaluateSupervisorGatekeeper(
+        WorkflowDefinitionGraphRecord graph,
+        string? primaryLegacyProcessTypeKey,
+        bool requiresSupervisorStep)
+    {
+        return WorkflowDefinitionSupervisorGatekeeperRules.Evaluate(
+            graph.Nodes.Select(node => new WorkflowDefinitionSupervisorGatekeeperNode
+            {
+                NodeKey = node.NodeKey,
+                NodeType = node.NodeType,
+                LegacyProcessTypeKey = TryGetNodeConfigString(node, "legacyProcessTypeKey")
+            }).ToList(),
+            graph.Edges.Select(edge => new WorkflowDefinitionSupervisorGatekeeperEdge
+            {
+                SourceNodeKey = graph.NodeById[edge.SourceNodeId].NodeKey,
+                TargetNodeKey = graph.NodeById[edge.TargetNodeId].NodeKey,
+                Priority = edge.Priority
+            }).ToList(),
+            primaryLegacyProcessTypeKey,
+            requiresSupervisorStep);
+    }
+
+    private static bool IsSupervisorGatekeeperNode(
+        WorkflowDefinitionGraphRecord graph,
+        string nodeKey,
+        string? primaryLegacyProcessTypeKey,
+        bool requiresSupervisorStep)
+    {
+        var evaluation = EvaluateSupervisorGatekeeper(graph, primaryLegacyProcessTypeKey, requiresSupervisorStep);
+        return evaluation.IsSatisfied
+            && string.Equals(evaluation.GatekeeperNodeKey, nodeKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<WorkflowNodeExecutionRecord?> LoadActiveSupervisorGatekeeperNodeExecution(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        WorkflowDefinitionGraphRecord graph,
+        string? primaryLegacyProcessTypeKey,
+        bool requiresSupervisorStep)
+    {
+        var evaluation = EvaluateSupervisorGatekeeper(graph, primaryLegacyProcessTypeKey, requiresSupervisorStep);
+        if (!evaluation.IsSatisfied || string.IsNullOrWhiteSpace(evaluation.GatekeeperNodeKey))
+        {
+            return null;
+        }
+
+        const string sql = """
+SELECT
+    ni.id,
+    ni.status,
+    n.id,
+    n.node_key,
+    n.node_type,
+    n.title,
+    n.sort_order,
+    nc.config_json::text
+FROM workflow_node_instances ni
+JOIN workflow_nodes n ON n.id = ni.workflow_node_id
+LEFT JOIN workflow_node_configs nc ON nc.workflow_node_id = n.id
+WHERE ni.workflow_id = @workflowId
+  AND ni.status = @status
+  AND n.node_key = @nodeKey
+LIMIT 1
+FOR UPDATE OF ni;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("status", NodeInstanceStatusActive);
+        command.Parameters.AddWithValue("nodeKey", evaluation.GatekeeperNodeKey);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new WorkflowNodeExecutionRecord
+        {
+            NodeInstanceId = reader.GetInt64(0),
+            Status = reader.GetString(1),
+            Node = new WorkflowDefinitionNodeRecord
+            {
+                NodeId = reader.GetInt64(2),
+                NodeKey = reader.GetString(3),
+                NodeType = reader.GetString(4),
+                Title = reader.IsDBNull(5) ? null : reader.GetString(5),
+                SortOrder = reader.GetInt32(6),
+                Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+            }
+        };
     }
 
     private static async Task<long> CreateRuntimeWorkflowTask(
@@ -1489,31 +1818,6 @@ VALUES (
         return workflowTaskId;
     }
 
-    private static WorkflowDefinitionNodeRecord? ResolveNextNode(
-        WorkflowDefinitionGraphRecord graph,
-        WorkflowDefinitionNodeRecord currentNode,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
-    {
-        if (!graph.OutgoingEdgesBySourceNodeId.TryGetValue(currentNode.NodeId, out var outgoingEdges)
-            || outgoingEdges.Count == 0)
-        {
-            return null;
-        }
-
-        if (string.Equals(currentNode.NodeType, "decision", StringComparison.OrdinalIgnoreCase))
-        {
-            return ResolveDecisionTarget(graph, currentNode, answersByKey, out _);
-        }
-
-        if (outgoingEdges.Count != 1)
-        {
-            throw new InvalidOperationException(
-                $"Node '{currentNode.NodeKey}' uses {outgoingEdges.Count} outgoing edges, but T4 only supports one outgoing edge for non-decision nodes.");
-        }
-
-        return graph.NodeById.GetValueOrDefault(outgoingEdges[0].TargetNodeId);
-    }
-
     private static WorkflowDefinitionNodeRecord? ResolveDecisionTarget(
         WorkflowDefinitionGraphRecord graph,
         WorkflowDefinitionNodeRecord decisionNode,
@@ -1616,8 +1920,11 @@ SELECT
     w.uid,
     w.workflow_definition_version_id,
     w.position_role_id,
+    pt.key,
+    pt.requires_supervisor_step,
     COALESCE(w.current_runtime_status, @defaultRuntimeStatus)
 FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
 WHERE w.uid = @workflowUid
   AND w.workflow_definition_version_id IS NOT NULL
 LIMIT 1
@@ -1640,7 +1947,9 @@ FOR UPDATE OF w;
             WorkflowUid = reader.GetGuid(1),
             WorkflowDefinitionVersionId = reader.GetInt64(2),
             RoleId = reader.GetInt32(3),
-            CurrentRuntimeStatus = reader.GetString(4)
+            PrimaryLegacyProcessTypeKey = reader.GetString(4),
+            RequiresSupervisorStep = reader.GetBoolean(5),
+            CurrentRuntimeStatus = reader.GetString(6)
         };
     }
 
@@ -1974,6 +2283,23 @@ FOR UPDATE OF ni;
         return property.GetString()!.Trim();
     }
 
+    private static string? TryGetNodeConfigString(WorkflowDefinitionNodeRecord node, string propertyName)
+    {
+        if (!node.Config.HasValue || node.Config.Value.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!node.Config.Value.TryGetProperty(propertyName, out var property)
+            || property.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(property.GetString()))
+        {
+            return null;
+        }
+
+        return property.GetString()!.Trim();
+    }
+
     private static async Task DeleteWorkflowAnswersForProcessType(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -2076,14 +2402,33 @@ WHERE id = @workflowId;
             reason);
     }
 
-    private static string MapLegacyStatusForActiveNode(string nodeType)
+    private static string MapLegacyStatusForActiveNodes(
+        WorkflowDefinitionGraphRecord graph,
+        IReadOnlyCollection<ActiveRuntimeNodeRecord> activeNodes,
+        string? primaryLegacyProcessTypeKey,
+        bool requiresSupervisorStep)
     {
-        return nodeType switch
+        if (activeNodes.Any(node =>
+                IsSupervisorGatekeeperNode(
+                    graph,
+                    node.NodeKey,
+                    primaryLegacyProcessTypeKey,
+                    requiresSupervisorStep)))
         {
-            "approval" => "waiting_for_supervisor",
-            "task" => "waiting_for_department",
-            _ => "in_progress"
-        };
+            return "waiting_for_supervisor";
+        }
+
+        if (activeNodes.Any(node => string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "waiting_for_supervisor";
+        }
+
+        if (activeNodes.Any(node => string.Equals(node.NodeType, "task", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "waiting_for_department";
+        }
+
+        return "in_progress";
     }
 
     private static string? CreateJsonbPayload(object? value)
@@ -2113,6 +2458,7 @@ WHERE id = @workflowId;
         public required List<WorkflowDefinitionEdgeRecord> Edges { get; init; }
         public required Dictionary<long, WorkflowDefinitionNodeRecord> NodeById { get; init; }
         public required Dictionary<long, List<WorkflowNodeActionRecord>> NodeActionsByNodeId { get; init; }
+        public required Dictionary<long, List<WorkflowDefinitionEdgeRecord>> IncomingEdgesByTargetNodeId { get; init; }
         public required Dictionary<long, List<WorkflowDefinitionEdgeRecord>> OutgoingEdgesBySourceNodeId { get; init; }
     }
 
@@ -2141,6 +2487,8 @@ WHERE id = @workflowId;
         public required Guid WorkflowUid { get; init; }
         public required long WorkflowDefinitionVersionId { get; init; }
         public required int RoleId { get; init; }
+        public required string PrimaryLegacyProcessTypeKey { get; init; }
+        public required bool RequiresSupervisorStep { get; init; }
         public required string CurrentRuntimeStatus { get; init; }
     }
 
@@ -2149,6 +2497,25 @@ WHERE id = @workflowId;
         public required long NodeInstanceId { get; init; }
         public required string Status { get; init; }
         public required WorkflowDefinitionNodeRecord Node { get; init; }
+    }
+
+    private sealed class WorkflowNodeInstanceRecord
+    {
+        public required long Id { get; init; }
+        public required string Status { get; init; }
+    }
+
+    private sealed class ActiveRuntimeNodeRecord
+    {
+        public required long NodeInstanceId { get; init; }
+        public required string NodeKey { get; init; }
+        public required string NodeType { get; init; }
+    }
+
+    private sealed class RuntimeWorkflowStatusContextRecord
+    {
+        public required string PrimaryLegacyProcessTypeKey { get; init; }
+        public required bool RequiresSupervisorStep { get; init; }
     }
 
     private sealed class WorkflowRuntimeTaskContextRecord

@@ -154,7 +154,11 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "offboarding",
-                    TargetPersonId = targetPerson.PersonId
+                    TargetPersonId = targetPerson.PersonId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber,
+                    BadgeNumber = targetPerson.BadgeNumber
                 },
                 targetPerson.ActorUserId);
 
@@ -162,16 +166,26 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "department_change",
-                    TargetPersonId = targetPerson.PersonId
+                    TargetPersonId = targetPerson.PersonId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber,
+                    BadgeNumber = targetPerson.BadgeNumber
                 },
                 targetPerson.ActorUserId);
 
             Assert.Equal("onboarding", onboardingRuntime.WorkflowDefinitionKey);
-            Assert.Contains(onboardingRuntime.NodeInstances, node => node.NodeKey == "collect_requirements");
+            Assert.Equal("waiting_for_supervisor", onboardingRuntime.LegacyWorkflowStatus);
+            Assert.Contains(onboardingRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
+            Assert.DoesNotContain(onboardingRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
             Assert.Equal("offboarding", offboardingRuntime.WorkflowDefinitionKey);
-            Assert.Contains(offboardingRuntime.NodeInstances, node => node.NodeKey == "task_last_day_confirmed");
+            Assert.Equal("in_progress", offboardingRuntime.LegacyWorkflowStatus);
+            Assert.Contains(offboardingRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
+            Assert.DoesNotContain(offboardingRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
             Assert.Equal("department_change", departmentChangeRuntime.WorkflowDefinitionKey);
-            Assert.Contains(departmentChangeRuntime.NodeInstances, node => node.NodeKey == "task_hr_system_update");
+            Assert.Equal("in_progress", departmentChangeRuntime.LegacyWorkflowStatus);
+            Assert.Contains(departmentChangeRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
+            Assert.DoesNotContain(departmentChangeRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
         }
         finally
         {
@@ -190,6 +204,217 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             if (departmentChangeRuntime is not null)
             {
                 await CleanupWorkflowAsync(connectionString, departmentChangeRuntime.WorkflowId);
+            }
+
+            if (targetPerson is not null)
+            {
+                await CleanupSeededRuntimeTargetPersonAsync(connectionString, targetPerson);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task DefinitionRuntime_SupervisorStepCompletesGatekeeperBeforeActivatingTasks()
+    {
+        var connectionString = GetTestConnectionString();
+        if (!await EnsureWorkflowDefinitionMappingsAsync(connectionString))
+        {
+            return;
+        }
+
+        var previousConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        Environment.SetEnvironmentVariable("CONNECTION_STRING", connectionString);
+
+        SeededRuntimeTargetPerson? targetPerson = null;
+        WorkflowDefinitionRuntimeDetailDto? onboardingRuntime = null;
+
+        try
+        {
+            var repository = new PostgresWorkflowRepository();
+            targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
+
+            onboardingRuntime = await repository.CreateWorkflowDefinitionInstance(
+                new CreateWorkflowDefinitionInstanceRequest
+                {
+                    WorkflowDefinitionKey = "onboarding",
+                    DepartmentId = targetPerson.DepartmentId,
+                    RoleId = targetPerson.RoleId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber + 3000,
+                    BadgeNumber = targetPerson.BadgeNumber + 3000
+                },
+                targetPerson.ActorUserId);
+
+            Assert.Equal("waiting_for_supervisor", onboardingRuntime.LegacyWorkflowStatus);
+            Assert.Contains(onboardingRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
+            Assert.DoesNotContain(onboardingRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
+
+            var updatedWorkflow = await repository.CompleteSupervisorStep(
+                onboardingRuntime.WorkflowUid,
+                await BuildPositiveSupervisorSelectionsAsync(connectionString),
+                targetPerson.ActorUserId);
+
+            Assert.NotNull(updatedWorkflow);
+            Assert.Equal("waiting_for_department", updatedWorkflow!.WorkflowStatus);
+            Assert.Contains(updatedWorkflow.Requirements, requirement =>
+                requirement.Value.ValueBoolean.HasValue
+                || requirement.Value.SelectedOptionId.HasValue);
+            Assert.NotEmpty(updatedWorkflow.Tasks);
+            Assert.Contains(updatedWorkflow.Tasks, task => task.Status == "ready");
+
+            var runtimeDetail = await repository.GetWorkflowDefinitionRuntimeDetail(onboardingRuntime.WorkflowUid);
+
+            Assert.NotNull(runtimeDetail);
+            Assert.Equal("waiting_for_department", runtimeDetail!.LegacyWorkflowStatus);
+            Assert.Contains(runtimeDetail.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "done");
+            Assert.Contains(runtimeDetail.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONNECTION_STRING", previousConnectionString);
+
+            if (onboardingRuntime is not null)
+            {
+                await CleanupWorkflowAsync(connectionString, onboardingRuntime.WorkflowId);
+            }
+
+            if (targetPerson is not null)
+            {
+                await CleanupSeededRuntimeTargetPersonAsync(connectionString, targetPerson);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Runtime_WaitsForParallelJoinUntilAllBranchesAreDone()
+    {
+        var connectionString = GetTestConnectionString();
+        if (!await EnsureWorkflowDefinitionMappingsAsync(connectionString))
+        {
+            return;
+        }
+
+        WorkflowDefinitionSummaryDto? definition = null;
+        WorkflowDefinitionRuntimeDetailDto? runtime = null;
+        SeededRuntimeTargetPerson? targetPerson = null;
+        var previousConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        Environment.SetEnvironmentVariable("CONNECTION_STRING", connectionString);
+
+        try
+        {
+            var repository = new PostgresWorkflowRepository();
+            targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
+
+            definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
+            {
+                Key = $"parallel_join_{Guid.NewGuid():N}",
+                Name = "Parallel Join Runtime",
+                Description = "Runtime integration test for parallel split and join"
+            });
+
+            var createdVersion = await repository.CreateAdminWorkflowDefinitionVersion(
+                definition.Id,
+                new CreateWorkflowDefinitionVersionRequest
+                {
+                    Name = "Parallel Draft",
+                    Description = "Parallel runtime draft"
+                });
+
+            var replacedVersion = await repository.ReplaceAdminWorkflowDefinitionVersion(
+                createdVersion!.Id,
+                new ReplaceWorkflowDefinitionVersionRequest
+                {
+                    Name = "Parallel Draft",
+                    Description = "Parallel runtime draft",
+                    Nodes =
+                    [
+                        WorkflowDefinitionTestData.FormNode("start", "start"),
+                        WorkflowDefinitionTestData.FormNode("split", "parallel_split", null, 10),
+                        WorkflowDefinitionTestData.FormNode("task_a", "task", """{"legacyTemplateKey":"collect_equipment"}""", 20),
+                        WorkflowDefinitionTestData.FormNode("task_b", "task", """{"legacyTemplateKey":"collect_equipment"}""", 30),
+                        WorkflowDefinitionTestData.FormNode("join", "parallel_join", null, 40),
+                        WorkflowDefinitionTestData.FormNode("end", "end", null, 50)
+                    ],
+                    Edges =
+                    [
+                        WorkflowDefinitionTestData.Edge("start", "split", 0),
+                        WorkflowDefinitionTestData.Edge("split", "task_a", 0),
+                        WorkflowDefinitionTestData.Edge("split", "task_b", 1),
+                        WorkflowDefinitionTestData.Edge("task_a", "join", 0),
+                        WorkflowDefinitionTestData.Edge("task_b", "join", 0),
+                        WorkflowDefinitionTestData.Edge("join", "end", 0)
+                    ]
+                });
+
+            Assert.NotNull(replacedVersion);
+
+            var publishedVersion = await repository.PublishWorkflowDefinitionVersion(createdVersion.Id);
+            Assert.NotNull(publishedVersion);
+            Assert.True(publishedVersion!.CanPublish);
+
+            runtime = await repository.CreateWorkflowDefinitionInstance(
+                new CreateWorkflowDefinitionInstanceRequest
+                {
+                    WorkflowDefinitionKey = definition.Key,
+                    DepartmentId = targetPerson.DepartmentId,
+                    RoleId = targetPerson.RoleId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber + 2000,
+                    BadgeNumber = targetPerson.BadgeNumber + 2000
+                },
+                targetPerson.ActorUserId);
+
+            Assert.Equal("waiting_on_node", runtime.CurrentRuntimeStatus);
+            Assert.Contains(runtime.NodeInstances, node => node.NodeKey == "task_a" && node.Status == "active");
+            Assert.Contains(runtime.NodeInstances, node => node.NodeKey == "task_b" && node.Status == "active");
+            Assert.DoesNotContain(runtime.NodeInstances, node => node.NodeKey == "join");
+
+            var taskANodeInstanceId = runtime.NodeInstances.Single(node => node.NodeKey == "task_a").Id;
+            runtime = await repository.CompleteRuntimeTaskNode(
+                runtime.WorkflowUid,
+                taskANodeInstanceId,
+                new CompleteRuntimeTaskNodeRequest
+                {
+                    Comment = "Task A completed"
+                },
+                targetPerson.ActorUserId);
+
+            Assert.NotNull(runtime);
+            Assert.Equal("waiting_on_node", runtime!.CurrentRuntimeStatus);
+            Assert.DoesNotContain(runtime.NodeInstances, node => node.NodeKey == "join");
+            Assert.Contains(runtime.NodeInstances, node => node.NodeKey == "task_b" && node.Status == "active");
+
+            var taskBNodeInstanceId = runtime.NodeInstances.Single(node => node.NodeKey == "task_b").Id;
+            runtime = await repository.CompleteRuntimeTaskNode(
+                runtime.WorkflowUid,
+                taskBNodeInstanceId,
+                new CompleteRuntimeTaskNodeRequest
+                {
+                    Comment = "Task B completed"
+                },
+                targetPerson.ActorUserId);
+
+            Assert.NotNull(runtime);
+            Assert.Equal("completed", runtime!.CurrentRuntimeStatus);
+            Assert.Contains(runtime.NodeInstances, node => node.NodeKey == "join" && node.Status == "done");
+            Assert.Contains(runtime.NodeInstances, node => node.NodeKey == "end" && node.Status == "done");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONNECTION_STRING", previousConnectionString);
+
+            if (runtime is not null)
+            {
+                await CleanupWorkflowAsync(connectionString, runtime.WorkflowId);
+            }
+
+            if (definition is not null)
+            {
+                await CleanupWorkflowDefinitionAsync(connectionString, definition.Id);
             }
 
             if (targetPerson is not null)
@@ -460,6 +685,68 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         }
 
         await transaction.CommitAsync();
+    }
+
+    private static async Task<List<RequirementSelectionInputDto>> BuildPositiveSupervisorSelectionsAsync(string connectionString)
+    {
+        var adUserRequestedId = await LoadAnswerDefinitionIdAsync(connectionString, "ad_user_requested");
+        var mailboxRequestedId = await LoadAnswerDefinitionIdAsync(connectionString, "mailbox_requested");
+        var hardwareRequestedId = await LoadAnswerDefinitionIdAsync(connectionString, "hardware_requested");
+        var hardwareAvailableId = await LoadAnswerDefinitionIdAsync(connectionString, "hardware_available");
+        var hardwareTypeId = await LoadAnswerDefinitionIdAsync(connectionString, "hardware_type");
+        var laptopVpnTypeId = await LoadAnswerDefinitionIdAsync(connectionString, "laptop_vpn_type");
+        var laptopOptionId = await LoadAnswerOptionIdAsync(connectionString, "hardware_type", "laptop");
+        var withVpnOptionId = await LoadAnswerOptionIdAsync(connectionString, "laptop_vpn_type", "with_vpn");
+
+        return
+        [
+            new RequirementSelectionInputDto { RequirementId = adUserRequestedId, ValueBoolean = true },
+            new RequirementSelectionInputDto { RequirementId = mailboxRequestedId, ValueBoolean = true },
+            new RequirementSelectionInputDto { RequirementId = hardwareRequestedId, ValueBoolean = true },
+            new RequirementSelectionInputDto { RequirementId = hardwareAvailableId, ValueBoolean = false },
+            new RequirementSelectionInputDto { RequirementId = hardwareTypeId, SelectedOptionId = laptopOptionId },
+            new RequirementSelectionInputDto { RequirementId = laptopVpnTypeId, SelectedOptionId = withVpnOptionId }
+        ];
+    }
+
+    private static async Task<int> LoadAnswerDefinitionIdAsync(string connectionString, string answerKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "SELECT id FROM workflow_answer_definitions WHERE answer_key = @answerKey LIMIT 1;",
+            connection);
+        command.Parameters.AddWithValue("answerKey", answerKey);
+
+        var scalar = await command.ExecuteScalarAsync();
+        return scalar is int answerDefinitionId
+            ? answerDefinitionId
+            : throw new InvalidOperationException($"Answer definition '{answerKey}' could not be loaded.");
+    }
+
+    private static async Task<int> LoadAnswerOptionIdAsync(string connectionString, string answerKey, string optionKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        const string sql = """
+SELECT o.id
+FROM workflow_answer_options o
+JOIN workflow_answer_definitions d ON d.id = o.answer_definition_id
+WHERE d.answer_key = @answerKey
+  AND o.option_key = @optionKey
+LIMIT 1;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("answerKey", answerKey);
+        command.Parameters.AddWithValue("optionKey", optionKey);
+
+        var scalar = await command.ExecuteScalarAsync();
+        return scalar is int optionId
+            ? optionId
+            : throw new InvalidOperationException($"Answer option '{answerKey}:{optionKey}' could not be loaded.");
     }
 
     private static string FindRepositoryFile(params string[] segments)

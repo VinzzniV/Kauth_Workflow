@@ -202,6 +202,67 @@ internal static class AdminOrgEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapPost("/admin/master-data/responsibilities", async (
+            [FromBody] AdminResponsibilityCreateRequest request,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var responsibility = await userAuthorizationRepository.CreateResponsibility(
+                    request.ResponsibilityName,
+                    request.DepartmentId);
+                return Results.Ok(responsibility);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<AdminResponsibilityOwnerDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapDelete("/admin/master-data/responsibilities/{responsibilityId:int}", async (
+            int responsibilityId,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var deleted = await userAuthorizationRepository.DeleteResponsibility(responsibilityId);
+                return deleted ? Results.NoContent() : Results.NotFound(new { message = "Responsibility not found." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces(StatusCodes.Status204NoContent)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPost("/admin/master-data/users", async (
             [FromBody] AdminUserCreateRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,

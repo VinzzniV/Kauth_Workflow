@@ -111,15 +111,15 @@ WITH responsibility_seed(department_name, responsibility_key, system_key, respon
         ('Produktion', 'leadership_production', NULL, 'Abteilungsleitung Produktion', 'department_lead', 'Führungsverantwortung für Onboardings der Produktion.'),
         ('Vertrieb', 'leadership_sales', NULL, 'Abteilungsleitung Vertrieb', 'department_lead', 'Führungsverantwortung für Onboardings des Vertriebs.'),
         ('Prototypenbau', 'leadership_prototype', NULL, 'Abteilungsleitung Prototypenbau', 'department_lead', 'Führungsverantwortung für Onboardings im Prototypenbau.'),
-        ('IT', 'it_ad', 'ad', 'IT - AD', 'application', 'Verantwortung für AD-Konto und zentrale Berechtigungen.'),
-        ('IT', 'it_mailbox', 'mailbox', 'IT - Mailbox', 'application', 'Verantwortung für Mailbox-Einrichtung.'),
-        ('IT', 'it_habel', 'habel', 'IT - Habel', 'application', 'Verantwortung für Habel-Zugänge.'),
-        ('IT', 'it_ln', 'ln', 'IT - LN', 'application', 'Verantwortung für LN-Zugänge.'),
-        ('IT', 'it_hardware', 'hardware', 'IT - Hardware', 'application', 'Verantwortung für Hardware-Bereitstellung und Einrichtung.'),
-        ('QS', 'qs_babtec', 'babtec', 'QS - Babtec', 'application', 'Verantwortung für Babtec in der QS.'),
-        ('AV', 'av_gewatec', 'gewatec', 'AV - Gewatec', 'application', 'Verantwortung für Gewatec in der AV.'),
-        ('AV', 'av_provis', 'provis', 'AV - Provis', 'application', 'Verantwortung für Provis in der AV.'),
-        ('QMB', 'qmb_consense', 'consense', 'QMB - Consense', 'application', 'Verantwortung für Consense im QMB.')
+        ('IT', 'it_ad', 'ad', 'AD', 'application', 'Verantwortung für AD-Konto und zentrale Berechtigungen.'),
+        ('IT', 'it_mailbox', 'mailbox', 'Mailbox', 'application', 'Verantwortung für Mailbox-Einrichtung.'),
+        ('IT', 'it_habel', 'habel', 'Habel', 'application', 'Verantwortung für Habel-Zugänge.'),
+        ('IT', 'it_ln', 'ln', 'LN', 'application', 'Verantwortung für LN-Zugänge.'),
+        ('IT', 'it_hardware', 'hardware', 'Hardware', 'application', 'Verantwortung für Hardware-Bereitstellung und Einrichtung.'),
+        ('QS', 'qs_babtec', 'babtec', 'Babtec', 'application', 'Verantwortung für Babtec in der QS.'),
+        ('AV', 'av_gewatec', 'gewatec', 'Gewatec', 'application', 'Verantwortung für Gewatec in der AV.'),
+        ('AV', 'av_provis', 'provis', 'Provis', 'application', 'Verantwortung für Provis in der AV.'),
+        ('QMB', 'qmb_consense', 'consense', 'Consense', 'application', 'Verantwortung für Consense im QMB.')
 )
 INSERT INTO app_responsibilities (department_id, responsibility_key, system_key, name, responsibility_type, description, is_active)
 SELECT d.id, s.responsibility_key, s.system_key, s.responsibility_name, s.responsibility_type, s.description, TRUE

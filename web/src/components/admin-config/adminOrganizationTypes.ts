@@ -10,6 +10,11 @@ export type ResponsibilityDraft = {
   departmentId: string;
 };
 
+export type NewResponsibilityDraft = {
+  responsibilityName: string;
+  departmentId: string;
+};
+
 export const ADMIN_ORGANIZATION_ENTITY_LABELS: Record<AdminOrganizationEntity, string> = {
   user: "Personen",
   department: "Abteilungen",

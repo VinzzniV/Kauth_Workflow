@@ -55,6 +55,7 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       sortedDepartments={props.sortedDepartments}
       sortedResponsibilities={props.sortedResponsibilities}
       eligibleSupervisorUsers={props.eligibleSupervisorUsers}
+      eligibleRequirementOwnerUsers={props.eligibleRequirementOwnerUsers}
       selectedUser={props.workspaceSelectedUser}
       userDisplayNameDraft={props.userDisplayNameDraft}
       userEmailDraft={props.userEmailDraft}
@@ -74,10 +75,13 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       isSavingUserMasterData={props.isSavingUserMasterData}
       deletingUserId={props.deletingUserId}
       newDepartmentNameDraft={props.newDepartmentNameDraft}
+      newResponsibilityDraft={props.newResponsibilityDraft}
       departmentDrafts={props.departmentDrafts}
       responsibilityDrafts={props.responsibilityDrafts}
       isCreatingDepartment={props.isCreatingDepartment}
+      isCreatingResponsibility={props.isCreatingResponsibility}
       deletingDepartmentId={props.deletingDepartmentId}
+      deletingResponsibilityId={props.deletingResponsibilityId}
       savingDepartmentId={props.savingDepartmentId}
       savingResponsibilityId={props.savingResponsibilityId}
       onSelectOrganizationEntity={props.onOpenOrganization}
@@ -98,11 +102,14 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       onSaveUserMasterData={props.onSaveUserMasterData}
       onRemoveUser={props.onRemoveUser}
       onNewDepartmentNameChange={props.onNewDepartmentNameChange}
+      onNewResponsibilityDraftChange={props.onNewResponsibilityDraftChange}
       onDepartmentDraftChange={props.onDepartmentDraftChange}
       onCreateDepartment={props.onCreateDepartment}
+      onCreateResponsibility={props.onCreateResponsibility}
       onSaveDepartmentAssignment={props.onSaveDepartmentAssignment}
       onRemoveDepartment={props.onRemoveDepartment}
       onResponsibilityDraftChange={props.onResponsibilityDraftChange}
+      onRemoveResponsibility={props.onRemoveResponsibility}
       onSaveResponsibilityAssignment={props.onSaveResponsibilityAssignment}
     />
   );

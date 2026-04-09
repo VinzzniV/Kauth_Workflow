@@ -28,6 +28,8 @@ const NODE_TYPE_OPTIONS: WorkflowBuilderNodeDraft["nodeType"][] = [
   "approval",
   "task",
   "decision",
+  "parallel_split",
+  "parallel_join",
   "automation",
   "end",
 ];
@@ -61,17 +63,21 @@ export function BuilderInspectorPanel({
   const summaryText = useMemo(() => {
     switch (selectedNode.nodeType) {
       case "start":
-        return "Dieser Schritt startet den Ablauf und fuehrt in die ersten Folgeschritte.";
+        return "Dieser Schritt startet den Ablauf und führt in die ersten Folgeschritte.";
       case "end":
         return "Dieser Schritt beendet den aktuellen Pfad.";
       case "form":
         return "Hier werden Eingaben gesammelt, die den weiteren Ablauf steuern.";
       case "approval":
-        return "Hier holt ihr eine Freigabe fuer den naechsten Schritt ein.";
+        return "Hier holt ihr eine Freigabe für den nächsten Schritt ein.";
       case "decision":
         return "Hier verzweigt ihr den Ablauf in unterschiedliche Wege.";
+      case "parallel_split":
+        return "Hier startet ihr mehrere Pfade gleichzeitig und sichtbar parallel.";
+      case "parallel_join":
+        return "Hier führt ihr mehrere parallele Pfade wieder kontrolliert zusammen.";
       case "automation":
-        return "Dieser Schritt laeuft automatisch und fuehrt hinterlegte Aktionen aus.";
+        return "Dieser Schritt läuft automatisch und führt hinterlegte Aktionen aus.";
       case "task":
       default:
         return "Dieser Schritt beschreibt eine manuelle Aufgabe im Ablauf.";
@@ -98,10 +104,14 @@ export function BuilderInspectorPanel({
         <span className="badge badge--default">{getWorkflowBuilderNodeTypeLabel(selectedNode.nodeType)}</span>
         <span className="builder-inspector-hero__meta">
           {selectedNode.nodeType === "automation"
-            ? "Laeuft automatisch"
+            ? "Läuft automatisch"
             : selectedNode.nodeType === "decision"
               ? "Steuert mehrere Wege"
-              : "Teil des Ablaufs"}
+              : selectedNode.nodeType === "parallel_split"
+                ? "Startet parallele Wege"
+                : selectedNode.nodeType === "parallel_join"
+                  ? "Führt parallele Wege zusammen"
+                  : "Teil des Ablaufs"}
         </span>
       </div>
 
@@ -109,7 +119,7 @@ export function BuilderInspectorPanel({
         <div>
           <h4>Schritt</h4>
           <p className="text-muted" style={{ margin: 0 }}>
-            Die wichtigsten Angaben fuer den ausgewaehlten Ablaufschritt.
+            Die wichtigsten Angaben für den ausgewählten Ablaufschritt.
           </p>
         </div>
         <label>
@@ -138,7 +148,7 @@ export function BuilderInspectorPanel({
         </label>
         {isLockedAutomationNode ? (
           <p className="text-muted" style={{ margin: 0 }}>
-            Automatisierungen koennen nur im Admin-Modus veraendert werden.
+            Automatisierungen können nur im Admin-Modus verändert werden.
           </p>
         ) : null}
       </section>
@@ -147,7 +157,7 @@ export function BuilderInspectorPanel({
         <div>
           <h4>Details</h4>
           <p className="text-muted" style={{ margin: 0 }}>
-            Fachliche Angaben fuer diesen Schritt.
+            Fachliche Angaben für diesen Schritt.
           </p>
         </div>
         {renderNodeConfigurationSection(selectedNode, responsibilityOwners, onUpdateNode)}
@@ -155,13 +165,13 @@ export function BuilderInspectorPanel({
 
       <section className="content-stack">
         <div>
-          <h4>Naechste Schritte</h4>
+          <h4>Nächste Schritte</h4>
           <p className="text-muted" style={{ margin: 0 }}>
             Hier bearbeitet ihr, wohin der Ablauf von diesem Schritt weitergeht. Neue Verbindungen legt ihr direkt im Canvas an.
           </p>
         </div>
         {outgoingEdges.length === 0 ? (
-          <p className="text-muted">Von diesem Schritt fuehrt aktuell noch kein weiterer Weg ab.</p>
+          <p className="text-muted">Von diesem Schritt führt aktuell noch kein weiterer Weg ab.</p>
         ) : (
           outgoingEdges.map((edge) => (
             <div key={edge.id} className="panel content-stack">
@@ -173,7 +183,7 @@ export function BuilderInspectorPanel({
                     value={edge.targetNodeKey}
                     onChange={(event) => onUpdateEdge(edge.id, { targetNodeKey: event.target.value })}
                   >
-                    <option value="">Bitte waehlen</option>
+                    <option value="">Bitte wählen</option>
                     {availableNodes.map((node) => (
                       <option key={`sidebar-target-${edge.id}-${node.key}`} value={node.key}>{node.label}</option>
                     ))}
@@ -199,8 +209,12 @@ export function BuilderInspectorPanel({
                   onChange={(event) => onUpdateEdge(edge.id, { conditionExpression: event.target.value })}
                 />
               </label>
-              <button type="button" className="button-danger" onClick={() => onRemoveEdge(edge.id)}>
-                Verbindung loeschen
+              <button
+                type="button"
+                className="button-danger builder-action-button builder-action-button--danger"
+                onClick={() => onRemoveEdge(edge.id)}
+              >
+                Verbindung löschen
               </button>
             </div>
           ))
@@ -217,7 +231,7 @@ export function BuilderInspectorPanel({
         {selectedNode.nodeType !== "automation" ? (
           <div className="panel panel-info">
             <p className="panel-text">
-              Automatische Aktionen werden nur auf Schritten vom Typ `{getWorkflowBuilderNodeTypeLabel("automation")}` gepflegt. Im Katalog sind aktuell {actionDefinitions.length} Aktion(en) verfuegbar.
+              Automatische Aktionen werden nur auf Schritten vom Typ `{getWorkflowBuilderNodeTypeLabel("automation")}` gepflegt. Im Katalog sind aktuell {actionDefinitions.length} Aktion(en) verfügbar.
             </p>
           </div>
         ) : (
@@ -225,21 +239,21 @@ export function BuilderInspectorPanel({
             {!canManageAdvanced ? (
               <div className="panel panel-warning">
                 <p className="panel-text">
-                  Dieser automatische Schritt ist sichtbar, aber nur im Admin-Modus editierbar. Andere Schritte koennt ihr weiterhin bearbeiten.
+                  Dieser automatische Schritt ist sichtbar, aber nur im Admin-Modus editierbar. Andere Schritte könnt ihr weiterhin bearbeiten.
                 </p>
               </div>
             ) : null}
             <div className="content-stack">
               <div>
-                <h5 style={{ margin: 0 }}>Verfuegbare Aktionen</h5>
+                <h5 style={{ margin: 0 }}>Verfügbare Aktionen</h5>
                 <p className="text-muted" style={{ margin: "0.25rem 0 0" }}>
-                  Hier koennt ihr nur freigegebene Aktionen verwenden. Freie Skripte oder direkte technische Eingaben sind bewusst nicht vorgesehen.
+                  Hier könnt ihr nur freigegebene Aktionen verwenden. Freie Skripte oder direkte technische Eingaben sind bewusst nicht vorgesehen.
                 </p>
               </div>
               {!canManageAdvanced ? (
                 <div className="panel panel-info">
                   <p className="panel-text">
-                    Der Aktionskatalog ist in diesem Modus gesperrt. Fuer Automatisierungen und Freigabe ist der Admin-Modus erforderlich.
+                    Der Aktionskatalog ist in diesem Modus gesperrt. Für Automatisierungen und Freigabe ist der Admin-Modus erforderlich.
                   </p>
                 </div>
               ) : actionDefinitions.length === 0 ? (
@@ -260,12 +274,12 @@ export function BuilderInspectorPanel({
                           </div>
                           <button
                             type="button"
-                            className="button-secondary"
-                            aria-label={`${definition.displayName} hinzufuegen`}
+                            className="button-secondary builder-action-button builder-action-button--secondary"
+                            aria-label={`${definition.displayName} hinzufügen`}
                             disabled={!definition.isActive}
                             onClick={() => onAddActionFromDefinition(selectedNode.id, definition.actionKey)}
                           >
-                            Aktion hinzufuegen
+                            Aktion hinzufügen
                           </button>
                         </div>
                         {definition.description ? (
@@ -343,7 +357,7 @@ export function BuilderInspectorPanel({
                               value={action.actionKey}
                               onChange={(event) => onUpdateAction(selectedNode.id, action.id, { actionKey: event.target.value })}
                             >
-                              <option value="">Bitte waehlen</option>
+                              <option value="">Bitte wählen</option>
                               {actionDefinitions.map((definition) => (
                                 <option key={definition.actionKey} value={definition.actionKey}>
                                   {definition.displayName}{definition.isActive ? "" : " (inaktiv)"}
@@ -371,8 +385,12 @@ export function BuilderInspectorPanel({
                             onChange={(event) => onUpdateAction(selectedNode.id, action.id, { inputMappingText: event.target.value })}
                           />
                         </label>
-                        <button type="button" className="button-danger" onClick={() => onRemoveAction(selectedNode.id, action.id)}>
-                          Aktion loeschen
+                        <button
+                          type="button"
+                          className="button-danger builder-action-button builder-action-button--danger"
+                          onClick={() => onRemoveAction(selectedNode.id, action.id)}
+                        >
+                          Aktion löschen
                         </button>
                       </>
                     )}
@@ -385,7 +403,11 @@ export function BuilderInspectorPanel({
       </section>
 
       <section className="content-stack">
-        <button type="button" className="button-secondary" onClick={() => setShowAdvanced((current) => !current)}>
+        <button
+          type="button"
+          className="button-secondary builder-action-button builder-action-button--secondary"
+          onClick={() => setShowAdvanced((current) => !current)}
+        >
           {showAdvanced ? "Erweitert ausblenden" : "Erweitert anzeigen"}
         </button>
         {showAdvanced ? (
@@ -393,7 +415,7 @@ export function BuilderInspectorPanel({
             <div>
               <h4>Erweitert</h4>
               <p className="text-muted" style={{ margin: 0 }}>
-                Technische Felder bleiben verfuegbar, stehen aber bewusst hinter den fachlichen Angaben und nur hier im erweiterten Bereich.
+                Technische Felder bleiben verfügbar, stehen aber bewusst hinter den fachlichen Angaben und nur hier im erweiterten Bereich.
               </p>
             </div>
             <div className="grid-two-columns">
@@ -426,7 +448,7 @@ export function BuilderInspectorPanel({
                 <input className="form-input" value={selectedNode.positionY ?? ""} disabled />
               </label>
             </div>
-            {selectedNode.nodeType !== "start" && selectedNode.nodeType !== "end" ? (
+            {!["start", "end", "parallel_split", "parallel_join"].includes(selectedNode.nodeType) ? (
               <label>
                 <span>{WORKFLOW_BUILDER_TECHNICAL_LABELS.configJson}</span>
                 <textarea
@@ -488,11 +510,12 @@ function renderNodeConfigurationSection(
   const responsibilityKey = readStringConfigValue(currentConfig, "responsibilityKey");
   const notificationLabel = readStringConfigValue(currentConfig, "notificationLabel");
   const summaryText = readStringConfigValue(currentConfig, "summaryText");
+  const isGatewayNode = node.nodeType === "parallel_split" || node.nodeType === "parallel_join";
   const commonFields = (
     <>
-      {node.nodeType !== "start" && node.nodeType !== "end" ? (
+      {!["start", "end", "parallel_split", "parallel_join"].includes(node.nodeType) ? (
         <label>
-          <span>Zustaendige</span>
+          <span>Zuständige</span>
           <select
             className="form-select"
             value={responsibilityKey}
@@ -500,7 +523,7 @@ function renderNodeConfigurationSection(
               onUpdateNode(node.id, { configText: updateStringConfigValue(node.configText, "responsibilityKey", event.target.value) })
             }
           >
-            <option value="">Bitte waehlen</option>
+            <option value="">Bitte wählen</option>
             {responsibilityOwners.map((responsibility) => (
               <option key={responsibility.responsibilityId} value={responsibility.responsibilityKey}>
                 {responsibility.responsibilityName}
@@ -514,6 +537,7 @@ function renderNodeConfigurationSection(
         <input
           className="form-input"
           value={notificationLabel}
+          disabled={isGatewayNode}
           onChange={(event) =>
             onUpdateNode(node.id, { configText: updateStringConfigValue(node.configText, "notificationLabel", event.target.value) })
           }
@@ -525,6 +549,7 @@ function renderNodeConfigurationSection(
           className="form-input"
           rows={3}
           value={summaryText}
+          disabled={isGatewayNode}
           onChange={(event) =>
             onUpdateNode(node.id, { configText: updateStringConfigValue(node.configText, "summaryText", event.target.value) })
           }
@@ -581,13 +606,33 @@ function renderNodeConfigurationSection(
           </label>
         </div>
       );
-    case "decision":
+      case "decision":
       return (
         <div className="content-stack">
           {commonFields}
           <div className="panel panel-info">
             <p className="panel-text">
-              Entscheidungen steuern Bedingungen und Folgewege. Die konkreten Verbindungen pflegst du unten im Bereich `Naechste Schritte`.
+              Entscheidungen steuern Bedingungen und Folgewege. Die konkreten Verbindungen pflegst du unten im Bereich `Nächste Schritte`.
+            </p>
+          </div>
+        </div>
+      );
+    case "parallel_split":
+      return (
+        <div className="content-stack">
+          <div className="panel panel-info">
+            <p className="panel-text">
+              Dieser Gateway-Schritt startet mehrere Pfade gleichzeitig. Die konkreten Folgepfade pflegst du unten im Bereich `Nächste Schritte`. Weitere fachliche Felder sind hier bewusst nicht nötig.
+            </p>
+          </div>
+        </div>
+      );
+    case "parallel_join":
+      return (
+        <div className="content-stack">
+          <div className="panel panel-info">
+            <p className="panel-text">
+              Dieser Gateway-Schritt wartet auf mehrere parallele Eingänge und führt den Ablauf danach gesammelt fort. Weitere fachliche Felder sind hier bewusst nicht nötig.
             </p>
           </div>
         </div>
@@ -607,7 +652,7 @@ function renderNodeConfigurationSection(
       return (
         <div className="content-stack">
           {commonFields}
-          <p className="text-muted">Fuer diesen Schritt sind aktuell keine weiteren Angaben notwendig.</p>
+          <p className="text-muted">Für diesen Schritt sind aktuell keine weiteren Angaben notwendig.</p>
         </div>
       );
   }

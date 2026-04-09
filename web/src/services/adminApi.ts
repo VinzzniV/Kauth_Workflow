@@ -105,6 +105,22 @@ export async function deleteAdminDepartment(departmentId: number): Promise<void>
   });
 }
 
+export async function createAdminResponsibility(
+  responsibilityName: string,
+  departmentId: number | null
+): Promise<AdminResponsibilityOwner> {
+  return requestJson<BackendAdminResponsibilityOwnerDto>("/admin/master-data/responsibilities", {
+    method: "POST",
+    body: { responsibilityName, departmentId },
+  });
+}
+
+export async function deleteAdminResponsibility(responsibilityId: number): Promise<void> {
+  await requestJson<unknown>(`/admin/master-data/responsibilities/${encodeURIComponent(String(responsibilityId))}`, {
+    method: "DELETE",
+  });
+}
+
 export async function createAdminUser(payload: {
   externalKey: string | null;
   displayName: string;

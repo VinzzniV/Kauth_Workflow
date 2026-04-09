@@ -256,6 +256,7 @@ public sealed class AdminUserDto
     public string? NotificationEmail { get; init; }
     public required bool IsActive { get; init; }
     public required bool HasManagerAccess { get; init; }
+    public bool CanAccessSupervisorStep { get; set; }
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }
     public bool DirectorySynced { get; init; }
@@ -403,6 +404,12 @@ public sealed class AdminDepartmentCreateRequest
 public sealed class AdminResponsibilityOwnerUpdateRequest
 {
     public long? AppUserId { get; init; }
+    public int? DepartmentId { get; init; }
+}
+
+public sealed class AdminResponsibilityCreateRequest
+{
+    public required string ResponsibilityName { get; init; }
     public int? DepartmentId { get; init; }
 }
 

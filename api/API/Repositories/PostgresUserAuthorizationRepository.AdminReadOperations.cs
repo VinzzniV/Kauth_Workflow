@@ -255,7 +255,13 @@ ORDER BY d.name, d.id;";
 SELECT
     r.id,
     r.responsibility_key,
-    r.name,
+    CASE
+        WHEN r.responsibility_type = 'application'
+         AND COALESCE(configured_department.name, owning_department.name) IS NOT NULL
+         AND POSITION(COALESCE(configured_department.name, owning_department.name) || ' - ' IN r.name) = 1
+            THEN SUBSTRING(r.name FROM LENGTH(COALESCE(configured_department.name, owning_department.name)) + 4)
+        ELSE r.name
+    END,
     r.responsibility_type,
     r.system_key,
     COALESCE(sr.responsible_department_id, r.department_id),
@@ -540,16 +546,17 @@ ORDER BY ug.app_user_id, g.name, g.id;";
                 ScopeDepartmentName = role.ScopeDepartmentName,
                 IsActive = true
             }));
-            user.PermissionOverrides.AddRange(permissionOverrides);
-            user.EffectivePermissions.AddRange(effectivePermissions.Select(permission => new AdminPermissionGrantDto
-            {
-                PermissionId = permission.PermissionId,
-                PermissionKey = permission.PermissionKey,
+                user.PermissionOverrides.AddRange(permissionOverrides);
+                user.EffectivePermissions.AddRange(effectivePermissions.Select(permission => new AdminPermissionGrantDto
+                {
+                    PermissionId = permission.PermissionId,
+                    PermissionKey = permission.PermissionKey,
                 PermissionName = permission.PermissionName,
                 Scope = permission.Scope,
-                ScopeDepartmentId = permission.ScopeDepartmentId,
-                ScopeDepartmentName = permission.ScopeDepartmentName
-            }));
+                    ScopeDepartmentId = permission.ScopeDepartmentId,
+                    ScopeDepartmentName = permission.ScopeDepartmentName
+                }));
+                user.CanAccessSupervisorStep = AdminUserEligibility.CanAccessSupervisorStep(user);
         }
 
         return users;

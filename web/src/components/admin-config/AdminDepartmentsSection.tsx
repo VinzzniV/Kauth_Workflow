@@ -5,6 +5,7 @@ type AdminDepartmentsSectionProps = {
   sortedDepartments: AdminDepartmentAssignment[];
   sortedUsers: AdminUser[];
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
   departmentDrafts: Record<number, { departmentLeadUserId: string; requirementOwnerUserId: string }>;
   newDepartmentNameDraft: string;
   isCreatingDepartment: boolean;
@@ -28,6 +29,7 @@ export function AdminDepartmentsSection({
   sortedDepartments,
   sortedUsers,
   eligibleSupervisorUsers,
+  eligibleRequirementOwnerUsers,
   departmentDrafts,
   newDepartmentNameDraft,
   isCreatingDepartment,
@@ -39,21 +41,21 @@ export function AdminDepartmentsSection({
   onSaveDepartmentAssignment,
   onRemoveDepartment,
 }: AdminDepartmentsSectionProps) {
-  function buildSupervisorOptions(selectedUserId: string): AdminUser[] {
+function buildSelectableUserOptions(selectedUserId: string, eligibleUsers: AdminUser[]): AdminUser[] {
     if (!selectedUserId) {
-      return eligibleSupervisorUsers;
+      return eligibleUsers;
     }
 
     const selectedUser = sortedUsers.find((user) => String(user.userId) === selectedUserId);
     if (!selectedUser) {
-      return eligibleSupervisorUsers;
+      return eligibleUsers;
     }
 
-    if (eligibleSupervisorUsers.some((user) => user.userId === selectedUser.userId)) {
-      return eligibleSupervisorUsers;
+    if (eligibleUsers.some((user) => user.userId === selectedUser.userId)) {
+      return eligibleUsers;
     }
 
-    return [...eligibleSupervisorUsers, selectedUser];
+    return [...eligibleUsers, selectedUser];
   }
 
   function isEligibleSupervisorSelection(selectedUserId: string): boolean {
@@ -74,7 +76,7 @@ export function AdminDepartmentsSection({
     <section className="panel">
       <div className="panel-head">
         <h2>Abteilungen und Anforderungsverantwortung</h2>
-        <p>Pflegen Sie je Abteilung die Abteilungsleitung und die anforderungsverantwortliche Person. Zur Auswahl stehen nur aktive Personen mit Manager-Rolle.</p>
+        <p>Pflegen Sie je Abteilung die Abteilungsleitung und die anforderungsverantwortliche Person. Die Leitung braucht Supervisor-Berechtigung, für die Anforderungsverantwortung reicht ein aktiver Benutzer.</p>
       </div>
 
       <div className="dashboard-card card-primary">
@@ -111,11 +113,16 @@ export function AdminDepartmentsSection({
             departmentLeadUserId: "",
             requirementOwnerUserId: "",
           };
-          const departmentLeadOptions = buildSupervisorOptions(draft.departmentLeadUserId);
-          const requirementOwnerOptions = buildSupervisorOptions(draft.requirementOwnerUserId);
+          const departmentLeadOptions = buildSelectableUserOptions(draft.departmentLeadUserId, eligibleSupervisorUsers);
+          const requirementOwnerOptions = buildSelectableUserOptions(
+            draft.requirementOwnerUserId,
+            eligibleRequirementOwnerUsers
+          );
           const hasChanges = hasDepartmentAssignmentChanges(department, draft);
           const hasInvalidLeadSelection = !isEligibleSupervisorSelection(draft.departmentLeadUserId);
-          const hasInvalidRequirementOwnerSelection = !isEligibleSupervisorSelection(draft.requirementOwnerUserId);
+          const hasInvalidRequirementOwnerSelection = !eligibleRequirementOwnerUsers.some(
+            (user) => String(user.userId) === draft.requirementOwnerUserId
+          ) && Boolean(draft.requirementOwnerUserId);
           const canSaveAssignment =
             hasChanges
             && !hasInvalidLeadSelection
@@ -167,7 +174,7 @@ export function AdminDepartmentsSection({
                   {requirementOwnerOptions.map((user) => (
                     <option key={`owner-${department.departmentId}-${user.userId}`} value={user.userId}>
                       {userOptionLabel(user)}
-                      {!eligibleSupervisorUsers.some((candidate) => candidate.userId === user.userId)
+                      {!eligibleRequirementOwnerUsers.some((candidate) => candidate.userId === user.userId)
                         ? " | aktuell ungültig"
                         : ""}
                     </option>
@@ -197,7 +204,9 @@ export function AdminDepartmentsSection({
 
               {hasInvalidLeadSelection || hasInvalidRequirementOwnerSelection ? (
                 <p className="panel-note">
-                  Ungültige Zuordnung: Gespeicherte Personen ohne aktive Manager-Berechtigung bleiben sichtbar, müssen aber vor dem Speichern ersetzt oder entfernt werden.
+                  Ungültige Zuordnung: Für die Leitung ist aktive Supervisor-Berechtigung nötig. Für die
+                  anforderungsverantwortliche Person reicht ein aktiver Benutzer. Ungültige gespeicherte Personen
+                  bleiben sichtbar, müssen aber vor dem Speichern ersetzt oder entfernt werden.
                 </p>
               ) : null}
 

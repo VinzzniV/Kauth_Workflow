@@ -17,8 +17,8 @@ internal sealed partial class PostgresWorkflowRepository
         const string sql = """
 SELECT
     d.definition_key,
-    COALESCE(NULLIF(BTRIM(v.name), ''), d.name) AS effective_name,
-    COALESCE(NULLIF(BTRIM(v.description), ''), d.description) AS effective_description,
+    COALESCE(NULLIF(BTRIM(d.name), ''), NULLIF(BTRIM(v.name), '')) AS effective_name,
+    COALESCE(NULLIF(BTRIM(d.description), ''), NULLIF(BTRIM(v.description), '')) AS effective_description,
     pt.requires_target_person,
     pt.key AS primary_legacy_process_type_key,
     v.version_number
@@ -839,6 +839,7 @@ ORDER BY source_node.node_key, e.priority, target_node.node_key, e.id;
         WorkflowDefinitionVersionDetailDto detail)
     {
         var referenceIssues = new List<WorkflowDefinitionValidationIssue>();
+        var requiresSupervisorStep = false;
 
         if (string.IsNullOrWhiteSpace(detail.PrimaryLegacyProcessTypeKey))
         {
@@ -855,6 +856,13 @@ ORDER BY source_node.node_key, e.priority, target_node.node_key, e.id;
                 $"Workflow definition '{detail.DefinitionKey}' version {detail.VersionNumber} references unknown or inactive primaryLegacyProcessTypeKey '{detail.PrimaryLegacyProcessTypeKey}'.",
                 "workflow_definition_version",
                 detail.PrimaryLegacyProcessTypeKey));
+        }
+        else
+        {
+            requiresSupervisorStep = await LoadLegacyProcessTypeRequiresSupervisorStep(
+                connection,
+                transaction,
+                detail.PrimaryLegacyProcessTypeKey);
         }
 
         foreach (var node in detail.Nodes)
@@ -913,6 +921,8 @@ ORDER BY source_node.node_key, e.priority, target_node.node_key, e.id;
         {
             Nodes = detail.Nodes,
             Edges = detail.Edges,
+            PrimaryLegacyProcessTypeKey = detail.PrimaryLegacyProcessTypeKey,
+            RequiresSupervisorStep = requiresSupervisorStep,
             ReferenceIssues = referenceIssues
         });
     }
@@ -982,6 +992,25 @@ LIMIT 1;
         command.Parameters.AddWithValue("key", processTypeKey.Trim().ToLowerInvariant());
         command.Parameters.AddWithValue("requireActive", requireActive);
         return await command.ExecuteScalarAsync() is not null;
+    }
+
+    private static async Task<bool> LoadLegacyProcessTypeRequiresSupervisorStep(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        string processTypeKey)
+    {
+        const string sql = """
+SELECT requires_supervisor_step
+FROM process_types
+WHERE key = @key
+  AND is_active = TRUE
+LIMIT 1;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("key", processTypeKey.Trim().ToLowerInvariant());
+        var scalar = await command.ExecuteScalarAsync();
+        return scalar is bool requiresSupervisorStep && requiresSupervisorStep;
     }
 
     private static async Task<bool> LegacyTaskTemplateExists(

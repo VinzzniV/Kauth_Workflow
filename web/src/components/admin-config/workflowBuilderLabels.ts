@@ -16,6 +16,10 @@ export function getWorkflowBuilderNodeTypeLabel(
       return "Entscheidung";
     case "automation":
       return "Automatisierung";
+    case "parallel_split":
+      return "Parallel-Split";
+    case "parallel_join":
+      return "Parallel-Join";
     case "end":
       return "Ende";
     default:
@@ -25,7 +29,7 @@ export function getWorkflowBuilderNodeTypeLabel(
 
 export const WORKFLOW_BUILDER_TECHNICAL_LABELS = {
   sourceNode: "Ausgangsschritt",
-  targetNode: "Naechster Schritt",
+  targetNode: "Nächster Schritt",
   priority: "Pfad-Reihenfolge",
   conditionExpression: "Bedingung",
   processTypeKey: "Prozessbezug",
@@ -35,6 +39,6 @@ export const WORKFLOW_BUILDER_TECHNICAL_LABELS = {
   configJson: "Technische Konfiguration",
   executionOrder: "Aktions-Reihenfolge",
   inputMappingJson: "Eingabe-Mapping (JSON)",
-  incoming: "Eingaenge",
-  outgoing: "Ausgaenge",
+  incoming: "Eingänge",
+  outgoing: "Ausgänge",
 } as const;

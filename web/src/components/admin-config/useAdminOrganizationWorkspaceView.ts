@@ -22,6 +22,7 @@ type UseAdminOrganizationWorkspaceViewArgs = {
   sortedDepartments: AdminDepartmentAssignment[];
   sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
   selectedUser: AdminUser | null;
   userDisplayNameDraft: string;
   userEmailDraft: string;
@@ -42,22 +43,22 @@ type UseAdminOrganizationWorkspaceViewArgs = {
 function buildSupervisorOptions(
   selectedUserId: string,
   sortedUsers: AdminUser[],
-  eligibleSupervisorUsers: AdminUser[]
+  eligibleUsers: AdminUser[]
 ): AdminUser[] {
   if (!selectedUserId) {
-    return eligibleSupervisorUsers;
+    return eligibleUsers;
   }
 
   const selectedUser = sortedUsers.find((user) => String(user.userId) === selectedUserId);
   if (!selectedUser) {
-    return eligibleSupervisorUsers;
+    return eligibleUsers;
   }
 
-  if (eligibleSupervisorUsers.some((user) => user.userId === selectedUser.userId)) {
-    return eligibleSupervisorUsers;
+  if (eligibleUsers.some((user) => user.userId === selectedUser.userId)) {
+    return eligibleUsers;
   }
 
-  return [...eligibleSupervisorUsers, selectedUser];
+  return [...eligibleUsers, selectedUser];
 }
 
 export function useAdminOrganizationWorkspaceView({
@@ -67,6 +68,7 @@ export function useAdminOrganizationWorkspaceView({
   sortedDepartments,
   sortedResponsibilities,
   eligibleSupervisorUsers,
+  eligibleRequirementOwnerUsers,
   selectedUser,
   userDisplayNameDraft,
   userEmailDraft,
@@ -178,10 +180,10 @@ export function useAdminOrganizationWorkspaceView({
         ? buildSupervisorOptions(
             selectedDepartmentDraft.requirementOwnerUserId,
             sortedUsers,
-            eligibleSupervisorUsers
+            eligibleRequirementOwnerUsers
           )
         : [],
-    [eligibleSupervisorUsers, selectedDepartmentDraft, sortedUsers]
+    [eligibleRequirementOwnerUsers, selectedDepartmentDraft, sortedUsers]
   );
   const canSaveDepartment =
     selectedDepartment !== null &&

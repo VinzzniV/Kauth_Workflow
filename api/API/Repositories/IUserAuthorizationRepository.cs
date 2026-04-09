@@ -14,6 +14,11 @@ internal interface IUserAuthorizationRepository
     Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default);
     Task<AdminDepartmentAssignmentDto> CreateDepartment(string departmentName, CancellationToken cancellationToken = default);
     Task<bool> DeleteDepartment(int departmentId, CancellationToken cancellationToken = default);
+    Task<AdminResponsibilityOwnerDto> CreateResponsibility(
+        string responsibilityName,
+        int? departmentId,
+        CancellationToken cancellationToken = default);
+    Task<bool> DeleteResponsibility(int responsibilityId, CancellationToken cancellationToken = default);
     Task<AdminUserDto> CreateUser(
         string? externalKey,
         string displayName,

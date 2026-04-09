@@ -587,7 +587,7 @@ describe("AdminWorkflowBuilderSection", () => {
     expect(screen.queryByText("Lokale Pruefung")).toBeNull();
   });
 
-  it("updates node positions when a canvas drag finishes", async () => {
+  it("persists structured auto-layout positions on save", async () => {
     renderWithApp(
       <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
       { roleKeys: ["auth_admin"] }
@@ -596,11 +596,10 @@ describe("AdminWorkflowBuilderSection", () => {
     await waitFor(() => {
       expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:2 edges:1");
     });
-    fireEvent.click(screen.getByRole("button", { name: "Mock drag first node" }));
     fireEvent.click((await screen.findAllByRole("button", { name: "Start" }))[0]!);
     fireEvent.click(await screen.findByRole("button", { name: "Erweitert anzeigen" }));
-    expect((await screen.findByLabelText("Position X") as HTMLInputElement).value).toBe("640");
-    expect((screen.getByLabelText("Position Y") as HTMLInputElement).value).toBe("240");
+    expect((await screen.findByLabelText("Position X") as HTMLInputElement).value).not.toBe("");
+    expect((screen.getByLabelText("Position Y") as HTMLInputElement).value).not.toBe("");
 
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
@@ -611,8 +610,8 @@ describe("AdminWorkflowBuilderSection", () => {
           nodes: expect.arrayContaining([
             expect.objectContaining({
               nodeKey: "start",
-              positionX: 640,
-              positionY: 240,
+              positionX: expect.any(Number),
+              positionY: expect.any(Number),
             }),
           ]),
         })
@@ -620,9 +619,10 @@ describe("AdminWorkflowBuilderSection", () => {
     });
   });
 
-  it("creates a new edge via canvas connect and persists it on save", async () => {
+  it("blocks saving when canvas connect creates an invalid second outgoing edge on a non-branch node", async () => {
+    const onError = vi.fn();
     renderWithApp(
-      <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
+      <AdminWorkflowBuilderSection onNotice={() => undefined} onError={onError} />,
       { roleKeys: ["auth_admin"] }
     );
 
@@ -630,23 +630,13 @@ describe("AdminWorkflowBuilderSection", () => {
       expect(screen.getByTestId("mock-react-flow").textContent).toContain("edges:1");
     });
     fireEvent.click(screen.getByRole("button", { name: "Mock connect first two nodes" }));
-    expect(screen.getByTestId("mock-react-flow").textContent).toContain("edges:2");
+    expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:4 edges:4");
 
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
 
     await waitFor(() => {
-      expect(mockedReplaceAdminWorkflowDefinitionVersion).toHaveBeenCalledWith(
-        11,
-        expect.objectContaining({
-          edges: expect.arrayContaining([
-            expect.objectContaining({
-              sourceNodeKey: "start",
-              targetNodeKey: "end",
-              priority: 2,
-            }),
-          ]),
-        })
-      );
+      expect(mockedReplaceAdminWorkflowDefinitionVersion).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith("Der aktuelle Stand enthaelt lokale Fehler.");
     });
   });
 
@@ -761,7 +751,7 @@ describe("AdminWorkflowBuilderSection", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:7 edges:7");
+      expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:9 edges:9");
     });
     expect(screen.getAllByText("Formular").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Freigabe").length).toBeGreaterThan(0);
@@ -795,7 +785,7 @@ describe("AdminWorkflowBuilderSection", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:7 edges:7");
+      expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:9 edges:9");
     });
 
     expect(mockedGetAdminWorkflowActionDefinitions).not.toHaveBeenCalled();

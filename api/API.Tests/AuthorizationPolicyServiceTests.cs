@@ -267,6 +267,13 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.True(_sut.CanAccessSupervisorStep(user));
     }
 
+    [Fact]
+    public void CanAccessSupervisorStep_ReturnsTrue_ForExplicitSupervisorPermission()
+    {
+        var user = CreateUserWithPermission(AuthorizationPermissions.TasksExecuteSupervisor);
+        Assert.True(_sut.CanAccessSupervisorStep(user));
+    }
+
     [Theory]
     [InlineData(AuthorizationRoles.Hr)]
     [InlineData(AuthorizationRoles.Worker)]
@@ -682,6 +689,36 @@ public sealed class AuthorizationPolicyServiceTests
             DirectResponsibilities = [responsibility],
             GroupResponsibilities = [],
             EffectiveResponsibilities = [responsibility]
+        };
+    }
+
+    private static CurrentUser CreateUserWithPermission(string permissionKey, long userId = 1)
+    {
+        var permission = new CurrentUserPermission
+        {
+            PermissionId = 1,
+            PermissionKey = permissionKey,
+            PermissionName = permissionKey,
+            Scope = "global",
+            ScopeDepartmentId = null,
+            ScopeDepartmentName = null
+        };
+
+        return new CurrentUser
+        {
+            UserId = userId,
+            DisplayName = "Test User",
+            Email = "test@example.com",
+            IsActive = true,
+            IdentityProvider = "dev-sim",
+            Groups = [],
+            DirectRoles = [],
+            GroupRoles = [],
+            EffectiveRoles = [],
+            EffectivePermissions = [permission],
+            DirectResponsibilities = [],
+            GroupResponsibilities = [],
+            EffectiveResponsibilities = []
         };
     }
 

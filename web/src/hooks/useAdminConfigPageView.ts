@@ -67,10 +67,13 @@ type UseAdminConfigPageViewArgs = {
   isCreatingUser: boolean;
   deletingUserId: number | null;
   newDepartmentNameDraft: string;
+  newResponsibilityDraft: AdminConfigWorkspaceContentProps["newResponsibilityDraft"];
   departmentDrafts: AdminConfigWorkspaceContentProps["departmentDrafts"];
   responsibilityDrafts: AdminConfigWorkspaceContentProps["responsibilityDrafts"];
   isCreatingDepartment: boolean;
+  isCreatingResponsibility: boolean;
   deletingDepartmentId: number | null;
+  deletingResponsibilityId: number | null;
   savingDepartmentId: number | null;
   savingResponsibilityId: number | null;
   isSavingRolePermissions: boolean;
@@ -100,11 +103,14 @@ type UseAdminConfigPageViewArgs = {
   onSetNewUserDepartmentIdDraft: (value: string) => void;
   onSetNewUserIsActiveDraft: (value: boolean) => void;
   onSetNewDepartmentNameDraft: (value: string) => void;
+  onSetNewResponsibilityDraft: (draft: AdminConfigWorkspaceContentProps["newResponsibilityDraft"]) => void;
   setDepartmentDrafts: Dispatch<SetStateAction<AdminConfigWorkspaceContentProps["departmentDrafts"]>>;
   setResponsibilityDrafts: Dispatch<SetStateAction<AdminConfigWorkspaceContentProps["responsibilityDrafts"]>>;
   onCreateDepartment: AdminConfigWorkspaceContentProps["onCreateDepartment"];
+  onCreateResponsibility: AdminConfigWorkspaceContentProps["onCreateResponsibility"];
   onSaveDepartmentAssignment: AdminConfigWorkspaceContentProps["onSaveDepartmentAssignment"];
   onRemoveDepartment: AdminConfigWorkspaceContentProps["onRemoveDepartment"];
+  onRemoveResponsibility: AdminConfigWorkspaceContentProps["onRemoveResponsibility"];
   onSaveResponsibilityAssignment: AdminConfigWorkspaceContentProps["onSaveResponsibilityAssignment"];
   onToggleRolePermission: AdminConfigWorkspaceContentProps["onToggleRolePermission"];
   onSaveRolePermissions: AdminConfigWorkspaceContentProps["onSaveRolePermissions"];
@@ -175,10 +181,13 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     isCreatingUser,
     deletingUserId,
     newDepartmentNameDraft,
+    newResponsibilityDraft,
     departmentDrafts,
     responsibilityDrafts,
     isCreatingDepartment,
+    isCreatingResponsibility,
     deletingDepartmentId,
+    deletingResponsibilityId,
     savingDepartmentId,
     savingResponsibilityId,
     isSavingRolePermissions,
@@ -210,9 +219,12 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     setDepartmentDrafts,
     setResponsibilityDrafts,
     onSetNewDepartmentNameDraft,
+    onSetNewResponsibilityDraft,
     onCreateDepartment,
+    onCreateResponsibility,
     onSaveDepartmentAssignment,
     onRemoveDepartment,
+    onRemoveResponsibility,
     onSaveResponsibilityAssignment,
     onToggleRolePermission,
     onSaveRolePermissions,
@@ -230,7 +242,14 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     [users]
   );
   const eligibleSupervisorUsers = useMemo(
-    () => sortedUsers.filter((user) => user.isActive && user.hasManagerAccess),
+    () =>
+      sortedUsers.filter(
+        (user) => user.isActive && Boolean(user.canAccessSupervisorStep ?? user.hasManagerAccess)
+      ),
+    [sortedUsers]
+  );
+  const eligibleRequirementOwnerUsers = useMemo(
+    () => sortedUsers.filter((user) => user.isActive),
     [sortedUsers]
   );
   const sortedRoles = useMemo(
@@ -268,9 +287,16 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
         departments: sortedDepartments,
         responsibilities: sortedResponsibilities,
         eligibleSupervisorUsers,
+        eligibleRequirementOwnerUsers,
         notificationEmailConfiguration: notificationConfig.notificationEmailConfiguration,
       }),
-    [eligibleSupervisorUsers, notificationConfig.notificationEmailConfiguration, sortedDepartments, sortedResponsibilities]
+    [
+      eligibleRequirementOwnerUsers,
+      eligibleSupervisorUsers,
+      notificationConfig.notificationEmailConfiguration,
+      sortedDepartments,
+      sortedResponsibilities,
+    ]
   );
 
   useEffect(() => {
@@ -341,6 +367,7 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     sortedDepartments,
     sortedResponsibilities,
     eligibleSupervisorUsers,
+    eligibleRequirementOwnerUsers,
     selectedUser,
     workspaceSelectedUser,
     userDisplayNameDraft,
@@ -361,10 +388,13 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     isSavingUserMasterData,
     deletingUserId,
     newDepartmentNameDraft,
+    newResponsibilityDraft,
     departmentDrafts,
     responsibilityDrafts,
     isCreatingDepartment,
+    isCreatingResponsibility,
     deletingDepartmentId,
+    deletingResponsibilityId,
     savingDepartmentId,
     savingResponsibilityId,
     hasLoadedTechnicalAccess,
@@ -429,13 +459,16 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     onSaveUserMasterData,
     onRemoveUser,
     onNewDepartmentNameChange: onSetNewDepartmentNameDraft,
+    onNewResponsibilityDraftChange: onSetNewResponsibilityDraft,
     onDepartmentDraftChange: (departmentId, draft) =>
       setDepartmentDrafts((current) => ({ ...current, [departmentId]: draft })),
     onCreateDepartment,
+    onCreateResponsibility,
     onSaveDepartmentAssignment,
     onRemoveDepartment,
     onResponsibilityDraftChange: (responsibilityId, draft) =>
       setResponsibilityDrafts((current) => ({ ...current, [responsibilityId]: draft })),
+    onRemoveResponsibility,
     onSaveResponsibilityAssignment,
     onToggleUserRole,
     onToggleUserGroup,

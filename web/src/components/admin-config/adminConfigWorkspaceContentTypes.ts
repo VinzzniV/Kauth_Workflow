@@ -14,7 +14,7 @@ import type {
   AdminUser,
 } from "../../types/auth";
 import type { WorkflowConfig } from "../../types/workflow";
-import type { DepartmentDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
+import type { DepartmentDraft, NewResponsibilityDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
 import type {
   AdminOrganizationEntity,
   AdminWorkspaceSection,
@@ -33,6 +33,7 @@ export type AdminConfigWorkspaceContentProps = {
   sortedDepartments: AdminDepartmentAssignment[];
   sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
   selectedUser: AdminUser | null;
   workspaceSelectedUser: AdminUser | null;
   userDisplayNameDraft: string;
@@ -53,10 +54,13 @@ export type AdminConfigWorkspaceContentProps = {
   isSavingUserMasterData: boolean;
   deletingUserId: number | null;
   newDepartmentNameDraft: string;
+  newResponsibilityDraft: NewResponsibilityDraft;
   departmentDrafts: Record<number, DepartmentDraft>;
   responsibilityDrafts: Record<number, ResponsibilityDraft>;
   isCreatingDepartment: boolean;
+  isCreatingResponsibility: boolean;
   deletingDepartmentId: number | null;
+  deletingResponsibilityId: number | null;
   savingDepartmentId: number | null;
   savingResponsibilityId: number | null;
   hasLoadedTechnicalAccess: boolean;
@@ -121,11 +125,14 @@ export type AdminConfigWorkspaceContentProps = {
   onSaveUserMasterData: () => void | Promise<void>;
   onRemoveUser: (user: AdminUser) => void | Promise<void>;
   onNewDepartmentNameChange: (value: string) => void;
+  onNewResponsibilityDraftChange: (draft: NewResponsibilityDraft) => void;
   onDepartmentDraftChange: (departmentId: number, draft: DepartmentDraft) => void;
   onCreateDepartment: () => void | Promise<void>;
+  onCreateResponsibility: () => void | Promise<AdminResponsibilityOwner | null> | AdminResponsibilityOwner | null;
   onSaveDepartmentAssignment: (departmentId: number) => void | Promise<void>;
   onRemoveDepartment: (department: AdminDepartmentAssignment) => void | Promise<void>;
   onResponsibilityDraftChange: (responsibilityId: number, draft: ResponsibilityDraft) => void;
+  onRemoveResponsibility: (responsibility: AdminResponsibilityOwner) => void | Promise<boolean> | boolean;
   onSaveResponsibilityAssignment: (responsibilityId: number) => void | Promise<void>;
   onToggleUserRole: (roleId: number) => void;
   onToggleUserGroup: (groupId: number) => void;

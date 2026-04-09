@@ -6,14 +6,21 @@ import type {
   AdminWorkflowDefinitionVersionSummary,
   AdminWorkflowNodeAction,
 } from "../types/auth";
-
-const DEFAULT_LAYOUT_X = 320;
-const DEFAULT_LAYOUT_Y = 180;
+import { buildWorkflowBuilderStructuredLayout } from "../components/admin-config/workflowBuilderStructuredLayout";
 
 export type WorkflowBuilderNodeDraft = {
   id: string;
   nodeKey: string;
-  nodeType: "start" | "end" | "form" | "approval" | "task" | "decision" | "automation";
+  nodeType:
+    | "start"
+    | "end"
+    | "form"
+    | "approval"
+    | "task"
+    | "decision"
+    | "automation"
+    | "parallel_split"
+    | "parallel_join";
   title: string;
   sortOrder: string;
   positionX: number | null;
@@ -127,10 +134,7 @@ export function toVersionDraft(detail: AdminWorkflowDefinitionVersionDetail): Wo
     edges: detail.edges.map(toEdgeDraft),
   };
 
-  return {
-    ...draft,
-    nodes: withFallbackNodePositions(draft.nodes, draft.edges),
-  };
+  return autoLayoutVersionDraft(draft);
 }
 
 function toNodeDraft(node: AdminWorkflowDefinitionNode): WorkflowBuilderNodeDraft {
@@ -176,6 +180,8 @@ function normalizeNodeType(value: string | null): WorkflowBuilderNodeDraft["node
     case "approval":
     case "decision":
     case "automation":
+    case "parallel_split":
+    case "parallel_join":
       return value!.trim().toLowerCase() as WorkflowBuilderNodeDraft["nodeType"];
     default:
       return "task";
@@ -232,7 +238,7 @@ export function withFallbackNodePositions(
   nodes: WorkflowBuilderNodeDraft[],
   edges: WorkflowBuilderEdgeDraft[]
 ): WorkflowBuilderNodeDraft[] {
-  const fallback = buildFallbackPositions(nodes, edges);
+  const fallback = buildStructuredPositions(nodes, edges);
   return nodes.map((node) => {
     const position = fallback.get(node.id);
     return {
@@ -247,7 +253,7 @@ function forceAutoLayoutNodePositions(
   nodes: WorkflowBuilderNodeDraft[],
   edges: WorkflowBuilderEdgeDraft[]
 ): WorkflowBuilderNodeDraft[] {
-  const fallback = buildFallbackPositions(nodes, edges);
+  const fallback = buildStructuredPositions(nodes, edges);
   return nodes.map((node) => {
     const position = fallback.get(node.id);
     return {
@@ -258,179 +264,16 @@ function forceAutoLayoutNodePositions(
   });
 }
 
-function buildFallbackPositions(
+function buildStructuredPositions(
   nodes: WorkflowBuilderNodeDraft[],
   edges: WorkflowBuilderEdgeDraft[]
 ): Map<string, { x: number; y: number }> {
-  const orderedNodes = [...nodes].sort(compareNodesForLayout);
-  const nodeIdByKey = new Map<string, string>();
-  const layerByNodeId = new Map<string, number>();
-  const incoming = new Map<string, Set<string>>();
-  const outgoing = new Map<string, Set<string>>();
-
-  for (const node of orderedNodes) {
-    incoming.set(node.id, new Set<string>());
-    outgoing.set(node.id, new Set<string>());
-    const normalizedKey = normalizeNodeKey(node.nodeKey);
-    if (normalizedKey) {
-      nodeIdByKey.set(normalizedKey, node.id);
-    }
-  }
-
-  for (const edge of edges) {
-    const sourceNodeId = nodeIdByKey.get(normalizeNodeKey(edge.sourceNodeKey));
-    const targetNodeId = nodeIdByKey.get(normalizeNodeKey(edge.targetNodeKey));
-    if (!sourceNodeId || !targetNodeId) {
-      continue;
-    }
-
-    outgoing.get(sourceNodeId)?.add(targetNodeId);
-    incoming.get(targetNodeId)?.add(sourceNodeId);
-  }
-
-  const roots = orderedNodes.filter((node) =>
-    node.nodeType === "start" || (incoming.get(node.id)?.size ?? 0) === 0
-  );
-  const queue = roots.map((node) => ({ nodeId: node.id, layer: 0 }));
-  const seen = new Set<string>();
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const previousLayer = layerByNodeId.get(current.nodeId);
-    if (typeof previousLayer !== "number" || current.layer > previousLayer) {
-      layerByNodeId.set(current.nodeId, current.layer);
-    }
-
-    if (seen.has(current.nodeId) && current.layer <= (previousLayer ?? -1)) {
-      continue;
-    }
-
-    seen.add(current.nodeId);
-    const targets = [...(outgoing.get(current.nodeId) ?? [])].sort((left, right) => {
-      const leftNode = orderedNodes.find((node) => node.id === left);
-      const rightNode = orderedNodes.find((node) => node.id === right);
-      return compareNodesForLayout(leftNode, rightNode);
-    });
-    for (const targetNodeId of targets) {
-      queue.push({ nodeId: targetNodeId, layer: current.layer + 1 });
-    }
-  }
-
-  let nextLayer = layerByNodeId.size > 0 ? Math.max(...layerByNodeId.values()) + 1 : 0;
-  for (const node of orderedNodes) {
-    if (layerByNodeId.has(node.id)) {
-      continue;
-    }
-
-    const seedLayer = nextLayer;
-    queue.push({ nodeId: node.id, layer: seedLayer });
-    nextLayer += 1;
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const previousLayer = layerByNodeId.get(current.nodeId);
-      if (typeof previousLayer !== "number" || current.layer > previousLayer) {
-        layerByNodeId.set(current.nodeId, current.layer);
-      }
-
-      if (seen.has(current.nodeId) && current.layer <= (previousLayer ?? -1)) {
-        continue;
-      }
-
-      seen.add(current.nodeId);
-      const targets = [...(outgoing.get(current.nodeId) ?? [])].sort((left, right) => {
-        const leftNode = orderedNodes.find((item) => item.id === left);
-        const rightNode = orderedNodes.find((item) => item.id === right);
-        return compareNodesForLayout(leftNode, rightNode);
-      });
-      for (const targetNodeId of targets) {
-        queue.push({ nodeId: targetNodeId, layer: current.layer + 1 });
-      }
-    }
-  }
-
-  const nodesByLayer = new Map<number, WorkflowBuilderNodeDraft[]>();
-  for (const node of orderedNodes) {
-    const layer = layerByNodeId.get(node.id) ?? 0;
-    const items = nodesByLayer.get(layer) ?? [];
-    items.push(node);
-    nodesByLayer.set(layer, items);
-  }
-
-  const positions = new Map<string, { x: number; y: number }>();
-  let previousLayerPositions = new Map<string, number>();
-  for (const [layer, layerNodes] of [...nodesByLayer.entries()].sort((left, right) => left[0] - right[0])) {
-    layerNodes.sort((left, right) => {
-      const leftAnchor = getLayerAnchor(left.id, incoming, previousLayerPositions);
-      const rightAnchor = getLayerAnchor(right.id, incoming, previousLayerPositions);
-      if (leftAnchor !== rightAnchor) {
-        return leftAnchor - rightAnchor;
-      }
-
-      return compareNodesForLayout(left, right);
-    });
-
-    const layerHeight = Math.max(layerNodes.length - 1, 0) * DEFAULT_LAYOUT_Y;
-    const startY = layerHeight === 0 ? 0 : -Math.round(layerHeight / 2);
-    layerNodes.forEach((node, index) => {
-      const y = startY + index * DEFAULT_LAYOUT_Y;
-      positions.set(node.id, {
-        x: layer * DEFAULT_LAYOUT_X,
-        y,
-      });
-    });
-    previousLayerPositions = new Map(layerNodes.map((node, index) => [node.id, startY + index * DEFAULT_LAYOUT_Y]));
-  }
-
-  return positions;
-}
-
-function getLayerAnchor(
-  nodeId: string,
-  incoming: Map<string, Set<string>>,
-  previousLayerPositions: Map<string, number>
-): number {
-  const sourcePositions = [...(incoming.get(nodeId) ?? [])]
-    .map((sourceId) => previousLayerPositions.get(sourceId))
-    .filter((value): value is number => typeof value === "number");
-
-  if (sourcePositions.length === 0) {
-    return 0;
-  }
-
-  return sourcePositions.reduce((sum, value) => sum + value, 0) / sourcePositions.length;
-}
-
-function compareNodesForLayout(
-  left?: Pick<WorkflowBuilderNodeDraft, "sortOrder" | "nodeKey">,
-  right?: Pick<WorkflowBuilderNodeDraft, "sortOrder" | "nodeKey">
-): number {
-  if (!left && !right) {
-    return 0;
-  }
-  if (!left) {
-    return 1;
-  }
-  if (!right) {
-    return -1;
-  }
-
-  const leftOrder = parseSortOrder(left.sortOrder);
-  const rightOrder = parseSortOrder(right.sortOrder);
-  if (leftOrder !== rightOrder) {
-    return leftOrder - rightOrder;
-  }
-
-  return normalizeNodeKey(left.nodeKey).localeCompare(normalizeNodeKey(right.nodeKey));
+  const layout = buildWorkflowBuilderStructuredLayout({ nodes, edges });
+  return layout.positionsBySourceNodeId;
 }
 
 function normalizeNodeKey(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
-}
-
-function parseSortOrder(value: string): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
 }
 
 export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft): WorkflowBuilderLocalIssue[] {
@@ -438,6 +281,8 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
   const normalizedNodeKeys = new Set<string>();
   let startCount = 0;
   let endCount = 0;
+  const incomingCounts = new Map<string, number>();
+  const outgoingCounts = new Map<string, number>();
 
   for (const node of draft.nodes) {
     const nodeKey = node.nodeKey.trim();
@@ -449,6 +294,8 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
         issues.push({ scope: "node", message: `Der Schritt-Key '${nodeKey}' ist doppelt vergeben.`, referenceKey: nodeKey });
       }
       normalizedNodeKeys.add(normalized);
+      incomingCounts.set(normalized, incomingCounts.get(normalized) ?? 0);
+      outgoingCounts.set(normalized, outgoingCounts.get(normalized) ?? 0);
     }
 
     if (node.nodeType === "start") {
@@ -463,10 +310,10 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
       try {
         const parsed = JSON.parse(node.configText);
         if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
-          issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' braucht ein gueltiges JSON-Objekt in der technischen Konfiguration.` });
+          issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' braucht ein gültiges JSON-Objekt in der technischen Konfiguration.` });
         }
       } catch {
-        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' hat ungueltiges JSON in der technischen Konfiguration.` });
+        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' hat ungültiges JSON in der technischen Konfiguration.` });
       }
     }
 
@@ -482,12 +329,12 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
       const executionOrders = new Set<number>();
       for (const action of node.actions) {
         if (!action.actionKey.trim()) {
-          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthaelt eine Aktion ohne Aktion-Key.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthält eine Aktion ohne Aktion-Key.` });
         }
 
         const parsedOrder = Number(action.executionOrder);
         if (!Number.isInteger(parsedOrder) || parsedOrder <= 0) {
-          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthaelt eine Aktion mit ungueltiger Reihenfolge.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthält eine Aktion mit ungültiger Reihenfolge.` });
         } else if (executionOrders.has(parsedOrder)) {
           issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' verwendet die Reihenfolge '${parsedOrder}' doppelt.` });
         } else {
@@ -501,10 +348,14 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
               issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' braucht ein JSON-Objekt im Eingabe-Mapping.` });
             }
           } catch {
-            issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' hat ungueltiges JSON im Eingabe-Mapping.` });
+            issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' hat ungültiges JSON im Eingabe-Mapping.` });
           }
         }
       }
+    }
+
+    if ((node.nodeType === "parallel_split" || node.nodeType === "parallel_join") && node.configText.trim()) {
+      issues.push({ scope: "node", message: `Der Gateway-Schritt '${nodeKey || "?"}' darf keine technische Konfiguration enthalten.` });
     }
   }
 
@@ -528,11 +379,19 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
     }
 
     if (normalizedSourceNodeKey === normalizedTargetNodeKey) {
-      issues.push({ scope: "edge", message: `Die Verbindung '${sourceNodeKey} -> ${targetNodeKey}' darf kein Ruecksprung auf denselben Schritt sein.` });
+      issues.push({ scope: "edge", message: `Die Verbindung '${sourceNodeKey} -> ${targetNodeKey}' darf kein Rücksprung auf denselben Schritt sein.` });
     }
 
     if (!normalizedNodeKeys.has(normalizedSourceNodeKey) || !normalizedNodeKeys.has(normalizedTargetNodeKey)) {
       issues.push({ scope: "edge", message: `Die Verbindung '${sourceNodeKey} -> ${targetNodeKey}' verweist auf unbekannte Schritte.` });
+    }
+
+    if (normalizedNodeKeys.has(normalizedSourceNodeKey)) {
+      outgoingCounts.set(normalizedSourceNodeKey, (outgoingCounts.get(normalizedSourceNodeKey) ?? 0) + 1);
+    }
+
+    if (normalizedNodeKeys.has(normalizedTargetNodeKey)) {
+      incomingCounts.set(normalizedTargetNodeKey, (incomingCounts.get(normalizedTargetNodeKey) ?? 0) + 1);
     }
 
     const priorityKey = edge.priority.trim();
@@ -547,6 +406,35 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
       } else {
         prioritiesBySource.add(compositeKey);
       }
+    }
+  }
+
+  for (const node of draft.nodes) {
+    const normalizedNodeKey = normalizeNodeKey(node.nodeKey);
+    if (!normalizedNodeKey) {
+      continue;
+    }
+
+    const incomingCount = incomingCounts.get(normalizedNodeKey) ?? 0;
+    const outgoingCount = outgoingCounts.get(normalizedNodeKey) ?? 0;
+
+    if (node.nodeType === "decision" && outgoingCount < 2) {
+      issues.push({ scope: "node", message: `Die Entscheidung '${node.nodeKey || "?"}' braucht mindestens zwei Folgepfade.` });
+    }
+
+    if (node.nodeType === "parallel_split" && outgoingCount < 2) {
+      issues.push({ scope: "node", message: `Der Parallel-Split '${node.nodeKey || "?"}' braucht mindestens zwei ausgehende Pfade.` });
+    }
+
+    if (node.nodeType === "parallel_join" && incomingCount < 2) {
+      issues.push({ scope: "node", message: `Der Parallel-Join '${node.nodeKey || "?"}' braucht mindestens zwei eingehende Pfade.` });
+    }
+
+    if (!["decision", "parallel_split"].includes(node.nodeType) && outgoingCount > 1) {
+      issues.push({
+        scope: "node",
+        message: `Der Schritt '${node.nodeKey || "?"}' darf nur einen Folgepfad haben. Für echte Parallelität nutze Parallel-Split.`,
+      });
     }
   }
 

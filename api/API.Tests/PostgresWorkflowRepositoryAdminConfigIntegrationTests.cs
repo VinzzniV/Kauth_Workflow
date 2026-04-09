@@ -8,6 +8,132 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
 {
     private const string DefaultTestConnectionString = "Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw";
 
+    // ── Department assignment supervisor eligibility ───────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task DepartmentAssignment_UsesSupervisorEligibilityConsistently_ForDirectoryMappedUsers()
+    {
+        var connectionString = GetTestConnectionString();
+        var suffix = Guid.NewGuid().ToString("N");
+        var departmentId = await CreateTemporaryDepartmentAsync(connectionString, suffix);
+        var supervisorUserId = await CreateTemporaryUserAsync(connectionString, $"supervisor_{suffix}", isActive: true);
+        var plainUserId = await CreateTemporaryUserAsync(connectionString, $"plain_{suffix}", isActive: true);
+        var directoryIdentityId = await CreateTemporaryDirectoryIdentityAsync(connectionString, supervisorUserId, suffix);
+        var directoryGroupId = await CreateTemporaryDirectoryGroupAsync(connectionString, suffix);
+        var managerRoleId = await GetRoleIdByKeyAsync(connectionString, AuthorizationRoles.Manager);
+
+        try
+        {
+            await AddDirectoryGroupMemberAsync(connectionString, directoryGroupId, directoryIdentityId);
+            await AddDirectoryGroupRoleMappingAsync(connectionString, directoryGroupId, managerRoleId);
+
+            var adminUsers = await WithUserAuthorizationRepositoryAsync(connectionString, repo => repo.GetAdminUsers());
+            var supervisorUser = Assert.Single(adminUsers, user => user.UserId == supervisorUserId);
+            var plainUser = Assert.Single(adminUsers, user => user.UserId == plainUserId);
+
+            Assert.True(supervisorUser.HasManagerAccess);
+            Assert.True(supervisorUser.CanAccessSupervisorStep);
+            Assert.False(plainUser.CanAccessSupervisorStep);
+
+            var assignment = await WithUserAuthorizationRepositoryAsync(connectionString, repo =>
+                repo.UpdateDepartmentAssignment(departmentId, supervisorUserId, null));
+
+            Assert.NotNull(assignment);
+            Assert.Equal(supervisorUserId, assignment!.DepartmentLeadUserId);
+
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                WithUserAuthorizationRepositoryAsync(connectionString, repo =>
+                    repo.UpdateDepartmentAssignment(departmentId, plainUserId, null)));
+
+            Assert.Contains("supervisor access", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            await CleanupTemporaryDepartmentAssignmentScenarioAsync(
+                connectionString,
+                departmentId,
+                [supervisorUserId, plainUserId],
+                directoryIdentityId,
+                directoryGroupId);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Responsibility_CreateDelete_Works_AndKeepsPlainName()
+    {
+        var connectionString = GetTestConnectionString();
+        var suffix = Guid.NewGuid().ToString("N");
+        var departmentId = await CreateTemporaryDepartmentAsync(connectionString, suffix);
+
+        try
+        {
+            var created = await WithUserAuthorizationRepositoryAsync(connectionString, repo =>
+                repo.CreateResponsibility("AD", departmentId));
+
+            Assert.Equal("AD", created.ResponsibilityName);
+            Assert.Equal(departmentId, created.DepartmentId);
+            Assert.DoesNotContain("Admin Assignment Test", created.ResponsibilityName, StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrWhiteSpace(created.ResponsibilityKey));
+            Assert.False(string.IsNullOrWhiteSpace(created.SystemKey));
+
+            var deleted = await WithUserAuthorizationRepositoryAsync(connectionString, repo =>
+                repo.DeleteResponsibility(created.ResponsibilityId));
+
+            Assert.True(deleted);
+
+            var responsibilities = await WithUserAuthorizationRepositoryAsync(connectionString, repo =>
+                repo.GetAdminResponsibilityOwners());
+
+            Assert.DoesNotContain(responsibilities, item => item.ResponsibilityId == created.ResponsibilityId);
+        }
+        finally
+        {
+            await CleanupTemporaryResponsibilitiesAsync(connectionString, departmentId);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Responsibility_Delete_RejectsWorkflowDefinitionReferences()
+    {
+        var connectionString = GetTestConnectionString();
+        var suffix = Guid.NewGuid().ToString("N");
+        var departmentId = await CreateTemporaryDepartmentAsync(connectionString, suffix);
+        int responsibilityId = 0;
+
+        try
+        {
+            var created = await WithUserAuthorizationRepositoryAsync(connectionString, repo =>
+                repo.CreateResponsibility("Hardware", departmentId));
+            responsibilityId = created.ResponsibilityId;
+
+            await CreateTemporaryWorkflowDefinitionReferenceAsync(
+                connectionString,
+                suffix,
+                created.ResponsibilityKey);
+
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                WithUserAuthorizationRepositoryAsync(connectionString, repo =>
+                    repo.DeleteResponsibility(created.ResponsibilityId)));
+
+            Assert.Contains("workflow definitions", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            await CleanupTemporaryWorkflowDefinitionsAsync(connectionString, suffix);
+            if (responsibilityId > 0)
+            {
+                await CleanupTemporaryResponsibilitiesAsync(connectionString, departmentId);
+            }
+            else
+            {
+                await CleanupTemporaryDepartmentOnlyAsync(connectionString, departmentId);
+            }
+        }
+    }
+
     // ── Task Templates ──────────────────────────────────────────────────
 
     [Fact]
@@ -1001,6 +1127,24 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
     }
 
+    private static async Task<T> WithUserAuthorizationRepositoryAsync<T>(
+        string connectionString,
+        Func<PostgresUserAuthorizationRepository, Task<T>> action)
+    {
+        var previousConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        Environment.SetEnvironmentVariable("CONNECTION_STRING", connectionString);
+
+        try
+        {
+            var repository = new PostgresUserAuthorizationRepository();
+            return await action(repository);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONNECTION_STRING", previousConnectionString);
+        }
+    }
+
     private static async Task<TemporaryProcessType> CreateTemporaryProcessTypeAsync(string connectionString)
     {
         var suffix = Guid.NewGuid().ToString("N");
@@ -1030,6 +1174,211 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             ?? throw new InvalidOperationException("Temporary process type could not be created."));
 
         return new TemporaryProcessType { Id = id, Suffix = suffix };
+    }
+
+    private static async Task<int> CreateTemporaryDepartmentAsync(string connectionString, string suffix)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO departments (name)
+            VALUES (@name)
+            RETURNING id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("name", $"Admin Assignment Test {suffix}");
+        return (int)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Temporary department could not be created."));
+    }
+
+    private static async Task<long> CreateTemporaryUserAsync(string connectionString, string suffix, bool isActive)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        long userId;
+        await using (var command = new NpgsqlCommand(
+            """
+            INSERT INTO app_users (
+                external_key,
+                display_name,
+                email,
+                notification_email,
+                is_active,
+                directory_synced,
+                department_source,
+                department_override_active
+            )
+            VALUES (
+                @externalKey,
+                @displayName,
+                @email,
+                NULL,
+                @isActive,
+                FALSE,
+                'unassigned',
+                FALSE
+            )
+            RETURNING id;
+            """,
+            connection,
+            transaction))
+        {
+            command.Parameters.AddWithValue("externalKey", suffix);
+            command.Parameters.AddWithValue("displayName", $"Test User {suffix}");
+            command.Parameters.AddWithValue("email", $"{suffix}@integration.local");
+            command.Parameters.AddWithValue("isActive", isActive);
+            userId = (long)(await command.ExecuteScalarAsync()
+                ?? throw new InvalidOperationException("Temporary user could not be created."));
+        }
+
+        await using (var personCommand = new NpgsqlCommand(
+            """
+            INSERT INTO people (app_user_id, updated_at)
+            VALUES (@userId, NOW());
+            """,
+            connection,
+            transaction))
+        {
+            personCommand.Parameters.AddWithValue("userId", userId);
+            await personCommand.ExecuteNonQueryAsync();
+        }
+
+        await transaction.CommitAsync();
+        return userId;
+    }
+
+    private static async Task<long> CreateTemporaryDirectoryIdentityAsync(string connectionString, long userId, string suffix)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO directory_identities (
+                entra_object_id,
+                user_principal_name,
+                mail,
+                display_name,
+                account_enabled,
+                app_user_id
+            )
+            VALUES (
+                @entraObjectId,
+                @upn,
+                @mail,
+                @displayName,
+                TRUE,
+                @userId
+            )
+            RETURNING id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("entraObjectId", Guid.NewGuid());
+        command.Parameters.AddWithValue("upn", $"{suffix}@directory.local");
+        command.Parameters.AddWithValue("mail", $"{suffix}@directory.local");
+        command.Parameters.AddWithValue("displayName", $"Directory {suffix}");
+        command.Parameters.AddWithValue("userId", userId);
+        return (long)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Temporary directory identity could not be created."));
+    }
+
+    private static async Task<int> CreateTemporaryDirectoryGroupAsync(string connectionString, string suffix)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO directory_groups (
+                external_group_id,
+                display_name,
+                description
+            )
+            VALUES (
+                @externalGroupId,
+                @displayName,
+                'Integration test'
+            )
+            RETURNING id;
+            """,
+            connection);
+        command.Parameters.AddWithValue("externalGroupId", Guid.NewGuid());
+        command.Parameters.AddWithValue("displayName", $"Supervisor Group {suffix}");
+        return (int)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Temporary directory group could not be created."));
+    }
+
+    private static async Task AddDirectoryGroupMemberAsync(
+        string connectionString,
+        int directoryGroupId,
+        long directoryIdentityId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO directory_group_members (directory_group_id, directory_identity_id)
+            VALUES (@directoryGroupId, @directoryIdentityId);
+            """,
+            connection);
+        command.Parameters.AddWithValue("directoryGroupId", directoryGroupId);
+        command.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task AddDirectoryGroupRoleMappingAsync(
+        string connectionString,
+        int directoryGroupId,
+        int roleId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO directory_group_role_mappings (
+                directory_group_id,
+                app_role_id,
+                scope,
+                scope_department_id,
+                is_active
+            )
+            VALUES (
+                @directoryGroupId,
+                @roleId,
+                'global',
+                NULL,
+                TRUE
+            );
+            """,
+            connection);
+        command.Parameters.AddWithValue("directoryGroupId", directoryGroupId);
+        command.Parameters.AddWithValue("roleId", roleId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<int> GetRoleIdByKeyAsync(string connectionString, string roleKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            SELECT id
+            FROM app_roles
+            WHERE role_key = @roleKey
+            LIMIT 1;
+            """,
+            connection);
+        command.Parameters.AddWithValue("roleKey", roleKey);
+
+        return (int)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException($"Role '{roleKey}' not found."));
     }
 
     private static async Task InsertAnswerDefinitionAsync(string connectionString, int processTypeId, string answerKey)
@@ -1083,6 +1432,198 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             "DELETE FROM app_role_answer_defaults WHERE process_type_id = @processTypeId;",
             connection);
         command.Parameters.AddWithValue("processTypeId", processTypeId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task CleanupTemporaryDepartmentAssignmentScenarioAsync(
+        string connectionString,
+        int departmentId,
+        IReadOnlyCollection<long> userIds,
+        long directoryIdentityId,
+        int directoryGroupId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            DELETE FROM department_settings
+            WHERE department_id = @departmentId;
+
+            DELETE FROM directory_group_role_mappings
+            WHERE directory_group_id = @directoryGroupId;
+
+            DELETE FROM directory_group_members
+            WHERE directory_group_id = @directoryGroupId;
+
+            DELETE FROM directory_groups
+            WHERE id = @directoryGroupId;
+
+            DELETE FROM directory_identities
+            WHERE id = @directoryIdentityId;
+
+            DELETE FROM people
+            WHERE app_user_id = ANY(@userIds);
+
+            DELETE FROM app_users
+            WHERE id = ANY(@userIds);
+
+            DELETE FROM departments
+            WHERE id = @departmentId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        command.Parameters.AddWithValue("directoryGroupId", directoryGroupId);
+        command.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+        command.Parameters.Add("userIds", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Bigint).Value =
+            userIds.ToArray();
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task CreateTemporaryWorkflowDefinitionReferenceAsync(
+        string connectionString,
+        string suffix,
+        string responsibilityKey)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        int definitionId;
+        await using (var definitionCommand = new NpgsqlCommand(
+            """
+            INSERT INTO workflow_definitions (definition_key, name, description)
+            VALUES (@definitionKey, @name, 'Integration test')
+            RETURNING id;
+            """,
+            connection,
+            transaction))
+        {
+            definitionCommand.Parameters.AddWithValue("definitionKey", $"resp_ref_{suffix}");
+            definitionCommand.Parameters.AddWithValue("name", $"Responsibility Ref {suffix}");
+            definitionId = (int)(await definitionCommand.ExecuteScalarAsync()
+                ?? throw new InvalidOperationException("Temporary workflow definition could not be created."));
+        }
+
+        long versionId;
+        await using (var versionCommand = new NpgsqlCommand(
+            """
+            INSERT INTO workflow_definition_versions (
+                workflow_definition_id,
+                version_number,
+                status,
+                name,
+                description
+            )
+            VALUES (
+                @definitionId,
+                1,
+                'draft',
+                @name,
+                'Integration test'
+            )
+            RETURNING id;
+            """,
+            connection,
+            transaction))
+        {
+            versionCommand.Parameters.AddWithValue("definitionId", definitionId);
+            versionCommand.Parameters.AddWithValue("name", $"Draft {suffix}");
+            versionId = (long)(await versionCommand.ExecuteScalarAsync()
+                ?? throw new InvalidOperationException("Temporary workflow definition version could not be created."));
+        }
+
+        long nodeId;
+        await using (var nodeCommand = new NpgsqlCommand(
+            """
+            INSERT INTO workflow_nodes (
+                workflow_definition_version_id,
+                node_key,
+                node_type,
+                title,
+                sort_order
+            )
+            VALUES (
+                @versionId,
+                'task_ref',
+                'task',
+                'Task Ref',
+                10
+            )
+            RETURNING id;
+            """,
+            connection,
+            transaction))
+        {
+            nodeCommand.Parameters.AddWithValue("versionId", versionId);
+            nodeId = (long)(await nodeCommand.ExecuteScalarAsync()
+                ?? throw new InvalidOperationException("Temporary workflow node could not be created."));
+        }
+
+        await using (var configCommand = new NpgsqlCommand(
+            """
+            INSERT INTO workflow_node_configs (workflow_node_id, config_json)
+            VALUES (@nodeId, jsonb_build_object('responsibilityKey', @responsibilityKey));
+            """,
+            connection,
+            transaction))
+        {
+            configCommand.Parameters.AddWithValue("nodeId", nodeId);
+            configCommand.Parameters.AddWithValue("responsibilityKey", responsibilityKey);
+            await configCommand.ExecuteNonQueryAsync();
+        }
+
+        await transaction.CommitAsync();
+    }
+
+    private static async Task CleanupTemporaryWorkflowDefinitionsAsync(string connectionString, string suffix)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            DELETE FROM workflow_definitions
+            WHERE definition_key = @definitionKey;
+            """,
+            connection);
+        command.Parameters.AddWithValue("definitionKey", $"resp_ref_{suffix}");
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task CleanupTemporaryResponsibilitiesAsync(
+        string connectionString,
+        int departmentId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            DELETE FROM app_responsibilities
+            WHERE department_id = @departmentId
+              AND responsibility_type = 'application';
+
+            DELETE FROM departments
+            WHERE id = @departmentId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task CleanupTemporaryDepartmentOnlyAsync(string connectionString, int departmentId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            DELETE FROM departments
+            WHERE id = @departmentId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
         await command.ExecuteNonQueryAsync();
     }
 

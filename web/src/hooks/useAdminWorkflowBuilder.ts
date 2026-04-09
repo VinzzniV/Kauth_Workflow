@@ -32,7 +32,6 @@ import {
   findVersionSummary,
   isDefinitionMetadataChanged,
   toVersionDraft,
-  withFallbackNodePositions,
   type WorkflowBuilderNodeDraft,
   type WorkflowBuilderVersionDraft,
   validateWorkflowBuilderDraft,
@@ -398,13 +397,10 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   }, []);
 
   const addNode = useCallback((nodeType: WorkflowBuilderNodeDraft["nodeType"] = "task") => {
-    const maxPositionX = versionDraft.nodes.reduce((currentMax, node) => {
-      return Math.max(currentMax, node.positionX ?? 0);
-    }, -280);
     const nextNode = {
       ...createEmptyNodeDraft(nodeType, versionDraft.nodes.length + 1),
-      positionX: maxPositionX + 280,
-      positionY: 0,
+      positionX: null,
+      positionY: null,
     };
     setVersionDraft((current) => ({ ...current, nodes: [...current.nodes, nextNode] }));
     setSelectedNodeId(nextNode.id);
@@ -746,10 +742,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    const normalizedDraft = {
-      ...versionDraft,
-      nodes: withFallbackNodePositions(versionDraft.nodes, versionDraft.edges),
-    };
+    const normalizedDraft = autoLayoutVersionDraft(versionDraft);
 
     const localValidationMessages = collectValidationMessages(normalizedDraft);
     setLocalValidationIssues(localValidationMessages);
@@ -838,10 +831,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    const normalizedDraft = {
-      ...versionDraft,
-      nodes: withFallbackNodePositions(versionDraft.nodes, versionDraft.edges),
-    };
+    const normalizedDraft = autoLayoutVersionDraft(versionDraft);
 
     const localValidationMessages = collectValidationMessages(normalizedDraft);
     setLocalValidationIssues(localValidationMessages);

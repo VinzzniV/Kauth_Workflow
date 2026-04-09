@@ -70,9 +70,9 @@ export function WorkflowBuilderSidebar({
           />
         )}
 
-        <section className="builder-sidebar-panel content-stack" aria-label="Pruefung">
+        <section className="builder-sidebar-panel content-stack" aria-label="Prüfung">
           <div className="builder-sidebar-panel__header">
-            <span className="builder-sidebar-panel__eyebrow">Pruefung</span>
+            <span className="builder-sidebar-panel__eyebrow">Prüfung</span>
             <h3>Hinweise zum aktuellen Stand</h3>
             <p className="text-muted">
               Hinweise bleiben sichtbar, stehen aber bewusst hinter den Bausteinen und Eigenschaften.
@@ -95,7 +95,7 @@ export function WorkflowBuilderSidebar({
             <div className="content-stack">
               {localValidationIssues.length > 0 ? (
                 <div className="panel panel-error" role="alert">
-                  <p className="panel-text text-error">Lokale Pruefung</p>
+                  <p className="panel-text text-error">Lokale Prüfung</p>
                   <ul>
                     {localValidationIssues.map((issue) => (
                       <li key={issue}>{issue}</li>

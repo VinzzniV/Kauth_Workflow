@@ -46,6 +46,7 @@ function createUser(
     notificationEmail: null,
     isActive: true,
     hasManagerAccess: true,
+    canAccessSupervisorStep: true,
     departmentId: 1,
     departmentName: "IT",
     directorySynced: false,

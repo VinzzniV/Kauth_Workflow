@@ -8,7 +8,7 @@ import {
 } from "../src/hooks/adminWorkflowBuilderModel";
 
 describe("adminWorkflowBuilderModel", () => {
-  it("keeps persisted node positions when mapping version details", () => {
+  it("recomputes persisted node positions into the structured top-to-bottom layout", () => {
     const draft = toVersionDraft({
       id: 11,
       workflowDefinitionId: 1,
@@ -52,10 +52,9 @@ describe("adminWorkflowBuilderModel", () => {
       ],
     });
 
-    expect(draft.nodes[0]?.positionX).toBe(80);
-    expect(draft.nodes[0]?.positionY).toBe(60);
-    expect(draft.nodes[1]?.positionX).toBe(420);
-    expect(draft.nodes[1]?.positionY).toBe(60);
+    expect(draft.nodes[0]?.positionX).not.toBe(80);
+    expect(draft.nodes[0]?.positionY).not.toBe(60);
+    expect((draft.nodes[1]?.positionY ?? 0)).toBeGreaterThan(draft.nodes[0]?.positionY ?? 0);
   });
 
   it("fills fallback positions for nodes without persisted coordinates", () => {
@@ -114,7 +113,7 @@ describe("adminWorkflowBuilderModel", () => {
     });
 
     expect(draft.nodes.every((node) => typeof node.positionX === "number" && typeof node.positionY === "number")).toBe(true);
-    expect((draft.nodes[1]?.positionX ?? 0)).toBeGreaterThan(draft.nodes[0]?.positionX ?? 0);
+    expect((draft.nodes[1]?.positionY ?? 0)).toBeGreaterThan(draft.nodes[0]?.positionY ?? 0);
   });
 
   it("serializes node positions into the replace payload", () => {
@@ -176,8 +175,8 @@ describe("adminWorkflowBuilderModel", () => {
 
     const relaidOut = autoLayoutVersionDraft(draft);
 
-    expect(relaidOut.nodes[0]?.positionX).not.toBe(999);
-    expect(relaidOut.nodes[1]?.positionX).toBeGreaterThan(relaidOut.nodes[0]?.positionX ?? 0);
+    expect(relaidOut.nodes[0]?.positionY).not.toBe(999);
+    expect(relaidOut.nodes[1]?.positionY).toBeGreaterThan(relaidOut.nodes[0]?.positionY ?? 0);
   });
 
   it("flags self-loops and duplicate priorities per source locally", () => {
@@ -219,11 +218,11 @@ describe("adminWorkflowBuilderModel", () => {
       expect.arrayContaining([
         expect.objectContaining({
           scope: "edge",
-          message: "Edge 'start -> start' must not be a self-loop.",
+          message: "Die Verbindung 'start -> start' darf kein Ruecksprung auf denselben Schritt sein.",
         }),
         expect.objectContaining({
           scope: "edge",
-          message: "Source 'start' uses priority '1' more than once.",
+          message: "Der Schritt 'start' verwendet die Reihenfolge '1' mehrfach.",
         }),
       ])
     );
@@ -262,5 +261,123 @@ describe("adminWorkflowBuilderModel", () => {
     });
 
     expect(draft.nodes[0]?.nodeType).toBe("decision");
+  });
+
+  it("keeps parallel gateway nodes when mapping version details", () => {
+    const draft = toVersionDraft({
+      id: 13,
+      workflowDefinitionId: 1,
+      definitionKey: "parallel_flow",
+      definitionName: "Parallel Flow",
+      definitionDescription: null,
+      versionNumber: 1,
+      status: "draft",
+      name: "Parallel Draft",
+      description: null,
+      primaryLegacyProcessTypeKey: "parallel_flow",
+      createdAt: "2026-04-08T10:00:00Z",
+      updatedAt: "2026-04-08T10:00:00Z",
+      publishedAt: null,
+      canPublish: false,
+      validationIssues: [],
+      nodes: [
+        {
+          nodeKey: "split",
+          nodeType: "parallel_split",
+          title: "Split",
+          sortOrder: 1,
+          positionX: null,
+          positionY: null,
+          config: null,
+          actions: [],
+        },
+        {
+          nodeKey: "join",
+          nodeType: "parallel_join",
+          title: "Join",
+          sortOrder: 2,
+          positionX: null,
+          positionY: null,
+          config: null,
+          actions: [],
+        },
+      ],
+      edges: [],
+    });
+
+    expect(draft.nodes[0]?.nodeType).toBe("parallel_split");
+    expect(draft.nodes[1]?.nodeType).toBe("parallel_join");
+  });
+
+  it("requires explicit parallel split and join topology locally", () => {
+    const issues = validateWorkflowBuilderDraft({
+      name: "Parallel Draft",
+      description: "",
+      primaryLegacyProcessTypeKey: "",
+      nodes: [
+        {
+          id: "start",
+          nodeKey: "start",
+          nodeType: "start",
+          title: "Start",
+          sortOrder: "1",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+        {
+          id: "split",
+          nodeKey: "split",
+          nodeType: "parallel_split",
+          title: "Split",
+          sortOrder: "2",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+        {
+          id: "join",
+          nodeKey: "join",
+          nodeType: "parallel_join",
+          title: "Join",
+          sortOrder: "3",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+        {
+          id: "end",
+          nodeKey: "end",
+          nodeType: "end",
+          title: "End",
+          sortOrder: "4",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+      ],
+      edges: [
+        { id: "edge_1", sourceNodeKey: "start", targetNodeKey: "split", priority: "1", conditionExpression: "" },
+        { id: "edge_2", sourceNodeKey: "split", targetNodeKey: "join", priority: "1", conditionExpression: "" },
+        { id: "edge_3", sourceNodeKey: "join", targetNodeKey: "end", priority: "1", conditionExpression: "" },
+      ],
+    });
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          scope: "node",
+          message: "Der Parallel-Split 'split' braucht mindestens zwei ausgehende Pfade.",
+        }),
+        expect.objectContaining({
+          scope: "node",
+          message: "Der Parallel-Join 'join' braucht mindestens zwei eingehende Pfade.",
+        }),
+      ])
+    );
   });
 });

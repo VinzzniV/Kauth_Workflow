@@ -9,7 +9,7 @@ import type {
   AdminUser,
 } from "../../types/auth";
 import { type AdminOrganizationEntity } from "./adminWorkspaceModel";
-import type { DepartmentDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
+import type { DepartmentDraft, NewResponsibilityDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
 import { useAdminOrganizationWorkspaceView } from "./useAdminOrganizationWorkspaceView";
 
 type AdminOrganizationWorkspaceSectionProps = {
@@ -19,6 +19,7 @@ type AdminOrganizationWorkspaceSectionProps = {
   sortedDepartments: AdminDepartmentAssignment[];
   sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
   selectedUser: AdminUser | null;
   userDisplayNameDraft: string;
   userEmailDraft: string;
@@ -38,10 +39,13 @@ type AdminOrganizationWorkspaceSectionProps = {
   isSavingUserMasterData: boolean;
   deletingUserId: number | null;
   newDepartmentNameDraft: string;
+  newResponsibilityDraft: NewResponsibilityDraft;
   departmentDrafts: Record<number, DepartmentDraft>;
   responsibilityDrafts: Record<number, ResponsibilityDraft>;
   isCreatingDepartment: boolean;
+  isCreatingResponsibility: boolean;
   deletingDepartmentId: number | null;
+  deletingResponsibilityId: number | null;
   savingDepartmentId: number | null;
   savingResponsibilityId: number | null;
   onSelectOrganizationEntity: (entity: AdminOrganizationEntity, id?: number | null) => void;
@@ -62,11 +66,14 @@ type AdminOrganizationWorkspaceSectionProps = {
   onSaveUserMasterData: () => void | Promise<void>;
   onRemoveUser: (user: AdminUser) => void | Promise<void>;
   onNewDepartmentNameChange: (value: string) => void;
+  onNewResponsibilityDraftChange: (draft: NewResponsibilityDraft) => void;
   onDepartmentDraftChange: (departmentId: number, draft: DepartmentDraft) => void;
   onCreateDepartment: () => void | Promise<void>;
+  onCreateResponsibility: () => void | Promise<AdminResponsibilityOwner | null> | AdminResponsibilityOwner | null;
   onSaveDepartmentAssignment: (departmentId: number) => void | Promise<void>;
   onRemoveDepartment: (department: AdminDepartmentAssignment) => void | Promise<void>;
   onResponsibilityDraftChange: (responsibilityId: number, draft: ResponsibilityDraft) => void;
+  onRemoveResponsibility: (responsibility: AdminResponsibilityOwner) => void | Promise<boolean> | boolean;
   onSaveResponsibilityAssignment: (responsibilityId: number) => void | Promise<void>;
 };
 
@@ -77,6 +84,7 @@ export function AdminOrganizationWorkspaceSection({
   sortedDepartments,
   sortedResponsibilities,
   eligibleSupervisorUsers,
+  eligibleRequirementOwnerUsers,
   selectedUser,
   userDisplayNameDraft,
   userEmailDraft,
@@ -96,10 +104,13 @@ export function AdminOrganizationWorkspaceSection({
   isSavingUserMasterData,
   deletingUserId,
   newDepartmentNameDraft,
+  newResponsibilityDraft,
   departmentDrafts,
   responsibilityDrafts,
   isCreatingDepartment,
+  isCreatingResponsibility,
   deletingDepartmentId,
+  deletingResponsibilityId,
   savingDepartmentId,
   savingResponsibilityId,
   onSelectOrganizationEntity,
@@ -120,11 +131,14 @@ export function AdminOrganizationWorkspaceSection({
   onSaveUserMasterData,
   onRemoveUser,
   onNewDepartmentNameChange,
+  onNewResponsibilityDraftChange,
   onDepartmentDraftChange,
   onCreateDepartment,
+  onCreateResponsibility,
   onSaveDepartmentAssignment,
   onRemoveDepartment,
   onResponsibilityDraftChange,
+  onRemoveResponsibility,
   onSaveResponsibilityAssignment,
 }: AdminOrganizationWorkspaceSectionProps) {
   const {
@@ -148,6 +162,7 @@ export function AdminOrganizationWorkspaceSection({
     sortedDepartments,
     sortedResponsibilities,
     eligibleSupervisorUsers,
+    eligibleRequirementOwnerUsers,
     selectedUser,
     userDisplayNameDraft,
     userEmailDraft,
@@ -175,6 +190,7 @@ export function AdminOrganizationWorkspaceSection({
           sortedDepartments={sortedDepartments}
           sortedResponsibilities={sortedResponsibilities}
           eligibleSupervisorUsers={eligibleSupervisorUsers}
+          eligibleRequirementOwnerUsers={eligibleRequirementOwnerUsers}
           onSelectOrganizationEntity={onSelectOrganizationEntity}
           onSelectUser={onSelectUser}
         />
@@ -228,6 +244,7 @@ export function AdminOrganizationWorkspaceSection({
               selectedDepartmentLeadOptions={selectedDepartmentLeadOptions}
               selectedDepartmentOwnerOptions={selectedDepartmentOwnerOptions}
               eligibleSupervisorUsers={eligibleSupervisorUsers}
+              eligibleRequirementOwnerUsers={eligibleRequirementOwnerUsers}
               newDepartmentNameDraft={newDepartmentNameDraft}
               isCreatingDepartment={isCreatingDepartment}
               deletingDepartmentId={deletingDepartmentId}
@@ -247,9 +264,15 @@ export function AdminOrganizationWorkspaceSection({
               selectedResponsibilityDraft={selectedResponsibilityDraft}
               sortedDepartments={sortedDepartments}
               sortedUsers={sortedUsers}
+              newResponsibilityDraft={newResponsibilityDraft}
+              isCreatingResponsibility={isCreatingResponsibility}
+              deletingResponsibilityId={deletingResponsibilityId}
               savingResponsibilityId={savingResponsibilityId}
               canSaveResponsibility={canSaveResponsibility}
+              onNewResponsibilityDraftChange={onNewResponsibilityDraftChange}
+              onCreateResponsibility={onCreateResponsibility}
               onResponsibilityDraftChange={onResponsibilityDraftChange}
+              onRemoveResponsibility={onRemoveResponsibility}
               onSaveResponsibilityAssignment={onSaveResponsibilityAssignment}
             />
           ) : null}
