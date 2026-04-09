@@ -109,6 +109,38 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapDelete("/admin/config/workflow-definitions/{definitionId:int}", async (
+            int definitionId,
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageWorkflowBuilderAdvanced,
+                "Advanced Workflow Builder access is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var deleted = await repository.DeleteAdminWorkflowDefinition(definitionId);
+                return deleted
+                    ? Results.NoContent()
+                    : Results.NotFound(new { message = "Workflow definition not found." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.Conflict(new { message = ex.Message });
+            }
+        }).Produces(StatusCodes.Status204NoContent)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status409Conflict)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPost("/admin/config/workflow-definitions/{definitionId:int}/versions", async (
             int definitionId,
             [FromBody] CreateWorkflowDefinitionVersionRequest request,
@@ -137,6 +169,38 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
                 return Results.BadRequest(new { message = ex.Message });
             }
         }).Produces<WorkflowDefinitionVersionSummaryDto>(StatusCodes.Status201Created)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPost("/admin/config/workflow-definitions/{definitionId:int}/working-draft", async (
+            int definitionId,
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanAccessWorkflowBuilder,
+                "Workflow Builder access is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var version = await repository.GetOrCreateAdminWorkflowDefinitionWorkingDraft(definitionId);
+                return version is null
+                    ? Results.NotFound(new { message = "Workflow definition not found." })
+                    : Results.Ok(version);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<WorkflowDefinitionVersionDetailDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status404NotFound)
           .Produces(StatusCodes.Status403Forbidden)

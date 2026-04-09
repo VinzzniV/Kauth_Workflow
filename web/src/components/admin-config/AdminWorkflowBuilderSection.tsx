@@ -224,9 +224,11 @@ export function AdminWorkflowBuilderSection({
   }, [builder.selectedEdge?.id, structuredLayout.edges]);
 
   const selectedWorkflowName = builder.selectedDefinition?.name ?? "Ablauf wählen";
-  const selectedStandLabel = builder.selectedVersionSummary
+  const selectedWorkingDraftLabel = builder.selectedVersionSummary
     ? `${formatVersionStatus(builder.selectedVersionSummary.status)} ${builder.selectedVersionSummary.versionNumber}`
-    : "Stand wählen";
+    : builder.isLoadingVersion
+      ? "Arbeitsentwurf wird geöffnet"
+      : "Noch kein Arbeitsentwurf geöffnet";
   const publishDisabledReason = !canManageAdvanced
     ? "Freigeben ist nur im Admin-Modus erlaubt."
     : builder.hasUnsavedChanges
@@ -241,9 +243,9 @@ export function AdminWorkflowBuilderSection({
   );
   const workspaceStatusLabel = builder.selectedNode
     ? `Eigenschaften offen für ${builder.selectedNode.title.trim() || builder.selectedNode.nodeKey.trim() || "Schritt"}`
-    : builder.selectedVersionSummary
+    : builder.selectedDefinition
       ? "Bausteine sichtbar"
-      : "Noch kein Stand geöffnet";
+      : "Noch kein Ablauf geöffnet";
   const localIssueCount = builder.localValidationIssues.length;
   const serverIssueCount = builder.versionDetail?.validationIssues.length ?? 0;
   const totalIssueCount = localIssueCount + serverIssueCount;
@@ -273,10 +275,6 @@ export function AdminWorkflowBuilderSection({
             <div className="builder-topbar-stat">
               <span>Ablauf</span>
               <strong>{selectedWorkflowName}</strong>
-            </div>
-            <div className="builder-topbar-stat">
-              <span>Stand</span>
-              <strong>{selectedStandLabel}</strong>
             </div>
             <div className="builder-topbar-stat">
               <span>Status</span>
@@ -340,6 +338,15 @@ export function AdminWorkflowBuilderSection({
             <button
               type="button"
               className="button-danger builder-action-button builder-action-button--danger"
+              onClick={() => void builder.deleteDefinition()}
+              disabled={!canManageAdvanced || !builder.selectedDefinition || builder.isDeletingDefinition}
+              title={!builder.selectedDefinition ? "Bitte zuerst einen Ablauf auswählen." : undefined}
+            >
+              Ablauf löschen
+            </button>
+            <button
+              type="button"
+              className="button-danger builder-action-button builder-action-button--danger"
               onClick={builder.removeSelectedNode}
               disabled={!canDeleteSelectedNode}
               title={
@@ -370,7 +377,7 @@ export function AdminWorkflowBuilderSection({
               <div className="builder-rail-panel__header">
                 <span className="builder-sidebar-panel__eyebrow">Auswahl</span>
                 <h3>Abläufe</h3>
-                <p className="text-muted">Wähle links den Ablauf, den ihr im Canvas bearbeiten wollt.</p>
+                <p className="text-muted">Wähle links den Ablauf. Der Builder öffnet direkt einen bearbeitbaren Arbeitsentwurf.</p>
               </div>
               {builder.isLoading ? <p className="text-muted">Abläufe werden geladen...</p> : null}
               <div className="builder-selection-list">
@@ -392,31 +399,6 @@ export function AdminWorkflowBuilderSection({
 
             <section className="builder-studio-rail-panel panel content-stack">
               <div className="builder-rail-panel__header">
-                <span className="builder-sidebar-panel__eyebrow">Stand</span>
-                <h3>Bearbeitungsstand</h3>
-                <p className="text-muted">Hier wählt ihr den Stand, der im Canvas geöffnet wird.</p>
-              </div>
-              <div className="builder-selection-list">
-                {builder.selectedDefinition?.versions.map((version) => (
-                  <button
-                    key={version.id}
-                    type="button"
-                    className={`admin-workspace-tab ${builder.selectedVersionSummary?.id === version.id ? "active" : ""}`}
-                    onClick={() => builder.selectVersion(version.id)}
-                  >
-                    <span className="admin-workspace-tab-title">
-                      {formatVersionStatus(version.status)} {version.versionNumber}
-                    </span>
-                    <span className="admin-workspace-tab-description">
-                      {version.name || "Ohne Namen"} · {version.validationIssues.length} Hinweis(e)
-                    </span>
-                  </button>
-                )) ?? <p className="text-muted">Bitte zuerst einen Ablauf auswählen.</p>}
-              </div>
-            </section>
-
-            <section className="builder-studio-rail-panel panel content-stack">
-              <div className="builder-rail-panel__header">
                 <span className="builder-sidebar-panel__eyebrow">Kontext</span>
                 <h3>Aktueller Ablauf</h3>
               </div>
@@ -427,9 +409,9 @@ export function AdminWorkflowBuilderSection({
                   <span className="text-muted">{builder.selectedDefinition?.description?.trim() || "Noch kein Ablauf gewählt."}</span>
                 </div>
                 <div className="panel panel-muted content-stack" style={{ gap: "0.35rem" }}>
-                  <span className="badge badge--default">Stand</span>
-                  <strong>{selectedStandLabel}</strong>
-                  <span className="text-muted">{builder.versionDraft.name.trim() || "Noch kein Stand geöffnet."}</span>
+                  <span className="badge badge--default">Arbeitsentwurf</span>
+                  <strong>{selectedWorkingDraftLabel}</strong>
+                  <span className="text-muted">{builder.versionDraft.name.trim() || "Der Builder arbeitet intern weiter mit Versionen, zeigt aber direkt den aktuellen Entwurf."}</span>
                 </div>
               </div>
             </section>
@@ -463,11 +445,13 @@ export function AdminWorkflowBuilderSection({
               </div>
             </div>
 
-            {!builder.selectedVersionSummary ? (
+            {!builder.selectedDefinition || (builder.isLoadingVersion && !builder.selectedVersionSummary) ? (
               <div className="builder-empty-stage">
-                <h3>Bitte zuerst einen Ablauf und einen Stand wählen.</h3>
+                <h3>{builder.selectedDefinition ? "Arbeitsentwurf wird geöffnet." : "Bitte zuerst einen Ablauf wählen oder neu anlegen."}</h3>
                 <p className="text-muted">
-                  Links öffnet ihr zuerst den Ablauf und den gewünschten Stand. Danach wird der Ablauf im Canvas sichtbar.
+                  {builder.selectedDefinition
+                    ? "Der Builder bereitet gerade den passenden bearbeitbaren Entwurf vor."
+                    : "Links wählt ihr einen Ablauf aus. Der Builder öffnet automatisch den passenden Arbeitsentwurf und zeigt dann den Canvas."}
                 </p>
               </div>
             ) : (
@@ -747,14 +731,6 @@ function renderLeftRail({
                 <h3>Ablauf anlegen</h3>
               </div>
               <label>
-                <span>Technischer Ablauf-Key</span>
-                <input
-                  className="form-input"
-                  value={builder.newDefinitionDraft.key}
-                  onChange={(event) => builder.updateNewDefinitionDraft("key", event.target.value)}
-                />
-              </label>
-              <label>
                 <span>Name</span>
                 <input
                   className="form-input"
@@ -780,43 +756,11 @@ function renderLeftRail({
                 Ablauf anlegen
               </button>
             </section>
-
-            <section className="content-stack">
-              <div className="builder-rail-panel__header">
-                <span className="builder-sidebar-panel__eyebrow">Neu</span>
-                <h3>Stand anlegen</h3>
-              </div>
-              <label>
-                <span>Name</span>
-                <input
-                  className="form-input"
-                  value={builder.newVersionDraft.name}
-                  onChange={(event) => builder.updateNewVersionDraft("name", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Beschreibung</span>
-                <textarea
-                  className="form-input"
-                  rows={3}
-                  value={builder.newVersionDraft.description}
-                  onChange={(event) => builder.updateNewVersionDraft("description", event.target.value)}
-                />
-              </label>
-              <button
-                type="button"
-                className="button-secondary builder-action-button builder-action-button--secondary"
-                onClick={() => void builder.createVersion()}
-                disabled={!builder.selectedDefinition || builder.isCreatingVersion}
-              >
-                Stand anlegen
-              </button>
-            </section>
           </>
         ) : (
           <div className="panel panel-info builder-lock-card">
             <p className="panel-text">
-              Neue Abläufe, neue Stände, Automatisierungen und Freigabe bleiben dem Admin-Modus vorbehalten.
+              Neue Abläufe, Löschen, Automatisierungen und Freigabe bleiben dem Admin-Modus vorbehalten.
             </p>
           </div>
         )}
@@ -853,7 +797,7 @@ function renderLeftRail({
           <section className="content-stack">
             <div className="builder-rail-panel__header">
               <span className="builder-sidebar-panel__eyebrow">Erweitert</span>
-              <h3>Details zum Stand</h3>
+              <h3>Details zum Arbeitsentwurf</h3>
             </div>
             {builder.isLoadingVersion ? <p className="text-muted">Stand wird geladen...</p> : null}
             <label>
@@ -877,10 +821,18 @@ function renderLeftRail({
               <span>{WORKFLOW_BUILDER_TECHNICAL_LABELS.processTypeKey}</span>
               <input
                 className="form-input"
-                value={builder.versionDraft.primaryLegacyProcessTypeKey}
-                onChange={(event) => builder.updateVersionDraftField("primaryLegacyProcessTypeKey", event.target.value)}
-              />
-            </label>
+              value={builder.versionDraft.primaryLegacyProcessTypeKey}
+              onChange={(event) => builder.updateVersionDraftField("primaryLegacyProcessTypeKey", event.target.value)}
+            />
+          </label>
+          <div className="panel panel-muted content-stack" style={{ gap: "0.35rem" }}>
+            <span className="badge badge--default">Versionen intern</span>
+            <span className="text-muted">
+              {builder.selectedDefinition?.versions.map((version) =>
+                `${formatVersionStatus(version.status)} ${version.versionNumber}`
+              ).join(" · ") || "Noch keine internen Versionen sichtbar."}
+            </span>
+          </div>
           </section>
         ) : null}
       </div>

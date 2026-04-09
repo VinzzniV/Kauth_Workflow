@@ -74,10 +74,12 @@ vi.mock("@xyflow/react", () => ({
 vi.mock("../src/services/adminConfigApi", () => ({
   createAdminWorkflowDefinition: vi.fn(),
   createAdminWorkflowDefinitionVersion: vi.fn(),
+  deleteAdminWorkflowDefinition: vi.fn(),
   getAdminWorkflowActionDefinitions: vi.fn(),
   getAdminProcessTypes: vi.fn(),
   getAdminTaskTemplates: vi.fn(),
   getAdminWorkflowDefinitionVersion: vi.fn(),
+  getOrCreateAdminWorkflowDefinitionWorkingDraft: vi.fn(),
   getAdminWorkflowDefinitions: vi.fn(),
   publishAdminWorkflowDefinitionVersion: vi.fn(),
   replaceAdminWorkflowDefinitionVersion: vi.fn(),
@@ -90,10 +92,12 @@ vi.mock("../src/services/adminApi", () => ({
 
 const mockedCreateAdminWorkflowDefinition = vi.mocked(adminConfigApi.createAdminWorkflowDefinition);
 const mockedCreateAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.createAdminWorkflowDefinitionVersion);
+const mockedDeleteAdminWorkflowDefinition = vi.mocked(adminConfigApi.deleteAdminWorkflowDefinition);
 const mockedGetAdminWorkflowActionDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowActionDefinitions);
 const mockedGetAdminProcessTypes = vi.mocked(adminConfigApi.getAdminProcessTypes);
 const mockedGetAdminTaskTemplates = vi.mocked(adminConfigApi.getAdminTaskTemplates);
 const mockedGetAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.getAdminWorkflowDefinitionVersion);
+const mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft = vi.mocked(adminConfigApi.getOrCreateAdminWorkflowDefinitionWorkingDraft);
 const mockedGetAdminWorkflowDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowDefinitions);
 const mockedPublishAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.publishAdminWorkflowDefinitionVersion);
 const mockedReplaceAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.replaceAdminWorkflowDefinitionVersion);
@@ -238,10 +242,12 @@ describe("AdminWorkflowBuilderSection", () => {
   beforeEach(() => {
     mockedCreateAdminWorkflowDefinition.mockReset();
     mockedCreateAdminWorkflowDefinitionVersion.mockReset();
+    mockedDeleteAdminWorkflowDefinition.mockReset();
     mockedGetAdminWorkflowActionDefinitions.mockReset();
     mockedGetAdminProcessTypes.mockReset();
     mockedGetAdminTaskTemplates.mockReset();
     mockedGetAdminWorkflowDefinitionVersion.mockReset();
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockReset();
     mockedGetAdminWorkflowDefinitions.mockReset();
     mockedPublishAdminWorkflowDefinitionVersion.mockReset();
     mockedReplaceAdminWorkflowDefinitionVersion.mockReset();
@@ -285,12 +291,13 @@ describe("AdminWorkflowBuilderSection", () => {
       },
     ]);
     mockedGetAdminWorkflowDefinitionVersion.mockResolvedValue(createVersionDetail());
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValue(createVersionDetail());
     mockedGetAdminProcessTypes.mockResolvedValue([
       {
         id: 7,
         key: "onboarding",
         name: "Onboarding",
-        description: "Fuehrt die Angaben fuer den Eintritt zusammen.",
+        description: "Führt die Angaben für den Eintritt zusammen.",
         requiresSupervisorStep: false,
         approvalTaskTemplateKey: null,
         requiresTargetPerson: false,
@@ -351,7 +358,7 @@ describe("AdminWorkflowBuilderSection", () => {
         responsibilityId: 55,
         responsibilityKey: "manager",
         systemKey: null,
-        responsibilityName: "Fuehrungskraft",
+        responsibilityName: "Führungskraft",
         responsibilityType: "process",
         departmentId: null,
         departmentName: null,
@@ -374,6 +381,7 @@ describe("AdminWorkflowBuilderSection", () => {
     ]);
     mockedCreateAdminWorkflowDefinition.mockResolvedValue(createDefinition());
     mockedCreateAdminWorkflowDefinitionVersion.mockResolvedValue(createDefinition().versions[0]!);
+    mockedDeleteAdminWorkflowDefinition.mockResolvedValue();
     mockedReplaceAdminWorkflowDefinitionVersion.mockResolvedValue(createVersionDetail());
     mockedPublishAdminWorkflowDefinitionVersion.mockResolvedValue(createVersionDetail());
     mockedUpdateAdminWorkflowDefinition.mockResolvedValue(createDefinition());
@@ -385,14 +393,14 @@ describe("AdminWorkflowBuilderSection", () => {
       { roleKeys: ["auth_admin"] }
     );
 
-    expect(await screen.findByRole("heading", { name: "Ablaufe" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Abläufe" })).toBeTruthy();
     expect(screen.getAllByText("HR Onboarding").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Entwurf 1/i).length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:2 edges:1");
     });
-    expect(screen.getByRole("heading", { name: "Schritte fuer den Ablauf" })).toBeTruthy();
-    expect(screen.getByText(/Fuege neue Schritte direkt aus der rechten Seitenleiste hinzu/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Schritte.*Ablauf/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Details zum Arbeitsentwurf" })).toBeTruthy();
   });
 
   it("creates a new workflow definition", async () => {
@@ -402,17 +410,32 @@ describe("AdminWorkflowBuilderSection", () => {
     );
 
     fireEvent.click(await screen.findByText("Verwaltung"));
-    fireEvent.change(screen.getByLabelText("Technischer Ablauf-Key"), { target: { value: "offboarding" } });
     fireEvent.change(screen.getAllByLabelText("Name")[0]!, { target: { value: "Offboarding" } });
     fireEvent.click(screen.getByRole("button", { name: "Ablauf anlegen" }));
 
     await waitFor(() => {
       expect(mockedCreateAdminWorkflowDefinition).toHaveBeenCalledWith({
-        key: "offboarding",
+        key: null,
         name: "Offboarding",
         description: null,
       });
     });
+  });
+
+  it("deletes the selected workflow definition from the toolbar", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderWithApp(
+      <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
+      { roleKeys: ["auth_admin"] }
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Ablauf löschen" }));
+
+    await waitFor(() => {
+      expect(mockedDeleteAdminWorkflowDefinition).toHaveBeenCalledWith(1);
+    });
+
+    confirmSpy.mockRestore();
   });
 
   it("shows a visible action catalog for automation nodes", async () => {
@@ -427,10 +450,10 @@ describe("AdminWorkflowBuilderSection", () => {
     fireEvent.click(screen.getByRole("button", { name: /Automatisierung/i }));
     expect(await screen.findByLabelText("Baustein")).toBeTruthy();
 
-    expect(await screen.findByRole("heading", { name: "Verfuegbare Aktionen" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Create AD User hinzufuegen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Verfügbare Aktionen" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Create AD User hinzufügen" })).toBeTruthy();
     expect(screen.getByText("braucht Freigabe")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Assign Groups hinzufuegen" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Assign Groups hinzufügen" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("keeps the builder usable when the action catalog cannot be loaded", async () => {
@@ -443,7 +466,7 @@ describe("AdminWorkflowBuilderSection", () => {
     );
 
     expect((await screen.findAllByText("HR Onboarding")).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "Schritte fuer den Ablauf" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Schritte.*Ablauf/i })).toBeTruthy();
     await waitFor(() => {
       expect(onError).toHaveBeenCalledWith(expect.stringContaining("Aktionskatalog"));
     });
@@ -456,8 +479,8 @@ describe("AdminWorkflowBuilderSection", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Ablauf-Editor" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Schritt loeschen" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Pruefen" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Schritt löschen" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Prüfen" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Freigeben" })).toBeTruthy();
     expect(screen.getByText("Bausteine sichtbar")).toBeTruthy();
   });
@@ -477,7 +500,7 @@ describe("AdminWorkflowBuilderSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Erweitert anzeigen" }));
     fireEvent.change(screen.getByLabelText("Technischer Schritt-Key"), { target: { value: "task_a" } });
     fireEvent.change(screen.getByLabelText("Technische Konfiguration"), { target: { value: "{invalid" } });
-    fireEvent.click(screen.getByRole("button", { name: "Pruefen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Prüfen" }));
 
     await waitFor(() => {
       expect(mockedReplaceAdminWorkflowDefinitionVersion).not.toHaveBeenCalled();
@@ -492,20 +515,20 @@ describe("AdminWorkflowBuilderSection", () => {
       { roleKeys: ["auth_admin"] }
     );
 
-    const deleteButton = await screen.findByRole("button", { name: "Schritt loeschen" });
+    const deleteButton = await screen.findByRole("button", { name: "Schritt löschen" });
     expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click((await screen.findAllByRole("button", { name: "Start" }))[0]!);
     await waitFor(() => {
-      expect((screen.getByRole("button", { name: "Schritt loeschen" }) as HTMLButtonElement).disabled).toBe(false);
+      expect((screen.getByRole("button", { name: "Schritt löschen" }) as HTMLButtonElement).disabled).toBe(false);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Schritt loeschen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Schritt löschen" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:1 edges:0");
     });
-    expect(screen.getByRole("heading", { name: "Schritte fuer den Ablauf" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Schritte.*Ablauf/i })).toBeTruthy();
   });
 
   it("adds a controlled action from the catalog to an automation node", async () => {
@@ -519,7 +542,7 @@ describe("AdminWorkflowBuilderSection", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Automatisierung/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Create AD User hinzufuegen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create AD User hinzufügen" }));
 
     expect(await screen.findByRole("heading", { name: "Hinterlegte Aktionen" })).toBeTruthy();
     expect(screen.getByDisplayValue("Create AD User")).toBeTruthy();
@@ -577,7 +600,7 @@ describe("AdminWorkflowBuilderSection", () => {
     await waitFor(() => {
       expect(screen.getByTestId("mock-react-flow").textContent).toContain("nodes:2 edges:1");
     });
-    fireEvent.click(await screen.findByRole("button", { name: "Pruefen" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Prüfen" }));
 
     await waitFor(() => {
       expect(mockedReplaceAdminWorkflowDefinitionVersion).not.toHaveBeenCalled();
@@ -646,11 +669,11 @@ describe("AdminWorkflowBuilderSection", () => {
       { roleKeys: ["auth_admin"] }
     );
 
-    expect(await screen.findByRole("heading", { name: "Schritte fuer den Ablauf" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /Schritte.*Ablauf/i })).toBeTruthy();
     fireEvent.click((await screen.findAllByRole("button", { name: "Start" }))[0]!);
-    expect(await screen.findByText("Dieser Schritt startet den Ablauf und fuehrt in die ersten Folgeschritte.")).toBeTruthy();
+    expect(await screen.findByText("Dieser Schritt startet den Ablauf und führt in die ersten Folgeschritte.")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Schritt" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Naechste Schritte" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Nächste Schritte" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Automatische Aktionen" })).toBeTruthy();
   });
 
@@ -661,13 +684,13 @@ describe("AdminWorkflowBuilderSection", () => {
     );
 
     fireEvent.click((await screen.findAllByRole("button", { name: "Start" }))[0]!);
-    expect(await screen.findByText("Dieser Schritt startet den Ablauf und fuehrt in die ersten Folgeschritte.")).toBeTruthy();
+    expect(await screen.findByText("Dieser Schritt startet den Ablauf und führt in die ersten Folgeschritte.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Mock pane click" }));
-    expect(await screen.findByRole("heading", { name: "Schritte fuer den Ablauf" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /Schritte.*Ablauf/i })).toBeTruthy();
   });
 
   it("edits outgoing edge data for the selected node in the sidebar", async () => {
-    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValueOnce(createRichVersionDetail());
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValueOnce(createRichVersionDetail());
 
     renderWithApp(
       <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
@@ -676,7 +699,7 @@ describe("AdminWorkflowBuilderSection", () => {
 
     fireEvent.click((await screen.findAllByRole("button", { name: "Weiterer Pfad" }))[0]!);
     expect(await screen.findByText(/verzweigt ihr den Ablauf/i)).toBeTruthy();
-    expect(screen.getAllByLabelText("Naechster Schritt").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Nächster Schritt").length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getAllByLabelText("Bedingung")[0]!, {
       target: { value: "{\"answerKey\":\"approved\",\"operator\":\"is_true\"}" },
@@ -700,7 +723,7 @@ describe("AdminWorkflowBuilderSection", () => {
   });
 
   it("shows automation actions inside the node sidebar", async () => {
-    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValueOnce(createRichVersionDetail());
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValueOnce(createRichVersionDetail());
 
     renderWithApp(
       <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
@@ -708,7 +731,7 @@ describe("AdminWorkflowBuilderSection", () => {
     );
 
     fireEvent.click((await screen.findAllByRole("button", { name: "Konten erstellen" }))[0]!);
-    expect(await screen.findByRole("heading", { name: "Verfuegbare Aktionen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Verfügbare Aktionen" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Hinterlegte Aktionen" })).toBeTruthy();
     expect(screen.getAllByLabelText("Aktion").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Eingabe-Mapping (JSON)").length).toBeGreaterThan(0);
@@ -723,11 +746,11 @@ describe("AdminWorkflowBuilderSection", () => {
     fireEvent.click((await screen.findAllByRole("button", { name: "Start" }))[0]!);
     expect(await screen.findByRole("heading", { name: "Automatische Aktionen" })).toBeTruthy();
     expect(screen.getByText(/Automatische Aktionen werden nur auf Schritten vom Typ/i)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Create AD User hinzufuegen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Create AD User hinzufügen" })).toBeNull();
   });
 
   it("keeps technical fields inside the advanced sidebar section", async () => {
-    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValueOnce(createRichVersionDetail());
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValueOnce(createRichVersionDetail());
 
     renderWithApp(
       <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
@@ -743,7 +766,7 @@ describe("AdminWorkflowBuilderSection", () => {
   });
 
   it("renders semantic builder cards per node type instead of technical dataset labels", async () => {
-    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValueOnce(createRichVersionDetail());
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValueOnce(createRichVersionDetail());
 
     renderWithApp(
       <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
@@ -762,8 +785,8 @@ describe("AdminWorkflowBuilderSection", () => {
     expect(screen.getAllByText("Konten erstellen").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Equipment vorbereiten").length).toBeGreaterThan(0);
     await waitFor(() => {
-      expect(screen.getAllByText("Zustaendig").length).toBeGreaterThan(0);
-      expect(screen.getAllByText("Fuehrungskraft").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Zuständig").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Führungskraft").length).toBeGreaterThan(0);
       expect(screen.getAllByText("IT-Service").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Frist").length).toBeGreaterThan(0);
       expect(screen.getByText("2 Tage")).toBeTruthy();
@@ -777,7 +800,7 @@ describe("AdminWorkflowBuilderSection", () => {
   });
 
   it("shows the builder in limited mode without loading the action catalog", async () => {
-    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValueOnce(createRichVersionDetail());
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValueOnce(createRichVersionDetail());
 
     renderWithApp(
       <AdminWorkflowBuilderSection onNotice={() => undefined} onError={() => undefined} />,
@@ -794,6 +817,6 @@ describe("AdminWorkflowBuilderSection", () => {
 
     fireEvent.click((await screen.findAllByRole("button", { name: "Konten erstellen" }))[0]!);
     expect(await screen.findByText(/nur im Admin-Modus editierbar/i)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Create AD User hinzufuegen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Create AD User hinzufügen" })).toBeNull();
   });
 });

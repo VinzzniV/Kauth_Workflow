@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createAdminWorkflowDefinition,
-  createAdminWorkflowDefinitionVersion,
+  deleteAdminWorkflowDefinition,
   getAdminWorkflowActionDefinitions,
   getAdminProcessTypes,
   getAdminTaskTemplates,
   getAdminWorkflowDefinitionVersion,
+  getOrCreateAdminWorkflowDefinitionWorkingDraft,
   getAdminWorkflowDefinitions,
   publishAdminWorkflowDefinitionVersion,
   replaceAdminWorkflowDefinitionVersion,
@@ -27,7 +28,6 @@ import {
   createEmptyDefinitionDraft,
   createEmptyEdgeDraft,
   createEmptyNodeDraft,
-  createEmptyVersionCreateDraft,
   createEmptyVersionDraft,
   findVersionSummary,
   isDefinitionMetadataChanged,
@@ -56,14 +56,13 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   const [versionDetail, setVersionDetail] = useState<AdminWorkflowDefinitionVersionDetail | null>(null);
   const [definitionDraft, setDefinitionDraft] = useState(createEmptyDefinitionDraft);
   const [newDefinitionDraft, setNewDefinitionDraft] = useState(createEmptyDefinitionDraft);
-  const [newVersionDraft, setNewVersionDraft] = useState(createEmptyVersionCreateDraft);
   const [versionDraft, setVersionDraft] = useState<WorkflowBuilderVersionDraft>(createEmptyVersionDraft);
   const [localValidationIssues, setLocalValidationIssues] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingVersion, setIsLoadingVersion] = useState(false);
+  const [isDeletingDefinition, setIsDeletingDefinition] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreatingDefinition, setIsCreatingDefinition] = useState(false);
-  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -151,40 +150,81 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       loadedDefinitions.find((definition) => definition.id === nextDefinitionId)?.versions ?? [];
     const nextVersionId = keepSelection
       ? availableVersions.find((version) => version.id === preferredVersionId)?.id
+        ?? availableVersions.find((version) => version.status.trim().toLowerCase() === "draft")?.id
         ?? availableVersions[0]?.id
         ?? null
-      : availableVersions[0]?.id ?? null;
+      : availableVersions.find((version) => version.status.trim().toLowerCase() === "draft")?.id
+        ?? availableVersions[0]?.id
+        ?? null;
 
     setSelectedVersionId(nextVersionId);
   }, [canManageAdvanced, onError]);
 
+  const resetLoadedVersion = useCallback(() => {
+    setVersionDetail(null);
+    setVersionDraft(createEmptyVersionDraft());
+    setTaskTemplates([]);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setLocalValidationIssues([]);
+    setIsDirty(false);
+    setSelectedVersionId(null);
+  }, []);
+
+  const applyLoadedVersionDetail = useCallback((detail: AdminWorkflowDefinitionVersionDetail) => {
+    const nextDraft = toVersionDraft(detail);
+    setVersionDetail(detail);
+    setVersionDraft(nextDraft);
+    setTaskTemplates([]);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setLocalValidationIssues([]);
+    setIsDirty(false);
+    setSelectedVersionId(detail.id);
+  }, []);
+
   const loadVersionDetail = useCallback(async (versionId: number | null) => {
     if (!versionId) {
-      setVersionDetail(null);
-      setVersionDraft(createEmptyVersionDraft());
-      setTaskTemplates([]);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
-      setLocalValidationIssues([]);
-      setIsDirty(false);
+      resetLoadedVersion();
       return;
     }
 
     setIsLoadingVersion(true);
     try {
       const detail = await getAdminWorkflowDefinitionVersion(versionId);
-      const nextDraft = toVersionDraft(detail);
-      setVersionDetail(detail);
-      setVersionDraft(nextDraft);
-      setTaskTemplates([]);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
-      setLocalValidationIssues([]);
-      setIsDirty(false);
+      applyLoadedVersionDetail(detail);
     } finally {
       setIsLoadingVersion(false);
     }
-  }, []);
+  }, [applyLoadedVersionDetail, resetLoadedVersion]);
+
+  const resolveWorkingDraft = useCallback(async (
+    definitionId: number | null,
+    options?: { refreshDefinitions?: boolean }
+  ) => {
+    if (!definitionId) {
+      resetLoadedVersion();
+      return null;
+    }
+
+    setIsLoadingVersion(true);
+    try {
+      const detail = await getOrCreateAdminWorkflowDefinitionWorkingDraft(definitionId);
+      applyLoadedVersionDetail(detail);
+
+      if (options?.refreshDefinitions ?? true) {
+        await loadDefinitions({
+          keepSelection: true,
+          selectedDefinitionId: definitionId,
+          selectedVersionId: detail.id,
+        });
+      }
+
+      return detail;
+    } finally {
+      setIsLoadingVersion(false);
+    }
+  }, [applyLoadedVersionDetail, loadDefinitions, resetLoadedVersion]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -213,15 +253,11 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   useEffect(() => {
     onError(null);
-    void loadVersionDetail(selectedVersionId).catch((err) => {
-      onError(err instanceof Error ? err.message : "Der ausgewaehlte Stand konnte nicht geladen werden.");
-      setVersionDetail(null);
-      setVersionDraft(createEmptyVersionDraft());
-      setTaskTemplates([]);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
+    void resolveWorkingDraft(selectedDefinitionId).catch((err) => {
+      onError(err instanceof Error ? err.message : "Der ausgewaehlte Ablauf konnte nicht geladen werden.");
+      resetLoadedVersion();
     });
-  }, [loadVersionDetail, onError, selectedVersionId]);
+  }, [onError, resetLoadedVersion, resolveWorkingDraft, selectedDefinitionId]);
 
   useEffect(() => {
     const processTypeIdsToLoad = new Set<number>();
@@ -301,10 +337,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    const definition = definitions.find((item) => item.id === definitionId) ?? null;
+    resetLoadedVersion();
     setSelectedDefinitionId(definitionId);
-    setSelectedVersionId(definition?.versions[0]?.id ?? null);
-  }, [confirmSelectionChange, definitions]);
+  }, [confirmSelectionChange, resetLoadedVersion]);
 
   const selectVersion = useCallback((versionId: number) => {
     if (!confirmSelectionChange()) {
@@ -332,10 +367,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   const updateNewDefinitionDraft = useCallback((key: "key" | "name" | "description", value: string) => {
     setNewDefinitionDraft((current) => ({ ...current, [key]: value }));
-  }, []);
-
-  const updateNewVersionDraft = useCallback((key: "name" | "description", value: string) => {
-    setNewVersionDraft((current) => ({ ...current, [key]: value }));
   }, []);
 
   const updateVersionDraftField = useCallback((key: "name" | "description" | "primaryLegacyProcessTypeKey", value: string) => {
@@ -652,13 +683,21 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
     try {
       const created = await createAdminWorkflowDefinition({
-        key: newDefinitionDraft.key.trim(),
+        key: null,
         name: newDefinitionDraft.name.trim(),
         description: newDefinitionDraft.description.trim() || null,
       });
-      await loadDefinitions({ keepSelection: false });
+      await loadDefinitions({
+        keepSelection: true,
+        selectedDefinitionId: created.id,
+        selectedVersionId: created.versions[0]?.id ?? null,
+      });
       setSelectedDefinitionId(created.id);
-      setSelectedVersionId(created.versions[0]?.id ?? null);
+      if (created.versions[0]?.id) {
+        await loadVersionDetail(created.versions[0].id);
+      } else {
+        await resolveWorkingDraft(created.id, { refreshDefinitions: true });
+      }
       setNewDefinitionDraft(createEmptyDefinitionDraft());
       onNotice(`Ablauf '${created.name}' wurde angelegt.`);
     } catch (err) {
@@ -666,41 +705,38 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     } finally {
       setIsCreatingDefinition(false);
     }
-  }, [canManageAdvanced, loadDefinitions, newDefinitionDraft.description, newDefinitionDraft.key, newDefinitionDraft.name, onError, onNotice]);
+  }, [canManageAdvanced, loadDefinitions, loadVersionDetail, newDefinitionDraft.description, newDefinitionDraft.name, onError, onNotice, resolveWorkingDraft]);
 
-  const createVersion = useCallback(async () => {
+  const deleteDefinition = useCallback(async () => {
     if (!canManageAdvanced) {
-      onError("Neue Staende koennen nur im Admin-Modus angelegt werden.");
+      onError("Ablaufe koennen nur im Admin-Modus geloescht werden.");
       return;
     }
 
-    if (!selectedDefinitionId) {
+    if (!selectedDefinition) {
       onError("Bitte zuerst einen Ablauf auswaehlen.");
       return;
     }
 
-    setIsCreatingVersion(true);
+    if (!window.confirm(`Ablauf '${selectedDefinition.name}' wirklich loeschen?`)) {
+      return;
+    }
+
+    setIsDeletingDefinition(true);
     onError(null);
     onNotice(null);
 
     try {
-      const created = await createAdminWorkflowDefinitionVersion(selectedDefinitionId, {
-        name: newVersionDraft.name.trim() || null,
-        description: newVersionDraft.description.trim() || null,
-      });
-      await loadDefinitions({
-        keepSelection: true,
-        selectedDefinitionId,
-      });
-      setSelectedVersionId(created.id);
-      setNewVersionDraft(createEmptyVersionCreateDraft());
-      onNotice(`Stand ${created.versionNumber} wurde als Entwurf angelegt.`);
+      await deleteAdminWorkflowDefinition(selectedDefinition.id);
+      resetLoadedVersion();
+      await loadDefinitions({ keepSelection: false });
+      onNotice(`Ablauf '${selectedDefinition.name}' wurde geloescht.`);
     } catch (err) {
-      onError(err instanceof Error ? err.message : "Stand konnte nicht angelegt werden.");
+      onError(err instanceof Error ? err.message : "Der Ablauf konnte nicht geloescht werden.");
     } finally {
-      setIsCreatingVersion(false);
+      setIsDeletingDefinition(false);
     }
-  }, [canManageAdvanced, loadDefinitions, newVersionDraft.description, newVersionDraft.name, onError, onNotice, selectedDefinitionId]);
+  }, [canManageAdvanced, loadDefinitions, onError, onNotice, resetLoadedVersion, selectedDefinition]);
 
   const collectValidationMessages = useCallback((draft: WorkflowBuilderVersionDraft) => {
     const messages = validateWorkflowBuilderDraft(draft).map((issue) => issue.message);
@@ -809,21 +845,21 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       await loadDefinitions({
         keepSelection: true,
         selectedDefinitionId: selectedDefinition?.id ?? null,
-        selectedVersionId,
+        selectedVersionId: published.id,
       });
-      const nextDraft = toVersionDraft(published);
-      setVersionDetail(published);
-      setVersionDraft(nextDraft);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
-      setIsDirty(false);
-      onNotice(`Stand ${published.versionNumber} wurde freigegeben.`);
+      if (selectedDefinition?.id) {
+        await resolveWorkingDraft(selectedDefinition.id, { refreshDefinitions: true });
+      } else {
+        applyLoadedVersionDetail(published);
+        setIsDirty(false);
+      }
+      onNotice(`Ablauf '${published.definitionName}' wurde freigegeben.`);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Stand konnte nicht freigegeben werden.");
     } finally {
       setIsPublishing(false);
     }
-  }, [canManageAdvanced, loadDefinitions, onError, onNotice, selectedDefinition?.id, selectedVersionId, selectedVersionSummary?.canPublish]);
+  }, [applyLoadedVersionDetail, canManageAdvanced, loadDefinitions, onError, onNotice, resolveWorkingDraft, selectedDefinition?.id, selectedVersionId, selectedVersionSummary?.canPublish]);
 
   const validateDraft = useCallback(() => {
     if (!selectedVersionSummary) {
@@ -859,14 +895,13 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     versionDetail,
     definitionDraft,
     newDefinitionDraft,
-    newVersionDraft,
     versionDraft,
     localValidationIssues,
     isLoading,
     isLoadingVersion,
+    isDeletingDefinition,
     isSaving,
     isCreatingDefinition,
-    isCreatingVersion,
     isPublishing,
     isDirty,
     hasUnsavedChanges,
@@ -876,7 +911,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     selectEdge,
     updateDefinitionDraft,
     updateNewDefinitionDraft,
-    updateNewVersionDraft,
     updateVersionDraftField,
     addNode,
     updateNode,
@@ -893,7 +927,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     removeSelectedEdge,
     connectNodes,
     createDefinition,
-    createVersion,
+    deleteDefinition,
     saveVersion,
     validateDraft,
     publishVersion,

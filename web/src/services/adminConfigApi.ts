@@ -340,7 +340,7 @@ export async function getAdminWorkflowDefinitions(): Promise<AdminWorkflowDefini
 }
 
 export async function createAdminWorkflowDefinition(payload: {
-  key: string;
+  key?: string | null;
   name: string;
   description: string | null;
 }): Promise<AdminWorkflowDefinitionSummary> {
@@ -348,6 +348,15 @@ export async function createAdminWorkflowDefinition(payload: {
     method: "POST",
     body: payload,
   });
+}
+
+export async function deleteAdminWorkflowDefinition(definitionId: number): Promise<void> {
+  await requestJson<unknown>(
+    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
 export async function updateAdminWorkflowDefinition(
@@ -378,6 +387,18 @@ export async function createAdminWorkflowDefinitionVersion(
     {
       method: "POST",
       body: payload,
+    }
+  );
+}
+
+export async function getOrCreateAdminWorkflowDefinitionWorkingDraft(
+  definitionId: number
+): Promise<AdminWorkflowDefinitionVersionDetail> {
+  return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
+    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}/working-draft`,
+    {
+      method: "POST",
+      body: {},
     }
   );
 }

@@ -70,9 +70,11 @@ internal interface IWorkflowRepository
     Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions();
     Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request);
     Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request);
+    Task<bool> DeleteAdminWorkflowDefinition(int definitionId);
     Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(
         int definitionId,
         CreateWorkflowDefinitionVersionRequest request);
+    Task<WorkflowDefinitionVersionDetailDto?> GetOrCreateAdminWorkflowDefinitionWorkingDraft(int definitionId);
     Task<WorkflowDefinitionVersionDetailDto?> GetAdminWorkflowDefinitionVersion(long versionId);
     Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(
         long versionId,

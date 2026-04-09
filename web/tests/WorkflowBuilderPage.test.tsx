@@ -17,8 +17,10 @@ vi.mock("@xyflow/react", () => ({
 vi.mock("../src/services/adminConfigApi", () => ({
   createAdminWorkflowDefinition: vi.fn(),
   createAdminWorkflowDefinitionVersion: vi.fn(),
+  deleteAdminWorkflowDefinition: vi.fn(),
   getAdminWorkflowActionDefinitions: vi.fn(),
   getAdminWorkflowDefinitionVersion: vi.fn(),
+  getOrCreateAdminWorkflowDefinitionWorkingDraft: vi.fn(),
   getAdminWorkflowDefinitions: vi.fn(),
   publishAdminWorkflowDefinitionVersion: vi.fn(),
   replaceAdminWorkflowDefinitionVersion: vi.fn(),
@@ -27,12 +29,14 @@ vi.mock("../src/services/adminConfigApi", () => ({
 
 const mockedGetAdminWorkflowActionDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowActionDefinitions);
 const mockedGetAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.getAdminWorkflowDefinitionVersion);
+const mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft = vi.mocked(adminConfigApi.getOrCreateAdminWorkflowDefinitionWorkingDraft);
 const mockedGetAdminWorkflowDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowDefinitions);
 
 describe("WorkflowBuilderPage", () => {
   beforeEach(() => {
     mockedGetAdminWorkflowActionDefinitions.mockReset();
     mockedGetAdminWorkflowDefinitionVersion.mockReset();
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockReset();
     mockedGetAdminWorkflowDefinitions.mockReset();
 
     mockedGetAdminWorkflowDefinitions.mockResolvedValue([
@@ -61,6 +65,28 @@ describe("WorkflowBuilderPage", () => {
     ]);
     mockedGetAdminWorkflowActionDefinitions.mockResolvedValue([]);
     mockedGetAdminWorkflowDefinitionVersion.mockResolvedValue({
+      id: 10,
+      workflowDefinitionId: 1,
+      definitionKey: "onboarding",
+      definitionName: "Onboarding",
+      definitionDescription: "Definition",
+      versionNumber: 1,
+      status: "draft",
+      name: "Draft 1",
+      description: "Initial draft",
+      primaryLegacyProcessTypeKey: "onboarding",
+      createdAt: "2026-04-08T10:00:00Z",
+      updatedAt: "2026-04-08T10:00:00Z",
+      publishedAt: null,
+      canPublish: true,
+      validationIssues: [],
+      nodes: [
+        { nodeKey: "start", nodeType: "start", title: "Start", sortOrder: 1, positionX: 80, positionY: 60, config: null, actions: [] },
+        { nodeKey: "end", nodeType: "end", title: "Ende", sortOrder: 2, positionX: 420, positionY: 60, config: null, actions: [] },
+      ],
+      edges: [{ sourceNodeKey: "start", targetNodeKey: "end", priority: 1, conditionExpression: null }],
+    });
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValue({
       id: 10,
       workflowDefinitionId: 1,
       definitionKey: "onboarding",

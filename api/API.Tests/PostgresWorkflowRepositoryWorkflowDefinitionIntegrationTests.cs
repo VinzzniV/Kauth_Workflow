@@ -10,6 +10,47 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task CreateAdminWorkflowDefinition_CreatesInitialDraftAndGeneratedKey()
+    {
+        var connectionString = GetTestConnectionString();
+        if (!await EnsureWorkflowDefinitionLayerAsync(connectionString))
+        {
+            return;
+        }
+
+        WorkflowDefinitionSummaryDto? definition = null;
+        var previousConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        Environment.SetEnvironmentVariable("CONNECTION_STRING", connectionString);
+
+        try
+        {
+            var repository = new PostgresWorkflowRepository();
+            var uniqueName = $"Builder Smoke {Guid.NewGuid():N}";
+
+            definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
+            {
+                Name = uniqueName,
+                Description = "Initial draft should be created automatically"
+            });
+
+            Assert.StartsWith("builder_smoke_", definition.Key, StringComparison.Ordinal);
+            Assert.Single(definition.Versions);
+            Assert.Equal("draft", definition.Versions[0].Status);
+            Assert.Equal(1, definition.Versions[0].VersionNumber);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONNECTION_STRING", previousConnectionString);
+
+            if (definition is not null)
+            {
+                await CleanupWorkflowDefinitionAsync(connectionString, definition.Id);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task WorkflowDefinitionDraft_Roundtrip_CreateReplaceAndReload()
     {
         var connectionString = GetTestConnectionString();
@@ -209,6 +250,76 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             if (targetPerson is not null)
             {
                 await CleanupSeededRuntimeTargetPersonAsync(connectionString, targetPerson);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task GetOrCreateAdminWorkflowDefinitionWorkingDraft_ClonesLatestPublishedVersion()
+    {
+        var connectionString = GetTestConnectionString();
+        if (!await EnsureWorkflowDefinitionMappingsAsync(connectionString))
+        {
+            return;
+        }
+
+        WorkflowDefinitionSummaryDto? definition = null;
+        var previousConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        Environment.SetEnvironmentVariable("CONNECTION_STRING", connectionString);
+
+        try
+        {
+            var repository = new PostgresWorkflowRepository();
+
+            definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
+            {
+                Name = $"Working Draft Clone {Guid.NewGuid():N}",
+                Description = "Working draft clone integration test"
+            });
+
+            var initialVersionId = definition.Versions.Single().Id;
+            var replacedVersion = await repository.ReplaceAdminWorkflowDefinitionVersion(
+                initialVersionId,
+                new ReplaceWorkflowDefinitionVersionRequest
+                {
+                    Name = "Published baseline",
+                    Description = "Baseline graph",
+                    PrimaryLegacyProcessTypeKey = "offboarding",
+                    Nodes =
+                    [
+                        WorkflowDefinitionTestData.FormNode("Start", "start"),
+                        WorkflowDefinitionTestData.FormNode("Collect_Data", "form", """{"legacyProcessTypeKey":"offboarding"}""", 10, 160, 80),
+                        WorkflowDefinitionTestData.FormNode("Finish", "end", null, 20, 460, 80)
+                    ],
+                    Edges =
+                    [
+                        WorkflowDefinitionTestData.Edge("Start", "Collect_Data", 0),
+                        WorkflowDefinitionTestData.Edge("Collect_Data", "Finish", 0)
+                    ]
+                });
+
+            Assert.NotNull(replacedVersion);
+            var publishedVersion = await repository.PublishWorkflowDefinitionVersion(initialVersionId);
+            Assert.NotNull(publishedVersion);
+
+            var workingDraft = await repository.GetOrCreateAdminWorkflowDefinitionWorkingDraft(definition.Id);
+
+            Assert.NotNull(workingDraft);
+            Assert.Equal("draft", workingDraft!.Status);
+            Assert.Equal(2, workingDraft.VersionNumber);
+            Assert.Equal("offboarding", workingDraft.PrimaryLegacyProcessTypeKey);
+            Assert.Equal(3, workingDraft.Nodes.Count);
+            Assert.Equal(2, workingDraft.Edges.Count);
+            Assert.Contains(workingDraft.Nodes, node => node.NodeKey == "collect_data" && node.PositionX == 160 && node.PositionY == 80);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONNECTION_STRING", previousConnectionString);
+
+            if (definition is not null)
+            {
+                await CleanupWorkflowDefinitionAsync(connectionString, definition.Id);
             }
         }
     }

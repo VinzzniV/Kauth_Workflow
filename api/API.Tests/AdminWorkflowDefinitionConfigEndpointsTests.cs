@@ -12,6 +12,58 @@ namespace API.Tests;
 public sealed class AdminWorkflowDefinitionConfigEndpointsTests
 {
     [Fact]
+    public async Task CreateDefinitionEndpoint_ReturnsCreatedDefinitionWithInitialDraft()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            CreatedDefinition = new WorkflowDefinitionSummaryDto
+            {
+                Id = 7,
+                Key = "offboarding",
+                Name = "Offboarding",
+                Description = "Definition",
+                Versions =
+                [
+                    new WorkflowDefinitionVersionSummaryDto
+                    {
+                        Id = 42,
+                        WorkflowDefinitionId = 7,
+                        VersionNumber = 1,
+                        Status = "draft",
+                        Name = null,
+                        Description = null,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        CanPublish = false,
+                        ValidationIssues = new List<ValidationIssueDto>()
+                    }
+                ]
+            }
+        };
+
+        var app = CreateApp(repository);
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definitions", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/admin/config/workflow-definitions",
+            new CreateWorkflowDefinitionRequest
+            {
+                Name = "Offboarding",
+                Description = "Definition"
+            });
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.CreateAdminWorkflowDefinitionCallCount);
+        Assert.NotNull(repository.LastCreateAdminWorkflowDefinitionRequest);
+        Assert.Equal("Offboarding", repository.LastCreateAdminWorkflowDefinitionRequest!.Name);
+        Assert.Null(repository.LastCreateAdminWorkflowDefinitionRequest.Key);
+    }
+
+    [Fact]
     public async Task CreateDefinitionVersionEndpoint_AllowsAdminAndReturnsCreated()
     {
         var repository = new StubWorkflowDefinitionRepository
@@ -86,6 +138,31 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         Assert.Equal(1, repository.UpdateAdminWorkflowDefinitionCallCount);
         Assert.Equal(7, repository.LastUpdateAdminWorkflowDefinitionId);
+    }
+
+    [Fact]
+    public async Task DeleteDefinitionEndpoint_ReturnsConflictWhenDefinitionIsInUse()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            DeleteAdminWorkflowDefinitionException = new InvalidOperationException("Workflow definition is still referenced.")
+        };
+
+        var app = CreateApp(repository);
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definitions/{definitionId:int}", HttpMethods.Delete);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Delete,
+            "/admin/config/workflow-definitions/7",
+            new { },
+            ("definitionId", 7));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status409Conflict, context.Response.StatusCode);
+        Assert.Equal(1, repository.DeleteAdminWorkflowDefinitionCallCount);
+        Assert.Equal(7, repository.LastDeleteAdminWorkflowDefinitionId);
     }
 
     [Fact]
@@ -318,6 +395,31 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
 
         Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         Assert.Equal(1, repository.GetAdminWorkflowDefinitionVersionCallCount);
+    }
+
+    [Fact]
+    public async Task GetWorkingDraftEndpoint_AllowsBuilderUser()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            WorkingDraftForGet = CreateDraftVersionDetail()
+        };
+
+        var app = CreateApp(repository, CreateBuilderUser());
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definitions/{definitionId:int}/working-draft", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/admin/config/workflow-definitions/7/working-draft",
+            new { },
+            ("definitionId", 7));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetOrCreateAdminWorkflowDefinitionWorkingDraftCallCount);
+        Assert.Equal(7, repository.LastGetOrCreateAdminWorkflowDefinitionWorkingDraftDefinitionId);
     }
 
     [Fact]
@@ -721,20 +823,29 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
 
     private sealed class StubWorkflowDefinitionRepository : IWorkflowRepository, IWorkflowDefinitionRuntimeRepository
     {
+        public WorkflowDefinitionSummaryDto? CreatedDefinition { get; set; }
         public WorkflowDefinitionVersionSummaryDto? CreatedVersion { get; set; }
         public WorkflowDefinitionVersionDetailDto? ReplacedVersion { get; set; }
         public WorkflowDefinitionVersionDetailDto? PublishedVersion { get; set; }
         public WorkflowDefinitionSummaryDto? UpdatedDefinition { get; set; }
         public List<WorkflowDefinitionSummaryDto> WorkflowDefinitions { get; set; } = new();
         public WorkflowDefinitionVersionDetailDto? VersionDetailForGet { get; set; }
+        public WorkflowDefinitionVersionDetailDto? WorkingDraftForGet { get; set; }
+        public Exception? DeleteAdminWorkflowDefinitionException { get; set; }
         public Exception? ReplaceAdminWorkflowDefinitionVersionException { get; set; }
+        public int CreateAdminWorkflowDefinitionCallCount { get; private set; }
         public int CreateAdminWorkflowDefinitionVersionCallCount { get; private set; }
+        public int DeleteAdminWorkflowDefinitionCallCount { get; private set; }
+        public int GetOrCreateAdminWorkflowDefinitionWorkingDraftCallCount { get; private set; }
         public int UpdateAdminWorkflowDefinitionCallCount { get; private set; }
         public int ReplaceAdminWorkflowDefinitionVersionCallCount { get; private set; }
         public int PublishWorkflowDefinitionVersionCallCount { get; private set; }
         public int GetAdminWorkflowDefinitionsCallCount { get; private set; }
         public int GetAdminWorkflowDefinitionVersionCallCount { get; private set; }
+        public CreateWorkflowDefinitionRequest? LastCreateAdminWorkflowDefinitionRequest { get; private set; }
         public int? LastCreateAdminWorkflowDefinitionVersionDefinitionId { get; private set; }
+        public int? LastDeleteAdminWorkflowDefinitionId { get; private set; }
+        public int? LastGetOrCreateAdminWorkflowDefinitionWorkingDraftDefinitionId { get; private set; }
         public int? LastUpdateAdminWorkflowDefinitionId { get; private set; }
         public long? LastPublishWorkflowDefinitionVersionId { get; private set; }
         public ReplaceWorkflowDefinitionVersionRequest? LastReplaceAdminWorkflowDefinitionVersionRequest { get; private set; }
@@ -781,12 +892,28 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             GetAdminWorkflowDefinitionsCallCount += 1;
             return Task.FromResult(WorkflowDefinitions);
         }
-        public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request)
+        {
+            CreateAdminWorkflowDefinitionCallCount += 1;
+            LastCreateAdminWorkflowDefinitionRequest = request;
+            return Task.FromResult(CreatedDefinition ?? throw new NotSupportedException());
+        }
         public Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request)
         {
             UpdateAdminWorkflowDefinitionCallCount += 1;
             LastUpdateAdminWorkflowDefinitionId = definitionId;
             return Task.FromResult(UpdatedDefinition);
+        }
+        public Task<bool> DeleteAdminWorkflowDefinition(int definitionId)
+        {
+            DeleteAdminWorkflowDefinitionCallCount += 1;
+            LastDeleteAdminWorkflowDefinitionId = definitionId;
+            if (DeleteAdminWorkflowDefinitionException is not null)
+            {
+                throw DeleteAdminWorkflowDefinitionException;
+            }
+
+            return Task.FromResult(true);
         }
 
         public Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(
@@ -802,6 +929,12 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         {
             GetAdminWorkflowDefinitionVersionCallCount += 1;
             return Task.FromResult(VersionDetailForGet);
+        }
+        public Task<WorkflowDefinitionVersionDetailDto?> GetOrCreateAdminWorkflowDefinitionWorkingDraft(int definitionId)
+        {
+            GetOrCreateAdminWorkflowDefinitionWorkingDraftCallCount += 1;
+            LastGetOrCreateAdminWorkflowDefinitionWorkingDraftDefinitionId = definitionId;
+            return Task.FromResult(WorkingDraftForGet);
         }
 
         public Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(
