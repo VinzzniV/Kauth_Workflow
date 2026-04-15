@@ -10,6 +10,16 @@ export function getWorkflowBuilderNodeTypeLabel(
       return "Formular";
     case "approval":
       return "Freigabe";
+    case "measure_provision":
+      return "Bereitstellung";
+    case "measure_deprovision":
+      return "Entzug";
+    case "measure_change":
+      return "Änderung";
+    case "measure_rename":
+      return "Umbenennung";
+    case "setup":
+      return "Setup (Legacy)";
     case "task":
       return "Aufgabe";
     case "decision":

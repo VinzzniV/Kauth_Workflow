@@ -343,23 +343,26 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
                     workflowDepartmentId);
             }
 
-            if (assigneeResponsibilityId.HasValue || assigneeUserId.HasValue)
+            if (!assigneeResponsibilityId.HasValue && !assigneeUserId.HasValue)
             {
-                var assignmentType = assigneeUserId.HasValue ? "user" : "responsibility";
-                var storedAssigneeResponsibilityId = assignmentType == "responsibility"
-                    ? assigneeResponsibilityId
-                    : null;
-
-                await using var insertAssignmentCommand = new NpgsqlCommand(insertAssignmentSql, connection, transaction);
-                insertAssignmentCommand.Parameters.AddWithValue("workflowTaskId", workflowTaskId);
-                insertAssignmentCommand.Parameters.Add("assigneeUserId", NpgsqlDbType.Bigint).Value = (object?)assigneeUserId ?? DBNull.Value;
-                insertAssignmentCommand.Parameters.Add("assigneeResponsibilityId", NpgsqlDbType.Integer).Value =
-                    (object?)storedAssigneeResponsibilityId ?? DBNull.Value;
-                insertAssignmentCommand.Parameters.AddWithValue(
-                    "assignmentType",
-                    assignmentType);
-                await insertAssignmentCommand.ExecuteNonQueryAsync();
+                throw new InvalidOperationException(
+                    $"Task template '{template.TemplateKey}' cannot be generated without a responsible assignment.");
             }
+
+            var assignmentType = assigneeUserId.HasValue ? "user" : "responsibility";
+            var storedAssigneeResponsibilityId = assignmentType == "responsibility"
+                ? assigneeResponsibilityId
+                : null;
+
+            await using var insertAssignmentCommand = new NpgsqlCommand(insertAssignmentSql, connection, transaction);
+            insertAssignmentCommand.Parameters.AddWithValue("workflowTaskId", workflowTaskId);
+            insertAssignmentCommand.Parameters.Add("assigneeUserId", NpgsqlDbType.Bigint).Value = (object?)assigneeUserId ?? DBNull.Value;
+            insertAssignmentCommand.Parameters.Add("assigneeResponsibilityId", NpgsqlDbType.Integer).Value =
+                (object?)storedAssigneeResponsibilityId ?? DBNull.Value;
+            insertAssignmentCommand.Parameters.AddWithValue(
+                "assignmentType",
+                assignmentType);
+            await insertAssignmentCommand.ExecuteNonQueryAsync();
         }
 
         foreach (var dependency in dependencies)

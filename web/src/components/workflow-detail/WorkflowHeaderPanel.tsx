@@ -58,8 +58,12 @@ export default function WorkflowHeaderPanel({
             <strong>{currentOwnerText}</strong>
           </div>
           <div className="workflow-detail-focus-item">
-            <span>Offene Aufgaben</span>
-            <strong>{workflow.taskMetrics.overall.activeCount}</strong>
+            <span>Fortschritt</span>
+            <strong>{workflow.taskMetrics.overall.doneCount}/{workflow.taskMetrics.overall.totalCount}</strong>
+          </div>
+          <div className="workflow-detail-focus-item">
+            <span>Pflicht erledigt</span>
+            <strong>{workflow.taskMetrics.required.doneCount}/{workflow.taskMetrics.required.totalCount}</strong>
           </div>
           {workflow.targetPersonId != null ? (
             <Link className="btn btn-secondary" to={`/people/${workflow.targetPersonId}`}>

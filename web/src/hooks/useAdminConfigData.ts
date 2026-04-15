@@ -10,6 +10,7 @@ import {
   syncAdminDirectory,
 } from "../services/adminConfigApi";
 import {
+  getAdminDepartmentPositions,
   getAdminDepartmentAssignments,
   getAdminGraphApplicationConfiguration,
   getAdminGroups,
@@ -19,7 +20,6 @@ import {
   getAdminResponsibilityOwners,
   getAdminRoles,
   getAdminUsers,
-  getAdminWorkflowConfig,
 } from "../services/adminApi";
 import type {
   AdminDepartmentAssignment,
@@ -36,7 +36,6 @@ import type {
   AdminRole,
   AdminUser,
 } from "../types/auth";
-import type { WorkflowConfig } from "../types/workflow";
 
 type UseAdminConfigDataOptions = {
   section: AdminWorkspaceSection;
@@ -63,8 +62,8 @@ export function useAdminConfigData({
   const [directoryAuditEntries, setDirectoryAuditEntries] = useState<AdminDirectoryMappingAuditEntry[]>([]);
   const [directoryStatus, setDirectoryStatus] = useState<AdminDirectorySyncStatus | null>(null);
   const [departmentAssignments, setDepartmentAssignments] = useState<AdminDepartmentAssignment[]>([]);
+  const [departmentPositions, setDepartmentPositions] = useState<AdminRole[]>([]);
   const [responsibilityOwners, setResponsibilityOwners] = useState<AdminResponsibilityOwner[]>([]);
-  const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingTechnicalAccess, setIsLoadingTechnicalAccess] = useState(false);
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
@@ -149,16 +148,17 @@ export function useAdminConfigData({
     setError(null);
 
     try {
-      const workflowConfigPromise = getAdminWorkflowConfig().catch(() => null);
       const [
         usersData,
         departmentsData,
+        positionsData,
         responsibilitiesData,
         graphApplicationConfigurationData,
         notificationEmailConfigurationData,
       ] = await Promise.all([
         getAdminUsers(),
         getAdminDepartmentAssignments(),
+        getAdminDepartmentPositions(),
         getAdminResponsibilityOwners(),
         getAdminGraphApplicationConfiguration(),
         getAdminNotificationEmailConfiguration(),
@@ -166,10 +166,10 @@ export function useAdminConfigData({
 
       setUsers(usersData);
       setDepartmentAssignments(departmentsData);
+      setDepartmentPositions(positionsData);
       setResponsibilityOwners(responsibilitiesData);
       setGraphApplicationConfiguration(graphApplicationConfigurationData);
       setNotificationEmailConfiguration(notificationEmailConfigurationData);
-      setWorkflowConfig(await workflowConfigPromise);
 
       if (hasLoadedTechnicalAccessRef.current) {
         await loadTechnicalAccess();
@@ -183,8 +183,8 @@ export function useAdminConfigData({
       setError(message);
       setUsers([]);
       setDepartmentAssignments([]);
+      setDepartmentPositions([]);
       setResponsibilityOwners([]);
-      setWorkflowConfig(null);
       setGraphApplicationConfiguration(null);
       setNotificationEmailConfiguration(null);
       setDirectoryStatus(null);
@@ -307,9 +307,10 @@ export function useAdminConfigData({
     directoryStatus,
     departmentAssignments,
     setDepartmentAssignments,
+    departmentPositions,
+    setDepartmentPositions,
     responsibilityOwners,
     setResponsibilityOwners,
-    workflowConfig,
     isLoading,
     isLoadingTechnicalAccess,
     isLoadingDirectory,

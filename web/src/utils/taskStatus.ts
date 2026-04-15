@@ -1,6 +1,6 @@
 import type { WorkflowTaskSlaStatus, WorkflowTaskStatus } from "../types/workflow";
 
-export type VisibleTaskStatus = "open" | "in_progress" | "done";
+export type VisibleTaskStatus = "open" | "in_progress" | "blocked" | "done";
 
 export const TASK_STATUS_ORDER: WorkflowTaskStatus[] = [
   "open",
@@ -14,15 +14,16 @@ const TASK_STATUS_LABELS: Record<WorkflowTaskStatus, string> = {
   open: "Offen",
   ready: "Offen",
   in_progress: "In Bearbeitung",
-  blocked: "Offen",
+  blocked: "Blockiert",
   done: "Erledigt",
 };
 
-export const VISIBLE_TASK_STATUS_ORDER: VisibleTaskStatus[] = ["open", "in_progress", "done"];
+export const VISIBLE_TASK_STATUS_ORDER: VisibleTaskStatus[] = ["open", "in_progress", "blocked", "done"];
 
 const VISIBLE_TASK_STATUS_LABELS: Record<VisibleTaskStatus, string> = {
   open: "Offen",
   in_progress: "In Bearbeitung",
+  blocked: "Blockiert",
   done: "Erledigt",
 };
 
@@ -33,6 +34,10 @@ export function getVisibleTaskStatus(status: WorkflowTaskStatus): VisibleTaskSta
 
   if (status === "done") {
     return "done";
+  }
+
+  if (status === "blocked") {
+    return "blocked";
   }
 
   return "open";
@@ -52,9 +57,11 @@ export function mapVisibleTaskStatusToWorkflowStatus(
 ): WorkflowTaskStatus {
   switch (status) {
     case "open":
-      return currentStatus === "blocked" || currentStatus === "ready" ? "ready" : "open";
+      return currentStatus === "ready" ? "ready" : "open";
     case "in_progress":
       return "in_progress";
+    case "blocked":
+      return "blocked";
     case "done":
       return "done";
     default:
@@ -66,11 +73,11 @@ export function getAvailableVisibleTaskStatuses(currentStatus: WorkflowTaskStatu
   switch (currentStatus) {
     case "open":
     case "ready":
-      return ["open", "in_progress", "done"];
+      return ["open", "in_progress", "blocked", "done"];
     case "blocked":
-      return ["open"];
+      return ["blocked", "open"];
     case "in_progress":
-      return ["in_progress", "done"];
+      return ["in_progress", "blocked", "done"];
     case "done":
       return ["done"];
     default:

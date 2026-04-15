@@ -13,8 +13,7 @@ import type {
   AdminRole,
   AdminUser,
 } from "../../types/auth";
-import type { WorkflowConfig } from "../../types/workflow";
-import type { DepartmentDraft, NewResponsibilityDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
+import type { DepartmentDraft, NewResponsibilityDraft, PositionDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
 import type {
   AdminOrganizationEntity,
   AdminWorkspaceSection,
@@ -27,9 +26,11 @@ export type AdminConfigWorkspaceContentProps = {
   organizationEntity: AdminOrganizationEntity;
   selectedEntityId: number | null;
   users: AdminUser[];
+  departmentPositions: AdminRole[];
   departmentAssignments: AdminDepartmentAssignment[];
   responsibilityOwners: AdminResponsibilityOwner[];
   sortedUsers: AdminUser[];
+  sortedDepartmentPositions: AdminRole[];
   sortedDepartments: AdminDepartmentAssignment[];
   sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
@@ -54,14 +55,19 @@ export type AdminConfigWorkspaceContentProps = {
   isSavingUserMasterData: boolean;
   deletingUserId: number | null;
   newDepartmentNameDraft: string;
+  newPositionNameDraft: string;
   newResponsibilityDraft: NewResponsibilityDraft;
   departmentDrafts: Record<number, DepartmentDraft>;
+  positionDrafts: Record<number, PositionDraft>;
   responsibilityDrafts: Record<number, ResponsibilityDraft>;
   isCreatingDepartment: boolean;
+  creatingPositionDepartmentId: number | null;
   isCreatingResponsibility: boolean;
   deletingDepartmentId: number | null;
+  deletingPositionId: number | null;
   deletingResponsibilityId: number | null;
   savingDepartmentId: number | null;
+  savingPositionId: number | null;
   savingResponsibilityId: number | null;
   hasLoadedTechnicalAccess: boolean;
   isLoadingTechnicalAccess: boolean;
@@ -98,7 +104,6 @@ export type AdminConfigWorkspaceContentProps = {
   isSavingNotificationEmailConfiguration: boolean;
   isSendingNotificationEmailTest: boolean;
   hasNotificationEmailDraftChanges: boolean;
-  workflowConfig: WorkflowConfig | null;
   warnings: AdminWorkspaceWarning[];
   isSavingUserRoles: boolean;
   isSavingUserGroups: boolean;
@@ -131,6 +136,11 @@ export type AdminConfigWorkspaceContentProps = {
   onCreateResponsibility: () => void | Promise<AdminResponsibilityOwner | null> | AdminResponsibilityOwner | null;
   onSaveDepartmentAssignment: (departmentId: number) => void | Promise<void>;
   onRemoveDepartment: (department: AdminDepartmentAssignment) => void | Promise<void>;
+  onNewPositionNameChange: (value: string) => void;
+  onCreateDepartmentPosition: (departmentId: number) => void | Promise<void>;
+  onPositionDraftChange: (positionId: number, draft: PositionDraft) => void;
+  onSaveDepartmentPosition: (positionId: number) => void | Promise<void>;
+  onRemoveDepartmentPosition: (position: AdminRole) => void | Promise<void>;
   onResponsibilityDraftChange: (responsibilityId: number, draft: ResponsibilityDraft) => void;
   onRemoveResponsibility: (responsibility: AdminResponsibilityOwner) => void | Promise<boolean> | boolean;
   onSaveResponsibilityAssignment: (responsibilityId: number) => void | Promise<void>;

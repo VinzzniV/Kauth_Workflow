@@ -40,18 +40,8 @@ SET
 -- =========================
 -- Departments
 -- =========================
-INSERT INTO departments (name)
-VALUES
-    ('IT'),
-    ('HR'),
-    ('Engineering'),
-    ('QS'),
-    ('AV'),
-    ('QMB'),
-    ('Produktion'),
-    ('Vertrieb'),
-    ('Prototypenbau')
-ON CONFLICT (name) DO NOTHING;
+-- Abteilungen werden nicht mehr statisch vorbefuellt. Fuehrend ist Entra:
+-- der Directory-Sync legt departments aus directory_identities.department_name an.
 
 -- =========================
 -- App roles
@@ -86,6 +76,8 @@ INSERT INTO app_roles (department_id, role_key, name, role_kind, is_active)
 SELECT d.id, s.role_key, s.role_name, s.role_kind, TRUE
 FROM role_seed s
 LEFT JOIN departments d ON d.name = s.department_name
+WHERE s.department_name IS NULL
+   OR d.id IS NOT NULL
 ON CONFLICT (role_key) DO UPDATE
 SET
     department_id = EXCLUDED.department_id,

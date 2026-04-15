@@ -15,6 +15,7 @@ export type Me = {
   groups: string[];
   permissions: string[];
   permissionScopes: PermissionScope[];
+  canAccessSupervisorStep: boolean;
   directorySynced: boolean;
   departmentSource: string;
   departmentOverrideActive: boolean;
@@ -115,6 +116,9 @@ export type AdminDepartmentAssignment = {
   departmentLeadDisplayName: string | null;
   requirementOwnerUserId: number | null;
   requirementOwnerDisplayName: string | null;
+  assignmentSource: string;
+  syncState: string;
+  syncDetail: string | null;
   updatedAt: string | null;
 };
 

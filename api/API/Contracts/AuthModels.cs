@@ -206,6 +206,7 @@ public sealed class MeDto
     public required List<string> Groups { get; init; }
     public List<string> Permissions { get; init; } = [];
     public List<CurrentUserPermissionScope> PermissionScopes { get; init; } = [];
+    public bool CanAccessSupervisorStep { get; init; }
     public bool DirectorySynced { get; init; }
     public string DepartmentSource { get; init; } = "local";
     public bool DepartmentOverrideActive { get; init; }
@@ -280,6 +281,9 @@ public sealed class AdminDepartmentAssignmentDto
     public string? DepartmentLeadDisplayName { get; init; }
     public long? RequirementOwnerUserId { get; init; }
     public string? RequirementOwnerDisplayName { get; init; }
+    public string AssignmentSource { get; init; } = "manual";
+    public string SyncState { get; init; } = "manual";
+    public string? SyncDetail { get; init; }
     public DateTime? UpdatedAt { get; init; }
 }
 
@@ -394,6 +398,17 @@ public sealed class AdminDepartmentAssignmentUpdateRequest
 {
     public long? DepartmentLeadUserId { get; init; }
     public long? RequirementOwnerUserId { get; init; }
+}
+
+public sealed class AdminDepartmentPositionCreateRequest
+{
+    public required string PositionName { get; init; }
+}
+
+public sealed class AdminDepartmentPositionUpdateRequest
+{
+    public required string PositionName { get; init; }
+    public required bool IsActive { get; init; }
 }
 
 public sealed class AdminDepartmentCreateRequest

@@ -260,6 +260,9 @@ export function createAdminDepartmentAssignment(
     departmentLeadDisplayName: "Lea Lead",
     requirementOwnerUserId: 2,
     requirementOwnerDisplayName: "Mia Manager",
+    assignmentSource: "manual",
+    syncState: "manual",
+    syncDetail: null,
     updatedAt: "2026-03-24T08:00:00.000Z",
     ...overrides,
   };

@@ -104,13 +104,15 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
     {
         return HasPermission(user, AuthorizationPermissions.TasksExecuteSupervisor)
                || HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
-               || HasAnyRole(user, AuthorizationRoles.Manager, AuthorizationRoles.Admin);
+               || HasAnyRole(user, AuthorizationRoles.Manager, AuthorizationRoles.Admin)
+               || HasDepartmentLeadSupervisorResponsibility(user);
     }
 
     public bool CanAccessSupervisorStep(CurrentUser user)
     {
         return HasPermission(user, AuthorizationPermissions.TasksExecuteSupervisor)
-               || HasAnyRole(user, AuthorizationRoles.Manager);
+               || HasAnyRole(user, AuthorizationRoles.Manager)
+               || HasDepartmentLeadSupervisorResponsibility(user);
     }
 
     public bool CanAccessTechnicalTasks(CurrentUser user)
@@ -162,7 +164,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return true;
         }
 
-        if (HasPermission(user, AuthorizationPermissions.WorkflowsViewDepartment, workflowDepartmentId))
+        if (HasDepartmentScopedPermission(user, AuthorizationPermissions.WorkflowsViewDepartment, workflowDepartmentId))
         {
             return true;
         }
@@ -304,6 +306,17 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
     {
         "done"
     };
+
+    private static bool HasDepartmentLeadSupervisorResponsibility(CurrentUser user)
+    {
+        return user.EffectiveResponsibilities.Any(responsibility =>
+            string.Equals(responsibility.ResponsibilityType, "department_lead", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool HasDepartmentScopedPermission(CurrentUser user, string permissionKey, int departmentId)
+    {
+        return user.GetPermissionDepartmentIds(permissionKey).Contains(departmentId);
+    }
 
     private static bool HasLegacyRolePermission(CurrentUser user, string permissionKey, int? departmentId)
     {

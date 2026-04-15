@@ -12,7 +12,6 @@ import type {
   AdminResponsibilityOwner,
   AdminRole,
 } from "../src/types/auth";
-import type { WorkflowConfig } from "../src/types/workflow";
 
 vi.mock("@xyflow/react", () => ({
   Background: () => null,
@@ -33,6 +32,7 @@ vi.mock("../src/services/adminApi", async () => {
     ...actual,
     createAdminUser: vi.fn(),
     getAdminDepartmentAssignments: vi.fn(),
+    getAdminDepartmentPositions: vi.fn(),
     getAdminGroups: vi.fn(),
     getAdminGraphApplicationConfiguration: vi.fn(),
     getAdminNotificationEmailConfiguration: vi.fn(),
@@ -41,7 +41,6 @@ vi.mock("../src/services/adminApi", async () => {
     getAdminResponsibilityOwners: vi.fn(),
     getAdminRoles: vi.fn(),
     getAdminUsers: vi.fn(),
-    getAdminWorkflowConfig: vi.fn(),
   };
 });
 
@@ -68,6 +67,7 @@ const mockedGetAdminWorkflowActionDefinitions = vi.mocked(adminConfigApi.getAdmi
 const mockedGetAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.getAdminWorkflowDefinitionVersion);
 const mockedGetAdminWorkflowDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowDefinitions);
 const mockedGetAdminDepartmentAssignments = vi.mocked(adminApi.getAdminDepartmentAssignments);
+const mockedGetAdminDepartmentPositions = vi.mocked(adminApi.getAdminDepartmentPositions);
 const mockedGetAdminGroups = vi.mocked(adminApi.getAdminGroups);
 const mockedGetAdminGraphApplicationConfiguration = vi.mocked(adminApi.getAdminGraphApplicationConfiguration);
 const mockedGetAdminNotificationEmailConfiguration = vi.mocked(
@@ -78,7 +78,6 @@ const mockedGetAdminPermissions = vi.mocked(adminApi.getAdminPermissions);
 const mockedGetAdminResponsibilityOwners = vi.mocked(adminApi.getAdminResponsibilityOwners);
 const mockedGetAdminRoles = vi.mocked(adminApi.getAdminRoles);
 const mockedGetAdminUsers = vi.mocked(adminApi.getAdminUsers);
-const mockedGetAdminWorkflowConfig = vi.mocked(adminApi.getAdminWorkflowConfig);
 
 function createResponsibility(
   overrides: Partial<AdminResponsibilityOwner> = {}
@@ -166,43 +165,6 @@ function createGraphConfiguration(
   };
 }
 
-function createWorkflowConfig(): WorkflowConfig {
-  return {
-    requirements: [
-      {
-        id: 1,
-        key: "ad_user",
-        title: "AD-Benutzer",
-        description: "Active Directory Benutzer anlegen",
-        category: "accounts",
-        iconKey: "user",
-        inputType: "boolean",
-        isRecommended: true,
-        isDefault: false,
-        isRequired: true,
-        sortOrder: 1,
-        defaultValueBoolean: null,
-        defaultValueText: null,
-        defaultValueNumber: null,
-        defaultSelectedOptionId: null,
-        defaultSelectedOptionIds: [],
-        behavior: {
-          visibilityDependencies: [],
-          validation: null,
-          resetTargetsWhenNotTrue: [],
-          singleSelectReset: null,
-        },
-        options: [],
-      },
-    ],
-    roleRecommendations: {
-      recommendedRequirementIds: [1],
-      defaultValues: [],
-      defaultSelectedOptions: [],
-    },
-  };
-}
-
 function mockSuccessfulLoad() {
   mockedGetAdminUsers.mockResolvedValue([
     createAdminUser(),
@@ -214,12 +176,12 @@ function mockSuccessfulLoad() {
     }),
   ]);
   mockedGetAdminDepartmentAssignments.mockResolvedValue([createAdminDepartmentAssignment()]);
+  mockedGetAdminDepartmentPositions.mockResolvedValue([]);
   mockedGetAdminResponsibilityOwners.mockResolvedValue([createResponsibility()]);
   mockedGetAdminGraphApplicationConfiguration.mockResolvedValue(createGraphConfiguration());
   mockedGetAdminNotificationEmailConfiguration.mockResolvedValue(createNotificationConfiguration());
   mockedGetAdminPermissionAudit.mockResolvedValue([]);
   mockedGetAdminPermissions.mockResolvedValue([]);
-  mockedGetAdminWorkflowConfig.mockResolvedValue(createWorkflowConfig());
   mockedGetAdminRoles.mockResolvedValue([createRole()]);
   mockedGetAdminGroups.mockResolvedValue([createGroup()]);
 }
@@ -232,12 +194,12 @@ describe("AdminConfigPage", () => {
     mockedGetAdminWorkflowDefinitions.mockReset();
     mockedGetAdminUsers.mockReset();
     mockedGetAdminDepartmentAssignments.mockReset();
+    mockedGetAdminDepartmentPositions.mockReset();
     mockedGetAdminResponsibilityOwners.mockReset();
     mockedGetAdminGraphApplicationConfiguration.mockReset();
     mockedGetAdminNotificationEmailConfiguration.mockReset();
     mockedGetAdminPermissionAudit.mockReset();
     mockedGetAdminPermissions.mockReset();
-    mockedGetAdminWorkflowConfig.mockReset();
     mockedGetAdminRoles.mockReset();
     mockedGetAdminGroups.mockReset();
     mockSuccessfulLoad();
@@ -320,14 +282,16 @@ describe("AdminConfigPage", () => {
     expect(screen.getByText(/Leitung und Anforderungsverantwortung/)).toBeTruthy();
   });
 
-  it("renders mail configuration and workflow configuration separately in the system section", async () => {
+  it("renders only graph and mail configuration in the system section", async () => {
     renderWithApp(<AdminConfigPage />, {
       roleKeys: ["auth_admin"],
       route: "/admin/config?section=system",
     });
 
+    expect(await screen.findByText("Konfiguration: Graph-Anwendung")).toBeTruthy();
     expect(await screen.findByText("Konfiguration: Mailversand")).toBeTruthy();
-    expect(screen.getByText("Workflow-Konfiguration")).toBeTruthy();
+    expect(screen.queryByText("Prozesstypen")).toBeNull();
+    expect(screen.queryByText("Workflow-Konfiguration")).toBeNull();
   });
 
   it("loads roles and groups only when the access section is opened", async () => {

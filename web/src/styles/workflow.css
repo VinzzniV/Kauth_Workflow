@@ -536,7 +536,9 @@
 .workflow-detail-focus-card {
   border: 1px solid var(--surface-focus-border);
   border-radius: 20px;
-  background: var(--surface-hero-background);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--brand) 10%, transparent), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-focus-background) 72%, var(--surface-panel)) 0%, var(--surface-panel) 100%);
   box-shadow: var(--surface-focus-shadow);
   padding: 1.15rem;
   display: grid;
@@ -565,6 +567,24 @@
   font-size: 0.96rem;
   color: var(--text-primary);
   overflow-wrap: anywhere;
+}
+
+:root[data-theme="dark"] .workflow-detail-focus-card {
+  background: var(--surface-hero-background);
+  border-color: color-mix(in srgb, var(--surface-hero-chip-border) 90%, var(--surface-focus-border));
+  box-shadow: 0 20px 42px rgba(2, 6, 23, 0.34);
+}
+
+:root[data-theme="dark"] .workflow-detail-focus-label {
+  color: var(--surface-hero-muted);
+}
+
+:root[data-theme="dark"] .workflow-detail-focus-item span {
+  color: color-mix(in srgb, var(--surface-hero-muted) 78%, white);
+}
+
+:root[data-theme="dark"] .workflow-detail-focus-item strong {
+  color: var(--surface-hero-foreground);
 }
 
 .workflow-detail-context-grid {

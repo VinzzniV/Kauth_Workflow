@@ -23,7 +23,7 @@ function getRequirementsDescription(
   canEditSupervisorRequirements: boolean
 ): string {
   if (canEditSupervisorRequirements) {
-    return "Admin-Override: Die reguläre Bearbeitung liegt in dieser Phase bei der zuständigen Abteilungsleitung.";
+    return "Die Anforderungen sind der Gatekeeper für die nachfolgenden Bereichsaufgaben. Nach dem Abschließen werden die passenden Aufgaben erzeugt.";
   }
 
   if (workflow.workflowStatus === "draft") {
@@ -81,7 +81,7 @@ export default function WorkflowRequirementsPanel({
               void onSave();
             }}
           >
-            {isSavingRequirements ? "Speichern..." : "Anforderungen per Admin-Override abschließen"}
+            {isSavingRequirements ? "Speichern..." : "Anforderungen abschließen"}
           </button>
         </div>
       ) : null}

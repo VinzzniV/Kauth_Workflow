@@ -156,13 +156,16 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         WorkflowDefinitionRuntimeDetailDto? onboardingRuntime = null;
         WorkflowDefinitionRuntimeDetailDto? offboardingRuntime = null;
         WorkflowDefinitionRuntimeDetailDto? departmentChangeRuntime = null;
+        WorkflowDefinitionRuntimeDetailDto? nameChangeRuntime = null;
+        WorkflowDefinitionRuntimeDetailDto? positionChangeRuntime = null;
+        WorkflowDefinitionRuntimeDetailDto? roleChangeRuntime = null;
 
         try
         {
             var repository = new PostgresWorkflowRepository();
 
             var definitions = await repository.GetAdminWorkflowDefinitions();
-            foreach (var definitionKey in new[] { "onboarding", "offboarding", "department_change" })
+            foreach (var definitionKey in new[] { "onboarding", "offboarding", "department_change", "name_change", "position_change", "role_change" })
             {
                 var definition = definitions.SingleOrDefault(item =>
                     string.Equals(item.Key, definitionKey, StringComparison.OrdinalIgnoreCase));
@@ -215,6 +218,42 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 },
                 targetPerson.ActorUserId);
 
+            nameChangeRuntime = await repository.CreateWorkflowDefinitionInstance(
+                new CreateWorkflowDefinitionInstanceRequest
+                {
+                    WorkflowDefinitionKey = "name_change",
+                    TargetPersonId = targetPerson.PersonId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber,
+                    BadgeNumber = targetPerson.BadgeNumber
+                },
+                targetPerson.ActorUserId);
+
+            positionChangeRuntime = await repository.CreateWorkflowDefinitionInstance(
+                new CreateWorkflowDefinitionInstanceRequest
+                {
+                    WorkflowDefinitionKey = "position_change",
+                    TargetPersonId = targetPerson.PersonId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber,
+                    BadgeNumber = targetPerson.BadgeNumber
+                },
+                targetPerson.ActorUserId);
+
+            roleChangeRuntime = await repository.CreateWorkflowDefinitionInstance(
+                new CreateWorkflowDefinitionInstanceRequest
+                {
+                    WorkflowDefinitionKey = "role_change",
+                    TargetPersonId = targetPerson.PersonId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber,
+                    BadgeNumber = targetPerson.BadgeNumber
+                },
+                targetPerson.ActorUserId);
+
             Assert.Equal("onboarding", onboardingRuntime.WorkflowDefinitionKey);
             Assert.Equal("waiting_for_supervisor", onboardingRuntime.LegacyWorkflowStatus);
             Assert.Contains(onboardingRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
@@ -227,6 +266,18 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             Assert.Equal("in_progress", departmentChangeRuntime.LegacyWorkflowStatus);
             Assert.Contains(departmentChangeRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
             Assert.DoesNotContain(departmentChangeRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
+            Assert.Equal("name_change", nameChangeRuntime.WorkflowDefinitionKey);
+            Assert.Equal("in_progress", nameChangeRuntime.LegacyWorkflowStatus);
+            Assert.Contains(nameChangeRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
+            Assert.DoesNotContain(nameChangeRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
+            Assert.Equal("position_change", positionChangeRuntime.WorkflowDefinitionKey);
+            Assert.Equal("in_progress", positionChangeRuntime.LegacyWorkflowStatus);
+            Assert.Contains(positionChangeRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
+            Assert.DoesNotContain(positionChangeRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
+            Assert.Equal("role_change", roleChangeRuntime.WorkflowDefinitionKey);
+            Assert.Equal("in_progress", roleChangeRuntime.LegacyWorkflowStatus);
+            Assert.Contains(roleChangeRuntime.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "active");
+            Assert.DoesNotContain(roleChangeRuntime.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
         }
         finally
         {
@@ -245,6 +296,21 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             if (departmentChangeRuntime is not null)
             {
                 await CleanupWorkflowAsync(connectionString, departmentChangeRuntime.WorkflowId);
+            }
+
+            if (nameChangeRuntime is not null)
+            {
+                await CleanupWorkflowAsync(connectionString, nameChangeRuntime.WorkflowId);
+            }
+
+            if (positionChangeRuntime is not null)
+            {
+                await CleanupWorkflowAsync(connectionString, positionChangeRuntime.WorkflowId);
+            }
+
+            if (roleChangeRuntime is not null)
+            {
+                await CleanupWorkflowAsync(connectionString, roleChangeRuntime.WorkflowId);
             }
 
             if (targetPerson is not null)
@@ -380,7 +446,88 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             Assert.NotNull(runtimeDetail);
             Assert.Equal("waiting_for_department", runtimeDetail!.LegacyWorkflowStatus);
             Assert.Contains(runtimeDetail.NodeInstances, node => node.NodeKey == "collect_requirements" && node.Status == "done");
-            Assert.Contains(runtimeDetail.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
+            Assert.Contains(runtimeDetail.NodeInstances, node =>
+                node.NodeKey == "department_setup"
+                && node.NodeType == "measure_provision"
+                && node.Status == "active");
+            Assert.DoesNotContain(runtimeDetail.NodeInstances, node => node.NodeType == "task" && node.Status == "active");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONNECTION_STRING", previousConnectionString);
+
+            if (onboardingRuntime is not null)
+            {
+                await CleanupWorkflowAsync(connectionString, onboardingRuntime.WorkflowId);
+            }
+
+            if (targetPerson is not null)
+            {
+                await CleanupSeededRuntimeTargetPersonAsync(connectionString, targetPerson);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task DefinitionRuntime_MeasurePhaseCompletesAfterRequiredGeneratedTasksAreDone()
+    {
+        var connectionString = GetTestConnectionString();
+        if (!await EnsureWorkflowDefinitionMappingsAsync(connectionString))
+        {
+            return;
+        }
+
+        var previousConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        Environment.SetEnvironmentVariable("CONNECTION_STRING", connectionString);
+
+        SeededRuntimeTargetPerson? targetPerson = null;
+        WorkflowDefinitionRuntimeDetailDto? onboardingRuntime = null;
+
+        try
+        {
+            var repository = new PostgresWorkflowRepository();
+            targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
+
+            onboardingRuntime = await repository.CreateWorkflowDefinitionInstance(
+                new CreateWorkflowDefinitionInstanceRequest
+                {
+                    WorkflowDefinitionKey = "onboarding",
+                    DepartmentId = targetPerson.DepartmentId,
+                    RoleId = targetPerson.RoleId,
+                    FirstName = "Ada",
+                    LastName = "Lovelace",
+                    EmployeeNumber = targetPerson.EmployeeNumber + 4000,
+                    BadgeNumber = targetPerson.BadgeNumber + 4000
+                },
+                targetPerson.ActorUserId);
+
+            var updatedWorkflow = await repository.CompleteSupervisorStep(
+                onboardingRuntime.WorkflowUid,
+                await BuildPositiveSupervisorSelectionsAsync(connectionString),
+                targetPerson.ActorUserId);
+
+            Assert.NotNull(updatedWorkflow);
+            Assert.NotEmpty(updatedWorkflow!.Tasks);
+
+            foreach (var task in updatedWorkflow.Tasks.Where(task => task.IsRequired))
+            {
+                var updateResult = await repository.UpdateTaskStatus(task.Id, "done", targetPerson.ActorUserId);
+                Assert.NotNull(updateResult);
+            }
+
+            var workflowDetail = await repository.GetWorkflowByUid(onboardingRuntime.WorkflowUid);
+            var runtimeDetail = await repository.GetWorkflowDefinitionRuntimeDetail(onboardingRuntime.WorkflowUid);
+
+            Assert.NotNull(workflowDetail);
+            Assert.NotNull(runtimeDetail);
+            Assert.Equal("completed", workflowDetail!.WorkflowStatus);
+            Assert.Equal("completed", runtimeDetail!.LegacyWorkflowStatus);
+            Assert.Contains(runtimeDetail.NodeInstances, node =>
+                node.NodeKey == "department_setup"
+                && node.NodeType == "measure_provision"
+                && node.Status == "done");
+            Assert.Contains(runtimeDetail.NodeInstances, node => node.NodeKey == "end" && node.Status == "done");
         }
         finally
         {
@@ -440,12 +587,13 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 {
                     Name = "Parallel Draft",
                     Description = "Parallel runtime draft",
+                    PrimaryLegacyProcessTypeKey = "offboarding",
                     Nodes =
                     [
                         WorkflowDefinitionTestData.FormNode("start", "start"),
                         WorkflowDefinitionTestData.FormNode("split", "parallel_split", null, 10),
-                        WorkflowDefinitionTestData.FormNode("task_a", "task", """{"legacyTemplateKey":"collect_equipment"}""", 20),
-                        WorkflowDefinitionTestData.FormNode("task_b", "task", """{"legacyTemplateKey":"collect_equipment"}""", 30),
+                        WorkflowDefinitionTestData.FormNode("task_a", "task", """{"legacyTemplateKey":"ob_ad_account_disable"}""", 20),
+                        WorkflowDefinitionTestData.FormNode("task_b", "task", """{"legacyTemplateKey":"ob_mailbox_disable"}""", 30),
                         WorkflowDefinitionTestData.FormNode("join", "parallel_join", null, 40),
                         WorkflowDefinitionTestData.FormNode("end", "end", null, 50)
                     ],
@@ -570,7 +718,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
 
-            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/42_workflow_runtime_layer.sql", "db/43_workflow_definition_mappings.sql", "db/45_automation_layer.sql", "db/46_workflow_builder_positions.sql" })
+            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/42_workflow_runtime_layer.sql", "db/43_workflow_definition_mappings.sql", "db/45_automation_layer.sql", "db/46_workflow_builder_positions.sql", "db/48_measure_generation_node_types.sql", "db/49_measure_generation_phase_c.sql", "db/50_onboarding_gatekeeper_measure_flow.sql" })
             {
                 var migrationSql = await File.ReadAllTextAsync(FindRepositoryFile(migration.Replace('/', Path.DirectorySeparatorChar)));
                 await using var command = new NpgsqlCommand(migrationSql, connection);

@@ -11,6 +11,7 @@ export type WorkflowBuilderCanvasNodeData = {
   notificationLabel: string | null;
   dueLabel: string | null;
   effectText: string;
+  detailItems?: string[];
   nextStepLabel: string;
   isSelected: boolean;
 };
@@ -121,6 +122,24 @@ export function WorkflowBuilderCanvasNode({ data }: NodeProps) {
             <p style={{ margin: 0, fontSize: "0.84rem", lineHeight: 1.42, color: "var(--graph-node-title)" }}>
               {nodeData.effectText}
             </p>
+            {nodeData.detailItems && nodeData.detailItems.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.2rem" }}>
+                {nodeData.detailItems.map((item) => (
+                  <span
+                    key={item}
+                    className="badge badge--default"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.86)",
+                      borderColor: "rgba(15, 118, 110, 0.18)",
+                      color: "var(--graph-node-title)",
+                      boxShadow: "var(--graph-chip-shadow)",
+                    }}
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div
             style={{
@@ -276,6 +295,61 @@ const NODE_TYPE_STYLES: Record<string, {
     badgeBackground: "rgba(255, 228, 230, 0.98)",
     badgeBorder: "rgba(190, 18, 60, 0.2)",
     badgeText: "#9f1239",
+  },
+  measure_provision: {
+    accent: "#0f766e",
+    borderSoft: "rgba(15, 118, 110, 0.24)",
+    borderStrong: "rgba(15, 118, 110, 0.78)",
+    background: "linear-gradient(180deg, rgba(236, 253, 245, 0.98), rgba(255, 255, 255, 0.98))",
+    backgroundSelected: "linear-gradient(180deg, rgba(209, 250, 229, 0.98), rgba(255, 255, 255, 0.98))",
+    headerBackground: "linear-gradient(135deg, rgba(209, 250, 229, 0.98), rgba(248, 250, 252, 0.88))",
+    badgeBackground: "rgba(209, 250, 229, 0.98)",
+    badgeBorder: "rgba(15, 118, 110, 0.18)",
+    badgeText: "#065f46",
+  },
+  measure_deprovision: {
+    accent: "#b91c1c",
+    borderSoft: "rgba(185, 28, 28, 0.22)",
+    borderStrong: "rgba(185, 28, 28, 0.76)",
+    background: "linear-gradient(180deg, rgba(254, 242, 242, 0.98), rgba(255, 255, 255, 0.98))",
+    backgroundSelected: "linear-gradient(180deg, rgba(254, 226, 226, 0.98), rgba(255, 255, 255, 0.98))",
+    headerBackground: "linear-gradient(135deg, rgba(254, 226, 226, 0.98), rgba(248, 250, 252, 0.88))",
+    badgeBackground: "rgba(254, 226, 226, 0.98)",
+    badgeBorder: "rgba(185, 28, 28, 0.18)",
+    badgeText: "#991b1b",
+  },
+  measure_change: {
+    accent: "#0369a1",
+    borderSoft: "rgba(3, 105, 161, 0.24)",
+    borderStrong: "rgba(3, 105, 161, 0.76)",
+    background: "linear-gradient(180deg, rgba(240, 249, 255, 0.98), rgba(255, 255, 255, 0.98))",
+    backgroundSelected: "linear-gradient(180deg, rgba(224, 242, 254, 0.98), rgba(255, 255, 255, 0.98))",
+    headerBackground: "linear-gradient(135deg, rgba(224, 242, 254, 0.98), rgba(248, 250, 252, 0.88))",
+    badgeBackground: "rgba(224, 242, 254, 0.98)",
+    badgeBorder: "rgba(3, 105, 161, 0.18)",
+    badgeText: "#075985",
+  },
+  measure_rename: {
+    accent: "#7c3aed",
+    borderSoft: "rgba(124, 58, 237, 0.24)",
+    borderStrong: "rgba(124, 58, 237, 0.76)",
+    background: "linear-gradient(180deg, rgba(245, 243, 255, 0.98), rgba(255, 255, 255, 0.98))",
+    backgroundSelected: "linear-gradient(180deg, rgba(237, 233, 254, 0.98), rgba(255, 255, 255, 0.98))",
+    headerBackground: "linear-gradient(135deg, rgba(237, 233, 254, 0.98), rgba(248, 250, 252, 0.88))",
+    badgeBackground: "rgba(237, 233, 254, 0.98)",
+    badgeBorder: "rgba(124, 58, 237, 0.18)",
+    badgeText: "#6d28d9",
+  },
+  setup: {
+    accent: "#0f766e",
+    borderSoft: "rgba(15, 118, 110, 0.24)",
+    borderStrong: "rgba(15, 118, 110, 0.78)",
+    background: "linear-gradient(180deg, rgba(236, 253, 245, 0.98), rgba(255, 255, 255, 0.98))",
+    backgroundSelected: "linear-gradient(180deg, rgba(209, 250, 229, 0.98), rgba(255, 255, 255, 0.98))",
+    headerBackground: "linear-gradient(135deg, rgba(209, 250, 229, 0.98), rgba(248, 250, 252, 0.88))",
+    badgeBackground: "rgba(209, 250, 229, 0.98)",
+    badgeBorder: "rgba(15, 118, 110, 0.18)",
+    badgeText: "#065f46",
   },
   task: {
     accent: "#b45309",

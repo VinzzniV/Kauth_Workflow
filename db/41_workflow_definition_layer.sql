@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS workflow_nodes (
     workflow_definition_version_id BIGINT NOT NULL REFERENCES workflow_definition_versions(id) ON DELETE CASCADE,
     node_key VARCHAR(120) NOT NULL,
     node_type VARCHAR(32) NOT NULL
-        CHECK (node_type IN ('start', 'form', 'approval', 'task', 'decision', 'end')),
+        CHECK (node_type IN ('start', 'form', 'approval', 'task', 'decision', 'parallel_split', 'parallel_join', 'automation', 'measure_provision', 'measure_deprovision', 'measure_change', 'measure_rename', 'setup', 'end')),
     title VARCHAR(220),
     sort_order INTEGER NOT NULL DEFAULT 0,
     position_x INTEGER,

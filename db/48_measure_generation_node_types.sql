@@ -190,14 +190,14 @@ SELECT upsert_linearized_workflow_definition(
     'Onboarding',
     'Business-phase workflow definition mapped to the legacy onboarding task generator.',
     'Business Phase Mapping',
-    'Published onboarding mapping with business phases and internal setup generation.',
+    'Published onboarding mapping with a provision measure block and internal task generation.',
     'onboarding',
     $json$
     [
       {"node_key":"start","node_type":"start","title":"Start","sort_order":0,"config_json":null},
       {"node_key":"collect_requirements","node_type":"form","title":"Anforderungen erfassen","sort_order":10,"config_json":{"legacyProcessTypeKey":"onboarding"}},
       {"node_key":"supervisor_approval","node_type":"approval","title":"Supervisor / Freigabe","sort_order":20,"config_json":{"legacyTemplateKey":"supervisor_fills_document"}},
-      {"node_key":"department_setup","node_type":"setup","title":"IT/Fachbereichs-Setup","sort_order":30,"config_json":null},
+      {"node_key":"department_setup","node_type":"measure_provision","title":"Bereitstellungsmaßnahmen erzeugen","sort_order":30,"config_json":null},
       {"node_key":"end","node_type":"end","title":"Abschluss","sort_order":40,"config_json":null}
     ]
     $json$::jsonb,
@@ -216,13 +216,13 @@ SELECT upsert_linearized_workflow_definition(
     'Offboarding',
     'Business-phase workflow definition mapped to the legacy offboarding task generator.',
     'Business Phase Mapping',
-    'Published offboarding mapping with business phases and internal setup generation.',
+    'Published offboarding mapping with a deprovision measure block and internal task generation.',
     'offboarding',
     $json$
     [
       {"node_key":"start","node_type":"start","title":"Start","sort_order":0,"config_json":null},
       {"node_key":"collect_requirements","node_type":"form","title":"Offboarding-Umfang erfassen","sort_order":10,"config_json":{"legacyProcessTypeKey":"offboarding"}},
-      {"node_key":"department_setup","node_type":"setup","title":"IT/Fachbereichs-Setup","sort_order":20,"config_json":null},
+      {"node_key":"department_setup","node_type":"measure_deprovision","title":"Entzugsmaßnahmen erzeugen","sort_order":20,"config_json":null},
       {"node_key":"end","node_type":"end","title":"Abschluss","sort_order":30,"config_json":null}
     ]
     $json$::jsonb,
@@ -240,13 +240,13 @@ SELECT upsert_linearized_workflow_definition(
     'Abteilungswechsel',
     'Business-phase workflow definition mapped to the legacy department change task generator.',
     'Business Phase Mapping',
-    'Published department change mapping with business phases and internal setup generation.',
+    'Published department change mapping with a change measure block and internal task generation.',
     'department_change',
     $json$
     [
       {"node_key":"start","node_type":"start","title":"Start","sort_order":0,"config_json":null},
       {"node_key":"collect_requirements","node_type":"form","title":"Wechselumfang erfassen","sort_order":10,"config_json":{"legacyProcessTypeKey":"department_change"}},
-      {"node_key":"department_setup","node_type":"setup","title":"IT/Fachbereichs-Setup","sort_order":20,"config_json":null},
+      {"node_key":"department_setup","node_type":"measure_change","title":"Änderungsmaßnahmen erzeugen","sort_order":20,"config_json":null},
       {"node_key":"end","node_type":"end","title":"Abschluss","sort_order":30,"config_json":null}
     ]
     $json$::jsonb,
@@ -259,4 +259,4 @@ SELECT upsert_linearized_workflow_definition(
     $json$::jsonb
 );
 
-DROP FUNCTION upsert_linearized_workflow_definition(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB, JSONB);
+-- Keep the helper for follow-up lifecycle mapping migrations.

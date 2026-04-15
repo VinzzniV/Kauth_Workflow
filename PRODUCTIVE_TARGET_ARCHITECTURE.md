@@ -10,6 +10,7 @@ Bereits sichtbar:
 - Workflow-Instanzen, Tasks, Kommentare, Deadlines, Audit und Admin-Konfiguration
 - Directory-/Identity-Richtung mit Entra, Gruppen-Mapping und lokaler Responsibility-Logik
 - mehrere Prozessarten und konfigurierbare Formular-/Task-Bausteine
+- erste business-phasenbasierte Definitionen fuer `onboarding`, `offboarding` und `department_change`
 
 Noch nicht im Zielbild:
 - expliziter Definition Layer mit Versionierung
@@ -68,6 +69,11 @@ Fuehrt Definitionen aus:
 - protokolliert Runtime-Ereignisse
 - behandelt Fehler- und Abbruchpfade
 
+Fachliche Guardrails im sichtbaren Flow:
+- Hauptfluesse bleiben auf fachliche Phasen verdichtet
+- requirement-/approval-Gates kommen vor jeder Fachaufgabengenerierung
+- `setup`-Phasen koennen interne bedingte Legacy-Tasklogik kapseln, ohne die Hauptdarstellung technisch aufzubrechen
+
 ### Task-System
 
 Bleibt eigenstaendig:
@@ -120,17 +126,25 @@ Minimal zu tragende Node-Typen:
 - `start`
 - `form`
 - `approval`
+- `setup`
 - `task`
 - `decision`
+- `parallel_split`
+- `parallel_join`
+- `automation`
 - `end`
 
 Spaeter ausbaubar um:
-- `parallel_split`
-- `parallel_join`
 - `wait`
 - `notification`
-- `automation`
 - `subworkflow`
+
+Business-Phase-Muster fuer Employee-Lifecycle-Prozesse:
+- `start`
+- `form` zum Erfassen der Anforderungen
+- optionale `approval` als fachlicher Gatekeeper
+- `setup` als Sammelblock fuer parallel erzeugte Fachaufgaben
+- `end` erst nach Abschluss aller Pflichtaufgaben
 
 ---
 

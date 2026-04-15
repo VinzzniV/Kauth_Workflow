@@ -1,19 +1,41 @@
-import type { AdminResponsibilityOwner, AdminWorkflowActionDefinition, AdminWorkflowValidationIssue } from "../../types/auth";
+import type {
+  AdminAnswerDefinition,
+  AdminProcessType,
+  AdminResponsibilityOwner,
+  AdminTaskTemplate,
+  AdminTaskTemplateCondition,
+  AdminTaskTemplateDependency,
+  AdminWorkflowActionDefinition,
+  AdminWorkflowValidationIssue,
+} from "../../types/auth";
 import type { WorkflowBuilderNodeDraft, WorkflowBuilderVersionDraft } from "../../hooks/adminWorkflowBuilderModel";
+import type { BuilderInspectorFocusTarget } from "../../hooks/useAdminWorkflowBuilder";
+import { BuilderInspectorFocusPanel } from "./BuilderInspectorFocusPanel";
 import { BuilderInspectorPanel } from "./BuilderInspectorPanel";
 import { BuilderPalettePanel } from "./BuilderPalettePanel";
 
 type WorkflowBuilderSidebarProps = {
   selectedNode: WorkflowBuilderNodeDraft | null;
+  inspectorFocus: BuilderInspectorFocusTarget;
   availableNodes: Array<{ key: string; label: string }>;
   versionDraft: WorkflowBuilderVersionDraft;
   actionDefinitions: AdminWorkflowActionDefinition[];
+  processTypes: AdminProcessType[];
   responsibilityOwners: AdminResponsibilityOwner[];
+  taskTemplates: AdminTaskTemplate[];
+  answerDefinitions: AdminAnswerDefinition[];
+  taskTemplateConditions: AdminTaskTemplateCondition[];
+  taskTemplateDependencies: AdminTaskTemplateDependency[];
   canManageAdvanced: boolean;
   hasVersionSelected: boolean;
   localValidationIssues: string[];
   serverValidationIssues: AdminWorkflowValidationIssue[];
+  onNotice: (message: string | null) => void;
+  onError: (message: string | null) => void;
   onAddNode: (nodeType: WorkflowBuilderNodeDraft["nodeType"]) => void;
+  onOpenInspectorFocus: (focus: BuilderInspectorFocusTarget) => void;
+  onCloseInspectorFocus: () => void;
+  onRefreshReferenceData: () => void | Promise<void>;
   onUpdateNode: (nodeId: string, patch: Partial<WorkflowBuilderNodeDraft>) => void;
   onUpdateEdge: (edgeId: string, patch: Partial<WorkflowBuilderVersionDraft["edges"][number]>) => void;
   onRemoveEdge: (edgeId: string) => void;
@@ -28,15 +50,26 @@ type WorkflowBuilderSidebarProps = {
 
 export function WorkflowBuilderSidebar({
   selectedNode,
+  inspectorFocus,
   availableNodes,
   versionDraft,
   actionDefinitions,
+  processTypes,
   responsibilityOwners,
+  taskTemplates,
+  answerDefinitions,
+  taskTemplateConditions,
+  taskTemplateDependencies,
   canManageAdvanced,
   hasVersionSelected,
   localValidationIssues,
   serverValidationIssues,
+  onNotice,
+  onError,
   onAddNode,
+  onOpenInspectorFocus,
+  onCloseInspectorFocus,
+  onRefreshReferenceData,
   onUpdateNode,
   onUpdateEdge,
   onRemoveEdge,
@@ -48,20 +81,38 @@ export function WorkflowBuilderSidebar({
     <aside className="builder-sidebar-shell" aria-label="Workflow-Seitenleiste">
       <div className="content-stack">
         {selectedNode ? (
-          <BuilderInspectorPanel
-            selectedNode={selectedNode}
-            availableNodes={availableNodes}
-            versionDraft={versionDraft}
-            actionDefinitions={actionDefinitions}
-            responsibilityOwners={responsibilityOwners}
-            canManageAdvanced={canManageAdvanced}
-            onUpdateNode={onUpdateNode}
-            onUpdateEdge={onUpdateEdge}
-            onRemoveEdge={onRemoveEdge}
-            onAddActionFromDefinition={onAddActionFromDefinition}
-            onUpdateAction={onUpdateAction}
-            onRemoveAction={onRemoveAction}
-          />
+          inspectorFocus.mode !== "none" ? (
+            <BuilderInspectorFocusPanel
+              focus={inspectorFocus}
+              processTypes={processTypes}
+              responsibilityOwners={responsibilityOwners}
+              onClose={onCloseInspectorFocus}
+              onNotice={onNotice}
+              onError={onError}
+              onDataChanged={onRefreshReferenceData}
+            />
+          ) : (
+            <BuilderInspectorPanel
+              selectedNode={selectedNode}
+              availableNodes={availableNodes}
+              versionDraft={versionDraft}
+              actionDefinitions={actionDefinitions}
+              processTypes={processTypes}
+              responsibilityOwners={responsibilityOwners}
+              taskTemplates={taskTemplates}
+              answerDefinitions={answerDefinitions}
+              taskTemplateConditions={taskTemplateConditions}
+              taskTemplateDependencies={taskTemplateDependencies}
+              canManageAdvanced={canManageAdvanced}
+              onOpenInspectorFocus={onOpenInspectorFocus}
+              onUpdateNode={onUpdateNode}
+              onUpdateEdge={onUpdateEdge}
+              onRemoveEdge={onRemoveEdge}
+              onAddActionFromDefinition={onAddActionFromDefinition}
+              onUpdateAction={onUpdateAction}
+              onRemoveAction={onRemoveAction}
+            />
+          )
         ) : (
           <BuilderPalettePanel
             canManageAdvanced={canManageAdvanced}

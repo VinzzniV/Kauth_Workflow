@@ -218,7 +218,7 @@ describe("adminWorkflowBuilderModel", () => {
       expect.arrayContaining([
         expect.objectContaining({
           scope: "edge",
-          message: "Die Verbindung 'start -> start' darf kein Ruecksprung auf denselben Schritt sein.",
+          message: "Die Verbindung 'start -> start' darf kein Rücksprung auf denselben Schritt sein.",
         }),
         expect.objectContaining({
           scope: "edge",
@@ -309,6 +309,116 @@ describe("adminWorkflowBuilderModel", () => {
     expect(draft.nodes[1]?.nodeType).toBe("parallel_join");
   });
 
+  it("normalizes legacy setup nodes to the matching measure node type for migrated lifecycle processes", () => {
+    const draft = toVersionDraft({
+      id: 14,
+      workflowDefinitionId: 1,
+      definitionKey: "onboarding",
+      definitionName: "Onboarding",
+      definitionDescription: null,
+      versionNumber: 1,
+      status: "draft",
+      name: "Business Phase Draft",
+      description: null,
+      primaryLegacyProcessTypeKey: "onboarding",
+      createdAt: "2026-04-08T10:00:00Z",
+      updatedAt: "2026-04-08T10:00:00Z",
+      publishedAt: null,
+      canPublish: false,
+      validationIssues: [],
+      nodes: [
+        {
+          nodeKey: "setup",
+          nodeType: "setup",
+          title: "IT/Fachbereichs-Setup",
+          sortOrder: 1,
+          positionX: null,
+          positionY: null,
+          config: null,
+          actions: [],
+        },
+      ],
+      edges: [],
+    });
+
+    expect(draft.nodes[0]?.nodeType).toBe("measure_provision");
+    expect(draft.nodes[0]?.title).toBe("Bereitstellungsmaßnahmen erzeugen");
+  });
+
+  it("normalizes legacy setup nodes for name change to measure_rename", () => {
+    const draft = toVersionDraft({
+      id: 15,
+      workflowDefinitionId: 1,
+      definitionKey: "name_change",
+      definitionName: "Namensaenderung",
+      definitionDescription: null,
+      versionNumber: 1,
+      status: "draft",
+      name: "Business Phase Draft",
+      description: null,
+      primaryLegacyProcessTypeKey: "name_change",
+      createdAt: "2026-04-08T10:00:00Z",
+      updatedAt: "2026-04-08T10:00:00Z",
+      publishedAt: null,
+      canPublish: false,
+      validationIssues: [],
+      nodes: [
+        {
+          nodeKey: "setup",
+          nodeType: "setup",
+          title: "Legacy Setup",
+          sortOrder: 1,
+          positionX: null,
+          positionY: null,
+          config: null,
+          actions: [],
+        },
+      ],
+      edges: [],
+    });
+
+    expect(draft.nodes[0]?.nodeType).toBe("measure_rename");
+    expect(draft.nodes[0]?.title).toBe("Umbenennungsmaßnahmen erzeugen");
+  });
+
+  it("normalizes legacy setup nodes for position and role changes to measure_change", () => {
+    for (const processTypeKey of ["position_change", "role_change"] as const) {
+      const draft = toVersionDraft({
+        id: processTypeKey === "position_change" ? 16 : 17,
+        workflowDefinitionId: 1,
+        definitionKey: processTypeKey,
+        definitionName: processTypeKey,
+        definitionDescription: null,
+        versionNumber: 1,
+        status: "draft",
+        name: "Business Phase Draft",
+        description: null,
+        primaryLegacyProcessTypeKey: processTypeKey,
+        createdAt: "2026-04-08T10:00:00Z",
+        updatedAt: "2026-04-08T10:00:00Z",
+        publishedAt: null,
+        canPublish: false,
+        validationIssues: [],
+        nodes: [
+          {
+            nodeKey: "setup",
+            nodeType: "setup",
+            title: "Legacy Setup",
+            sortOrder: 1,
+            positionX: null,
+            positionY: null,
+            config: null,
+            actions: [],
+          },
+        ],
+        edges: [],
+      });
+
+      expect(draft.nodes[0]?.nodeType).toBe("measure_change");
+      expect(draft.nodes[0]?.title).toBe("Änderungsmaßnahmen erzeugen");
+    }
+  });
+
   it("requires explicit parallel split and join topology locally", () => {
     const issues = validateWorkflowBuilderDraft({
       name: "Parallel Draft",
@@ -376,6 +486,158 @@ describe("adminWorkflowBuilderModel", () => {
         expect.objectContaining({
           scope: "node",
           message: "Der Parallel-Join 'join' braucht mindestens zwei eingehende Pfade.",
+        }),
+      ])
+    );
+  });
+
+  it("requires a strict business phase path when a measure block is used", () => {
+    const issues = validateWorkflowBuilderDraft({
+      name: "Onboarding",
+      description: "",
+      primaryLegacyProcessTypeKey: "onboarding",
+      nodes: [
+        {
+          id: "start",
+          nodeKey: "start",
+          nodeType: "start",
+          title: "Start",
+          sortOrder: "1",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+        {
+          id: "form",
+          nodeKey: "collect_requirements",
+          nodeType: "form",
+          title: "Requirements",
+          sortOrder: "2",
+          positionX: 0,
+          positionY: 0,
+          configText: "{\"legacyProcessTypeKey\":\"onboarding\"}",
+          actions: [],
+        },
+        {
+          id: "task",
+          nodeKey: "ad_task",
+          nodeType: "task",
+          title: "AD",
+          sortOrder: "3",
+          positionX: 0,
+          positionY: 0,
+          configText: "{\"legacyTemplateKey\":\"collect_equipment\"}",
+          actions: [],
+        },
+        {
+          id: "setup",
+          nodeKey: "department_setup",
+          nodeType: "measure_provision",
+          title: "Bereitstellungsmaßnahmen erzeugen",
+          sortOrder: "4",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+        {
+          id: "end",
+          nodeKey: "end",
+          nodeType: "end",
+          title: "End",
+          sortOrder: "5",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+      ],
+      edges: [
+        { id: "edge_1", sourceNodeKey: "start", targetNodeKey: "collect_requirements", priority: "1", conditionExpression: "" },
+        { id: "edge_2", sourceNodeKey: "collect_requirements", targetNodeKey: "department_setup", priority: "1", conditionExpression: "" },
+        { id: "edge_3", sourceNodeKey: "department_setup", targetNodeKey: "end", priority: "1", conditionExpression: "" },
+        { id: "edge_4", sourceNodeKey: "collect_requirements", targetNodeKey: "ad_task", priority: "2", conditionExpression: "" },
+      ],
+    });
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          scope: "node",
+          message: "Ein Ablauf mit Maßnahmen-Baustein darf keinen technischen Hauptschritt vom Typ 'task' enthalten.",
+        }),
+        expect.objectContaining({
+          scope: "version",
+          message: "Ein fachlicher Ablauf mit Maßnahmen-Baustein darf nur Start, Formular, optionale Freigabe, Maßnahmen und Abschluss im Hauptfluss enthalten.",
+        }),
+      ])
+    );
+  });
+
+  it("rejects semantically wrong measure types for phase-c lifecycle processes locally", () => {
+    const issues = validateWorkflowBuilderDraft({
+      name: "Role Change",
+      description: "",
+      primaryLegacyProcessTypeKey: "role_change",
+      nodes: [
+        {
+          id: "start",
+          nodeKey: "start",
+          nodeType: "start",
+          title: "Start",
+          sortOrder: "1",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+        {
+          id: "form",
+          nodeKey: "collect_requirements",
+          nodeType: "form",
+          title: "Requirements",
+          sortOrder: "2",
+          positionX: 0,
+          positionY: 0,
+          configText: "{\"legacyProcessTypeKey\":\"role_change\"}",
+          actions: [],
+        },
+        {
+          id: "measure",
+          nodeKey: "department_setup",
+          nodeType: "measure_rename",
+          title: "Umbenennungsmaßnahmen erzeugen",
+          sortOrder: "3",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+        {
+          id: "end",
+          nodeKey: "end",
+          nodeType: "end",
+          title: "End",
+          sortOrder: "4",
+          positionX: 0,
+          positionY: 0,
+          configText: "",
+          actions: [],
+        },
+      ],
+      edges: [
+        { id: "edge_1", sourceNodeKey: "start", targetNodeKey: "collect_requirements", priority: "1", conditionExpression: "" },
+        { id: "edge_2", sourceNodeKey: "collect_requirements", targetNodeKey: "department_setup", priority: "1", conditionExpression: "" },
+        { id: "edge_3", sourceNodeKey: "department_setup", targetNodeKey: "end", priority: "1", conditionExpression: "" },
+      ],
+    });
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          scope: "node",
+          message: "Der Prozess 'role_change' benötigt den Baustein 'Änderungsmaßnahmen erzeugen'.",
         }),
       ])
     );

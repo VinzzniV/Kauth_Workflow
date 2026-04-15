@@ -23,19 +23,30 @@ Verwende sie nur fuer:
 - Der Canvas zeigt Node-Karten jetzt staerker als echte Prozessbausteine: Titel, Typ, manuell/automatisch, Zustaendigkeit, optionale Benachrichtigte/Frist, Wirkung und Danach stehen vor technischen Hints; dafuer nutzt der Builder zusaetzlich Process Types, Task Templates und Responsibility-Owner als reine Frontend-Lookups.
 - T11 ist umgesetzt: der oeffentliche Create-Flow, Start-Katalog, Notification-Labeling und die ersten Lookup-Pfade sind definition-first; `processTypeKey`, `/process-types` und `/workflows/completed-onboardings` bleiben nur noch als Uebergangs-Aliasse.
 - Der Builder rendert Workflow-Struktur jetzt top-to-bottom mit sichtbaren Split-/Merge-Junctions statt als horizontales Band; fuer echte AND-Parallelitaet stehen im Definition Layer und in der Runtime jetzt zusaetzlich `parallel_split` und `parallel_join` zur Verfuegung.
+- Phase A der Maßnahmen-Bausteine ist umgesetzt: `onboarding` nutzt `measure_provision`, `offboarding` nutzt `measure_deprovision`, `department_change` nutzt `measure_change`.
+- Die Runtime behandelt `measure_provision`, `measure_deprovision`, `measure_change` und `measure_rename` wie den bisherigen `setup`-Pfad; `setup` bleibt nur als expliziter Legacy-Alias kompatibel.
+- Builder und Inspector unterscheiden fuer Maßnahmen-Bausteine jetzt zwischen direkt konfigurierbaren Feldern und aus Prozess/Template-Daten abgeleiteten Informationen; rohe Bedingungen bleiben in der sichtbaren UI verborgen.
+- Phase B ist umgesetzt: der Inspector zeigt fuer Maßnahmen-Bausteine konkrete Templates, fachlich formulierte Gruende, Bedingungsgruppen und Abhaengigkeiten vollstaendig direkt im Builder.
+- Quellenbearbeitung bleibt im Builder-Kontext: Prozessart, Antwortfelder, Vorlagen, Bedingungen und Abhaengigkeiten oeffnen als fokussierte Sidebar-Editoren mit Vorselektion statt als Bereichswechsel.
+- Phase C ist umgesetzt: `name_change` nutzt `measure_rename`, `position_change` und `role_change` nutzen `measure_change`; die veroeffentlichten Mappings und die Frontend-/Backend-Zuordnung sind dafuer erweitert.
+- Die Legacy-Seeds fuer `name_change`, `position_change` und `role_change` wurden vor der Mapping-Migration fachlich gegen Anforderungen, Templates, Bedingungen, Abhaengigkeiten und Supervisor-Regel geprueft; fuer den aktuellen Kernumfang waren keine zusaetzlichen Seed-Korrekturen noetig.
+- Die Workflow-Sicht von Abteilungsleitungen ist jetzt fachlich auf beobachtbare eigene Abteilungen begrenzt; globale `auth_manager`-Permissions duerfen nicht mehr an `observableDepartmentIds` vorbeischalten.
+- Der Entra-Directory-Sync spiegelt jetzt pro Abteilung genau eine eindeutige `auth_manager`-Person in `department_settings`; 0 oder mehrere Kandidaten leeren die Zuordnung und erzeugen Sync-Audit.
+- Die Admin-Abteilungsansicht zeigt dafuer zusaetzlich `assignmentSource`, `syncState` und `syncDetail`, damit Entra-Fuehrung, fehlende Zuordnung und Konflikte sichtbar bleiben.
 
 ## Active Risks / Watchouts
 
 - Der Code spiegelt die neue Zielarchitektur noch nicht vollstaendig; die Dokumentation ist absichtlich schon weiter als der Ist-Stand.
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
 - Mehrere sichtbare Legacy-Vertraege bleiben bewusst bestehen, vor allem `completed-onboardings`, `CompletedOnboardingSearchResultDto`, `workflows.create.onboarding` und `hr_onboarding`.
-- Die drei T6-Mappings sind bewusst linearisiert; die neuen `parallel_split`-/`parallel_join`-Gateways stehen jetzt zwar Builder und Runtime zur Verfuegung, die alten Legacy-Mappings nutzen sie aber weiterhin noch nicht.
-- Die alten T6-Legacy-Mappings bleiben bewusst linearisiert, auch wenn der Builder und die Runtime jetzt explizite `parallel_split`-/`parallel_join`-Gateways unterstuetzen; bestehende gemappte Definitionen werden dadurch nicht automatisch parallelisiert.
 - T6 liefert bewusst den sichtbaren Action Layer auf Basis des bestehenden Katalogs; tiefere Spezialeditoren fuer Mapping und Parameter bleiben weiter offen.
 - T8 oeffnet Read/Load/Save des Builders fuer Basis-Builder auf bestehender `workflowCreate`-Faehigkeit; Action-Katalog, Definition-/Versionsanlage und Publish bleiben bewusst Admin-Modus-only.
 - Nicht-Admin-Builder duerfen aktuell bestehende Drafts pflegen, aber keine Automation-Struktur, keine Definitionen/Versionen und keinen Publish veraendern.
 - Die node-spezifischen `config`- und `inputMapping`-Felder bleiben bewusst noch teilweise formular- und JSON-basiert innerhalb der Sidebar; komfortablere Spezialeditoren sind weiterhin offen.
+- Die neue Maßnahmen-Familie kapselt die alte aufgaben- und bedingungsgetriebene Logik fachlich sauberer, haengt fuer die eigentliche Aufgabengenerierung aber weiterhin am Legacy-Taskgenerator und seinen Templates.
 - Die neuen sichtbaren Node-Karten greifen bei `task`/`approval` weiterhin auf Legacy-Referenzen (`legacyTemplateKey`, `legacyProcessTypeKey`) und geladene Lookup-Daten zurueck; wo diese fehlen, arbeiten die Karten bewusst mit fachlichen Fallbacks statt technischen Rohwerten.
+- Technische Rohbedingungen sind in der sichtbaren Builder-Sidebar nicht mehr editierbar; falls spaeter bewusst wieder ein abgesicherter Expertenpfad noetig wird, muss er klar vom fachlichen Standard-Flow getrennt bleiben.
+- Die Maßnahmenmigration ist fuer die aktuell vorgesehenen Kern-Lifecycle-Prozesse abgeschlossen; spaetere weitere Prozessarten bleiben davon unberuehrt.
 - Die erste T11-Uebergangsrelease behaelt Legacy-Aliasse und Legacy-Permissions fuer `onboarding`, `offboarding` und `department_change`; weitere Rueckbau-Schritte muessen diese Restpfade spaeter wirklich entfernen.
 - DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:25432`.
 - Lokale `dotnet test`-Laeufe koennen weiterhin an einer laufenden `API.exe` haengen; Build-Artefakte waren in dieser Session zusaetzlich durch bestehende Assembly-Attribut-Kollisionen im API-Projekt blockiert.
@@ -52,6 +63,10 @@ Verwende sie nur fuer:
 - T9 fuehrt fuer den Builder eine klare Trennung zwischen technischen Labels (`Node Key`, `Node Type`, `Condition Expression`, `Input Mapping (JSON)`) und sichtbarer Produktsprache ein; keine Umlaute mehr in code-nahen Feldern und Validierungsnachrichten, sichtbare UI-Texte sprechen jetzt konsequenter deutsch und fachlich.
 - T11 blendet die alte Process-Type-/Template-/Answer-Definition-Konfiguration im Admin-Workspace aus; Builder + Definition Layer sind jetzt der sichtbare Pflegepfad.
 - Das neue Builder-Layout ignoriert alte freie XY-Kompositionen als primaere Leselogik; gespeicherte `position_x`/`position_y` werden jetzt aus dem strukturierten DAG-Layout abgeleitet und fuer persistente Lesbarkeit ueberschrieben.
+- Verifiziert in dieser Session:
+  - `dotnet test api/API.Tests/API.Tests.csproj --filter "WorkflowSummaryBuilderTests|WorkflowDefinitionValidationServiceTests|WorkflowEndpointsTests|PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests"`
+  - `npm test -- --run tests/adminWorkflowBuilderModel.test.ts tests/AdminWorkflowBuilderSection.test.tsx`
+  - `npm run build`
 
 ## Cleanup Rule
 

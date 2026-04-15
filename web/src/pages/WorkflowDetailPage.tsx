@@ -116,8 +116,9 @@ export default function WorkflowDetailPage() {
   const regularEditingText = useMemo(() => (workflow ? toRegularEditingLabel(workflow) : "-"), [workflow]);
   const usesAdminOverride = capabilities.hasAdminRole && !capabilities.hasHrRole && !capabilities.hasManagerRole;
   const canEditSupervisorRequirements = useMemo(() => {
-    return workflow?.workflowStatus === "waiting_for_supervisor" && capabilities.canManageAdminConfiguration;
-  }, [capabilities.canManageAdminConfiguration, workflow?.workflowStatus]);
+    return workflow?.workflowStatus === "waiting_for_supervisor"
+      && (capabilities.canAccessSupervisorStep || capabilities.canManageAdminConfiguration);
+  }, [capabilities.canAccessSupervisorStep, capabilities.canManageAdminConfiguration, workflow?.workflowStatus]);
   const {
     requirementSelections,
     isSavingRequirements,
@@ -146,7 +147,7 @@ export default function WorkflowDetailPage() {
 
     if (isDepartmentWorkflowPhase(workflow.workflowStatus)) {
       if (activeAreaNames.length > 1) {
-        return `${activeAreaNames.length} Fachbereiche parallel`;
+        return `${activeAreaNames.slice(0, 3).join(", ")}${activeAreaNames.length > 3 ? " ..." : ""}`;
       }
 
       if (activeAreaNames.length === 1 && activeTaskCount > 1) {
@@ -217,6 +218,22 @@ export default function WorkflowDetailPage() {
     () => (workflow ? buildTasksByArea(sortedTasks, workflow.taskAreas) : []),
     [sortedTasks, workflow]
   );
+
+  const taskAreasEmptyStateDescription = useMemo(() => {
+    if (!workflow) {
+      return "Noch keine Aufgaben vorhanden.";
+    }
+
+    if (workflow.workflowStatus === "waiting_for_supervisor") {
+      return "Noch keine Bereichsaufgaben vorhanden. Die Aufgaben werden erst erzeugt, wenn die zuständige Abteilungsleitung die Anforderungen abgeschlossen hat.";
+    }
+
+    if (workflow.workflowStatus === "draft") {
+      return "Noch keine Bereichsaufgaben vorhanden. Der Vorgang muss erst gestartet und die Anforderungen müssen erfasst werden.";
+    }
+
+    return "Für diesen Vorgang sind aktuell keine Bereichsaufgaben vorhanden.";
+  }, [workflow]);
 
   return (
     <main className="app-shell">
@@ -297,6 +314,7 @@ export default function WorkflowDetailPage() {
               }
               onCommentDraftChange={handleCommentDraftChange}
               onTaskCommentSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid: uid })}
+              emptyStateDescription={taskAreasEmptyStateDescription}
             />
 
             <section className="workflow-detail-secondary-stack">

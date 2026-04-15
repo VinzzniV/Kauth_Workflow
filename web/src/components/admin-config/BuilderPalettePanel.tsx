@@ -34,6 +34,30 @@ const NODE_OPTIONS: NodeOption[] = [
     toneClassName: "builder-palette-card--approval",
   },
   {
+    nodeType: "measure_provision",
+    title: "Bereitstellung",
+    description: "Erzeugt Bereitstellungsmaßnahmen aus den erfassten Anforderungen.",
+    toneClassName: "builder-palette-card--task",
+  },
+  {
+    nodeType: "measure_deprovision",
+    title: "Entzug",
+    description: "Erzeugt Entzugsmaßnahmen für Offboarding- oder Sperrprozesse.",
+    toneClassName: "builder-palette-card--task",
+  },
+  {
+    nodeType: "measure_change",
+    title: "Änderung",
+    description: "Erzeugt Änderungsmaßnahmen für Wechsel- oder Anpassungsvorgänge.",
+    toneClassName: "builder-palette-card--task",
+  },
+  {
+    nodeType: "measure_rename",
+    title: "Umbenennung",
+    description: "Erzeugt Umbenennungsmaßnahmen für Identitäts- und Systemdaten.",
+    toneClassName: "builder-palette-card--task",
+  },
+  {
     nodeType: "task",
     title: "Aufgabe",
     description: "Bildet einen manuellen Arbeitsschritt ab.",

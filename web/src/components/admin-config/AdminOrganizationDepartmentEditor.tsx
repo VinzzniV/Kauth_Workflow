@@ -1,5 +1,6 @@
 import type {
   AdminDepartmentAssignment,
+  AdminRole,
   AdminUser,
 } from "../../types/auth";
 import {
@@ -7,26 +8,50 @@ import {
   userOptionLabel,
 } from "./adminConfigHelpers";
 import { isEligibleSupervisorSelection } from "./adminWorkspaceModel";
-import type { DepartmentDraft } from "./adminOrganizationTypes";
+import type { DepartmentDraft, PositionDraft } from "./adminOrganizationTypes";
 
 type AdminOrganizationDepartmentEditorProps = {
   selectedDepartment: AdminDepartmentAssignment | null;
   selectedDepartmentDraft: DepartmentDraft | null;
+  selectedDepartmentPositions: AdminRole[];
+  positionDrafts: Record<number, PositionDraft>;
   selectedDepartmentLeadOptions: AdminUser[];
   selectedDepartmentOwnerOptions: AdminUser[];
   eligibleSupervisorUsers: AdminUser[];
   eligibleRequirementOwnerUsers: AdminUser[];
   newDepartmentNameDraft: string;
+  newPositionNameDraft: string;
   isCreatingDepartment: boolean;
+  creatingPositionDepartmentId: number | null;
   deletingDepartmentId: number | null;
+  deletingPositionId: number | null;
   savingDepartmentId: number | null;
+  savingPositionId: number | null;
   canSaveDepartment: boolean;
   onNewDepartmentNameChange: (value: string) => void;
+  onNewPositionNameChange: (value: string) => void;
   onDepartmentDraftChange: (departmentId: number, draft: DepartmentDraft) => void;
   onCreateDepartment: () => void | Promise<void>;
+  onCreateDepartmentPosition: (departmentId: number) => void | Promise<void>;
   onSaveDepartmentAssignment: (departmentId: number) => void | Promise<void>;
   onRemoveDepartment: (department: AdminDepartmentAssignment) => void | Promise<void>;
+  onPositionDraftChange: (positionId: number, draft: PositionDraft) => void;
+  onSaveDepartmentPosition: (positionId: number) => void | Promise<void>;
+  onRemoveDepartmentPosition: (position: AdminRole) => void | Promise<void>;
 };
+
+function toSyncStateLabel(syncState: string): string {
+  switch (syncState) {
+    case "resolved":
+      return "Entra synchronisiert";
+    case "missing":
+      return "Entra-Zuordnung fehlt";
+    case "conflict":
+      return "Entra-Konflikt";
+    default:
+      return "Manuell gepflegt";
+  }
+}
 
 export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepartmentEditorProps) {
   if (!props.selectedDepartment) {
@@ -77,7 +102,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
   const hasInvalidDepartmentOwnerSelection = !isEligibleSupervisorSelection(
     selectedDepartmentDraft.requirementOwnerUserId,
     props.eligibleRequirementOwnerUsers
-  );
+  ) && Boolean(selectedDepartmentDraft.requirementOwnerUserId);
 
   return (
     <section className="panel">
@@ -140,6 +165,21 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
         Zuletzt gespeichert {formatTimestamp(selectedDepartment.updatedAt)}
       </p>
 
+      <p className="panel-note">
+        Quelle {selectedDepartment.assignmentSource === "entra_managed" ? "Entra-geführt" : "manuell"} |
+        Sync-Status {toSyncStateLabel(selectedDepartment.syncState)}
+      </p>
+
+      {selectedDepartment.syncDetail ? (
+        <p className="panel-note">{selectedDepartment.syncDetail}</p>
+      ) : null}
+
+      {selectedDepartment.assignmentSource === "entra_managed" ? (
+        <p className="panel-note">
+          Entra ist führend. Manuelle Änderungen werden beim nächsten Directory-Sync überschrieben.
+        </p>
+      ) : null}
+
       {hasInvalidDepartmentLeadSelection || hasInvalidDepartmentOwnerSelection ? (
         <p className="panel-note">
           Ungültige Zuordnung: Für die Leitung ist aktive Supervisor-Berechtigung nötig. Für die
@@ -170,6 +210,117 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
           {props.deletingDepartmentId === selectedDepartment.departmentId ? "Löschen..." : "Abteilung löschen"}
         </button>
       </div>
+
+      <section className="panel panel-muted">
+        <div className="panel-head">
+          <h3 className="panel-title">Stellen dieser Abteilung</h3>
+          <p>Diese Stellen werden bei neuen Vorgängen als auswählbare Stelle der Abteilung angeboten.</p>
+        </div>
+
+        <div className="form-grid">
+          <label className="field">
+            <span>Neue Stelle</span>
+            <input
+              type="text"
+              value={props.newPositionNameDraft}
+              onChange={(event) => props.onNewPositionNameChange(event.target.value)}
+              placeholder="z. B. Teamleitung Produktion"
+            />
+          </label>
+          <div className="field">
+            <span>Aktion</span>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                void props.onCreateDepartmentPosition(selectedDepartment.departmentId);
+              }}
+              disabled={
+                props.creatingPositionDepartmentId === selectedDepartment.departmentId ||
+                props.newPositionNameDraft.trim().length === 0
+              }
+            >
+              {props.creatingPositionDepartmentId === selectedDepartment.departmentId ? "Anlegen..." : "Stelle anlegen"}
+            </button>
+          </div>
+        </div>
+
+        {props.selectedDepartmentPositions.length === 0 ? (
+          <p className="panel-note">Für diese Abteilung sind noch keine Stellen hinterlegt.</p>
+        ) : (
+          <div className="task-list">
+            {props.selectedDepartmentPositions.map((position) => {
+              const draft = props.positionDrafts[position.roleId] ?? {
+                roleName: position.roleName,
+                isActive: position.isActive,
+              };
+              const hasChanges =
+                draft.roleName.trim() !== position.roleName ||
+                draft.isActive !== position.isActive;
+              const canSave =
+                hasChanges &&
+                draft.roleName.trim().length > 0 &&
+                props.savingPositionId !== position.roleId;
+
+              return (
+                <article key={position.roleId} className="task-card">
+                  <div className="form-grid">
+                    <label className="field compact">
+                      <span>Stellenname</span>
+                      <input
+                        type="text"
+                        value={draft.roleName}
+                        onChange={(event) =>
+                          props.onPositionDraftChange(position.roleId, {
+                            ...draft,
+                            roleName: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={draft.isActive}
+                        onChange={(event) =>
+                          props.onPositionDraftChange(position.roleId, {
+                            ...draft,
+                            isActive: event.target.checked,
+                          })
+                        }
+                      />
+                      <span>Aktiv und in neuen Vorgängen auswählbar</span>
+                    </label>
+                  </div>
+
+                  <div className="action-row">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        void props.onSaveDepartmentPosition(position.roleId);
+                      }}
+                      disabled={!canSave}
+                    >
+                      {props.savingPositionId === position.roleId ? "Speichern..." : "Stelle speichern"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        void props.onRemoveDepartmentPosition(position);
+                      }}
+                      disabled={props.deletingPositionId === position.roleId}
+                    >
+                      {props.deletingPositionId === position.roleId ? "Löschen..." : "Stelle löschen"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </section>
   );
 }

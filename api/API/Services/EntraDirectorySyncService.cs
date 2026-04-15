@@ -158,6 +158,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                 await EnsureDevelopmentDefaultGroupMappings(connection, cancellationToken);
             }
             await UpdateDirectoryUserActivationStates(connection, cancellationToken);
+            await SyncDepartmentLeadAssignmentsFromDirectory(connection, cancellationToken);
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
@@ -860,6 +861,62 @@ VALUES (@actorUserId, @eventType, @entityType, @detail, CAST(@oldValue AS jsonb)
         }
     }
 
+    private static async Task LogDirectoryAuditEventAsync(
+        NpgsqlConnection connection,
+        long? actorUserId,
+        string eventType,
+        string entityType,
+        string detail,
+        object? oldValue,
+        object? newValue,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+INSERT INTO directory_mapping_audit_log (actor_user_id, event_type, entity_type, detail, old_value, new_value, created_at)
+VALUES (@actorUserId, @eventType, @entityType, @detail, CAST(@oldValue AS jsonb), CAST(@newValue AS jsonb), NOW());";
+
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        var actorParameter = cmd.Parameters.Add("actorUserId", NpgsqlDbType.Bigint);
+        actorParameter.Value = (object?)actorUserId ?? DBNull.Value;
+        cmd.Parameters.AddWithValue("eventType", eventType);
+        cmd.Parameters.AddWithValue("entityType", entityType);
+        cmd.Parameters.AddWithValue("detail", detail);
+        cmd.Parameters.AddWithValue("oldValue", (object?)SerializeJson(oldValue) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("newValue", (object?)SerializeJson(newValue) ?? DBNull.Value);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            // Audit migration not applied yet.
+        }
+    }
+
+    private static DepartmentLeadAuditSnapshot CreateDepartmentLeadAuditSnapshot(
+        DepartmentLeadSyncState state,
+        long? resolvedPersonId = null,
+        string? resolvedDisplayName = null,
+        string? syncState = null,
+        IReadOnlyList<string>? candidateNames = null)
+    {
+        return new DepartmentLeadAuditSnapshot
+        {
+            DepartmentId = state.DepartmentId,
+            DepartmentName = state.DepartmentName,
+            DepartmentLeadPersonId = resolvedPersonId ?? state.CurrentDepartmentLeadPersonId,
+            RequirementApproverPersonId = resolvedPersonId ?? state.CurrentRequirementApproverPersonId,
+            ResolvedDisplayName = resolvedDisplayName,
+            SyncState = syncState ?? (state.Candidates.Count switch
+            {
+                0 => "missing",
+                1 => "resolved",
+                _ => "conflict"
+            }),
+            CandidateNames = candidateNames ?? state.Candidates.Select(candidate => candidate.DisplayName).ToArray()
+        };
+    }
+
     private static async Task<int> UpsertDirectoryGroup(
         NpgsqlConnection connection,
         Guid externalId,
@@ -1245,6 +1302,229 @@ WHERE di.app_user_id = u.id
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    private static async Task SyncDepartmentLeadAssignmentsFromDirectory(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var states = await LoadDepartmentLeadSyncStatesAsync(connection, cancellationToken);
+        foreach (var state in states)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (state.Candidates.Count == 1)
+            {
+                var candidate = state.Candidates[0];
+                var personId = await EnsureDirectoryManagedPersonRecordAsync(connection, candidate.AppUserId, cancellationToken);
+                var alreadyResolved = state.CurrentDepartmentLeadPersonId == personId
+                    && state.CurrentRequirementApproverPersonId == personId;
+
+                if (alreadyResolved)
+                {
+                    continue;
+                }
+
+                await UpsertDepartmentLeadAssignmentAsync(connection, state.DepartmentId, personId, cancellationToken);
+                await LogDirectoryAuditEventAsync(
+                    connection,
+                    actorUserId: null,
+                    eventType: "department_lead_synced",
+                    entityType: "department_assignment",
+                    detail: $"Abteilung {state.DepartmentName} ({state.DepartmentId}) wurde aus Entra auf {candidate.DisplayName} synchronisiert.",
+                    oldValue: CreateDepartmentLeadAuditSnapshot(state),
+                    newValue: CreateDepartmentLeadAuditSnapshot(state, personId, candidate.DisplayName, "resolved"),
+                    cancellationToken);
+                continue;
+            }
+
+            if (state.Candidates.Count == 0)
+            {
+                if (state.CurrentDepartmentLeadPersonId.HasValue || state.CurrentRequirementApproverPersonId.HasValue)
+                {
+                    await ClearDepartmentLeadAssignmentAsync(connection, state.DepartmentId, cancellationToken);
+                    await LogDirectoryAuditEventAsync(
+                        connection,
+                        actorUserId: null,
+                        eventType: "department_lead_cleared",
+                        entityType: "department_assignment",
+                        detail: $"Abteilung {state.DepartmentName} ({state.DepartmentId}) hat keine eindeutige Entra-Abteilungsleitung mehr.",
+                        oldValue: CreateDepartmentLeadAuditSnapshot(state),
+                        newValue: CreateDepartmentLeadAuditSnapshot(state, null, null, "missing"),
+                        cancellationToken);
+                }
+
+                continue;
+            }
+
+            if (state.CurrentDepartmentLeadPersonId.HasValue || state.CurrentRequirementApproverPersonId.HasValue)
+            {
+                await ClearDepartmentLeadAssignmentAsync(connection, state.DepartmentId, cancellationToken);
+            }
+
+            await LogDirectoryAuditEventAsync(
+                connection,
+                actorUserId: null,
+                eventType: "department_lead_conflict",
+                entityType: "department_assignment",
+                detail: $"Abteilung {state.DepartmentName} ({state.DepartmentId}) hat mehrere Entra-Abteilungsleitungen: {string.Join(", ", state.Candidates.Select(candidate => candidate.DisplayName))}.",
+                oldValue: CreateDepartmentLeadAuditSnapshot(state),
+                newValue: CreateDepartmentLeadAuditSnapshot(
+                    state,
+                    null,
+                    null,
+                    "conflict",
+                    state.Candidates.Select(candidate => candidate.DisplayName).ToArray()),
+                cancellationToken);
+        }
+    }
+
+    private static async Task<List<DepartmentLeadSyncState>> LoadDepartmentLeadSyncStatesAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+SELECT
+    d.id,
+    d.name,
+    ds.department_lead_person_id,
+    ds.requirement_approver_person_id,
+    candidate.app_user_id,
+    candidate.display_name
+FROM departments d
+LEFT JOIN department_settings ds ON ds.department_id = d.id
+LEFT JOIN (
+    SELECT DISTINCT
+        u.department_id,
+        u.id AS app_user_id,
+        u.display_name
+    FROM app_users u
+    JOIN directory_identities di ON di.app_user_id = u.id
+    JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
+    JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
+    JOIN app_roles ar ON ar.id = dgrm.app_role_id
+    WHERE u.directory_synced = TRUE
+      AND u.is_active = TRUE
+      AND di.account_enabled = TRUE
+      AND u.department_override_active = FALSE
+      AND u.department_id IS NOT NULL
+      AND dgrm.is_active = TRUE
+      AND ar.role_key = 'auth_manager'
+      AND ar.role_kind = 'system'
+) candidate ON candidate.department_id = d.id
+ORDER BY d.id, candidate.display_name, candidate.app_user_id;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var states = new List<DepartmentLeadSyncState>();
+        DepartmentLeadSyncState? current = null;
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var departmentId = reader.GetInt32(0);
+            if (current is null || current.DepartmentId != departmentId)
+            {
+                current = new DepartmentLeadSyncState(
+                    departmentId,
+                    reader.GetString(1),
+                    reader.IsDBNull(2) ? null : reader.GetInt64(2),
+                    reader.IsDBNull(3) ? null : reader.GetInt64(3),
+                    []);
+                states.Add(current);
+            }
+
+            if (!reader.IsDBNull(4))
+            {
+                current.Candidates.Add(new DepartmentLeadSyncCandidate(
+                    reader.GetInt64(4),
+                    reader.GetString(5)));
+            }
+        }
+
+        return states;
+    }
+
+    private static async Task<long> EnsureDirectoryManagedPersonRecordAsync(
+        NpgsqlConnection connection,
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
+SELECT
+    u.id,
+    u.department_id,
+    latest_identity.id,
+    NOW()
+FROM app_users u
+LEFT JOIN LATERAL (
+    SELECT di.id
+    FROM directory_identities di
+    WHERE di.app_user_id = u.id
+    ORDER BY di.last_synced_at DESC NULLS LAST, di.id DESC
+    LIMIT 1
+) latest_identity ON TRUE
+WHERE u.id = @userId
+ON CONFLICT (app_user_id) DO UPDATE
+SET
+    department_id = EXCLUDED.department_id,
+    directory_identity_id = COALESCE(EXCLUDED.directory_identity_id, people.directory_identity_id),
+    updated_at = NOW()
+RETURNING id;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("userId", userId);
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is long longId
+            ? longId
+            : result is int intId
+                ? intId
+                : throw new InvalidOperationException($"Person record for app user {userId} could not be synchronized.");
+    }
+
+    private static async Task UpsertDepartmentLeadAssignmentAsync(
+        NpgsqlConnection connection,
+        int departmentId,
+        long personId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+INSERT INTO department_settings (
+    department_id,
+    department_lead_person_id,
+    requirement_approver_person_id,
+    updated_at
+)
+VALUES (
+    @departmentId,
+    @personId,
+    @personId,
+    NOW()
+)
+ON CONFLICT (department_id) DO UPDATE
+SET
+    department_lead_person_id = EXCLUDED.department_lead_person_id,
+    requirement_approver_person_id = EXCLUDED.requirement_approver_person_id,
+    updated_at = NOW();";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        command.Parameters.AddWithValue("personId", personId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task ClearDepartmentLeadAssignmentAsync(
+        NpgsqlConnection connection,
+        int departmentId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+DELETE FROM department_settings
+WHERE department_id = @departmentId;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task EnsureDevelopmentDefaultGroupMappings(
         NpgsqlConnection connection,
         CancellationToken cancellationToken)
@@ -1283,5 +1563,25 @@ DO UPDATE SET is_active = TRUE;";
     private static string? SerializeJson<T>(T? value)
     {
         return value is null ? null : JsonSerializer.Serialize(value);
+    }
+
+    private sealed record DepartmentLeadSyncCandidate(long AppUserId, string DisplayName);
+
+    private sealed record DepartmentLeadSyncState(
+        int DepartmentId,
+        string DepartmentName,
+        long? CurrentDepartmentLeadPersonId,
+        long? CurrentRequirementApproverPersonId,
+        List<DepartmentLeadSyncCandidate> Candidates);
+
+    private sealed class DepartmentLeadAuditSnapshot
+    {
+        public required int DepartmentId { get; init; }
+        public required string DepartmentName { get; init; }
+        public long? DepartmentLeadPersonId { get; init; }
+        public long? RequirementApproverPersonId { get; init; }
+        public string? ResolvedDisplayName { get; init; }
+        public required string SyncState { get; init; }
+        public IReadOnlyList<string> CandidateNames { get; init; } = [];
     }
 }

@@ -181,6 +181,7 @@ export type BackendWorkflowTaskCountSummaryDto = {
   totalCount: number;
   openCount: number;
   inProgressCount: number;
+  blockedCount: number;
   doneCount: number;
   completedCount: number;
   activeCount: number;
@@ -188,6 +189,7 @@ export type BackendWorkflowTaskCountSummaryDto = {
 
 export type BackendWorkflowTaskMetricsDto = {
   overall: BackendWorkflowTaskCountSummaryDto;
+  required: BackendWorkflowTaskCountSummaryDto;
   departmentPhase: BackendWorkflowTaskCountSummaryDto;
 };
 

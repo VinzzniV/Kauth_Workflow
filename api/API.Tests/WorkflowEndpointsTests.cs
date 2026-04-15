@@ -1372,6 +1372,17 @@ public sealed class WorkflowEndpointsTests
                     TotalCount = 0,
                     OpenCount = 0,
                     InProgressCount = 0,
+                    BlockedCount = 0,
+                    DoneCount = 0,
+                    CompletedCount = 0,
+                    ActiveCount = 0
+                },
+                Required = new WorkflowTaskCountSummaryDto
+                {
+                    TotalCount = 0,
+                    OpenCount = 0,
+                    InProgressCount = 0,
+                    BlockedCount = 0,
                     DoneCount = 0,
                     CompletedCount = 0,
                     ActiveCount = 0
@@ -1381,6 +1392,7 @@ public sealed class WorkflowEndpointsTests
                     TotalCount = 0,
                     OpenCount = 0,
                     InProgressCount = 0,
+                    BlockedCount = 0,
                     DoneCount = 0,
                     CompletedCount = 0,
                     ActiveCount = 0
@@ -2004,9 +2016,13 @@ public sealed class WorkflowEndpointsTests
         public Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(int limit = 100, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<List<AdminRoleDto>> GetAdminDepartmentPositions(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminDepartmentAssignmentDto> CreateDepartment(string departmentName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> DeleteDepartment(int departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminRoleDto> CreateDepartmentPosition(int departmentId, string positionName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminRoleDto?> UpdateDepartmentPosition(int positionId, string positionName, bool isActive, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> DeleteDepartmentPosition(int positionId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminResponsibilityOwnerDto> CreateResponsibility(string responsibilityName, int? departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> DeleteResponsibility(int responsibilityId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminUserDto> CreateUser(string? externalKey, string displayName, string email, string? notificationEmail, int? departmentId, bool isActive, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();

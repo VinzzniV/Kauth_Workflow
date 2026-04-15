@@ -290,7 +290,7 @@ WHERE id = @taskId;";
         }
     }
 
-    private async Task RecalculateAndPersistWorkflowStatus(
+    private static async Task RecalculateAndPersistWorkflowStatus(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -344,8 +344,15 @@ WHERE workflow_id = @workflowId;";
         }
 
         var completionRelevantStatuses = taskStates
+            .Where(task => task.IsRequired)
             .Select(task => task.Status)
             .ToList();
+        if (completionRelevantStatuses.Count == 0)
+        {
+            completionRelevantStatuses = taskStates
+                .Select(task => task.Status)
+                .ToList();
+        }
 
         var nextWorkflowStatus = taskStates.Count == 0
             ? "draft"

@@ -22,6 +22,7 @@ export type ProcessAreaGroup = {
   totalCount: number;
   openCount: number;
   inProgressCount: number;
+  blockedCount: number;
   completedCount: number;
   isCurrentArea: boolean;
 };
@@ -39,7 +40,7 @@ export function toRuntimeStatusLabel(status: WorkflowDetail["workflowStatus"]): 
 }
 
 export function isOpenStatus(status: WorkflowTask["status"]): boolean {
-  return status === "open" || status === "ready" || status === "blocked";
+  return status === "open" || status === "ready";
 }
 
 export function isInProgressStatus(status: WorkflowTask["status"]): boolean {
@@ -51,7 +52,7 @@ export function isDoneStatus(status: WorkflowTask["status"]): boolean {
 }
 
 export function isActiveStatus(status: WorkflowTask["status"]): boolean {
-  return isOpenStatus(status) || isInProgressStatus(status);
+  return isOpenStatus(status) || isInProgressStatus(status) || status === "blocked";
 }
 
 export function inferAreaFromTask(task: WorkflowTask): ProcessAreaName | null {
@@ -67,7 +68,7 @@ export function toAreaStatus(group: ProcessAreaGroup): "none" | "open" | "in_pro
     return "in_progress";
   }
 
-  if (group.openCount > 0) {
+  if (group.openCount > 0 || group.blockedCount > 0) {
     return "open";
   }
 
@@ -125,6 +126,14 @@ export function toAreaStatusNote(group: ProcessAreaGroup): string {
 
   if (group.inProgressCount > 0) {
     return `${group.inProgressCount} Aufgabe${group.inProgressCount === 1 ? "" : "n"} in Bearbeitung.`;
+  }
+
+  if (group.blockedCount > 0 && group.openCount > 0) {
+    return `${group.openCount} offen, ${group.blockedCount} blockiert.`;
+  }
+
+  if (group.blockedCount > 0) {
+    return `${group.blockedCount} Aufgabe${group.blockedCount === 1 ? "" : "n"} blockiert.`;
   }
 
   if (group.openCount > 0) {
@@ -263,6 +272,7 @@ export function buildTasksByArea(
       totalCount: summary?.counts.totalCount ?? tasks.length,
       openCount: summary?.counts.openCount ?? tasks.filter((task) => isOpenStatus(task.status)).length,
       inProgressCount: summary?.counts.inProgressCount ?? tasks.filter((task) => isInProgressStatus(task.status)).length,
+      blockedCount: summary?.counts.blockedCount ?? tasks.filter((task) => task.status === "blocked").length,
       completedCount: summary?.counts.completedCount ?? tasks.filter((task) => isDoneStatus(task.status)).length,
       isCurrentArea: summary?.isCurrentArea ?? false,
     };

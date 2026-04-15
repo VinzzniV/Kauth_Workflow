@@ -23,6 +23,7 @@ import {
 
 type WorkflowTaskAreasSectionProps = {
   tasksByArea: ProcessAreaGroup[];
+  emptyStateDescription?: string;
   savingTaskIds: Record<number, boolean>;
   savingApprovalTaskIds: Record<number, boolean>;
   commentDrafts: Record<number, string>;
@@ -42,6 +43,7 @@ function getAreaStatusClass(status: ReturnType<typeof toAreaStatus>): string {
 
 export default function WorkflowTaskAreasSection({
   tasksByArea,
+  emptyStateDescription = "Für diesen Vorgang sind aktuell keine Bereichsaufgaben vorhanden.",
   savingTaskIds,
   savingApprovalTaskIds,
   commentDrafts,
@@ -131,10 +133,16 @@ export default function WorkflowTaskAreasSection({
           })}
         </div>
 
-        <div className="task-groups-controls">
-          <button type="button" className="btn-text" onClick={expandAll}>Alle aufklappen</button>
-          <button type="button" className="btn-text" onClick={collapseAll}>Alle zuklappen</button>
-        </div>
+        {orderedGroups.length === 0 ? (
+          <p className="panel-note">{emptyStateDescription}</p>
+        ) : null}
+
+        {orderedGroups.length > 0 ? (
+          <div className="task-groups-controls">
+            <button type="button" className="btn-text" onClick={expandAll}>Alle aufklappen</button>
+            <button type="button" className="btn-text" onClick={collapseAll}>Alle zuklappen</button>
+          </div>
+        ) : null}
 
         <div className="task-groups" aria-label="Aufgaben nach Bereich">
           {orderedGroups.map((group, index) => {
@@ -167,7 +175,13 @@ export default function WorkflowTaskAreasSection({
                     </div>
                     <span className={getAreaStatusClass(status)}>{toAreaStatusLabel(status)}</span>
                     <span className="task-group-count">
-                      {group.openCount > 0 ? `${group.openCount} offen` : `${group.completedCount}/${group.totalCount} erledigt`}
+                      {group.inProgressCount > 0
+                        ? `${group.inProgressCount} in Bearbeitung`
+                        : group.openCount > 0
+                          ? `${group.openCount} offen`
+                          : group.blockedCount > 0
+                            ? `${group.blockedCount} blockiert`
+                            : `${group.completedCount}/${group.totalCount} erledigt`}
                     </span>
                   </button>
                 </div>

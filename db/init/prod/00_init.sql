@@ -48,3 +48,8 @@
 \i /docker-entrypoint-sql/44_runtime_task_bridge.sql
 \i /docker-entrypoint-sql/45_automation_layer.sql
 \i /docker-entrypoint-sql/46_workflow_builder_positions.sql
+\i /docker-entrypoint-sql/48_measure_generation_node_types.sql
+\i /docker-entrypoint-sql/49_measure_generation_phase_c.sql
+\i /docker-entrypoint-sql/50_onboarding_gatekeeper_measure_flow.sql
+\i /docker-entrypoint-sql/51_remove_seeded_demo_departments.sql
+\i /docker-entrypoint-sql/52_restore_core_responsibilities.sql

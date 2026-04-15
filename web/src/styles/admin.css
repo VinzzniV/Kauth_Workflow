@@ -251,6 +251,19 @@
   padding-inline: 0.75rem;
 }
 
+.admin-system-config-card {
+  padding: 1rem;
+  border-color: var(--surface-card-border);
+  background: var(--surface-list-background);
+  box-shadow: var(--surface-card-shadow);
+}
+
+:root[data-theme="dark"] .admin-system-config-card {
+  border-color: var(--surface-focus-border);
+  background: var(--surface-hero-background);
+  box-shadow: var(--surface-focus-shadow);
+}
+
 .admin-health-panel {
   display: grid;
   gap: 1rem;

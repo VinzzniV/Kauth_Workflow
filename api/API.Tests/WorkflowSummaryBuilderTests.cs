@@ -122,24 +122,35 @@ public sealed class WorkflowSummaryBuilderTests
         {
             CreateTask(1, "supervisor_fills_document", "done", "HR", 10, isDepartmentPhaseTask: false),
             CreateTask(2, "hardware_procure", "open", "IT", 20, isDepartmentPhaseTask: true),
-            CreateTask(3, "hardware_setup", "in_progress", "IT", 30, isDepartmentPhaseTask: true),
-            CreateTask(4, "phone_prepare", "done", "IT", 40, isDepartmentPhaseTask: true)
+            CreateTask(3, "hardware_setup", "blocked", "IT", 30, isDepartmentPhaseTask: true),
+            CreateTask(4, "phone_prepare", "done", "IT", 40, isDepartmentPhaseTask: true, isRequired: false),
+            CreateTask(5, "rights_setup", "in_progress", "IT", 50, isDepartmentPhaseTask: true)
         };
 
         var summary = WorkflowSummaryBuilder.BuildTaskMetrics(tasks);
 
-        Assert.Equal(4, summary.Overall.TotalCount);
+        Assert.Equal(5, summary.Overall.TotalCount);
         Assert.Equal(1, summary.Overall.OpenCount);
         Assert.Equal(1, summary.Overall.InProgressCount);
+        Assert.Equal(1, summary.Overall.BlockedCount);
         Assert.Equal(2, summary.Overall.DoneCount);
-        Assert.Equal(2, summary.Overall.ActiveCount);
+        Assert.Equal(3, summary.Overall.ActiveCount);
         Assert.Equal(2, summary.Overall.CompletedCount);
 
-        Assert.Equal(3, summary.DepartmentPhase.TotalCount);
+        Assert.Equal(4, summary.Required.TotalCount);
+        Assert.Equal(1, summary.Required.OpenCount);
+        Assert.Equal(1, summary.Required.InProgressCount);
+        Assert.Equal(1, summary.Required.BlockedCount);
+        Assert.Equal(1, summary.Required.DoneCount);
+        Assert.Equal(3, summary.Required.ActiveCount);
+        Assert.Equal(1, summary.Required.CompletedCount);
+
+        Assert.Equal(4, summary.DepartmentPhase.TotalCount);
         Assert.Equal(1, summary.DepartmentPhase.OpenCount);
         Assert.Equal(1, summary.DepartmentPhase.InProgressCount);
+        Assert.Equal(1, summary.DepartmentPhase.BlockedCount);
         Assert.Equal(1, summary.DepartmentPhase.DoneCount);
-        Assert.Equal(2, summary.DepartmentPhase.ActiveCount);
+        Assert.Equal(3, summary.DepartmentPhase.ActiveCount);
         Assert.Equal(1, summary.DepartmentPhase.CompletedCount);
     }
 
@@ -149,7 +160,7 @@ public sealed class WorkflowSummaryBuilderTests
         var tasks = new List<WorkflowTaskDto>
         {
             CreateTask(1, "hardware_procure", "open", "IT", 10),
-            CreateTask(2, "hardware_setup", "done", "IT", 20),
+            CreateTask(2, "hardware_setup", "blocked", "IT", 20),
             CreateTask(3, "supervisor_fills_document", "done", "HR", 30)
         };
 
@@ -159,7 +170,8 @@ public sealed class WorkflowSummaryBuilderTests
         Assert.True(itArea.IsCurrentArea);
         Assert.Equal(2, itArea.Counts.TotalCount);
         Assert.Equal(1, itArea.Counts.OpenCount);
-        Assert.Equal(1, itArea.Counts.CompletedCount);
+        Assert.Equal(1, itArea.Counts.BlockedCount);
+        Assert.Equal(0, itArea.Counts.CompletedCount);
 
         var hrArea = Assert.Single(areas, area => area.Name == "HR");
         Assert.False(hrArea.IsCurrentArea);
@@ -235,7 +247,8 @@ public sealed class WorkflowSummaryBuilderTests
         string status,
         string processArea,
         int sortOrder,
-        bool isDepartmentPhaseTask = false)
+        bool isDepartmentPhaseTask = false,
+        bool isRequired = true)
     {
         return new WorkflowTaskDto
         {
@@ -247,7 +260,7 @@ public sealed class WorkflowSummaryBuilderTests
             Category = "test",
             IconKey = "test",
             Status = status,
-            IsRequired = true,
+            IsRequired = isRequired,
             DueInDays = 3,
             DueAt = DateTime.UtcNow.AddDays(3),
             SlaStatus = "on_track",

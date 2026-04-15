@@ -19,12 +19,36 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         "start",
         "form",
         "approval",
+        "measure_provision",
+        "measure_deprovision",
+        "measure_change",
+        "measure_rename",
         "task",
         "decision",
         "parallel_split",
         "parallel_join",
         "automation",
+        "setup",
         "end"
+    };
+
+    private static readonly HashSet<string> MeasureGenerationNodeTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "setup",
+        "measure_provision",
+        "measure_deprovision",
+        "measure_change",
+        "measure_rename"
+    };
+
+    private static readonly Dictionary<string, string> ExpectedMeasureNodeTypeByProcessTypeKey = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["onboarding"] = "measure_provision",
+        ["offboarding"] = "measure_deprovision",
+        ["department_change"] = "measure_change",
+        ["position_change"] = "measure_change",
+        ["role_change"] = "measure_change",
+        ["name_change"] = "measure_rename"
     };
 
     public string NormalizeDefinitionKey(string? definitionKey)
@@ -114,6 +138,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         ValidateNodeActions(normalizedNodes, errors);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, errors);
         ValidateGatewayTopology(normalizedNodes, normalizedEdges, errors);
+        ValidateMeasurePhaseTopology(normalizedNodes, normalizedEdges, errors);
 
         if (errors.Count > 0)
         {
@@ -223,7 +248,13 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         ValidateNodeActions(normalizedNodes, issues);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, issues);
         ValidateGatewayTopology(normalizedNodes, normalizedEdges, issues);
+        ValidateMeasurePhaseTopology(normalizedNodes, normalizedEdges, issues);
         ValidateSupervisorGatekeeper(normalizedNodes, normalizedEdges, context, issues);
+        ValidateMeasurePhaseProcessConsistency(
+            normalizedNodes,
+            context.PrimaryLegacyProcessTypeKey,
+            context.RequiresSupervisorStep,
+            issues);
 
         foreach (var referenceIssue in context.ReferenceIssues ?? [])
         {
@@ -458,6 +489,13 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 case "approval":
                     ValidateRequiredStringConfig(node, "legacyTemplateKey", errors);
                     break;
+                case "measure_provision":
+                case "measure_deprovision":
+                case "measure_change":
+                case "measure_rename":
+                case "setup":
+                    ValidateOptionalObjectConfig(node, errors);
+                    break;
                 case "automation":
                 case "parallel_split":
                 case "parallel_join":
@@ -495,6 +533,13 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 case "task":
                 case "approval":
                     ValidateRequiredStringConfig(node, "legacyTemplateKey", issues);
+                    break;
+                case "measure_provision":
+                case "measure_deprovision":
+                case "measure_change":
+                case "measure_rename":
+                case "setup":
+                    ValidateOptionalObjectConfig(node, issues);
                     break;
                 case "automation":
                 case "parallel_split":
@@ -571,6 +616,40 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
             issues.Add(CreateIssue(
                 "missing_required_node_config_property",
                 $"Node '{node.NodeKey}' of type '{node.NodeType}' requires config property '{propertyName}' as non-empty string.",
+                "workflow_node",
+                node.NodeKey));
+        }
+    }
+
+    private static void ValidateOptionalObjectConfig(
+        WorkflowDefinitionDraftNode node,
+        List<string> errors)
+    {
+        if (!HasConfig(node.Config))
+        {
+            return;
+        }
+
+        if (node.Config!.Value.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' requires a JSON object config.");
+        }
+    }
+
+    private static void ValidateOptionalObjectConfig(
+        WorkflowDefinitionDraftNode node,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        if (!HasConfig(node.Config))
+        {
+            return;
+        }
+
+        if (node.Config!.Value.ValueKind != JsonValueKind.Object)
+        {
+            issues.Add(CreateIssue(
+                "invalid_node_config",
+                $"Node '{node.NodeKey}' of type '{node.NodeType}' requires a JSON object config.",
                 "workflow_node",
                 node.NodeKey));
         }
@@ -1072,6 +1151,292 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     node.NodeKey));
             }
         }
+    }
+
+    private static void ValidateMeasurePhaseTopology(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        List<string> errors)
+    {
+        var measureNodes = nodes
+            .Where(node => IsMeasureGenerationNodeType(node.NodeType))
+            .ToList();
+        if (measureNodes.Count == 0)
+        {
+            return;
+        }
+
+        if (measureNodes.Count != 1)
+        {
+            errors.Add("A measure-based workflow definition must contain exactly one measure generation node.");
+            return;
+        }
+
+        var formNodes = nodes
+            .Where(node => string.Equals(node.NodeType, "form", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (formNodes.Count != 1)
+        {
+            errors.Add("A measure-based workflow definition must contain exactly one form node.");
+        }
+
+        var approvalNodes = nodes
+            .Where(node => string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (approvalNodes.Count > 1)
+        {
+            errors.Add("A measure-based workflow definition may contain at most one approval node.");
+        }
+
+        var endNodes = nodes
+            .Where(node => string.Equals(node.NodeType, "end", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (endNodes.Count != 1)
+        {
+            errors.Add("A measure-based workflow definition must contain exactly one end node.");
+        }
+
+        foreach (var node in nodes.Where(node =>
+                     string.Equals(node.NodeType, "task", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "decision", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "parallel_join", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase)))
+        {
+            errors.Add($"Measure-based workflow definitions must not contain technical node type '{node.NodeType}' ('{node.NodeKey}').");
+        }
+
+        if (formNodes.Count != 1 || endNodes.Count != 1)
+        {
+            return;
+        }
+
+        var startNode = nodes.SingleOrDefault(node => string.Equals(node.NodeType, "start", StringComparison.OrdinalIgnoreCase));
+        if (startNode is null)
+        {
+            return;
+        }
+
+        var measureNode = measureNodes[0];
+        var formNode = formNodes[0];
+        var endNode = endNodes[0];
+        var approvalNode = approvalNodes.SingleOrDefault();
+
+        var expectedEdges = approvalNode is null
+            ? new[]
+            {
+                (startNode.NodeKey, formNode.NodeKey),
+                (formNode.NodeKey, measureNode.NodeKey),
+                (measureNode.NodeKey, endNode.NodeKey)
+            }
+            : new[]
+            {
+                (startNode.NodeKey, formNode.NodeKey),
+                (formNode.NodeKey, approvalNode.NodeKey),
+                (approvalNode.NodeKey, measureNode.NodeKey),
+                (measureNode.NodeKey, endNode.NodeKey)
+            };
+
+        if (edges.Count != expectedEdges.Length)
+        {
+            errors.Add("A measure-based workflow definition must only expose the phase path Start -> Formular -> optionale Freigabe -> Maßnahmen -> Ende.");
+            return;
+        }
+
+        foreach (var (sourceNodeKey, targetNodeKey) in expectedEdges)
+        {
+            if (!edges.Any(edge =>
+                    string.Equals(edge.SourceNodeKey, sourceNodeKey, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(edge.TargetNodeKey, targetNodeKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Add($"A measure-based workflow definition is missing the phase edge '{sourceNodeKey}' -> '{targetNodeKey}'.");
+            }
+        }
+    }
+
+    private static void ValidateMeasurePhaseTopology(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        var measureNodes = nodes
+            .Where(node => IsMeasureGenerationNodeType(node.NodeType))
+            .ToList();
+        if (measureNodes.Count == 0)
+        {
+            return;
+        }
+
+        if (measureNodes.Count != 1)
+        {
+            issues.Add(CreateIssue(
+                "invalid_measure_node_count",
+                "A measure-based workflow definition must contain exactly one measure generation node.",
+                "workflow_definition"));
+            return;
+        }
+
+        var formNodes = nodes
+            .Where(node => string.Equals(node.NodeType, "form", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (formNodes.Count != 1)
+        {
+            issues.Add(CreateIssue(
+                "invalid_measure_form_count",
+                "A measure-based workflow definition must contain exactly one form node.",
+                "workflow_definition"));
+        }
+
+        var approvalNodes = nodes
+            .Where(node => string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (approvalNodes.Count > 1)
+        {
+            issues.Add(CreateIssue(
+                "invalid_measure_approval_count",
+                "A measure-based workflow definition may contain at most one approval node.",
+                "workflow_definition"));
+        }
+
+        var endNodes = nodes
+            .Where(node => string.Equals(node.NodeType, "end", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (endNodes.Count != 1)
+        {
+            issues.Add(CreateIssue(
+                "invalid_measure_end_count",
+                "A measure-based workflow definition must contain exactly one end node.",
+                "workflow_definition"));
+        }
+
+        foreach (var node in nodes.Where(node =>
+                     string.Equals(node.NodeType, "task", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "decision", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "parallel_join", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase)))
+        {
+            issues.Add(CreateIssue(
+                "technical_nodes_not_allowed_in_measure_flow",
+                $"Measure-based workflow definitions must not contain technical node type '{node.NodeType}' ('{node.NodeKey}').",
+                "workflow_node",
+                node.NodeKey));
+        }
+
+        if (formNodes.Count != 1 || endNodes.Count != 1)
+        {
+            return;
+        }
+
+        var startNode = nodes.SingleOrDefault(node => string.Equals(node.NodeType, "start", StringComparison.OrdinalIgnoreCase));
+        if (startNode is null)
+        {
+            return;
+        }
+
+        var measureNode = measureNodes[0];
+        var formNode = formNodes[0];
+        var endNode = endNodes[0];
+        var approvalNode = approvalNodes.SingleOrDefault();
+
+        var expectedEdges = approvalNode is null
+            ? new[]
+            {
+                (startNode.NodeKey, formNode.NodeKey),
+                (formNode.NodeKey, measureNode.NodeKey),
+                (measureNode.NodeKey, endNode.NodeKey)
+            }
+            : new[]
+            {
+                (startNode.NodeKey, formNode.NodeKey),
+                (formNode.NodeKey, approvalNode.NodeKey),
+                (approvalNode.NodeKey, measureNode.NodeKey),
+                (measureNode.NodeKey, endNode.NodeKey)
+            };
+
+        if (edges.Count != expectedEdges.Length)
+        {
+            issues.Add(CreateIssue(
+                "invalid_measure_phase_edges",
+                "A measure-based workflow definition must only expose the phase path Start -> Formular -> optionale Freigabe -> Maßnahmen -> Ende.",
+                "workflow_definition"));
+            return;
+        }
+
+        foreach (var (sourceNodeKey, targetNodeKey) in expectedEdges)
+        {
+            if (!edges.Any(edge =>
+                    string.Equals(edge.SourceNodeKey, sourceNodeKey, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(edge.TargetNodeKey, targetNodeKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(CreateIssue(
+                    "missing_measure_phase_edge",
+                    $"A measure-based workflow definition is missing the phase edge '{sourceNodeKey}' -> '{targetNodeKey}'.",
+                    "workflow_edge",
+                    sourceNodeKey));
+            }
+        }
+    }
+
+    private static void ValidateMeasurePhaseProcessConsistency(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        string? primaryLegacyProcessTypeKey,
+        bool requiresSupervisorStep,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        var measureNodes = nodes
+            .Where(node => IsMeasureGenerationNodeType(node.NodeType))
+            .ToList();
+        if (measureNodes.Count == 0)
+        {
+            return;
+        }
+
+        var approvalCount = nodes.Count(node => string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase));
+        if (!requiresSupervisorStep && approvalCount > 0)
+        {
+            issues.Add(CreateIssue(
+                "measure_flow_unexpected_approval",
+                "Maßnahmen-Workflows ohne Supervisor-Pflicht dürfen keine Freigabe-Phase enthalten.",
+                "workflow_definition"));
+        }
+
+        var expectedMeasureNodeType = GetExpectedMeasureNodeTypeForProcessTypeKey(primaryLegacyProcessTypeKey);
+        if (expectedMeasureNodeType is null || measureNodes.Count != 1)
+        {
+            return;
+        }
+
+        var measureNode = measureNodes[0];
+        if (string.Equals(measureNode.NodeType, "setup", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(measureNode.NodeType, expectedMeasureNodeType, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        issues.Add(CreateIssue(
+            "measure_flow_process_type_mismatch",
+            $"Workflow-Definitionen für '{primaryLegacyProcessTypeKey}' müssen den Maßnahmen-Typ '{expectedMeasureNodeType}' oder den Legacy-Alias 'setup' verwenden.",
+            "workflow_node",
+            measureNode.NodeKey));
+    }
+
+    private static bool IsMeasureGenerationNodeType(string? nodeType)
+    {
+        return !string.IsNullOrWhiteSpace(nodeType)
+               && MeasureGenerationNodeTypes.Contains(nodeType.Trim());
+    }
+
+    private static string? GetExpectedMeasureNodeTypeForProcessTypeKey(string? processTypeKey)
+    {
+        if (string.IsNullOrWhiteSpace(processTypeKey))
+        {
+            return null;
+        }
+
+        return ExpectedMeasureNodeTypeByProcessTypeKey.TryGetValue(processTypeKey.Trim(), out var nodeType)
+            ? nodeType
+            : null;
     }
 
     private static List<WorkflowDefinitionDraftNodeAction> NormalizeNodeActions(

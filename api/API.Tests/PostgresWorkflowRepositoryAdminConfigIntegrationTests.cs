@@ -1,4 +1,5 @@
 using Npgsql;
+using System.Reflection;
 using Xunit;
 
 namespace API.Tests;
@@ -54,6 +55,82 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 connectionString,
                 departmentId,
                 [supervisorUserId, plainUserId],
+                directoryIdentityId,
+                directoryGroupId);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task DirectorySync_MirrorsUniqueDepartmentLeadIntoDepartmentSettings()
+    {
+        var connectionString = GetTestConnectionString();
+        var suffix = Guid.NewGuid().ToString("N");
+        var departmentId = await CreateTemporaryDepartmentAsync(connectionString, suffix);
+        var managerUserId = await CreateTemporaryUserAsync(connectionString, $"deptlead_{suffix}", isActive: true);
+        var directoryIdentityId = await CreateTemporaryDirectoryIdentityAsync(connectionString, managerUserId, suffix);
+        var directoryGroupId = await CreateTemporaryDirectoryGroupAsync(connectionString, suffix);
+        var managerRoleId = await GetRoleIdByKeyAsync(connectionString, AuthorizationRoles.Manager);
+
+        try
+        {
+            await AssignUserToDepartmentAsync(connectionString, managerUserId, departmentId);
+            await AddDirectoryGroupMemberAsync(connectionString, directoryGroupId, directoryIdentityId);
+            await AddDirectoryGroupRoleMappingAsync(connectionString, directoryGroupId, managerRoleId);
+
+            await using (var connection = new NpgsqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+                var method = typeof(EntraDirectorySyncService).GetMethod(
+                    "SyncDepartmentLeadAssignmentsFromDirectory",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+                Assert.NotNull(method);
+                var task = (Task?)method!.Invoke(null, [connection, CancellationToken.None]);
+                Assert.NotNull(task);
+                await task!;
+            }
+
+            await using var verificationConnection = new NpgsqlConnection(connectionString);
+            await verificationConnection.OpenAsync();
+
+            await using (var command = new NpgsqlCommand(
+                """
+                SELECT lead_person.app_user_id, requirement_person.app_user_id
+                FROM department_settings ds
+                LEFT JOIN people lead_person ON lead_person.id = ds.department_lead_person_id
+                LEFT JOIN people requirement_person ON requirement_person.id = ds.requirement_approver_person_id
+                WHERE ds.department_id = @departmentId;
+                """,
+                verificationConnection))
+            {
+                command.Parameters.AddWithValue("departmentId", departmentId);
+                await using var reader = await command.ExecuteReaderAsync();
+                Assert.True(await reader.ReadAsync());
+                Assert.Equal(managerUserId, reader.GetInt64(0));
+                Assert.Equal(managerUserId, reader.GetInt64(1));
+            }
+
+            await using (var auditCommand = new NpgsqlCommand(
+                """
+                SELECT COUNT(*)
+                FROM directory_mapping_audit_log
+                WHERE event_type = 'department_lead_synced'
+                  AND entity_type = 'department_assignment'
+                  AND detail LIKE @detailPattern;
+                """,
+                verificationConnection))
+            {
+                auditCommand.Parameters.AddWithValue("detailPattern", $"%{departmentId}%");
+                var count = Convert.ToInt32(await auditCommand.ExecuteScalarAsync());
+                Assert.True(count > 0);
+            }
+        }
+        finally
+        {
+            await CleanupTemporaryDepartmentAssignmentScenarioAsync(
+                connectionString,
+                departmentId,
+                [managerUserId],
                 directoryIdentityId,
                 directoryGroupId);
         }
@@ -1249,6 +1326,32 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
 
         await transaction.CommitAsync();
         return userId;
+    }
+
+    private static async Task AssignUserToDepartmentAsync(string connectionString, long userId, int departmentId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE app_users
+            SET
+                department_id = @departmentId,
+                directory_synced = TRUE,
+                department_source = 'directory',
+                department_override_active = FALSE
+            WHERE id = @userId;
+
+            UPDATE people
+            SET department_id = @departmentId,
+                updated_at = NOW()
+            WHERE app_user_id = @userId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        command.Parameters.AddWithValue("userId", userId);
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<long> CreateTemporaryDirectoryIdentityAsync(string connectionString, long userId, string suffix)

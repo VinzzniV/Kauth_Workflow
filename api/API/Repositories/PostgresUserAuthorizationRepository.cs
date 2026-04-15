@@ -344,6 +344,13 @@ ORDER BY u.id, di.last_synced_at DESC NULLS LAST, di.id DESC;";
         return await LoadAdminDepartmentAssignments(connection, null, null, cancellationToken);
     }
 
+    public async Task<List<AdminRoleDto>> GetAdminDepartmentPositions(CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        return await LoadAdminPositionRoles(connection, null, null, cancellationToken);
+    }
+
     public async Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());

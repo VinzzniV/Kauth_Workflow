@@ -231,21 +231,20 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
   },
   {
     key: "system",
-    label: "Benachrichtigungen & Vorgänge",
-    description: "Mailversand, Prozesstypen und Workflow-Grundkonfiguration für den laufenden Betrieb steuern.",
-    navLabel: "Benachrichtigungen & Vorgänge",
-    navDescription: "Laufenden Systembetrieb, Versand und Prozessgrundlagen konfigurieren.",
+    label: "Benachrichtigungen & System",
+    description: "Mailversand und technische Laufzeitkonfiguration für den laufenden Betrieb steuern.",
+    navLabel: "Benachrichtigungen & System",
+    navDescription: "Laufenden Systembetrieb und Versand konfigurieren.",
     area: "system",
     introTitle: "Laufenden Systembetrieb konfigurieren",
     introDescription:
-      "Hier steuern Sie, wie Benachrichtigungen versendet werden, welche Prozesstypen verfügbar sind und welche Grundkonfiguration die App verwendet.",
+      "Hier steuern Sie, wie Benachrichtigungen versendet werden und welche technische Laufzeitkonfiguration die App verwendet.",
     whatYouCanDo: [
       "Mailversand und Sandbox-Verhalten konfigurieren",
-      "Prozesstypen und Workflow-Grundlagen pflegen",
       "Technische Anbindungen und App-Konfiguration prüfen",
     ],
-    affectedObjects: ["Benachrichtigungen", "Prozesstypen", "Workflow- und Systemkonfiguration"],
-    impactNote: "Viele Änderungen wirken sofort im laufenden Betrieb, etwa beim Mailversand oder bei der Verfügbarkeit von Prozesstypen.",
+    affectedObjects: ["Benachrichtigungen", "Graph-Anbindung", "Systemkonfiguration"],
+    impactNote: "Viele Änderungen wirken sofort im laufenden Betrieb, etwa beim Mailversand oder bei technischen Laufzeitwerten.",
     riskNote: "Produktive Mail- oder Systemänderungen sollten bewusst geprüft werden, weil sie unmittelbar Nutzer und laufende Prozesse betreffen können.",
   },
   {
@@ -286,7 +285,7 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
   },
   {
     key: "system",
-    label: "Betrieb & Versand",
+    label: "System",
     description: "Laufende Systemkonfiguration und Serienaktionen steuern.",
     defaultSection: "system",
     sections: ["system", "operations"],

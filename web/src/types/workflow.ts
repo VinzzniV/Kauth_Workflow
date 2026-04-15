@@ -210,6 +210,7 @@ export type WorkflowTaskCountSummary = {
   totalCount: number;
   openCount: number;
   inProgressCount: number;
+  blockedCount: number;
   doneCount: number;
   completedCount: number;
   activeCount: number;
@@ -217,6 +218,7 @@ export type WorkflowTaskCountSummary = {
 
 export type WorkflowTaskMetrics = {
   overall: WorkflowTaskCountSummary;
+  required: WorkflowTaskCountSummary;
   departmentPhase: WorkflowTaskCountSummary;
 };
 

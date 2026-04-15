@@ -76,6 +76,12 @@ internal sealed partial class PostgresWorkflowRepository
         {
             await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
             await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+            await TryAdvanceRuntimeSetupFromTaskStatusUpdate(
+                connection,
+                transaction,
+                workflowId,
+                workflowUid,
+                actorUserId);
         }
 
         await transaction.CommitAsync();

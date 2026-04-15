@@ -40,6 +40,10 @@ export type RoleCapabilities = {
   dashboardPersona: DashboardPersona;
 };
 
+type CapabilityOverrides = {
+  canAccessSupervisorStep?: boolean;
+};
+
 const ROLE_LABELS: Record<AuthRoleKey, string> = {
   [AUTH_ROLE_KEYS.hr]: "HR",
   [AUTH_ROLE_KEYS.manager]: "Abteilungsleitung",
@@ -91,7 +95,8 @@ function normalizePermissionKey(permissionKey: string): string {
 
 export function deriveRoleCapabilities(
   rawRoleKeys: string[],
-  rawPermissionKeys: string[] = []
+  rawPermissionKeys: string[] = [],
+  overrides: CapabilityOverrides = {}
 ): RoleCapabilities {
   const roleSet = new Set<AuthRoleKey>();
   const permissionSet = new Set<string>();
@@ -128,7 +133,10 @@ export function deriveRoleCapabilities(
   const hasReadRole = hasAdmin || hasHr || hasManager || hasWorker || hasReader;
   const hasProcessActorRole = hasHr || hasManager || hasWorker;
   const canCreateWorkflow = hasWorkflowCreatePermission || hasHr || hasManager || hasAdmin;
-  const canAccessSupervisorStep = hasPermission("tasks.execute.supervisor") || hasManager;
+  const canAccessSupervisorStep =
+    overrides.canAccessSupervisorStep === true
+    || hasPermission("tasks.execute.supervisor")
+    || hasManager;
   const canAccessTechnicalTasks = hasPermission("tasks.execute.department") || hasWorker || canAccessSupervisorStep;
   const canManageAdminConfiguration =
     hasPermission("admin.permissions.manage") || hasPermission("admin.directory.manage") || hasAdmin;

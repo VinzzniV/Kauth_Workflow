@@ -1,9 +1,6 @@
 import type { AdminGraphApplicationConfiguration, AdminNotificationEmailConfiguration } from "../../types/auth";
-import type { WorkflowConfig } from "../../types/workflow";
 import { AdminGraphApplicationSection } from "./AdminGraphApplicationSection";
 import { AdminNotificationEmailSection } from "./AdminNotificationEmailSection";
-import { AdminProcessTypeSection } from "./AdminProcessTypeSection";
-import { AdminWorkflowConfigurationSection } from "./AdminWorkflowConfigurationSection";
 
 type AdminSystemWorkspaceSectionProps = {
   graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
@@ -20,7 +17,6 @@ type AdminSystemWorkspaceSectionProps = {
   isSendingNotificationEmailTest: boolean;
   isLoading: boolean;
   hasNotificationEmailDraftChanges: boolean;
-  workflowConfig: WorkflowConfig | null;
   onNotificationEnabledChange: (enabled: boolean) => void;
   onNotificationSenderEmailChange: (value: string) => void;
   onNotificationFrontendBaseUrlChange: (value: string) => void;
@@ -63,10 +59,6 @@ export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionPr
         onSave={props.onSaveNotificationEmailConfiguration}
         onSendTest={props.onSendNotificationEmailTest}
       />
-
-      <AdminProcessTypeSection />
-
-      <AdminWorkflowConfigurationSection workflowConfig={props.workflowConfig} isLoading={props.isLoading} />
     </div>
   );
 }

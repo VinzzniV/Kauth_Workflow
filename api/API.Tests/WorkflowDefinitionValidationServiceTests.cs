@@ -117,6 +117,30 @@ public sealed class WorkflowDefinitionValidationServiceTests
         Assert.Contains(result.Nodes, node => node.NodeType == "parallel_join");
     }
 
+    [Fact]
+    public void ValidateAndNormalize_AllowsBusinessPhaseMeasureGraph()
+    {
+        var result = _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Department_Setup", "measure_deprovision", configJson: """{"summaryText":"Entzieht bereichsbezogene Maßnahmen."}"""),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Requirements", 0),
+                CreateEdge("Requirements", "Department_Setup", 0),
+                CreateEdge("Department_Setup", "End", 0)
+            ]
+        });
+
+        Assert.Equal(4, result.Nodes.Count);
+        Assert.Contains(result.Nodes, node => node.NodeType == "measure_deprovision");
+    }
+
     [Theory]
     [InlineData("missing_start")]
     [InlineData("multiple_starts")]
@@ -381,6 +405,169 @@ public sealed class WorkflowDefinitionValidationServiceTests
 
         Assert.True(snapshot.CanPublish);
         Assert.DoesNotContain(snapshot.Issues, issue => issue.Scope == "workflow_definition");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_RejectsMeasureFlowWithTechnicalMainNodes()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Setup", "measure_deprovision"),
+                CreateNode("HiddenTask", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Requirements", 0),
+                CreateEdge("Requirements", "Setup", 0),
+                CreateEdge("Setup", "End", 0),
+                CreateEdge("HiddenTask", "End", 1)
+            ],
+            PrimaryLegacyProcessTypeKey = "offboarding",
+            RequiresSupervisorStep = false
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, issue => issue.Code == "technical_nodes_not_allowed_in_measure_flow");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_AllowsSupervisorRequiredMeasureFlowWithFormGatekeeperWithoutApprovalPhase()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Setup", "measure_provision"),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Requirements", 0),
+                CreateEdge("Requirements", "Setup", 0),
+                CreateEdge("Setup", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            RequiresSupervisorStep = true
+        });
+
+        Assert.True(snapshot.CanPublish);
+        Assert.DoesNotContain(snapshot.Issues, issue => issue.Code == "measure_flow_requires_approval");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_RejectsUnexpectedApprovalInNonSupervisorMeasureFlow()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Approval", "approval", configJson: """{"legacyTemplateKey":"manager_approval"}"""),
+                CreateNode("Setup", "measure_deprovision"),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Requirements", 0),
+                CreateEdge("Requirements", "Approval", 0),
+                CreateEdge("Approval", "Setup", 0),
+                CreateEdge("Setup", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = "offboarding",
+            RequiresSupervisorStep = false
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, issue => issue.Code == "measure_flow_unexpected_approval");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_AllowsLegacySetupAliasForMigratedProcess()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Setup", "setup"),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Requirements", 0),
+                CreateEdge("Requirements", "Setup", 0),
+                CreateEdge("Setup", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = "offboarding",
+            RequiresSupervisorStep = false
+        });
+
+        Assert.True(snapshot.CanPublish);
+        Assert.DoesNotContain(snapshot.Issues, issue => issue.Code == "measure_flow_process_type_mismatch");
+    }
+
+    [Theory]
+    [InlineData("name_change", "measure_rename")]
+    [InlineData("position_change", "measure_change")]
+    [InlineData("role_change", "measure_change")]
+    public void ValidateSnapshot_AllowsPhaseCMeasureTypeForProcess(string processTypeKey, string measureNodeType)
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Requirements", "form", configJson: $$"""{"legacyProcessTypeKey":"{{processTypeKey}}"}"""),
+                CreateNode("Setup", measureNodeType),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Requirements", 0),
+                CreateEdge("Requirements", "Setup", 0),
+                CreateEdge("Setup", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = processTypeKey,
+            RequiresSupervisorStep = false
+        });
+
+        Assert.True(snapshot.CanPublish);
+        Assert.DoesNotContain(snapshot.Issues, issue => issue.Code == "measure_flow_process_type_mismatch");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_RejectsWrongPhaseCMeasureTypeForProcess()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"role_change"}"""),
+                CreateNode("Setup", "measure_rename"),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Requirements", 0),
+                CreateEdge("Requirements", "Setup", 0),
+                CreateEdge("Setup", "End", 0)
+            ],
+            PrimaryLegacyProcessTypeKey = "role_change",
+            RequiresSupervisorStep = false
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, issue => issue.Code == "measure_flow_process_type_mismatch");
     }
 
     private static WorkflowDefinitionNodeDto CreateNode(

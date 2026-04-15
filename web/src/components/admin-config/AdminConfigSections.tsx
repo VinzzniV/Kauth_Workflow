@@ -1,7 +1,6 @@
 export {
   AdminCoreDataSummarySection,
   AdminNotificationEmailSection,
-  AdminWorkflowConfigurationSection,
 } from "./AdminConfigOverviewSections";
 export {
   AdminDepartmentsSection,

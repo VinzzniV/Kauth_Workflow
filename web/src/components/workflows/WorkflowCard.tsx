@@ -47,6 +47,14 @@ export default function WorkflowCard({ workflow }: Props) {
           <dt>Deadline</dt>
           <dd>{formatDate(workflow.deadlineDate)}</dd>
         </div>
+        <div>
+          <dt>Fortschritt</dt>
+          <dd>{workflow.taskMetrics.overall.doneCount}/{workflow.taskMetrics.overall.totalCount}</dd>
+        </div>
+        <div>
+          <dt>Pflicht</dt>
+          <dd>{workflow.taskMetrics.required.doneCount}/{workflow.taskMetrics.required.totalCount}</dd>
+        </div>
       </dl>
 
       <Link className="btn btn-secondary" to={`/workflows/${workflow.uid}`}>

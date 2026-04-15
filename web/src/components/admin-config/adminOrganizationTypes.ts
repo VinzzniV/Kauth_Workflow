@@ -5,6 +5,11 @@ export type DepartmentDraft = {
   requirementOwnerUserId: string;
 };
 
+export type PositionDraft = {
+  roleName: string;
+  isActive: boolean;
+};
+
 export type ResponsibilityDraft = {
   appUserId: string;
   departmentId: string;

@@ -227,6 +227,7 @@ function mapWorkflowTaskCountSummary(dto: BackendWorkflowTaskCountSummaryDto): W
 function mapWorkflowTaskMetrics(dto: BackendWorkflowTaskMetricsDto): WorkflowTaskMetrics {
   return {
     overall: mapWorkflowTaskCountSummary(dto.overall),
+    required: mapWorkflowTaskCountSummary(dto.required),
     departmentPhase: mapWorkflowTaskCountSummary(dto.departmentPhase),
   };
 }

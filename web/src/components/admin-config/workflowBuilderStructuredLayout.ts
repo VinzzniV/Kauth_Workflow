@@ -112,7 +112,7 @@ export function buildWorkflowBuilderStructuredLayout(
       nodeType: node.nodeType,
       title: node.title,
       width: CARD_WIDTH,
-      height: CARD_HEIGHT,
+      height: isMeasureGenerationNodeType(node.nodeType) ? 236 : CARD_HEIGHT,
       isVirtual: false,
       sourceNodeId: node.id,
     });
@@ -272,7 +272,16 @@ function getEdgeLabel(priority: string | number, conditionExpression: string | n
   return "";
 }
 
+function isMeasureGenerationNodeType(nodeType: string) {
+  return [
+    "setup",
+    "measure_provision",
+    "measure_deprovision",
+    "measure_change",
+    "measure_rename",
+  ].includes(nodeType);
+}
+
 function normalizeNodeKey(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
-

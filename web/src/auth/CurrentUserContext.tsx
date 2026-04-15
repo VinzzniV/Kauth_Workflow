@@ -17,7 +17,10 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const roles = useMemo(() => currentUser?.roles ?? [], [currentUser]);
   const groups = useMemo(() => currentUser?.groups ?? [], [currentUser]);
   const permissions = useMemo(() => currentUser?.permissions ?? [], [currentUser]);
-  const capabilities = useMemo(() => deriveRoleCapabilities(roles, permissions), [permissions, roles]);
+  const capabilities = useMemo(
+    () => deriveRoleCapabilities(roles, permissions, { canAccessSupervisorStep: currentUser?.canAccessSupervisorStep }),
+    [currentUser?.canAccessSupervisorStep, permissions, roles]
+  );
   const defaultRoute = useMemo(() => getDefaultRoute(capabilities), [capabilities]);
 
   const canAccessFeatureSafe = useCallback(

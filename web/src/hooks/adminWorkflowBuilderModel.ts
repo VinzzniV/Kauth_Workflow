@@ -16,6 +16,11 @@ export type WorkflowBuilderNodeDraft = {
     | "end"
     | "form"
     | "approval"
+    | "measure_provision"
+    | "measure_deprovision"
+    | "measure_change"
+    | "measure_rename"
+    | "setup"
     | "task"
     | "decision"
     | "automation"
@@ -59,8 +64,63 @@ export type WorkflowBuilderLocalIssue = {
   referenceKey?: string;
 };
 
+const MEASURE_GENERATION_NODE_TYPES = [
+  "setup",
+  "measure_provision",
+  "measure_deprovision",
+  "measure_change",
+  "measure_rename",
+] as const satisfies readonly WorkflowBuilderNodeDraft["nodeType"][];
+
+const PROCESS_MEASURE_NODE_TYPES = {
+  onboarding: "measure_provision",
+  offboarding: "measure_deprovision",
+  department_change: "measure_change",
+  position_change: "measure_change",
+  role_change: "measure_change",
+  name_change: "measure_rename",
+} as const satisfies Partial<Record<string, WorkflowBuilderNodeDraft["nodeType"]>>;
+
+const LEGACY_SETUP_TITLES = new Set([
+  "setup",
+  "it/fachbereichs-setup",
+  "legacy setup",
+  "legacy-setup",
+]);
+
 export function createLocalId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function isMeasureGenerationNodeType(
+  nodeType: string | null | undefined
+): nodeType is Extract<WorkflowBuilderNodeDraft["nodeType"], "setup" | "measure_provision" | "measure_deprovision" | "measure_change" | "measure_rename"> {
+  return typeof nodeType === "string"
+    && MEASURE_GENERATION_NODE_TYPES.includes(nodeType as (typeof MEASURE_GENERATION_NODE_TYPES)[number]);
+}
+
+export function getExpectedMeasureNodeTypeForProcessKey(
+  processTypeKey: string | null | undefined
+): Extract<WorkflowBuilderNodeDraft["nodeType"], "measure_provision" | "measure_deprovision" | "measure_change" | "measure_rename"> | null {
+  const normalizedProcessTypeKey = processTypeKey?.trim().toLowerCase() ?? "";
+  return PROCESS_MEASURE_NODE_TYPES[normalizedProcessTypeKey as keyof typeof PROCESS_MEASURE_NODE_TYPES] ?? null;
+}
+
+export function getDefaultWorkflowBuilderNodeTitle(
+  nodeType: WorkflowBuilderNodeDraft["nodeType"]
+): string {
+  switch (nodeType) {
+    case "measure_provision":
+      return "Bereitstellungsmaßnahmen erzeugen";
+    case "measure_deprovision":
+      return "Entzugsmaßnahmen erzeugen";
+    case "measure_change":
+      return "Änderungsmaßnahmen erzeugen";
+    case "measure_rename":
+      return "Umbenennungsmaßnahmen erzeugen";
+    default:
+      return "";
+  }
 }
 
 export function createEmptyDefinitionDraft() {
@@ -96,7 +156,7 @@ export function createEmptyNodeDraft(
     id: createLocalId("node"),
     nodeKey: "",
     nodeType,
-    title: "",
+    title: getDefaultWorkflowBuilderNodeTitle(nodeType),
     sortOrder: typeof sortOrder === "number" ? String(sortOrder) : "",
     positionX: null,
     positionY: null,
@@ -130,26 +190,62 @@ export function toVersionDraft(detail: AdminWorkflowDefinitionVersionDetail): Wo
     name: detail.name ?? "",
     description: detail.description ?? "",
     primaryLegacyProcessTypeKey: detail.primaryLegacyProcessTypeKey ?? "",
-    nodes: detail.nodes.map(toNodeDraft),
+    nodes: detail.nodes.map((node) => toNodeDraft(node, detail.primaryLegacyProcessTypeKey ?? null)),
     edges: detail.edges.map(toEdgeDraft),
   };
 
   return autoLayoutVersionDraft(draft);
 }
 
-function toNodeDraft(node: AdminWorkflowDefinitionNode): WorkflowBuilderNodeDraft {
-  const nodeType = normalizeNodeType(node.nodeType);
+function toNodeDraft(
+  node: AdminWorkflowDefinitionNode,
+  primaryLegacyProcessTypeKey: string | null
+): WorkflowBuilderNodeDraft {
+  const normalizedSourceNodeType = normalizeNodeType(node.nodeType);
+  const nodeType = normalizeLifecycleMeasureNodeType(
+    normalizedSourceNodeType,
+    primaryLegacyProcessTypeKey
+  );
   return {
     id: createLocalId("node"),
     nodeKey: node.nodeKey ?? "",
     nodeType,
-    title: node.title ?? "",
+    title: normalizeLifecycleMeasureNodeTitle(node.title, normalizedSourceNodeType, nodeType),
     sortOrder: String(node.sortOrder),
     positionX: node.positionX ?? null,
     positionY: node.positionY ?? null,
     configText: toJsonText(node.config),
     actions: node.actions.map(toActionDraft),
   };
+}
+
+function normalizeLifecycleMeasureNodeType(
+  nodeType: WorkflowBuilderNodeDraft["nodeType"],
+  primaryLegacyProcessTypeKey: string | null
+): WorkflowBuilderNodeDraft["nodeType"] {
+  if (nodeType !== "setup") {
+    return nodeType;
+  }
+
+  return getExpectedMeasureNodeTypeForProcessKey(primaryLegacyProcessTypeKey) ?? nodeType;
+}
+
+function normalizeLifecycleMeasureNodeTitle(
+  title: string | null,
+  sourceNodeType: WorkflowBuilderNodeDraft["nodeType"],
+  normalizedNodeType: WorkflowBuilderNodeDraft["nodeType"]
+): string {
+  const normalizedTitle = title ?? "";
+  if (sourceNodeType !== "setup" || normalizedNodeType === "setup") {
+    return normalizedTitle;
+  }
+
+  const compactTitle = normalizedTitle.trim().toLowerCase();
+  if (!compactTitle || LEGACY_SETUP_TITLES.has(compactTitle)) {
+    return getDefaultWorkflowBuilderNodeTitle(normalizedNodeType);
+  }
+
+  return normalizedTitle;
 }
 
 function toActionDraft(action: AdminWorkflowNodeAction): WorkflowBuilderActionDraft {
@@ -178,6 +274,11 @@ function normalizeNodeType(value: string | null): WorkflowBuilderNodeDraft["node
     case "end":
     case "form":
     case "approval":
+    case "measure_provision":
+    case "measure_deprovision":
+    case "measure_change":
+    case "measure_rename":
+    case "setup":
     case "decision":
     case "automation":
     case "parallel_split":
@@ -438,7 +539,112 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
     }
   }
 
+  validateMeasurePhaseStructure(draft, issues);
+  validateMeasurePhaseProcessCompatibility(draft, issues);
+
   return issues;
+}
+
+function validateMeasurePhaseStructure(
+  draft: WorkflowBuilderVersionDraft,
+  issues: WorkflowBuilderLocalIssue[]
+) {
+  const measureNodes = draft.nodes.filter((node) => isMeasureGenerationNodeType(node.nodeType));
+  if (measureNodes.length === 0) {
+    return;
+  }
+
+  if (measureNodes.length !== 1) {
+    issues.push({ scope: "version", message: "Ein fachlicher Ablauf mit Maßnahmen-Baustein braucht genau einen Maßnahmen-Schritt." });
+    return;
+  }
+
+  const technicalNodes = draft.nodes.filter((node) =>
+    ["task", "decision", "parallel_split", "parallel_join", "automation"].includes(node.nodeType)
+  );
+  for (const node of technicalNodes) {
+    issues.push({
+      scope: "node",
+      message: `Ein Ablauf mit Maßnahmen-Baustein darf keinen technischen Hauptschritt vom Typ '${node.nodeType}' enthalten.`,
+      referenceKey: node.nodeKey.trim() || undefined,
+    });
+  }
+
+  const startNode = draft.nodes.find((node) => node.nodeType === "start") ?? null;
+  const formNodes = draft.nodes.filter((node) => node.nodeType === "form");
+  const approvalNodes = draft.nodes.filter((node) => node.nodeType === "approval");
+  const endNodes = draft.nodes.filter((node) => node.nodeType === "end");
+  if (!startNode || formNodes.length !== 1 || endNodes.length !== 1 || approvalNodes.length > 1) {
+    return;
+  }
+
+  const measureNode = measureNodes[0]!;
+  const formNode = formNodes[0]!;
+  const endNode = endNodes[0]!;
+  const approvalNode = approvalNodes[0] ?? null;
+  const expectedEdges = approvalNode
+    ? [
+        [startNode.nodeKey, formNode.nodeKey],
+        [formNode.nodeKey, approvalNode.nodeKey],
+        [approvalNode.nodeKey, measureNode.nodeKey],
+        [measureNode.nodeKey, endNode.nodeKey],
+      ]
+    : [
+        [startNode.nodeKey, formNode.nodeKey],
+        [formNode.nodeKey, measureNode.nodeKey],
+        [measureNode.nodeKey, endNode.nodeKey],
+      ];
+
+  const normalizedActualEdges = draft.edges.map((edge) => [
+    normalizeNodeKey(edge.sourceNodeKey),
+    normalizeNodeKey(edge.targetNodeKey),
+  ]);
+  if (normalizedActualEdges.length !== expectedEdges.length) {
+    issues.push({
+      scope: "version",
+      message: "Ein fachlicher Ablauf mit Maßnahmen-Baustein darf nur Start, Formular, optionale Freigabe, Maßnahmen und Abschluss im Hauptfluss enthalten.",
+    });
+    return;
+  }
+
+  for (const [sourceNodeKey, targetNodeKey] of expectedEdges) {
+    const hasExpectedEdge = normalizedActualEdges.some(([source, target]) =>
+      source === normalizeNodeKey(sourceNodeKey) && target === normalizeNodeKey(targetNodeKey)
+    );
+    if (!hasExpectedEdge) {
+      issues.push({
+        scope: "edge",
+        message: `Im Hauptfluss fehlt die Verbindung '${sourceNodeKey} -> ${targetNodeKey}'.`,
+        referenceKey: sourceNodeKey,
+      });
+    }
+  }
+}
+
+function validateMeasurePhaseProcessCompatibility(
+  draft: WorkflowBuilderVersionDraft,
+  issues: WorkflowBuilderLocalIssue[]
+) {
+  const expectedMeasureNodeType = getExpectedMeasureNodeTypeForProcessKey(draft.primaryLegacyProcessTypeKey);
+  if (!expectedMeasureNodeType) {
+    return;
+  }
+
+  const measureNodes = draft.nodes.filter((node) => isMeasureGenerationNodeType(node.nodeType));
+  if (measureNodes.length !== 1) {
+    return;
+  }
+
+  const measureNode = measureNodes[0]!;
+  if (measureNode.nodeType === "setup" || measureNode.nodeType === expectedMeasureNodeType) {
+    return;
+  }
+
+  issues.push({
+    scope: "node",
+    message: `Der Prozess '${draft.primaryLegacyProcessTypeKey.trim()}' benötigt den Baustein '${getDefaultWorkflowBuilderNodeTitle(expectedMeasureNodeType)}'.`,
+    referenceKey: measureNode.nodeKey.trim() || undefined,
+  });
 }
 
 function toNullableText(value: string): string | null {

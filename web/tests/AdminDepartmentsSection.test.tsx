@@ -175,4 +175,41 @@ describe("AdminDepartmentsSection", () => {
       false
     );
   });
+
+  it("shows Entra sync source and conflict details for managed departments", () => {
+    render(
+      <AdminDepartmentsSection
+        sortedDepartments={[
+          createAdminDepartmentAssignment({
+            assignmentSource: "entra_managed",
+            syncState: "conflict",
+            syncDetail: "Mehrere aktive Entra-Abteilungsleitungen gefunden: Lea Lead, Max Manager.",
+          }),
+        ]}
+        sortedUsers={[createAdminUser({ userId: 10 })]}
+        eligibleSupervisorUsers={[createAdminUser({ userId: 10 })]}
+        eligibleRequirementOwnerUsers={[createAdminUser({ userId: 10 })]}
+        departmentDrafts={{
+          1: {
+            departmentLeadUserId: "1",
+            requirementOwnerUserId: "2",
+          },
+        }}
+        newDepartmentNameDraft=""
+        isCreatingDepartment={false}
+        savingDepartmentId={null}
+        deletingDepartmentId={null}
+        onNewDepartmentNameChange={vi.fn()}
+        onDepartmentDraftChange={vi.fn()}
+        onCreateDepartment={vi.fn()}
+        onSaveDepartmentAssignment={vi.fn()}
+        onRemoveDepartment={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Quelle: Entra-geführt/)).toBeTruthy();
+    expect(screen.getByText(/Status: Entra-Konflikt/)).toBeTruthy();
+    expect(screen.getByText(/Mehrere aktive Entra-Abteilungsleitungen gefunden/)).toBeTruthy();
+    expect(screen.getByText(/Manuelle Änderungen werden beim nächsten Directory-Sync überschrieben/)).toBeTruthy();
+  });
 });

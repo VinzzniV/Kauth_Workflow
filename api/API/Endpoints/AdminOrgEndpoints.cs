@@ -124,6 +124,25 @@ internal static class AdminOrgEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapGet("/admin/master-data/positions", async (
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await userAuthorizationRepository.GetAdminDepartmentPositions());
+        }).Produces<List<AdminRoleDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPost("/admin/master-data/departments", async (
             [FromBody] AdminDepartmentCreateRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
@@ -172,6 +191,107 @@ internal static class AdminOrgEndpoints
             {
                 var deleted = await userAuthorizationRepository.DeleteDepartment(departmentId);
                 return deleted ? Results.NoContent() : Results.NotFound(new { message = "Department not found." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces(StatusCodes.Status204NoContent)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPost("/admin/master-data/departments/{departmentId:int}/positions", async (
+            int departmentId,
+            [FromBody] AdminDepartmentPositionCreateRequest request,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var position = await userAuthorizationRepository.CreateDepartmentPosition(
+                    departmentId,
+                    request.PositionName);
+                return Results.Ok(position);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<AdminRoleDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPatch("/admin/master-data/positions/{positionId:int}", async (
+            int positionId,
+            [FromBody] AdminDepartmentPositionUpdateRequest request,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var position = await userAuthorizationRepository.UpdateDepartmentPosition(
+                    positionId,
+                    request.PositionName,
+                    request.IsActive);
+                if (position is null)
+                {
+                    return Results.NotFound(new { message = "Position not found." });
+                }
+
+                return Results.Ok(position);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<AdminRoleDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapDelete("/admin/master-data/positions/{positionId:int}", async (
+            int positionId,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var deleted = await userAuthorizationRepository.DeleteDepartmentPosition(positionId);
+                return deleted ? Results.NoContent() : Results.NotFound(new { message = "Position not found." });
             }
             catch (InvalidOperationException ex)
             {

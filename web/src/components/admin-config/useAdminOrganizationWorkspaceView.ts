@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type {
   AdminDepartmentAssignment,
   AdminResponsibilityOwner,
+  AdminRole,
   AdminUser,
 } from "../../types/auth";
 import {
@@ -19,6 +20,7 @@ type UseAdminOrganizationWorkspaceViewArgs = {
   organizationEntity: AdminOrganizationEntity;
   selectedEntityId: number | null;
   sortedUsers: AdminUser[];
+  sortedDepartmentPositions: AdminRole[];
   sortedDepartments: AdminDepartmentAssignment[];
   sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
@@ -65,6 +67,7 @@ export function useAdminOrganizationWorkspaceView({
   organizationEntity,
   selectedEntityId,
   sortedUsers,
+  sortedDepartmentPositions,
   sortedDepartments,
   sortedResponsibilities,
   eligibleSupervisorUsers,
@@ -98,6 +101,13 @@ export function useAdminOrganizationWorkspaceView({
         ? sortedResponsibilities.find((responsibility) => responsibility.responsibilityId === selectedEntityId) ?? null
         : null,
     [organizationEntity, selectedEntityId, sortedResponsibilities]
+  );
+  const selectedDepartmentPositions = useMemo(
+    () =>
+      selectedDepartment
+        ? sortedDepartmentPositions.filter((position) => position.departmentId === selectedDepartment.departmentId)
+        : [],
+    [selectedDepartment, sortedDepartmentPositions]
   );
 
   const userRelations = useMemo(
@@ -216,6 +226,7 @@ export function useAdminOrganizationWorkspaceView({
     canCreateUser,
     canSaveUser,
     selectedDepartmentDraft,
+    selectedDepartmentPositions,
     selectedDepartmentLeadOptions,
     selectedDepartmentOwnerOptions,
     canSaveDepartment,

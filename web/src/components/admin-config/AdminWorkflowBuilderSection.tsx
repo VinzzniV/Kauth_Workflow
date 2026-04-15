@@ -13,7 +13,11 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useAdminWorkflowBuilder } from "../../hooks/useAdminWorkflowBuilder";
-import type { WorkflowBuilderNodeDraft, WorkflowBuilderVersionDraft } from "../../hooks/adminWorkflowBuilderModel";
+import {
+  isMeasureGenerationNodeType,
+  type WorkflowBuilderNodeDraft,
+  type WorkflowBuilderVersionDraft,
+} from "../../hooks/adminWorkflowBuilderModel";
 import { getWorkflowBuilderNodeTypeLabel, WORKFLOW_BUILDER_TECHNICAL_LABELS } from "./workflowBuilderLabels";
 import {
   WorkflowBuilderCanvasNode,
@@ -144,6 +148,7 @@ export function AdminWorkflowBuilderSection({
               notificationLabel: null,
               dueLabel: null,
               effectText: "",
+              detailItems: [],
               nextStepLabel: "",
               isSelected: false,
             }
@@ -154,6 +159,7 @@ export function AdminWorkflowBuilderSection({
                 nodesByKey,
                 actionDefinitionsByKey,
                 processTypesByKey,
+                builder.taskTemplates,
                 taskTemplatesByKey,
                 responsibilityOwnersByKey,
                 responsibilityOwnersById
@@ -506,15 +512,26 @@ export function AdminWorkflowBuilderSection({
         <div className="builder-studio-rail builder-studio-rail--right">
           <WorkflowBuilderSidebar
             selectedNode={builder.selectedNode}
+            inspectorFocus={builder.inspectorFocus}
             availableNodes={availableNodes}
             versionDraft={builder.versionDraft}
             actionDefinitions={builder.actionDefinitions}
+            processTypes={builder.processTypes}
             responsibilityOwners={builder.responsibilityOwners}
+            taskTemplates={builder.taskTemplates}
+            answerDefinitions={builder.answerDefinitions}
+            taskTemplateConditions={builder.taskTemplateConditions}
+            taskTemplateDependencies={builder.taskTemplateDependencies}
             canManageAdvanced={canManageAdvanced}
             hasVersionSelected={Boolean(builder.selectedVersionSummary)}
             localValidationIssues={builder.localValidationIssues}
             serverValidationIssues={builder.versionDetail?.validationIssues ?? []}
+            onNotice={onNotice}
+            onError={onError}
             onAddNode={builder.addNode}
+            onOpenInspectorFocus={builder.openInspectorFocus}
+            onCloseInspectorFocus={builder.closeInspectorFocus}
+            onRefreshReferenceData={builder.refreshReferenceData}
             onUpdateNode={builder.updateNode}
             onUpdateEdge={builder.updateEdge}
             onRemoveEdge={builder.removeEdge}
@@ -559,13 +576,23 @@ function buildCanvasNodeSummary(
     isActive: boolean;
     description?: string | null;
   }>,
-  processTypesByKey: Map<string, { name: string; description: string | null }>,
+  processTypesByKey: Map<string, { id: number; name: string; description: string | null }>,
+  taskTemplates: Array<{
+    processTypeId: number;
+    title: string;
+    category: string;
+    defaultResponsibilityId: number | null;
+    isDepartmentPhaseTask: boolean;
+    isActive: boolean;
+  }>,
   taskTemplatesByKey: Map<string, { title: string; description: string; defaultResponsibilityId: number | null; dueInDays: number | null }>,
   responsibilityOwnersByKey: Map<string, { responsibilityName: string }>,
-  responsibilityOwnersById: Map<number, { responsibilityName: string }>
+  responsibilityOwnersById: Map<number, { responsibilityName: string; departmentName: string | null }>
 ): Omit<WorkflowBuilderCanvasNodeData, "isSelected" | "title"> {
   const config = parseNodeConfig(node.configText);
+  const isMeasureNode = node.nodeType === "setup" || isMeasureGenerationNodeType(node.nodeType);
   const legacyProcessTypeKey = readStringConfigValue(config, "legacyProcessTypeKey");
+  const workflowProcessTypeKey = legacyProcessTypeKey ?? (versionDraft.primaryLegacyProcessTypeKey.trim() || null);
   const legacyTemplateKey = readStringConfigValue(config, "legacyTemplateKey");
   const responsibilityKey = readStringConfigValue(config, "responsibilityKey");
   const notificationLabel = readStringConfigValue(config, "notificationLabel");
@@ -576,8 +603,8 @@ function buildCanvasNodeSummary(
     ? actionDefinitionsByKey.get(firstActionKey.toLowerCase()) ?? null
     : null;
   const firstActionLabel = firstActionDefinition?.displayName ?? firstActionKey;
-  const processType = legacyProcessTypeKey
-    ? processTypesByKey.get(legacyProcessTypeKey.toLowerCase()) ?? null
+  const processType = workflowProcessTypeKey
+    ? processTypesByKey.get(workflowProcessTypeKey.toLowerCase()) ?? null
     : null;
   const taskTemplate = legacyTemplateKey
     ? taskTemplatesByKey.get(legacyTemplateKey.toLowerCase()) ?? null
@@ -599,7 +626,14 @@ function buildCanvasNodeSummary(
     ? formatDueInDays(taskTemplate.dueInDays)
     : null;
   const nextStepLabel = buildNextStepLabel(node, versionDraft, nodesByKey);
-  const modeLabel = isAutomaticNodeType(node.nodeType) ? "Automatisch" : "Manuell";
+  const measureDetailItems = isMeasureNode
+    ? buildMeasureDetailItems(processType?.id ?? null, taskTemplates, responsibilityOwnersById)
+    : [];
+  const modeLabel = isMeasureNode
+    ? "Parallel"
+    : isAutomaticNodeType(node.nodeType)
+      ? "Automatisch"
+      : "Manuell";
 
   switch (node.nodeType) {
     case "start":
@@ -635,6 +669,7 @@ function buildCanvasNodeSummary(
         effectText: summaryText
           ?? processType?.description?.trim()
           ?? "Hier werden die benötigten Angaben für den weiteren Ablauf erfasst.",
+        detailItems: [],
         nextStepLabel,
       };
     case "approval":
@@ -648,6 +683,24 @@ function buildCanvasNodeSummary(
         effectText: summaryText
           ?? taskTemplate?.description?.trim()
           ?? "Hier wird eine Freigabe für den weiteren Ablauf eingeholt.",
+        detailItems: [],
+        nextStepLabel,
+      };
+    case "measure_provision":
+    case "measure_deprovision":
+    case "measure_change":
+    case "measure_rename":
+    case "setup":
+      return {
+        nodeType: node.nodeType,
+        typeLabel: getWorkflowBuilderNodeTypeLabel(node.nodeType),
+        modeLabel,
+        responsibleLabel: measureDetailItems.length > 1 ? "Mehrere Bereiche" : measureDetailItems[0] ?? "Bereiche",
+        notificationLabel: null,
+        dueLabel: null,
+        effectText: summaryText
+          ?? buildMeasureEffectText(node.nodeType, workflowProcessTypeKey),
+        detailItems: measureDetailItems,
         nextStepLabel,
       };
     case "decision":
@@ -659,6 +712,7 @@ function buildCanvasNodeSummary(
         notificationLabel: null,
         dueLabel: null,
         effectText: summaryText ?? "Hier wird entschieden, welcher Weg danach weiterläuft.",
+        detailItems: [],
         nextStepLabel,
       };
     case "parallel_split":
@@ -670,6 +724,7 @@ function buildCanvasNodeSummary(
         notificationLabel: null,
         dueLabel: null,
         effectText: "Hier verzweigt sich der Ablauf in mehrere parallele Pfade.",
+        detailItems: [],
         nextStepLabel,
       };
     case "parallel_join":
@@ -681,6 +736,7 @@ function buildCanvasNodeSummary(
         notificationLabel: null,
         dueLabel: null,
         effectText: "Hier laufen parallele Pfade wieder in einem gemeinsamen Schritt zusammen.",
+        detailItems: [],
         nextStepLabel,
       };
     case "automation":
@@ -693,6 +749,7 @@ function buildCanvasNodeSummary(
         dueLabel: null,
         effectText: summaryText
           ?? buildAutomationEffectText(firstActionLabel, additionalActions, firstActionDefinition?.description ?? null),
+        detailItems: [],
         nextStepLabel,
       };
     case "task":
@@ -707,6 +764,7 @@ function buildCanvasNodeSummary(
         effectText: summaryText
           ?? taskTemplate?.description?.trim()
           ?? "Hier wird eine Aufgabe im Ablauf bearbeitet.",
+        detailItems: [],
         nextStepLabel,
       };
   }
@@ -919,6 +977,108 @@ function formatDueInDays(dueInDays: number) {
   }
 
   return `${dueInDays} Tage`;
+}
+
+function buildMeasureEffectText(
+  nodeType: WorkflowBuilderNodeDraft["nodeType"],
+  processTypeKey: string | null
+) {
+  switch (processTypeKey) {
+    case "name_change":
+      return "Erzeugt aus neuem Namen und Wirksamkeitsdatum Umbenennungsmaßnahmen für Identitäts-, Mail- und Verzeichnisdaten.";
+    case "position_change":
+      return "Erzeugt aus Position und angefordertem Wechselumfang positionsbezogene Berechtigungs-, Zugriffs-, Schulungs- und Systemanpassungen.";
+    case "role_change":
+      return "Erzeugt aus neuer Rolle und angeforderten Änderungsumfängen rollenbezogene Rollen-, Berechtigungs- und Systemanpassungen.";
+    default:
+      switch (nodeType) {
+        case "measure_provision":
+          return "Erzeugt aus den erfassten Anforderungen Bereitstellungsmaßnahmen für betroffene Bereiche und startet die parallele Abarbeitung.";
+        case "measure_deprovision":
+          return "Erzeugt aus dem erfassten Umfang Entzugsmaßnahmen für betroffene Bereiche und startet die parallele Abarbeitung.";
+        case "measure_change":
+          return "Erzeugt aus dem erfassten Änderungsumfang Anpassungsmaßnahmen für betroffene Bereiche und startet die parallele Abarbeitung.";
+        case "measure_rename":
+          return "Erzeugt aus dem erfassten Umbenennungsumfang Maßnahmen für Identitäts- und Systemdaten.";
+        case "setup":
+        default:
+          return "Bündelt interne Maßnahmen als Legacy-Setup-Block und startet die parallele Abarbeitung.";
+      }
+  }
+}
+
+function buildMeasureDetailItems(
+  processTypeId: number | null,
+  taskTemplates: Array<{
+    processTypeId: number;
+    title: string;
+    category: string;
+    defaultResponsibilityId: number | null;
+    isDepartmentPhaseTask: boolean;
+    isActive: boolean;
+  }>,
+  responsibilityOwnersById: Map<number, { responsibilityName: string; departmentName: string | null }>
+) {
+  if (!processTypeId) {
+    return [];
+  }
+
+  const modulesByArea = new Map<string, Set<string>>();
+  for (const template of taskTemplates) {
+    if (template.processTypeId !== processTypeId || !template.isActive || !template.isDepartmentPhaseTask) {
+      continue;
+    }
+
+    const owner = template.defaultResponsibilityId
+      ? responsibilityOwnersById.get(template.defaultResponsibilityId) ?? null
+      : null;
+    const areaLabel = owner?.departmentName?.trim() || owner?.responsibilityName?.trim() || "Bereiche";
+    const moduleLabel = buildMeasureModuleLabel(template.title, template.category);
+    const modules = modulesByArea.get(areaLabel) ?? new Set<string>();
+    modules.add(moduleLabel);
+    modulesByArea.set(areaLabel, modules);
+  }
+
+  return [...modulesByArea.entries()]
+    .slice(0, 4)
+    .map(([areaLabel, modules]) => {
+      const compactModules = [...modules].slice(0, 4);
+      return `${areaLabel}: ${compactModules.join(", ")}${modules.size > compactModules.length ? " ..." : ""}`;
+    });
+}
+
+function buildMeasureModuleLabel(title: string, category: string) {
+  const normalizedTitle = title.trim();
+  if (!normalizedTitle) {
+    return category.trim() || "Modul";
+  }
+
+  const titleWithoutActionPrefix = normalizedTitle
+    .replace(/^(Anlegen|Einrichten|Bereitstellen|Vorbereiten|Aktualisieren|Vergeben|Übernehmen|Uebernehmen|Deaktivieren|Sperren|Entziehen|Einziehen|Tauschen|Ändern|Aendern)\s+/i, "")
+    .replace(/\s+(anlegen|einrichten|bereitstellen|vorbereiten|aktualisieren|vergeben|uebernehmen|übernehmen|deaktivieren|sperren|entziehen|einziehen|tauschen|ändern|aendern)$/i, "")
+    .replace(/\s+(für|fuer)\s+.*$/i, "")
+    .trim();
+
+  if (/ad-berecht/i.test(titleWithoutActionPrefix)) {
+    return "Rechte";
+  }
+
+  if (/mailbox/i.test(titleWithoutActionPrefix)) {
+    return "Mail";
+  }
+
+  if (/hardware|telefon/i.test(titleWithoutActionPrefix)) {
+    return "Hardware";
+  }
+
+  if (/ad-user|ad-konto|ad-gruppen/i.test(titleWithoutActionPrefix)) {
+    return "AD";
+  }
+
+  return titleWithoutActionPrefix
+    .replace(/\s+-\s+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function formatVersionStatus(status: string) {

@@ -88,6 +88,10 @@ export async function getAdminDepartmentAssignments(): Promise<AdminDepartmentAs
   return requestJson<BackendAdminDepartmentAssignmentDto[]>("/admin/master-data/departments");
 }
 
+export async function getAdminDepartmentPositions(): Promise<AdminRole[]> {
+  return requestJson<BackendAdminRoleDto[]>("/admin/master-data/positions");
+}
+
 export async function getAdminResponsibilityOwners(): Promise<AdminResponsibilityOwner[]> {
   return requestJson<BackendAdminResponsibilityOwnerDto[]>("/admin/master-data/responsibilities");
 }
@@ -101,6 +105,36 @@ export async function createAdminDepartment(departmentName: string): Promise<Adm
 
 export async function deleteAdminDepartment(departmentId: number): Promise<void> {
   await requestJson<unknown>(`/admin/master-data/departments/${encodeURIComponent(String(departmentId))}`, {
+    method: "DELETE",
+  });
+}
+
+export async function createAdminDepartmentPosition(
+  departmentId: number,
+  positionName: string
+): Promise<AdminRole> {
+  return requestJson<BackendAdminRoleDto>(
+    `/admin/master-data/departments/${encodeURIComponent(String(departmentId))}/positions`,
+    {
+      method: "POST",
+      body: { positionName },
+    }
+  );
+}
+
+export async function updateAdminDepartmentPosition(
+  positionId: number,
+  positionName: string,
+  isActive: boolean
+): Promise<AdminRole> {
+  return requestJson<BackendAdminRoleDto>(`/admin/master-data/positions/${encodeURIComponent(String(positionId))}`, {
+    method: "PATCH",
+    body: { positionName, isActive },
+  });
+}
+
+export async function deleteAdminDepartmentPosition(positionId: number): Promise<void> {
+  await requestJson<unknown>(`/admin/master-data/positions/${encodeURIComponent(String(positionId))}`, {
     method: "DELETE",
   });
 }

@@ -3,7 +3,7 @@ ALTER TABLE workflow_nodes
 
 ALTER TABLE workflow_nodes
     ADD CONSTRAINT workflow_nodes_node_type_check
-    CHECK (node_type IN ('start', 'form', 'approval', 'task', 'decision', 'automation', 'end'));
+    CHECK (node_type IN ('start', 'form', 'approval', 'task', 'decision', 'parallel_split', 'parallel_join', 'automation', 'measure_provision', 'measure_deprovision', 'measure_change', 'measure_rename', 'setup', 'end'));
 
 CREATE TABLE IF NOT EXISTS action_definitions (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

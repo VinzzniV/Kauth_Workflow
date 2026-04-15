@@ -117,7 +117,7 @@ export function useRequirementEditor({
       await updateSupervisorStepMutation.mutateAsync(
         toRequirementSelectionPayload(workflow.requirements, requirementSelections)
       );
-      showSuccess("Anforderungen wurden per Admin-Override gespeichert.");
+      showSuccess("Anforderungen wurden gespeichert.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Anforderungen konnten nicht gespeichert werden.";
       showError(message);

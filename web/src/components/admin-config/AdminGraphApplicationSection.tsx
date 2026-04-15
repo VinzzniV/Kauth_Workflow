@@ -44,7 +44,7 @@ export function AdminGraphApplicationSection({
         </article>
       </div>
 
-      <div className="dashboard-card card-primary">
+      <div className="dashboard-card admin-system-config-card">
         <div>
           <h2>Runtime-Werte</h2>
           <p>

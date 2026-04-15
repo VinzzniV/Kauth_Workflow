@@ -37,7 +37,7 @@ function getIntroBadges(meta: AdminWorkspaceSectionMeta): Array<{ label: string;
     case "system":
       return [
         { label: "Live", tone: "warning" },
-        { label: "Versand", tone: "default" },
+        { label: "System", tone: "default" },
       ];
     case "operations":
       return [

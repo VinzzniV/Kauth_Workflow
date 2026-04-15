@@ -37,6 +37,7 @@ SELECT
     wt.workflow_id,
     wt.task_key,
     wt.status,
+    wt.is_required,
     wt.is_department_phase_task,
     selected_assignment.assignment_type,
     selected_responsibility.responsibility_key,
@@ -71,7 +72,8 @@ WHERE wt.workflow_id = ANY(@workflowIds);";
             metadata.TotalTaskCount += 1;
 
             var taskStatus = reader.GetString(2);
-            var isDepartmentPhaseTask = reader.GetBoolean(3);
+            var isRequired = reader.GetBoolean(3);
+            var isDepartmentPhaseTask = reader.GetBoolean(4);
             if (taskStatus.Equals("done", StringComparison.OrdinalIgnoreCase))
             {
                 metadata.DoneTaskCount += 1;
@@ -80,11 +82,37 @@ WHERE wt.workflow_id = ANY(@workflowIds);";
             {
                 metadata.InProgressTaskCount += 1;
             }
+            else if (taskStatus.Equals("blocked", StringComparison.OrdinalIgnoreCase))
+            {
+                metadata.BlockedTaskCount += 1;
+            }
             else if (taskStatus.Equals("open", StringComparison.OrdinalIgnoreCase)
-                || taskStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
-                || taskStatus.Equals("blocked", StringComparison.OrdinalIgnoreCase))
+                || taskStatus.Equals("ready", StringComparison.OrdinalIgnoreCase))
             {
                 metadata.OpenTaskCount += 1;
+            }
+
+            if (isRequired)
+            {
+                metadata.RequiredTotalTaskCount += 1;
+
+                if (taskStatus.Equals("done", StringComparison.OrdinalIgnoreCase))
+                {
+                    metadata.RequiredDoneTaskCount += 1;
+                }
+                else if (taskStatus.Equals("in_progress", StringComparison.OrdinalIgnoreCase))
+                {
+                    metadata.RequiredInProgressTaskCount += 1;
+                }
+                else if (taskStatus.Equals("blocked", StringComparison.OrdinalIgnoreCase))
+                {
+                    metadata.RequiredBlockedTaskCount += 1;
+                }
+                else if (taskStatus.Equals("open", StringComparison.OrdinalIgnoreCase)
+                    || taskStatus.Equals("ready", StringComparison.OrdinalIgnoreCase))
+                {
+                    metadata.RequiredOpenTaskCount += 1;
+                }
             }
 
             if (isDepartmentPhaseTask)
@@ -99,18 +127,21 @@ WHERE wt.workflow_id = ANY(@workflowIds);";
                 {
                     metadata.DepartmentInProgressTaskCount += 1;
                 }
+                else if (taskStatus.Equals("blocked", StringComparison.OrdinalIgnoreCase))
+                {
+                    metadata.DepartmentBlockedTaskCount += 1;
+                }
                 else if (taskStatus.Equals("open", StringComparison.OrdinalIgnoreCase)
-                    || taskStatus.Equals("ready", StringComparison.OrdinalIgnoreCase)
-                    || taskStatus.Equals("blocked", StringComparison.OrdinalIgnoreCase))
+                    || taskStatus.Equals("ready", StringComparison.OrdinalIgnoreCase))
                 {
                     metadata.DepartmentOpenTaskCount += 1;
                 }
             }
 
             var option = BuildWorkflowResponsibilityOption(
-                reader.IsDBNull(4) ? null : reader.GetString(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5),
-                reader.IsDBNull(6) ? null : reader.GetString(6));
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7));
             metadata.ResponsibilityOptions[option.Value] = option;
         }
 
@@ -130,11 +161,19 @@ WHERE wt.workflow_id = ANY(@workflowIds);";
                 metadata.TotalTaskCount,
                 metadata.OpenTaskCount,
                 metadata.InProgressTaskCount,
+                metadata.BlockedTaskCount,
                 metadata.DoneTaskCount),
+            Required = WorkflowSummaryBuilder.CreateTaskCountSummary(
+                metadata.RequiredTotalTaskCount,
+                metadata.RequiredOpenTaskCount,
+                metadata.RequiredInProgressTaskCount,
+                metadata.RequiredBlockedTaskCount,
+                metadata.RequiredDoneTaskCount),
             DepartmentPhase = WorkflowSummaryBuilder.CreateTaskCountSummary(
                 metadata.DepartmentTotalTaskCount,
                 metadata.DepartmentOpenTaskCount,
                 metadata.DepartmentInProgressTaskCount,
+                metadata.DepartmentBlockedTaskCount,
                 metadata.DepartmentDoneTaskCount)
         };
     }

@@ -25,6 +25,19 @@ function toStoredUserId(value: number | null): string {
   return value ? String(value) : "";
 }
 
+function toSyncStateLabel(syncState: string): string {
+  switch (syncState) {
+    case "resolved":
+      return "Entra synchronisiert";
+    case "missing":
+      return "Entra-Zuordnung fehlt";
+    case "conflict":
+      return "Entra-Konflikt";
+    default:
+      return "Manuell gepflegt";
+  }
+}
+
 export function AdminDepartmentsSection({
   sortedDepartments,
   sortedUsers,
@@ -186,6 +199,19 @@ function buildSelectableUserOptions(selectedUserId: string, eligibleUsers: Admin
                 Anforderungsverantwortung: {department.requirementOwnerDisplayName ?? "keine feste Person"} / Leitung:{" "}
                 {department.departmentLeadDisplayName ?? "keine feste Person"}
               </p>
+
+              <p className="panel-note">
+                Quelle: {department.assignmentSource === "entra_managed" ? "Entra-geführt" : "manuell"} / Status:{" "}
+                {toSyncStateLabel(department.syncState)}
+              </p>
+
+              {department.syncDetail ? <p className="panel-note">{department.syncDetail}</p> : null}
+
+              {department.assignmentSource === "entra_managed" ? (
+                <p className="panel-note">
+                  Entra ist führend. Manuelle Änderungen werden beim nächsten Directory-Sync überschrieben.
+                </p>
+              ) : null}
 
               {hasChanges ? (
                 <p className="panel-note">

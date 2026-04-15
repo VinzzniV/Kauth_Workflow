@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { toNullableNumber } from "../components/admin-config/adminConfigHelpers";
-import type { NewResponsibilityDraft } from "../components/admin-config/adminOrganizationTypes";
+import type { NewResponsibilityDraft, PositionDraft } from "../components/admin-config/adminOrganizationTypes";
 import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 import {
+  createAdminDepartmentPosition,
   createAdminResponsibility,
   createAdminDepartment,
+  deleteAdminDepartmentPosition,
   deleteAdminResponsibility,
   deleteAdminDepartment,
+  updateAdminDepartmentPosition,
   updateAdminDepartmentAssignment,
   updateAdminResponsibilityOwner,
 } from "../services/adminApi";
-import type { AdminDepartmentAssignment, AdminResponsibilityOwner } from "../types/auth";
+import type { AdminDepartmentAssignment, AdminResponsibilityOwner, AdminRole } from "../types/auth";
 
 type DepartmentDraft = {
   departmentLeadUserId: string;
@@ -25,8 +28,10 @@ type ResponsibilityDraft = {
 
 type UseAdminOrganizationManagementOptions = {
   departmentAssignments: AdminDepartmentAssignment[];
+  departmentPositions: AdminRole[];
   responsibilityOwners: AdminResponsibilityOwner[];
   setDepartmentAssignments: Dispatch<SetStateAction<AdminDepartmentAssignment[]>>;
+  setDepartmentPositions: Dispatch<SetStateAction<AdminRole[]>>;
   setResponsibilityOwners: Dispatch<SetStateAction<AdminResponsibilityOwner[]>>;
   reload: () => Promise<void>;
   onNotice: (message: string | null) => void;
@@ -35,8 +40,10 @@ type UseAdminOrganizationManagementOptions = {
 
 export function useAdminOrganizationManagement({
   departmentAssignments,
+  departmentPositions,
   responsibilityOwners,
   setDepartmentAssignments,
+  setDepartmentPositions,
   setResponsibilityOwners,
   reload,
   onNotice,
@@ -44,17 +51,22 @@ export function useAdminOrganizationManagement({
 }: UseAdminOrganizationManagementOptions) {
   const confirm = useConfirmationDialog();
   const [newDepartmentNameDraft, setNewDepartmentNameDraft] = useState<string>("");
+  const [newPositionNameDraft, setNewPositionNameDraft] = useState<string>("");
   const [newResponsibilityDraft, setNewResponsibilityDraft] = useState<NewResponsibilityDraft>({
     responsibilityName: "",
     departmentId: "",
   });
   const [departmentDrafts, setDepartmentDrafts] = useState<Record<number, DepartmentDraft>>({});
+  const [positionDrafts, setPositionDrafts] = useState<Record<number, PositionDraft>>({});
   const [responsibilityDrafts, setResponsibilityDrafts] = useState<Record<number, ResponsibilityDraft>>({});
   const [isCreatingDepartment, setIsCreatingDepartment] = useState<boolean>(false);
+  const [creatingPositionDepartmentId, setCreatingPositionDepartmentId] = useState<number | null>(null);
   const [isCreatingResponsibility, setIsCreatingResponsibility] = useState<boolean>(false);
   const [deletingDepartmentId, setDeletingDepartmentId] = useState<number | null>(null);
+  const [deletingPositionId, setDeletingPositionId] = useState<number | null>(null);
   const [deletingResponsibilityId, setDeletingResponsibilityId] = useState<number | null>(null);
   const [savingDepartmentId, setSavingDepartmentId] = useState<number | null>(null);
+  const [savingPositionId, setSavingPositionId] = useState<number | null>(null);
   const [savingResponsibilityId, setSavingResponsibilityId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -70,6 +82,20 @@ export function useAdminOrganizationManagement({
       )
     );
   }, [departmentAssignments]);
+
+  useEffect(() => {
+    setPositionDrafts(
+      Object.fromEntries(
+        departmentPositions.map((item) => [
+          item.roleId,
+          {
+            roleName: item.roleName,
+            isActive: item.isActive,
+          },
+        ])
+      )
+    );
+  }, [departmentPositions]);
 
   useEffect(() => {
     setResponsibilityDrafts(
@@ -111,6 +137,37 @@ export function useAdminOrganizationManagement({
       setIsCreatingDepartment(false);
     }
   }, [newDepartmentNameDraft, onError, onNotice, setDepartmentAssignments]);
+
+  const createDepartmentPosition = useCallback(async (departmentId: number) => {
+    const nextPositionName = newPositionNameDraft.trim();
+    if (!nextPositionName) {
+      onNotice(null);
+      onError("Bitte einen Stellennamen eingeben.");
+      return;
+    }
+
+    setCreatingPositionDepartmentId(departmentId);
+    onNotice(null);
+    onError(null);
+
+    try {
+      const createdPosition = await createAdminDepartmentPosition(departmentId, nextPositionName);
+      setDepartmentPositions((current) =>
+        current.concat(createdPosition).sort((left, right) => {
+          const leftKey = `${left.departmentName ?? ""}|${left.roleName}`;
+          const rightKey = `${right.departmentName ?? ""}|${right.roleName}`;
+          return leftKey.localeCompare(rightKey, "de");
+        })
+      );
+      setNewPositionNameDraft("");
+      onNotice(`Stelle ${createdPosition.roleName} wurde angelegt.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Stelle konnte nicht angelegt werden.";
+      onError(message);
+    } finally {
+      setCreatingPositionDepartmentId(null);
+    }
+  }, [newPositionNameDraft, onError, onNotice, setDepartmentPositions]);
 
   const createResponsibility = useCallback(async () => {
     const nextResponsibilityName = newResponsibilityDraft.responsibilityName.trim();
@@ -177,6 +234,38 @@ export function useAdminOrganizationManagement({
     }
   }, [confirm, onError, onNotice, reload]);
 
+  const removeDepartmentPosition = useCallback(async (position: AdminRole) => {
+    const shouldDelete = await confirm({
+      title: "Stelle löschen?",
+      description: `Die Stelle "${position.roleName}" wird dauerhaft entfernt. Wenn bereits Vorgänge darauf verweisen, muss sie stattdessen deaktiviert werden.`,
+      confirmLabel: "Stelle löschen",
+      tone: "danger",
+    });
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingPositionId(position.roleId);
+    onNotice(null);
+    onError(null);
+
+    try {
+      await deleteAdminDepartmentPosition(position.roleId);
+      setDepartmentPositions((current) => current.filter((item) => item.roleId !== position.roleId));
+      setPositionDrafts((current) => {
+        const nextDrafts = { ...current };
+        delete nextDrafts[position.roleId];
+        return nextDrafts;
+      });
+      onNotice(`Stelle ${position.roleName} wurde gelöscht.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Stelle konnte nicht gelöscht werden.";
+      onError(message);
+    } finally {
+      setDeletingPositionId(null);
+    }
+  }, [confirm, onError, onNotice, setDepartmentPositions]);
+
   const removeResponsibility = useCallback(async (responsibility: AdminResponsibilityOwner) => {
     const shouldDelete = await confirm({
       title: "Zuständigkeit löschen?",
@@ -242,6 +331,41 @@ export function useAdminOrganizationManagement({
     }
   }, [departmentDrafts, onError, onNotice, setDepartmentAssignments]);
 
+  const saveDepartmentPosition = useCallback(async (positionId: number) => {
+    const draft = positionDrafts[positionId];
+    if (!draft) {
+      return;
+    }
+
+    const nextPositionName = draft.roleName.trim();
+    if (!nextPositionName) {
+      onNotice(null);
+      onError("Bitte einen Stellennamen eingeben.");
+      return;
+    }
+
+    setSavingPositionId(positionId);
+    onNotice(null);
+    onError(null);
+
+    try {
+      const updatedPosition = await updateAdminDepartmentPosition(
+        positionId,
+        nextPositionName,
+        draft.isActive
+      );
+      setDepartmentPositions((current) =>
+        current.map((item) => (item.roleId === updatedPosition.roleId ? updatedPosition : item))
+      );
+      onNotice(`Stelle ${updatedPosition.roleName} wurde gespeichert.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Stelle konnte nicht gespeichert werden.";
+      onError(message);
+    } finally {
+      setSavingPositionId(null);
+    }
+  }, [onError, onNotice, positionDrafts, setDepartmentPositions]);
+
   const saveResponsibilityAssignment = useCallback(async (responsibilityId: number) => {
     const draft = responsibilityDrafts[responsibilityId] ?? { appUserId: "", departmentId: "" };
 
@@ -272,24 +396,34 @@ export function useAdminOrganizationManagement({
 
   return {
     newDepartmentNameDraft,
+    newPositionNameDraft,
     newResponsibilityDraft,
     departmentDrafts,
+    positionDrafts,
     responsibilityDrafts,
     isCreatingDepartment,
+    creatingPositionDepartmentId,
     isCreatingResponsibility,
     deletingDepartmentId,
+    deletingPositionId,
     deletingResponsibilityId,
     savingDepartmentId,
+    savingPositionId,
     savingResponsibilityId,
     setNewDepartmentNameDraft,
+    setNewPositionNameDraft,
     setNewResponsibilityDraft,
     setDepartmentDrafts,
+    setPositionDrafts,
     setResponsibilityDrafts,
     createDepartment,
+    createDepartmentPosition,
     createResponsibility,
     removeDepartment,
+    removeDepartmentPosition,
     removeResponsibility,
     saveDepartmentAssignment,
+    saveDepartmentPosition,
     saveResponsibilityAssignment,
   };
 }

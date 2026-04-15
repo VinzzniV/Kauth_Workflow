@@ -10,10 +10,17 @@ internal sealed partial class PostgresWorkflowRepository
         public int TotalTaskCount { get; set; }
         public int OpenTaskCount { get; set; }
         public int InProgressTaskCount { get; set; }
+        public int BlockedTaskCount { get; set; }
         public int DoneTaskCount { get; set; }
+        public int RequiredTotalTaskCount { get; set; }
+        public int RequiredOpenTaskCount { get; set; }
+        public int RequiredInProgressTaskCount { get; set; }
+        public int RequiredBlockedTaskCount { get; set; }
+        public int RequiredDoneTaskCount { get; set; }
         public int DepartmentTotalTaskCount { get; set; }
         public int DepartmentOpenTaskCount { get; set; }
         public int DepartmentInProgressTaskCount { get; set; }
+        public int DepartmentBlockedTaskCount { get; set; }
         public int DepartmentDoneTaskCount { get; set; }
         public Dictionary<string, WorkflowResponsibilityOptionDto> ResponsibilityOptions { get; } =
             new(StringComparer.Ordinal);

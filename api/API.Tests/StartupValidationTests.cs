@@ -108,6 +108,7 @@ public sealed class StartupValidationTests
                 "department_change",
                 3,
                 "department_change",
+                false,
                 new List<WorkflowDefinitionNodeDto>
                 {
                     CreateNode("start", "start"),
@@ -138,6 +139,7 @@ public sealed class StartupValidationTests
                 "hr-onboarding",
                 2,
                 "onboarding",
+                true,
                 new List<WorkflowDefinitionNodeDto>
                 {
                     CreateNode("start", "start"),

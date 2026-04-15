@@ -4,6 +4,8 @@ namespace API;
 
 internal static class EndpointSupport
 {
+    private static readonly AuthorizationPolicyService AuthorizationPolicy = new();
+
     public static MeDto ToMeDto(CurrentUser currentUser)
     {
         var username = !string.IsNullOrWhiteSpace(currentUser.ExternalKey)
@@ -37,6 +39,7 @@ internal static class EndpointSupport
             Groups = groups,
             Permissions = permissions,
             PermissionScopes = currentUser.PermissionScopes,
+            CanAccessSupervisorStep = AuthorizationPolicy.CanAccessSupervisorStep(currentUser),
             DirectorySynced = currentUser.DirectorySynced,
             DepartmentSource = currentUser.DepartmentSource,
             DepartmentOverrideActive = currentUser.DepartmentOverrideActive

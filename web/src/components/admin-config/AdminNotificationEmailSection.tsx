@@ -149,7 +149,7 @@ export function AdminNotificationEmailSection({
         </article>
       </div>
 
-      <div className="dashboard-card card-primary">
+      <div className="dashboard-card admin-system-config-card">
         <div>
           <h2>Mail-Einstellungen</h2>
           <p>Konfigurieren Sie Versand, Absender und Mail-spezifische Laufzeitoptionen. Graph-Credentials kommen ausschließlich aus der Runtime.</p>

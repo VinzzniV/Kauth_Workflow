@@ -2,8 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createAdminWorkflowDefinition,
   deleteAdminWorkflowDefinition,
+  getAdminAnswerDefinitions,
   getAdminWorkflowActionDefinitions,
   getAdminProcessTypes,
+  getAdminTaskTemplateConditions,
+  getAdminTaskTemplateDependencies,
   getAdminTaskTemplates,
   getAdminWorkflowDefinitionVersion,
   getOrCreateAdminWorkflowDefinitionWorkingDraft,
@@ -14,10 +17,13 @@ import {
 } from "../services/adminConfigApi";
 import { getAdminResponsibilityOwners } from "../services/adminApi";
 import type {
+  AdminAnswerDefinition,
   AdminWorkflowActionDefinition,
   AdminProcessType,
   AdminResponsibilityOwner,
   AdminTaskTemplate,
+  AdminTaskTemplateCondition,
+  AdminTaskTemplateDependency,
   AdminWorkflowDefinitionSummary,
   AdminWorkflowDefinitionVersionDetail,
 } from "../types/auth";
@@ -37,11 +43,39 @@ import {
   validateWorkflowBuilderDraft,
 } from "./adminWorkflowBuilderModel";
 
+export type BuilderInspectorFocusMode =
+  | "none"
+  | "process_type"
+  | "answer_definition"
+  | "task_template"
+  | "task_template_conditions"
+  | "task_template_dependencies";
+
+export type BuilderInspectorFocusSection = "details" | "conditions" | "dependencies" | null;
+
+export type BuilderInspectorFocusTarget = {
+  mode: BuilderInspectorFocusMode;
+  processTypeId: number | null;
+  answerDefinitionId: number | null;
+  templateId: number | null;
+  templateSection: BuilderInspectorFocusSection;
+};
+
 type UseAdminWorkflowBuilderOptions = {
   onNotice: (message: string | null) => void;
   onError: (message: string | null) => void;
   canManageAdvanced: boolean;
 };
+
+function createEmptyInspectorFocus(): BuilderInspectorFocusTarget {
+  return {
+    mode: "none",
+    processTypeId: null,
+    answerDefinitionId: null,
+    templateId: null,
+    templateSection: null,
+  };
+}
 
 export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }: UseAdminWorkflowBuilderOptions) {
   const [definitions, setDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
@@ -49,6 +83,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
   const [responsibilityOwners, setResponsibilityOwners] = useState<AdminResponsibilityOwner[]>([]);
   const [taskTemplates, setTaskTemplates] = useState<AdminTaskTemplate[]>([]);
+  const [answerDefinitions, setAnswerDefinitions] = useState<AdminAnswerDefinition[]>([]);
+  const [taskTemplateConditions, setTaskTemplateConditions] = useState<AdminTaskTemplateCondition[]>([]);
+  const [taskTemplateDependencies, setTaskTemplateDependencies] = useState<AdminTaskTemplateDependency[]>([]);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -58,6 +95,8 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   const [newDefinitionDraft, setNewDefinitionDraft] = useState(createEmptyDefinitionDraft);
   const [versionDraft, setVersionDraft] = useState<WorkflowBuilderVersionDraft>(createEmptyVersionDraft);
   const [localValidationIssues, setLocalValidationIssues] = useState<string[]>([]);
+  const [inspectorFocus, setInspectorFocus] = useState<BuilderInspectorFocusTarget>(createEmptyInspectorFocus);
+  const [referenceReloadTick, setReferenceReloadTick] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingVersion, setIsLoadingVersion] = useState(false);
   const [isDeletingDefinition, setIsDeletingDefinition] = useState(false);
@@ -160,15 +199,27 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setSelectedVersionId(nextVersionId);
   }, [canManageAdvanced, onError]);
 
+  const closeInspectorFocus = useCallback(() => {
+    setInspectorFocus(createEmptyInspectorFocus());
+  }, []);
+
+  const openInspectorFocus = useCallback((focus: BuilderInspectorFocusTarget) => {
+    setInspectorFocus(focus);
+  }, []);
+
   const resetLoadedVersion = useCallback(() => {
     setVersionDetail(null);
     setVersionDraft(createEmptyVersionDraft());
     setTaskTemplates([]);
+    setAnswerDefinitions([]);
+    setTaskTemplateConditions([]);
+    setTaskTemplateDependencies([]);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setLocalValidationIssues([]);
     setIsDirty(false);
     setSelectedVersionId(null);
+    setInspectorFocus(createEmptyInspectorFocus());
   }, []);
 
   const applyLoadedVersionDetail = useCallback((detail: AdminWorkflowDefinitionVersionDetail) => {
@@ -176,11 +227,15 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setVersionDetail(detail);
     setVersionDraft(nextDraft);
     setTaskTemplates([]);
+    setAnswerDefinitions([]);
+    setTaskTemplateConditions([]);
+    setTaskTemplateDependencies([]);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setLocalValidationIssues([]);
     setIsDirty(false);
     setSelectedVersionId(detail.id);
+    setInspectorFocus(createEmptyInspectorFocus());
   }, []);
 
   const loadVersionDetail = useCallback(async (versionId: number | null) => {
@@ -289,40 +344,91 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
     if (processTypeIdsToLoad.size === 0) {
       setTaskTemplates([]);
+      setAnswerDefinitions([]);
+      setTaskTemplateConditions([]);
+      setTaskTemplateDependencies([]);
       return;
     }
 
     let cancelled = false;
     void Promise.all(
-      [...processTypeIdsToLoad].map(async (processTypeId) => getAdminTaskTemplates(processTypeId))
+      [...processTypeIdsToLoad].map(async (processTypeId) =>
+        Promise.all([
+          getAdminTaskTemplates(processTypeId),
+          getAdminAnswerDefinitions(processTypeId),
+        ])
+      )
     )
-      .then((templateGroups) => {
+      .then(async (loadedGroups) => {
         if (cancelled) {
           return;
         }
 
         const templatesByKey = new Map<string, AdminTaskTemplate>();
-        for (const group of templateGroups) {
-          for (const template of group) {
+        const answerDefinitionsByCompositeKey = new Map<string, AdminAnswerDefinition>();
+        for (const [loadedTemplates, loadedAnswerDefinitions] of loadedGroups) {
+          for (const template of loadedTemplates) {
             const normalizedKey = template.templateKey.trim().toLowerCase();
             if (normalizedKey && !templatesByKey.has(normalizedKey)) {
               templatesByKey.set(normalizedKey, template);
             }
           }
+
+          for (const definition of loadedAnswerDefinitions) {
+            const compositeKey = `${definition.processTypeId}:${definition.answerKey.trim().toLowerCase()}`;
+            if (definition.answerKey.trim() && !answerDefinitionsByCompositeKey.has(compositeKey)) {
+              answerDefinitionsByCompositeKey.set(compositeKey, definition);
+            }
+          }
         }
 
-        setTaskTemplates([...templatesByKey.values()]);
+        const dedupedTemplates = [...templatesByKey.values()];
+        const templatesWithConditions = dedupedTemplates.filter((template) => template.conditionCount > 0);
+        const templatesWithDependencies = dedupedTemplates.filter((template) => template.dependencyCount > 0);
+
+        const [loadedConditions, loadedDependencies] = await Promise.all([
+          Promise.all(templatesWithConditions.map((template) => getAdminTaskTemplateConditions(template.id))),
+          Promise.all(templatesWithDependencies.map((template) => getAdminTaskTemplateDependencies(template.id))),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setTaskTemplates(dedupedTemplates);
+        setAnswerDefinitions([...answerDefinitionsByCompositeKey.values()]);
+        setTaskTemplateConditions(loadedConditions.flat());
+        setTaskTemplateDependencies(loadedDependencies.flat());
       })
       .catch(() => {
         if (!cancelled) {
           setTaskTemplates([]);
+          setAnswerDefinitions([]);
+          setTaskTemplateConditions([]);
+          setTaskTemplateDependencies([]);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [processTypes, versionDraft.nodes, versionDraft.primaryLegacyProcessTypeKey]);
+  }, [processTypes, referenceReloadTick, versionDraft.nodes, versionDraft.primaryLegacyProcessTypeKey]);
+
+  const refreshReferenceData = useCallback(async () => {
+    onError(null);
+
+    try {
+      const [loadedProcessTypes, loadedResponsibilityOwners] = await Promise.all([
+        getAdminProcessTypes().catch(() => [] as AdminProcessType[]),
+        getAdminResponsibilityOwners().catch(() => [] as AdminResponsibilityOwner[]),
+      ]);
+      setProcessTypes(loadedProcessTypes);
+      setResponsibilityOwners(loadedResponsibilityOwners);
+      setReferenceReloadTick((current) => current + 1);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Die Builder-Referenzdaten konnten nicht aktualisiert werden.");
+    }
+  }, [onError]);
 
   const confirmSelectionChange = useCallback(() => {
     if (!hasUnsavedChanges) {
@@ -352,6 +458,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   const selectNode = useCallback((nodeId: string | null) => {
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
+    setInspectorFocus(createEmptyInspectorFocus());
   }, []);
 
   const selectEdge = useCallback((edgeId: string | null) => {
@@ -359,6 +466,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     if (edgeId) {
       setSelectedNodeId(null);
     }
+    setInspectorFocus(createEmptyInspectorFocus());
   }, []);
 
   const updateDefinitionDraft = useCallback((key: "name" | "description", value: string) => {
@@ -888,6 +996,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     processTypes,
     responsibilityOwners,
     taskTemplates,
+    answerDefinitions,
+    taskTemplateConditions,
+    taskTemplateDependencies,
     selectedDefinition,
     selectedVersionSummary,
     selectedNode,
@@ -931,5 +1042,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     saveVersion,
     validateDraft,
     publishVersion,
+    inspectorFocus,
+    openInspectorFocus,
+    closeInspectorFocus,
+    refreshReferenceData,
   };
 }

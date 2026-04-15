@@ -241,6 +241,13 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.True(_sut.CanEditSupervisorRequirements(user));
     }
 
+    [Fact]
+    public void CanEditSupervisorRequirements_ReturnsTrue_ForDepartmentLeadResponsibility()
+    {
+        var user = CreateUserWithResponsibility(AuthorizationRoles.Reader, responsibilityId: 5, responsibilityType: "department_lead");
+        Assert.True(_sut.CanEditSupervisorRequirements(user));
+    }
+
     [Theory]
     [InlineData(AuthorizationRoles.Hr)]
     [InlineData(AuthorizationRoles.Worker)]
@@ -271,6 +278,13 @@ public sealed class AuthorizationPolicyServiceTests
     public void CanAccessSupervisorStep_ReturnsTrue_ForExplicitSupervisorPermission()
     {
         var user = CreateUserWithPermission(AuthorizationPermissions.TasksExecuteSupervisor);
+        Assert.True(_sut.CanAccessSupervisorStep(user));
+    }
+
+    [Fact]
+    public void CanAccessSupervisorStep_ReturnsTrue_ForDepartmentLeadResponsibility()
+    {
+        var user = CreateUserWithResponsibility(AuthorizationRoles.Reader, responsibilityId: 5, responsibilityType: "department_lead");
         Assert.True(_sut.CanAccessSupervisorStep(user));
     }
 
@@ -401,6 +415,15 @@ public sealed class AuthorizationPolicyServiceTests
     {
         var user = CreateUser(AuthorizationRoles.Manager);
         Assert.False(_sut.CanObserveWorkflow(user, workflowDepartmentId: 10, WorkflowStatusRules.Draft, observableDepartmentIds: null));
+    }
+
+    [Fact]
+    public void CanObserveWorkflow_GlobalWorkflowDepartmentPermission_DoesNotBypassObservableDepartments()
+    {
+        var user = CreateUserWithPermission(AuthorizationPermissions.WorkflowsViewDepartment);
+        var observableDepts = new HashSet<int> { 20, 30 };
+
+        Assert.False(_sut.CanObserveWorkflow(user, workflowDepartmentId: 10, WorkflowStatusRules.Draft, observableDepartmentIds: observableDepts));
     }
 
     [Fact]
@@ -664,7 +687,11 @@ public sealed class AuthorizationPolicyServiceTests
         };
     }
 
-    private static CurrentUser CreateUserWithResponsibility(string roleKey, int responsibilityId, long userId = 1)
+    private static CurrentUser CreateUserWithResponsibility(
+        string roleKey,
+        int responsibilityId,
+        long userId = 1,
+        string responsibilityType = "department")
     {
         var role = CreateRole(roleKey);
         var responsibility = new CurrentUserResponsibility
@@ -672,7 +699,7 @@ public sealed class AuthorizationPolicyServiceTests
             ResponsibilityId = responsibilityId,
             ResponsibilityKey = $"resp_{responsibilityId}",
             ResponsibilityName = $"Responsibility {responsibilityId}",
-            ResponsibilityType = "department",
+            ResponsibilityType = responsibilityType,
             AssignmentSource = "direct"
         };
         return new CurrentUser

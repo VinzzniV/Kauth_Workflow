@@ -58,9 +58,13 @@ Aktueller Stand:
 - Die Canvas-Karten lesen sich jetzt staerker wie Prozessbausteine statt wie Datensaetze: sichtbar sind vor allem Titel, Typ, manuell/automatisch, Zustaendigkeit, optionale Benachrichtigte/Frist, Wirkung und der naechste Schritt. Dafuer nutzt der Builder zusaetzliche Frontend-Lookups auf Process Types, Task Templates und Responsibility-Owner, ohne den Backend-Vertrag fuer Workflow-Definitionen zu aendern.
 - Der Builder nutzt jetzt ein strukturiertes Top-to-Bottom-DAG-Layout statt eines links-nach-rechts Bandes. Verzweigungen und Zusammenfuehrungen werden dabei mit sichtbaren Junctions und balancierten Branch-Lanes dargestellt, damit Parallelitaet und Reconvergence wie in einem Flussdiagramm lesbar bleiben.
 - Fuer echte Parallelitaet kennt der Definition Layer jetzt zusaetzlich die Gateway-Typen `parallel_split` und `parallel_join`. Der Builder rendert diese als explizite Strukturpunkte; die Runtime aktiviert bei `parallel_split` mehrere Folgepfade und wartet bei `parallel_join` auf alle eingehenden Teilpfade.
+- Lifecycle-Workflows koennen jetzt zusaetzlich einen fachlichen `setup`-Baustein nutzen. In dieser Darstellung bleibt der Hauptfluss auf Phasen wie `Start`, `Anforderungen erfassen`, optionale `Freigabe`, `Setup` und `Abschluss` begrenzt; interne Boolean-Entscheidungen werden nicht mehr als eigene Hauptknoten gezeigt.
+- `setup`-Karten gruppieren Fachbereichsaufgaben als kompakte Unterelemente, zum Beispiel `IT: AD, Mail, Hardware` oder `QS: ...`, und ziehen diese rein aus Process-Type-/Template-/Responsibility-Lookups. Die eigentliche Runtime-Logik bleibt dabei unveraendert im Backend.
+- Die sichtbare Builder-Sidebar blendet technische Bedingungsfelder fuer Hauptpfade jetzt aus; `answerKey`, Operatoren und Rohbedingungen sind keine sichtbare Standard-Bearbeitungsflaeche mehr.
 - Basis-Builder-Zugriff haengt jetzt an der bestehenden `workflowCreate`-Faehigkeit; Anlage von Ablaufvorlagen und Staenden, Aktionskatalog und Freigabe bleiben bewusst auf den `Admin-Modus` beschraenkt.
 - Die tieferen Spezialeditoren fuer Bedingungen und Actions bleiben vorerst bewusst schlank und teilweise JSON-basiert; die weitere Produktisierung folgt in den naechsten Builder-Phasen.
 - Seit T11 nutzt `/workflows/create` startbare Workflow-Definitionen aus dem Definition Layer statt `process_types`; die alten Admin-Sektionen fuer Process Types, Templates und Answer Defaults sind im sichtbaren Workspace ausgeblendet.
+- Die Workflow-Detailansicht zeigt parallel laufende Bereiche jetzt klarer ueber Pflichtfortschritt, sichtbare `blocked`-Status und konkrete aktuelle Fachbereiche statt generischer Parallel-Hinweise.
 
 Wichtig:
 - keine freie technische Automationskonfiguration im UI

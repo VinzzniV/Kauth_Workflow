@@ -1176,6 +1176,59 @@ RETURNING id;
                     continue;
                 }
 
+                if (await ShouldAutoCompleteSupervisorApprovalBridge(
+                        connection,
+                        transaction,
+                        workflowId,
+                        graph,
+                        completedNode,
+                        nextNode))
+                {
+                    var skippedApprovalNodeInstanceId = await CreateWorkflowNodeInstance(
+                        connection,
+                        transaction,
+                        workflowId,
+                        nextNode,
+                        NodeInstanceStatusDone,
+                        CreateJsonbPayload(new
+                        {
+                            auto = true,
+                            reason = "supervisor_gatekeeper_form_already_completed"
+                        }));
+
+                    await InsertWorkflowRuntimeEvent(
+                        connection,
+                        transaction,
+                        workflowId,
+                        skippedApprovalNodeInstanceId,
+                        "node_completed",
+                        CreateJsonbPayload(new
+                        {
+                            nodeKey = nextNode.NodeKey,
+                            nodeType = nextNode.NodeType,
+                            auto = true,
+                            reason = "supervisor_gatekeeper_form_already_completed"
+                        }));
+
+                    await InsertAuditEntry(
+                        connection,
+                        transaction,
+                        workflowId,
+                        null,
+                        actorUserId,
+                        "runtime_node_auto_completed",
+                        null,
+                        nextNode.NodeType,
+                        nextNode.NodeKey);
+
+                    foreach (var resolvedNode in ResolveNextNodes(graph, nextNode, answersByKey))
+                    {
+                        EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolvedNode);
+                    }
+
+                    continue;
+                }
+
                 switch (nextNode.NodeType)
                 {
                     case "start":
@@ -1240,6 +1293,62 @@ RETURNING id;
                             EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolvedNode);
                         }
 
+                        break;
+                    }
+                    case "setup":
+                    case "measure_provision":
+                    case "measure_deprovision":
+                    case "measure_change":
+                    case "measure_rename":
+                    {
+                        var activeNodeInstanceId = await CreateWorkflowNodeInstance(
+                            connection,
+                            transaction,
+                            workflowId,
+                            nextNode,
+                            NodeInstanceStatusActive,
+                            null);
+
+                        await InsertWorkflowRuntimeEvent(
+                            connection,
+                            transaction,
+                            workflowId,
+                            activeNodeInstanceId,
+                            "node_activated",
+                            CreateJsonbPayload(new { nodeKey = nextNode.NodeKey, nodeType = nextNode.NodeType }));
+
+                        await EnsureRuntimeSetupTasksGenerated(
+                            connection,
+                            transaction,
+                            workflowId,
+                            nextNode,
+                            answersByKey,
+                            actorUserId);
+
+                        await InsertAuditEntry(
+                            connection,
+                            transaction,
+                            workflowId,
+                            null,
+                            actorUserId,
+                            "runtime_node_waiting",
+                            null,
+                            nextNode.NodeType,
+                            nextNode.NodeKey);
+
+                        await TryCompleteRuntimeSetupNodeIfReady(
+                            connection,
+                            transaction,
+                            workflowId,
+                            graph,
+                            new WorkflowNodeExecutionRecord
+                            {
+                                NodeInstanceId = activeNodeInstanceId,
+                                Status = NodeInstanceStatusActive,
+                                Node = nextNode
+                            },
+                            answersByKey,
+                            actorUserId);
                         break;
                     }
                     case "form":
@@ -1332,17 +1441,28 @@ RETURNING id;
         var activeNodes = await LoadActiveRuntimeNodes(connection, transaction, workflowId);
         if (activeNodes.Count > 0)
         {
-            var workflowStatusContext = await LoadRuntimeWorkflowStatusContext(connection, transaction, workflowId);
+            var legacyStatus = default(string);
+            if (activeNodes.Any(node => IsMeasureGenerationNodeType(node.NodeType)))
+            {
+                await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+                legacyStatus = await LoadWorkflowStatusForUpdate(connection, transaction, workflowId) ?? "in_progress";
+            }
+            else
+            {
+                var workflowStatusContext = await LoadRuntimeWorkflowStatusContext(connection, transaction, workflowId);
+                legacyStatus = MapLegacyStatusForActiveNodes(
+                    graph,
+                    activeNodes,
+                    workflowStatusContext.PrimaryLegacyProcessTypeKey,
+                    workflowStatusContext.RequiresSupervisorStep);
+            }
+
             await SetWorkflowRuntimeState(
                 connection,
                 transaction,
                 workflowId,
                 RuntimeStatusWaitingOnNode,
-                MapLegacyStatusForActiveNodes(
-                    graph,
-                    activeNodes,
-                    workflowStatusContext.PrimaryLegacyProcessTypeKey,
-                    workflowStatusContext.RequiresSupervisorStep),
+                legacyStatus,
                 null);
             return;
         }
@@ -1770,7 +1890,7 @@ RETURNING id;
                 transaction,
                 workflowContext.DepartmentId);
             assigneeUserId = supervisorAssignment.UserId;
-            assigneeResponsibilityId = supervisorAssignment.ResponsibilityId;
+            assigneeResponsibilityId = assigneeUserId.HasValue ? null : supervisorAssignment.ResponsibilityId;
         }
         else
         {
@@ -1784,9 +1904,13 @@ RETURNING id;
                 : null;
         }
 
-        if (assigneeUserId.HasValue || assigneeResponsibilityId.HasValue)
+        if (!assigneeUserId.HasValue && !assigneeResponsibilityId.HasValue)
         {
-            const string insertAssignmentSql = """
+            throw new InvalidOperationException(
+                $"Node '{node.NodeKey}' references task template '{template.TemplateKey}' without a resolvable assignment.");
+        }
+
+        const string insertAssignmentSql = """
 INSERT INTO task_assignments (
     workflow_task_id,
     assignee_user_id,
@@ -1803,19 +1927,377 @@ VALUES (
 );
 """;
 
-            await using var insertAssignmentCommand = new NpgsqlCommand(insertAssignmentSql, connection, transaction);
-            insertAssignmentCommand.Parameters.AddWithValue("workflowTaskId", workflowTaskId);
-            insertAssignmentCommand.Parameters.AddWithValue("assigneeUserId", (object?)assigneeUserId ?? DBNull.Value);
-            insertAssignmentCommand.Parameters.AddWithValue(
-                "assigneeResponsibilityId",
-                (object?)assigneeResponsibilityId ?? DBNull.Value);
-            insertAssignmentCommand.Parameters.AddWithValue(
-                "assignmentType",
-                assigneeUserId.HasValue ? "user" : "responsibility");
-            await insertAssignmentCommand.ExecuteNonQueryAsync();
-        }
+        await using var insertAssignmentCommand = new NpgsqlCommand(insertAssignmentSql, connection, transaction);
+        insertAssignmentCommand.Parameters.AddWithValue("workflowTaskId", workflowTaskId);
+        insertAssignmentCommand.Parameters.AddWithValue("assigneeUserId", (object?)assigneeUserId ?? DBNull.Value);
+        insertAssignmentCommand.Parameters.AddWithValue(
+            "assigneeResponsibilityId",
+            (object?)assigneeResponsibilityId ?? DBNull.Value);
+        insertAssignmentCommand.Parameters.AddWithValue(
+            "assignmentType",
+            assigneeUserId.HasValue ? "user" : "responsibility");
+        await insertAssignmentCommand.ExecuteNonQueryAsync();
 
         return workflowTaskId;
+    }
+
+    private static async Task<bool> ShouldAutoCompleteSupervisorApprovalBridge(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        WorkflowDefinitionGraphRecord graph,
+        WorkflowDefinitionNodeRecord completedNode,
+        WorkflowDefinitionNodeRecord candidateNode)
+    {
+        if (!string.Equals(candidateNode.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var workflowContext = await LoadWorkflowTaskGenerationContext(connection, transaction, workflowId);
+        if (!workflowContext.RequiresSupervisorStep
+            || string.IsNullOrWhiteSpace(workflowContext.ApprovalTaskTemplateKey))
+        {
+            return false;
+        }
+
+        var gatekeeperProcessTypeKey = TryGetNodeConfigString(completedNode, "legacyProcessTypeKey");
+        if (!IsSupervisorGatekeeperNode(
+                graph,
+                completedNode.NodeKey,
+                gatekeeperProcessTypeKey,
+                workflowContext.RequiresSupervisorStep))
+        {
+            return false;
+        }
+
+        var approvalTemplateKey = TryGetNodeConfigString(candidateNode, "legacyTemplateKey");
+        return string.Equals(
+            approvalTemplateKey,
+            workflowContext.ApprovalTaskTemplateKey,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task EnsureRuntimeSetupTasksGenerated(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        WorkflowDefinitionNodeRecord node,
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        long? actorUserId)
+    {
+        if (await WorkflowHasGeneratedSetupTasks(connection, transaction, workflowId))
+        {
+            return;
+        }
+
+        var workflowContext = await LoadWorkflowRuntimeTaskContext(connection, transaction, workflowId);
+        var runtimeHeader = await LoadRuntimeWorkflowHeaderByWorkflowId(connection, transaction, workflowId);
+        var generationStage = runtimeHeader.RequiresSupervisorStep
+            ? TaskGenerationStage.AfterSupervisor
+            : TaskGenerationStage.Initial;
+        var generatedTaskCount = await GenerateWorkflowTasks(
+            connection,
+            transaction,
+            workflowId,
+            workflowContext.DepartmentId,
+            answersByKey,
+            generationStage);
+
+        if (generatedTaskCount > 0)
+        {
+            await InsertWorkflowRuntimeEvent(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                "setup_tasks_generated",
+                CreateJsonbPayload(new
+                {
+                    nodeKey = node.NodeKey,
+                    generatedTaskCount
+                }));
+
+            await InsertAuditEntry(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                actorUserId,
+                "tasks_generated",
+                null,
+                null,
+                $"{generatedTaskCount} Aufgabe(n) in Setup-Phase erstellt");
+        }
+
+        await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
+        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+    }
+
+    private static async Task<bool> WorkflowHasGeneratedSetupTasks(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = """
+SELECT EXISTS(
+    SELECT 1
+    FROM workflow_tasks
+    WHERE workflow_id = @workflowId
+      AND node_instance_id IS NULL
+);
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        return (bool)(await command.ExecuteScalarAsync() ?? false);
+    }
+
+    private static async Task<bool> TryCompleteRuntimeSetupNodeIfReady(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        WorkflowDefinitionGraphRecord graph,
+        WorkflowNodeExecutionRecord activeNodeExecution,
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        long? actorUserId)
+    {
+        if (!await AreRuntimeSetupTasksCompleted(connection, transaction, workflowId))
+        {
+            return false;
+        }
+
+        await UpdateNodeInstanceStatus(
+            connection,
+            transaction,
+            activeNodeExecution.NodeInstanceId,
+            NodeInstanceStatusDone,
+            CreateJsonbPayload(new { completedBy = "task_completion" }));
+
+        await InsertWorkflowRuntimeEvent(
+            connection,
+            transaction,
+            workflowId,
+            activeNodeExecution.NodeInstanceId,
+            "setup_completed",
+            CreateJsonbPayload(new { nodeKey = activeNodeExecution.Node.NodeKey }));
+
+        await InsertAuditEntry(
+            connection,
+            transaction,
+            workflowId,
+            null,
+            actorUserId,
+            "runtime_setup_completed",
+            null,
+            NodeInstanceStatusDone,
+            activeNodeExecution.Node.NodeKey);
+
+        await AdvanceRuntimeUntilWaitOrTerminal(
+            connection,
+            transaction,
+            workflowId,
+            graph,
+            activeNodeExecution.Node,
+            answersByKey,
+            actorUserId);
+        return true;
+    }
+
+    private static async Task<bool> AreRuntimeSetupTasksCompleted(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = """
+SELECT status, is_required
+FROM workflow_tasks
+WHERE workflow_id = @workflowId
+  AND node_instance_id IS NULL;
+""";
+
+        var taskStates = new List<(string Status, bool IsRequired)>();
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
+        {
+            command.Parameters.AddWithValue("workflowId", workflowId);
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                taskStates.Add((reader.GetString(0), reader.GetBoolean(1)));
+            }
+        }
+
+        if (taskStates.Count == 0)
+        {
+            return true;
+        }
+
+        var relevantTaskStates = taskStates
+            .Where(task => task.IsRequired)
+            .Select(task => task.Status)
+            .ToList();
+        if (relevantTaskStates.Count == 0)
+        {
+            relevantTaskStates = taskStates
+                .Select(task => task.Status)
+                .ToList();
+        }
+
+        return relevantTaskStates.All(status =>
+            string.Equals(status, "done", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task<WorkflowNodeExecutionRecord?> LoadActiveRuntimeNodeExecutionByType(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        string nodeType)
+    {
+        const string sql = """
+SELECT
+    ni.id,
+    ni.status,
+    n.id,
+    n.node_key,
+    n.node_type,
+    n.title,
+    n.sort_order,
+    nc.config_json::text
+FROM workflow_node_instances ni
+JOIN workflow_nodes n ON n.id = ni.workflow_node_id
+LEFT JOIN workflow_node_configs nc ON nc.workflow_node_id = n.id
+WHERE ni.workflow_id = @workflowId
+  AND ni.status = @status
+  AND n.node_type = @nodeType
+LIMIT 1
+FOR UPDATE OF ni;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("status", NodeInstanceStatusActive);
+        command.Parameters.AddWithValue("nodeType", nodeType);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new WorkflowNodeExecutionRecord
+        {
+            NodeInstanceId = reader.GetInt64(0),
+            Status = reader.GetString(1),
+            Node = new WorkflowDefinitionNodeRecord
+            {
+                NodeId = reader.GetInt64(2),
+                NodeKey = reader.GetString(3),
+                NodeType = reader.GetString(4),
+                Title = reader.IsDBNull(5) ? null : reader.GetString(5),
+                SortOrder = reader.GetInt32(6),
+                Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+            }
+        };
+    }
+
+    private static async Task<WorkflowNodeExecutionRecord?> LoadActiveRuntimeMeasureNodeExecution(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = """
+SELECT
+    ni.id,
+    ni.status,
+    n.id,
+    n.node_key,
+    n.node_type,
+    n.title,
+    n.sort_order,
+    nc.config_json::text
+FROM workflow_node_instances ni
+JOIN workflow_nodes n ON n.id = ni.workflow_node_id
+LEFT JOIN workflow_node_configs nc ON nc.workflow_node_id = n.id
+WHERE ni.workflow_id = @workflowId
+  AND ni.status = @status
+  AND n.node_type = ANY(@nodeTypes)
+LIMIT 1
+FOR UPDATE OF ni;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("status", NodeInstanceStatusActive);
+        command.Parameters.AddWithValue("nodeTypes", MeasureGenerationNodeTypes);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new WorkflowNodeExecutionRecord
+        {
+            NodeInstanceId = reader.GetInt64(0),
+            Status = reader.GetString(1),
+            Node = new WorkflowDefinitionNodeRecord
+            {
+                NodeId = reader.GetInt64(2),
+                NodeKey = reader.GetString(3),
+                NodeType = reader.GetString(4),
+                Title = reader.IsDBNull(5) ? null : reader.GetString(5),
+                SortOrder = reader.GetInt32(6),
+                Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+            }
+        };
+    }
+
+    private static async Task TryAdvanceRuntimeSetupFromTaskStatusUpdate(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long actorUserId)
+    {
+        var workflow = await LoadRuntimeWorkflowHeader(connection, transaction, workflowUid);
+        if (workflow is null)
+        {
+            return;
+        }
+
+        var activeSetupNode = await LoadActiveRuntimeMeasureNodeExecution(
+            connection,
+            transaction,
+            workflowId);
+        if (activeSetupNode is null)
+        {
+            return;
+        }
+
+        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        await TryCompleteRuntimeSetupNodeIfReady(
+            connection,
+            transaction,
+            workflowId,
+            graph,
+            activeSetupNode,
+            await LoadStoredAnswersByKey(connection, transaction, workflowId),
+            actorUserId);
+    }
+
+    private static readonly string[] MeasureGenerationNodeTypes =
+    [
+        "setup",
+        "measure_provision",
+        "measure_deprovision",
+        "measure_change",
+        "measure_rename"
+    ];
+
+    private static bool IsMeasureGenerationNodeType(string? nodeType)
+    {
+        return !string.IsNullOrWhiteSpace(nodeType)
+               && MeasureGenerationNodeTypes.Contains(nodeType.Trim(), StringComparer.OrdinalIgnoreCase);
     }
 
     private static WorkflowDefinitionNodeRecord? ResolveDecisionTarget(
@@ -1939,6 +2421,50 @@ FOR UPDATE OF w;
         if (!await reader.ReadAsync())
         {
             return null;
+        }
+
+        return new RuntimeWorkflowHeaderRecord
+        {
+            WorkflowId = reader.GetInt64(0),
+            WorkflowUid = reader.GetGuid(1),
+            WorkflowDefinitionVersionId = reader.GetInt64(2),
+            RoleId = reader.GetInt32(3),
+            PrimaryLegacyProcessTypeKey = reader.GetString(4),
+            RequiresSupervisorStep = reader.GetBoolean(5),
+            CurrentRuntimeStatus = reader.GetString(6)
+        };
+    }
+
+    private static async Task<RuntimeWorkflowHeaderRecord> LoadRuntimeWorkflowHeaderByWorkflowId(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+    {
+        const string sql = """
+SELECT
+    w.id,
+    w.uid,
+    w.workflow_definition_version_id,
+    w.position_role_id,
+    pt.key,
+    pt.requires_supervisor_step,
+    COALESCE(w.current_runtime_status, @defaultRuntimeStatus)
+FROM workflows w
+JOIN process_types pt ON pt.id = w.process_type_id
+WHERE w.id = @workflowId
+  AND w.workflow_definition_version_id IS NOT NULL
+LIMIT 1
+FOR UPDATE OF w;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("defaultRuntimeStatus", RuntimeStatusRunning);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            throw new InvalidOperationException("Workflow runtime instance was not found.");
         }
 
         return new RuntimeWorkflowHeaderRecord

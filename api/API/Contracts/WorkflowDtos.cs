@@ -165,6 +165,7 @@ public sealed class WorkflowTaskCountSummaryDto
     public required int TotalCount { get; init; }
     public required int OpenCount { get; init; }
     public required int InProgressCount { get; init; }
+    public required int BlockedCount { get; init; }
     public required int DoneCount { get; init; }
     public required int CompletedCount { get; init; }
     public required int ActiveCount { get; init; }
@@ -173,6 +174,7 @@ public sealed class WorkflowTaskCountSummaryDto
 public sealed class WorkflowTaskMetricsDto
 {
     public required WorkflowTaskCountSummaryDto Overall { get; init; }
+    public required WorkflowTaskCountSummaryDto Required { get; init; }
     public required WorkflowTaskCountSummaryDto DepartmentPhase { get; init; }
 }
 

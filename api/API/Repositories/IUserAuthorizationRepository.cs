@@ -11,9 +11,20 @@ internal interface IUserAuthorizationRepository
     Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default);
     Task<List<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(int limit = 100, CancellationToken cancellationToken = default);
     Task<List<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(CancellationToken cancellationToken = default);
+    Task<List<AdminRoleDto>> GetAdminDepartmentPositions(CancellationToken cancellationToken = default);
     Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default);
     Task<AdminDepartmentAssignmentDto> CreateDepartment(string departmentName, CancellationToken cancellationToken = default);
     Task<bool> DeleteDepartment(int departmentId, CancellationToken cancellationToken = default);
+    Task<AdminRoleDto> CreateDepartmentPosition(
+        int departmentId,
+        string positionName,
+        CancellationToken cancellationToken = default);
+    Task<AdminRoleDto?> UpdateDepartmentPosition(
+        int positionId,
+        string positionName,
+        bool isActive,
+        CancellationToken cancellationToken = default);
+    Task<bool> DeleteDepartmentPosition(int positionId, CancellationToken cancellationToken = default);
     Task<AdminResponsibilityOwnerDto> CreateResponsibility(
         string responsibilityName,
         int? departmentId,

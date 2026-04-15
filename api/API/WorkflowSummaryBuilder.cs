@@ -18,6 +18,7 @@ internal static class WorkflowSummaryBuilder
         int totalCount,
         int openCount,
         int inProgressCount,
+        int blockedCount,
         int doneCount)
     {
         return new WorkflowTaskCountSummaryDto
@@ -25,19 +26,21 @@ internal static class WorkflowSummaryBuilder
             TotalCount = totalCount,
             OpenCount = openCount,
             InProgressCount = inProgressCount,
+            BlockedCount = blockedCount,
             DoneCount = doneCount,
             CompletedCount = doneCount,
-            ActiveCount = openCount + inProgressCount
+            ActiveCount = openCount + inProgressCount + blockedCount
         };
     }
 
     public static WorkflowTaskMetricsDto CreateEmptyTaskMetrics()
     {
-        var emptyCounts = CreateTaskCountSummary(0, 0, 0, 0);
+        var emptyCounts = CreateTaskCountSummary(0, 0, 0, 0, 0);
 
         return new WorkflowTaskMetricsDto
         {
             Overall = emptyCounts,
+            Required = emptyCounts,
             DepartmentPhase = emptyCounts
         };
     }
@@ -132,6 +135,7 @@ internal static class WorkflowSummaryBuilder
         return new WorkflowTaskMetricsDto
         {
             Overall = BuildTaskCountSummary(orderedTasks),
+            Required = BuildTaskCountSummary(orderedTasks.Where(task => task.IsRequired)),
             DepartmentPhase = BuildTaskCountSummary(orderedTasks.Where(task => task.IsDepartmentPhaseTask))
         };
     }
@@ -180,7 +184,7 @@ internal static class WorkflowSummaryBuilder
             return "Keine Aufgaben";
         }
 
-        return $"Offen: {taskMetrics.Overall.ActiveCount} | Erledigt: {taskMetrics.Overall.DoneCount}";
+        return $"Erledigt: {taskMetrics.Overall.DoneCount}/{taskMetrics.Overall.TotalCount} | Offen: {taskMetrics.Overall.ActiveCount}";
     }
 
     private static WorkflowTaskCountSummaryDto BuildTaskCountSummary(IEnumerable<WorkflowTaskDto> tasks)
@@ -188,6 +192,7 @@ internal static class WorkflowSummaryBuilder
         var totalCount = 0;
         var openCount = 0;
         var inProgressCount = 0;
+        var blockedCount = 0;
         var doneCount = 0;
         foreach (var task in tasks)
         {
@@ -205,6 +210,12 @@ internal static class WorkflowSummaryBuilder
                 continue;
             }
 
+            if (IsBlockedTaskStatus(task.Status))
+            {
+                blockedCount += 1;
+                continue;
+            }
+
             if (string.Equals(task.Status, "done", StringComparison.OrdinalIgnoreCase))
             {
                 doneCount += 1;
@@ -213,19 +224,23 @@ internal static class WorkflowSummaryBuilder
 
         }
 
-        return CreateTaskCountSummary(totalCount, openCount, inProgressCount, doneCount);
+        return CreateTaskCountSummary(totalCount, openCount, inProgressCount, blockedCount, doneCount);
     }
 
     private static bool IsOpenTaskStatus(string status)
     {
         return string.Equals(status, "open", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(status, "ready", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(status, "blocked", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(status, "ready", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsInProgressTaskStatus(string status)
     {
         return string.Equals(status, "in_progress", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBlockedTaskStatus(string status)
+    {
+        return string.Equals(status, "blocked", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasAnswer(string inputType, StoredWorkflowAnswerRecord? answer)

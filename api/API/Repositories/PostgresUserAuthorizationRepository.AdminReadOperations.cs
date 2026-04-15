@@ -205,6 +205,48 @@ ORDER BY gr.app_group_id, r.role_kind, d.name, r.name, r.id;";
         CancellationToken cancellationToken)
     {
         const string sql = @"
+WITH managed_departments AS (
+    SELECT DISTINCT u.department_id
+    FROM app_users u
+    JOIN directory_identities di ON di.app_user_id = u.id
+    WHERE u.directory_synced = TRUE
+      AND u.is_active = TRUE
+      AND di.account_enabled = TRUE
+      AND u.department_override_active = FALSE
+      AND u.department_id IS NOT NULL
+),
+entra_manager_candidates AS (
+    SELECT DISTINCT
+        u.department_id,
+        u.id AS app_user_id,
+        p.id AS person_id,
+        u.display_name
+    FROM app_users u
+    JOIN directory_identities di ON di.app_user_id = u.id
+    JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
+    JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
+    JOIN app_roles ar ON ar.id = dgrm.app_role_id
+    LEFT JOIN people p ON p.app_user_id = u.id
+    WHERE u.directory_synced = TRUE
+      AND u.is_active = TRUE
+      AND di.account_enabled = TRUE
+      AND u.department_override_active = FALSE
+      AND u.department_id IS NOT NULL
+      AND dgrm.is_active = TRUE
+      AND ar.role_key = 'auth_manager'
+      AND ar.role_kind = 'system'
+),
+candidate_summary AS (
+    SELECT
+        department_id,
+        COUNT(*) AS candidate_count,
+        MIN(app_user_id) AS resolved_user_id,
+        MIN(person_id) AS resolved_person_id,
+        MIN(display_name) AS resolved_display_name,
+        STRING_AGG(display_name, ', ' ORDER BY display_name) AS candidate_names
+    FROM entra_manager_candidates
+    GROUP BY department_id
+)
 SELECT
     d.id,
     d.name,
@@ -212,6 +254,33 @@ SELECT
     lead_user.display_name,
     requirement_user.id,
     requirement_user.display_name,
+    CASE
+        WHEN managed.department_id IS NULL THEN 'manual'
+        ELSE 'entra_managed'
+    END AS assignment_source,
+    CASE
+        WHEN managed.department_id IS NULL THEN 'manual'
+        WHEN COALESCE(candidate.candidate_count, 0) = 1 THEN 'resolved'
+        WHEN COALESCE(candidate.candidate_count, 0) = 0 THEN 'missing'
+        ELSE 'conflict'
+    END AS sync_state,
+    CASE
+        WHEN managed.department_id IS NULL THEN 'Keine Entra-geführte Abteilungsleitung erkannt.'
+        WHEN COALESCE(candidate.candidate_count, 0) = 1
+         AND candidate.resolved_person_id IS NOT NULL
+         AND candidate.resolved_person_id = ds.department_lead_person_id
+         AND candidate.resolved_person_id = ds.requirement_approver_person_id
+            THEN 'Entra hat genau eine aktive Abteilungsleitung für diese Abteilung aufgelöst.'
+        WHEN COALESCE(candidate.candidate_count, 0) = 1
+            THEN 'Entra führt diese Abteilung. Beim nächsten Sync werden Leitung und Anforderungsverantwortung auf '
+                || COALESCE(candidate.resolved_display_name, 'die gefundene Person')
+                || ' gesetzt.'
+        WHEN COALESCE(candidate.candidate_count, 0) = 0
+            THEN 'Keine aktive Entra-Abteilungsleitung für diese Abteilung gefunden.'
+        ELSE 'Mehrere aktive Entra-Abteilungsleitungen gefunden: '
+            || COALESCE(candidate.candidate_names, 'unbekannt')
+            || '.'
+    END AS sync_detail,
     ds.updated_at
 FROM departments d
 LEFT JOIN department_settings ds ON ds.department_id = d.id
@@ -219,6 +288,8 @@ LEFT JOIN people lead_person ON lead_person.id = ds.department_lead_person_id
 LEFT JOIN app_users lead_user ON lead_user.id = lead_person.app_user_id
 LEFT JOIN people requirement_person ON requirement_person.id = ds.requirement_approver_person_id
 LEFT JOIN app_users requirement_user ON requirement_user.id = requirement_person.app_user_id
+LEFT JOIN managed_departments managed ON managed.department_id = d.id
+LEFT JOIN candidate_summary candidate ON candidate.department_id = d.id
 WHERE (@departmentId IS NULL OR d.id = @departmentId)
 ORDER BY d.name, d.id;";
 
@@ -238,11 +309,62 @@ ORDER BY d.name, d.id;";
                 DepartmentLeadDisplayName = reader.IsDBNull(3) ? null : reader.GetString(3),
                 RequirementOwnerUserId = reader.IsDBNull(4) ? null : reader.GetInt64(4),
                 RequirementOwnerDisplayName = reader.IsDBNull(5) ? null : reader.GetString(5),
-                UpdatedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6)
+                AssignmentSource = reader.GetString(6),
+                SyncState = reader.GetString(7),
+                SyncDetail = reader.IsDBNull(8) ? null : reader.GetString(8),
+                UpdatedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
             });
         }
 
         return assignments;
+    }
+
+    private static async Task<List<AdminRoleDto>> LoadAdminPositionRoles(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        int? positionId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = $@"
+SELECT
+    r.id,
+    r.role_key,
+    r.name,
+    r.role_kind,
+    d.id,
+    d.name,
+    r.is_active
+FROM app_roles r
+JOIN departments d ON d.id = r.department_id
+WHERE r.role_kind = 'position'
+  AND (@positionId IS NULL OR r.id = @positionId)
+ORDER BY d.name, r.name, r.id;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        var positionIdParameter = command.Parameters.Add("positionId", NpgsqlDbType.Integer);
+        positionIdParameter.Value = (object?)positionId ?? DBNull.Value;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var positions = new List<AdminRoleDto>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            positions.Add(new AdminRoleDto
+            {
+                RoleId = reader.GetInt32(0),
+                RoleKey = reader.GetString(1),
+                RoleName = reader.GetString(2),
+                RoleKind = reader.GetString(3),
+                DepartmentId = reader.GetInt32(4),
+                DepartmentName = reader.GetString(5),
+                Scope = "department",
+                ScopeDepartmentId = reader.GetInt32(4),
+                ScopeDepartmentName = reader.GetString(5),
+                IsActive = reader.GetBoolean(6),
+                Permissions = []
+            });
+        }
+
+        return positions;
     }
 
     private static async Task<List<AdminResponsibilityOwnerDto>> LoadAdminResponsibilityOwners(

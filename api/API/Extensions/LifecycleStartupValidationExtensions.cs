@@ -19,6 +19,7 @@ internal static class LifecycleStartupValidationExtensions
         string DefinitionKey,
         int VersionNumber,
         string? PrimaryLegacyProcessTypeKey,
+        bool RequiresSupervisorStep,
         List<WorkflowDefinitionNodeDto> Nodes,
         List<WorkflowDefinitionEdgeDto> Edges,
         List<WorkflowDefinitionValidationIssue> ReferenceIssues);
@@ -108,7 +109,9 @@ internal static class LifecycleStartupValidationExtensions
             {
                 Nodes = definition.Nodes,
                 Edges = definition.Edges,
-                ReferenceIssues = definition.ReferenceIssues
+                ReferenceIssues = definition.ReferenceIssues,
+                PrimaryLegacyProcessTypeKey = definition.PrimaryLegacyProcessTypeKey,
+                RequiresSupervisorStep = definition.RequiresSupervisorStep
             });
 
             if (!snapshot.CanPublish)
@@ -348,6 +351,7 @@ SELECT
     d.definition_key,
     v.version_number,
     pt.key AS primary_legacy_process_type_key,
+    COALESCE(pt.requires_supervisor_step, FALSE) AS requires_supervisor_step,
     n.node_key,
     n.node_type,
     n.title,
@@ -391,6 +395,7 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
                     definitionKey,
                     versionNumber,
                     reader.IsDBNull(2) ? null : reader.GetString(2),
+                    reader.GetBoolean(3),
                     new List<WorkflowDefinitionNodeDto>(),
                     new List<WorkflowDefinitionEdgeDto>(),
                     new List<WorkflowDefinitionValidationIssue>());
@@ -409,25 +414,25 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
                 }
             }
 
-            if (!reader.IsDBNull(3)
-                && !definition.Nodes.Any(node => string.Equals(node.NodeKey, reader.GetString(3), StringComparison.Ordinal)))
+            if (!reader.IsDBNull(4)
+                && !definition.Nodes.Any(node => string.Equals(node.NodeKey, reader.GetString(4), StringComparison.Ordinal)))
             {
                 definition.Nodes.Add(new WorkflowDefinitionNodeDto
                 {
-                    NodeKey = reader.GetString(3),
-                    NodeType = reader.GetString(4),
-                    Title = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    SortOrder = reader.GetInt32(6),
-                    Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7)),
+                    NodeKey = reader.GetString(4),
+                    NodeType = reader.GetString(5),
+                    Title = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    SortOrder = reader.GetInt32(7),
+                    Config = reader.IsDBNull(8) ? null : ParseJsonElement(reader.GetString(8)),
                     Actions = new List<WorkflowNodeActionDto>()
                 });
             }
 
-            if (!reader.IsDBNull(8))
+            if (!reader.IsDBNull(9))
             {
-                var sourceNodeKey = reader.GetString(8);
-                var targetNodeKey = reader.GetString(9);
-                var priority = reader.GetInt32(10);
+                var sourceNodeKey = reader.GetString(9);
+                var targetNodeKey = reader.GetString(10);
+                var priority = reader.GetInt32(11);
                 if (!definition.Edges.Any(edge =>
                         string.Equals(edge.SourceNodeKey, sourceNodeKey, StringComparison.Ordinal)
                         && string.Equals(edge.TargetNodeKey, targetNodeKey, StringComparison.Ordinal)
@@ -438,7 +443,7 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
                         SourceNodeKey = sourceNodeKey,
                         TargetNodeKey = targetNodeKey,
                         Priority = priority,
-                        ConditionExpression = reader.IsDBNull(11) ? null : reader.GetString(11)
+                        ConditionExpression = reader.IsDBNull(12) ? null : reader.GetString(12)
                     });
                 }
             }
