@@ -185,8 +185,9 @@ export function canAccessFeature(capabilities: RoleCapabilities, feature: AppFea
     case "dashboard":
       return capabilities.hasReadRole;
     case "workflowCreate":
-    case "workflowBuilder":
       return capabilities.canCreateWorkflow;
+    case "workflowBuilder":
+      return capabilities.hasAdminRole;
     case "workflowOverview":
     case "workflowSearch":
       return capabilities.canAccessWorkflowOverview;

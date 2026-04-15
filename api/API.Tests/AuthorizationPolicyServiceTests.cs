@@ -375,9 +375,27 @@ public sealed class AuthorizationPolicyServiceTests
     [Theory]
     [InlineData(AuthorizationRoles.Hr)]
     [InlineData(AuthorizationRoles.Manager)]
+    public void CanViewTaskAssigneeIdentity_ReturnsTrue_ForHrAndSupervisor(string role)
+    {
+        var user = CreateUser(role);
+        Assert.True(_sut.CanViewTaskAssigneeIdentity(user));
+    }
+
+    [Fact]
+    public void CanViewTaskAssigneeIdentity_ReturnsTrue_ForDepartmentLeadResponsibility()
+    {
+        var user = CreateUserWithResponsibility(
+            AuthorizationRoles.Reader,
+            responsibilityId: 5,
+            responsibilityType: "department_lead");
+
+        Assert.True(_sut.CanViewTaskAssigneeIdentity(user));
+    }
+
+    [Theory]
     [InlineData(AuthorizationRoles.Worker)]
     [InlineData(AuthorizationRoles.Reader)]
-    public void CanViewTaskAssigneeIdentity_ReturnsFalse_ForNonAdmin(string role)
+    public void CanViewTaskAssigneeIdentity_ReturnsFalse_ForNonPrivilegedRoles(string role)
     {
         var user = CreateUser(role);
         Assert.False(_sut.CanViewTaskAssigneeIdentity(user));
@@ -815,6 +833,7 @@ public sealed class AuthorizationPolicyServiceTests
             TaskTemplateId = null,
             TaskKey = taskKey,
             IsApprovalTask = isApprovalTask,
+            IsRuntimeNodeTask = isApprovalTask,
             Title = taskKey,
             Description = taskKey,
             Category = "test",

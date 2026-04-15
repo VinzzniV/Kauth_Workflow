@@ -36,7 +36,8 @@ internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository, 
     private enum TaskGenerationStage
     {
         Initial,
-        AfterSupervisor
+        AfterSupervisor,
+        Full
     }
 
     private static readonly string[] LegacyManagerCreatableProcessTypeKeys =

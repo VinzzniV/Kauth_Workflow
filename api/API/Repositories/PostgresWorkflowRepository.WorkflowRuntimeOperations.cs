@@ -1992,17 +1992,13 @@ VALUES (
         }
 
         var workflowContext = await LoadWorkflowRuntimeTaskContext(connection, transaction, workflowId);
-        var runtimeHeader = await LoadRuntimeWorkflowHeaderByWorkflowId(connection, transaction, workflowId);
-        var generationStage = runtimeHeader.RequiresSupervisorStep
-            ? TaskGenerationStage.AfterSupervisor
-            : TaskGenerationStage.Initial;
         var generatedTaskCount = await GenerateWorkflowTasks(
             connection,
             transaction,
             workflowId,
             workflowContext.DepartmentId,
             answersByKey,
-            generationStage);
+            TaskGenerationStage.Full);
 
         if (generatedTaskCount > 0)
         {

@@ -174,6 +174,22 @@ FOR UPDATE;";
         var selectedTemplates = templates
             .Where(template =>
             {
+                if (stage == TaskGenerationStage.Full)
+                {
+                    // Das Approval-Template wird im Definition-Layer durch den runtime approval-Node
+                    // als Runtime-Task erzeugt. Es darf hier nicht als Legacy-Task doppelt generiert werden.
+                    if (workflowContext.RequiresSupervisorStep
+                        && !string.IsNullOrWhiteSpace(workflowContext.ApprovalTaskTemplateKey)
+                        && template.TemplateKey.Equals(
+                            workflowContext.ApprovalTaskTemplateKey,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }
+
                 if (!workflowContext.RequiresSupervisorStep)
                 {
                     return stage == TaskGenerationStage.Initial;

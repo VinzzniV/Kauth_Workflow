@@ -119,7 +119,6 @@ export default function WorkflowTaskAreasSection({
                 className={`workflow-area-card ${group.isCurrentArea ? "current" : ""}`}
                 onClick={() => scrollToArea(group.name)}
               >
-                {group.isCurrentArea ? <p className="workflow-area-card-eyebrow">Jetzt relevant</p> : null}
                 <div className="workflow-area-card-head">
                   <h3>{group.name}</h3>
                   <span className={getAreaStatusClass(status)}>{toAreaStatusLabel(status)}</span>
@@ -171,7 +170,6 @@ export default function WorkflowTaskAreasSection({
                     </svg>
                     <div className="task-group-head-copy">
                       <h3>{group.name}</h3>
-                      {group.isCurrentArea ? <p>Jetzt relevant</p> : null}
                     </div>
                     <span className={getAreaStatusClass(status)}>{toAreaStatusLabel(status)}</span>
                     <span className="task-group-count">

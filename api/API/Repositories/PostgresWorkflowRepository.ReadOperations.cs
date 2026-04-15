@@ -54,7 +54,9 @@ SELECT
         ELSE t.is_department_phase_task
     END,
     template_department.name,
-    template_responsibility.responsibility_type
+    template_responsibility.responsibility_type,
+    template_responsibility.responsibility_key,
+    template_responsibility.name
 FROM workflow_tasks t
 JOIN workflows w ON w.id = t.workflow_id
 JOIN process_types pt ON pt.id = w.process_type_id
@@ -111,7 +113,9 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                     ProcessArea = ResolveTaskProcessArea(
                         reader.IsDBNull(32) ? null : reader.GetString(32),
                         reader.IsDBNull(34) ? null : reader.GetString(34),
-                        reader.IsDBNull(35) ? null : reader.GetString(35)),
+                        reader.IsDBNull(35) ? null : reader.GetString(35),
+                        reader.IsDBNull(36) ? null : reader.GetString(36),
+                        reader.IsDBNull(37) ? null : reader.GetString(37)),
                     IsDepartmentPhaseTask = reader.GetBoolean(33),
                     CanAddComment = false,
                     CanDecideApproval = false,
@@ -220,7 +224,9 @@ ORDER BY ta.workflow_task_id, ta.is_primary DESC, ta.id;";
                     var resolvedArea = ResolveTaskProcessArea(
                         null,
                         reader.IsDBNull(13) ? null : reader.GetString(13),
-                        reader.IsDBNull(12) ? null : reader.GetString(12));
+                        reader.IsDBNull(12) ? null : reader.GetString(12),
+                        reader.IsDBNull(10) ? null : reader.GetString(10),
+                        reader.IsDBNull(11) ? null : reader.GetString(11));
                     if (!string.IsNullOrWhiteSpace(resolvedArea))
                     {
                         task.ProcessArea = resolvedArea;
@@ -352,7 +358,9 @@ SELECT
         ELSE wt.is_department_phase_task
     END,
     template_department.name,
-    template_responsibility.responsibility_type
+    template_responsibility.responsibility_type,
+    template_responsibility.responsibility_key,
+    template_responsibility.name
 FROM workflow_tasks wt
 JOIN workflows w ON w.id = wt.workflow_id
 JOIN process_types pt ON pt.id = w.process_type_id
@@ -406,7 +414,9 @@ ORDER BY wt.sort_order, wt.id;";
                     ProcessArea = ResolveTaskProcessArea(
                         reader.IsDBNull(20) ? null : reader.GetString(20),
                         reader.IsDBNull(22) ? null : reader.GetString(22),
-                        reader.IsDBNull(23) ? null : reader.GetString(23)),
+                        reader.IsDBNull(23) ? null : reader.GetString(23),
+                        reader.IsDBNull(24) ? null : reader.GetString(24),
+                        reader.IsDBNull(25) ? null : reader.GetString(25)),
                     IsDepartmentPhaseTask = reader.GetBoolean(21),
                     CanAddComment = false,
                     CanDecideApproval = false,

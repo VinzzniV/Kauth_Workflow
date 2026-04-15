@@ -149,7 +149,8 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
     {
         return HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
                || CanManageAdminConfiguration(user)
-               || HasAnyRole(user, AuthorizationRoles.Admin);
+               || HasAnyRole(user, AuthorizationRoles.Admin, AuthorizationRoles.Hr)
+               || CanAccessSupervisorStep(user);
     }
 
     public bool CanObserveWorkflow(
@@ -232,6 +233,13 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         if (WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus)
             || !task.Task.IsApprovalTask
             || TerminalTaskStatuses.Contains(task.Task.Status))
+        {
+            return false;
+        }
+
+        // Legacy-Freigabeaufgaben (ohne node_instance_id) werden ueber den Schritt der Abteilungsleitung
+        // abgeschlossen, nicht ueber "Meine Aufgaben". Hier kein Freigabe-Button anzeigen.
+        if (!task.Task.IsRuntimeNodeTask)
         {
             return false;
         }

@@ -30,6 +30,10 @@ export function getResponsibleResponsibilityLabel(task: Pick<WorkflowTask, "assi
     return primary.assigneeResponsibilityName;
   }
 
+  if (primary.assignmentType === "user" && task.processArea?.trim()) {
+    return task.processArea;
+  }
+
   if (primary.assignmentType === "user") {
     return "Direkt zugewiesen";
   }
