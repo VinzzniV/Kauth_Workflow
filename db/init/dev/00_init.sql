@@ -54,3 +54,6 @@
 \i /docker-entrypoint-sql/51_remove_seeded_demo_departments.sql
 \i /docker-entrypoint-sql/52_restore_core_responsibilities.sql
 \i /docker-entrypoint-sql/53_task_process_area_labels.sql
+\i /docker-entrypoint-sql/54_rotation_phase1_persistence.sql
+\i /docker-entrypoint-sql/55_rotation_dev_template_examples.sql
+\i /docker-entrypoint-sql/56_rotation_task_generation_sync.sql

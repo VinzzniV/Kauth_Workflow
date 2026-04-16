@@ -45,10 +45,15 @@ internal interface IWorkflowRepository
     Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId);
     Task<List<TaskWithWorkflowDto>> GetTasks();
     Task<TaskWithWorkflowDto?> GetTaskById(long taskId);
+    Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef);
     Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId);
+    Task<TaskWithWorkflowDto?> UpdateTaskStatusByRef(string taskRef, string status, long actorUserId);
     Task<TaskWithWorkflowDto?> DecideTaskApproval(long taskId, TaskApprovalDecisionRequest request, long actorUserId);
+    Task<TaskWithWorkflowDto?> DecideTaskApprovalByRef(string taskRef, TaskApprovalDecisionRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId);
+    Task<TaskWithWorkflowDto?> UpdateTaskAssignmentByRef(string taskRef, TaskAssignRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> AddTaskComment(long taskId, string commentText, long actorUserId);
+    Task<TaskWithWorkflowDto?> AddTaskCommentByRef(string taskRef, string commentText, long actorUserId);
     Task<bool> ArchiveWorkflow(Guid workflowUid, long actorUserId);
     Task<bool> DeleteDraftWorkflow(Guid workflowUid);
     Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId);

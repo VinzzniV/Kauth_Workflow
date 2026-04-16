@@ -398,10 +398,28 @@ public sealed class TaskWorkflowContextDto
     public required string RoleName { get; init; }
 }
 
+public sealed class TaskRotationContextDto
+{
+    public required long RotationPlanId { get; init; }
+    public required string PlanStatus { get; init; }
+    public required string PlanTitle { get; init; }
+    public required Guid SourceWorkflowUid { get; init; }
+    public required long PersonId { get; init; }
+    public required string DisplayName { get; init; }
+    public required int DepartmentId { get; init; }
+    public required string DepartmentName { get; init; }
+    public long? RotationStationId { get; init; }
+    public string? TriggerType { get; init; }
+    public DateOnly? AnchorDate { get; init; }
+}
+
 public sealed class TaskWithWorkflowDto
 {
+    public required string TaskRef { get; init; }
+    public required string TaskFamily { get; init; }
     public required WorkflowTaskDto Task { get; init; }
-    public required TaskWorkflowContextDto Workflow { get; init; }
+    public TaskWorkflowContextDto? Workflow { get; init; }
+    public TaskRotationContextDto? Rotation { get; init; }
 }
 
 public sealed class TaskStatusUpdateRequest

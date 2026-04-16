@@ -66,6 +66,8 @@ internal sealed class WorkflowVisibilityService(
         {
             var taskContext = new TaskWithWorkflowDto
             {
+                TaskRef = WorkflowTaskRef.Build(task.Id),
+                TaskFamily = TaskFamilyNames.Workflow,
                 Task = task,
                 Workflow = new TaskWorkflowContextDto
                 {
@@ -82,7 +84,8 @@ internal sealed class WorkflowVisibilityService(
                     DepartmentName = workflow.DepartmentName,
                     RoleId = workflow.RoleId,
                     RoleName = workflow.RoleName
-                }
+                },
+                Rotation = null
             };
 
             task.CanUpdateStatus = authorizationPolicyService.CanUpdateTaskStatus(currentUser, taskContext);

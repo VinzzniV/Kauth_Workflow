@@ -16,10 +16,15 @@ When working on non-trivial tasks, read these first:
 - `PROJECT_CONTEXT.md`
 - `MEMORY.md`
 
+For rotation / department-rotation work also read:
+- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`
+- `TODO.md`
+
 For architecture, migration, runtime, or data-model work also read:
-- `Workflow_Plattform_Implementation_Plan.md`
 - `PRODUCTIVE_TARGET_ARCHITECTURE.md`
 - `DECISIONS.md`
+
+After reading, explicitly keep track of which docs must be updated in the same pass if assumptions, structure, behavior, setup, or scope changed.
 
 Documentation and task descriptions are primarily written in German.
 
@@ -74,7 +79,8 @@ Important current code areas:
 - `web/src/services`
 
 Important architecture docs:
-- `Workflow_Plattform_Implementation_Plan.md`
+- `DOCS_CONTROL.md`
+- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`
 - `PRODUCTIVE_TARGET_ARCHITECTURE.md`
 - `TODO.md`
 

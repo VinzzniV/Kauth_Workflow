@@ -26,6 +26,11 @@ Zusätzlich immer mitlesen:
 
 Zusätzlich muss pro Aufgabe immer der unten referenzierte Phasenabschnitt gelesen werden.
 
+Pflicht nach dem Lesen:
+- Vor der Umsetzung kurz pruefen und festhalten, welche dieser Dokus bei der Aufgabe mitgezogen werden muessen, falls sich Struktur, Scope, Verhalten, Setup oder Risiken aendern.
+- Relevante Doku-Aenderungen gehoeren in denselben Arbeitsgang wie die Code-Aenderung.
+- Wenn eine Aufgabe abgeschlossen wurde, muss ihr Status in `TODO.md` im selben Arbeitsgang auf `done` gesetzt werden.
+
 Wichtig:
 - `TODO.md` enthält bewusst keine Detailanweisungen.
 - Die KI darf die Aufgabe nicht allein aus `TODO.md` ableiten.
@@ -45,7 +50,10 @@ Wichtig:
 ## Umsetzungssteuerung
 
 ### Aufgabe 1 — Impact-Analyse und Bestandsaufnahme
+**Status:** `done`  
 **Priorität:** P0  
+**Empfohlener Reasoning Effort:** `high`  
+**Plan Mode:** `an`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `## Kontext`
 - `## Produktziel`
@@ -64,25 +72,33 @@ Wichtig:
 ---
 
 ### Aufgabe 2 — Phase 1: Domänenmodell und Persistenz
+**Status:** `done`  
 **Priorität:** P0  
+**Empfohlener Reasoning Effort:** `high`  
+**Plan Mode:** `an`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 1 – Domänenmodell und Persistenz`
 - zusätzlich `## Begriffe / Domänenmodell`
 
 **Ziel:**
 - Neue Kernentitäten, Tabellen, Fremdschlüssel, Indizes, Status-/Triggerwerte einführen
+- Bestehende `people`, `departments`, `workflows` und `app_responsibilities` gezielt wiederverwenden
+- Durchlaufplan an Person plus abgeschlossenem Onboarding-Quellworkflow verankern
 
 **Abhängigkeit:** Aufgabe 1
 
 ---
 
 ### Aufgabe 3 — Phase 2: Backend-Grundfunktionen für Planung
+**Status:** `done`  
 **Priorität:** P0  
+**Empfohlener Reasoning Effort:** `medium`  
+**Plan Mode:** `aus`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 2 – Backend-Grundfunktionen für Planung`
 
 **Ziel:**
-- CRUD für Personen, Pläne und Stationen
+- Auswahl bestehender Personen mit abgeschlossenem Onboarding sowie CRUD für Pläne und Stationen
 - Validierungslogik für Zeiträume und Überschneidungen
 
 **Abhängigkeit:** Aufgabe 2
@@ -90,7 +106,10 @@ Wichtig:
 ---
 
 ### Aufgabe 4 — Phase 3: Abteilungen und Maßnahmenvorlagen
+**Status:** `done`  
 **Priorität:** P0  
+**Empfohlener Reasoning Effort:** `medium`  
+**Plan Mode:** `aus`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 3 – Abteilungen und Maßnahmenvorlagen`
 - zusätzlich `## Konkrete Beispiel-Seed-Daten`
@@ -104,7 +123,10 @@ Wichtig:
 ---
 
 ### Aufgabe 5 — Phase 4: Task-Generierung aus Stationen
+**Status:** `done`  
 **Priorität:** P0  
+**Empfohlener Reasoning Effort:** `high`  
+**Plan Mode:** `an`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 4 – Task-Generierung aus Stationen`
 
@@ -119,7 +141,10 @@ Wichtig:
 ---
 
 ### Aufgabe 6 — Phase 5: Benachrichtigungslogik
+**Status:** `open`  
 **Priorität:** P1  
+**Empfohlener Reasoning Effort:** `high`  
+**Plan Mode:** `an`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 5 – Benachrichtigungslogik`
 
@@ -133,7 +158,10 @@ Wichtig:
 ---
 
 ### Aufgabe 7 — Phase 6: Frontend HR – Personen und Durchlaufplan
+**Status:** `open`  
 **Priorität:** P2  
+**Empfohlener Reasoning Effort:** `medium`  
+**Plan Mode:** `aus`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 6 – Frontend HR: Personen und Durchlaufplan`
 - zusätzlich `## UX-Prinzipien`
@@ -147,7 +175,10 @@ Wichtig:
 ---
 
 ### Aufgabe 8 — Phase 7: Frontend IT / Fachbereiche – Aufgaben und Wechsel
+**Status:** `open`  
 **Priorität:** P2  
+**Empfohlener Reasoning Effort:** `medium`  
+**Plan Mode:** `aus`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 7 – Frontend IT / Fachbereiche: Aufgaben und Wechsel`
 - zusätzlich `## UX-Prinzipien`
@@ -160,7 +191,10 @@ Wichtig:
 ---
 
 ### Aufgabe 9 — Phase 8: Audit, Historie, Robustheit
+**Status:** `open`  
 **Priorität:** P3  
+**Empfohlener Reasoning Effort:** `high`  
+**Plan Mode:** `an`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `# Phase 8 – Audit, Historie, Robustheit`
 
@@ -175,7 +209,10 @@ Wichtig:
 ---
 
 ### Aufgabe 10 — Abschluss, Cleanup und Dokumentation
+**Status:** `open`  
 **Priorität:** P3  
+**Empfohlener Reasoning Effort:** `medium`  
+**Plan Mode:** `aus`
 **Vor Umsetzung lesen in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`:**
 - `## Erwarteter Output von Codex`
 - `## Zusätzliche Hinweise für spätere Versionen`
@@ -214,3 +251,4 @@ Nach jedem größeren Schritt muss berichtet werden:
 4. Welche Risiken oder Lücken bleiben offen?
 5. Welche Tests wurden angepasst oder fehlen noch?
 6. Welche Doku musste mitgezogen werden?
+7. Wurde die erledigte Aufgabe in `TODO.md` auf `done` gesetzt?

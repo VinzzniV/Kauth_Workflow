@@ -4,6 +4,72 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
+    public async Task<TaskWithWorkflowDto?> UpdateTaskStatusByRef(string taskRef, string status, long actorUserId)
+    {
+        if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
+        {
+            return await UpdateTaskStatus(workflowTaskId, status, actorUserId);
+        }
+
+        if (RotationTaskRef.TryParse(taskRef, out _))
+        {
+            return await UpdateRotationTaskStatusByRef(taskRef, status, actorUserId);
+        }
+
+        return null;
+    }
+
+    public async Task<TaskWithWorkflowDto?> DecideTaskApprovalByRef(
+        string taskRef,
+        TaskApprovalDecisionRequest request,
+        long actorUserId)
+    {
+        if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
+        {
+            return await DecideTaskApproval(workflowTaskId, request, actorUserId);
+        }
+
+        if (RotationTaskRef.TryParse(taskRef, out _))
+        {
+            return await DecideRotationTaskApprovalByRef(taskRef, request, actorUserId);
+        }
+
+        return null;
+    }
+
+    public async Task<TaskWithWorkflowDto?> UpdateTaskAssignmentByRef(
+        string taskRef,
+        TaskAssignRequest request,
+        long actorUserId)
+    {
+        if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
+        {
+            return await UpdateTaskAssignment(workflowTaskId, request, actorUserId);
+        }
+
+        if (RotationTaskRef.TryParse(taskRef, out _))
+        {
+            return await UpdateRotationTaskAssignmentByRef(taskRef, request, actorUserId);
+        }
+
+        return null;
+    }
+
+    public async Task<TaskWithWorkflowDto?> AddTaskCommentByRef(string taskRef, string commentText, long actorUserId)
+    {
+        if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
+        {
+            return await AddTaskComment(workflowTaskId, commentText, actorUserId);
+        }
+
+        if (RotationTaskRef.TryParse(taskRef, out _))
+        {
+            return await AddRotationTaskCommentByRef(taskRef, commentText, actorUserId);
+        }
+
+        return null;
+    }
+
     // Statuswechsel aktualisieren Aufgabe, Abhaengigkeiten und daraus abgeleiteten Workflow-Status in einer Transaktion.
     public async Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId)
     {

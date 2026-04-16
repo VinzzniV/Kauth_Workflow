@@ -1,7 +1,7 @@
 # Produktive Zielarchitektur
 
 Dieses Dokument beschreibt das stabile Sollbild fuer den Ausbau zur internen Workflow-Plattform.
-Die operative Umsetzungsreihenfolge steht in `Workflow_Plattform_Implementation_Plan.md`.
+Die aktive Feature-Umsetzung fuer Rotation/Durchlauf steht in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`.
 
 ## Statusbild April 2026
 

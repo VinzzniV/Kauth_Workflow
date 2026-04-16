@@ -10,7 +10,14 @@ internal sealed partial class PostgresWorkflowRepository
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        return await LoadTasks(connection, null, null);
+        var workflowTasks = await LoadTasks(connection, null, null);
+        var rotationTasks = await LoadRotationTaskEnvelopes(connection, null, null, null);
+        return workflowTasks
+            .Concat(rotationTasks)
+            .OrderByDescending(task => task.Task.CreatedAt)
+            .ThenBy(task => task.Task.SortOrder)
+            .ThenBy(task => task.Task.Id)
+            .ToList();
     }
 
     public async Task<TaskWithWorkflowDto?> GetTaskById(long taskId)
@@ -20,6 +27,21 @@ internal sealed partial class PostgresWorkflowRepository
 
         var tasks = await LoadTasks(connection, null, taskId);
         return tasks.FirstOrDefault();
+    }
+
+    public async Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef)
+    {
+        if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
+        {
+            return await GetTaskById(workflowTaskId);
+        }
+
+        if (RotationTaskRef.TryParse(taskRef, out var rotationTaskId))
+        {
+            return await GetRotationTaskEnvelope(rotationTaskId);
+        }
+
+        return null;
     }
 
     private static async Task<Dictionary<long, WorkflowListMetadata>> LoadWorkflowListMetadata(

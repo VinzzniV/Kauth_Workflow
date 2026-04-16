@@ -321,6 +321,8 @@ internal sealed class WorkflowRuntimeService(
         return workflow.Tasks
             .Select(task => new TaskWithWorkflowDto
             {
+                TaskRef = WorkflowTaskRef.Build(task.Id),
+                TaskFamily = TaskFamilyNames.Workflow,
                 Task = task,
                 Workflow = new TaskWorkflowContextDto
                 {
@@ -337,7 +339,8 @@ internal sealed class WorkflowRuntimeService(
                     DepartmentName = workflow.DepartmentName,
                     RoleId = workflow.RoleId,
                     RoleName = workflow.RoleName
-                }
+                },
+                Rotation = null
             })
             .ToList();
     }

@@ -145,8 +145,8 @@ Wir bewegen uns in diese Richtung:
 ## Arbeitsdokumente
 
 - `DOCS_CONTROL.md` = Lesereihenfolge, Schreibziele, Doku-Hygiene
-- `Workflow_Plattform_Implementation_Plan.md` = zentrale Umsetzungsanweisung fuer die Migration
+- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md` = aktive Umsetzungsanweisung fuer das Rotations-/Durchlauf-Feature
 - `PRODUCTIVE_TARGET_ARCHITECTURE.md` = stabiles Sollbild der Plattform
 - `DECISIONS.md` = langfristige Architekturentscheidungen
 - `MEMORY.md` = kurzfristiger Session-Kontext
-- `TODO.md` = priorisierte Arbeitspakete entlang der Migrationsphasen
+- `TODO.md` = priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature

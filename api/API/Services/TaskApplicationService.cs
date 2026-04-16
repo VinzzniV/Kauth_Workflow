@@ -28,20 +28,16 @@ internal sealed class TaskApplicationService(
     public async Task<TaskWithWorkflowDto?> GetTaskByIdAsync(long taskId, CurrentUser currentUser, CancellationToken cancellationToken = default)
     {
         var task = await repository.GetTaskById(taskId);
-        if (task is null)
-        {
-            return null;
-        }
+        return EnsureVisibleTask(task, currentUser);
+    }
 
-        if (!authorizationPolicyService.CanManageAdminConfiguration(currentUser)
-            && !authorizationPolicyService.CanUpdateTaskStatus(currentUser, task)
-            && !authorizationPolicyService.CanDecideTaskApproval(currentUser, task))
-        {
-            throw new UnauthorizedAccessException("Task visibility requires matching phase responsibility and assignment.");
-        }
-
-        workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
-        return task;
+    public async Task<TaskWithWorkflowDto?> GetTaskByRefAsync(
+        string taskRef,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var task = await repository.GetTaskByRef(taskRef);
+        return EnsureVisibleTask(task, currentUser);
     }
 
     public async Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(
@@ -59,10 +55,9 @@ internal sealed class TaskApplicationService(
         if (!authorizationPolicyService.CanDecideTaskApproval(currentUser, currentTask))
         {
             logger.LogWarning(
-                "User {UserId} denied approval decision for task {TaskId} (workflow {WorkflowUid}).",
+                "User {UserId} denied approval decision for task {TaskId}.",
                 currentUser.UserId,
-                taskId,
-                currentTask.Workflow.WorkflowUid);
+                taskId);
             throw new UnauthorizedAccessException("Approval decisions require the assigned supervisor responsibility or Admin override.");
         }
 
@@ -72,9 +67,7 @@ internal sealed class TaskApplicationService(
             return null;
         }
 
-        await workflowNotificationDispatchService.DispatchTaskStatusChangeNotificationsAsync(
-            task.Workflow.WorkflowUid,
-            cancellationToken);
+        await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
 
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;
@@ -94,8 +87,8 @@ internal sealed class TaskApplicationService(
 
         if (!authorizationPolicyService.CanUpdateTaskStatus(currentUser, currentTask))
         {
-            logger.LogWarning("User {UserId} denied task status update for task {TaskId} (workflow {WorkflowUid}).",
-                currentUser.UserId, taskId, currentTask.Workflow.WorkflowUid);
+            logger.LogWarning("User {UserId} denied task status update for task {TaskId}.",
+                currentUser.UserId, taskId);
             throw new UnauthorizedAccessException("Task updates require the current workflow phase, matching assignment or Admin override.");
         }
 
@@ -105,13 +98,40 @@ internal sealed class TaskApplicationService(
             return null;
         }
 
-        logger.LogInformation("Task {TaskId} status updated to '{NewStatus}' by user {UserId} (workflow {WorkflowUid}).",
-            taskId, request.Status, currentUser.UserId, task.Workflow.WorkflowUid);
+        logger.LogInformation("Task {TaskId} status updated to '{NewStatus}' by user {UserId}.",
+            taskId, request.Status, currentUser.UserId);
 
-        await workflowNotificationDispatchService.DispatchTaskStatusChangeNotificationsAsync(
-            task.Workflow.WorkflowUid,
-            cancellationToken);
+        await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
 
+        workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
+        return task;
+    }
+
+    public async Task<TaskWithWorkflowDto?> UpdateTaskStatusByRefAsync(
+        string taskRef,
+        TaskStatusUpdateRequest request,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var currentTask = await repository.GetTaskByRef(taskRef);
+        if (currentTask is null)
+        {
+            return null;
+        }
+
+        if (!authorizationPolicyService.CanUpdateTaskStatus(currentUser, currentTask))
+        {
+            logger.LogWarning("User {UserId} denied task status update for task {TaskRef}.", currentUser.UserId, taskRef);
+            throw new UnauthorizedAccessException("Task updates require the current workflow phase, matching assignment or Admin override.");
+        }
+
+        var task = await repository.UpdateTaskStatusByRef(taskRef, request.Status, currentUser.UserId);
+        if (task is null)
+        {
+            return null;
+        }
+
+        await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;
     }
@@ -144,6 +164,34 @@ internal sealed class TaskApplicationService(
         return updatedTask;
     }
 
+    public async Task<TaskWithWorkflowDto?> UpdateTaskAssignmentByRefAsync(
+        string taskRef,
+        TaskAssignRequest request,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var currentTask = await repository.GetTaskByRef(taskRef);
+        if (currentTask is null)
+        {
+            return null;
+        }
+
+        if (!authorizationPolicyService.CanUpdateTaskAssignment(currentUser, currentTask))
+        {
+            logger.LogWarning("User {UserId} denied task assignment update for task {TaskRef}.",
+                currentUser.UserId, taskRef);
+            throw new UnauthorizedAccessException("Task assignment updates are limited to Admin override.");
+        }
+
+        var updatedTask = await repository.UpdateTaskAssignmentByRef(taskRef, request, currentUser.UserId);
+        if (updatedTask is not null)
+        {
+            logger.LogInformation("Task {TaskRef} assignment updated by user {UserId}.", taskRef, currentUser.UserId);
+        }
+
+        return updatedTask;
+    }
+
     public async Task<TaskWithWorkflowDto?> AddTaskCommentAsync(
         long taskId,
         TaskCommentCreateRequest request,
@@ -161,6 +209,11 @@ internal sealed class TaskApplicationService(
             && !authorizationPolicyService.CanCreateOrStartWorkflow(currentUser)
             && !authorizationPolicyService.CanManageAdminConfiguration(currentUser))
         {
+            if (currentTask.Workflow is null)
+            {
+                throw new UnauthorizedAccessException("Workflow visibility depends on the current workflow phase and role.");
+            }
+
             var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
             var canObserveWorkflow = workflowVisibilityService.CanObserveWorkflow(
                 currentUser,
@@ -182,10 +235,9 @@ internal sealed class TaskApplicationService(
         if (!authorizationPolicyService.CanAddTaskComment(commentAuthorizationUser, currentTask))
         {
             logger.LogWarning(
-                "User {UserId} denied task comment creation for task {TaskId} (workflow {WorkflowUid}).",
+                "User {UserId} denied task comment creation for task {TaskId}.",
                 currentUser.UserId,
-                taskId,
-                currentTask.Workflow.WorkflowUid);
+                taskId);
             throw new UnauthorizedAccessException("Kommentare erfordern Sicht auf den Vorgang und passende Bearbeitungsrechte.");
         }
 
@@ -196,12 +248,99 @@ internal sealed class TaskApplicationService(
         }
 
         logger.LogInformation(
-            "Task {TaskId} comment added by user {UserId} (workflow {WorkflowUid}).",
+            "Task {TaskId} comment added by user {UserId}.",
             taskId,
-            currentUser.UserId,
-            task.Workflow.WorkflowUid);
+            currentUser.UserId);
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;
+    }
+
+    public async Task<TaskWithWorkflowDto?> AddTaskCommentByRefAsync(
+        string taskRef,
+        TaskCommentCreateRequest request,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var currentTask = await repository.GetTaskByRef(taskRef);
+        if (currentTask is null)
+        {
+            return null;
+        }
+
+        if (!authorizationPolicyService.CanAddTaskComment(currentUser, currentTask))
+        {
+            logger.LogWarning("User {UserId} denied task comment creation for task {TaskRef}.", currentUser.UserId, taskRef);
+            throw new UnauthorizedAccessException("Kommentare erfordern Sicht auf den Vorgang und passende Bearbeitungsrechte.");
+        }
+
+        var task = await repository.AddTaskCommentByRef(taskRef, request.CommentText, currentUser.UserId);
+        if (task is null)
+        {
+            return null;
+        }
+
+        workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
+        return task;
+    }
+
+    public async Task<TaskWithWorkflowDto?> DecideTaskApprovalByRefAsync(
+        string taskRef,
+        TaskApprovalDecisionRequest request,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var currentTask = await repository.GetTaskByRef(taskRef);
+        if (currentTask is null)
+        {
+            return null;
+        }
+
+        if (!authorizationPolicyService.CanDecideTaskApproval(currentUser, currentTask))
+        {
+            logger.LogWarning("User {UserId} denied approval decision for task {TaskRef}.", currentUser.UserId, taskRef);
+            throw new UnauthorizedAccessException("Approval decisions require the assigned supervisor responsibility or Admin override.");
+        }
+
+        var task = await repository.DecideTaskApprovalByRef(taskRef, request, currentUser.UserId);
+        if (task is null)
+        {
+            return null;
+        }
+
+        await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
+        workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
+        return task;
+    }
+
+    private TaskWithWorkflowDto? EnsureVisibleTask(TaskWithWorkflowDto? task, CurrentUser currentUser)
+    {
+        if (task is null)
+        {
+            return null;
+        }
+
+        if (!authorizationPolicyService.CanManageAdminConfiguration(currentUser)
+            && !authorizationPolicyService.CanUpdateTaskStatus(currentUser, task)
+            && !authorizationPolicyService.CanDecideTaskApproval(currentUser, task)
+            && !authorizationPolicyService.CanAddTaskComment(currentUser, task))
+        {
+            throw new UnauthorizedAccessException("Task visibility requires matching scope and assignment.");
+        }
+
+        workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
+        return task;
+    }
+
+    private async Task DispatchWorkflowTaskNotificationsAsync(TaskWithWorkflowDto task, CancellationToken cancellationToken)
+    {
+        if (task.Workflow is null)
+        {
+            return;
+        }
+
+        await workflowNotificationDispatchService.DispatchTaskStatusChangeNotificationsAsync(
+            task.Workflow.WorkflowUid,
+            cancellationToken);
     }
 
     private static CurrentUser CreateUserWithoutRole(CurrentUser user, string roleKey)

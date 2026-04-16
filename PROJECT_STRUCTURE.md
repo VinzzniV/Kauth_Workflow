@@ -11,8 +11,8 @@ Steuerungsdatei fuer Doku-Lesereihenfolge, Schreibziele und Pflege-Regeln.
 `PROJECT_CONTEXT.md`
 Stabile Projektwahrheit und fachliche Guardrails fuer die Workflow-Plattform.
 
-`Workflow_Plattform_Implementation_Plan.md`
-Zentrale Umsetzungsanweisung fuer die Migration auf Definition Layer, Runtime und Automation Layer.
+`IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`
+Aktive Umsetzungsanweisung fuer das Rotations-/Durchlauf-Feature.
 
 `PRODUCTIVE_TARGET_ARCHITECTURE.md`
 Stabiles Sollbild der Plattformarchitektur.
@@ -27,7 +27,7 @@ Kurzlebiges Arbeitsgedaechtnis fuer naechste Sessions.
 Technische Arbeitsregeln fuer inkrementelle, migrationssichere Umsetzung.
 
 `TODO.md`
-Priorisierter Umsetzungs-Backlog entlang der Plattformphasen.
+Priorisierter Umsetzungs-Backlog fuer das Rotations-/Durchlauf-Feature.
 
 `SETUP.md`
 Operative Doku fuer lokale Entwicklung und Linux-Deployment.
@@ -134,6 +134,15 @@ Historische Migrationen und Erweiterungen fuer Task-Layer, Prozessarten, Identit
 `41_workflow_definition_layer.sql`, `42_workflow_runtime_layer.sql`, `43_workflow_definition_mappings.sql`, `45_automation_layer.sql`
 Inkrementelle Einfuehrung von Definition Layer, paralleler Runtime, ersten publizierten Legacy-Mappings fuer `onboarding`, `offboarding` und `department_change` sowie dem ersten Automation Layer mit Action-Katalog, Job-Queue und Ausfuehrungslogs.
 
+`54_rotation_phase1_persistence.sql`
+Fuehrt die Phase-1-Persistenz fuer das Rotations-/Durchlauf-Feature ein: `rotation_plans`, `rotation_stations`, `department_action_templates`, `rotation_generated_tasks`, `rotation_notifications` und `rotation_audit_log`.
+
+`55_rotation_dev_template_examples.sql`
+Entwicklungs-Seed fuer Beispielabteilungen und erste `department_action_templates` in Einkauf, Produktion und IT.
+
+`56_rotation_task_generation_sync.sql`
+Erweitert den Rotation-Slice fuer Phase 4 um `trigger_type`, `anchor_date`, `started_at`, `rotation_task_assignments`, `rotation_task_comments` sowie den eindeutigen Soll-Task-Schluessel fuer `station + template`.
+
 `90_dev_defaults.sql`
 Lokale Entwicklungs-Defaults.
 
@@ -147,6 +156,33 @@ Das neue Ziel-Datenmodell fuer Definition Layer, Runtime Events und Automation L
 
 `api/API/Contracts/WorkflowAutomationDtos.cs`
 Read-DTOs fuer Action-Katalog sowie Automation-Job-, Attempt- und Log-Ansichten.
+
+`api/API/Contracts/RotationDtos.cs`
+DTOs fuer den neuen Rotations-/Durchlauf-Slice inklusive Plan-/Stations-Requests sowie Admin-Requests und Responses fuer `department_action_templates`.
+
+`api/API/Endpoints/RotationPlanningEndpoints.cs`
+Minimal-API-Endpunkte fuer die HR-Planung: Suche abgeschlossener Onboardings, Lesen/Erstellen von Durchlaufplaenen sowie CRUD fuer Stationen.
+
+`api/API/Endpoints/AdminRotationConfigEndpoints.cs`
+Admin-Endpunkte fuer `department_action_templates` unter `/admin/rotation/action-templates`.
+
+`api/API/Services/RotationPlanningService.cs`
+Fachliche Phase-2-Schicht fuer Sichtpruefung, Plananlage aus abgeschlossenem Onboarding sowie Validierung von Stationskonflikten und Sortierung.
+
+`api/API/Services/RotationTemplateAdminService.cs`
+Fachliche Phase-3-Schicht fuer Validierung und Pflege von `department_action_templates`.
+
+`api/API/Services/RotationTaskGenerationService.cs`
+Phase-4-Service fuer planbezogene Generated-Task-Reads, manuelle Regenerierung und automatische Department-Re-Syncs.
+
+`api/API/Repositories/IRotationRepository.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTemplateOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTaskGenerationOperations.cs`
+Rotation-spezifischer Persistenzzugriff auf Basis des bestehenden PostgreSQL-Repositories fuer Planung, Vorlagenpflege, Generated-Task-Sync und Rotation-Task-Mutationen.
+
+`api/API/RotationTaskRef.cs`, `api/API/RotationTaskStatusRules.cs`
+Gemeinsame Phase-4-Helfer fuer globale `taskRef`-Adressen (`wf:*`, `rot:*`) und die statusspezifischen Regeln fuer Rotation-Tasks.
+
+`api/API/Endpoints/TaskEndpoints.cs`
+Liefert seit Phase 4 kanonische `/tasks/ref/{taskRef}`-Routen fuer Read, Status, Assignment, Kommentare und Approval-Entscheidungen; Rotation-Tasks werden jetzt mit Workflow-Tasks aggregiert in `/tasks` ausgeliefert.
 
 `api/API/Services/WorkflowAutomationService.cs`
 Koordiniert Job-Claiming, Handler-Ausfuehrung, Retry-Regeln und Runtime-Fortschritt fuer `automation`-Nodes.

@@ -129,6 +129,8 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                 var workflowStatus = reader.GetString(21);
                 tasks.Add(new TaskWithWorkflowDto
                 {
+                    TaskRef = WorkflowTaskRef.Build(task.Id),
+                    TaskFamily = TaskFamilyNames.Workflow,
                     Task = task,
                     Workflow = new TaskWorkflowContextDto
                     {
@@ -145,7 +147,8 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                         DepartmentName = reader.GetString(29),
                         RoleId = reader.GetInt32(30),
                         RoleName = reader.GetString(31)
-                    }
+                    },
+                    Rotation = null
                 });
             }
         }

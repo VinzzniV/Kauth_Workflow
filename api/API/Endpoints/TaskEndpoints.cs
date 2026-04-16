@@ -62,6 +62,40 @@ internal static class TaskEndpoints
         }).Produces<TaskWithWorkflowDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status404NotFound);
 
+        app.MapGet("/tasks/ref/{taskRef}", async (
+            string taskRef,
+            ITaskApplicationService taskApplicationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                currentUser => authorizationPolicy.CanAccessTechnicalTasks(currentUser)
+                    || authorizationPolicy.CanAccessSupervisorStep(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "Fachbereich oder Admin-Override ist erforderlich.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var task = await taskApplicationService.GetTaskByRefAsync(taskRef, access.User!);
+                if (task is null)
+                {
+                    return Results.NotFound(new { message = "Task not found." });
+                }
+
+                return Results.Ok(task);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+        }).Produces<TaskWithWorkflowDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status404NotFound);
+
         app.MapPatch("/tasks/{id:long}/status", async (
             long id,
             [FromBody] TaskStatusUpdateRequest request,
@@ -81,6 +115,45 @@ internal static class TaskEndpoints
             try
             {
                 var task = await taskApplicationService.UpdateTaskStatusAsync(id, request, access.User!);
+                if (task is null)
+                {
+                    return Results.NotFound(new { message = "Task not found." });
+                }
+
+                return Results.Ok(task);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<TaskWithWorkflowDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPatch("/tasks/ref/{taskRef}/status", async (
+            string taskRef,
+            [FromBody] TaskStatusUpdateRequest request,
+            ITaskApplicationService taskApplicationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanAccessTaskStatusUpdates,
+                "Fachbereich oder Admin-Override ist erforderlich.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var task = await taskApplicationService.UpdateTaskStatusByRefAsync(taskRef, request, access.User!);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });
@@ -141,6 +214,46 @@ internal static class TaskEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
 
+        app.MapPost("/tasks/ref/{taskRef}/approval-decision", async (
+            string taskRef,
+            [FromBody] TaskApprovalDecisionRequest request,
+            ITaskApplicationService taskApplicationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                currentUser => authorizationPolicy.CanAccessSupervisorStep(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "Abteilungsleitung oder Admin-Override ist erforderlich.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var task = await taskApplicationService.DecideTaskApprovalByRefAsync(taskRef, request, access.User!);
+                if (task is null)
+                {
+                    return Results.NotFound(new { message = "Task not found." });
+                }
+
+                return Results.Ok(task);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<TaskWithWorkflowDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
         app.MapPatch("/tasks/{id:long}/assign", async (
             long id,
             [FromBody] TaskAssignRequest request,
@@ -160,6 +273,45 @@ internal static class TaskEndpoints
             try
             {
                 var task = await taskApplicationService.UpdateTaskAssignmentAsync(id, request, access.User!);
+                if (task is null)
+                {
+                    return Results.NotFound(new { message = "Task not found." });
+                }
+
+                return Results.Ok(task);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<TaskWithWorkflowDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPatch("/tasks/ref/{taskRef}/assign", async (
+            string taskRef,
+            [FromBody] TaskAssignRequest request,
+            ITaskApplicationService taskApplicationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin-Override ist erforderlich.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var task = await taskApplicationService.UpdateTaskAssignmentByRefAsync(taskRef, request, access.User!);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });
@@ -202,6 +354,48 @@ internal static class TaskEndpoints
             try
             {
                 var task = await taskApplicationService.AddTaskCommentAsync(id, request, access.User!);
+                if (task is null)
+                {
+                    return Results.NotFound(new { message = "Task not found." });
+                }
+
+                return Results.Ok(task);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<TaskWithWorkflowDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
+        app.MapPost("/tasks/ref/{taskRef}/comments", async (
+            string taskRef,
+            [FromBody] TaskCommentCreateRequest request,
+            ITaskApplicationService taskApplicationService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                currentUser => authorizationPolicy.CanCreateOrStartWorkflow(currentUser)
+                    || authorizationPolicy.CanAccessSupervisorStep(currentUser)
+                    || authorizationPolicy.CanAccessTechnicalTasks(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "Kommentar erfordert HR, Abteilungsleitung, Fachbereich oder Admin.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var task = await taskApplicationService.AddTaskCommentByRefAsync(taskRef, request, access.User!);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });

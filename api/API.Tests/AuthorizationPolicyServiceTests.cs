@@ -874,6 +874,13 @@ public sealed class AuthorizationPolicyServiceTests
             RoleName = "Mitarbeiter"
         };
 
-        return new TaskWithWorkflowDto { Task = task, Workflow = workflow };
+        return new TaskWithWorkflowDto
+        {
+            TaskRef = WorkflowTaskRef.Build(task.Id),
+            TaskFamily = TaskFamilyNames.Workflow,
+            Task = task,
+            Workflow = workflow,
+            Rotation = null
+        };
     }
 }

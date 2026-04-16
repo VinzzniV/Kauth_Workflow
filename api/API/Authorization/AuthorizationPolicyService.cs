@@ -204,7 +204,13 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
     // Statusaenderungen folgen sowohl der Workflow-Phase als auch der konkreten Aufgaben-Zuweisung.
     public bool CanUpdateTaskStatus(CurrentUser user, TaskWithWorkflowDto task)
     {
-        if (WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus))
+        if (string.Equals(task.TaskFamily, TaskFamilyNames.Rotation, StringComparison.OrdinalIgnoreCase))
+        {
+            return CanUpdateRotationTaskStatus(user, task);
+        }
+
+        var workflow = task.Workflow;
+        if (workflow is null || WorkflowStatusRules.IsTerminal(workflow.WorkflowStatus))
         {
             return false;
         }
@@ -220,7 +226,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return true;
         }
 
-        if (!CanRegularlyEditWorkflow(user, task.Workflow.WorkflowStatus))
+        if (!CanRegularlyEditWorkflow(user, workflow.WorkflowStatus))
         {
             return false;
         }
@@ -230,7 +236,14 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
 
     public bool CanDecideTaskApproval(CurrentUser user, TaskWithWorkflowDto task)
     {
-        if (WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus)
+        if (string.Equals(task.TaskFamily, TaskFamilyNames.Rotation, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var workflow = task.Workflow;
+        if (workflow is null
+            || WorkflowStatusRules.IsTerminal(workflow.WorkflowStatus)
             || !task.Task.IsApprovalTask
             || TerminalTaskStatuses.Contains(task.Task.Status))
         {
@@ -261,14 +274,41 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
     // Umverteilungen bleiben ein expliziter Admin-Eingriff und sind keine regulaere Fachbearbeitung.
     public bool CanUpdateTaskAssignment(CurrentUser user, TaskWithWorkflowDto task)
     {
-        return !WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus)
+        if (string.Equals(task.TaskFamily, TaskFamilyNames.Rotation, StringComparison.OrdinalIgnoreCase))
+        {
+            return !IsTerminalRotationPlan(task)
+                && (HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+                    || HasAnyRole(user, AuthorizationRoles.Admin));
+        }
+
+        var workflow = task.Workflow;
+        return workflow is not null
+            && !WorkflowStatusRules.IsTerminal(workflow.WorkflowStatus)
             && (HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
                 || HasAnyRole(user, AuthorizationRoles.Admin));
     }
 
     public bool CanAddTaskComment(CurrentUser user, TaskWithWorkflowDto task)
     {
-        if (WorkflowStatusRules.IsTerminal(task.Workflow.WorkflowStatus)
+        if (string.Equals(task.TaskFamily, TaskFamilyNames.Rotation, StringComparison.OrdinalIgnoreCase))
+        {
+            if (IsTerminalRotationPlan(task)
+                || RotationTaskStatusRules.TerminalTaskStatuses.Contains(task.Task.Status))
+            {
+                return false;
+            }
+
+            if (HasAnyRole(user, AuthorizationRoles.Admin, AuthorizationRoles.Hr, AuthorizationRoles.Manager))
+            {
+                return true;
+            }
+
+            return CanAccessTechnicalTasks(user) && MatchesTaskAssignment(user, task);
+        }
+
+        var workflow = task.Workflow;
+        if (workflow is null
+            || WorkflowStatusRules.IsTerminal(workflow.WorkflowStatus)
             || TerminalTaskStatuses.Contains(task.Task.Status))
         {
             return false;
@@ -279,8 +319,31 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return true;
         }
 
-        return CanRegularlyEditWorkflow(user, task.Workflow.WorkflowStatus)
+        return CanRegularlyEditWorkflow(user, workflow.WorkflowStatus)
             && MatchesTaskAssignment(user, task);
+    }
+
+    private bool CanUpdateRotationTaskStatus(CurrentUser user, TaskWithWorkflowDto task)
+    {
+        if (IsTerminalRotationPlan(task)
+            || RotationTaskStatusRules.TerminalTaskStatuses.Contains(task.Task.Status)
+            || task.Task.IsApprovalTask)
+        {
+            return false;
+        }
+
+        if (HasPermission(user, AuthorizationPermissions.TasksAssignOverride)
+            || HasAnyRole(user, AuthorizationRoles.Admin))
+        {
+            return true;
+        }
+
+        return CanAccessTechnicalTasks(user) && MatchesTaskAssignment(user, task);
+    }
+
+    private static bool IsTerminalRotationPlan(TaskWithWorkflowDto task)
+    {
+        return task.Rotation?.PlanStatus is "completed" or "archived";
     }
 
     private static bool MatchesTaskAssignment(CurrentUser user, TaskWithWorkflowDto task)

@@ -5,9 +5,9 @@ Sie ist operative Doku fuer lokale Entwicklung, servernahes Deployment und Laufz
 
 Architekturhinweis:
 - Der aktuelle Code laeuft noch auf dem bestehenden lifecycle-/task-getriebenen Kern.
-- Die Zielarchitektur zur Workflow-Plattform steht in `Workflow_Plattform_Implementation_Plan.md` und `PRODUCTIVE_TARGET_ARCHITECTURE.md`.
+- Die aktive Feature-Planung fuer Rotation/Durchlauf steht in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`; das stabile Plattform-Zielbild steht in `PRODUCTIVE_TARGET_ARCHITECTURE.md`.
 - Seit T9 laeuft der erste Automation Layer als API-interner Hosted Service; es gibt lokal und produktiv keinen separaten Worker-Container.
-- Seit T10 steht in `/admin/config?section=builder` ein formularbasierter Guided Builder fuer Definitionen, Versionen, Nodes, Edges und Automation-Actions zur Verfuegung.
+- Seit T10 steht mit `/builder` eine eigenstaendige Builder-Seite fuer Definitionen, Versionen, Nodes, Edges und Automation-Actions zur Verfuegung; alte Admin-Einstiege werden dorthin umgeleitet.
 - Seit T11 nutzt der normale Start-Flow `/workflows/create` publizierte Workflow-Definitionen; `processTypeKey` und `/process-types` bleiben nur noch als Legacy-Alias fuer eine Uebergangsrelease bestehen.
 
 ## Repo-Struktur fuer Betrieb

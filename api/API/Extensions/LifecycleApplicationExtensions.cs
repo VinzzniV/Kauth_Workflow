@@ -82,6 +82,7 @@ internal static class LifecycleApplicationExtensions
         app.MapLifecycleHealthEndpoints();
         app.MapAuthEndpoints();
         app.MapAdminEndpoints();
+        app.MapRotationPlanningEndpoints();
         app.MapWorkflowEndpoints();
         app.MapTaskEndpoints();
 
