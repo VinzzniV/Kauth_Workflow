@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AdminConfigWorkspaceContent } from "../components/admin-config/AdminConfigWorkspaceContent";
@@ -18,6 +18,7 @@ import { useAdminNotificationEmailConfiguration } from "../hooks/useAdminNotific
 import { useAdminOrganizationManagement } from "../hooks/useAdminOrganizationManagement";
 import { useAdminPermissionManagement } from "../hooks/useAdminPermissionManagement";
 import { useAdminUserManagement } from "../hooks/useAdminUserManagement";
+import { reportUserVisibleError } from "../services/systemLogReporter";
 
 export default function AdminConfigPage() {
   const { refreshCurrentUser } = useCurrentUser();
@@ -30,9 +31,30 @@ export default function AdminConfigPage() {
     return <Navigate to="/builder" replace />;
   }
 
+  if (rawSection === "operations") {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("section", "system");
+    return <Navigate to={`/admin/config?${nextParams.toString()}`} replace />;
+  }
+
   const section = normalizeAdminWorkspaceSection(searchParams.get("section"));
   const organizationEntity = normalizeAdminOrganizationEntity(searchParams.get("entity"));
   const selectedEntityId = parseAdminWorkspaceId(searchParams.get("id"));
+
+  const handleError = useCallback((message: string | null) => {
+    setError(message);
+
+    if (!message) {
+      return;
+    }
+
+    reportUserVisibleError({
+      message,
+      clientFunction: "AdminConfigPage.setError",
+      category: "ui",
+      eventKey: "admin_workspace_error",
+    });
+  }, []);
 
   const {
     graphApplicationConfiguration,
@@ -41,7 +63,7 @@ export default function AdminConfigPage() {
 
   const notificationConfig = useAdminNotificationEmailConfiguration({
     onNotice: setNotice,
-    onError: setError,
+    onError: handleError,
   });
 
   const {
@@ -77,7 +99,7 @@ export default function AdminConfigPage() {
     handleDeleteDirectoryMapping,
   } = useAdminConfigData({
     section,
-    setError,
+    setError: handleError,
     setNotice,
     setGraphApplicationConfiguration,
     setNotificationEmailConfiguration: notificationConfig.setNotificationEmailConfiguration,
@@ -142,7 +164,7 @@ export default function AdminConfigPage() {
     refreshCurrentUser,
     reload,
     onNotice: setNotice,
-    onError: setError,
+    onError: handleError,
   });
 
   const {
@@ -185,7 +207,7 @@ export default function AdminConfigPage() {
     setResponsibilityOwners,
     reload,
     onNotice: setNotice,
-    onError: setError,
+    onError: handleError,
   });
 
   const {
@@ -207,7 +229,7 @@ export default function AdminConfigPage() {
     setUsers,
     setPermissionAuditEntries,
     onNotice: setNotice,
-    onError: setError,
+    onError: handleError,
   });
 
   const { hasAnyData, handleSelectSection, workspaceContentProps } = useAdminConfigPageView({
@@ -330,7 +352,7 @@ export default function AdminConfigPage() {
     onCreateDirectoryMapping: handleCreateDirectoryMapping,
     onDeleteDirectoryMapping: handleDeleteDirectoryMapping,
     onNotice: setNotice,
-    onError: setError,
+    onError: handleError,
   });
 
   return (

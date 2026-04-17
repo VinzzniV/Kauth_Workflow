@@ -31,6 +31,7 @@ internal static class AdminDirectorySyncEndpoints
         app.MapPost("/admin/directory/sync", async (
             [FromBody] DirectorySyncRequest? request,
             [FromServices] IDirectorySyncService directorySyncService,
+            [FromServices] ISystemEventLogService systemEventLogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -43,7 +44,22 @@ internal static class AdminDirectorySyncEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await directorySyncService.SyncAllAsync(request?.GroupPrefix));
+            var result = await directorySyncService.SyncAllAsync(request?.GroupPrefix);
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = string.Equals(result.Status, "failed", StringComparison.OrdinalIgnoreCase)
+                    ? "error"
+                    : string.Equals(result.Status, "partial", StringComparison.OrdinalIgnoreCase)
+                        ? "warning"
+                        : "info",
+                Source = "admin",
+                Category = "directory_sync",
+                EventKey = "directory_sync_triggered",
+                Message = $"Directory sync triggered from admin finished with status {result.Status}.",
+                ActorUserId = access.User?.UserId,
+                Details = result
+            });
+            return Results.Ok(result);
         }).Produces<DirectorySyncResult>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
@@ -111,6 +127,7 @@ internal static class AdminDirectorySyncEndpoints
         app.MapPost("/admin/directory/group-mappings", async (
             [FromBody] AdminDirectoryGroupRoleMappingUpsertRequest request,
             [FromServices] IDirectorySyncService directorySyncService,
+            [FromServices] ISystemEventLogService systemEventLogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -125,9 +142,22 @@ internal static class AdminDirectorySyncEndpoints
 
             try
             {
-                return Results.Ok(await directorySyncService.UpsertGroupRoleMappingAsync(
+                var mapping = await directorySyncService.UpsertGroupRoleMappingAsync(
                     request,
-                    access.User?.UserId));
+                    access.User?.UserId);
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "admin",
+                    Category = "directory_mapping",
+                    EventKey = "directory_group_mapping_upserted",
+                    Message = $"Directory group mapping {mapping.MappingId} saved.",
+                    ActorUserId = access.User?.UserId,
+                    EntityType = "directory_group_mapping",
+                    EntityId = mapping.MappingId.ToString(),
+                    Details = mapping
+                });
+                return Results.Ok(mapping);
             }
             catch (InvalidOperationException ex)
             {
@@ -141,6 +171,7 @@ internal static class AdminDirectorySyncEndpoints
         app.MapDelete("/admin/directory/group-mappings/{mappingId:int}", async (
             int mappingId,
             [FromServices] IDirectorySyncService directorySyncService,
+            [FromServices] ISystemEventLogService systemEventLogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -154,6 +185,20 @@ internal static class AdminDirectorySyncEndpoints
             }
 
             var deleted = await directorySyncService.DeleteGroupRoleMappingAsync(mappingId, access.User?.UserId);
+            if (deleted)
+            {
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "admin",
+                    Category = "directory_mapping",
+                    EventKey = "directory_group_mapping_deleted",
+                    Message = $"Directory group mapping {mappingId} deleted.",
+                    ActorUserId = access.User?.UserId,
+                    EntityType = "directory_group_mapping",
+                    EntityId = mappingId.ToString()
+                });
+            }
             return deleted
                 ? Results.NoContent()
                 : Results.NotFound(new { message = "Directory mapping not found." });

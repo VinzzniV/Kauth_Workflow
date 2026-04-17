@@ -975,139 +975,6 @@ public sealed class WorkflowEndpointsTests
     }
 
     [Fact]
-    public async Task BulkDepartmentChangeEndpoint_RejectsIdenticalDepartments()
-    {
-        var repository = new StubWorkflowRepository();
-        var app = CreateApp(repository);
-        var endpoint = GetWorkflowEndpoint(app, "/admin/bulk/department-change", HttpMethods.Post);
-        var context = CreateJsonRequestContext(
-            app.Services,
-            endpoint,
-            HttpMethods.Post,
-            "/admin/bulk/department-change",
-            new BulkDepartmentChangeRequest
-            {
-                SourceDepartmentId = 7,
-                TargetDepartmentId = 7,
-                TargetRoleId = 2,
-                DryRun = true
-            });
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
-        Assert.Equal(0, repository.BulkCreateDepartmentChangeWorkflowsCallCount);
-    }
-
-    [Fact]
-    public async Task BulkDepartmentChangeEndpoint_PassesActorToRepository()
-    {
-        var repository = new StubWorkflowRepository
-        {
-            BulkOperationResult = new BulkOperationResultDto
-            {
-                TotalEmployees = 3,
-                CreatedWorkflows = 2,
-                SkippedEmployees = 1,
-                FailedEmployees = 0,
-                IsDryRun = false,
-                Items = new List<BulkOperationItemDto>()
-            }
-        };
-
-        var app = CreateApp(repository);
-        var endpoint = GetWorkflowEndpoint(app, "/admin/bulk/department-change", HttpMethods.Post);
-        var request = new BulkDepartmentChangeRequest
-        {
-            SourceDepartmentId = 1,
-            TargetDepartmentId = 2,
-            TargetRoleId = 9,
-            DryRun = false
-        };
-        var context = CreateJsonRequestContext(
-            app.Services,
-            endpoint,
-            HttpMethods.Post,
-            "/admin/bulk/department-change",
-            request);
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.BulkCreateDepartmentChangeWorkflowsCallCount);
-        Assert.Equal(99, repository.LastBulkActorUserId);
-        Assert.Equal(request.SourceDepartmentId, repository.LastBulkRequest!.SourceDepartmentId);
-        Assert.Equal(request.TargetDepartmentId, repository.LastBulkRequest.TargetDepartmentId);
-        Assert.Equal(request.TargetRoleId, repository.LastBulkRequest.TargetRoleId);
-    }
-
-    [Fact]
-    public async Task BulkDepartmentChangeEndpoint_DispatchesWorkflowCreatedNotifications_ForCreatedWorkflows()
-    {
-        var workflowUid = Guid.NewGuid();
-        var repository = new StubWorkflowRepository
-        {
-            BulkOperationResult = new BulkOperationResultDto
-            {
-                TotalEmployees = 1,
-                CreatedWorkflows = 1,
-                SkippedEmployees = 0,
-                FailedEmployees = 0,
-                IsDryRun = false,
-                Items =
-                [
-                    new BulkOperationItemDto
-                    {
-                        PersonId = 1,
-                        DisplayName = "Ada Lovelace",
-                        Status = "created",
-                        WorkflowUid = workflowUid
-                    }
-                ]
-            }
-        };
-        repository.WorkflowCreatedNotificationTargetsByUid[workflowUid] =
-        [
-            new WorkflowNotificationDispatchTarget
-            {
-                NotificationId = 17,
-                NotificationType = "workflow_created",
-                ProcessTypeKey = "department_change",
-                ProcessTypeName = "Abteilungswechsel",
-                WorkflowTaskId = null,
-                RecipientUserId = 99,
-                RecipientIdentityKey = "admin.test",
-                TargetName = "Admin Test",
-                TargetEmail = "admin.test@example.com",
-                TaskTitle = null,
-                PreferredPath = "/workflows"
-            }
-        ];
-
-        var app = CreateApp(repository);
-        var endpoint = GetWorkflowEndpoint(app, "/admin/bulk/department-change", HttpMethods.Post);
-        var request = new BulkDepartmentChangeRequest
-        {
-            SourceDepartmentId = 1,
-            TargetDepartmentId = 2,
-            TargetRoleId = 9,
-            DryRun = false
-        };
-        var context = CreateJsonRequestContext(
-            app.Services,
-            endpoint,
-            HttpMethods.Post,
-            "/admin/bulk/department-change",
-            request);
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.GetWorkflowCreatedNotificationDispatchTargetsCallCount);
-        Assert.Equal(1, repository.ApplyNotificationDispatchResultsCallCount);
-    }
-
-    [Fact]
     public async Task GetAdminProcessTypesEndpoint_ReturnsRepositoryData()
     {
         var repository = new StubWorkflowRepository
@@ -1217,6 +1084,7 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddSingleton<INotificationEmailTestSender, StubNotificationEmailTestSender>();
         builder.Services.AddSingleton<INotificationEmailConfigurationService, StubNotificationEmailConfigurationService>();
         builder.Services.AddSingleton<ISupervisorStepService, StubSupervisorStepService>();
+        builder.Services.AddSingleton<ISystemEventLogService, StubSystemEventLogService>();
         builder.Services.AddSingleton<IRotationTemplateAdminService>(_ => throw new NotSupportedException());
 
         var app = builder.Build();
@@ -1602,7 +1470,6 @@ public sealed class WorkflowEndpointsTests
         public List<RelatedWorkflowSummaryDto> RelatedWorkflows { get; set; } = new();
         public List<LinkableWorkflowDto> LinkableWorkflows { get; set; } = new();
         public List<DerivedAnswerDto> DerivedAnswers { get; set; } = new();
-        public BulkOperationResultDto? BulkOperationResult { get; set; }
         public List<AdminProcessTypeDto> AdminProcessTypes { get; set; } = new();
         public List<WorkflowStartableDefinitionDto> StartableWorkflowDefinitions { get; set; } = new();
         public AdminProcessTypeDto? UpdatedProcessType { get; set; }
@@ -1642,7 +1509,6 @@ public sealed class WorkflowEndpointsTests
         public int FindLinkableWorkflowsCallCount { get; private set; }
         public int GetDerivedAnswersCallCount { get; private set; }
         public int DeleteWorkflowLinkCallCount { get; private set; }
-        public int BulkCreateDepartmentChangeWorkflowsCallCount { get; private set; }
         public int GetAdminProcessTypesCallCount { get; private set; }
         public int UpdateProcessTypeCallCount { get; private set; }
         public int GetActiveProcessTypesCallCount { get; private set; }
@@ -1677,8 +1543,6 @@ public sealed class WorkflowEndpointsTests
         public Guid? LastDeleteWorkflowLinkWorkflowUid { get; private set; }
         public long? LastDeleteWorkflowLinkId { get; private set; }
         public long? LastDeleteWorkflowLinkActorUserId { get; private set; }
-        public BulkDepartmentChangeRequest? LastBulkRequest { get; private set; }
-        public long? LastBulkActorUserId { get; private set; }
         public int? LastUpdateProcessTypeId { get; private set; }
         public AdminProcessTypeUpdateRequest? LastUpdateProcessTypeRequest { get; private set; }
         public CreateWorkflowRequest? LastCreateWorkflowRequest { get; private set; }
@@ -1857,22 +1721,6 @@ public sealed class WorkflowEndpointsTests
             return Task.FromResult(DerivedAnswers);
         }
 
-        public Task<BulkOperationResultDto> BulkCreateDepartmentChangeWorkflows(BulkDepartmentChangeRequest request, long actorUserId)
-        {
-            BulkCreateDepartmentChangeWorkflowsCallCount += 1;
-            LastBulkRequest = request;
-            LastBulkActorUserId = actorUserId;
-            return Task.FromResult(BulkOperationResult ?? new BulkOperationResultDto
-            {
-                TotalEmployees = 0,
-                CreatedWorkflows = 0,
-                SkippedEmployees = 0,
-                FailedEmployees = 0,
-                IsDryRun = request.DryRun,
-                Items = new List<BulkOperationItemDto>()
-            });
-        }
-
         public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions() => throw new NotSupportedException();
         public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
         public Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request) => throw new NotSupportedException();
@@ -2026,6 +1874,29 @@ public sealed class WorkflowEndpointsTests
                 UpdatedAt = null
             });
         }
+    }
+
+    private sealed class StubSystemEventLogService : ISystemEventLogService
+    {
+        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+
+        public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminSystemLogSummaryDto
+            {
+                TotalCount = 0,
+                InfoCount = 0,
+                WarningCount = 0,
+                ErrorCount = 0,
+                Sources = []
+            });
+
+        public Task WriteAsync(SystemEventLogWriteModel model, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class StubUserAuthorizationRepository : IUserAuthorizationRepository

@@ -5,6 +5,7 @@ namespace API;
 internal sealed class RotationNotificationService(
     IRotationRepository rotationRepository,
     IWorkflowEmailNotificationSender emailNotificationSender,
+    ISystemEventLogService systemEventLogService,
     ILogger<RotationNotificationService> logger) : IRotationNotificationService
 {
     public async Task<RotationNotificationSweepResult> ExecuteDailySweepAsync(CancellationToken cancellationToken = default)
@@ -40,6 +41,16 @@ internal sealed class RotationNotificationService(
             dispatched,
             failed,
             disabled);
+
+        await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+        {
+            Severity = failed > 0 ? "warning" : "info",
+            Source = "rotation",
+            Category = "notifications",
+            EventKey = failed > 0 ? "rotation_notification_sweep_partial_failure" : "rotation_notification_sweep_succeeded",
+            Message = $"Rotation notification sweep finished: created={created}, dispatched={dispatched}, failed={failed}, disabled={disabled}.",
+            Details = new { asOfDate, created, dispatched, failed, disabled }
+        }, cancellationToken);
 
         return new RotationNotificationSweepResult
         {

@@ -4,7 +4,6 @@ import {
   renderAnswerWorkspace,
   renderDefaultWorkspace,
   renderDirectoryWorkspace,
-  renderOperationsWorkspace,
   renderOrganizationWorkspace,
   renderOverviewWorkspace,
   renderSystemWorkspace,
@@ -32,8 +31,6 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       return renderDefaultWorkspace(props);
     case "system":
       return renderSystemWorkspace(props);
-    case "operations":
-      return renderOperationsWorkspace(props);
     default:
       return null;
   }

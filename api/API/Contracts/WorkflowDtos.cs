@@ -790,35 +790,6 @@ public sealed class AdminRoleAnswerDefaultsBulkUpsertRequest
     public required List<AdminRoleAnswerDefaultUpsertItemRequest> Items { get; init; }
 }
 
-// Bulk-Operationen: Massenhafte Workflow-Erstellung fuer Abteilungswechsel o.Ä.
-public sealed class BulkDepartmentChangeRequest
-{
-    public required int SourceDepartmentId { get; init; }
-    public required int TargetDepartmentId { get; init; }
-    public required int TargetRoleId { get; init; }
-    public DateOnly? DeadlineDate { get; init; }
-    public bool DryRun { get; init; }
-}
-
-public sealed class BulkOperationResultDto
-{
-    public required int TotalEmployees { get; init; }
-    public required int CreatedWorkflows { get; init; }
-    public required int SkippedEmployees { get; init; }
-    public required int FailedEmployees { get; init; }
-    public required bool IsDryRun { get; init; }
-    public required List<BulkOperationItemDto> Items { get; init; }
-}
-
-public sealed class BulkOperationItemDto
-{
-    public required long PersonId { get; init; }
-    public required string DisplayName { get; init; }
-    public required string Status { get; init; }
-    public Guid? WorkflowUid { get; init; }
-    public string? ErrorMessage { get; init; }
-}
-
 // Mitarbeiter-Lifecycle: Personenbezogene Workflow-Historie
 public sealed class PersonWorkflowSummaryDto
 {

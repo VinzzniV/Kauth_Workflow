@@ -23,7 +23,10 @@ import type {
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
+  AdminSystemLogEntry,
+  AdminSystemLogSummary,
   AdminAnswerDefinition,
+  ClientLogEventRequest,
   AdminDependencyGraph,
   AdminDependencyGraphEdge,
   AdminDependencyGraphNode,
@@ -416,6 +419,9 @@ export type BackendAdminDirectoryMappingAuditEntryDto = AdminDirectoryMappingAud
 export type BackendAdminDirectorySyncStatusDto = AdminDirectorySyncStatus;
 export type BackendAdminDirectorySyncResultDto = AdminDirectorySyncResult;
 export type BackendAdminGraphApplicationConfigurationDto = AdminGraphApplicationConfiguration;
+export type BackendAdminSystemLogEntryDto = AdminSystemLogEntry;
+export type BackendAdminSystemLogSummaryDto = AdminSystemLogSummary;
+export type BackendClientLogEventRequestDto = ClientLogEventRequest;
 
 export type BackendWorkflowLinkDto = WorkflowLink;
 export type BackendLinkableWorkflowDto = LinkableWorkflow;

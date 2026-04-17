@@ -184,63 +184,6 @@ internal static class AdminAnswerConfigEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
-        // Bulk-Operationen: Massenhafte Workflow-Erstellung
-        app.MapPost("/admin/bulk/department-change", async (
-            [FromBody] BulkDepartmentChangeRequest request,
-            IWorkflowRepository repository,
-            IWorkflowEmailNotificationSender emailNotificationSender,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required for bulk operations.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            if (request.SourceDepartmentId == request.TargetDepartmentId)
-            {
-                return Results.BadRequest(new { message = "Quell- und Ziel-Abteilung dürfen nicht identisch sein." });
-            }
-
-            try
-            {
-                var result = await repository.BulkCreateDepartmentChangeWorkflows(request, access.User!.UserId);
-
-                if (!request.DryRun)
-                {
-                    foreach (var workflowUid in result.Items
-                                 .Where(item => item.WorkflowUid.HasValue)
-                                 .Select(item => item.WorkflowUid!.Value))
-                    {
-                        var notificationTargets = await repository.GetWorkflowCreatedNotificationDispatchTargets(workflowUid);
-                        if (notificationTargets.Count == 0)
-                        {
-                            continue;
-                        }
-
-                        var dispatchResults = await emailNotificationSender.SendNotificationsAsync(workflowUid, notificationTargets);
-                        if (dispatchResults.Count > 0)
-                        {
-                            await repository.ApplyNotificationDispatchResults(dispatchResults);
-                        }
-                    }
-                }
-
-                return Results.Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(new { message = ex.Message });
-            }
-        }).Produces<BulkOperationResultDto>(StatusCodes.Status200OK)
-          .Produces(StatusCodes.Status400BadRequest)
-          .Produces(StatusCodes.Status403Forbidden)
-          .Produces(StatusCodes.Status401Unauthorized);
-
         return app;
     }
 }

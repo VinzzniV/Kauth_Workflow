@@ -255,6 +255,65 @@ export type AdminNotificationEmailTestResponse = {
   result: AdminNotificationEmailTestResult;
 };
 
+export type AdminSystemLogEntry = {
+  id: number;
+  createdAt: string;
+  severity: "info" | "warning" | "error" | string;
+  source: string;
+  category: string;
+  eventKey: string;
+  message: string;
+  userMessage: string | null;
+  actorUserId: number | null;
+  actorDisplayName: string | null;
+  clientRoute: string | null;
+  clientFunction: string | null;
+  httpMethod: string | null;
+  httpPath: string | null;
+  httpStatus: number | null;
+  traceIdentifier: string | null;
+  workflowUid: string | null;
+  rotationPlanId: number | null;
+  taskRef: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  details: unknown | null;
+};
+
+export type AdminSystemLogSourceCount = {
+  source: string;
+  count: number;
+};
+
+export type AdminSystemLogSummary = {
+  totalCount: number;
+  infoCount: number;
+  warningCount: number;
+  errorCount: number;
+  sources: AdminSystemLogSourceCount[];
+};
+
+export type ClientLogEventRequest = {
+  severity?: "info" | "warning" | "error" | string;
+  source?: string | null;
+  category?: string | null;
+  eventKey?: string | null;
+  message?: string | null;
+  userMessage?: string | null;
+  clientRoute?: string | null;
+  clientFunction?: string | null;
+  httpMethod?: string | null;
+  httpPath?: string | null;
+  httpStatus?: number | null;
+  traceIdentifier?: string | null;
+  workflowUid?: string | null;
+  rotationPlanId?: number | null;
+  taskRef?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
+  details?: unknown | null;
+};
+
 export type AdminProcessType = {
   id: number;
   key: string;

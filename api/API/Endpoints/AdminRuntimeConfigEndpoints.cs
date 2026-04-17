@@ -79,6 +79,7 @@ internal static class AdminRuntimeConfigEndpoints
             [FromServices] INotificationEmailConfigurationService notificationEmailConfigurationService,
             [FromServices] IWorkflowRepository repository,
             [FromServices] IWorkflowEmailNotificationSender emailNotificationSender,
+            [FromServices] ISystemEventLogService systemEventLogService,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -121,6 +122,28 @@ internal static class AdminRuntimeConfigEndpoints
                     }
                 }
 
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "admin",
+                    Category = "configuration",
+                    EventKey = "notification_email_configuration_updated",
+                    Message = "Notification email configuration updated.",
+                    ActorUserId = access.User?.UserId,
+                    EntityType = "notification_email_configuration",
+                    EntityId = "singleton",
+                    Details = new
+                    {
+                        updatedConfiguration.Enabled,
+                        updatedConfiguration.Mode,
+                        updatedConfiguration.SenderEmail,
+                        updatedConfiguration.FrontendBaseUrl,
+                        updatedConfiguration.NotifyOnWorkflowCreated,
+                        updatedConfiguration.NotifyOnTaskReady,
+                        updatedConfiguration.NotifyOnWorkflowCompleted
+                    }
+                });
+
                 return Results.Ok(updatedConfiguration);
             }
             catch (InvalidOperationException ex)
@@ -136,6 +159,7 @@ internal static class AdminRuntimeConfigEndpoints
             [FromBody] AdminNotificationEmailTestRequest request,
             [FromServices] INotificationEmailConfigurationService notificationEmailConfigurationService,
             [FromServices] INotificationEmailTestSender notificationEmailTestSender,
+            [FromServices] ISystemEventLogService systemEventLogService,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -162,6 +186,22 @@ internal static class AdminRuntimeConfigEndpoints
             var updatedConfiguration = await notificationEmailConfigurationService.UpdateTestStatus(
                 testResult.Status,
                 testResult.ErrorMessage);
+
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = testResult.Success ? "info" : "error",
+                Source = "admin",
+                Category = "mail_test",
+                EventKey = testResult.Success ? "notification_email_test_succeeded" : "notification_email_test_failed",
+                Message = testResult.Message,
+                ActorUserId = access.User?.UserId,
+                Details = new
+                {
+                    testResult.Status,
+                    testResult.RecipientEmail,
+                    testResult.ErrorMessage
+                }
+            });
 
             return Results.Ok(new AdminNotificationEmailTestResponse
             {

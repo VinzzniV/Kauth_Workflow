@@ -683,6 +683,7 @@ internal static class AdminOrgEndpoints
             int roleId,
             [FromBody] AdminRolePermissionUpdateRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
+            ISystemEventLogService systemEventLogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -706,6 +707,24 @@ internal static class AdminOrgEndpoints
                     return Results.NotFound(new { message = "Role not found." });
                 }
 
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "admin",
+                    Category = "permission_audit",
+                    EventKey = "role_permissions_updated",
+                    Message = $"Permissions updated for role {role.RoleKey}.",
+                    ActorUserId = access.User?.UserId,
+                    EntityType = "role",
+                    EntityId = roleId.ToString(),
+                    Details = new
+                    {
+                        role.RoleId,
+                        role.RoleKey,
+                        permissionIds = request.PermissionIds
+                    }
+                });
+
                 return Results.Ok(role);
             }
             catch (InvalidOperationException ex)
@@ -722,6 +741,7 @@ internal static class AdminOrgEndpoints
             long userId,
             [FromBody] AdminUserPermissionOverrideUpdateRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
+            ISystemEventLogService systemEventLogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
@@ -744,6 +764,24 @@ internal static class AdminOrgEndpoints
                 {
                     return Results.NotFound(new { message = "User not found." });
                 }
+
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "admin",
+                    Category = "permission_audit",
+                    EventKey = "user_permission_overrides_updated",
+                    Message = $"Permission overrides updated for user {user.DisplayName}.",
+                    ActorUserId = access.User?.UserId,
+                    EntityType = "user",
+                    EntityId = userId.ToString(),
+                    Details = new
+                    {
+                        user.UserId,
+                        user.DisplayName,
+                        overrideCount = request.Overrides.Count
+                    }
+                });
 
                 return Results.Ok(user);
             }

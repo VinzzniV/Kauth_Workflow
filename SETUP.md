@@ -10,6 +10,7 @@ Architekturhinweis:
 - Seit Phase 5 laeuft zusaetzlich ein API-interner taeglicher Rotation-Notification-Worker; auch dafuer gibt es keinen separaten Worker-Container.
 - Seit T10 steht mit `/builder` eine eigenstaendige Builder-Seite fuer Definitionen, Versionen, Nodes, Edges und Automation-Actions zur Verfuegung; alte Admin-Einstiege werden dorthin umgeleitet.
 - Seit T11 nutzt der normale Start-Flow `/workflows/create` publizierte Workflow-Definitionen; `processTypeKey` und `/process-types` bleiben nur noch als Legacy-Alias fuer eine Uebergangsrelease bestehen.
+- Seit T12 liegt die zentrale Betriebs- und Fehlerkonsole unter `Administration > System`; dort laufen Frontend-Fehler, API-/System-Fehler, Mail-/Entra-/Directory-Ereignisse und andere wichtige Betriebslogs zusammen. Der alte Admin-Bereich `Massenaktionen` existiert nicht mehr.
 
 ## Repo-Struktur fuer Betrieb
 
@@ -54,6 +55,7 @@ Das lokale Launch-Profil setzt u. a.:
 Hinweis:
 - `automation`-Jobs werden von der API selbst gepollt und verarbeitet, sobald die Anwendung laeuft.
 - Rotation-Benachrichtigungen werden ebenfalls von der API selbst in einem taeglichen Sweep erzeugt und versendet, sobald Mailversand konfiguriert ist.
+- Sichtbare Frontend-Fehler werden automatisch an `POST /client/log-events` gemeldet; Admins koennen sie anschliessend in `Administration > System` zusammen mit den Backend-/Mail-/Entra-Logs einsehen.
 - Die ersten Actions sind simuliert; fuer lokale Entwicklung ist deshalb kein externer Provisioning-Adapter noetig.
 - Der Guided Builder speichert Drafts weiter ueber den bestehenden Vollersatz-Endpunkt; lokale JSON-Fehler in Node-`config` oder Action-`inputMapping` blockieren Save bereits im UI.
 
@@ -152,6 +154,7 @@ docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml logs -f
 - Production verwendet `db/init/prod/00_init.sql`
 - Production laedt `02_bootstrap.sql`, aber nicht `02_seed.sql`
 - Dev laedt `02_seed.sql` inklusive lokaler Defaults
+- Seit T12 laden beide Init-Reihenfolgen zusaetzlich `58_system_event_log.sql` fuer die zentrale Log-Tabelle `system_event_log`
 
 ## Handoff / Release-ZIP
 

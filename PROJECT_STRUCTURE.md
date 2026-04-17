@@ -85,6 +85,7 @@ Wichtige Bereiche:
 Hinweis:
 Seit T8 lebt der Workflow Builder auf der eigenen Route `/builder`; alte Builder-Einstiege unter `/admin/config?section=builder|templates|answers|defaults` werden dorthin umgeleitet. Die Builder-Logik sitzt primär in `src/pages/WorkflowBuilderPage.tsx`, `src/components/admin-config/`, `src/hooks/useAdminWorkflowBuilder.ts`, `src/hooks/adminWorkflowBuilderModel.ts` und `src/services/adminConfigApi.ts`.
 Seit T11 nutzt `/workflows/create` den startbaren Definitionen-Katalog aus `src/services/lookupApi.ts` statt `process_types`; die alten Konfigurationssektionen fuer Process Types, Templates und Answer Defaults sind im Admin-Workspace nicht mehr navigierbar.
+Seit T12 ist `Administration > System` die zentrale Betriebs- und Log-Konsole: `src/components/admin-config/AdminSystemLogSection.tsx`, `src/services/adminApi.ts` und `src/services/systemLogReporter.ts` verbinden die neue Admin-Log-Ansicht mit automatischem Frontend-Error-Reporting; der alte Admin-Bereich fuer `Massenaktionen` wurde vollstaendig entfernt.
 Seit Phase 6 gibt es fuer HR zusaetzlich den Rotation-Frontend-Slice auf `/rotation` und `/rotation/plans/:planId`; die Seiten in `src/pages/RotationPlanningPage.tsx` und `src/pages/RotationPlanDetailPage.tsx` nutzen `src/services/rotationApi.ts`, `src/services/queries/rotationQueries.ts` und `src/types/rotation.ts`.
 Seit Phase 7 gibt es fuer IT und Fachbereiche den operativen Rotation-Slice auf `/rotation/operations` und `/rotation/tasks/:taskRef`; die Seiten `src/pages/RotationOperationsPage.tsx` und `src/pages/RotationTaskDetailPage.tsx` nutzen den familienfaehigen `/tasks`-Envelope, `src/services/taskApi.ts`, `src/services/mutations/workflowMutations.ts` und die erweiterten Task-/Status-Mappings in `src/services/api/` und `src/utils/taskStatus.ts`.
 Seit Phase 8 sind Audit-/Verlaufs- und Benachrichtigungshistorie in den bestehenden Rotations-Detailseiten sichtbar; `src/components/rotation/RotationAuditLog.tsx` und `src/components/rotation/RotationNotificationsPanel.tsx` werden in `RotationPlanDetailPage` und `RotationTaskDetailPage` eingebunden; `src/services/queries/rotationQueries.ts` enthaelt die planbezogenen History-Queries.
@@ -145,6 +146,12 @@ Entwicklungs-Seed fuer Beispielabteilungen und erste `department_action_template
 
 `56_rotation_task_generation_sync.sql`
 Erweitert den Rotation-Slice fuer Phase 4 um `trigger_type`, `anchor_date`, `started_at`, `rotation_task_assignments`, `rotation_task_comments` sowie den eindeutigen Soll-Task-Schluessel fuer `station + template`.
+
+`57_azubi_departments.sql`
+Fuehrt die Abteilungen `Azubis technisch` und `Azubis kaufmaennisch` ein. Technische Azubis haben eine stabile Ausbildungsleitung (`ausbildungsleitung_technisch`); fuer kaufmaennische Azubis variiert die Zustaendigkeit pro Station (Einkauf-Lead, IT-Lead usw.) — administrative Begleitung laeuft ueber `hr_onboarding`.
+
+`58_system_event_log.sql`
+Fuehrt die zentrale Tabelle `system_event_log` inklusive Indizes fuer Zeitpunkt, Severity/Source, Actor, Workflow, Rotation-Plan und Task-Referenz ein. Sie bildet die gemeinsame Timeline fuer Frontend-Fehler, API-/System-Fehler, Mail-/Entra-/Directory-Ereignisse und administrative Betriebsereignisse.
 
 `90_dev_defaults.sql`
 Lokale Entwicklungs-Defaults.
@@ -219,6 +226,12 @@ Simulierte Handler fuer die ersten Plattform-Actions wie `CreateAdUser` und `Sen
 
 `api/API/Repositories/PostgresWorkflowRepository.AutomationOperations.cs`
 PostgreSQL-Zugriff fuer Action-Katalog, Job-Claiming, Attempt-/Log-Schreibung, Mapping-Aufloesung und Folgejob-Erzeugung.
+
+`api/API/Contracts/SystemEventLogDtos.cs`, `api/API/Services/ISystemEventLogService.cs`, `api/API/Services/SystemEventLogService.cs`
+Zentrale Log-Vertraege und Persistenz fuer `system_event_log`, inklusive Admin-Read-Modell, Frontend-Ingest und Redaction sensibler Detailfelder.
+
+`api/API/Endpoints/AdminSystemLogEndpoints.cs`, `api/API/Endpoints/ClientSystemLogEndpoints.cs`
+Neue Endpunkte `GET /admin/system/logs`, `GET /admin/system/logs/summary` und `POST /client/log-events`; sie versorgen die Admin-System-Konsole und nehmen sichtbare Frontend-Fehler strukturiert entgegen.
 
 ## Frontend-Erweiterungen aus T8
 

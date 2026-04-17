@@ -12,6 +12,7 @@ public sealed class WorkflowAutomationServiceTests
         var service = new WorkflowAutomationService(
             repository,
             new StubWorkflowAutomationHandlerRegistry(_ => throw new InvalidOperationException("no handler")),
+            new StubSystemEventLogService(),
             NullLogger<WorkflowAutomationService>.Instance);
 
         var processed = await service.TryProcessNextPendingJobAsync();
@@ -49,6 +50,7 @@ public sealed class WorkflowAutomationServiceTests
         var service = new WorkflowAutomationService(
             repository,
             new StubWorkflowAutomationHandlerRegistry(_ => new ThrowingAutomationHandler("CreateAdUser")),
+            new StubSystemEventLogService(),
             NullLogger<WorkflowAutomationService>.Instance);
 
         var processed = await service.TryProcessNextPendingJobAsync();
@@ -88,6 +90,7 @@ public sealed class WorkflowAutomationServiceTests
         var service = new WorkflowAutomationService(
             repository,
             new StubWorkflowAutomationHandlerRegistry(_ => new ThrowingAutomationHandler("CreateErpEmployee")),
+            new StubSystemEventLogService(),
             NullLogger<WorkflowAutomationService>.Instance);
 
         await service.TryProcessNextPendingJobAsync();
@@ -140,5 +143,28 @@ public sealed class WorkflowAutomationServiceTests
 
         public Task<WorkflowAutomationHandlerResult> ExecuteAsync(WorkflowAutomationHandlerContext context, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException($"Handler failed for {actionKey}.");
+    }
+
+    private sealed class StubSystemEventLogService : ISystemEventLogService
+    {
+        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+
+        public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminSystemLogSummaryDto
+            {
+                TotalCount = 0,
+                InfoCount = 0,
+                WarningCount = 0,
+                ErrorCount = 0,
+                Sources = []
+            });
+
+        public Task WriteAsync(SystemEventLogWriteModel model, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

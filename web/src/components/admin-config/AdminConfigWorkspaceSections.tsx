@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { AdminBulkOperationsSection } from "./AdminBulkOperationsSection";
 import { AdminDirectorySyncSection } from "./AdminDirectorySyncSection";
 import { AdminFieldConfigurationWorkspaceSection } from "./AdminFieldConfigurationWorkspaceSection";
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
@@ -280,9 +279,3 @@ export function renderDefaultWorkspace(props: AdminConfigWorkspaceContentProps) 
   );
 }
 
-export function renderOperationsWorkspace(props: AdminConfigWorkspaceContentProps) {
-  return renderWorkspaceWithIntro(
-    "operations",
-    <AdminBulkOperationsSection departments={props.departmentAssignments} />
-  );
-}

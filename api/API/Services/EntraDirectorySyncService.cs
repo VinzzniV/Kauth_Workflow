@@ -16,15 +16,18 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 {
     private readonly IGraphApplicationConfigurationService _graphApplicationConfigurationService;
     private readonly LifecycleRuntimeSettings _runtimeSettings;
+    private readonly ISystemEventLogService _systemEventLogService;
     private readonly ILogger<EntraDirectorySyncService> _logger;
 
     public EntraDirectorySyncService(
         IGraphApplicationConfigurationService graphApplicationConfigurationService,
         LifecycleRuntimeSettings runtimeSettings,
+        ISystemEventLogService systemEventLogService,
         ILogger<EntraDirectorySyncService> logger)
     {
         _graphApplicationConfigurationService = graphApplicationConfigurationService;
         _runtimeSettings = runtimeSettings;
+        _systemEventLogService = systemEventLogService;
         _logger = logger;
     }
 
@@ -39,6 +42,14 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         var effectiveGroupPrefix = ResolveEffectiveGroupPrefix(configuredGroupPrefix, groupPrefixOverride);
         if (string.IsNullOrWhiteSpace(connectionString))
         {
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "error",
+                Source = "entra",
+                Category = "configuration",
+                EventKey = "directory_sync_missing_connection_string",
+                Message = "Directory sync failed because ConnectionStrings:Default is not configured."
+            }, cancellationToken);
             return new DirectorySyncResult
             {
                 Status = "failed",
@@ -53,6 +64,14 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             var credentials = await ResolveGraphCredentialsAsync(cancellationToken);
             if (credentials is null)
             {
+                await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "error",
+                    Source = "entra",
+                    Category = "configuration",
+                    EventKey = "directory_sync_missing_graph_credentials",
+                    Message = "Directory sync failed because Graph credentials are not configured."
+                }, cancellationToken);
                 return new DirectorySyncResult
                 {
                     Status = "failed",
@@ -72,6 +91,15 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create Graph client for directory sync.");
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "error",
+                Source = "entra",
+                Category = "graph",
+                EventKey = "directory_sync_graph_client_failed",
+                Message = $"Failed to create Graph client for directory sync: {ex.Message}",
+                Details = new { error = ex.Message, exceptionType = ex.GetType().FullName }
+            }, cancellationToken);
             return new DirectorySyncResult
             {
                 Status = "failed",
@@ -145,6 +173,20 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to sync members for group {GroupId} ({GroupName}).", group.Id, group.DisplayName);
+                    await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                    {
+                        Severity = "warning",
+                        Source = "directory",
+                        Category = "sync",
+                        EventKey = "directory_group_member_sync_failed",
+                        Message = $"Failed to sync members for group {group.DisplayName ?? group.Id}: {ex.Message}",
+                        Details = new
+                        {
+                            groupId = group.Id,
+                            groupName = group.DisplayName,
+                            error = ex.Message
+                        }
+                    }, cancellationToken);
                     status = "partial";
                     errorMessage ??= $"Some group members could not be synced: {ex.Message}";
                 }
@@ -170,6 +212,15 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             _logger.LogError(ex, "Directory sync failed.");
             status = "failed";
             errorMessage = ex.Message;
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "error",
+                Source = "directory",
+                Category = "sync",
+                EventKey = "directory_sync_failed",
+                Message = $"Directory sync failed: {ex.Message}",
+                Details = new { error = ex.Message, exceptionType = ex.GetType().FullName }
+            }, cancellationToken);
         }
 
         try
@@ -189,6 +240,32 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         {
             // Ignore when migration is not applied yet.
         }
+
+        await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+        {
+            Severity = string.Equals(status, "failed", StringComparison.OrdinalIgnoreCase)
+                ? "error"
+                : string.Equals(status, "partial", StringComparison.OrdinalIgnoreCase)
+                    ? "warning"
+                    : "info",
+            Source = "directory",
+            Category = "sync",
+            EventKey = string.Equals(status, "success", StringComparison.OrdinalIgnoreCase)
+                ? "directory_sync_succeeded"
+                : string.Equals(status, "partial", StringComparison.OrdinalIgnoreCase)
+                    ? "directory_sync_partial"
+                    : "directory_sync_failed",
+            Message = $"Directory sync finished with status {status}.",
+            Details = new
+            {
+                status,
+                groupsSynced,
+                identitiesSynced,
+                membershipsSynced,
+                errorMessage,
+                appliedGroupPrefix = effectiveGroupPrefix
+            }
+        }, cancellationToken);
 
         return new DirectorySyncResult
         {
@@ -1302,7 +1379,7 @@ WHERE di.app_user_id = u.id
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task SyncDepartmentLeadAssignmentsFromDirectory(
+    private async Task SyncDepartmentLeadAssignmentsFromDirectory(
         NpgsqlConnection connection,
         CancellationToken cancellationToken)
     {
@@ -1333,6 +1410,17 @@ WHERE di.app_user_id = u.id
                     oldValue: CreateDepartmentLeadAuditSnapshot(state),
                     newValue: CreateDepartmentLeadAuditSnapshot(state, personId, candidate.DisplayName, "resolved"),
                     cancellationToken);
+                await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "directory",
+                    Category = "department_lead",
+                    EventKey = "department_lead_synced",
+                    Message = $"Department lead resolved for {state.DepartmentName}: {candidate.DisplayName}.",
+                    EntityType = "department",
+                    EntityId = state.DepartmentId.ToString(),
+                    Details = new { state.DepartmentId, state.DepartmentName, candidate.DisplayName }
+                }, cancellationToken);
                 continue;
             }
 
@@ -1350,6 +1438,17 @@ WHERE di.app_user_id = u.id
                         oldValue: CreateDepartmentLeadAuditSnapshot(state),
                         newValue: CreateDepartmentLeadAuditSnapshot(state, null, null, "missing"),
                         cancellationToken);
+                    await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                    {
+                        Severity = "warning",
+                        Source = "directory",
+                        Category = "department_lead",
+                        EventKey = "department_lead_missing",
+                        Message = $"Department lead missing for {state.DepartmentName}.",
+                        EntityType = "department",
+                        EntityId = state.DepartmentId.ToString(),
+                        Details = new { state.DepartmentId, state.DepartmentName }
+                    }, cancellationToken);
                 }
 
                 continue;
@@ -1374,6 +1473,22 @@ WHERE di.app_user_id = u.id
                     "conflict",
                     state.Candidates.Select(candidate => candidate.DisplayName).ToArray()),
                 cancellationToken);
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "warning",
+                Source = "directory",
+                Category = "department_lead",
+                EventKey = "department_lead_conflict",
+                Message = $"Department lead conflict for {state.DepartmentName}.",
+                EntityType = "department",
+                EntityId = state.DepartmentId.ToString(),
+                Details = new
+                {
+                    state.DepartmentId,
+                    state.DepartmentName,
+                    candidateNames = state.Candidates.Select(candidate => candidate.DisplayName).ToArray()
+                }
+            }, cancellationToken);
         }
     }
 

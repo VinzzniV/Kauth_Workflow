@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { reportUserVisibleError } from "../../services/systemLogReporter";
 import {
   ToastContext,
   type ToastContextValue,
@@ -110,7 +111,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const contextValue = useMemo<ToastContextValue>(
     () => ({
       showSuccess: (message: string) => enqueueToast("success", message),
-      showError: (message: string) => enqueueToast("error", message),
+      showError: (message: string) => {
+        enqueueToast("error", message);
+        reportUserVisibleError({
+          message,
+          clientFunction: "ToastProvider.showError",
+          category: "ui",
+          eventKey: "toast_error",
+        });
+      },
       showInfo: (message: string) => enqueueToast("info", message),
       dismissToast,
     }),

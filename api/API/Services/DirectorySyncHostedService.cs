@@ -25,12 +25,22 @@ internal sealed class DirectorySyncHostedService : BackgroundService
         if (!_runtimeSettings.DirectorySyncEnabled)
         {
             _logger.LogInformation("Scheduled directory sync is disabled because the current auth mode does not use Entra directory data.");
+            await WriteHostedLogAsync(
+                "info",
+                "directory_sync_schedule_disabled",
+                "Scheduled directory sync is disabled because Entra directory data is not active.",
+                stoppingToken);
             return;
         }
 
         if (!_runtimeSettings.DirectorySyncScheduled)
         {
             _logger.LogInformation("Scheduled directory sync is disabled via DIRECTORY_SYNC_SCHEDULED=false.");
+            await WriteHostedLogAsync(
+                "info",
+                "directory_sync_schedule_disabled",
+                "Scheduled directory sync is disabled via DIRECTORY_SYNC_SCHEDULED=false.",
+                stoppingToken);
             return;
         }
 
@@ -50,6 +60,17 @@ internal sealed class DirectorySyncHostedService : BackgroundService
                         "Scheduled directory sync completed with status {Status}: {Message}",
                         result.Status,
                         result.ErrorMessage);
+
+                    var systemEventLogService = scope.ServiceProvider.GetRequiredService<ISystemEventLogService>();
+                    await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                    {
+                        Severity = "warning",
+                        Source = "directory",
+                        Category = "sync",
+                        EventKey = "scheduled_directory_sync_non_success",
+                        Message = $"Scheduled directory sync completed with status {result.Status}: {result.ErrorMessage}",
+                        Details = result
+                    }, stoppingToken);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -59,9 +80,42 @@ internal sealed class DirectorySyncHostedService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Scheduled directory sync failed.");
+                await WriteHostedLogAsync(
+                    "error",
+                    "scheduled_directory_sync_failed",
+                    $"Scheduled directory sync failed: {ex.Message}",
+                    stoppingToken,
+                    new { error = ex.Message, exceptionType = ex.GetType().FullName });
             }
 
             await Task.Delay(interval, stoppingToken);
+        }
+    }
+
+    private async Task WriteHostedLogAsync(
+        string severity,
+        string eventKey,
+        string message,
+        CancellationToken cancellationToken,
+        object? details = null)
+    {
+        try
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var systemEventLogService = scope.ServiceProvider.GetRequiredService<ISystemEventLogService>();
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = severity,
+                Source = "directory",
+                Category = "hosted_service",
+                EventKey = eventKey,
+                Message = message,
+                Details = details
+            }, cancellationToken);
+        }
+        catch
+        {
+            // Keep the worker loop alive even if structured logging fails.
         }
     }
 }

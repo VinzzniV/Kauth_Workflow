@@ -79,6 +79,7 @@ Wichtige Service-Bereiche:
 - `workflowApi.ts`, `taskApi.ts`, `peopleApi.ts`, `lookupApi.ts` fuer Fachdaten
 - `rotationApi.ts` und `services/queries/rotationQueries.ts` fuer HR-Planung des Rotations-/Durchlauf-Slices
 - `adminApi.ts` und `adminConfigApi.ts` fuer Administration und Konfiguration
+- `systemLogReporter.ts` fuer dedupliziertes Client-Error-Reporting an `/client/log-events`
 - `services/api/*` fuer DTOs, Mapping und Basis-Client
 - `services/queries/*` und `services/mutations/*` fuer React Query
 
@@ -98,6 +99,12 @@ HTTP-Client, DTO-Mapping oder Endpunktvertraege:
 
 Admin-Workspaces und Builder-nahe Pflege:
 `src/components/admin-config/`, `src/pages/AdminConfigPage.tsx` und `src/pages/WorkflowBuilderPage.tsx`
+
+Wichtiger aktueller Admin-Slice:
+- `Administration > System` ist die zentrale Betriebs- und Log-Konsole mit `src/components/admin-config/AdminSystemLogSection.tsx`
+- `requestJson` meldet fehlgeschlagene API- und Transportfehler automatisch an den Backend-Log-Ingest
+- lokale sichtbare Fehler aus Admin-Seiten, Builder und Toasts werden zusaetzlich ueber `src/services/systemLogReporter.ts` erfasst
+- der fruehere Admin-Bereich `Massenaktionen` wurde entfernt
 
 Builder-Zustand und Draft-Modell:
 `src/hooks/useAdminWorkflowBuilder.ts` und `src/hooks/adminWorkflowBuilderModel.ts`

@@ -5,6 +5,7 @@ namespace API;
 internal sealed class WorkflowAutomationService(
     IWorkflowAutomationRepository repository,
     IWorkflowAutomationHandlerRegistry handlerRegistry,
+    ISystemEventLogService systemEventLogService,
     ILogger<WorkflowAutomationService> logger) : IWorkflowAutomationService
 {
     public Task<IReadOnlyList<ActionDefinitionDto>> GetActionDefinitionsAsync(CancellationToken cancellationToken = default)
@@ -45,6 +46,24 @@ internal sealed class WorkflowAutomationService(
                 job.JobId,
                 job.ActionKey,
                 job.AttemptNumber);
+
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "info",
+                Source = "automation",
+                Category = "job",
+                EventKey = "automation_job_succeeded",
+                Message = $"Automation job {job.JobId} for action {job.ActionKey} completed successfully.",
+                WorkflowUid = job.WorkflowUid,
+                EntityType = "automation_job",
+                EntityId = job.JobId.ToString(),
+                Details = new
+                {
+                    job.JobId,
+                    job.ActionKey,
+                    job.AttemptNumber
+                }
+            }, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -88,6 +107,27 @@ internal sealed class WorkflowAutomationService(
                 job.ActionKey,
                 job.AttemptNumber,
                 shouldRetry);
+
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "error",
+                Source = "automation",
+                Category = "job",
+                EventKey = shouldRetry ? "automation_job_failed_retrying" : "automation_job_failed",
+                Message = $"Automation job {job.JobId} for action {job.ActionKey} failed: {ex.Message}",
+                WorkflowUid = job.WorkflowUid,
+                EntityType = "automation_job",
+                EntityId = job.JobId.ToString(),
+                Details = new
+                {
+                    job.JobId,
+                    job.ActionKey,
+                    job.AttemptNumber,
+                    shouldRetry,
+                    retryAvailableAt,
+                    error = ex.Message
+                }
+            }, cancellationToken);
         }
 
         return true;

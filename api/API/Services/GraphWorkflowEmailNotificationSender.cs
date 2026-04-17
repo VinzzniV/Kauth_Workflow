@@ -9,13 +9,16 @@ namespace API;
 internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotificationSender, INotificationEmailTestSender
 {
     private readonly INotificationEmailConfigurationService configurationService;
+    private readonly ISystemEventLogService systemEventLogService;
     private readonly ILogger<GraphWorkflowEmailNotificationSender> logger;
 
     public GraphWorkflowEmailNotificationSender(
         INotificationEmailConfigurationService configurationService,
+        ISystemEventLogService systemEventLogService,
         ILogger<GraphWorkflowEmailNotificationSender> logger)
     {
         this.configurationService = configurationService;
+        this.systemEventLogService = systemEventLogService;
         this.logger = logger;
     }
 
@@ -39,6 +42,15 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         if (!validation.CanSend)
         {
             logger.LogWarning("Notification email sending is enabled but not configured correctly: {Error}", validation.Message);
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "warning",
+                Source = "mail",
+                Category = "configuration",
+                EventKey = "notification_dispatch_blocked",
+                Message = $"Workflow notification dispatch blocked by incomplete mail configuration: {validation.Message}",
+                Details = new { validation.Message, targetCount = targets.Count }
+            }, cancellationToken);
             return CreateDispatchResults(targets, "failed", success: false, attempted: false, errorMessage: validation.Message);
         }
 
@@ -93,6 +105,23 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     Attempted = true,
                     ErrorMessage = null
                 }));
+
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "mail",
+                    Category = "dispatch",
+                    EventKey = "workflow_notifications_sent",
+                    Message = $"Workflow notifications sent to {batch.PrimaryTarget.TargetEmail}.",
+                    WorkflowUid = workflowUid,
+                    Details = new
+                    {
+                        notificationType = batch.NotificationType,
+                        recipient = batch.PrimaryTarget.TargetEmail,
+                        targetCount = batch.Targets.Count,
+                        notificationIds = batch.Targets.Select(target => target.NotificationId).ToArray()
+                    }
+                }, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -107,9 +136,27 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     NotificationId = target.NotificationId,
                     Status = "failed",
                     Success = false,
-                    Attempted = true,
-                    ErrorMessage = ex.Message
-                }));
+                        Attempted = true,
+                        ErrorMessage = ex.Message
+                    }));
+
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "error",
+                    Source = "mail",
+                    Category = "dispatch",
+                    EventKey = "workflow_notifications_failed",
+                    Message = $"Workflow notification dispatch failed for {batch.PrimaryTarget.TargetEmail}: {ex.Message}",
+                    WorkflowUid = workflowUid,
+                    Details = new
+                    {
+                        notificationType = batch.NotificationType,
+                        recipient = batch.PrimaryTarget.TargetEmail,
+                        targetCount = batch.Targets.Count,
+                        notificationIds = batch.Targets.Select(target => target.NotificationId).ToArray(),
+                        error = ex.Message
+                    }
+                }, cancellationToken);
             }
         }
 
@@ -135,6 +182,15 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         if (!validation.CanSend)
         {
             logger.LogWarning("Notification email sending is enabled but not configured correctly: {Error}", validation.Message);
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "warning",
+                Source = "mail",
+                Category = "configuration",
+                EventKey = "rotation_notification_dispatch_blocked",
+                Message = $"Rotation notification dispatch blocked by incomplete mail configuration: {validation.Message}",
+                Details = new { validation.Message, targetCount = targets.Count }
+            }, cancellationToken);
             return CreateRotationDispatchResults(targets, "failed", success: false, attempted: false, errorMessage: validation.Message);
         }
 
@@ -185,6 +241,23 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     Success = true,
                     Attempted = true
                 });
+
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "mail",
+                    Category = "dispatch",
+                    EventKey = "rotation_notification_sent",
+                    Message = $"Rotation notification sent to {target.TargetEmail}.",
+                    RotationPlanId = target.RotationPlanId,
+                    TaskRef = target.Payload.LinkPath,
+                    Details = new
+                    {
+                        notificationId = target.NotificationId,
+                        notificationType = target.NotificationType,
+                        recipient = target.TargetEmail
+                    }
+                }, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -202,6 +275,23 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     Attempted = true,
                     ErrorMessage = ex.Message
                 });
+
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "error",
+                    Source = "mail",
+                    Category = "dispatch",
+                    EventKey = "rotation_notification_failed",
+                    Message = $"Rotation notification dispatch failed for {target.TargetEmail}: {ex.Message}",
+                    RotationPlanId = target.RotationPlanId,
+                    Details = new
+                    {
+                        notificationId = target.NotificationId,
+                        notificationType = target.NotificationType,
+                        recipient = target.TargetEmail,
+                        error = ex.Message
+                    }
+                }, cancellationToken);
             }
         }
 
@@ -229,6 +319,15 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         if (!validation.CanSend)
         {
             logger.LogWarning("Notification email test failed because configuration is incomplete: {Error}", validation.Message);
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "warning",
+                Source = "mail",
+                Category = "configuration",
+                EventKey = "notification_test_blocked",
+                Message = $"Notification email test blocked: {validation.Message}",
+                Details = new { recipientEmail }
+            }, cancellationToken);
             return new NotificationEmailTestSendResult
             {
                 Success = false,
@@ -261,6 +360,16 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     BuildTestMail(recipientEmail, configuration.FrontendBaseUrl, configuration.SaveToSentItems),
                     cancellationToken: cancellationToken);
 
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "info",
+                Source = "mail",
+                Category = "test",
+                EventKey = "notification_test_sent",
+                Message = $"Notification test email sent to {recipientEmail}.",
+                Details = new { recipientEmail }
+            }, cancellationToken);
+
             return new NotificationEmailTestSendResult
             {
                 Success = true,
@@ -273,6 +382,15 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Notification email test dispatch failed for recipient {RecipientEmail}.", recipientEmail);
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "error",
+                Source = "mail",
+                Category = "test",
+                EventKey = "notification_test_failed",
+                Message = $"Notification email test failed for {recipientEmail}: {ex.Message}",
+                Details = new { recipientEmail, error = ex.Message }
+            }, cancellationToken);
             return new NotificationEmailTestSendResult
             {
                 Success = false,

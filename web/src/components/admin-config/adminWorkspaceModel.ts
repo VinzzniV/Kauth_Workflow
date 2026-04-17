@@ -15,8 +15,7 @@ export type AdminWorkspaceSection =
   | "defaults"
   | "access"
   | "directory"
-  | "system"
-  | "operations";
+  | "system";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
 export type AdminWorkspaceArea = "organization" | "configuration" | "access" | "system";
 export type AdminWorkspaceWarningCategory =
@@ -247,25 +246,6 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     impactNote: "Viele Änderungen wirken sofort im laufenden Betrieb, etwa beim Mailversand oder bei technischen Laufzeitwerten.",
     riskNote: "Produktive Mail- oder Systemänderungen sollten bewusst geprüft werden, weil sie unmittelbar Nutzer und laufende Prozesse betreffen können.",
   },
-  {
-    key: "operations",
-    label: "Massenaktionen",
-    description: "Serienaktionen vorbereitet prüfen und erst nach Vorschau gezielt ausführen.",
-    navLabel: "Massenaktionen",
-    navDescription: "Serienaktionen mit Vorschau absichern und kontrolliert ausführen.",
-    area: "system",
-    introTitle: "Serienaktionen mit Vorschau absichern",
-    introDescription:
-      "Hier führen Sie Änderungen aus, die viele Datensätze oder Mitarbeitende gleichzeitig betreffen können.",
-    whatYouCanDo: [
-      "Massenläufe vorbereiten",
-      "Vorschau prüfen, bevor reale Vorgänge erstellt werden",
-      "Ergebnisse und Ausnahmen nach dem Lauf kontrollieren",
-    ],
-    affectedObjects: ["viele Personen oder Vorgänge gleichzeitig", "Zielabteilungen", "neu erzeugte Vorgänge"],
-    impactNote: "Nach dem Ausführen entstehen reale Vorgänge oder breite Änderungen. Die Vorschau hilft, Umfang und Auswirkungen vorab zu prüfen.",
-    riskNote: "Dieser Bereich ist bewusst risikobehaftet. Reale Aktionen sollten nur mit frischer Vorschau und klar geprüften Parametern gestartet werden.",
-  },
 ];
 
 export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
@@ -286,9 +266,9 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
   {
     key: "system",
     label: "System",
-    description: "Laufende Systemkonfiguration und Serienaktionen steuern.",
+    description: "Laufende Systemkonfiguration und zentrale Betriebslogs steuern.",
     defaultSection: "system",
-    sections: ["system", "operations"],
+    sections: ["system"],
   },
 ];
 
@@ -329,8 +309,9 @@ export function normalizeAdminWorkspaceSection(value: string | null): AdminWorks
     case "access":
     case "directory":
     case "system":
-    case "operations":
       return value!.trim().toLowerCase() as AdminWorkspaceSection;
+    case "operations":
+      return "system";
     case "templates":
     case "answers":
     case "defaults":

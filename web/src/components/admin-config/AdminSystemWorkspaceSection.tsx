@@ -1,4 +1,5 @@
 import type { AdminGraphApplicationConfiguration, AdminNotificationEmailConfiguration } from "../../types/auth";
+import { AdminSystemLogSection } from "./AdminSystemLogSection";
 import { AdminGraphApplicationSection } from "./AdminGraphApplicationSection";
 import { AdminNotificationEmailSection } from "./AdminNotificationEmailSection";
 
@@ -32,6 +33,8 @@ type AdminSystemWorkspaceSectionProps = {
 export function AdminSystemWorkspaceSection(props: AdminSystemWorkspaceSectionProps) {
   return (
     <div className="content-stack">
+      <AdminSystemLogSection />
+
       <AdminGraphApplicationSection graphApplicationConfiguration={props.graphApplicationConfiguration} />
 
       <AdminNotificationEmailSection

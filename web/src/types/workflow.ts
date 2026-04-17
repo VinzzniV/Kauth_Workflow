@@ -553,31 +553,6 @@ export type DerivedAnswer = {
   selectedOptionValue: string | null;
 };
 
-export type BulkDepartmentChangePayload = {
-  sourceDepartmentId: number;
-  targetDepartmentId: number;
-  targetRoleId: number;
-  deadlineDate?: string | null;
-  dryRun: boolean;
-};
-
-export type BulkOperationResult = {
-  totalEmployees: number;
-  createdWorkflows: number;
-  skippedEmployees: number;
-  failedEmployees: number;
-  isDryRun: boolean;
-  items: BulkOperationItem[];
-};
-
-export type BulkOperationItem = {
-  personId: number;
-  displayName: string;
-  status: string;
-  workflowUid: string | null;
-  errorMessage: string | null;
-};
-
 // Mitarbeiter-Lifecycle: Alle Vorgänge einer Person in chronologischer Reihenfolge.
 export type PersonWorkflowSummary = {
   uid: string;

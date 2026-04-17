@@ -5,6 +5,7 @@ namespace API;
 internal sealed class WorkflowNotificationDispatchService(
     IWorkflowRepository repository,
     IWorkflowEmailNotificationSender workflowEmailNotificationSender,
+    ISystemEventLogService systemEventLogService,
     ILogger<WorkflowNotificationDispatchService> logger) : IWorkflowNotificationDispatchService
 {
     public async Task DispatchWorkflowCreatedNotificationsAsync(
@@ -55,11 +56,39 @@ internal sealed class WorkflowNotificationDispatchService(
             {
                 logger.LogWarning("Workflow {WorkflowUid}: {FailedCount} of {TotalCount} notifications failed to send.",
                     workflowUid, failedCount, dispatchResults.Count);
+
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "warning",
+                    Source = "workflow",
+                    Category = "notifications",
+                    EventKey = "workflow_notification_dispatch_partial_failure",
+                    Message = $"Workflow notification dispatch finished with failures: {failedCount} of {dispatchResults.Count}.",
+                    WorkflowUid = workflowUid,
+                    Details = new
+                    {
+                        failedCount,
+                        totalCount = dispatchResults.Count,
+                        statuses = dispatchResults.GroupBy(item => item.Status)
+                            .ToDictionary(group => group.Key, group => group.Count())
+                    }
+                }, cancellationToken);
             }
             else
             {
                 logger.LogInformation("Workflow {WorkflowUid}: {TotalCount} notifications dispatched.",
                     workflowUid, dispatchResults.Count);
+
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "info",
+                    Source = "workflow",
+                    Category = "notifications",
+                    EventKey = "workflow_notification_dispatch_succeeded",
+                    Message = $"Workflow notifications dispatched successfully ({dispatchResults.Count}).",
+                    WorkflowUid = workflowUid,
+                    Details = new { totalCount = dispatchResults.Count }
+                }, cancellationToken);
             }
 
             await repository.ApplyNotificationDispatchResults(dispatchResults);

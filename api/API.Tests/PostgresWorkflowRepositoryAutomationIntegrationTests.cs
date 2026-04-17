@@ -256,7 +256,31 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 new CreateErpEmployeeAutomationHandler(),
                 new SendWelcomeMailAutomationHandler()
             ]),
+            new StubSystemEventLogService(),
             NullLogger<WorkflowAutomationService>.Instance);
+    }
+
+    private sealed class StubSystemEventLogService : ISystemEventLogService
+    {
+        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+
+        public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminSystemLogSummaryDto
+            {
+                TotalCount = 0,
+                InfoCount = 0,
+                WarningCount = 0,
+                ErrorCount = 0,
+                Sources = []
+            });
+
+        public Task WriteAsync(SystemEventLogWriteModel model, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private static string GetTestConnectionString()

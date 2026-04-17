@@ -17,7 +17,6 @@ import type {
   AdminWorkflowDefinitionVersionDetail,
   AdminWorkflowDefinitionVersionSummary,
 } from "../types/auth";
-import type { BulkDepartmentChangePayload, BulkOperationResult } from "../types/workflow";
 import { requestJson } from "./api/client";
 import { getCachedRequest, invalidateCachedRequest } from "./cache";
 import type {
@@ -89,15 +88,6 @@ export async function createAdminDirectoryGroupRoleMapping(payload: {
 export async function deleteAdminDirectoryGroupRoleMapping(mappingId: number): Promise<void> {
   await requestJson<unknown>(`/admin/directory/group-mappings/${encodeURIComponent(String(mappingId))}`, {
     method: "DELETE",
-  });
-}
-
-export async function bulkCreateDepartmentChange(
-  payload: BulkDepartmentChangePayload
-): Promise<BulkOperationResult> {
-  return requestJson<BulkOperationResult>("/admin/bulk/department-change", {
-    method: "POST",
-    body: payload,
   });
 }
 

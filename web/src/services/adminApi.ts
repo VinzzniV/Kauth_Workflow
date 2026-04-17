@@ -8,6 +8,8 @@ import type {
   AdminPermissionAuditEntry,
   AdminResponsibilityOwner,
   AdminRole,
+  AdminSystemLogEntry,
+  AdminSystemLogSummary,
   AdminUser,
 } from "../types/auth";
 import type { WorkflowConfig } from "../types/workflow";
@@ -22,10 +24,77 @@ import type {
   BackendAdminPermissionDto,
   BackendAdminResponsibilityOwnerDto,
   BackendAdminRoleDto,
+  BackendAdminSystemLogEntryDto,
+  BackendAdminSystemLogSummaryDto,
   BackendAdminUserDto,
   BackendWorkflowConfigDto,
 } from "./api/backendDtos";
 import { mapWorkflowConfig } from "./api/mappers";
+
+export type AdminSystemLogQueryOptions = {
+  severity?: string[];
+  source?: string | null;
+  since?: string | null;
+  until?: string | null;
+  search?: string | null;
+  actorUserId?: number | null;
+  workflowUid?: string | null;
+  rotationPlanId?: number | null;
+  taskRef?: string | null;
+  limit?: number | null;
+  offset?: number | null;
+};
+
+function buildAdminSystemLogQuery(options: AdminSystemLogQueryOptions): string {
+  const params = new URLSearchParams();
+
+  if ((options.severity ?? []).length > 0) {
+    params.set("severity", options.severity!.join(","));
+  }
+
+  if (options.source?.trim()) {
+    params.set("source", options.source.trim());
+  }
+
+  if (options.since?.trim()) {
+    params.set("since", options.since.trim());
+  }
+
+  if (options.until?.trim()) {
+    params.set("until", options.until.trim());
+  }
+
+  if (options.search?.trim()) {
+    params.set("search", options.search.trim());
+  }
+
+  if (options.actorUserId) {
+    params.set("actorUserId", String(options.actorUserId));
+  }
+
+  if (options.workflowUid?.trim()) {
+    params.set("workflowUid", options.workflowUid.trim());
+  }
+
+  if (options.rotationPlanId) {
+    params.set("rotationPlanId", String(options.rotationPlanId));
+  }
+
+  if (options.taskRef?.trim()) {
+    params.set("taskRef", options.taskRef.trim());
+  }
+
+  if (options.limit !== null && options.limit !== undefined) {
+    params.set("limit", String(options.limit));
+  }
+
+  if (options.offset !== null && options.offset !== undefined) {
+    params.set("offset", String(options.offset));
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
 
 export async function getAdminWorkflowConfig(): Promise<WorkflowConfig> {
   const data = await requestJson<BackendWorkflowConfigDto>("/admin/config/workflow");
@@ -61,6 +130,16 @@ export async function sendAdminNotificationEmailTest(recipientEmail: string | nu
     method: "POST",
     body: { recipientEmail },
   });
+}
+
+export async function getAdminSystemLogs(options: AdminSystemLogQueryOptions): Promise<AdminSystemLogEntry[]> {
+  return requestJson<BackendAdminSystemLogEntryDto[]>(`/admin/system/logs${buildAdminSystemLogQuery(options)}`);
+}
+
+export async function getAdminSystemLogSummary(options: Omit<AdminSystemLogQueryOptions, "limit" | "offset">): Promise<AdminSystemLogSummary> {
+  return requestJson<BackendAdminSystemLogSummaryDto>(
+    `/admin/system/logs/summary${buildAdminSystemLogQuery(options)}`
+  );
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {

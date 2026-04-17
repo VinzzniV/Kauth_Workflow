@@ -28,6 +28,38 @@ internal static class LifecycleApplicationExtensions
                         context.Request.Method,
                         context.Request.Path,
                         context.TraceIdentifier);
+
+                    try
+                    {
+                        var currentUserContext = context.RequestServices.GetRequiredService<IUserContext>();
+                        var currentUser = await currentUserContext.GetCurrentUser(context.RequestAborted);
+                        var systemEventLogService = context.RequestServices.GetRequiredService<ISystemEventLogService>();
+                        await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                        {
+                            Severity = "error",
+                            Source = "api",
+                            Category = "http",
+                            EventKey = "unhandled_exception",
+                            Message = $"Unhandled exception while processing request {context.Request.Method} {context.Request.Path}.",
+                            UserMessage = "Ein unerwarteter Fehler ist aufgetreten.",
+                            ActorUserId = currentUser?.UserId,
+                            HttpMethod = context.Request.Method,
+                            HttpPath = context.Request.Path,
+                            HttpStatus = StatusCodes.Status500InternalServerError,
+                            TraceIdentifier = context.TraceIdentifier,
+                            ClientRoute = context.Request.Path,
+                            Details = new
+                            {
+                                exceptionType = exception.GetType().FullName,
+                                exception.Message,
+                                stackTrace = exception.StackTrace
+                            }
+                        }, context.RequestAborted);
+                    }
+                    catch
+                    {
+                        // Keep the global exception handler resilient even if logging fails.
+                    }
                 }
 
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
@@ -81,6 +113,7 @@ internal static class LifecycleApplicationExtensions
     {
         app.MapLifecycleHealthEndpoints();
         app.MapAuthEndpoints();
+        app.MapClientSystemLogEndpoints();
         app.MapAdminEndpoints();
         app.MapRotationPlanningEndpoints();
         app.MapWorkflowEndpoints();

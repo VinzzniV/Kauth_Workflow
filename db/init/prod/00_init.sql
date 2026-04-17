@@ -56,3 +56,5 @@
 \i /docker-entrypoint-sql/53_task_process_area_labels.sql
 \i /docker-entrypoint-sql/54_rotation_phase1_persistence.sql
 \i /docker-entrypoint-sql/56_rotation_task_generation_sync.sql
+\i /docker-entrypoint-sql/57_azubi_departments.sql
+\i /docker-entrypoint-sql/58_system_event_log.sql

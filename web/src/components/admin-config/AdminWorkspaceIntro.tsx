@@ -39,11 +39,6 @@ function getIntroBadges(meta: AdminWorkspaceSectionMeta): Array<{ label: string;
         { label: "Live", tone: "warning" },
         { label: "System", tone: "default" },
       ];
-    case "operations":
-      return [
-        { label: "Vorschau zuerst", tone: "warning" },
-        { label: "Hohe Wirkung", tone: "warning" },
-      ];
     default:
       return [
         { label: "Hub", tone: "brand" },

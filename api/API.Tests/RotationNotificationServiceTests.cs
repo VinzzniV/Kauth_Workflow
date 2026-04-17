@@ -41,6 +41,7 @@ public sealed class RotationNotificationServiceTests
         var service = new RotationNotificationService(
             repository,
             sender,
+            new StubSystemEventLogService(),
             NullLogger<RotationNotificationService>.Instance);
 
         var result = await service.ExecuteDailySweepAsync();
@@ -65,6 +66,7 @@ public sealed class RotationNotificationServiceTests
         var service = new RotationNotificationService(
             repository,
             sender,
+            new StubSystemEventLogService(),
             NullLogger<RotationNotificationService>.Instance);
 
         var result = await service.ExecuteDailySweepAsync();
@@ -188,5 +190,28 @@ public sealed class RotationNotificationServiceTests
         public Task<TaskWithWorkflowDto?> UpdateRotationTaskAssignmentByRef(string taskRef, TaskAssignRequest request, long actorUserId) => Task.FromResult<TaskWithWorkflowDto?>(null);
         public Task<TaskWithWorkflowDto?> AddRotationTaskCommentByRef(string taskRef, string commentText, long actorUserId) => Task.FromResult<TaskWithWorkflowDto?>(null);
         public Task<TaskWithWorkflowDto?> DecideRotationTaskApprovalByRef(string taskRef, TaskApprovalDecisionRequest request, long actorUserId) => Task.FromResult<TaskWithWorkflowDto?>(null);
+    }
+
+    private sealed class StubSystemEventLogService : ISystemEventLogService
+    {
+        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+
+        public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminSystemLogSummaryDto
+            {
+                TotalCount = 0,
+                InfoCount = 0,
+                WarningCount = 0,
+                ErrorCount = 0,
+                Sources = []
+            });
+
+        public Task WriteAsync(SystemEventLogWriteModel model, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

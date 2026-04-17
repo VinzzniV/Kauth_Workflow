@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS rotation_plans CASCADE;
 DROP TABLE IF EXISTS workflow_notifications CASCADE;
 DROP TABLE IF EXISTS workflow_task_comments CASCADE;
 DROP TABLE IF EXISTS workflow_audit_log CASCADE;
+DROP TABLE IF EXISTS system_event_log CASCADE;
 DROP TABLE IF EXISTS notification_email_settings CASCADE;
 DROP TABLE IF EXISTS graph_application_settings CASCADE;
 DROP TABLE IF EXISTS task_assignments CASCADE;
@@ -554,6 +555,32 @@ CREATE TABLE rotation_plans (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE system_event_log (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    severity VARCHAR(16) NOT NULL
+        CHECK (severity IN ('info', 'warning', 'error')),
+    source VARCHAR(32) NOT NULL
+        CHECK (source IN ('frontend', 'api', 'system', 'mail', 'entra', 'directory', 'automation', 'workflow', 'task', 'rotation', 'admin')),
+    category VARCHAR(64) NOT NULL,
+    event_key VARCHAR(128) NOT NULL,
+    message TEXT NOT NULL,
+    user_message TEXT,
+    actor_user_id BIGINT REFERENCES app_users(id) ON DELETE SET NULL,
+    client_route VARCHAR(500),
+    client_function VARCHAR(160),
+    http_method VARCHAR(16),
+    http_path VARCHAR(500),
+    http_status INTEGER,
+    trace_identifier VARCHAR(128),
+    workflow_uid UUID,
+    rotation_plan_id BIGINT,
+    task_ref VARCHAR(160),
+    entity_type VARCHAR(64),
+    entity_id VARCHAR(128),
+    details_json JSONB
+);
+
 CREATE OR REPLACE FUNCTION ensure_rotation_plan_source_workflow_completed()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -1006,6 +1033,18 @@ CREATE INDEX idx_rotation_audit_log_generated_task_id
     ON rotation_audit_log(generated_task_id);
 CREATE INDEX idx_workflow_audit_log_workflow_id ON workflow_audit_log(workflow_id, created_at DESC);
 CREATE INDEX idx_workflow_notifications_workflow_id ON workflow_notifications(workflow_id);
+CREATE INDEX idx_system_event_log_created_at
+    ON system_event_log(created_at DESC, id DESC);
+CREATE INDEX idx_system_event_log_severity_source_created_at
+    ON system_event_log(severity, source, created_at DESC, id DESC);
+CREATE INDEX idx_system_event_log_actor_user_id
+    ON system_event_log(actor_user_id, created_at DESC, id DESC);
+CREATE INDEX idx_system_event_log_workflow_uid
+    ON system_event_log(workflow_uid, created_at DESC, id DESC);
+CREATE INDEX idx_system_event_log_rotation_plan_id
+    ON system_event_log(rotation_plan_id, created_at DESC, id DESC);
+CREATE INDEX idx_system_event_log_task_ref
+    ON system_event_log(task_ref, created_at DESC, id DESC);
 CREATE INDEX idx_workflow_definition_versions_definition_id
     ON workflow_definition_versions(workflow_definition_id, version_number DESC);
 CREATE UNIQUE INDEX uq_workflow_definition_versions_published_per_definition

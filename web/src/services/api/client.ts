@@ -1,5 +1,6 @@
 import { identityProvider } from "../../auth/IdentityProvider";
 import { getApiBase } from "../../config/appRuntimeConfig";
+import { reportClientLogEvent } from "../systemLogReporter";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -85,6 +86,15 @@ function toSafeErrorMessage(status: number, payload: unknown): string {
   return `Backend-Fehler (HTTP ${status}).`;
 }
 
+function summarizePayloadForLog(payload: unknown): unknown {
+  if (typeof payload === "string") {
+    const trimmed = payload.trim();
+    return trimmed.length > 500 ? `${trimmed.slice(0, 500)}...` : trimmed;
+  }
+
+  return payload;
+}
+
 export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
   return requestJsonInternal<T>(path, options, true);
 }
@@ -104,6 +114,20 @@ async function requestJsonInternal<T>(
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
   } catch (error) {
+    void reportClientLogEvent({
+      severity: "error",
+      source: "frontend",
+      category: "network",
+      eventKey: "request_transport_failed",
+      message: "Backend ist nicht erreichbar.",
+      userMessage: "Backend ist nicht erreichbar.",
+      clientFunction: "requestJson",
+      httpMethod: method,
+      httpPath: path,
+      details: {
+        cause: error instanceof Error ? error.message : String(error),
+      },
+    });
     const err = new Error("Backend ist nicht erreichbar.") as ApiError;
     err.cause = error;
     throw err;
@@ -133,7 +157,28 @@ async function requestJsonInternal<T>(
       }
     }
 
-    const err = new Error(toSafeErrorMessage(response.status, payload)) as ApiError;
+    const errorMessage = toSafeErrorMessage(response.status, payload);
+    void reportClientLogEvent({
+      severity: response.status >= 500 ? "error" : "warning",
+      source: "api",
+      category: "http",
+      eventKey: "request_failed",
+      message: `${method} ${path} fehlgeschlagen (${response.status}).`,
+      userMessage: errorMessage,
+      clientFunction: "requestJson",
+      httpMethod: method,
+      httpPath: path,
+      httpStatus: response.status,
+      traceIdentifier:
+        response.headers.get("x-trace-id")
+        ?? response.headers.get("trace-id")
+        ?? response.headers.get("request-id"),
+      details: {
+        responsePayload: summarizePayloadForLog(payload),
+      },
+    });
+
+    const err = new Error(errorMessage) as ApiError;
     err.status = response.status;
     throw err;
   }

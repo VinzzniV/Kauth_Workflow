@@ -891,7 +891,6 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(string? query, int limit = 20, IReadOnlyCollection<int>? observableDepartmentIds = null) => throw new NotSupportedException();
         public Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null) => throw new NotSupportedException();
         public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey) => throw new NotSupportedException();
-        public Task<BulkOperationResultDto> BulkCreateDepartmentChangeWorkflows(BulkDepartmentChangeRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions()
         {
             GetAdminWorkflowDefinitionsCallCount += 1;
