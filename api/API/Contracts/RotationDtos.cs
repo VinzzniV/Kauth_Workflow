@@ -153,6 +153,7 @@ public sealed class RotationNotificationDto
     public long? GeneratedTaskId { get; init; }
     public required string NotificationType { get; init; }
     public required string RecipientEmail { get; init; }
+    public string? RecipientName { get; init; }
     public long? RecipientUserId { get; init; }
     public required string Subject { get; init; }
     public JsonElement? Payload { get; init; }
@@ -170,6 +171,7 @@ public sealed class RotationAuditEntryDto
     public long? RotationStationId { get; init; }
     public long? GeneratedTaskId { get; init; }
     public long? ActorUserId { get; init; }
+    public string? ActorUserName { get; init; }
     public required string EventType { get; init; }
     public JsonElement? OldValue { get; init; }
     public JsonElement? NewValue { get; init; }

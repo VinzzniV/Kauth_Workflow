@@ -191,6 +191,13 @@ export type WorkflowTaskStatus =
   | "in_progress"
   | "blocked"
   | "done";
+export type RotationTaskStatus =
+  | "open"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "cancelled";
+export type TaskStatus = WorkflowTaskStatus | RotationTaskStatus;
 export type WorkflowTaskArea = string;
 export type WorkflowTaskSlaStatus = "none" | "on_track" | "due_today" | "overdue";
 
@@ -390,7 +397,7 @@ export type WorkflowTaskAssignment = {
 export type WorkflowTaskDependency = {
   workflowTaskId: number;
   dependsOnWorkflowTaskId: number;
-  requiredStatus: WorkflowTaskStatus;
+  requiredStatus: TaskStatus;
   dependsOnTaskKey: string;
   dependsOnTitle: string;
 };
@@ -406,7 +413,7 @@ export type WorkflowTask = {
   description: string;
   category: string;
   iconKey: string;
-  status: WorkflowTaskStatus;
+  status: TaskStatus;
   isRequired: boolean;
   sortOrder: number;
   createdAt: string;
@@ -441,9 +448,28 @@ export type TaskWorkflowContext = {
   roleName: string;
 };
 
+export type TaskFamily = "workflow" | "rotation";
+
+export type TaskRotationContext = {
+  rotationPlanId: number;
+  planStatus: "draft" | "active" | "completed" | "archived";
+  planTitle: string;
+  sourceWorkflowUid: string;
+  personId: number;
+  displayName: string;
+  departmentId: number;
+  departmentName: string;
+  rotationStationId: number | null;
+  triggerType: "enter" | "exit" | null;
+  anchorDate: string | null;
+};
+
 export type TaskWithWorkflow = {
+  taskRef: string;
+  taskFamily: TaskFamily;
   task: WorkflowTask;
-  workflow: TaskWorkflowContext;
+  workflow: TaskWorkflowContext | null;
+  rotation: TaskRotationContext | null;
 };
 
 export type ApiErrorState = {

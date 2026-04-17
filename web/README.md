@@ -24,6 +24,7 @@ Wiederverwendbare UI-Bausteine, besonders:
 - `components/dashboard`
 - `components/admin-config`
 - `components/feedback`
+- `components/rotation` — Audit-Log- und Benachrichtigungshistorie-Panels für Rotation-Detailseiten
 
 `src/auth/`
 Auth-Provider, Session-Wiederherstellung, aktueller Benutzer, Rollenmodell, MSAL/Entra-Integration.
@@ -76,6 +77,7 @@ Wichtig:
 Wichtige Service-Bereiche:
 - `authApi.ts` fuer Login, Session und aktuellen Benutzer
 - `workflowApi.ts`, `taskApi.ts`, `peopleApi.ts`, `lookupApi.ts` fuer Fachdaten
+- `rotationApi.ts` und `services/queries/rotationQueries.ts` fuer HR-Planung des Rotations-/Durchlauf-Slices
 - `adminApi.ts` und `adminConfigApi.ts` fuer Administration und Konfiguration
 - `services/api/*` fuer DTOs, Mapping und Basis-Client
 - `services/queries/*` und `services/mutations/*` fuer React Query
@@ -102,6 +104,12 @@ Builder-Zustand und Draft-Modell:
 
 Workflow-Detail, Audit-Log und Aufgabenansichten:
 `src/components/workflow-detail/`
+
+Rotation-/Durchlaufplanung fuer HR:
+`src/pages/RotationPlanningPage.tsx`, `src/pages/RotationPlanDetailPage.tsx`, `src/services/rotationApi.ts`, `src/services/queries/rotationQueries.ts` und `src/types/rotation.ts`
+
+Rotation-/Durchlaufoperationen fuer IT und Fachbereiche:
+`src/pages/RotationOperationsPage.tsx`, `src/pages/RotationTaskDetailPage.tsx`, `src/services/taskApi.ts`, `src/services/mutations/workflowMutations.ts`, `src/utils/taskStatus.ts` und die taskRef-faehigen Task-Envelope-Mappings in `src/services/api/`
 
 ## Entwicklung
 

@@ -45,4 +45,60 @@ public sealed class NotificationEmailTemplateBuilderTests
         Assert.Contains("Rollenwechsel", template.HtmlBody);
         Assert.DoesNotContain("Onboarding-Workflow", template.HtmlBody);
     }
+
+    [Fact]
+    public void BuildRotationUpcomingChange_IncludesDepartmentContextAndTasks()
+    {
+        var template = NotificationEmailTemplateBuilder.BuildRotationUpcomingChange(
+            "Julia Verantwortlich",
+            "https://example.test/tasks/my?taskRef=rot%3A44",
+            CreateRotationPayload());
+
+        Assert.Contains("Bevorstehender Wechsel", template.Subject);
+        Assert.Contains("Aktueller Bereich", template.HtmlBody);
+        Assert.Contains("Naechster Bereich", template.HtmlBody);
+        Assert.Contains("Notebook vorbereiten", template.HtmlBody);
+    }
+
+    [Fact]
+    public void BuildRotationOverdue_UsesOverdueSubject()
+    {
+        var template = NotificationEmailTemplateBuilder.BuildRotationOverdue(
+            "Julia Verantwortlich",
+            "https://example.test/tasks/my?taskRef=rot%3A44",
+            CreateRotationPayload());
+
+        Assert.Contains("Ueberfaellige Rotationsaufgaben", template.Subject);
+        Assert.Contains("Anika Sattler", template.HtmlBody);
+        Assert.Contains("31.05.2026", template.HtmlBody);
+    }
+
+    private static RotationNotificationPayload CreateRotationPayload()
+    {
+        return new RotationNotificationPayload
+        {
+            DedupeKey = "demo",
+            RecipientName = "Julia Verantwortlich",
+            PlanTitle = "Anika - Durchlauf",
+            SourceWorkflowUid = Guid.NewGuid(),
+            PersonId = 10,
+            PersonDisplayName = "Anika Sattler",
+            CurrentDepartmentName = "HR",
+            NextDepartmentName = "IT",
+            ChangeDate = new DateOnly(2026, 6, 1),
+            LinkPath = "/tasks/my?taskRef=rot%3A44",
+            Tasks =
+            [
+                new RotationNotificationTaskMailItem
+                {
+                    GeneratedTaskId = 44,
+                    TaskRef = "rot:44",
+                    Title = "Notebook vorbereiten",
+                    Status = "open",
+                    DueDate = new DateOnly(2026, 5, 31),
+                    DepartmentName = "IT"
+                }
+            ]
+        };
+    }
 }

@@ -376,9 +376,26 @@ export type BackendTaskWorkflowContextDto = {
   roleName: string;
 };
 
+export type BackendTaskRotationContextDto = {
+  rotationPlanId: number;
+  planStatus: string;
+  planTitle: string;
+  sourceWorkflowUid: string;
+  personId: number;
+  displayName: string;
+  departmentId: number;
+  departmentName: string;
+  rotationStationId: number | null;
+  triggerType: string | null;
+  anchorDate: string | null;
+};
+
 export type BackendTaskWithWorkflowDto = {
+  taskRef: string;
+  taskFamily: "workflow" | "rotation";
   task: BackendWorkflowTaskDto;
-  workflow: BackendTaskWorkflowContextDto;
+  workflow: BackendTaskWorkflowContextDto | null;
+  rotation: BackendTaskRotationContextDto | null;
 };
 
 export type BackendSimulationLoginUserOptionDto = SimulationLoginUserOption;

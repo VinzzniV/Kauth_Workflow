@@ -50,7 +50,12 @@ export function MyTaskGroups({
       {groups.map((group) => (
         <ul key={group.status} className="task-list">
           {group.items.map((row) => {
-            const workflowUid = row.workflow.workflowUid;
+            const workflow = row.workflow;
+            if (!workflow) {
+              return null;
+            }
+
+            const workflowUid = workflow.workflowUid;
             const statusKey = toTaskStateKey(workflowUid, row.task.id);
             const effectiveStatus = row.task.status;
             const visibleStatus = getVisibleTaskStatus(effectiveStatus);

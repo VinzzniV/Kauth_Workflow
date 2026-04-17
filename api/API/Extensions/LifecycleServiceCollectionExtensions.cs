@@ -117,6 +117,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IRotationPlanningService, RotationPlanningService>();
         services.AddScoped<IRotationTemplateAdminService, RotationTemplateAdminService>();
         services.AddScoped<IRotationTaskGenerationService, RotationTaskGenerationService>();
+        services.AddScoped<IRotationNotificationService, RotationNotificationService>();
         services.AddScoped<IWorkflowRuntimeService, WorkflowRuntimeService>();
         services.AddScoped<IWorkflowDefinitionRuntimeService, WorkflowDefinitionRuntimeService>();
         services.AddScoped<IWorkflowAutomationService, WorkflowAutomationService>();
@@ -137,6 +138,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IDirectorySyncService, EntraDirectorySyncService>();
         services.AddHostedService<DirectorySyncHostedService>();
         services.AddHostedService<WorkflowAutomationHostedService>();
+        services.AddHostedService<RotationNotificationHostedService>();
         services.AddHttpClient("health", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(3);

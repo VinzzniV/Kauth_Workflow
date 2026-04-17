@@ -7,6 +7,7 @@ Architekturhinweis:
 - Der aktuelle Code laeuft noch auf dem bestehenden lifecycle-/task-getriebenen Kern.
 - Die aktive Feature-Planung fuer Rotation/Durchlauf steht in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`; das stabile Plattform-Zielbild steht in `PRODUCTIVE_TARGET_ARCHITECTURE.md`.
 - Seit T9 laeuft der erste Automation Layer als API-interner Hosted Service; es gibt lokal und produktiv keinen separaten Worker-Container.
+- Seit Phase 5 laeuft zusaetzlich ein API-interner taeglicher Rotation-Notification-Worker; auch dafuer gibt es keinen separaten Worker-Container.
 - Seit T10 steht mit `/builder` eine eigenstaendige Builder-Seite fuer Definitionen, Versionen, Nodes, Edges und Automation-Actions zur Verfuegung; alte Admin-Einstiege werden dorthin umgeleitet.
 - Seit T11 nutzt der normale Start-Flow `/workflows/create` publizierte Workflow-Definitionen; `processTypeKey` und `/process-types` bleiben nur noch als Legacy-Alias fuer eine Uebergangsrelease bestehen.
 
@@ -52,6 +53,7 @@ Das lokale Launch-Profil setzt u. a.:
 
 Hinweis:
 - `automation`-Jobs werden von der API selbst gepollt und verarbeitet, sobald die Anwendung laeuft.
+- Rotation-Benachrichtigungen werden ebenfalls von der API selbst in einem taeglichen Sweep erzeugt und versendet, sobald Mailversand konfiguriert ist.
 - Die ersten Actions sind simuliert; fuer lokale Entwicklung ist deshalb kein externer Provisioning-Adapter noetig.
 - Der Guided Builder speichert Drafts weiter ueber den bestehenden Vollersatz-Endpunkt; lokale JSON-Fehler in Node-`config` oder Action-`inputMapping` blockieren Save bereits im UI.
 

@@ -1,8 +1,8 @@
-import type { WorkflowTaskStatus } from "../../types/workflow";
+import type { TaskStatus } from "../../types/workflow";
 import { getTaskStatusClassName, getTaskStatusLabel } from "../../utils/taskStatus";
 
 type Props = {
-  status: WorkflowTaskStatus;
+  status: TaskStatus;
 };
 
 export default function TaskStatusPill({ status }: Props) {

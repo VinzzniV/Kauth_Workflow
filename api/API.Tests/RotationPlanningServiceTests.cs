@@ -175,6 +175,51 @@ public sealed class RotationPlanningServiceTests
         Assert.Equal("plan_created", generationService.LastReason);
     }
 
+    [Fact]
+    public async Task GetRotationAuditLogAsync_ReturnsEntriesForVisiblePlan()
+    {
+        var repository = new StubRotationRepository
+        {
+            Plan = CreatePlanWithStations(),
+            AuditEntries =
+            [
+                new RotationAuditEntryDto
+                {
+                    Id = 1,
+                    RotationPlanId = 42,
+                    RotationStationId = null,
+                    GeneratedTaskId = null,
+                    ActorUserId = 99,
+                    ActorUserName = "HR",
+                    EventType = "rotation_plan_created",
+                    Detail = "Plan erstellt",
+                    CreatedAt = DateTime.UtcNow
+                }
+            ]
+        };
+        var service = CreateService(repository);
+
+        var result = await service.GetRotationAuditLogAsync(42, 50, 0, CreateUser());
+
+        Assert.NotNull(result);
+        Assert.Single(result!);
+        Assert.Equal("rotation_plan_created", result[0].EventType);
+    }
+
+    [Fact]
+    public async Task GetRotationNotificationsAsync_ReturnsNullWhenPlanDoesNotExist()
+    {
+        var repository = new StubRotationRepository
+        {
+            Plan = null
+        };
+        var service = CreateService(repository);
+
+        var result = await service.GetRotationNotificationsAsync(42, 50, 0, CreateUser());
+
+        Assert.Null(result);
+    }
+
     private static RotationPlanningService CreateService(
         StubRotationRepository repository,
         StubRotationTaskGenerationService? generationService = null)
@@ -250,6 +295,8 @@ public sealed class RotationPlanningServiceTests
         public RotationPlanConflictState ConflictState { get; set; } = new();
         public RotationPlanDetailDto? Plan { get; set; }
         public RotationStationDto? Station { get; set; }
+        public List<RotationAuditEntryDto> AuditEntries { get; set; } = [];
+        public List<RotationNotificationDto> Notifications { get; set; } = [];
 
         public Task<bool> DepartmentExists(int departmentId)
             => Task.FromResult(true);
@@ -278,13 +325,13 @@ public sealed class RotationPlanningServiceTests
         public Task<RotationStationDto?> GetRotationStation(long stationId)
             => Task.FromResult(Station);
 
-        public Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request)
+        public Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request, long actorUserId)
             => Task.FromResult<RotationStationDto?>(null);
 
-        public Task<RotationStationDto?> UpdateRotationStation(long stationId, RotationStationUpsertRequest request)
+        public Task<RotationStationDto?> UpdateRotationStation(long stationId, RotationStationUpsertRequest request, long actorUserId)
             => Task.FromResult<RotationStationDto?>(null);
 
-        public Task<bool> DeleteRotationStation(long stationId)
+        public Task<bool> DeleteRotationStation(long stationId, long actorUserId)
             => Task.FromResult(true);
 
         public Task<List<RotationGeneratedTaskDto>> GetRotationGeneratedTasks(long planId)
@@ -292,6 +339,12 @@ public sealed class RotationPlanningServiceTests
 
         public Task<RotationGeneratedTaskDto?> GetRotationGeneratedTask(long taskId)
             => Task.FromResult<RotationGeneratedTaskDto?>(null);
+
+        public Task<List<RotationAuditEntryDto>> GetRotationAuditLog(long planId, int limit = 200, int offset = 0)
+            => Task.FromResult(AuditEntries.Skip(offset).Take(limit).ToList());
+
+        public Task<List<RotationNotificationDto>> GetRotationNotifications(long planId, int limit = 200, int offset = 0)
+            => Task.FromResult(Notifications.Skip(offset).Take(limit).ToList());
 
         public Task<List<long>> GetRotationPlanIdsForDepartment(int departmentId)
             => Task.FromResult(new List<long>());
@@ -304,6 +357,15 @@ public sealed class RotationPlanningServiceTests
                 Cancelled = 0,
                 Unchanged = 0
             });
+
+        public Task<int> CreateDueRotationNotifications(DateOnly asOfDate)
+            => Task.FromResult(0);
+
+        public Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications()
+            => Task.FromResult(new List<RotationNotificationDispatchTarget>());
+
+        public Task ApplyRotationNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results)
+            => Task.CompletedTask;
 
         public Task<List<DepartmentActionTemplateDto>> GetDepartmentActionTemplates(int? departmentId, bool? isActive = null)
             => Task.FromResult(new List<DepartmentActionTemplateDto>());

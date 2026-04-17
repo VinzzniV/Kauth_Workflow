@@ -592,3 +592,118 @@ Codex soll nicht nur Code schreiben, sondern am Ende auch kurz dokumentieren:
 - welche Migrationen erstellt wurden
 - welche Annahmen getroffen wurden
 - welche TODOs für die nächste Ausbaustufe bleiben
+
+---
+
+## Abschluss-Dokumentation (Aufgabe 10)
+
+Alle Phasen 1–8 sind abgeschlossen. Stand: 2026-04-17.
+
+### Neue Dateien – Backend
+
+| Datei | Phase |
+|---|---|
+| `api/API/Endpoints/RotationPlanningEndpoints.cs` | Phase 2 |
+| `api/API/Endpoints/AdminRotationConfigEndpoints.cs` | Phase 3 |
+| `api/API/Services/RotationPlanningService.cs` | Phase 2 |
+| `api/API/Services/IRotationPlanningService.cs` | Phase 2 |
+| `api/API/Services/RotationTemplateAdminService.cs` | Phase 3 |
+| `api/API/Services/IRotationTemplateAdminService.cs` | Phase 3 |
+| `api/API/Services/RotationTaskGenerationService.cs` | Phase 4 |
+| `api/API/Services/IRotationTaskGenerationService.cs` | Phase 4 |
+| `api/API/Services/RotationNotificationService.cs` | Phase 5 |
+| `api/API/Services/IRotationNotificationService.cs` | Phase 5 |
+| `api/API/Services/RotationNotificationHostedService.cs` | Phase 5 |
+| `api/API/Contracts/RotationDtos.cs` | Phase 2 |
+| `api/API/Contracts/RotationNotificationContracts.cs` | Phase 5 |
+| `api/API/Repositories/IRotationRepository.cs` | Phase 2 |
+| `api/API/Repositories/PostgresWorkflowRepository.RotationOperations.cs` | Phase 2 |
+| `api/API/Repositories/PostgresWorkflowRepository.RotationTemplateOperations.cs` | Phase 3 |
+| `api/API/Repositories/PostgresWorkflowRepository.RotationTaskGenerationOperations.cs` | Phase 4 |
+| `api/API/Repositories/PostgresWorkflowRepository.RotationNotificationOperations.cs` | Phase 5 |
+| `api/API/Repositories/PostgresWorkflowRepository.RotationHistoryOperations.cs` | Phase 8 |
+| `api/API/RotationTaskRef.cs` | Phase 4 |
+| `api/API/RotationTaskStatusRules.cs` | Phase 4 |
+
+### Neue Dateien – Backend-Tests
+
+| Datei | Inhalt |
+|---|---|
+| `api/API.Tests/RotationPlanningServiceTests.cs` | Validierungslogik, Stationskonflikte, Plan-Sichtbarkeit |
+| `api/API.Tests/RotationTemplateAdminServiceTests.cs` | Template-Validierung und CRUD |
+| `api/API.Tests/RotationNotificationServiceTests.cs` | Benachrichtigungs-Deduplizierung und Sweep |
+| `api/API.Tests/RotationPlanningEndpointsTests.cs` | Audit-/Notification-Endpunkte, limit/offset, 403/404 |
+| `api/API.Tests/RotationPersistenceSqlArtifactsTests.cs` | SQL-Artefakte und Schema-Konsistenz |
+
+### Neue Dateien – Frontend
+
+| Datei | Phase |
+|---|---|
+| `web/src/pages/RotationPlanningPage.tsx` | Phase 6 |
+| `web/src/pages/RotationPlanDetailPage.tsx` | Phase 6 |
+| `web/src/pages/RotationOperationsPage.tsx` | Phase 7 |
+| `web/src/pages/RotationTaskDetailPage.tsx` | Phase 7 |
+| `web/src/components/rotation/RotationAuditLog.tsx` | Phase 8 |
+| `web/src/components/rotation/RotationNotificationsPanel.tsx` | Phase 8 |
+| `web/src/services/rotationApi.ts` | Phase 6 |
+| `web/src/services/queries/rotationQueries.ts` | Phase 6 |
+| `web/src/types/rotation.ts` | Phase 6 |
+
+### Neue Dateien – Datenbank
+
+| Datei | Inhalt |
+|---|---|
+| `db/54_rotation_phase1_persistence.sql` | Kernschema: `rotation_plans`, `rotation_stations`, `department_action_templates`, `rotation_generated_tasks`, `rotation_notifications`, `rotation_audit_log` |
+| `db/55_rotation_dev_template_examples.sql` | Dev-Seed: Beispielabteilungen BS, VT, Einkauf, Produktion, IT mit ersten Maßnahmenvorlagen |
+| `db/56_rotation_task_generation_sync.sql` | Erweiterung für Task-Generierung: `trigger_type`, `anchor_date`, `started_at`, `rotation_task_assignments`, `rotation_task_comments`, eindeutiger Soll-Task-Schlüssel |
+
+### Geänderte Dateien (Auszug)
+
+**Backend:**
+- `api/API/Extensions/LifecycleServiceCollectionExtensions.cs` — Rotation-Services registriert
+- `api/API/Endpoints/TaskEndpoints.cs` — `taskRef`-Routen (`wf:*`, `rot:*`) und Rotation-Task-Aggregation
+- `api/API/Services/GraphWorkflowEmailNotificationSender.cs` — Rotation-Mail-Templates ergänzt
+- `api/API/Services/NotificationEmailTemplateBuilder.cs` — `upcoming_change`, `reminder`, `overdue`
+
+**Frontend:**
+- `web/src/App.tsx` — Rotation-Routen eingebunden
+- `web/src/auth/roleModel.ts` — Rotation-Berechtigungen
+- `web/src/services/api/backendDtos.ts` — Rotation-DTOs
+- `web/src/services/api/mappers.ts` — Rotation-Mapper
+- `web/src/services/taskApi.ts` — taskRef-Unterstützung
+- `web/src/services/queryKeys.ts` — Rotation-Query-Keys
+- `web/src/utils/taskStatus.ts` — Rotation-Statuswerte (`cancelled`, `failed`)
+- `web/src/types/workflow.ts` — Rotation-Typen und task family
+
+**Tests:**
+- `api/API.Tests/WorkflowEndpointsTests.cs` — DI-Stub für `IRotationTemplateAdminService` ergänzt
+- `web/tests/testUtils.tsx` — `required`-Feld und `blockedCount` in `taskMetrics` ergänzt
+- `web/tests/taskStatus.test.ts` — Angepasst an neue Status-Werte
+- `web/tests/MyTasksPage.test.tsx` — Angepasst an neue Zweistufenstruktur (Übersicht/Detail)
+
+### Getroffene Annahmen
+
+1. Ein Durchlaufplan wird nur für Personen mit abgeschlossenem Onboarding angelegt (`sourceWorkflowId` ist Pflicht).
+2. Pro Person ist maximal ein aktiver Plan gleichzeitig erlaubt.
+3. Derselbe Quellworkflow darf nicht parallel in mehreren offenen Plänen referenziert werden.
+4. Benachrichtigungs-Deduplizierung erfolgt über einen eindeutigen Schlüssel pro `(station_id, notification_type, date_bucket)`.
+5. Task-Generierung ist idempotent: gleiche Station + gleiches Template erzeugen denselben Task, keine Duplikate.
+6. Rotation-Tasks sind im operativen Task-Slice sichtbar; der `taskRef`-Schlüssel (`rot:<id>`) unterscheidet sie von Workflow-Tasks (`wf:<id>`).
+7. Beobachter sehen im Frontend nur Pläne für ihre eigene Abteilung.
+8. Audit-Einträge sind append-only; Einträge werden nicht nachträglich geändert.
+9. Mail-Versand nutzt die bestehende Graph-/SMTP-Infrastruktur; kein separater Worker-Prozess.
+10. Rotation-Tasks kennen `cancelled` als gültigen Endstatus (zusätzlich zu `completed` und `failed`).
+11. Die client-seitige Filterung im Task-Detail (`RotationTaskDetailPage`) filtert Audit-Einträge nach `generatedTaskId` und `rotationStationId`; vollständige Plan-Historie steht nur in `RotationPlanDetailPage`.
+
+### Offene TODOs für die nächste Ausbaustufe
+
+- **AD/Entra-Gruppenänderungen**: `automationKey`-basierte Action für Gruppenaufnahme/-entfernung
+- **Fileserver-Berechtigungen**: Controlled Action für Ordnerrechte
+- **Softwareverteilung**: Deployment-Action über vorhandenen Automation Layer
+- **Fachsystemzugänge**: strukturierte Anfragedelegation (z. B. Habel, ERP)
+- **Mehrstufige Eskalation**: mehrere Verantwortliche, Eskalationsketten mit Fristen
+- **HR-Dateiimport**: Excel/CSV-Import für Stationsplanung
+- **Standort-/Rollenmatrix**: `DepartmentActionTemplate`-Scoping nach Standort
+- **Kalenderansicht**: optionale Timeline-Darstellung für HR-Pläne (aktuell: Listen-/Detailansicht)
+- **Dashboard-Widgets**: Rotation-spezifische Insights in der bestehenden Dashboard-Seite
+- **End-to-End-Tests**: vollständige DB-gebundene Integrationstests für Rotation-Ablauf

@@ -85,6 +85,9 @@ Wichtige Bereiche:
 Hinweis:
 Seit T8 lebt der Workflow Builder auf der eigenen Route `/builder`; alte Builder-Einstiege unter `/admin/config?section=builder|templates|answers|defaults` werden dorthin umgeleitet. Die Builder-Logik sitzt primär in `src/pages/WorkflowBuilderPage.tsx`, `src/components/admin-config/`, `src/hooks/useAdminWorkflowBuilder.ts`, `src/hooks/adminWorkflowBuilderModel.ts` und `src/services/adminConfigApi.ts`.
 Seit T11 nutzt `/workflows/create` den startbaren Definitionen-Katalog aus `src/services/lookupApi.ts` statt `process_types`; die alten Konfigurationssektionen fuer Process Types, Templates und Answer Defaults sind im Admin-Workspace nicht mehr navigierbar.
+Seit Phase 6 gibt es fuer HR zusaetzlich den Rotation-Frontend-Slice auf `/rotation` und `/rotation/plans/:planId`; die Seiten in `src/pages/RotationPlanningPage.tsx` und `src/pages/RotationPlanDetailPage.tsx` nutzen `src/services/rotationApi.ts`, `src/services/queries/rotationQueries.ts` und `src/types/rotation.ts`.
+Seit Phase 7 gibt es fuer IT und Fachbereiche den operativen Rotation-Slice auf `/rotation/operations` und `/rotation/tasks/:taskRef`; die Seiten `src/pages/RotationOperationsPage.tsx` und `src/pages/RotationTaskDetailPage.tsx` nutzen den familienfaehigen `/tasks`-Envelope, `src/services/taskApi.ts`, `src/services/mutations/workflowMutations.ts` und die erweiterten Task-/Status-Mappings in `src/services/api/` und `src/utils/taskStatus.ts`.
+Seit Phase 8 sind Audit-/Verlaufs- und Benachrichtigungshistorie in den bestehenden Rotations-Detailseiten sichtbar; `src/components/rotation/RotationAuditLog.tsx` und `src/components/rotation/RotationNotificationsPanel.tsx` werden in `RotationPlanDetailPage` und `RotationTaskDetailPage` eingebunden; `src/services/queries/rotationQueries.ts` enthaelt die planbezogenen History-Queries.
 
 ## Backend: `api/API`
 
@@ -175,14 +178,35 @@ Fachliche Phase-3-Schicht fuer Validierung und Pflege von `department_action_tem
 `api/API/Services/RotationTaskGenerationService.cs`
 Phase-4-Service fuer planbezogene Generated-Task-Reads, manuelle Regenerierung und automatische Department-Re-Syncs.
 
+`api/API/Services/RotationNotificationService.cs`, `api/API/Services/RotationNotificationHostedService.cs`
+Phase-5-Slice fuer taegliche Rotation-Benachrichtigungen: erzeugt deduplizierte `rotation_notifications`, verschickt sie ueber den bestehenden Mail-/Graph-Unterbau und schreibt Versandstatus zurueck.
+
+`api/API/Contracts/RotationNotificationContracts.cs`
+Interne Mail-/Dispatch-Typen fuer Rotation-Benachrichtigungen, Payload-Snapshots und Sweep-Ergebnisse.
+
+`api/API/Repositories/PostgresWorkflowRepository.RotationHistoryOperations.cs`
+Phase-8-Read-Schicht fuer `GetRotationAuditLog` und `GetRotationNotifications` mit stabilem `created_at DESC, id DESC`-Paging.
+
+`api/API/Services/IRotationPlanningService.cs` (erweitert)
+Fuegt `GetRotationAuditLogAsync` und `GetRotationNotificationsAsync` hinzu; Sichtbarkeit folgt Plan-Sichtbarkeit.
+
+`api/API/Endpoints/RotationPlanningEndpoints.cs` (erweitert)
+Neue Lese-Endpunkte `GET /rotation/plans/{planId}/audit` und `GET /rotation/plans/{planId}/notifications` mit `limit`/`offset`-Validierung.
+
 `api/API/Repositories/IRotationRepository.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTemplateOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTaskGenerationOperations.cs`
 Rotation-spezifischer Persistenzzugriff auf Basis des bestehenden PostgreSQL-Repositories fuer Planung, Vorlagenpflege, Generated-Task-Sync und Rotation-Task-Mutationen.
+
+`api/API/Repositories/PostgresWorkflowRepository.RotationNotificationOperations.cs`
+PostgreSQL-Zugriff fuer die Generierung, Deduplizierung, Dispatch-Vorbereitung und Ergebnisverbuchung von `upcoming_change`, `reminder` und `overdue` in `rotation_notifications`.
 
 `api/API/RotationTaskRef.cs`, `api/API/RotationTaskStatusRules.cs`
 Gemeinsame Phase-4-Helfer fuer globale `taskRef`-Adressen (`wf:*`, `rot:*`) und die statusspezifischen Regeln fuer Rotation-Tasks.
 
 `api/API/Endpoints/TaskEndpoints.cs`
 Liefert seit Phase 4 kanonische `/tasks/ref/{taskRef}`-Routen fuer Read, Status, Assignment, Kommentare und Approval-Entscheidungen; Rotation-Tasks werden jetzt mit Workflow-Tasks aggregiert in `/tasks` ausgeliefert.
+
+`api/API/Services/GraphWorkflowEmailNotificationSender.cs`, `api/API/Services/NotificationEmailTemplateBuilder.cs`
+Der bestehende Mail-Unterbau versendet jetzt neben Workflow-Mails auch Rotation-Notifications; neue Mail-Templates decken `upcoming_change`, `reminder` und `overdue` ab.
 
 `api/API/Services/WorkflowAutomationService.cs`
 Koordiniert Job-Claiming, Handler-Ausfuehrung, Retry-Regeln und Runtime-Fortschritt fuer `automation`-Nodes.

@@ -58,6 +58,38 @@ internal sealed class RotationPlanningService(
         return plan;
     }
 
+    public async Task<IReadOnlyList<RotationAuditEntryDto>?> GetRotationAuditLogAsync(
+        long planId,
+        int limit,
+        int offset,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = await GetRotationPlanAsync(planId, currentUser, cancellationToken);
+        if (plan is null)
+        {
+            return null;
+        }
+
+        return await rotationRepository.GetRotationAuditLog(planId, limit, offset);
+    }
+
+    public async Task<IReadOnlyList<RotationNotificationDto>?> GetRotationNotificationsAsync(
+        long planId,
+        int limit,
+        int offset,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = await GetRotationPlanAsync(planId, currentUser, cancellationToken);
+        if (plan is null)
+        {
+            return null;
+        }
+
+        return await rotationRepository.GetRotationNotifications(planId, limit, offset);
+    }
+
     public async Task<RotationPlanDetailDto> CreateRotationPlanAsync(
         CreateRotationPlanRequest request,
         CurrentUser currentUser,
@@ -152,7 +184,7 @@ internal sealed class RotationPlanningService(
         var normalizedRequest = NormalizeStationRequest(request);
         ValidateStationConflicts(plan.Stations, null, normalizedRequest);
 
-        var station = await rotationRepository.CreateRotationStation(planId, normalizedRequest);
+        var station = await rotationRepository.CreateRotationStation(planId, normalizedRequest, currentUser.UserId);
         if (station is not null)
         {
             await rotationTaskGenerationService.RegeneratePlanTasksUncheckedAsync(
@@ -199,7 +231,7 @@ internal sealed class RotationPlanningService(
         var normalizedRequest = NormalizeStationRequest(request);
         ValidateStationConflicts(plan.Stations, stationId, normalizedRequest);
 
-        var station = await rotationRepository.UpdateRotationStation(stationId, normalizedRequest);
+        var station = await rotationRepository.UpdateRotationStation(stationId, normalizedRequest, currentUser.UserId);
         if (station is not null)
         {
             await rotationTaskGenerationService.RegeneratePlanTasksUncheckedAsync(
@@ -239,7 +271,7 @@ internal sealed class RotationPlanningService(
         }
 
         EnsurePlanAllowsStationChanges(plan);
-        var deleted = await rotationRepository.DeleteRotationStation(stationId);
+        var deleted = await rotationRepository.DeleteRotationStation(stationId, currentUser.UserId);
         if (deleted)
         {
             await rotationTaskGenerationService.RegeneratePlanTasksUncheckedAsync(

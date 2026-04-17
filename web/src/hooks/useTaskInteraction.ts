@@ -9,16 +9,19 @@ import {
   mapVisibleTaskStatusToWorkflowStatus,
   type VisibleTaskStatus,
 } from "../utils/taskStatus";
-import type { WorkflowTaskStatus } from "../types/workflow";
+import type { TaskFamily, TaskStatus } from "../types/workflow";
 
 type TaskInteractionArgs = {
   taskId: number;
-  workflowUid: string;
+  taskRef?: string;
+  workflowUid?: string | null;
+  taskFamily?: TaskFamily;
+  rotationPlanId?: number | null;
 };
 
 type TaskStatusChangeArgs = TaskInteractionArgs & {
   status: VisibleTaskStatus;
-  currentStatus: WorkflowTaskStatus;
+  currentStatus: TaskStatus;
 };
 
 export function useTaskInteraction() {
@@ -32,8 +35,8 @@ export function useTaskInteraction() {
   const decideTaskApprovalMutation = useDecideTaskApproval();
 
   const handleStatusChange = useCallback(
-    async ({ taskId, workflowUid, status, currentStatus }: TaskStatusChangeArgs) => {
-      const nextStatus = mapVisibleTaskStatusToWorkflowStatus(status, currentStatus);
+    async ({ taskId, taskRef, workflowUid, taskFamily, rotationPlanId, status, currentStatus }: TaskStatusChangeArgs) => {
+      const nextStatus = mapVisibleTaskStatusToWorkflowStatus(status, currentStatus, taskFamily ?? "workflow");
       if (nextStatus === currentStatus) {
         return;
       }
@@ -41,7 +44,13 @@ export function useTaskInteraction() {
       setSavingTaskIds((current) => ({ ...current, [taskId]: true }));
 
       try {
-        await updateTaskStatusMutation.mutateAsync({ workflowUid, taskId, status: nextStatus });
+        await updateTaskStatusMutation.mutateAsync({
+          workflowUid: workflowUid ?? null,
+          taskId,
+          taskRef,
+          rotationPlanId: rotationPlanId ?? null,
+          status: nextStatus,
+        });
         showSuccess("Aufgabenstatus wurde gespeichert.");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Aufgabenstatus konnte nicht aktualisiert werden.";
@@ -58,7 +67,7 @@ export function useTaskInteraction() {
   }, []);
 
   const handleTaskCommentSubmit = useCallback(
-    async ({ taskId, workflowUid }: TaskInteractionArgs) => {
+    async ({ taskId, taskRef, workflowUid, rotationPlanId }: TaskInteractionArgs) => {
       const draft = (commentDrafts[taskId] ?? "").trim();
       if (!draft) {
         return;
@@ -67,7 +76,13 @@ export function useTaskInteraction() {
       setSavingCommentTaskIds((current) => ({ ...current, [taskId]: true }));
 
       try {
-        await addTaskCommentMutation.mutateAsync({ workflowUid, taskId, text: draft });
+        await addTaskCommentMutation.mutateAsync({
+          workflowUid: workflowUid ?? null,
+          taskId,
+          taskRef,
+          rotationPlanId: rotationPlanId ?? null,
+          text: draft,
+        });
         setCommentDrafts((current) => ({ ...current, [taskId]: "" }));
         showSuccess("Kommentar wurde gespeichert.");
       } catch (err) {
@@ -81,14 +96,16 @@ export function useTaskInteraction() {
   );
 
   const handleApprovalDecision = useCallback(
-    async ({ taskId, workflowUid, approved }: TaskInteractionArgs & { approved: boolean }) => {
+    async ({ taskId, taskRef, workflowUid, rotationPlanId, approved }: TaskInteractionArgs & { approved: boolean }) => {
       const draft = (commentDrafts[taskId] ?? "").trim();
       setSavingApprovalTaskIds((current) => ({ ...current, [taskId]: true }));
 
       try {
         await decideTaskApprovalMutation.mutateAsync({
-          workflowUid,
+          workflowUid: workflowUid ?? null,
           taskId,
+          taskRef,
+          rotationPlanId: rotationPlanId ?? null,
           approved,
           commentText: draft || undefined,
         });

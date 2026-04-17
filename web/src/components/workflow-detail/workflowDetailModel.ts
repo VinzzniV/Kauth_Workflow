@@ -48,7 +48,7 @@ export function isInProgressStatus(status: WorkflowTask["status"]): boolean {
 }
 
 export function isDoneStatus(status: WorkflowTask["status"]): boolean {
-  return status === "done";
+  return status === "done" || status === "completed";
 }
 
 export function isActiveStatus(status: WorkflowTask["status"]): boolean {
@@ -154,6 +154,9 @@ export function compareTasksForDisplay(left: WorkflowTask, right: WorkflowTask):
     open: 2,
     blocked: 3,
     done: 4,
+    completed: 4,
+    failed: 5,
+    cancelled: 6,
   };
   const statusDelta = statusPriority[left.status] - statusPriority[right.status];
   if (statusDelta !== 0) {
@@ -219,6 +222,9 @@ export function findCurrentTask(tasks: WorkflowTask[]): WorkflowTask | null {
     open: 2,
     blocked: 3,
     done: 4,
+    completed: 4,
+    failed: 5,
+    cancelled: 6,
   };
 
   const activeTasks = tasks.filter((task) => isActiveStatus(task.status));

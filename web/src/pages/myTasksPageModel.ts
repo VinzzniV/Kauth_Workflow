@@ -50,6 +50,10 @@ export function useMyTasksPageView() {
   );
 
   const rows = useMemo<TaskWithWorkflow[]>(() => myTasksQuery.data ?? [], [myTasksQuery.data]);
+  const workflowRows = useMemo(
+    () => rows.filter((row) => row.taskFamily === "workflow" && row.workflow !== null),
+    [rows]
+  );
   const isLoading = myTasksQuery.isLoading;
   const isRefreshing = myTasksQuery.isFetching;
   const error =
@@ -65,15 +69,20 @@ export function useMyTasksPageView() {
 
   const departmentOptions = useMemo(() => {
     const entries = Array.from(
-      new Map(rows.map((row) => [row.workflow.departmentId, row.workflow.departmentName])).entries()
+      new Map(
+        workflowRows.map((row) => [row.workflow!.departmentId, row.workflow!.departmentName] as const)
+      ).entries()
     );
     return entries.sort((left, right) => left[1].localeCompare(right[1], "de"));
-  }, [rows]);
+  }, [workflowRows]);
 
   // Alle Tasks nach Workflow-UID gruppiert
   const tasksByWorkflow = useMemo(() => {
     const byUid = new Map<string, TaskWithWorkflow[]>();
-    for (const row of rows) {
+    for (const row of workflowRows) {
+      if (!row.workflow) {
+        continue;
+      }
       const uid = row.workflow.workflowUid;
       if (!byUid.has(uid)) {
         byUid.set(uid, []);
@@ -81,23 +90,31 @@ export function useMyTasksPageView() {
       byUid.get(uid)!.push(row);
     }
     return byUid;
-  }, [rows]);
+  }, [workflowRows]);
 
   // Workflow-Übersichten (Zusammenfassungen)
   const allWorkflowSummaries = useMemo<WorkflowTaskSummary[]>(() => {
     return Array.from(tasksByWorkflow.entries()).map(([workflowUid, tasks]) => {
       const first = tasks[0]!;
-      const personName = `${first.workflow.firstName} ${first.workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
-      const counts: Record<VisibleTaskStatus, number> = { open: 0, in_progress: 0, blocked: 0, done: 0 };
+      const workflow = first.workflow!;
+      const personName = `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
+      const counts: Record<VisibleTaskStatus, number> = {
+        open: 0,
+        in_progress: 0,
+        blocked: 0,
+        done: 0,
+        failed: 0,
+        cancelled: 0,
+      };
       for (const t of tasks) {
         counts[getVisibleTaskStatus(t.task.status)] += 1;
       }
       return {
         workflowUid,
         personName,
-        departmentName: first.workflow.departmentName,
-        departmentId: first.workflow.departmentId,
-        roleName: first.workflow.roleName,
+        departmentName: workflow.departmentName,
+        departmentId: workflow.departmentId,
+        roleName: workflow.roleName,
         counts,
         totalCount: tasks.length,
       };
@@ -155,13 +172,13 @@ export function useMyTasksPageView() {
   // Legacy-Kompatibilität für bestehende responsibility-Filter-Hilfen (werden nicht mehr im UI verwendet, aber Interaktionshooks brauchen sie ggf.)
   const responsibilityOptions = useMemo(() => {
     const optionsByValue = new Map(
-      rows.map((row) => {
+      workflowRows.map((row) => {
         const option = getResponsibleResponsibilityFilterOption(row.task);
         return [option.value, option] as const;
       })
     );
     return Array.from(optionsByValue.values()).sort((left, right) => left.label.localeCompare(right.label, "de"));
-  }, [rows]);
+  }, [workflowRows]);
 
   const toggleStatus = useCallback((status: VisibleTaskStatus) => {
     setExpandedStatuses((current) => {
@@ -183,8 +200,11 @@ export function useMyTasksPageView() {
   // Für Abwärtskompatibilität – wird von MyTaskGroups noch genutzt
   const filteredRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    return rows
+    return workflowRows
       .filter((row) => {
+        if (!row.workflow) {
+          return false;
+        }
         const workflowUid = row.workflow.workflowUid;
         const workflowDisplayName =
           `${row.workflow.firstName} ${row.workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
@@ -204,7 +224,7 @@ export function useMyTasksPageView() {
         if (statusDelta !== 0) return statusDelta;
         return left.task.sortOrder - right.task.sortOrder || left.task.id - right.task.id;
       });
-  }, [rows, search, departmentFilter]);
+  }, [workflowRows, search, departmentFilter]);
 
   return {
     // Filter

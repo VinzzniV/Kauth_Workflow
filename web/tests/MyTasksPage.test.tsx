@@ -21,11 +21,10 @@ describe("MyTasksPage", () => {
     mockedGetMyTasks.mockReset();
   });
 
-  it("filters visible tasks by the selected task status", async () => {
+  it("shows workflow summary cards in the overview", async () => {
     mockedGetMyTasks.mockResolvedValue([
       createTaskWithWorkflow({
         title: "Notebook vorbereiten",
-        description: "Notebook bereitstellen",
         status: "open",
       }),
       createTaskWithWorkflow(
@@ -33,34 +32,26 @@ describe("MyTasksPage", () => {
           id: 2,
           taskKey: "account_setup",
           title: "Zugang einrichten",
-          description: "Microsoft-365-Konto aktivieren",
           status: "in_progress",
         },
-        {
-          workflowUid: "wf-2",
-          firstName: "Ben",
-          lastName: "Beispiel",
-        }
+        { workflowUid: "wf-2", firstName: "Ben", lastName: "Beispiel" }
       ),
     ]);
 
     renderWithApp(<MyTasksPage />, { roleKeys: ["auth_worker"] });
 
-    expect(await screen.findByRole("heading", { name: "Notebook vorbereiten" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Zugang einrichten" })).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "in_progress" } });
-
-    const visibleTaskCard = await screen.findByRole("heading", { name: "Zugang einrichten" });
-    expect(within(visibleTaskCard.closest("article") ?? document.body).getByText("Microsoft-365-Konto aktivieren")).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Notebook vorbereiten" })).toBeNull();
+    // Overview shows workflow summary cards, not individual task headings
+    const list = await screen.findByRole("generic", { name: "Vorgänge mit Aufgaben" });
+    expect(list).toBeTruthy();
+    // Both tasks are for different workflows → two summary cards
+    expect(within(list).getAllByRole("button")).toHaveLength(2);
   });
 
-  it("groups tasks by their visible status buckets", async () => {
+  it("groups tasks by their visible status buckets after selecting a workflow", async () => {
+    // All three tasks belong to the same workflow (wf-1 default)
     mockedGetMyTasks.mockResolvedValue([
       createTaskWithWorkflow({
         title: "Notebook vorbereiten",
-        description: "Notebook bereitstellen",
         status: "ready",
       }),
       createTaskWithWorkflow(
@@ -68,13 +59,7 @@ describe("MyTasksPage", () => {
           id: 2,
           taskKey: "account_setup",
           title: "Zugang einrichten",
-          description: "Microsoft-365-Konto aktivieren",
           status: "in_progress",
-        },
-        {
-          workflowUid: "wf-2",
-          firstName: "Ben",
-          lastName: "Beispiel",
         }
       ),
       createTaskWithWorkflow(
@@ -82,19 +67,18 @@ describe("MyTasksPage", () => {
           id: 3,
           taskKey: "archive",
           title: "Archivieren",
-          description: "Dokumente ablegen",
           status: "done",
-        },
-        {
-          workflowUid: "wf-3",
-          firstName: "Cara",
-          lastName: "Closing",
         }
       ),
     ]);
 
     renderWithApp(<MyTasksPage />, { roleKeys: ["auth_worker"] });
 
+    // Click on the single workflow summary card to enter detail view
+    const summaryCard = await screen.findByRole("button", { name: /Alice Example/i });
+    fireEvent.click(summaryCard);
+
+    // Detail view shows task groups by status
     expect(await screen.findByRole("heading", { name: "Offen" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "In Bearbeitung" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Erledigt" })).toBeTruthy();

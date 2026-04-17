@@ -207,9 +207,10 @@ export async function loadWorkerInsights(): Promise<DashboardInsights> {
   let doneTaskCount = 0;
 
   for (const item of tasksWithWorkflow) {
-    const workflowUid = item.workflow.workflowUid;
-    const workflowDisplayName =
-      `${item.workflow.firstName} ${item.workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
+    const workflowUid = item.workflow?.workflowUid ?? item.taskRef;
+    const workflowDisplayName = item.workflow
+      ? `${item.workflow.firstName} ${item.workflow.lastName}`.trim() || "Unbekannter Mitarbeitender"
+      : item.rotation?.displayName ?? "Unbekannter Mitarbeitender";
 
     if (isOpenTask(item.task)) {
       openTasks.push({
@@ -237,6 +238,9 @@ export async function loadWorkerInsights(): Promise<DashboardInsights> {
     ready: 2,
     open: 3,
     done: 4,
+    completed: 4,
+    failed: 5,
+    cancelled: 6,
   };
 
   const queueItems = openTasks

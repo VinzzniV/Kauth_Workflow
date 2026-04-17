@@ -67,8 +67,10 @@ internal static class RotationPlanningEndpoints
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanCreateWorkflow,
-                "HR, Abteilungsleitung oder Admin role is required.");
+                currentUser => authorizationPolicy.CanCreateWorkflow(currentUser)
+                    || authorizationPolicy.CanAccessTechnicalTasks(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "HR, Fachbereich oder Admin role is required.");
             if (access.Error is not null)
             {
                 return access.Error;
@@ -90,6 +92,112 @@ internal static class RotationPlanningEndpoints
                 return Results.BadRequest(new { message = ex.Message });
             }
         }).Produces<RotationPlanDetailDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/rotation/plans/{planId:long}/audit", async (
+            long planId,
+            [FromQuery] int? limit,
+            [FromQuery] int? offset,
+            IRotationPlanningService rotationPlanningService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            if (limit is <= 0)
+            {
+                return Results.BadRequest(new { message = "limit must be greater than zero." });
+            }
+
+            if (offset is < 0)
+            {
+                return Results.BadRequest(new { message = "offset must be greater than or equal to zero." });
+            }
+
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                currentUser => authorizationPolicy.CanCreateWorkflow(currentUser)
+                    || authorizationPolicy.CanAccessTechnicalTasks(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "HR, Fachbereich oder Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var auditLog = await rotationPlanningService.GetRotationAuditLogAsync(
+                    planId,
+                    Math.Clamp(limit ?? 50, 1, 500),
+                    offset ?? 0,
+                    access.User!);
+                return auditLog is null
+                    ? Results.NotFound(new { message = "Durchlaufplan nicht gefunden." })
+                    : Results.Ok(auditLog);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<List<RotationAuditEntryDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/rotation/plans/{planId:long}/notifications", async (
+            long planId,
+            [FromQuery] int? limit,
+            [FromQuery] int? offset,
+            IRotationPlanningService rotationPlanningService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            if (limit is <= 0)
+            {
+                return Results.BadRequest(new { message = "limit must be greater than zero." });
+            }
+
+            if (offset is < 0)
+            {
+                return Results.BadRequest(new { message = "offset must be greater than or equal to zero." });
+            }
+
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                currentUser => authorizationPolicy.CanCreateWorkflow(currentUser)
+                    || authorizationPolicy.CanAccessTechnicalTasks(currentUser)
+                    || authorizationPolicy.CanManageAdminConfiguration(currentUser),
+                "HR, Fachbereich oder Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var notifications = await rotationPlanningService.GetRotationNotificationsAsync(
+                    planId,
+                    Math.Clamp(limit ?? 50, 1, 500),
+                    offset ?? 0,
+                    access.User!);
+                return notifications is null
+                    ? Results.NotFound(new { message = "Durchlaufplan nicht gefunden." })
+                    : Results.Ok(notifications);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<List<RotationNotificationDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);

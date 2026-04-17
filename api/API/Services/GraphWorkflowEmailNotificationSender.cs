@@ -116,6 +116,98 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         return results;
     }
 
+    public async Task<IReadOnlyList<NotificationDispatchResult>> SendRotationNotificationsAsync(
+        IReadOnlyList<RotationNotificationDispatchTarget> targets,
+        CancellationToken cancellationToken = default)
+    {
+        if (targets.Count == 0)
+        {
+            return [];
+        }
+
+        var configuration = await configurationService.GetRuntimeConfiguration(cancellationToken);
+        var validation = NotificationEmailConfigurationValidator.ValidateForSending(configuration);
+        if (string.Equals(validation.Status, "disabled", StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateRotationDispatchResults(targets, "disabled", success: false, attempted: false, errorMessage: null);
+        }
+
+        if (!validation.CanSend)
+        {
+            logger.LogWarning("Notification email sending is enabled but not configured correctly: {Error}", validation.Message);
+            return CreateRotationDispatchResults(targets, "failed", success: false, attempted: false, errorMessage: validation.Message);
+        }
+
+        var client = CreateGraphClient(configuration);
+        var disabledByType = targets
+            .Where(target => !IsNotificationTypeEnabled(configuration, target.NotificationType))
+            .ToList();
+        var disabledNotificationIds = disabledByType
+            .Select(target => target.NotificationId)
+            .ToHashSet();
+        var enabledTargets = targets
+            .Where(target => !disabledNotificationIds.Contains(target.NotificationId))
+            .ToList();
+        var results = new List<NotificationDispatchResult>(targets.Count);
+
+        results.AddRange(CreateRotationDispatchResults(disabledByType, "disabled", success: false, attempted: false, errorMessage: null));
+
+        foreach (var target in enabledTargets)
+        {
+            try
+            {
+                var isSandbox = !string.IsNullOrWhiteSpace(configuration.SandboxRedirectEmail);
+                var effectiveRecipientEmail = isSandbox
+                    ? configuration.SandboxRedirectEmail!
+                    : target.TargetEmail;
+                var effectiveRecipientName = isSandbox
+                    ? $"[SANDBOX] {target.TargetName}"
+                    : target.TargetName;
+                var subjectPrefix = isSandbox ? $"[TEST -> {target.TargetEmail}] " : string.Empty;
+                var appUrl = BuildRotationAccessUrl(configuration.FrontendBaseUrl, target.Payload.LinkPath);
+                await client
+                    .Users[configuration.SenderEmail!]
+                    .SendMail
+                    .PostAsync(
+                        BuildRotationNotificationMail(
+                            target,
+                            appUrl,
+                            configuration.SaveToSentItems,
+                            effectiveRecipientEmail,
+                            effectiveRecipientName,
+                            subjectPrefix),
+                        cancellationToken: cancellationToken);
+
+                results.Add(new NotificationDispatchResult
+                {
+                    NotificationId = target.NotificationId,
+                    Status = "sent",
+                    Success = true,
+                    Attempted = true
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Rotation notification dispatch failed for plan {RotationPlanId} and notification {NotificationId}.",
+                    target.RotationPlanId,
+                    target.NotificationId);
+
+                results.Add(new NotificationDispatchResult
+                {
+                    NotificationId = target.NotificationId,
+                    Status = "failed",
+                    Success = false,
+                    Attempted = true,
+                    ErrorMessage = ex.Message
+                });
+            }
+        }
+
+        return results;
+    }
+
     public async Task<NotificationEmailTestSendResult> SendTestEmailAsync(
         string recipientEmail,
         CancellationToken cancellationToken = default)
@@ -228,6 +320,25 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
             .ToList();
     }
 
+    private static IReadOnlyList<NotificationDispatchResult> CreateRotationDispatchResults(
+        IReadOnlyList<RotationNotificationDispatchTarget> targets,
+        string status,
+        bool success,
+        bool attempted,
+        string? errorMessage)
+    {
+        return targets
+            .Select(target => new NotificationDispatchResult
+            {
+                NotificationId = target.NotificationId,
+                Status = status,
+                Success = success,
+                Attempted = attempted,
+                ErrorMessage = errorMessage
+            })
+            .ToList();
+    }
+
     private SendMailPostRequestBody BuildNotificationMail(
         NotificationDispatchBatch batch,
         string workflowUrl,
@@ -254,6 +365,46 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                 workflowUrl,
                 batch.PrimaryTarget.ProcessTypeKey,
                 batch.PrimaryTarget.ProcessTypeName)
+        };
+
+        return new SendMailPostRequestBody
+        {
+            Message = new Message
+            {
+                Subject = $"{subjectPrefix}{template.Subject}",
+                Body = new ItemBody
+                {
+                    ContentType = BodyType.Html,
+                    Content = template.HtmlBody
+                },
+                ToRecipients =
+                [
+                    new Recipient
+                    {
+                        EmailAddress = new EmailAddress
+                        {
+                            Address = recipientEmail
+                        }
+                    }
+                ]
+            },
+            SaveToSentItems = saveToSentItems
+        };
+    }
+
+    private SendMailPostRequestBody BuildRotationNotificationMail(
+        RotationNotificationDispatchTarget target,
+        string appUrl,
+        bool saveToSentItems,
+        string recipientEmail,
+        string recipientName,
+        string subjectPrefix)
+    {
+        var template = target.NotificationType switch
+        {
+            "overdue" => NotificationEmailTemplateBuilder.BuildRotationOverdue(recipientName, appUrl, target.Payload),
+            "reminder" => NotificationEmailTemplateBuilder.BuildRotationReminder(recipientName, appUrl, target.Payload),
+            _ => NotificationEmailTemplateBuilder.BuildRotationUpcomingChange(recipientName, appUrl, target.Payload)
         };
 
         return new SendMailPostRequestBody
@@ -335,6 +486,21 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         };
 
         return $"{normalizedBaseUrl}{redirectPath}";
+    }
+
+    private static string BuildRotationAccessUrl(string frontendBaseUrl, string linkPath)
+    {
+        var normalizedBaseUrl = frontendBaseUrl.TrimEnd('/');
+        var normalizedPath = string.IsNullOrWhiteSpace(linkPath)
+            ? "/tasks/my"
+            : linkPath.Trim();
+
+        if (!normalizedPath.StartsWith('/'))
+        {
+            normalizedPath = "/" + normalizedPath;
+        }
+
+        return $"{normalizedBaseUrl}{normalizedPath}";
     }
 
     private static IReadOnlyList<NotificationDispatchBatch> GroupTargetsForDispatch(

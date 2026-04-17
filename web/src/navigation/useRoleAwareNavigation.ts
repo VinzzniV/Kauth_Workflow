@@ -83,6 +83,14 @@ const clipboardListIcon = createIcon(
   createElement("path", { d: "M9 13.5h6" }),
   createElement("path", { d: "M9 17h3.5" })
 );
+const rotationIcon = createIcon(
+  createElement("path", { d: "M6 6.75h8.5" }),
+  createElement("path", { d: "M12.5 4.5 14.75 6.75 12.5 9" }),
+  createElement("path", { d: "M18 17.25H9.5" }),
+  createElement("path", { d: "M11.5 15 9.25 17.25 11.5 19.5" }),
+  createElement("circle", { cx: "6", cy: "17.25", r: "1", fill: "currentColor", stroke: "none" }),
+  createElement("circle", { cx: "18", cy: "6.75", r: "1", fill: "currentColor", stroke: "none" })
+);
 const workflowBuilderIcon = createIcon(
   createElement("circle", { cx: "6.5", cy: "6.5", r: "1.5", fill: "currentColor", stroke: "none" }),
   createElement("circle", { cx: "17.5", cy: "6.5", r: "1.5", fill: "currentColor", stroke: "none" }),
@@ -156,6 +164,20 @@ const ACTIONS = {
     feature: "technicalTasks",
     icon: clipboardListIcon,
   },
+  rotationPlanning: {
+    to: "/rotation",
+    label: "Durchlaufplanung",
+    description: "Durchlaufpläne aus abgeschlossenen Onboardings anlegen und pflegen.",
+    feature: "rotationPlanning",
+    icon: rotationIcon,
+  },
+  rotationOperations: {
+    to: "/rotation/operations",
+    label: "Wechsel & Aufgaben",
+    description: "Anstehende Wechsel, offene Maßnahmen und Statuspflege für Rotation.",
+    feature: "technicalTasks",
+    icon: rotationIcon,
+  },
   adminConfig: {
     to: "/admin/config",
     label: "Administration",
@@ -206,6 +228,11 @@ function collectActionKeys(args: {
   addKey("managerCreate", capabilities.hasManagerRole && !capabilities.hasHrRole && canAccessFeature("workflowCreate"));
   addKey("workflowBuilder", canAccessFeature("workflowBuilder"));
   addKey("hrWorkflows", canAccessFeature("workflowOverview"));
+  addKey(
+    "rotationPlanning",
+    canAccessFeature("rotationPlanning")
+  );
+  addKey("rotationOperations", canAccessFeature("technicalTasks"));
 
   if (surface === "header") {
     addKey("workflowSearch", canAccessFeature("workflowSearch"));

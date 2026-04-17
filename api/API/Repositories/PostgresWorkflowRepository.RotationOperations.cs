@@ -311,6 +311,18 @@ RETURNING id;";
             createdPlanId = planId;
         }
 
+        await InsertRotationAuditEntry(
+            connection,
+            transaction,
+            createdPlanId,
+            null,
+            null,
+            createdByUserId,
+            "rotation_plan_created",
+            null,
+            CreateRotationPlanAuditSnapshot(createdPlanId, request),
+            request.Title);
+
         await transaction.CommitAsync();
         var createdPlan = await GetRotationPlan(createdPlanId);
         return createdPlan ?? throw new InvalidOperationException("Created rotation plan could not be loaded afterwards.");
@@ -353,10 +365,11 @@ LIMIT 1;";
         return await reader.ReadAsync() ? MapRotationStation(reader) : null;
     }
 
-    public async Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request)
+    public async Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request, long actorUserId)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
 
         const string sql = @"
 INSERT INTO rotation_stations (
@@ -382,7 +395,7 @@ VALUES (
 RETURNING id;";
 
         long createdStationId;
-        await using (var command = new NpgsqlCommand(sql, connection))
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
         {
             command.Parameters.AddWithValue("planId", planId);
             command.Parameters.AddWithValue("departmentId", request.DepartmentId);
@@ -401,13 +414,41 @@ RETURNING id;";
             createdStationId = stationId;
         }
 
-        return await GetRotationStation(createdStationId);
+        var createdStation = await LoadRotationStationById(connection, transaction, createdStationId);
+        if (createdStation is null)
+        {
+            await transaction.RollbackAsync();
+            return null;
+        }
+
+        await InsertRotationAuditEntry(
+            connection,
+            transaction,
+            planId,
+            createdStationId,
+            null,
+            actorUserId,
+            "rotation_station_created",
+            null,
+            CreateRotationStationAuditSnapshot(createdStation),
+            createdStation.DepartmentName);
+
+        await transaction.CommitAsync();
+        return createdStation;
     }
 
-    public async Task<RotationStationDto?> UpdateRotationStation(long stationId, RotationStationUpsertRequest request)
+    public async Task<RotationStationDto?> UpdateRotationStation(long stationId, RotationStationUpsertRequest request, long actorUserId)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var currentStation = await LoadRotationStationById(connection, transaction, stationId);
+        if (currentStation is null)
+        {
+            await transaction.RollbackAsync();
+            return null;
+        }
 
         const string sql = @"
 UPDATE rotation_stations
@@ -424,7 +465,7 @@ WHERE id = @stationId
 RETURNING id;";
 
         var updated = false;
-        await using (var command = new NpgsqlCommand(sql, connection))
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
         {
             command.Parameters.AddWithValue("stationId", stationId);
             command.Parameters.AddWithValue("departmentId", request.DepartmentId);
@@ -437,21 +478,134 @@ RETURNING id;";
             updated = await command.ExecuteScalarAsync() is long;
         }
 
-        return updated ? await GetRotationStation(stationId) : null;
+        if (!updated)
+        {
+            await transaction.RollbackAsync();
+            return null;
+        }
+
+        var updatedStation = await LoadRotationStationById(connection, transaction, stationId);
+        if (updatedStation is null)
+        {
+            await transaction.RollbackAsync();
+            return null;
+        }
+
+        await InsertRotationAuditEntry(
+            connection,
+            transaction,
+            updatedStation.RotationPlanId,
+            stationId,
+            null,
+            actorUserId,
+            "rotation_station_updated",
+            CreateRotationStationAuditSnapshot(currentStation),
+            CreateRotationStationAuditSnapshot(updatedStation),
+            updatedStation.DepartmentName);
+
+        await transaction.CommitAsync();
+        return updatedStation;
     }
 
-    public async Task<bool> DeleteRotationStation(long stationId)
+    public async Task<bool> DeleteRotationStation(long stationId, long actorUserId)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var currentStation = await LoadRotationStationById(connection, transaction, stationId);
+        if (currentStation is null)
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
 
         const string sql = @"
 DELETE FROM rotation_stations
 WHERE id = @stationId;";
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("stationId", stationId);
-        return await command.ExecuteNonQueryAsync() > 0;
+        var deleted = await command.ExecuteNonQueryAsync() > 0;
+        if (!deleted)
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+
+        await InsertRotationAuditEntry(
+            connection,
+            transaction,
+            currentStation.RotationPlanId,
+            stationId,
+            null,
+            actorUserId,
+            "rotation_station_deleted",
+            CreateRotationStationAuditSnapshot(currentStation),
+            null,
+            currentStation.DepartmentName);
+
+        await transaction.CommitAsync();
+        return true;
+    }
+
+    private static object CreateRotationPlanAuditSnapshot(long planId, CreateRotationPlanRequest request)
+    {
+        return new
+        {
+            id = planId,
+            request.PersonId,
+            request.SourceWorkflowUid,
+            request.Title,
+            request.Status
+        };
+    }
+
+    private static object CreateRotationStationAuditSnapshot(RotationStationDto station)
+    {
+        return new
+        {
+            station.Id,
+            station.RotationPlanId,
+            station.DepartmentId,
+            station.DepartmentName,
+            station.StartDate,
+            station.EndDate,
+            station.OrderIndex,
+            station.Location,
+            station.Notes,
+            station.Status
+        };
+    }
+
+    private static async Task<RotationStationDto?> LoadRotationStationById(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long stationId)
+    {
+        const string sql = @"
+SELECT
+    rs.id,
+    rs.rotation_plan_id,
+    rs.department_id,
+    d.name,
+    rs.start_date,
+    rs.end_date,
+    rs.order_index,
+    rs.location,
+    rs.notes,
+    rs.status,
+    rs.created_at,
+    rs.updated_at
+FROM rotation_stations rs
+JOIN departments d ON d.id = rs.department_id
+WHERE rs.id = @stationId
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("stationId", stationId);
+        await using var reader = await command.ExecuteReaderAsync();
+        return await reader.ReadAsync() ? MapRotationStation(reader) : null;
     }
 
     private static async Task<List<RotationStationDto>> LoadRotationStations(

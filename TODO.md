@@ -141,7 +141,7 @@ Wichtig:
 ---
 
 ### Aufgabe 6 — Phase 5: Benachrichtigungslogik
-**Status:** `open`  
+**Status:** `done`  
 **Priorität:** P1  
 **Empfohlener Reasoning Effort:** `high`  
 **Plan Mode:** `an`
@@ -158,7 +158,7 @@ Wichtig:
 ---
 
 ### Aufgabe 7 — Phase 6: Frontend HR – Personen und Durchlaufplan
-**Status:** `open`  
+**Status:** `done`  
 **Priorität:** P2  
 **Empfohlener Reasoning Effort:** `medium`  
 **Plan Mode:** `aus`
@@ -175,7 +175,7 @@ Wichtig:
 ---
 
 ### Aufgabe 8 — Phase 7: Frontend IT / Fachbereiche – Aufgaben und Wechsel
-**Status:** `open`  
+**Status:** `done`  
 **Priorität:** P2  
 **Empfohlener Reasoning Effort:** `medium`  
 **Plan Mode:** `aus`
@@ -191,7 +191,7 @@ Wichtig:
 ---
 
 ### Aufgabe 9 — Phase 8: Audit, Historie, Robustheit
-**Status:** `open`  
+**Status:** `done`  
 **Priorität:** P3  
 **Empfohlener Reasoning Effort:** `high`  
 **Plan Mode:** `an`
@@ -209,7 +209,7 @@ Wichtig:
 ---
 
 ### Aufgabe 10 — Abschluss, Cleanup und Dokumentation
-**Status:** `open`  
+**Status:** `done`  
 **Priorität:** P3  
 **Empfohlener Reasoning Effort:** `medium`  
 **Plan Mode:** `aus`

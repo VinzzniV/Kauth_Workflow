@@ -20,6 +20,10 @@ const WorkflowSearchPage = lazy(() => import("./pages/WorkflowSearchPage"));
 const PersonWorkflowHistoryPage = lazy(() => import("./pages/PersonWorkflowHistoryPage"));
 const AdminConfigPage = lazy(() => import("./pages/AdminConfigPage"));
 const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
+const RotationPlanningPage = lazy(() => import("./pages/RotationPlanningPage"));
+const RotationPlanDetailPage = lazy(() => import("./pages/RotationPlanDetailPage"));
+const RotationOperationsPage = lazy(() => import("./pages/RotationOperationsPage"));
+const RotationTaskDetailPage = lazy(() => import("./pages/RotationTaskDetailPage"));
 
 function RouteLoadingFallback() {
   return (
@@ -135,6 +139,46 @@ export default function App() {
             <RouteGuard feature="workflowOverview">
               <LazyRoute>
                 <PersonWorkflowHistoryPage />
+              </LazyRoute>
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/rotation"
+          element={
+            <RouteGuard feature="rotationPlanning">
+              <LazyRoute>
+                <RotationPlanningPage />
+              </LazyRoute>
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/rotation/plans/:planId"
+          element={
+            <RouteGuard feature="rotationPlanning">
+              <LazyRoute>
+                <RotationPlanDetailPage />
+              </LazyRoute>
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/rotation/operations"
+          element={
+            <RouteGuard feature="technicalTasks">
+              <LazyRoute>
+                <RotationOperationsPage />
+              </LazyRoute>
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/rotation/tasks/:taskRef"
+          element={
+            <RouteGuard feature="technicalTasks">
+              <LazyRoute>
+                <RotationTaskDetailPage />
               </LazyRoute>
             </RouteGuard>
           }

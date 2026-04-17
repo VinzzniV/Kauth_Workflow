@@ -84,6 +84,49 @@ internal static class NotificationEmailTemplateBuilder
 <p><a href=""{encodedUrl}"">{encodedUrl}</a></p>");
     }
 
+    public static EmailTemplate BuildRotationUpcomingChange(
+        string recipientName,
+        string workflowUrl,
+        RotationNotificationPayload payload)
+    {
+        var subjectDepartment = string.IsNullOrWhiteSpace(payload.NextDepartmentName)
+            ? payload.PersonDisplayName
+            : $"{payload.PersonDisplayName} -> {payload.NextDepartmentName}";
+
+        return BuildRotationTemplate(
+            recipientName,
+            workflowUrl,
+            payload,
+            $"Bevorstehender Wechsel: {subjectDepartment}",
+            "ein Bereichswechsel im Rotationsdurchlauf steht bevor.");
+    }
+
+    public static EmailTemplate BuildRotationReminder(
+        string recipientName,
+        string workflowUrl,
+        RotationNotificationPayload payload)
+    {
+        return BuildRotationTemplate(
+            recipientName,
+            workflowUrl,
+            payload,
+            $"Faellige Rotationsaufgaben fuer {payload.PersonDisplayName}",
+            "offene Rotationsaufgaben haben heute ihren Faelligkeitstermin erreicht.");
+    }
+
+    public static EmailTemplate BuildRotationOverdue(
+        string recipientName,
+        string workflowUrl,
+        RotationNotificationPayload payload)
+    {
+        return BuildRotationTemplate(
+            recipientName,
+            workflowUrl,
+            payload,
+            $"Ueberfaellige Rotationsaufgaben fuer {payload.PersonDisplayName}",
+            "es gibt offene Rotationsaufgaben mit ueberschrittenem Faelligkeitstermin.");
+    }
+
     private static ProcessTypeEmailContext ResolveProcessTypeEmailContext(string processTypeKey, string processTypeName)
     {
         var normalizedKey = string.IsNullOrWhiteSpace(processTypeKey)
@@ -96,8 +139,57 @@ internal static class NotificationEmailTemplateBuilder
         return new ProcessTypeEmailContext(
             normalizedKey,
             normalizedName,
-            normalizedName,
-            $"Prozess {normalizedName}");
+            $"{normalizedName}-Workflow",
+            $"{normalizedName}-Prozess");
+    }
+
+    private static EmailTemplate BuildRotationTemplate(
+        string recipientName,
+        string workflowUrl,
+        RotationNotificationPayload payload,
+        string subject,
+        string introText)
+    {
+        var encodedName = System.Net.WebUtility.HtmlEncode(recipientName);
+        var encodedUrl = System.Net.WebUtility.HtmlEncode(workflowUrl);
+        var encodedPerson = System.Net.WebUtility.HtmlEncode(payload.PersonDisplayName);
+        var encodedCurrentDepartment = System.Net.WebUtility.HtmlEncode(
+            string.IsNullOrWhiteSpace(payload.CurrentDepartmentName) ? "n. a." : payload.CurrentDepartmentName);
+        var encodedNextDepartment = System.Net.WebUtility.HtmlEncode(
+            string.IsNullOrWhiteSpace(payload.NextDepartmentName) ? "n. a." : payload.NextDepartmentName);
+        var encodedPlanTitle = System.Net.WebUtility.HtmlEncode(payload.PlanTitle);
+        var encodedChangeDate = payload.ChangeDate.HasValue
+            ? System.Net.WebUtility.HtmlEncode(payload.ChangeDate.Value.ToString("dd.MM.yyyy"))
+            : "n. a.";
+
+        var taskList = payload.Tasks.Count == 0
+            ? "<li>Keine offenen Aufgaben im Payload.</li>"
+            : string.Join(
+                string.Empty,
+                payload.Tasks.Select(task =>
+                {
+                    var dueLabel = task.DueDate.HasValue
+                        ? $" (faellig: {task.DueDate.Value:dd.MM.yyyy})"
+                        : string.Empty;
+                    return $"<li>{System.Net.WebUtility.HtmlEncode(task.Title + dueLabel)}</li>";
+                }));
+
+        return new EmailTemplate(
+            subject,
+            $@"
+<p>Hallo {encodedName},</p>
+<p>fuer den Durchlaufplan <strong>{encodedPlanTitle}</strong> von <strong>{encodedPerson}</strong> gilt: {System.Net.WebUtility.HtmlEncode(introText)}</p>
+<ul>
+    <li><strong>Aktueller Bereich:</strong> {encodedCurrentDepartment}</li>
+    <li><strong>Naechster Bereich:</strong> {encodedNextDepartment}</li>
+    <li><strong>Wechseltermin:</strong> {encodedChangeDate}</li>
+</ul>
+<p><strong>Offene relevante Aufgaben:</strong></p>
+<ul>{taskList}</ul>
+<p>Bitte oeffnen Sie die Anwendung ueber den folgenden Link.</p>
+{BuildActionButton(encodedUrl, "Aufgabe oeffnen")}
+<p>Falls der Button nicht funktioniert, verwenden Sie bitte diesen Link:</p>
+<p><a href=""{encodedUrl}"">{encodedUrl}</a></p>");
     }
 
     private static string BuildActionButton(string encodedUrl, string label)

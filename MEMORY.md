@@ -23,6 +23,11 @@ Verwende sie nur fuer:
 - Phase 2 laeuft jetzt ueber eigene Backend-Pfade unter `/rotation/*` mit `RotationPlanningService` und `PostgresWorkflowRepository.RotationOperations.cs`.
 - Phase 3 hat jetzt Admin-Pflege fuer `department_action_templates` unter `/admin/rotation/action-templates` sowie Dev-Beispieldaten in `db/55_rotation_dev_template_examples.sql`.
 - Phase 4 ist jetzt im Backend aktiv: `db/56_rotation_task_generation_sync.sql`, `RotationTaskGenerationService`, `PostgresWorkflowRepository.RotationTaskGenerationOperations.cs` und die neuen `/tasks/ref/{taskRef}`-Pfade ziehen Rotation-Tasks in den operativen Task-Slice.
+- Phase 5 ist jetzt im Backend aktiv: `RotationNotificationService`, `RotationNotificationHostedService`, `PostgresWorkflowRepository.RotationNotificationOperations.cs` sowie die erweiterten Mail-Templates versenden taegliche `upcoming_change`, `reminder` und `overdue` fuer Rotation.
+- Phase 6 hat jetzt den ersten HR-Frontend-Slice: `/rotation` fuer Personensuche und Plananlage sowie `/rotation/plans/:planId` fuer Stationspflege und Generated-Task-Vorschau.
+- Phase 7 ist jetzt im Frontend aktiv: `/rotation/operations` und `/rotation/tasks/:taskRef` liefern fuer IT/Fachbereiche Wechseluebersichten, Aufgaben nach Abteilung/Person, Statuspflege und Detailansichten auf Basis des familienfaehigen `/tasks`-Envelopes mit `taskRef`.
+- Phase 8 ist abgeschlossen: `GET /rotation/plans/{planId}/audit` und `GET /rotation/plans/{planId}/notifications` liefern Plan-/Versions-/Versandhistorie; `RotationAuditLog` und `RotationNotificationsPanel` zeigen diese Historie in den bestehenden Detailseiten (`RotationPlanDetailPage`, `RotationTaskDetailPage`); alle 319 Backend- und 122 Frontend-Tests grueen.
+- Aufgabe 10 ist abgeschlossen: Abschluss-Dokumentation in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md` eingetragen (neue/geaenderte Dateien, Migrationen, Annahmen, naechste Ausbaustufe); alle 10 Aufgaben des Rotations-/Durchlauf-Implementierungsplans sind erledigt.
 
 ## Active Risks / Watchouts
 
@@ -30,15 +35,14 @@ Verwende sie nur fuer:
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
 - Mehrere sichtbare Legacy-Vertraege bleiben bewusst bestehen, vor allem `completed-onboardings`, `CompletedOnboardingSearchResultDto`, `workflows.create.onboarding` und `hr_onboarding`.
 - DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:25432`.
-- Offene Folgearbeit liegt jetzt vor allem bei Benachrichtigungslogik, tieferer Audit-/Robustheitsabsicherung und den spaeteren Frontend-Slices fuer Rotation.
 
 ## Temporary Notes
 
 - `PRODUCTIVE_TARGET_ARCHITECTURE.md` beschreibt das stabile Plattform-Zielbild.
-- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md` und `TODO.md` bleiben die aktive Feature-Steuerung fuer Rotation/Durchlauf.
+- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md` und `TODO.md` sind abgeschlossen; alle 10 Aufgaben erledigt.
 - `ONBOARDING_COUPLING_INVENTORY.md` ist die Referenz fuer Phase 1 / T2 und trennt `A` Benennung, `B` Kernkopplung und `C` Legacy-Vertrag.
 - `LEGACY_WORKFLOW_MAPPING.md` dokumentiert die T6-Abbildung der ersten drei Legacy-Prozesse in den Definition Layer.
-- Der Canvas-Builder laeuft jetzt ueber die eigene Route `/builder`; `/admin/config?section=builder|templates|answers|defaults` redirectet auf diese Produktseite.
+- Der Canvas-Builder laeuft ueber die eigene Route `/builder`; `/admin/config?section=builder|templates|answers|defaults` redirectet dorthin.
 - Diese Datei enthaelt nur noch Hinweise fuer die naechsten Sessions, keine laengere Historie.
 
 ## Cleanup Rule

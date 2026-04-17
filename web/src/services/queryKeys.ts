@@ -27,6 +27,21 @@ export const queryKeys = {
 
   myTasks: () => ["my-tasks"] as const,
 
+  tasks: {
+    byRef: (taskRef: string) => ["tasks", "ref", taskRef] as const,
+  },
+
+  rotation: {
+    completedOnboardings: (search: string) => ["rotation", "completed-onboardings", search] as const,
+    plans: (personId: number | null) => ["rotation", "plans", personId ?? null] as const,
+    planDetail: (planId: number | null) => ["rotation", "plans", "detail", planId ?? null] as const,
+    generatedTasks: (planId: number | null) => ["rotation", "plans", planId ?? null, "generated-tasks"] as const,
+    auditLog: (planId: number | null, limit: number, offset: number) =>
+      ["rotation", "plans", planId ?? null, "audit", limit, offset] as const,
+    notifications: (planId: number | null, limit: number, offset: number) =>
+      ["rotation", "plans", planId ?? null, "notifications", limit, offset] as const,
+  },
+
   dashboard: {
     all: () => ["dashboard"] as const,
     insights: (dashboardPersona: DashboardPersona, processTypeKey: string | null | undefined) =>

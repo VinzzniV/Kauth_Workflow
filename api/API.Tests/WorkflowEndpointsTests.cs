@@ -1217,6 +1217,7 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddSingleton<INotificationEmailTestSender, StubNotificationEmailTestSender>();
         builder.Services.AddSingleton<INotificationEmailConfigurationService, StubNotificationEmailConfigurationService>();
         builder.Services.AddSingleton<ISupervisorStepService, StubSupervisorStepService>();
+        builder.Services.AddSingleton<IRotationTemplateAdminService>(_ => throw new NotSupportedException());
 
         var app = builder.Build();
         app.MapWorkflowEndpoints();
@@ -1944,6 +1945,23 @@ public sealed class WorkflowEndpointsTests
             CancellationToken cancellationToken = default)
         {
             SendNotificationsCallCount += 1;
+            return Task.FromResult<IReadOnlyList<NotificationDispatchResult>>(
+            [
+                .. targets.Select(target => new NotificationDispatchResult
+                {
+                    NotificationId = target.NotificationId,
+                    Status = "sent",
+                    Success = true,
+                    Attempted = true,
+                    ErrorMessage = null
+                })
+            ]);
+        }
+
+        public Task<IReadOnlyList<NotificationDispatchResult>> SendRotationNotificationsAsync(
+            IReadOnlyList<RotationNotificationDispatchTarget> targets,
+            CancellationToken cancellationToken = default)
+        {
             return Task.FromResult<IReadOnlyList<NotificationDispatchResult>>(
             [
                 .. targets.Select(target => new NotificationDispatchResult

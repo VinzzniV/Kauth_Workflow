@@ -102,6 +102,16 @@ export function createWorkflowSummary(overrides: Partial<WorkflowSummary> = {}):
         totalCount: 2,
         openCount: 1,
         inProgressCount: 0,
+        blockedCount: 0,
+        doneCount: 1,
+        completedCount: 1,
+        activeCount: 1,
+      },
+      required: {
+        totalCount: 2,
+        openCount: 1,
+        inProgressCount: 0,
+        blockedCount: 0,
         doneCount: 1,
         completedCount: 1,
         activeCount: 1,
@@ -110,6 +120,7 @@ export function createWorkflowSummary(overrides: Partial<WorkflowSummary> = {}):
         totalCount: 2,
         openCount: 1,
         inProgressCount: 0,
+        blockedCount: 0,
         doneCount: 1,
         completedCount: 1,
         activeCount: 1,
@@ -125,9 +136,12 @@ export function createTaskWithWorkflow(
   taskOverrides: Partial<WorkflowTask> = {},
   workflowOverrides: Partial<TaskWithWorkflow["workflow"]> = {}
 ): TaskWithWorkflow {
+  const taskId = taskOverrides.id ?? 1;
   return {
+    taskRef: `wf:${taskId}`,
+    taskFamily: "workflow",
     task: {
-      id: 1,
+      id: taskId,
       taskTemplateId: null,
       taskKey: "hardware_setup",
       isApprovalTask: false,
@@ -183,6 +197,78 @@ export function createTaskWithWorkflow(
       roleId: 5,
       roleName: "Engineer",
       ...workflowOverrides,
+    },
+    rotation: null,
+  };
+}
+
+export function createRotationTask(
+  taskOverrides: Partial<WorkflowTask> = {},
+  rotationOverrides: Partial<NonNullable<TaskWithWorkflow["rotation"]>> = {}
+): TaskWithWorkflow {
+  const taskId = taskOverrides.id ?? 1;
+  return {
+    taskRef: `rot:${taskId}`,
+    taskFamily: "rotation",
+    task: {
+      id: taskId,
+      taskTemplateId: null,
+      taskKey: "rotation_access",
+      isApprovalTask: false,
+      isRuntimeNodeTask: false,
+      title: "Zugriff vorbereiten",
+      description: "Rechte für den nächsten Bereich setzen",
+      category: "rotation",
+      iconKey: "user",
+      status: "open",
+      isRequired: true,
+      dueInDays: 2,
+      dueAt: "2026-06-18T08:00:00.000Z",
+      slaStatus: "on_track",
+      sortOrder: 10,
+      createdAt: "2026-06-10T08:00:00.000Z",
+      readyAt: null,
+      startedAt: null,
+      completedAt: null,
+      processArea: "IT",
+      isDepartmentPhaseTask: true,
+      canUpdateStatus: true,
+      canDecideApproval: false,
+      canAddComment: true,
+      assignments: [
+        {
+          id: 1,
+          assignmentType: "responsibility",
+          isPrimary: true,
+          assigneeUserId: null,
+          assigneeUserName: null,
+          assigneeUserEmail: null,
+          assigneeResponsibilityId: 10,
+          assigneeResponsibilityKey: "it",
+          assigneeResponsibilityName: "IT",
+          assigneeResponsibilityType: "department",
+          assignedAt: "2026-06-10T08:00:00.000Z",
+          completedAt: null,
+        },
+      ],
+      dependencies: [],
+      comments: [],
+      ...taskOverrides,
+    },
+    workflow: null,
+    rotation: {
+      rotationPlanId: 42,
+      planStatus: "active",
+      planTitle: "Anika Sattler - Durchlauf 2026",
+      sourceWorkflowUid: "wf-onboarding-1",
+      personId: 11,
+      displayName: "Anika Sattler",
+      departmentId: 9,
+      departmentName: "IT",
+      rotationStationId: 100,
+      triggerType: "enter",
+      anchorDate: "2026-06-20",
+      ...rotationOverrides,
     },
   };
 }

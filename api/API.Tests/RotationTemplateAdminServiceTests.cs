@@ -217,13 +217,13 @@ public sealed class RotationTemplateAdminServiceTests
         public Task<RotationStationDto?> GetRotationStation(long stationId)
             => Task.FromResult<RotationStationDto?>(null);
 
-        public Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request)
+        public Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request, long actorUserId)
             => Task.FromResult<RotationStationDto?>(null);
 
-        public Task<RotationStationDto?> UpdateRotationStation(long stationId, RotationStationUpsertRequest request)
+        public Task<RotationStationDto?> UpdateRotationStation(long stationId, RotationStationUpsertRequest request, long actorUserId)
             => Task.FromResult<RotationStationDto?>(null);
 
-        public Task<bool> DeleteRotationStation(long stationId)
+        public Task<bool> DeleteRotationStation(long stationId, long actorUserId)
             => Task.FromResult(true);
 
         public Task<List<RotationGeneratedTaskDto>> GetRotationGeneratedTasks(long planId)
@@ -231,6 +231,12 @@ public sealed class RotationTemplateAdminServiceTests
 
         public Task<RotationGeneratedTaskDto?> GetRotationGeneratedTask(long taskId)
             => Task.FromResult<RotationGeneratedTaskDto?>(null);
+
+        public Task<List<RotationAuditEntryDto>> GetRotationAuditLog(long planId, int limit = 200, int offset = 0)
+            => Task.FromResult(new List<RotationAuditEntryDto>());
+
+        public Task<List<RotationNotificationDto>> GetRotationNotifications(long planId, int limit = 200, int offset = 0)
+            => Task.FromResult(new List<RotationNotificationDto>());
 
         public Task<List<long>> GetRotationPlanIdsForDepartment(int departmentId)
             => Task.FromResult(new List<long>());
@@ -243,6 +249,15 @@ public sealed class RotationTemplateAdminServiceTests
                 Cancelled = 0,
                 Unchanged = 0
             });
+
+        public Task<int> CreateDueRotationNotifications(DateOnly asOfDate)
+            => Task.FromResult(0);
+
+        public Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications()
+            => Task.FromResult(new List<RotationNotificationDispatchTarget>());
+
+        public Task ApplyRotationNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results)
+            => Task.CompletedTask;
 
         public Task<List<DepartmentActionTemplateDto>> GetDepartmentActionTemplates(int? departmentId, bool? isActive = null)
             => Task.FromResult(new List<DepartmentActionTemplateDto>());

@@ -6,19 +6,24 @@ import {
 } from "../workflowApi";
 import {
   addTaskComment,
+  addTaskCommentByRef,
   decideTaskApproval,
+  decideTaskApprovalByRef,
   updateTaskStatus,
+  updateTaskStatusByRef,
 } from "../taskApi";
 import { queryKeys } from "../queryKeys";
-import type { RequirementSelectionPayload, WorkflowTaskStatus } from "../../types/workflow";
+import type { RequirementSelectionPayload, TaskStatus } from "../../types/workflow";
 
 type TaskMutationVariables = {
-  workflowUid: string;
+  workflowUid?: string | null;
   taskId: number;
+  taskRef?: string;
+  rotationPlanId?: number | null;
 };
 
 type UpdateTaskStatusVariables = TaskMutationVariables & {
-  status: WorkflowTaskStatus;
+  status: TaskStatus;
 };
 
 type AddTaskCommentVariables = TaskMutationVariables & {
@@ -32,12 +37,23 @@ type DecideTaskApprovalVariables = TaskMutationVariables & {
 
 function invalidateWorkflowTaskQueries(
   invalidateQueries: ReturnType<typeof useQueryClient>["invalidateQueries"],
-  workflowUid: string
+  workflowUid?: string | null,
+  rotationPlanId?: number | null,
+  taskRef?: string
 ) {
-  if (workflowUid.trim()) {
+  if (workflowUid?.trim()) {
     invalidateQueries({ queryKey: queryKeys.workflows.tasks(workflowUid) });
     invalidateQueries({ queryKey: queryKeys.workflows.detail(workflowUid) });
     invalidateQueries({ queryKey: queryKeys.workflows.auditLog(workflowUid, 50, 0) });
+  }
+
+  if (rotationPlanId && rotationPlanId > 0) {
+    invalidateQueries({ queryKey: queryKeys.rotation.planDetail(rotationPlanId) });
+    invalidateQueries({ queryKey: queryKeys.rotation.generatedTasks(rotationPlanId) });
+  }
+
+  if (taskRef?.trim()) {
+    invalidateQueries({ queryKey: queryKeys.tasks.byRef(taskRef) });
   }
 }
 
@@ -71,10 +87,10 @@ export function useUpdateTaskStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ taskId, status }: UpdateTaskStatusVariables) =>
-      updateTaskStatus(taskId, status),
-    onSuccess: (_, { workflowUid }) => {
-      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid);
+    mutationFn: ({ taskId, taskRef, status }: UpdateTaskStatusVariables) =>
+      taskRef ? updateTaskStatusByRef(taskRef, status) : updateTaskStatus(taskId, status),
+    onSuccess: (_, { workflowUid, rotationPlanId, taskRef }) => {
+      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid, rotationPlanId, taskRef);
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
@@ -86,9 +102,10 @@ export function useAddTaskComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ taskId, text }: AddTaskCommentVariables) => addTaskComment(taskId, text),
-    onSuccess: (_, { workflowUid }) => {
-      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid);
+    mutationFn: ({ taskId, taskRef, text }: AddTaskCommentVariables) =>
+      taskRef ? addTaskCommentByRef(taskRef, text) : addTaskComment(taskId, text),
+    onSuccess: (_, { workflowUid, rotationPlanId, taskRef }) => {
+      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid, rotationPlanId, taskRef);
       queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
     },
   });
@@ -98,10 +115,12 @@ export function useDecideTaskApproval() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ taskId, approved, commentText }: DecideTaskApprovalVariables) =>
-      decideTaskApproval(taskId, approved, commentText),
-    onSuccess: (_, { workflowUid }) => {
-      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid);
+    mutationFn: ({ taskId, taskRef, approved, commentText }: DecideTaskApprovalVariables) =>
+      taskRef
+        ? decideTaskApprovalByRef(taskRef, approved, commentText)
+        : decideTaskApproval(taskId, approved, commentText),
+    onSuccess: (_, { workflowUid, rotationPlanId, taskRef }) => {
+      invalidateWorkflowTaskQueries(queryClient.invalidateQueries.bind(queryClient), workflowUid, rotationPlanId, taskRef);
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });

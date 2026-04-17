@@ -12,6 +12,20 @@ internal interface IRotationPlanningService
         CurrentUser currentUser,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<RotationAuditEntryDto>?> GetRotationAuditLogAsync(
+        long planId,
+        int limit,
+        int offset,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RotationNotificationDto>?> GetRotationNotificationsAsync(
+        long planId,
+        int limit,
+        int offset,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default);
+
     Task<RotationPlanDetailDto> CreateRotationPlanAsync(
         CreateRotationPlanRequest request,
         CurrentUser currentUser,

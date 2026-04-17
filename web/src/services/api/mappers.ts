@@ -8,6 +8,9 @@ import type {
   RequirementVisibilityDependency,
   RoleRequirement,
   RoleRecommendations,
+  TaskFamily,
+  TaskRotationContext,
+  TaskStatus,
   TaskWithWorkflow,
   TaskWorkflowContext,
   WorkflowAuditEntry,
@@ -31,7 +34,6 @@ import type {
   WorkflowTaskDependency,
   WorkflowTaskMetrics,
   WorkflowTaskSlaStatus,
-  WorkflowTaskStatus,
   PersonWorkflowHistory,
   PersonWorkflowSummary,
 } from "../../types/workflow";
@@ -48,6 +50,7 @@ import type {
   BackendRequirementVisibilityDependencyDto,
   BackendRoleRecommendationsDto,
   BackendTaskWithWorkflowDto,
+  BackendTaskRotationContextDto,
   BackendTaskWorkflowContextDto,
   BackendWorkflowAuditEntryDto,
   BackendWorkflowConfigDto,
@@ -96,7 +99,7 @@ function toWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus {
   }
 }
 
-function toWorkflowTaskStatus(status: string): WorkflowTaskStatus {
+function toTaskStatus(status: string): TaskStatus {
   const normalized = normalizeStatus(status);
 
   switch (normalized) {
@@ -105,6 +108,9 @@ function toWorkflowTaskStatus(status: string): WorkflowTaskStatus {
     case "in_progress":
     case "blocked":
     case "done":
+    case "completed":
+    case "failed":
+    case "cancelled":
       return normalized;
     default:
       return "open";
@@ -277,7 +283,7 @@ function mapWorkflowTaskAssignment(dto: BackendWorkflowTaskAssignmentDto): Workf
 function mapWorkflowTaskDependency(dto: BackendWorkflowTaskDependencyDto): WorkflowTaskDependency {
   return {
     ...dto,
-    requiredStatus: toWorkflowTaskStatus(dto.requiredStatus),
+    requiredStatus: toTaskStatus(dto.requiredStatus),
   };
 }
 
@@ -289,7 +295,7 @@ export function mapWorkflowTask(dto: BackendWorkflowTaskDto): WorkflowTask {
   return {
     ...dto,
     iconKey: toIconKey(dto.iconKey),
-    status: toWorkflowTaskStatus(dto.status),
+    status: toTaskStatus(dto.status),
     slaStatus: toWorkflowTaskSlaStatus(dto.slaStatus),
     processArea: toWorkflowTaskArea(dto.processArea),
     assignments: dto.assignments.map(mapWorkflowTaskAssignment),
@@ -395,10 +401,37 @@ function mapTaskWorkflowContext(dto: BackendTaskWorkflowContextDto): TaskWorkflo
   };
 }
 
+function mapTaskRotationContext(dto: BackendTaskRotationContextDto): TaskRotationContext {
+  return {
+    rotationPlanId: dto.rotationPlanId,
+    planStatus:
+      normalizeStatus(dto.planStatus) === "active"
+      || normalizeStatus(dto.planStatus) === "completed"
+      || normalizeStatus(dto.planStatus) === "archived"
+        ? (normalizeStatus(dto.planStatus) as TaskRotationContext["planStatus"])
+        : "draft",
+    planTitle: dto.planTitle,
+    sourceWorkflowUid: dto.sourceWorkflowUid,
+    personId: dto.personId,
+    displayName: dto.displayName,
+    departmentId: dto.departmentId,
+    departmentName: dto.departmentName,
+    rotationStationId: dto.rotationStationId,
+    triggerType:
+      dto.triggerType === "enter" || dto.triggerType === "exit"
+        ? dto.triggerType
+        : null,
+    anchorDate: dto.anchorDate,
+  };
+}
+
 export function mapTaskWithWorkflow(dto: BackendTaskWithWorkflowDto): TaskWithWorkflow {
   return {
+    taskRef: dto.taskRef,
+    taskFamily: (dto.taskFamily === "rotation" ? "rotation" : "workflow") satisfies TaskFamily,
     task: mapWorkflowTask(dto.task),
-    workflow: mapTaskWorkflowContext(dto.workflow),
+    workflow: dto.workflow ? mapTaskWorkflowContext(dto.workflow) : null,
+    rotation: dto.rotation ? mapTaskRotationContext(dto.rotation) : null,
   };
 }
 
