@@ -26,18 +26,15 @@ export default function AdminConfigPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const rawSection = (searchParams.get("section") ?? "").trim().toLowerCase();
+  const redirectToBuilder =
+    rawSection === "builder" || rawSection === "templates" || rawSection === "answers" || rawSection === "defaults";
+  const redirectToSystemLogs = rawSection === "operations";
+  const redirectToSystemConfiguration = rawSection === "system";
 
-  if (rawSection === "builder" || rawSection === "templates" || rawSection === "answers" || rawSection === "defaults") {
-    return <Navigate to="/builder" replace />;
-  }
-
-  if (rawSection === "operations") {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("section", "system");
-    return <Navigate to={`/admin/config?${nextParams.toString()}`} replace />;
-  }
-
-  const section = normalizeAdminWorkspaceSection(searchParams.get("section"));
+  const effectiveSectionValue = redirectToSystemConfiguration
+    ? "system_configuration"
+    : searchParams.get("section");
+  const section = normalizeAdminWorkspaceSection(effectiveSectionValue);
   const organizationEntity = normalizeAdminOrganizationEntity(searchParams.get("entity"));
   const selectedEntityId = parseAdminWorkspaceId(searchParams.get("id"));
 
@@ -354,6 +351,22 @@ export default function AdminConfigPage() {
     onNotice: setNotice,
     onError: handleError,
   });
+
+  if (redirectToBuilder) {
+    return <Navigate to="/builder" replace />;
+  }
+
+  if (redirectToSystemLogs) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("section", "system_logs");
+    return <Navigate to={`/admin/config?${nextParams.toString()}`} replace />;
+  }
+
+  if (redirectToSystemConfiguration) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("section", "system_configuration");
+    return <Navigate to={`/admin/config?${nextParams.toString()}`} replace />;
+  }
 
   return (
     <main className="app-shell">

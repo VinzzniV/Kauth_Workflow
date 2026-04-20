@@ -114,6 +114,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IWorkflowVisibilityService, WorkflowVisibilityService>();
         services.AddScoped<IWorkflowNotificationDispatchService, WorkflowNotificationDispatchService>();
         services.AddScoped<IWorkflowCatalogService, WorkflowCatalogService>();
+        services.AddScoped<IPersonLifecycleProjectionService, PersonLifecycleProjectionService>();
         services.AddScoped<ISystemEventLogService, SystemEventLogService>();
         services.AddScoped<IRotationPlanningService, RotationPlanningService>();
         services.AddScoped<IRotationTemplateAdminService, RotationTemplateAdminService>();

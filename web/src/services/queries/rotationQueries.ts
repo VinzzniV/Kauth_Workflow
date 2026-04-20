@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
+  getAdminRotationTemplates,
   getRotationAuditLog,
   getRotationGeneratedTasks,
   getRotationNotifications,
@@ -11,7 +12,7 @@ import { queryKeys } from "../queryKeys";
 
 export function useRotationCompletedOnboardings(search: string, enabled = true) {
   return useQuery({
-    queryKey: queryKeys.rotation.completedOnboardings(search),
+    queryKey: queryKeys.people.rotationEligible(search),
     queryFn: () => searchCompletedRotationOnboardings(search),
     enabled,
     staleTime: 30 * 1000,
@@ -22,8 +23,8 @@ export function useRotationCompletedOnboardings(search: string, enabled = true) 
 export function useRotationPlans(personId: number | null, enabled = true) {
   return useQuery({
     queryKey: queryKeys.rotation.plans(personId),
-    queryFn: () => getRotationPlans(personId as number),
-    enabled: enabled && typeof personId === "number" && personId > 0,
+    queryFn: () => getRotationPlans(personId),
+    enabled,
     staleTime: 15 * 1000,
     placeholderData: keepPreviousData,
   });
@@ -75,6 +76,20 @@ export function useRotationNotifications(
     queryFn: () => getRotationNotifications(planId as number, limit, offset),
     enabled: enabled && typeof planId === "number" && planId > 0,
     staleTime: 15 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminRotationTemplates(
+  departmentId: number | null = null,
+  isActive: boolean | null = null,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: queryKeys.rotation.adminTemplates(departmentId, isActive),
+    queryFn: () => getAdminRotationTemplates(departmentId, isActive),
+    enabled,
+    staleTime: 30 * 1000,
     placeholderData: keepPreviousData,
   });
 }

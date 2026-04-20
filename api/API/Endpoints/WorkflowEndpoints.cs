@@ -50,6 +50,38 @@ internal static class WorkflowEndpoints
         }).Produces<WorkflowCreateResponse>(StatusCodes.Status201Created)
           .Produces(StatusCodes.Status400BadRequest);
 
+        app.MapPost("/people", async (
+            [FromBody] CreatePersonRequest request,
+            IWorkflowRuntimeService workflowRuntimeService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanCreateWorkflow,
+                "HR, Abteilungsleitung oder Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var created = await workflowRuntimeService.CreatePersonAsync(request, access.User!);
+                return Results.Created($"/people/{created.PersonId}", created);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<WorkflowTargetPersonDto>(StatusCodes.Status201Created)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden);
+
         app.MapGet("/workflows", async (
             [FromQuery] string? status,
             [FromQuery] int? department,

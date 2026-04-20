@@ -38,16 +38,26 @@ function createCompletedOnboarding(
   overrides: Partial<CompletedOnboardingSearchResult> = {}
 ): CompletedOnboardingSearchResult {
   return {
-    workflowUid: "wf-onboarding-1",
     personId: 11,
     displayName: "Anika Sattler",
+    firstName: "Anika",
+    lastName: "Sattler",
     employeeNumber: 4711,
     badgeNumber: 98,
     departmentId: 3,
     departmentName: "BS",
     roleId: 5,
     roleName: "Studentin",
-    completedAt: "2026-06-01T08:00:00.000Z",
+    employmentStatus: "active",
+    appUserId: null,
+    directoryIdentityId: null,
+    directoryLinkStatus: "unlinked",
+    directoryDisplayName: null,
+    directoryUserPrincipalName: null,
+    directoryMail: null,
+    directoryEmployeeNumber: null,
+    latestCompletedOnboardingWorkflowUid: "wf-onboarding-1",
+    latestCompletedOnboardingAt: "2026-06-01T08:00:00.000Z",
     ...overrides,
   };
 }
@@ -56,10 +66,15 @@ function createRotationPlan(overrides: Partial<RotationPlanListItem> = {}): Rota
   return {
     id: 42,
     personId: 11,
+    sourceWorkflowUid: "wf-onboarding-1",
     displayName: "Anika Sattler",
+    firstName: "Anika",
+    lastName: "Sattler",
+    departmentId: 3,
+    departmentName: "BS",
     title: "Anika Sattler - Durchlauf 2026",
     status: "draft",
-    sourceWorkflowUid: "wf-onboarding-1",
+    createdByUserId: 99,
     stationCount: 2,
     createdAt: "2026-06-05T08:00:00.000Z",
     updatedAt: "2026-06-06T08:00:00.000Z",
@@ -84,13 +99,14 @@ describe("RotationPlanningPage", () => {
     mockedUseRotationPlans.mockReturnValue({
       data: [createRotationPlan()],
       isLoading: false,
+      isFetching: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     } as never);
   });
 
-  it("shows completed onboarding results and existing plans for the selected person", async () => {
-    renderWithApp(<RotationPlanningPage />, { roleKeys: ["auth_hr"] });
+  it("shows eligible people and existing plans for the selected person", async () => {
+    renderWithApp(<RotationPlanningPage />, { roleKeys: ["auth_hr"], route: "/rotation?mode=create" });
 
     expect(await screen.findByRole("heading", { name: "Anika Sattler" })).toBeTruthy();
     expect(screen.getByText("BS")).toBeTruthy();
@@ -106,20 +122,26 @@ describe("RotationPlanningPage", () => {
     ).toBe("/rotation/plans/42");
   });
 
-  it("creates a rotation plan from the selected onboarding", async () => {
+  it("creates a rotation plan from the selected person's latest completed onboarding", async () => {
     mockedCreateRotationPlan.mockResolvedValue({
       id: 77,
       personId: 11,
+      sourceWorkflowUid: "wf-onboarding-1",
       displayName: "Anika Sattler",
+      firstName: "Anika",
+      lastName: "Sattler",
+      departmentId: 3,
+      departmentName: "BS",
       title: "HR Durchlauf",
       status: "draft",
-      sourceWorkflowUid: "wf-onboarding-1",
+      createdByUserId: 99,
       stationCount: 0,
       createdAt: "2026-06-07T08:00:00.000Z",
       updatedAt: "2026-06-07T08:00:00.000Z",
+      stations: [],
     });
 
-    renderWithApp(<RotationPlanningPage />, { roleKeys: ["auth_hr"] });
+    renderWithApp(<RotationPlanningPage />, { roleKeys: ["auth_hr"], route: "/rotation?mode=create" });
 
     fireEvent.click(await screen.findByRole("button", { name: "Person öffnen" }));
     fireEvent.change(screen.getByLabelText("Titel"), { target: { value: "HR Durchlauf" } });

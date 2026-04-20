@@ -1,6 +1,8 @@
 import type {
   CompletedOnboardingSearchResult,
   CreateRotationPlanPayload,
+  DepartmentActionTemplate,
+  DepartmentActionTemplateUpsertPayload,
   RotationAuditEntry,
   RotationGeneratedTask,
   RotationNotification,
@@ -15,7 +17,7 @@ import { requestJson } from "./api/client";
 function buildSearchQuery(search?: string, limit = 20): string {
   const params = new URLSearchParams({ limit: String(limit) });
   if (search && search.trim()) {
-    params.set("search", search.trim());
+    params.set("query", search.trim());
   }
 
   return params.toString();
@@ -25,12 +27,17 @@ export async function searchCompletedRotationOnboardings(
   search?: string,
   limit = 20
 ): Promise<CompletedOnboardingSearchResult[]> {
-  return requestJson<CompletedOnboardingSearchResult[]>(`/rotation/completed-onboardings?${buildSearchQuery(search, limit)}`);
+  return requestJson<CompletedOnboardingSearchResult[]>(`/people/rotation-eligible?${buildSearchQuery(search, limit)}`);
 }
 
-export async function getRotationPlans(personId: number): Promise<RotationPlanListItem[]> {
-  const params = new URLSearchParams({ personId: String(personId) });
-  return requestJson<RotationPlanListItem[]>(`/rotation/plans?${params.toString()}`);
+export async function getRotationPlans(personId?: number | null): Promise<RotationPlanListItem[]> {
+  const params = new URLSearchParams();
+  if (typeof personId === "number" && personId > 0) {
+    params.set("personId", String(personId));
+  }
+
+  const query = params.toString();
+  return requestJson<RotationPlanListItem[]>(`/rotation/plans${query ? `?${query}` : ""}`);
 }
 
 export async function getRotationPlan(planId: number): Promise<RotationPlanDetail> {
@@ -112,5 +119,57 @@ export async function regenerateRotationGeneratedTasks(
     {
       method: "POST",
     }
+  );
+}
+
+export async function getAdminRotationTemplates(
+  departmentId?: number | null,
+  isActive?: boolean | null
+): Promise<DepartmentActionTemplate[]> {
+  const params = new URLSearchParams();
+  if (typeof departmentId === "number") {
+    params.set("departmentId", String(departmentId));
+  }
+  if (typeof isActive === "boolean") {
+    params.set("isActive", String(isActive));
+  }
+  const query = params.toString();
+  return requestJson<DepartmentActionTemplate[]>(
+    `/admin/rotation/action-templates${query ? `?${query}` : ""}`
+  );
+}
+
+export async function getAdminRotationTemplate(templateId: number): Promise<DepartmentActionTemplate> {
+  return requestJson<DepartmentActionTemplate>(
+    `/admin/rotation/action-templates/${encodeURIComponent(String(templateId))}`
+  );
+}
+
+export async function createAdminRotationTemplate(
+  payload: DepartmentActionTemplateUpsertPayload
+): Promise<DepartmentActionTemplate> {
+  return requestJson<DepartmentActionTemplate>("/admin/rotation/action-templates", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export async function updateAdminRotationTemplate(
+  templateId: number,
+  payload: DepartmentActionTemplateUpsertPayload
+): Promise<DepartmentActionTemplate> {
+  return requestJson<DepartmentActionTemplate>(
+    `/admin/rotation/action-templates/${encodeURIComponent(String(templateId))}`,
+    {
+      method: "PUT",
+      body: payload,
+    }
+  );
+}
+
+export async function deleteAdminRotationTemplate(templateId: number): Promise<void> {
+  await requestJson<unknown>(
+    `/admin/rotation/action-templates/${encodeURIComponent(String(templateId))}`,
+    { method: "DELETE" }
   );
 }

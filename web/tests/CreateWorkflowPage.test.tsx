@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CreateWorkflowPage from "../src/pages/CreateWorkflowPage";
 import * as lookupApi from "../src/services/lookupApi";
+import * as peopleApi from "../src/services/peopleApi";
 import * as workflowApi from "../src/services/workflowApi";
 import { renderWithApp } from "./testUtils";
 
@@ -15,19 +16,29 @@ vi.mock("../src/services/lookupApi", async () => {
   };
 });
 
+vi.mock("../src/services/peopleApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/peopleApi")>("../src/services/peopleApi");
+  return {
+    ...actual,
+    searchPeople: vi.fn(),
+    createPerson: vi.fn(),
+  };
+});
+
 vi.mock("../src/services/workflowApi", async () => {
   const actual = await vi.importActual<typeof import("../src/services/workflowApi")>("../src/services/workflowApi");
   return {
     ...actual,
     getWorkflowConfig: vi.fn(),
-    searchWorkflowTargetPersonSources: vi.fn(),
     createWorkflow: vi.fn(),
   };
 });
 
 const mockedGetStartableWorkflowDefinitions = vi.mocked(lookupApi.getStartableWorkflowDefinitions);
+const mockedSearchPeople = vi.mocked(peopleApi.searchPeople);
+const mockedCreatePerson = vi.mocked(peopleApi.createPerson);
 const mockedGetWorkflowConfig = vi.mocked(workflowApi.getWorkflowConfig);
-const mockedSearchWorkflowTargetPersonSources = vi.mocked(workflowApi.searchWorkflowTargetPersonSources);
+const mockedCreateWorkflow = vi.mocked(workflowApi.createWorkflow);
 const mockedGetRoles = vi.mocked(lookupApi.getRoles);
 const mockedGetDepartments = vi.mocked(lookupApi.getDepartments);
 
@@ -35,8 +46,10 @@ describe("CreateWorkflowPage", () => {
   beforeEach(() => {
     vi.useRealTimers();
     mockedGetStartableWorkflowDefinitions.mockReset();
+    mockedSearchPeople.mockReset();
+    mockedCreatePerson.mockReset();
     mockedGetWorkflowConfig.mockReset();
-    mockedSearchWorkflowTargetPersonSources.mockReset();
+    mockedCreateWorkflow.mockReset();
     mockedGetRoles.mockReset();
     mockedGetDepartments.mockReset();
 
@@ -48,9 +61,8 @@ describe("CreateWorkflowPage", () => {
         defaultSelectedOptions: [],
       },
     });
-    mockedSearchWorkflowTargetPersonSources.mockResolvedValue([
+    mockedSearchPeople.mockResolvedValue([
       {
-        workflowUid: "wf-completed-1",
         personId: 22,
         displayName: "Ada Lovelace",
         firstName: "Ada",
@@ -61,10 +73,54 @@ describe("CreateWorkflowPage", () => {
         departmentName: "IT",
         roleId: 7,
         roleName: "Engineer",
-        completedAt: "2026-03-20T10:00:00.000Z",
-        archivedAt: null,
+        employmentStatus: "active",
+        appUserId: null,
+        directoryIdentityId: null,
+        directoryLinkStatus: "unlinked",
+        directoryDisplayName: null,
+        directoryUserPrincipalName: null,
+        directoryMail: null,
+        directoryEmployeeNumber: null,
+        latestCompletedOnboardingWorkflowUid: "wf-onboarding-1",
+        latestCompletedOnboardingAt: "2026-03-20T10:00:00.000Z",
       },
     ]);
+    mockedCreatePerson.mockResolvedValue({
+      personId: 77,
+      displayName: "Ada Lovelace",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      employeeNumber: 1001,
+      badgeNumber: 2002,
+      departmentId: 10,
+      departmentName: "IT",
+      roleId: 7,
+      roleName: "Engineer",
+      employmentStatus: "planned",
+      appUserId: null,
+      directoryIdentityId: null,
+      directoryLinkStatus: "unlinked",
+      directoryDisplayName: null,
+      directoryUserPrincipalName: null,
+      directoryMail: null,
+      directoryEmployeeNumber: null,
+      latestCompletedOnboardingWorkflowUid: null,
+      latestCompletedOnboardingAt: null,
+    });
+    mockedCreateWorkflow.mockResolvedValue({
+      uid: "wf-created-1",
+      notificationTargets: 0,
+      failedNotifications: 0,
+      summary: {
+        workflowStatus: "draft",
+        taskCount: 0,
+        readyTaskCount: 0,
+        blockedTaskCount: 0,
+        doneTaskCount: 0,
+        assignmentCount: 0,
+        pendingNotifications: 0,
+      },
+    });
     mockedGetDepartments.mockResolvedValue([
       { id: 10, name: "IT" },
       { id: 20, name: "HR" },
@@ -157,11 +213,11 @@ describe("CreateWorkflowPage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
 
-    expect(screen.getByRole("heading", { name: "Quellworkflow auswählen" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Bestehende Person auswählen" })).toBeTruthy();
     expect(screen.queryByText("Daten der neuen Person")).toBeNull();
   });
 
-  it("does not refetch target-person sources endlessly after selecting a person", async () => {
+  it("does not refetch people endlessly after selecting a person", async () => {
     mockedGetStartableWorkflowDefinitions.mockResolvedValue([
       {
         definitionKey: "department_change",
@@ -178,14 +234,14 @@ describe("CreateWorkflowPage", () => {
     expect(await screen.findByText("Änderung starten")).toBeTruthy();
     expect(await screen.findByText("Abteilungswechsel")).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
-    expect(await screen.findByRole("heading", { name: "Quellworkflow auswählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Bestehende Person auswählen" })).toBeTruthy();
 
-    await waitFor(() => expect(mockedSearchWorkflowTargetPersonSources).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedSearchPeople).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole("radio"));
 
     await new Promise((resolve) => window.setTimeout(resolve, 400));
-    await waitFor(() => expect(mockedSearchWorkflowTargetPersonSources).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedSearchPeople).toHaveBeenCalledTimes(1));
   });
 
   it("resets stale context when the workflow changes", async () => {
@@ -222,7 +278,7 @@ describe("CreateWorkflowPage", () => {
     fireEvent.click(screen.getByText("Offboarding"));
     fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
 
-    expect(await screen.findByRole("heading", { name: "Quellworkflow auswählen" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Bestehende Person auswählen" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Zurück zur Workflow-Auswahl" }));
     expect(await screen.findByText("Onboarding")).toBeTruthy();
@@ -263,5 +319,86 @@ describe("CreateWorkflowPage", () => {
     expect(screen.getAllByText("Ada Lovelace").length).toBeGreaterThan(0);
     expect(screen.getByText("Engineer")).toBeTruthy();
     expect(screen.getByText("IT")).toBeTruthy();
+  });
+
+  it("creates a canonical person first and then starts onboarding with targetPersonId", async () => {
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
+      {
+        definitionKey: "onboarding",
+        name: "Onboarding",
+        description: "Neue Person anlegen.",
+        requiresTargetPerson: false,
+        primaryLegacyProcessTypeKey: "onboarding",
+        latestPublishedVersionNumber: 1,
+      },
+    ]);
+
+    renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_hr"] });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Person" }));
+    fireEvent.change(screen.getByPlaceholderText("Max"), { target: { value: "Ada" } });
+    fireEvent.change(screen.getByPlaceholderText("Mustermann"), { target: { value: "Lovelace" } });
+    fireEvent.change(screen.getByPlaceholderText("10001"), { target: { value: "1001" } });
+    fireEvent.change(screen.getByPlaceholderText("60001"), { target: { value: "2002" } });
+    fireEvent.change(screen.getAllByRole("combobox")[0]!, { target: { value: "10" } });
+    fireEvent.change(screen.getAllByRole("combobox")[1]!, { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Zur Prüfung" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Workflow anlegen" }));
+
+    await waitFor(() => {
+      expect(mockedCreatePerson).toHaveBeenCalledWith({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        employeeNumber: 1001,
+        badgeNumber: 2002,
+        departmentId: 10,
+        roleId: 7,
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockedCreateWorkflow).toHaveBeenCalledWith({
+        workflowDefinitionKey: "onboarding",
+        processTypeKey: "onboarding",
+        targetPersonId: 77,
+        firstName: "Ada",
+        lastName: "Lovelace",
+        employeeNumber: 1001,
+        badgeNumber: 2002,
+        deadlineDate: null,
+        departmentId: 10,
+        roleId: 7,
+      });
+    });
+  });
+
+  it("starts change workflows directly against the selected person without source workflow", async () => {
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
+      {
+        definitionKey: "department_change",
+        name: "Abteilungswechsel",
+        description: "Bestehende Person in eine neue Abteilung verschieben.",
+        requiresTargetPerson: true,
+        primaryLegacyProcessTypeKey: "department_change",
+        latestPublishedVersionNumber: 1,
+      },
+    ]);
+
+    renderWithApp(<CreateWorkflowPage />, { roleKeys: ["auth_manager"] });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Weiter zur Personenauswahl" }));
+    fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("button", { name: "Zur Prüfung" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Änderung anlegen" }));
+
+    await waitFor(() => {
+      expect(mockedCreatePerson).not.toHaveBeenCalled();
+      expect(mockedCreateWorkflow).toHaveBeenCalledWith({
+        workflowDefinitionKey: "department_change",
+        processTypeKey: "department_change",
+        targetPersonId: 22,
+        deadlineDate: null,
+      });
+    });
   });
 });

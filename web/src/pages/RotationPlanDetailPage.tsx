@@ -6,6 +6,7 @@ import LoadingState from "../components/feedback/LoadingState";
 import { useToast } from "../components/feedback/useToast";
 import PageHeader from "../components/layout/PageHeader";
 import RotationAuditLog from "../components/rotation/RotationAuditLog";
+import RotationCalendarView from "../components/rotation/RotationCalendarView";
 import RotationNotificationsPanel from "../components/rotation/RotationNotificationsPanel";
 import {
   createRotationStation,
@@ -20,6 +21,7 @@ import {
   useRotationNotifications,
   useRotationPlanDetail,
 } from "../services/queries/rotationQueries";
+import { useDepartments } from "../services/queries/roleQueries";
 import type {
   RotationGeneratedTask,
   RotationPlanStatus,
@@ -139,6 +141,9 @@ export default function RotationPlanDetailPage() {
   const auditLogQuery = useRotationAuditLog(Number.isFinite(numericPlanId) ? numericPlanId : null, 100, 0, true);
   const notificationsQuery = useRotationNotifications(Number.isFinite(numericPlanId) ? numericPlanId : null, 100, 0, true);
 
+  const departmentsQuery = useDepartments();
+  const departments = departmentsQuery.data ?? [];
+
   const plan = planDetailQuery.data;
   const orderedStations = useMemo(
     () => [...(plan?.stations ?? [])].sort((left, right) => left.orderIndex - right.orderIndex),
@@ -172,6 +177,7 @@ export default function RotationPlanDetailPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.rotation.generatedTasks(numericPlanId) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.rotation.auditLog(numericPlanId, 100, 0) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.rotation.notifications(numericPlanId, 100, 0) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.plans(null) }),
       plan?.personId
         ? queryClient.invalidateQueries({ queryKey: queryKeys.rotation.plans(plan.personId) })
         : Promise.resolve(),
@@ -342,17 +348,23 @@ export default function RotationPlanDetailPage() {
               </div>
 
               <div className="workflow-grid" aria-label="Stationsformular">
-                <div className="dashboard-card card-primary">
+                <div className="dashboard-card card-primary rotation-form-card">
                   <label className="field compact">
-                    <span>Abteilungs-ID</span>
-                    <input
-                      type="number"
+                    <span>Abteilung</span>
+                    <select
                       value={stationForm.departmentId}
                       onChange={(event) =>
                         setStationForm((current) => ({ ...current, departmentId: event.target.value }))
                       }
-                      placeholder="z. B. 3"
-                    />
+                      disabled={departmentsQuery.isLoading}
+                    >
+                      <option value="">Abteilung wählen...</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={String(dept.id)}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                   <label className="field compact">
                     <span>Startdatum</span>
@@ -371,16 +383,6 @@ export default function RotationPlanDetailPage() {
                       value={stationForm.endDate}
                       onChange={(event) =>
                         setStationForm((current) => ({ ...current, endDate: event.target.value }))
-                      }
-                    />
-                  </label>
-                  <label className="field compact">
-                    <span>Reihenfolge</span>
-                    <input
-                      type="number"
-                      value={stationForm.orderIndex}
-                      onChange={(event) =>
-                        setStationForm((current) => ({ ...current, orderIndex: event.target.value }))
                       }
                     />
                   </label>
@@ -512,6 +514,8 @@ export default function RotationPlanDetailPage() {
                 </div>
               )}
             </section>
+
+            <RotationCalendarView stations={orderedStations} />
 
             <section className="panel">
               <div className="panel-head">

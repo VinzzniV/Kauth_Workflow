@@ -3,8 +3,8 @@ import type {
   EmployeeFormData,
   Role,
   StartableWorkflowDefinition,
-  WorkflowTargetPersonSource,
   WorkflowCreationPayload,
+  WorkflowTargetPerson,
 } from "../types/workflow";
 
 export type SubmitState = "idle" | "loading" | "success" | "error";
@@ -15,7 +15,7 @@ export type WorkflowStartFormState = {
   employee: EmployeeFormData;
   departmentId: number | null;
   roleId: number | null;
-  targetPersonSourceSearch: string;
+  targetPersonSearch: string;
 };
 
 export const EMPTY_EMPLOYEE: EmployeeFormData = {
@@ -32,7 +32,7 @@ export function createInitialWorkflowStartFormState(): WorkflowStartFormState {
     employee: EMPTY_EMPLOYEE,
     departmentId: null,
     roleId: null,
-    targetPersonSourceSearch: "",
+    targetPersonSearch: "",
   };
 }
 
@@ -42,6 +42,17 @@ export function hasValidEmployeeData(employee: EmployeeFormData): boolean {
     employee.lastName.trim().length > 0 &&
     employee.employeeNumber > 0 &&
     employee.badgeNumber > 0
+  );
+}
+
+export function hasCompleteTargetPersonContext(person: WorkflowTargetPerson): boolean {
+  return Boolean(
+    person.departmentId &&
+      person.roleId &&
+      person.employeeNumber &&
+      person.employeeNumber > 0 &&
+      person.badgeNumber &&
+      person.badgeNumber > 0
   );
 }
 
@@ -92,26 +103,25 @@ export function getAvailableRoles(selectedDepartmentId: number | null, roles: Ro
   return roles.filter((role) => role.departmentId === selectedDepartmentId);
 }
 
-export function resolveSelectedTargetPersonSource(
-  targetPersonSources: WorkflowTargetPersonSource[],
-  selectedTargetPersonSourceSnapshot: WorkflowTargetPersonSource | null
-): WorkflowTargetPersonSource | null {
-  if (!selectedTargetPersonSourceSnapshot) {
+export function resolveSelectedTargetPerson(
+  targetPeople: WorkflowTargetPerson[],
+  selectedTargetPersonSnapshot: WorkflowTargetPerson | null
+): WorkflowTargetPerson | null {
+  if (!selectedTargetPersonSnapshot) {
     return null;
   }
 
   return (
-    targetPersonSources.find(
-      (result) => result.workflowUid === selectedTargetPersonSourceSnapshot.workflowUid
-    ) ?? selectedTargetPersonSourceSnapshot
+    targetPeople.find((result) => result.personId === selectedTargetPersonSnapshot.personId)
+    ?? selectedTargetPersonSnapshot
   );
 }
 
 type WorkflowCreationContextCompletionArgs = {
   selectedWorkflowDefinitionKey: string | null;
   requiresTargetPerson: boolean;
-  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
-  targetPersonSourcesLoading: boolean;
+  selectedTargetPerson: WorkflowTargetPerson | null;
+  targetPeopleLoading: boolean;
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
@@ -123,8 +133,8 @@ type WorkflowCreationContextCompletionArgs = {
 export function isWorkflowCreationContextComplete({
   selectedWorkflowDefinitionKey,
   requiresTargetPerson,
-  selectedTargetPersonSource,
-  targetPersonSourcesLoading,
+  selectedTargetPerson,
+  targetPeopleLoading,
   employee,
   selectedDepartmentId,
   selectedRoleId,
@@ -138,12 +148,9 @@ export function isWorkflowCreationContextComplete({
 
   if (requiresTargetPerson) {
     return Boolean(
-      selectedTargetPersonSource &&
-        selectedTargetPersonSource.departmentId &&
-        selectedTargetPersonSource.roleId &&
-        selectedTargetPersonSource.employeeNumber > 0 &&
-        selectedTargetPersonSource.badgeNumber > 0 &&
-        !targetPersonSourcesLoading
+      selectedTargetPerson &&
+        hasCompleteTargetPersonContext(selectedTargetPerson) &&
+        !targetPeopleLoading
     );
   }
 
@@ -159,7 +166,7 @@ type WorkflowCreationPayloadArgs = {
   selectedWorkflowDefinitionKey: string;
   selectedLegacyProcessTypeKey: string;
   requiresTargetPerson: boolean;
-  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  targetPersonId: number;
   employee: EmployeeFormData;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
@@ -169,30 +176,24 @@ export function buildWorkflowCreationPayload({
   selectedWorkflowDefinitionKey,
   selectedLegacyProcessTypeKey,
   requiresTargetPerson,
-  selectedTargetPersonSource,
+  targetPersonId,
   employee,
   selectedDepartmentId,
   selectedRoleId,
 }: WorkflowCreationPayloadArgs): WorkflowCreationPayload {
-  if (requiresTargetPerson && selectedTargetPersonSource) {
+  if (requiresTargetPerson) {
     return {
       workflowDefinitionKey: selectedWorkflowDefinitionKey,
       processTypeKey: selectedLegacyProcessTypeKey,
-      targetPersonId: selectedTargetPersonSource.personId,
-      sourceWorkflowUid: selectedTargetPersonSource.workflowUid,
-      firstName: selectedTargetPersonSource.firstName,
-      lastName: selectedTargetPersonSource.lastName,
-      employeeNumber: selectedTargetPersonSource.employeeNumber,
-      badgeNumber: selectedTargetPersonSource.badgeNumber,
+      targetPersonId,
       deadlineDate: employee.deadlineDate.trim() || null,
-      departmentId: null,
-      roleId: null,
     };
   }
 
   return {
     workflowDefinitionKey: selectedWorkflowDefinitionKey,
     processTypeKey: selectedLegacyProcessTypeKey,
+    targetPersonId,
     firstName: employee.firstName.trim(),
     lastName: employee.lastName.trim(),
     employeeNumber: employee.employeeNumber,
@@ -207,18 +208,18 @@ type WorkflowCreationSuccessMessageArgs = {
   workflowName: string;
   createdWorkflowUid: string;
   requiresTargetPerson: boolean;
-  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  selectedTargetPerson: WorkflowTargetPerson | null;
 };
 
 export function buildWorkflowCreationSuccessMessage({
   workflowName,
   createdWorkflowUid,
   requiresTargetPerson,
-  selectedTargetPersonSource,
+  selectedTargetPerson,
 }: WorkflowCreationSuccessMessageArgs): string {
-  return `${workflowName} ${createdWorkflowUid} angelegt.${
-    requiresTargetPerson && selectedTargetPersonSource
-      ? " Automatisch mit bestehendem Quellworkflow verknüpft."
-      : ""
-  } Nächster Schritt: Der zuständige Prozessschritt kann jetzt im Tool weiterbearbeitet werden.`;
+  const linkageMessage = requiresTargetPerson && selectedTargetPerson
+    ? " Bestehende Person wurde direkt verknüpft."
+    : " Person-Stammsatz wurde erstellt und direkt verknüpft.";
+
+  return `${workflowName} ${createdWorkflowUid} angelegt.${linkageMessage} Nächster Schritt: Der zuständige Prozessschritt kann jetzt im Tool weiterbearbeitet werden.`;
 }

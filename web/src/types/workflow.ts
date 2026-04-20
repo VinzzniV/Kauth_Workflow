@@ -144,6 +144,15 @@ export type EmployeeFormData = {
   deadlineDate: string;
 };
 
+export type CreatePersonPayload = {
+  firstName: string;
+  lastName: string;
+  employeeNumber: number;
+  badgeNumber: number;
+  departmentId: number;
+  roleId: number;
+};
+
 export type WorkflowCreationPayload = {
   workflowDefinitionKey?: string | null;
   processTypeKey?: string | null;
@@ -524,6 +533,16 @@ export type WorkflowTargetPerson = {
   badgeNumber: number | null;
   firstName: string | null;
   lastName: string | null;
+  employmentStatus: string | null;
+  appUserId: number | null;
+  directoryIdentityId: number | null;
+  directoryLinkStatus: string | null;
+  directoryDisplayName: string | null;
+  directoryUserPrincipalName: string | null;
+  directoryMail: string | null;
+  directoryEmployeeNumber: number | null;
+  latestCompletedOnboardingWorkflowUid: string | null;
+  latestCompletedOnboardingAt: string | null;
 };
 
 export type WorkflowTargetPersonSource = {
@@ -573,9 +592,23 @@ export type PersonWorkflowHistory = {
   displayName: string;
   departmentId: number | null;
   departmentName: string | null;
+  roleId: number | null;
+  roleName: string | null;
   employeeNumber: number | null;
   badgeNumber: number | null;
   firstName: string | null;
   lastName: string | null;
+  employmentStatus: string | null;
+  entryDate: string | null;
+  exitDate: string | null;
+  appUserId: number | null;
+  directoryIdentityId: number | null;
+  directoryLinkStatus: string | null;
+  directoryDisplayName: string | null;
+  directoryUserPrincipalName: string | null;
+  directoryMail: string | null;
+  directoryEmployeeNumber: number | null;
+  latestCompletedOnboardingWorkflowUid: string | null;
+  latestCompletedOnboardingAt: string | null;
   workflows: PersonWorkflowSummary[];
 };

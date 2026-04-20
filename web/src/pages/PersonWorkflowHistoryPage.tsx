@@ -1,48 +1,50 @@
 // Zeigt alle Vorgänge einer Person in chronologischer Reihenfolge (Mitarbeiter-Lifecycle-Ansicht).
-import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
-import { getPersonWorkflowHistory } from "../services/peopleApi";
-import type { PersonWorkflowHistory } from "../types/workflow";
+import { usePersonWorkflowHistory } from "../services/queries/peopleQueries";
 import { formatDate, formatDateTime } from "../utils/dateFormat";
 import {
   getWorkflowRuntimeStatusLabel,
   getWorkflowRuntimeStatusPillClass,
 } from "../utils/workflowStatus";
 
+function formatEmploymentStatus(status: string | null): string {
+  switch (status) {
+    case "planned":
+      return "Geplant";
+    case "active":
+      return "Aktiv";
+    case "inactive":
+      return "Inaktiv";
+    case "exited":
+      return "Ausgetreten";
+    default:
+      return "-";
+  }
+}
+
+function formatDirectoryLinkStatus(status: string | null): string {
+  switch (status) {
+    case "linked":
+      return "Mit Verzeichnis verknüpft";
+    case "user_only":
+      return "Nur App-Benutzer verknüpft";
+    case "unlinked":
+      return "Noch nicht verknüpft";
+    default:
+      return "-";
+  }
+}
+
 export default function PersonWorkflowHistoryPage() {
   const { personId } = useParams<{ personId: string }>();
   const { capabilities } = useCurrentUser();
-  const [history, setHistory] = useState<PersonWorkflowHistory | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!personId) {
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await getPersonWorkflowHistory(Number(personId));
-      setHistory(data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Mitarbeiterakte konnte nicht geladen werden.";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [personId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
+  const parsedPersonId = personId ? Number(personId) : null;
+  const historyQuery = usePersonWorkflowHistory(parsedPersonId);
+  const history = historyQuery.data ?? null;
   const displayName = history?.displayName ?? "Mitarbeiter";
   const createUrl = history
     ? `/create?targetPersonId=${history.personId}`
@@ -71,42 +73,76 @@ export default function PersonWorkflowHistoryPage() {
           }
         />
 
-        {isLoading ? <LoadingState title="Mitarbeiterakte wird geladen..." /> : null}
+        {historyQuery.isLoading ? <LoadingState title="Mitarbeiterakte wird geladen..." /> : null}
 
-        {!isLoading && error ? (
+        {!historyQuery.isLoading && historyQuery.error ? (
           <EmptyState
             title="Akte konnte nicht geladen werden."
-            description={error}
+            description={
+              historyQuery.error instanceof Error
+                ? historyQuery.error.message
+                : "Mitarbeiterakte konnte nicht geladen werden."
+            }
             actionLabel="Erneut versuchen"
-            onAction={load}
+            onAction={() => void historyQuery.refetch()}
           />
         ) : null}
 
-        {!isLoading && !error && history ? (
+        {!historyQuery.isLoading && !historyQuery.error && history ? (
           <>
             <section className="panel">
               <div className="panel-head">
                 <h2>Person</h2>
               </div>
               <dl className="workflow-meta">
-                {history.departmentName ? (
-                  <div>
-                    <dt>Abteilung</dt>
-                    <dd>{history.departmentName}</dd>
-                  </div>
-                ) : null}
-                {history.employeeNumber ? (
-                  <div>
-                    <dt>Personalnummer</dt>
-                    <dd>{history.employeeNumber}</dd>
-                  </div>
-                ) : null}
-                {history.badgeNumber ? (
-                  <div>
-                    <dt>Ausweisnummer</dt>
-                    <dd>{history.badgeNumber}</dd>
-                  </div>
-                ) : null}
+                <div>
+                  <dt>Stamm-Abteilung</dt>
+                  <dd>{history.departmentName ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>Aktuelle Stelle</dt>
+                  <dd>{history.roleName ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>Beschäftigungsstatus</dt>
+                  <dd>{formatEmploymentStatus(history.employmentStatus)}</dd>
+                </div>
+                <div>
+                  <dt>Personalnummer</dt>
+                  <dd>{history.employeeNumber ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>Ausweisnummer</dt>
+                  <dd>{history.badgeNumber ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>Eintritt</dt>
+                  <dd>{history.entryDate ? formatDate(history.entryDate) : "-"}</dd>
+                </div>
+                <div>
+                  <dt>Austritt</dt>
+                  <dd>{history.exitDate ? formatDate(history.exitDate) : "-"}</dd>
+                </div>
+                <div>
+                  <dt>Directory-Link</dt>
+                  <dd>{formatDirectoryLinkStatus(history.directoryLinkStatus)}</dd>
+                </div>
+                <div>
+                  <dt>Directory-Name</dt>
+                  <dd>{history.directoryDisplayName ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>UPN</dt>
+                  <dd>{history.directoryUserPrincipalName ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>Mail</dt>
+                  <dd>{history.directoryMail ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>Letztes abgeschlossenes Onboarding</dt>
+                  <dd>{history.latestCompletedOnboardingWorkflowUid ?? "-"}</dd>
+                </div>
               </dl>
 
               {capabilities.canCreateWorkflow ? (

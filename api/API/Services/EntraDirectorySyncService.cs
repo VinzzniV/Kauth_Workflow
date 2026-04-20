@@ -118,16 +118,41 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         var status = "success";
         try
         {
-            var groups = await LoadSecurityGroupsAsync(graphClient, cancellationToken);
+            await EnsureDirectoryProjectionUserColumnsAsync(connection, cancellationToken);
 
-            foreach (var group in groups)
+            var groups = await LoadSecurityGroupsAsync(graphClient, cancellationToken);
+            var matchedGroups = groups
+                .Where(group => ShouldSyncGroup(group.Id, group.DisplayName, effectiveGroupPrefix, explicitGroupIds))
+                .ToList();
+
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "info",
+                Source = "entra",
+                Category = "sync",
+                EventKey = "entra_groups_selected",
+                Message = $"Entra sync selected {matchedGroups.Count} security groups for import.",
+                Details = new
+                {
+                    selectionMode = string.IsNullOrWhiteSpace(effectiveGroupPrefix) ? "all_security_groups" : "prefix_or_explicit_ids",
+                    appliedGroupPrefix = effectiveGroupPrefix,
+                    explicitGroupIds = explicitGroupIds.Select(id => id.ToString()).ToArray(),
+                    selectedGroupCount = matchedGroups.Count,
+                    selectedGroups = matchedGroups
+                        .Take(12)
+                        .Select(group => new
+                        {
+                            groupId = group.Id,
+                            displayName = group.DisplayName,
+                            description = group.Description
+                        })
+                        .ToArray()
+                }
+            }, cancellationToken);
+
+            foreach (var group in matchedGroups)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                if (!ShouldSyncGroup(group.Id, group.DisplayName, effectiveGroupPrefix, explicitGroupIds))
-                {
-                    continue;
-                }
 
                 if (string.IsNullOrWhiteSpace(group.Id) || !Guid.TryParse(group.Id, out var externalGroupId))
                 {
@@ -193,14 +218,69 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             }
 
             await AutoLinkIdentitiesToAppUsers(connection, cancellationToken);
-            await EnsureDirectoryDepartmentsExist(connection, cancellationToken);
-            await UpsertProjectedAppUsersFromDirectory(connection, cancellationToken);
+
+            var departmentSyncResult = await EnsureDirectoryDepartmentsExist(connection, cancellationToken);
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "info",
+                Source = "directory",
+                Category = "department_projection",
+                EventKey = "directory_departments_projected",
+                Message = $"Directory sync projected {departmentSyncResult.ObservedDepartmentCount} department names and created {departmentSyncResult.CreatedDepartmentCount} local departments.",
+                Details = new
+                {
+                    origin = "departments.name is created from directory_identities.department_name",
+                    departmentSyncResult.ObservedDepartmentCount,
+                    departmentSyncResult.CreatedDepartmentCount,
+                    departmentSyncResult.ObservedDepartmentNames,
+                    departmentSyncResult.CreatedDepartmentNames
+                }
+            }, cancellationToken);
+
+            var appUserProjectionResult = await UpsertProjectedAppUsersFromDirectory(connection, startedAt, cancellationToken);
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = "info",
+                Source = "directory",
+                Category = "user_projection",
+                EventKey = "directory_users_projected",
+                Message = $"Directory sync projected {appUserProjectionResult.TouchedUserCount} app users and refreshed department assignments.",
+                Details = new
+                {
+                    origin = "app_users.department_id is derived from the latest linked directory identity department_name unless department_override_active is true",
+                    appUserProjectionResult.TouchedUserCount,
+                    appUserProjectionResult.DirectoryAssignedUserCount,
+                    appUserProjectionResult.OverrideUserCount,
+                    appUserProjectionResult.UnassignedUserCount,
+                    appUserProjectionResult.LinkedIdentityCount,
+                    sampleUsers = appUserProjectionResult.SampleUsers
+                }
+            }, cancellationToken);
             if (_runtimeSettings.DevSimulationEnabled)
             {
                 await EnsureDevelopmentDefaultGroupMappings(connection, cancellationToken);
             }
             await UpdateDirectoryUserActivationStates(connection, cancellationToken);
-            await SyncDepartmentLeadAssignmentsFromDirectory(connection, cancellationToken);
+            var departmentLeadSyncResult = await SyncDepartmentLeadAssignmentsFromDirectory(connection, cancellationToken);
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = departmentLeadSyncResult.ConflictCount > 0 || departmentLeadSyncResult.MissingCount > 0 ? "warning" : "info",
+                Source = "directory",
+                Category = "department_lead",
+                EventKey = "directory_department_assignments_evaluated",
+                Message = $"Directory sync evaluated {departmentLeadSyncResult.TotalDepartments} department lead assignments.",
+                Details = new
+                {
+                    origin = "department_settings is resolved from active directory-synced users in the same department that receive the auth_manager system role via directory_group_role_mappings",
+                    departmentLeadSyncResult.TotalDepartments,
+                    departmentLeadSyncResult.ResolvedCount,
+                    departmentLeadSyncResult.MissingCount,
+                    departmentLeadSyncResult.ConflictCount,
+                    sampleResolvedDepartments = departmentLeadSyncResult.ResolvedDepartments.Take(8).ToArray(),
+                    sampleMissingDepartments = departmentLeadSyncResult.MissingDepartments.Take(8).ToArray(),
+                    sampleConflictDepartments = departmentLeadSyncResult.ConflictDepartments.Take(8).ToArray()
+                }
+            }, cancellationToken);
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
@@ -316,7 +396,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 
         var response = await graphClient.Groups[groupId].Members.GetAsync(config =>
         {
-            config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department"];
+            config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department", "employeeId"];
             config.QueryParameters.Top = 999;
         }, cancellationToken);
 
@@ -1024,14 +1104,15 @@ RETURNING id;";
         CancellationToken cancellationToken)
     {
         const string sql = @"
-INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, last_synced_at)
-VALUES (@entraObjectId, @userPrincipalName, @mail, @displayName, @accountEnabled, @departmentName, NOW())
+INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number, last_synced_at)
+VALUES (@entraObjectId, @userPrincipalName, @mail, @displayName, @accountEnabled, @departmentName, @employeeNumber, NOW())
 ON CONFLICT (entra_object_id) DO UPDATE SET
     user_principal_name = EXCLUDED.user_principal_name,
     mail = EXCLUDED.mail,
     display_name = EXCLUDED.display_name,
     account_enabled = EXCLUDED.account_enabled,
     department_name = EXCLUDED.department_name,
+    employee_number = EXCLUDED.employee_number,
     last_synced_at = NOW()
 RETURNING id;";
 
@@ -1042,6 +1123,8 @@ RETURNING id;";
         cmd.Parameters.AddWithValue("displayName", user.DisplayName ?? user.UserPrincipalName ?? entraObjectId.ToString());
         cmd.Parameters.AddWithValue("accountEnabled", user.AccountEnabled ?? true);
         cmd.Parameters.AddWithValue("departmentName", (object?)Normalize(user.Department) ?? DBNull.Value);
+        cmd.Parameters.Add("employeeNumber", NpgsqlDbType.Integer).Value =
+            (object?)ParseDirectoryEmployeeNumber(user.EmployeeId) ?? DBNull.Value;
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(cancellationToken));
     }
 
@@ -1080,10 +1163,8 @@ UPDATE directory_identities di
 SET app_user_id = u.id
 FROM app_users u
 WHERE di.app_user_id IS NULL
-  AND (
-    (u.external_key IS NOT NULL AND u.external_key = di.entra_object_id::text)
-    OR (LOWER(u.email) = LOWER(di.mail) AND di.mail IS NOT NULL)
-  );";
+  AND u.external_key IS NOT NULL
+  AND u.external_key = di.entra_object_id::text;";
 
         await using var cmd = new NpgsqlCommand(sql, connection);
         await cmd.ExecuteNonQueryAsync(cancellationToken);
@@ -1188,26 +1269,51 @@ VALUES (@syncType, @status, @groupsSynced, @identitiesSynced, @membershipsSynced
         return MatchesGroupPrefix(displayName, prefix);
     }
 
-    private static async Task EnsureDirectoryDepartmentsExist(
+    private static async Task<DirectoryDepartmentSyncResult> EnsureDirectoryDepartmentsExist(
         NpgsqlConnection connection,
         CancellationToken cancellationToken)
     {
         const string sql = @"
-INSERT INTO departments (name)
-SELECT DISTINCT BTRIM(di.department_name)
-FROM directory_identities di
-WHERE di.department_name IS NOT NULL
-  AND BTRIM(di.department_name) <> ''
-ON CONFLICT (name) DO NOTHING;";
+WITH source_departments AS (
+    SELECT DISTINCT BTRIM(di.department_name) AS name
+    FROM directory_identities di
+    WHERE di.department_name IS NOT NULL
+      AND BTRIM(di.department_name) <> ''
+),
+inserted AS (
+    INSERT INTO departments (name)
+    SELECT name
+    FROM source_departments
+    ON CONFLICT (name) DO NOTHING
+    RETURNING name
+)
+SELECT
+    (SELECT COUNT(*)::int FROM source_departments),
+    COALESCE((SELECT ARRAY_AGG(name ORDER BY name) FROM source_departments), ARRAY[]::text[]),
+    (SELECT COUNT(*)::int FROM inserted),
+    COALESCE((SELECT ARRAY_AGG(name ORDER BY name) FROM inserted), ARRAY[]::text[]);";
 
         await using var command = new NpgsqlCommand(sql, connection);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (await reader.ReadAsync(cancellationToken))
+        {
+            return new DirectoryDepartmentSyncResult(
+                reader.GetInt32(0),
+                reader.GetFieldValue<string[]>(1),
+                reader.GetInt32(2),
+                reader.GetFieldValue<string[]>(3));
+        }
+
+        return new DirectoryDepartmentSyncResult(0, [], 0, []);
     }
 
-    private static async Task UpsertProjectedAppUsersFromDirectory(
+    private static async Task<DirectoryUserProjectionResult> UpsertProjectedAppUsersFromDirectory(
         NpgsqlConnection connection,
+        DateTime startedAt,
         CancellationToken cancellationToken)
     {
+        await EnsureDirectoryProjectionUserColumnsAsync(connection, cancellationToken);
+
         const string sql = @"
 WITH scoped_identities AS (
     SELECT DISTINCT
@@ -1311,6 +1417,37 @@ WHERE u.entra_object_id = di.entra_object_id
         await using var linkCommand = new NpgsqlCommand(linkSql, connection);
         await linkCommand.ExecuteNonQueryAsync(cancellationToken);
 
+        const string linkPeopleByEmployeeNumberSql = @"
+WITH linkable_identities AS (
+    SELECT
+        di.id AS directory_identity_id,
+        di.app_user_id,
+        di.employee_number
+    FROM directory_identities di
+    WHERE di.app_user_id IS NOT NULL
+      AND di.employee_number IS NOT NULL
+)
+UPDATE people p
+SET
+    app_user_id = COALESCE(p.app_user_id, linkable_identities.app_user_id),
+    directory_identity_id = linkable_identities.directory_identity_id,
+    updated_at = NOW()
+FROM linkable_identities
+WHERE p.employee_number = linkable_identities.employee_number
+  AND (
+      p.app_user_id IS NULL
+      OR p.app_user_id = linkable_identities.app_user_id
+  )
+  AND (
+      p.directory_identity_id IS NULL
+      OR p.directory_identity_id = linkable_identities.directory_identity_id
+  );";
+
+        await using (var linkPeopleCommand = new NpgsqlCommand(linkPeopleByEmployeeNumberSql, connection))
+        {
+            await linkPeopleCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         const string personSql = @"
 INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
 SELECT
@@ -1320,6 +1457,16 @@ SELECT
     NOW()
 FROM app_users u
 JOIN directory_identities di ON di.app_user_id = u.id
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM people existing
+    WHERE existing.app_user_id = u.id
+       OR existing.directory_identity_id = di.id
+       OR (
+            di.employee_number IS NOT NULL
+            AND existing.employee_number = di.employee_number
+       )
+)
 ON CONFLICT (app_user_id) DO UPDATE
 SET
     department_id = EXCLUDED.department_id,
@@ -1328,6 +1475,126 @@ SET
 
         await using var personCommand = new NpgsqlCommand(personSql, connection);
         await personCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        var touchedUserCount = 0;
+        var directoryAssignedUserCount = 0;
+        var overrideUserCount = 0;
+        var unassignedUserCount = 0;
+        var linkedIdentityCount = 0;
+        var sampleUsers = new List<DirectoryUserProjectionSample>();
+
+        const string summarySql = @"
+WITH touched_users AS (
+    SELECT
+        u.id,
+        u.display_name,
+        u.email,
+        u.department_source,
+        u.department_override_active
+    FROM app_users u
+    WHERE u.directory_synced = TRUE
+      AND u.last_directory_synced_at >= @startedAt
+)
+SELECT
+    COUNT(*)::int,
+    COUNT(*) FILTER (WHERE department_source = 'directory')::int,
+    COUNT(*) FILTER (WHERE department_source = 'override')::int,
+    COUNT(*) FILTER (WHERE department_source = 'unassigned')::int,
+    (
+        SELECT COUNT(*)::int
+        FROM directory_identities di
+        WHERE di.app_user_id IS NOT NULL
+          AND di.last_synced_at >= @startedAt
+    )
+FROM touched_users;";
+
+        await using (var summaryCommand = new NpgsqlCommand(summarySql, connection))
+        {
+            summaryCommand.Parameters.AddWithValue("startedAt", startedAt);
+            await using var reader = await summaryCommand.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                touchedUserCount = reader.GetInt32(0);
+                directoryAssignedUserCount = reader.GetInt32(1);
+                overrideUserCount = reader.GetInt32(2);
+                unassignedUserCount = reader.GetInt32(3);
+                linkedIdentityCount = reader.GetInt32(4);
+            }
+        }
+
+        const string sampleSql = @"
+SELECT
+    u.id,
+    u.display_name,
+    u.email,
+    u.department_source,
+    u.department_override_active,
+    department.name AS department_name,
+    di.department_name AS directory_department_name,
+    di.user_principal_name
+FROM app_users u
+LEFT JOIN departments department ON department.id = u.department_id
+LEFT JOIN LATERAL (
+    SELECT
+        latest.department_name,
+        latest.user_principal_name
+    FROM directory_identities latest
+    WHERE latest.app_user_id = u.id
+    ORDER BY latest.last_synced_at DESC NULLS LAST, latest.id DESC
+    LIMIT 1
+) di ON TRUE
+WHERE u.directory_synced = TRUE
+  AND u.last_directory_synced_at >= @startedAt
+ORDER BY u.display_name, u.id
+LIMIT 12;";
+
+        await using (var sampleCommand = new NpgsqlCommand(sampleSql, connection))
+        {
+            sampleCommand.Parameters.AddWithValue("startedAt", startedAt);
+            await using var reader = await sampleCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                sampleUsers.Add(new DirectoryUserProjectionSample(
+                    reader.GetInt64(0),
+                    reader.GetString(1),
+                    reader.GetString(2),
+                    reader.GetString(3),
+                    reader.GetBoolean(4),
+                    reader.IsDBNull(5) ? null : reader.GetString(5),
+                    reader.IsDBNull(6) ? null : reader.GetString(6),
+                    reader.IsDBNull(7) ? null : reader.GetString(7)));
+            }
+        }
+
+        return new DirectoryUserProjectionResult(
+            touchedUserCount,
+            directoryAssignedUserCount,
+            overrideUserCount,
+            unassignedUserCount,
+            linkedIdentityCount,
+            sampleUsers);
+    }
+
+    private static async Task EnsureDirectoryProjectionUserColumnsAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+ALTER TABLE app_users
+    ADD COLUMN IF NOT EXISTS directory_synced BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS last_directory_synced_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS department_source VARCHAR(32) NOT NULL DEFAULT 'local',
+    ADD COLUMN IF NOT EXISTS department_override_active BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE app_users
+    DROP CONSTRAINT IF EXISTS chk_app_users_department_source;
+
+ALTER TABLE app_users
+    ADD CONSTRAINT chk_app_users_department_source
+    CHECK (department_source IN ('local', 'directory', 'override', 'unassigned'));";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task UpdateDirectoryUserActivationStates(
@@ -1379,11 +1646,15 @@ WHERE di.app_user_id = u.id
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private async Task SyncDepartmentLeadAssignmentsFromDirectory(
+    private async Task<DepartmentLeadSyncSummary> SyncDepartmentLeadAssignmentsFromDirectory(
         NpgsqlConnection connection,
         CancellationToken cancellationToken)
     {
         var states = await LoadDepartmentLeadSyncStatesAsync(connection, cancellationToken);
+        var resolvedDepartments = new List<string>();
+        var missingDepartments = new List<string>();
+        var conflictDepartments = new List<string>();
+
         foreach (var state in states)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -1400,6 +1671,7 @@ WHERE di.app_user_id = u.id
                     continue;
                 }
 
+                resolvedDepartments.Add($"{state.DepartmentName}: {candidate.DisplayName}");
                 await UpsertDepartmentLeadAssignmentAsync(connection, state.DepartmentId, personId, cancellationToken);
                 await LogDirectoryAuditEventAsync(
                     connection,
@@ -1419,7 +1691,15 @@ WHERE di.app_user_id = u.id
                     Message = $"Department lead resolved for {state.DepartmentName}: {candidate.DisplayName}.",
                     EntityType = "department",
                     EntityId = state.DepartmentId.ToString(),
-                    Details = new { state.DepartmentId, state.DepartmentName, candidate.DisplayName }
+                    Details = new
+                    {
+                        state.DepartmentId,
+                        state.DepartmentName,
+                        candidate.AppUserId,
+                        candidate.DisplayName,
+                        origin = "Resolved from active directory-synced app user in the same department with auth_manager assigned via directory group mappings",
+                        currentAssignmentSource = "department_settings.department_lead_person_id and requirement_approver_person_id"
+                    }
                 }, cancellationToken);
                 continue;
             }
@@ -1428,6 +1708,7 @@ WHERE di.app_user_id = u.id
             {
                 if (state.CurrentDepartmentLeadPersonId.HasValue || state.CurrentRequirementApproverPersonId.HasValue)
                 {
+                    missingDepartments.Add(state.DepartmentName);
                     await ClearDepartmentLeadAssignmentAsync(connection, state.DepartmentId, cancellationToken);
                     await LogDirectoryAuditEventAsync(
                         connection,
@@ -1447,13 +1728,19 @@ WHERE di.app_user_id = u.id
                         Message = $"Department lead missing for {state.DepartmentName}.",
                         EntityType = "department",
                         EntityId = state.DepartmentId.ToString(),
-                        Details = new { state.DepartmentId, state.DepartmentName }
+                        Details = new
+                        {
+                            state.DepartmentId,
+                            state.DepartmentName,
+                            origin = "No active directory-synced app user in this department currently resolves to auth_manager via directory group mappings"
+                        }
                     }, cancellationToken);
                 }
 
                 continue;
             }
 
+            conflictDepartments.Add($"{state.DepartmentName}: {string.Join(", ", state.Candidates.Select(candidate => candidate.DisplayName))}");
             if (state.CurrentDepartmentLeadPersonId.HasValue || state.CurrentRequirementApproverPersonId.HasValue)
             {
                 await ClearDepartmentLeadAssignmentAsync(connection, state.DepartmentId, cancellationToken);
@@ -1486,10 +1773,20 @@ WHERE di.app_user_id = u.id
                 {
                     state.DepartmentId,
                     state.DepartmentName,
+                    origin = "Multiple active directory-synced app users in the same department resolve to auth_manager via directory group mappings",
                     candidateNames = state.Candidates.Select(candidate => candidate.DisplayName).ToArray()
                 }
             }, cancellationToken);
         }
+
+        return new DepartmentLeadSyncSummary(
+            states.Count,
+            resolvedDepartments.Count,
+            missingDepartments.Count,
+            conflictDepartments.Count,
+            resolvedDepartments,
+            missingDepartments,
+            conflictDepartments);
     }
 
     private static async Task<List<DepartmentLeadSyncState>> LoadDepartmentLeadSyncStatesAsync(
@@ -1562,6 +1859,54 @@ ORDER BY d.id, candidate.display_name, candidate.app_user_id;";
         long userId,
         CancellationToken cancellationToken)
     {
+        const string matchExistingSql = @"
+WITH latest_identity AS (
+    SELECT
+        di.id,
+        di.employee_number
+    FROM directory_identities di
+    WHERE di.app_user_id = @userId
+    ORDER BY di.last_synced_at DESC NULLS LAST, di.id DESC
+    LIMIT 1
+),
+matched AS (
+    UPDATE people p
+    SET
+        app_user_id = COALESCE(p.app_user_id, @userId),
+        directory_identity_id = COALESCE(latest_identity.id, p.directory_identity_id),
+        updated_at = NOW()
+    FROM latest_identity
+    WHERE latest_identity.employee_number IS NOT NULL
+      AND p.employee_number = latest_identity.employee_number
+      AND (
+          p.app_user_id IS NULL
+          OR p.app_user_id = @userId
+      )
+      AND (
+          p.directory_identity_id IS NULL
+          OR p.directory_identity_id = latest_identity.id
+      )
+    RETURNING p.id
+)
+SELECT id
+FROM matched
+LIMIT 1;";
+
+        await using (var matchCommand = new NpgsqlCommand(matchExistingSql, connection))
+        {
+            matchCommand.Parameters.AddWithValue("userId", userId);
+            var matchedId = await matchCommand.ExecuteScalarAsync(cancellationToken);
+            if (matchedId is long longMatch)
+            {
+                return longMatch;
+            }
+
+            if (matchedId is int intMatch)
+            {
+                return intMatch;
+            }
+        }
+
         const string sql = @"
 INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
 SELECT
@@ -1680,7 +2025,48 @@ DO UPDATE SET is_active = TRUE;";
         return value is null ? null : JsonSerializer.Serialize(value);
     }
 
+    private static int? ParseDirectoryEmployeeNumber(string? employeeId)
+    {
+        var normalized = Normalize(employeeId);
+        return int.TryParse(normalized, out var employeeNumber) && employeeNumber > 0
+            ? employeeNumber
+            : null;
+    }
+
     private sealed record DepartmentLeadSyncCandidate(long AppUserId, string DisplayName);
+
+    private sealed record DirectoryDepartmentSyncResult(
+        int ObservedDepartmentCount,
+        IReadOnlyList<string> ObservedDepartmentNames,
+        int CreatedDepartmentCount,
+        IReadOnlyList<string> CreatedDepartmentNames);
+
+    private sealed record DirectoryUserProjectionSample(
+        long UserId,
+        string DisplayName,
+        string Email,
+        string DepartmentSource,
+        bool DepartmentOverrideActive,
+        string? DepartmentName,
+        string? DirectoryDepartmentName,
+        string? UserPrincipalName);
+
+    private sealed record DirectoryUserProjectionResult(
+        int TouchedUserCount,
+        int DirectoryAssignedUserCount,
+        int OverrideUserCount,
+        int UnassignedUserCount,
+        int LinkedIdentityCount,
+        IReadOnlyList<DirectoryUserProjectionSample> SampleUsers);
+
+    private sealed record DepartmentLeadSyncSummary(
+        int TotalDepartments,
+        int ResolvedCount,
+        int MissingCount,
+        int ConflictCount,
+        IReadOnlyList<string> ResolvedDepartments,
+        IReadOnlyList<string> MissingDepartments,
+        IReadOnlyList<string> ConflictDepartments);
 
     private sealed record DepartmentLeadSyncState(
         int DepartmentId,

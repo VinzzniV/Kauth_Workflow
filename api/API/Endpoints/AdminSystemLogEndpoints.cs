@@ -114,8 +114,8 @@ internal static class AdminSystemLogEndpoints
         {
             Severities = severities,
             Source = source,
-            Since = since,
-            Until = until,
+            Since = NormalizeQueryTimestamp(since),
+            Until = NormalizeQueryTimestamp(until),
             Search = search,
             ActorUserId = actorUserId,
             WorkflowUid = workflowUid,
@@ -123,6 +123,21 @@ internal static class AdminSystemLogEndpoints
             TaskRef = taskRef,
             Limit = limit ?? 50,
             Offset = offset ?? 0
+        };
+    }
+
+    private static DateTime? NormalizeQueryTimestamp(DateTime? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return value.Value.Kind switch
+        {
+            DateTimeKind.Utc => value.Value,
+            DateTimeKind.Local => value.Value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
         };
     }
 }

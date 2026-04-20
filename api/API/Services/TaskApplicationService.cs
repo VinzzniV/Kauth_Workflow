@@ -7,6 +7,7 @@ internal sealed class TaskApplicationService(
     IAuthorizationPolicyService authorizationPolicyService,
     IWorkflowVisibilityService workflowVisibilityService,
     IWorkflowNotificationDispatchService workflowNotificationDispatchService,
+    IPersonLifecycleProjectionService personLifecycleProjectionService,
     ILogger<TaskApplicationService> logger) : ITaskApplicationService
 {
     public async Task<IReadOnlyList<TaskWithWorkflowDto>> GetTasksAsync(CurrentUser currentUser, CancellationToken cancellationToken = default)
@@ -68,6 +69,7 @@ internal sealed class TaskApplicationService(
         }
 
         await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
+        await ApplyPersonLifecycleProjectionIfCompletedAsync(task, currentUser.UserId, cancellationToken);
 
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;
@@ -102,6 +104,7 @@ internal sealed class TaskApplicationService(
             taskId, request.Status, currentUser.UserId);
 
         await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
+        await ApplyPersonLifecycleProjectionIfCompletedAsync(task, currentUser.UserId, cancellationToken);
 
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;
@@ -132,6 +135,7 @@ internal sealed class TaskApplicationService(
         }
 
         await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
+        await ApplyPersonLifecycleProjectionIfCompletedAsync(task, currentUser.UserId, cancellationToken);
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;
     }
@@ -308,6 +312,7 @@ internal sealed class TaskApplicationService(
         }
 
         await DispatchWorkflowTaskNotificationsAsync(task, cancellationToken);
+        await ApplyPersonLifecycleProjectionIfCompletedAsync(task, currentUser.UserId, cancellationToken);
         workflowVisibilityService.ApplyTaskPermissions(task, currentUser);
         return task;
     }
@@ -340,6 +345,23 @@ internal sealed class TaskApplicationService(
 
         await workflowNotificationDispatchService.DispatchTaskStatusChangeNotificationsAsync(
             task.Workflow.WorkflowUid,
+            cancellationToken);
+    }
+
+    private async Task ApplyPersonLifecycleProjectionIfCompletedAsync(
+        TaskWithWorkflowDto task,
+        long actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (task.Workflow is null
+            || !string.Equals(task.Workflow.WorkflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await personLifecycleProjectionService.ApplyCompletedWorkflowProjectionAsync(
+            task.Workflow.WorkflowUid,
+            actorUserId,
             cancellationToken);
     }
 

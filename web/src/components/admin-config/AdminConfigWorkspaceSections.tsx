@@ -4,7 +4,9 @@ import { AdminFieldConfigurationWorkspaceSection } from "./AdminFieldConfigurati
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
 import { AdminOrganizationWorkspaceSection } from "./AdminOrganizationWorkspaceSection";
 import { AdminOverviewWorkspaceSection } from "./AdminOverviewWorkspaceSection";
+import { AdminResponsibilitiesAndRequirementsSection } from "./AdminResponsibilitiesAndRequirementsSection";
 import { AdminPermissionsSection } from "./AdminPermissionsSection";
+import { AdminSystemConfigurationSection } from "./AdminSystemConfigurationSection";
 import { AdminSystemWorkspaceSection } from "./AdminSystemWorkspaceSection";
 import { AdminTaskTemplateSection } from "./AdminTaskTemplateSection";
 import { AdminTechnicalAccessSection } from "./AdminTechnicalAccessSection";
@@ -125,6 +127,13 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
   );
 }
 
+export function renderRotationRequirementsWorkspace(_props: AdminConfigWorkspaceContentProps) {
+  return renderWorkspaceWithIntro(
+    "rotation_requirements",
+    <AdminResponsibilitiesAndRequirementsSection />
+  );
+}
+
 export function renderAccessWorkspace(props: AdminConfigWorkspaceContentProps) {
   return renderWorkspaceWithIntro(
     "access",
@@ -201,10 +210,17 @@ export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps
   );
 }
 
-export function renderSystemWorkspace(props: AdminConfigWorkspaceContentProps) {
+export function renderSystemLogsWorkspace(_props: AdminConfigWorkspaceContentProps) {
   return renderWorkspaceWithIntro(
-    "system",
-    <AdminSystemWorkspaceSection
+    "system_logs",
+    <AdminSystemWorkspaceSection />
+  );
+}
+
+export function renderSystemConfigurationWorkspace(props: AdminConfigWorkspaceContentProps) {
+  return renderWorkspaceWithIntro(
+    "system_configuration",
+    <AdminSystemConfigurationSection
       graphApplicationConfiguration={props.graphApplicationConfiguration}
       notificationEmailConfiguration={props.notificationEmailConfiguration}
       notificationEnabledDraft={props.notificationEnabledDraft}

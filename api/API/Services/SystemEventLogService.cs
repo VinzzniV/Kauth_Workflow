@@ -356,16 +356,48 @@ ORDER BY COUNT(*) DESC, log.source ASC;
         var command = new NpgsqlCommand(sql, connection);
         command.Parameters.Add("severities", NpgsqlDbType.Array | NpgsqlDbType.Varchar).Value =
             query.Severities.Count > 0 ? query.Severities.ToArray() : DBNull.Value;
-        command.Parameters.AddWithValue("source", (object?)NormalizeOptionalText(query.Source) ?? DBNull.Value);
-        command.Parameters.AddWithValue("since", (object?)query.Since ?? DBNull.Value);
-        command.Parameters.AddWithValue("until", (object?)query.Until ?? DBNull.Value);
-        command.Parameters.AddWithValue("search", (object?)ToSearchLike(query.Search) ?? DBNull.Value);
-        command.Parameters.AddWithValue("actorUserId", (object?)query.ActorUserId ?? DBNull.Value);
-        command.Parameters.AddWithValue("workflowUid", (object?)query.WorkflowUid ?? DBNull.Value);
-        command.Parameters.AddWithValue("rotationPlanId", (object?)query.RotationPlanId ?? DBNull.Value);
-        command.Parameters.AddWithValue("taskRef", (object?)NormalizeOptionalText(query.TaskRef) ?? DBNull.Value);
-        command.Parameters.AddWithValue("limit", query.Limit);
-        command.Parameters.AddWithValue("offset", query.Offset);
+        command.Parameters.Add(
+            new NpgsqlParameter("source", NpgsqlDbType.Varchar)
+            {
+                Value = (object?)NormalizeOptionalText(query.Source) ?? DBNull.Value
+            });
+        command.Parameters.Add(
+            new NpgsqlParameter("since", NpgsqlDbType.TimestampTz)
+            {
+                Value = (object?)query.Since ?? DBNull.Value
+            });
+        command.Parameters.Add(
+            new NpgsqlParameter("until", NpgsqlDbType.TimestampTz)
+            {
+                Value = (object?)query.Until ?? DBNull.Value
+            });
+        command.Parameters.Add(
+            new NpgsqlParameter("search", NpgsqlDbType.Text)
+            {
+                Value = (object?)ToSearchLike(query.Search) ?? DBNull.Value
+            });
+        command.Parameters.Add(
+            new NpgsqlParameter("actorUserId", NpgsqlDbType.Bigint)
+            {
+                Value = (object?)query.ActorUserId ?? DBNull.Value
+            });
+        command.Parameters.Add(
+            new NpgsqlParameter("workflowUid", NpgsqlDbType.Uuid)
+            {
+                Value = (object?)query.WorkflowUid ?? DBNull.Value
+            });
+        command.Parameters.Add(
+            new NpgsqlParameter("rotationPlanId", NpgsqlDbType.Bigint)
+            {
+                Value = (object?)query.RotationPlanId ?? DBNull.Value
+            });
+        command.Parameters.Add(
+            new NpgsqlParameter("taskRef", NpgsqlDbType.Varchar)
+            {
+                Value = (object?)NormalizeOptionalText(query.TaskRef) ?? DBNull.Value
+            });
+        command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = query.Limit });
+        command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = query.Offset });
         return command;
     }
 

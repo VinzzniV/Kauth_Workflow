@@ -68,6 +68,7 @@ export type AdminUser = {
   directorySynced: boolean;
   departmentSource: string;
   departmentOverrideActive: boolean;
+  isTechnicalActor?: boolean;
   directoryIdentityId: number | null;
   userPrincipalName: string | null;
   directoryDisplayName: string | null;

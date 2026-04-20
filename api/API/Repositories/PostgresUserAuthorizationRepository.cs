@@ -248,18 +248,6 @@ RETURNING id;";
             userId = (long)result!;
         }
 
-        // INSERT associated people record.
-        const string insertPeopleSql = @"
-INSERT INTO people (app_user_id)
-VALUES (@userId)
-ON CONFLICT (app_user_id) DO NOTHING;";
-
-        await using (var peopleCmd = new NpgsqlCommand(insertPeopleSql, connection))
-        {
-            peopleCmd.Parameters.AddWithValue("userId", userId!.Value);
-            await peopleCmd.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         await EnsureAutoProvisionRoleAssignment(connection, userId.Value, cancellationToken);
 
         // Now resolve the full user model with roles/groups/responsibilities.

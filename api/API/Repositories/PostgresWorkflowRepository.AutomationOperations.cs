@@ -902,14 +902,35 @@ SELECT
     w.deadline_date,
     w.target_person_id,
     p.department_id,
+    p.current_position_role_id,
     p.app_user_id,
-    u.display_name,
-    u.email
+    p.directory_identity_id,
+    p.first_name,
+    p.last_name,
+    p.employee_number,
+    p.badge_number,
+    p.employment_status,
+    p.entry_date,
+    p.exit_date,
+    COALESCE(
+        NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+        u.display_name,
+        di.display_name,
+        CASE WHEN p.id IS NULL THEN NULL ELSE 'Person #' || p.id::text END
+    ),
+    COALESCE(di.mail, u.email),
+    di.user_principal_name,
+    di.mail,
+    di.display_name,
+    di.department_name,
+    di.employee_number,
+    di.account_enabled
 FROM workflows w
 LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
 LEFT JOIN workflow_definitions d ON d.id = v.workflow_definition_id
 LEFT JOIN people p ON p.id = w.target_person_id
 LEFT JOIN app_users u ON u.id = p.app_user_id
+LEFT JOIN directory_identities di ON di.id = p.directory_identity_id
 WHERE w.id = @workflowId
 LIMIT 1;
 """;
@@ -936,9 +957,24 @@ LIMIT 1;
             DeadlineDate = reader.IsDBNull(9) ? null : reader.GetFieldValue<DateOnly>(9),
             TargetPersonId = reader.IsDBNull(10) ? null : reader.GetInt64(10),
             TargetDepartmentId = reader.IsDBNull(11) ? null : reader.GetInt32(11),
-            TargetAppUserId = reader.IsDBNull(12) ? null : reader.GetInt64(12),
-            TargetDisplayName = reader.IsDBNull(13) ? null : reader.GetString(13),
-            TargetEmail = reader.IsDBNull(14) ? null : reader.GetString(14)
+            TargetRoleId = reader.IsDBNull(12) ? null : reader.GetInt32(12),
+            TargetAppUserId = reader.IsDBNull(13) ? null : reader.GetInt64(13),
+            TargetDirectoryIdentityId = reader.IsDBNull(14) ? null : reader.GetInt64(14),
+            TargetFirstName = reader.IsDBNull(15) ? null : reader.GetString(15),
+            TargetLastName = reader.IsDBNull(16) ? null : reader.GetString(16),
+            TargetEmployeeNumber = reader.IsDBNull(17) ? null : reader.GetInt32(17),
+            TargetBadgeNumber = reader.IsDBNull(18) ? null : reader.GetInt32(18),
+            TargetEmploymentStatus = reader.IsDBNull(19) ? null : reader.GetString(19),
+            TargetEntryDate = reader.IsDBNull(20) ? null : reader.GetFieldValue<DateOnly>(20),
+            TargetExitDate = reader.IsDBNull(21) ? null : reader.GetFieldValue<DateOnly>(21),
+            TargetDisplayName = reader.IsDBNull(22) ? null : reader.GetString(22),
+            TargetEmail = reader.IsDBNull(23) ? null : reader.GetString(23),
+            DirectoryUserPrincipalName = reader.IsDBNull(24) ? null : reader.GetString(24),
+            DirectoryMail = reader.IsDBNull(25) ? null : reader.GetString(25),
+            DirectoryDisplayName = reader.IsDBNull(26) ? null : reader.GetString(26),
+            DirectoryDepartmentName = reader.IsDBNull(27) ? null : reader.GetString(27),
+            DirectoryEmployeeNumber = reader.IsDBNull(28) ? null : reader.GetInt32(28),
+            DirectoryAccountEnabled = reader.IsDBNull(29) ? null : reader.GetBoolean(29)
         };
     }
 
@@ -981,9 +1017,15 @@ LIMIT 1;
                 return ResolveWorkflowAutomationContextProperty(context, property);
             }
             case "target_person":
+            case "person":
             {
                 var property = element.GetProperty("property").GetString();
-                return ResolveTargetPersonAutomationContextProperty(context, property);
+                return ResolvePersonAutomationContextProperty(context, property);
+            }
+            case "directory_identity":
+            {
+                var property = element.GetProperty("property").GetString();
+                return ResolveDirectoryIdentityAutomationContextProperty(context, property);
             }
             case "answer":
             {
@@ -1022,7 +1064,7 @@ LIMIT 1;
         };
     }
 
-    private static object? ResolveTargetPersonAutomationContextProperty(
+    private static object? ResolvePersonAutomationContextProperty(
         AutomationPayloadContextRecord context,
         string? property)
     {
@@ -1030,9 +1072,35 @@ LIMIT 1;
         {
             "personid" => context.TargetPersonId,
             "departmentid" => context.TargetDepartmentId,
+            "roleid" => context.TargetRoleId,
             "appuserid" => context.TargetAppUserId,
+            "directoryidentityid" => context.TargetDirectoryIdentityId,
+            "firstname" => context.TargetFirstName,
+            "lastname" => context.TargetLastName,
+            "employeenumber" => context.TargetEmployeeNumber,
+            "badgenumber" => context.TargetBadgeNumber,
+            "employmentstatus" => context.TargetEmploymentStatus,
+            "entrydate" => context.TargetEntryDate?.ToString("yyyy-MM-dd"),
+            "exitdate" => context.TargetExitDate?.ToString("yyyy-MM-dd"),
             "displayname" => context.TargetDisplayName,
             "email" => context.TargetEmail,
+            _ => null
+        };
+    }
+
+    private static object? ResolveDirectoryIdentityAutomationContextProperty(
+        AutomationPayloadContextRecord context,
+        string? property)
+    {
+        return property?.Trim().ToLowerInvariant() switch
+        {
+            "directoryidentityid" => context.TargetDirectoryIdentityId,
+            "userprincipalname" => context.DirectoryUserPrincipalName,
+            "mail" => context.DirectoryMail,
+            "displayname" => context.DirectoryDisplayName,
+            "departmentname" => context.DirectoryDepartmentName,
+            "employeenumber" => context.DirectoryEmployeeNumber,
+            "accountenabled" => context.DirectoryAccountEnabled,
             _ => null
         };
     }
@@ -1117,8 +1185,23 @@ LIMIT 1;
         public DateOnly? DeadlineDate { get; init; }
         public long? TargetPersonId { get; init; }
         public int? TargetDepartmentId { get; init; }
+        public int? TargetRoleId { get; init; }
         public long? TargetAppUserId { get; init; }
+        public long? TargetDirectoryIdentityId { get; init; }
+        public string? TargetFirstName { get; init; }
+        public string? TargetLastName { get; init; }
+        public int? TargetEmployeeNumber { get; init; }
+        public int? TargetBadgeNumber { get; init; }
+        public string? TargetEmploymentStatus { get; init; }
+        public DateOnly? TargetEntryDate { get; init; }
+        public DateOnly? TargetExitDate { get; init; }
         public string? TargetDisplayName { get; init; }
         public string? TargetEmail { get; init; }
+        public string? DirectoryUserPrincipalName { get; init; }
+        public string? DirectoryMail { get; init; }
+        public string? DirectoryDisplayName { get; init; }
+        public string? DirectoryDepartmentName { get; init; }
+        public int? DirectoryEmployeeNumber { get; init; }
+        public bool? DirectoryAccountEnabled { get; init; }
     }
 }

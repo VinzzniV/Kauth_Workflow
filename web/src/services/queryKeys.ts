@@ -8,6 +8,11 @@ export const queryKeys = {
   },
   roles: () => ["roles"] as const,
   departments: () => ["departments"] as const,
+  people: {
+    search: (search: string) => ["people", "search", search] as const,
+    rotationEligible: (search: string) => ["people", "rotation-eligible", search] as const,
+    history: (personId: number) => ["people", personId, "history"] as const,
+  },
 
   workflows: {
     all: () => ["workflows"] as const,
@@ -40,6 +45,8 @@ export const queryKeys = {
       ["rotation", "plans", planId ?? null, "audit", limit, offset] as const,
     notifications: (planId: number | null, limit: number, offset: number) =>
       ["rotation", "plans", planId ?? null, "notifications", limit, offset] as const,
+    adminTemplates: (departmentId: number | null, isActive: boolean | null) =>
+      ["rotation", "admin-templates", departmentId ?? null, isActive ?? null] as const,
   },
 
   dashboard: {

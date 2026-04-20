@@ -51,6 +51,22 @@ function getReferenceLink(entry: AdminSystemLogEntry): { to: string; label: stri
   return null;
 }
 
+function formatLogDetails(details: unknown): string | null {
+  if (details === null || details === undefined) {
+    return null;
+  }
+
+  if (typeof details === "string") {
+    return details;
+  }
+
+  try {
+    return JSON.stringify(details, null, 2);
+  } catch {
+    return String(details);
+  }
+}
+
 function buildQuery(options: {
   severities: string[];
   source: string;
@@ -200,141 +216,150 @@ export function AdminSystemLogSection() {
         </div>
       ) : null}
 
-      <div className="admin-system-log-filter-grid">
-        <div className="admin-system-log-severity-group">
-          {["warning", "error", "info"].map((severity) => (
-            <label key={severity} className="admin-system-log-checkbox">
+      <div className="admin-system-log-filters">
+        <div className="admin-system-log-filter-row admin-system-log-filter-row--primary">
+          <section className="admin-system-log-severity-group" aria-label="Severity">
+            <span className="admin-system-log-filter-title">Severity</span>
+            <div className="admin-system-log-severity-options">
+              {["warning", "error", "info"].map((severity) => (
+                <label key={severity} className="admin-system-log-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={severities.includes(severity)}
+                    onChange={() => toggleSeverity(severity)}
+                  />
+                  <span>{severity}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <label className="field compact admin-system-log-field">
+            <span>Quelle</span>
+            <select
+              value={source}
+              onChange={(event) => {
+                setOffset(0);
+                setSource(event.target.value);
+              }}
+            >
+              <option value="">Alle Quellen</option>
+              {SYSTEM_LOG_SOURCES.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <section className="admin-system-log-date-range" aria-label="Zeitraum">
+            <label className="field compact admin-system-log-field">
+              <span>Seit</span>
               <input
-                type="checkbox"
-                checked={severities.includes(severity)}
-                onChange={() => toggleSeverity(severity)}
+                type="date"
+                value={since}
+                onChange={(event) => {
+                  setOffset(0);
+                  setSince(event.target.value);
+                }}
               />
-              <span>{severity}</span>
             </label>
-          ))}
+
+            <label className="field compact admin-system-log-field">
+              <span>Bis</span>
+              <input
+                type="date"
+                value={until}
+                onChange={(event) => {
+                  setOffset(0);
+                  setUntil(event.target.value);
+                }}
+              />
+            </label>
+          </section>
+
+          <label className="field compact admin-system-log-field admin-system-log-field--search">
+            <span>Suche</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => {
+                setOffset(0);
+                setSearch(event.target.value);
+              }}
+              placeholder="Meldung, Route, Funktion"
+            />
+          </label>
         </div>
 
-        <label className="field compact">
-          <span>Quelle</span>
-          <select
-            value={source}
-            onChange={(event) => {
-              setOffset(0);
-              setSource(event.target.value);
-            }}
-          >
-            <option value="">Alle Quellen</option>
-            {SYSTEM_LOG_SOURCES.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="admin-system-log-filter-row admin-system-log-filter-row--secondary">
+          <label className="field compact admin-system-log-field admin-system-log-field--narrow">
+            <span>User-ID</span>
+            <input
+              type="number"
+              value={actorUserId}
+              onChange={(event) => {
+                setOffset(0);
+                setActorUserId(event.target.value);
+              }}
+              placeholder="optional"
+            />
+          </label>
 
-        <label className="field compact">
-          <span>Seit</span>
-          <input
-            type="date"
-            value={since}
-            onChange={(event) => {
-              setOffset(0);
-              setSince(event.target.value);
-            }}
-          />
-        </label>
+          <label className="field compact admin-system-log-field">
+            <span>Workflow</span>
+            <input
+              type="text"
+              value={workflowUid}
+              onChange={(event) => {
+                setOffset(0);
+                setWorkflowUid(event.target.value);
+              }}
+              placeholder="Workflow-UID"
+            />
+          </label>
 
-        <label className="field compact">
-          <span>Bis</span>
-          <input
-            type="date"
-            value={until}
-            onChange={(event) => {
-              setOffset(0);
-              setUntil(event.target.value);
-            }}
-          />
-        </label>
+          <label className="field compact admin-system-log-field admin-system-log-field--narrow">
+            <span>Plan-ID</span>
+            <input
+              type="number"
+              value={rotationPlanId}
+              onChange={(event) => {
+                setOffset(0);
+                setRotationPlanId(event.target.value);
+              }}
+              placeholder="optional"
+            />
+          </label>
 
-        <label className="field compact">
-          <span>Suche</span>
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => {
-              setOffset(0);
-              setSearch(event.target.value);
-            }}
-            placeholder="Meldung, Route, Funktion"
-          />
-        </label>
+          <label className="field compact admin-system-log-field">
+            <span>Task-Ref</span>
+            <input
+              type="text"
+              value={taskRef}
+              onChange={(event) => {
+                setOffset(0);
+                setTaskRef(event.target.value);
+              }}
+              placeholder="z. B. rot:123"
+            />
+          </label>
 
-        <label className="field compact">
-          <span>User-ID</span>
-          <input
-            type="number"
-            value={actorUserId}
-            onChange={(event) => {
-              setOffset(0);
-              setActorUserId(event.target.value);
-            }}
-            placeholder="optional"
-          />
-        </label>
-
-        <label className="field compact">
-          <span>Workflow</span>
-          <input
-            type="text"
-            value={workflowUid}
-            onChange={(event) => {
-              setOffset(0);
-              setWorkflowUid(event.target.value);
-            }}
-            placeholder="Workflow-UID"
-          />
-        </label>
-
-        <label className="field compact">
-          <span>Plan-ID</span>
-          <input
-            type="number"
-            value={rotationPlanId}
-            onChange={(event) => {
-              setOffset(0);
-              setRotationPlanId(event.target.value);
-            }}
-            placeholder="optional"
-          />
-        </label>
-
-        <label className="field compact">
-          <span>Task-Ref</span>
-          <input
-            type="text"
-            value={taskRef}
-            onChange={(event) => {
-              setOffset(0);
-              setTaskRef(event.target.value);
-            }}
-            placeholder="z. B. rot:123"
-          />
-        </label>
-
-        <label className="field compact">
-          <span>Seite</span>
-          <select
-            value={String(limit)}
-            onChange={(event) => {
-              setOffset(0);
-              setLimit(Number(event.target.value));
-            }}
-          >
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </label>
+          <label className="field compact admin-system-log-field admin-system-log-field--narrow">
+            <span>Seite</span>
+            <select
+              value={String(limit)}
+              onChange={(event) => {
+                setOffset(0);
+                setLimit(Number(event.target.value));
+              }}
+            >
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {isLoading ? <LoadingState title="System-Logs werden geladen..." /> : null}
@@ -349,57 +374,72 @@ export function AdminSystemLogSection() {
 
       {!isLoading && !error && entries.length > 0 ? (
         <>
-          <div className="table-scroll">
+          <div className="table-scroll admin-system-log-table-scroll">
             <table className="table admin-system-log-table">
               <thead>
                 <tr>
-                  <th>Zeitpunkt</th>
-                  <th>Severity</th>
-                  <th>Quelle</th>
-                  <th>Bereich / Funktion</th>
-                  <th>Nutzermeldung</th>
-                  <th>Technische Meldung</th>
-                  <th>Nutzer</th>
-                  <th>Bezug</th>
-                  <th>Status / HTTP</th>
+                  <th className="admin-system-log-col admin-system-log-col--time">Zeitpunkt</th>
+                  <th className="admin-system-log-col admin-system-log-col--severity">Severity</th>
+                  <th className="admin-system-log-col admin-system-log-col--source">Quelle</th>
+                  <th className="admin-system-log-col admin-system-log-col--context">Bereich / Funktion</th>
+                  <th className="admin-system-log-col admin-system-log-col--user-message">Nutzermeldung</th>
+                  <th className="admin-system-log-col admin-system-log-col--message">Technische Meldung</th>
+                  <th className="admin-system-log-col admin-system-log-col--actor">Nutzer</th>
+                  <th className="admin-system-log-col admin-system-log-col--reference">Bezug</th>
+                  <th className="admin-system-log-col admin-system-log-col--http">Status / HTTP</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((entry) => {
                   const referenceLink = getReferenceLink(entry);
+                  const detailsText = formatLogDetails(entry.details);
                   return (
                     <tr key={entry.id}>
-                      <td>{formatDateTime(entry.createdAt)}</td>
-                      <td>
+                      <td className="admin-system-log-col admin-system-log-col--time">{formatDateTime(entry.createdAt)}</td>
+                      <td className="admin-system-log-col admin-system-log-col--severity">
                         <span className={`admin-system-log-pill admin-system-log-pill--${entry.severity}`}>
                           {entry.severity}
                         </span>
                       </td>
-                      <td>{entry.source}</td>
-                      <td>
+                      <td className="admin-system-log-col admin-system-log-col--source">{entry.source}</td>
+                      <td className="admin-system-log-col admin-system-log-col--context">
                         <div className="admin-system-log-cell-stack">
                           <strong>{entry.clientFunction ?? entry.category}</strong>
                           <span>{entry.clientRoute ?? entry.httpPath ?? "-"}</span>
                         </div>
                       </td>
-                      <td>{entry.userMessage ?? "-"}</td>
-                      <td>
+                      <td className="admin-system-log-col admin-system-log-col--user-message">
+                        <div className="admin-system-log-cell-stack">
+                          <span>{entry.userMessage ?? "-"}</span>
+                        </div>
+                      </td>
+                      <td className="admin-system-log-col admin-system-log-col--message">
                         <div className="admin-system-log-cell-stack">
                           <span>{entry.message}</span>
                           <span className="text-muted">{entry.eventKey}</span>
+                          {detailsText ? (
+                            <details className="admin-system-log-details">
+                              <summary>Details</summary>
+                              <pre>{detailsText}</pre>
+                            </details>
+                          ) : null}
                         </div>
                       </td>
-                      <td>{entry.actorDisplayName ?? (entry.actorUserId ? `User ${entry.actorUserId}` : "-")}</td>
-                      <td>
+                      <td className="admin-system-log-col admin-system-log-col--actor">
+                        <div className="admin-system-log-cell-stack">
+                          <span>{entry.actorDisplayName ?? (entry.actorUserId ? `User ${entry.actorUserId}` : "-")}</span>
+                        </div>
+                      </td>
+                      <td className="admin-system-log-col admin-system-log-col--reference">
                         <div className="admin-system-log-cell-stack">
                           {referenceLink ? <Link to={referenceLink.to}>{referenceLink.label}</Link> : null}
                           {!referenceLink && entry.taskRef ? <span>{entry.taskRef}</span> : null}
                           {!referenceLink && !entry.taskRef && !entry.workflowUid && !entry.rotationPlanId ? <span>-</span> : null}
                         </div>
                       </td>
-                      <td>
+                      <td className="admin-system-log-col admin-system-log-col--http">
                         <div className="admin-system-log-cell-stack">
-                          <span>{entry.httpStatus ?? "-"}</span>
+                          <strong>{entry.httpStatus ?? "-"}</strong>
                           <span>{entry.httpMethod ? `${entry.httpMethod} ${entry.httpPath ?? ""}`.trim() : "-"}</span>
                         </div>
                       </td>

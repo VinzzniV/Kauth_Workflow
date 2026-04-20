@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
+import { createPerson } from "../services/peopleApi";
 import { createWorkflow } from "../services/workflowApi";
 import type {
   EmployeeFormData,
   StartableWorkflowDefinition,
-  WorkflowTargetPersonSource,
+  WorkflowTargetPerson,
 } from "../types/workflow";
 import {
   buildWorkflowCreationPayload,
@@ -18,7 +19,7 @@ type UseWorkflowCreationSubmissionArgs = {
   requiresTargetPerson: boolean;
   selectedDepartmentId: number | null;
   selectedRoleId: number | null;
-  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  selectedTargetPerson: WorkflowTargetPerson | null;
   employee: EmployeeFormData;
 };
 
@@ -38,18 +39,20 @@ export function useWorkflowCreationSubmission({
   requiresTargetPerson,
   selectedDepartmentId,
   selectedRoleId,
-  selectedTargetPersonSource,
+  selectedTargetPerson,
   employee,
 }: UseWorkflowCreationSubmissionArgs): UseWorkflowCreationSubmissionResult {
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccessMessage, setSubmitSuccessMessage] = useState<string | null>(null);
   const [createdWorkflowUid, setCreatedWorkflowUid] = useState<string | null>(null);
+  const [stagedTargetPerson, setStagedTargetPerson] = useState<WorkflowTargetPerson | null>(null);
 
   const resetSubmissionState = useCallback(() => {
     setSubmitError(null);
     setSubmitSuccessMessage(null);
     setCreatedWorkflowUid(null);
+    setStagedTargetPerson(null);
     setSubmitState((previous) => (previous === "loading" ? previous : "idle"));
   }, []);
 
@@ -66,9 +69,9 @@ export function useWorkflowCreationSubmission({
       return;
     }
 
-    if (requiresTargetPerson && !selectedTargetPersonSource) {
+    if (requiresTargetPerson && !selectedTargetPerson) {
       setSubmitState("error");
-      setSubmitError("Bitte zuerst einen passenden Quellworkflow auswählen.");
+      setSubmitError("Bitte zuerst eine bestehende Person auswählen.");
       return;
     }
 
@@ -78,17 +81,38 @@ export function useWorkflowCreationSubmission({
     setCreatedWorkflowUid(null);
 
     const workflowName = selectedWorkflowDefinition?.name ?? selectedWorkflowDefinitionKey;
-    const payload = buildWorkflowCreationPayload({
-      selectedWorkflowDefinitionKey,
-      selectedLegacyProcessTypeKey,
-      requiresTargetPerson,
-      selectedTargetPersonSource,
-      employee,
-      selectedDepartmentId,
-      selectedRoleId,
-    });
 
     try {
+      const targetPerson = requiresTargetPerson
+        ? selectedTargetPerson
+        : stagedTargetPerson
+          ?? await createPerson({
+            firstName: employee.firstName.trim(),
+            lastName: employee.lastName.trim(),
+            employeeNumber: employee.employeeNumber,
+            badgeNumber: employee.badgeNumber,
+            departmentId: selectedDepartmentId as number,
+            roleId: selectedRoleId as number,
+          });
+
+      if (!targetPerson) {
+        throw new Error("Die Zielperson konnte nicht aufgelöst werden.");
+      }
+
+      if (!requiresTargetPerson && stagedTargetPerson === null) {
+        setStagedTargetPerson(targetPerson);
+      }
+
+      const payload = buildWorkflowCreationPayload({
+        selectedWorkflowDefinitionKey,
+        selectedLegacyProcessTypeKey,
+        requiresTargetPerson,
+        targetPersonId: targetPerson.personId,
+        employee,
+        selectedDepartmentId,
+        selectedRoleId,
+      });
+
       const response = await createWorkflow(payload);
       setCreatedWorkflowUid(response.uid);
       setSubmitState("success");
@@ -97,7 +121,7 @@ export function useWorkflowCreationSubmission({
           workflowName,
           createdWorkflowUid: response.uid,
           requiresTargetPerson,
-          selectedTargetPersonSource,
+          selectedTargetPerson: requiresTargetPerson ? targetPerson : null,
         })
       );
     } catch (err) {
@@ -108,11 +132,12 @@ export function useWorkflowCreationSubmission({
     employee,
     requiresTargetPerson,
     selectedLegacyProcessTypeKey,
-    selectedTargetPersonSource,
     selectedDepartmentId,
+    selectedRoleId,
+    selectedTargetPerson,
     selectedWorkflowDefinition,
     selectedWorkflowDefinitionKey,
-    selectedRoleId,
+    stagedTargetPerson,
   ]);
 
   return {

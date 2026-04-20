@@ -598,6 +598,7 @@ public sealed class WorkflowEndpointsTests
                 WorkflowDefinitionKey = "onboarding",
                 DepartmentId = 1,
                 RoleId = 2,
+                TargetPersonId = 77,
                 FirstName = "Ada",
                 LastName = "Lovelace",
                 EmployeeNumber = 1001,
@@ -865,7 +866,7 @@ public sealed class WorkflowEndpointsTests
     }
 
     [Fact]
-    public async Task CreateWorkflowEndpoint_RejectsNewPersonProcessWithExistingTargetPerson()
+    public async Task CreateWorkflowEndpoint_AllowsNewPersonProcessWithExistingTargetPerson()
     {
         var repository = new StubWorkflowRepository
         {
@@ -877,7 +878,8 @@ public sealed class WorkflowEndpointsTests
                     Name = "Onboarding",
                     RequiresTargetPerson = false
                 }
-            ]
+            ],
+            Workflow = CreateWorkflowDetail(Guid.Parse("11111111-1111-1111-1111-111111111111"))
         };
 
         var app = CreateApp(repository, CreateUser(AuthorizationRoles.Hr));
@@ -901,10 +903,10 @@ public sealed class WorkflowEndpointsTests
 
         await endpoint.RequestDelegate!(context);
 
-        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+        Assert.Equal(StatusCodes.Status201Created, context.Response.StatusCode);
         Assert.Equal(1, repository.IsManagerCreatableProcessTypeCallCount);
         Assert.Equal(1, repository.GetActiveProcessTypesCallCount);
-        Assert.Equal(0, repository.CreateWorkflowCallCount);
+        Assert.Equal(1, repository.CreateWorkflowCallCount);
     }
 
     [Fact]
@@ -1077,6 +1079,7 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddSingleton<IWorkflowVisibilityService, WorkflowVisibilityService>();
         builder.Services.AddSingleton<IWorkflowNotificationDispatchService, WorkflowNotificationDispatchService>();
         builder.Services.AddSingleton<IWorkflowCatalogService, WorkflowCatalogService>();
+        builder.Services.AddSingleton<IPersonLifecycleProjectionService, PersonLifecycleProjectionService>();
         builder.Services.AddSingleton<IWorkflowRuntimeService, WorkflowRuntimeService>();
         builder.Services.AddSingleton<ITaskApplicationService, TaskApplicationService>();
         builder.Services.AddSingleton<IGraphApplicationConfigurationService, StubGraphApplicationConfigurationService>();
@@ -1472,6 +1475,9 @@ public sealed class WorkflowEndpointsTests
         public List<DerivedAnswerDto> DerivedAnswers { get; set; } = new();
         public List<AdminProcessTypeDto> AdminProcessTypes { get; set; } = new();
         public List<WorkflowStartableDefinitionDto> StartableWorkflowDefinitions { get; set; } = new();
+        public WorkflowTargetPersonDto? CreatedPerson { get; set; }
+        public List<WorkflowTargetPersonDto> WorkflowTargetPeople { get; set; } = new();
+        public List<WorkflowTargetPersonDto> RotationEligiblePeople { get; set; } = new();
         public AdminProcessTypeDto? UpdatedProcessType { get; set; }
         public Exception? UpdateProcessTypeException { get; set; }
         public WorkflowDefinitionRuntimeDetailDto RuntimeWorkflowCreationResult { get; set; } = new()
@@ -1515,10 +1521,13 @@ public sealed class WorkflowEndpointsTests
         public int GetStartableWorkflowDefinitionsCallCount { get; private set; }
         public int SearchWorkflowTargetPersonSourcesCallCount { get; private set; }
         public int SearchWorkflowTargetPeopleCallCount { get; private set; }
+        public int SearchRotationEligiblePeopleCallCount { get; private set; }
         public int CreateWorkflowCallCount { get; private set; }
+        public int CreatePersonCallCount { get; private set; }
         public int IsManagerCreatableProcessTypeCallCount { get; private set; }
         public int GetWorkflowCreatedNotificationDispatchTargetsCallCount { get; private set; }
         public int ApplyNotificationDispatchResultsCallCount { get; private set; }
+        public int ApplyPersonLifecycleProjectionCallCount { get; private set; }
         public int GetPersonWorkflowHistoryCallCount { get; private set; }
         public int GetRequirementSelectionDepartmentIdsCallCount { get; private set; }
         public int GetFilteredWorkflowsCallCount { get; private set; }
@@ -1529,6 +1538,9 @@ public sealed class WorkflowEndpointsTests
         public string? LastSearchWorkflowTargetPeopleQuery { get; private set; }
         public int? LastSearchWorkflowTargetPeopleLimit { get; private set; }
         public IReadOnlyCollection<int>? LastSearchWorkflowTargetPeopleDepartmentIds { get; private set; }
+        public string? LastSearchRotationEligiblePeopleQuery { get; private set; }
+        public int? LastSearchRotationEligiblePeopleLimit { get; private set; }
+        public IReadOnlyCollection<int>? LastSearchRotationEligiblePeopleDepartmentIds { get; private set; }
         public int? LastAuditLogLimit { get; private set; }
         public int? LastAuditLogOffset { get; private set; }
         public string? LastIsManagerCreatableProcessTypeKey { get; private set; }
@@ -1547,6 +1559,10 @@ public sealed class WorkflowEndpointsTests
         public AdminProcessTypeUpdateRequest? LastUpdateProcessTypeRequest { get; private set; }
         public CreateWorkflowRequest? LastCreateWorkflowRequest { get; private set; }
         public long? LastCreateWorkflowUserId { get; private set; }
+        public CreatePersonRequest? LastCreatePersonRequest { get; private set; }
+        public long? LastCreatePersonActorUserId { get; private set; }
+        public Guid? LastApplyPersonLifecycleProjectionWorkflowUid { get; private set; }
+        public long? LastApplyPersonLifecycleProjectionActorUserId { get; private set; }
         public WorkflowListQuery? LastWorkflowListQuery { get; private set; }
         public bool IsManagerCreatableProcessTypeResult { get; set; } = true;
         public List<WorkflowTargetPersonSourceDto> WorkflowTargetPersonSources { get; set; } = new();
@@ -1589,6 +1605,17 @@ public sealed class WorkflowEndpointsTests
             LastCreateWorkflowRequest = request;
             LastCreateWorkflowUserId = createdByUserId;
             return Task.FromResult(WorkflowCreationResult);
+        }
+        public Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId)
+        {
+            CreatePersonCallCount += 1;
+            LastCreatePersonRequest = request;
+            LastCreatePersonActorUserId = actorUserId;
+            return Task.FromResult(CreatedPerson ?? new WorkflowTargetPersonDto
+            {
+                PersonId = 1,
+                DisplayName = "Test Person"
+            });
         }
         public Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId) => throw new NotSupportedException();
         public Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid)
@@ -1702,7 +1729,26 @@ public sealed class WorkflowEndpointsTests
             LastSearchWorkflowTargetPeopleQuery = query;
             LastSearchWorkflowTargetPeopleLimit = limit;
             LastSearchWorkflowTargetPeopleDepartmentIds = observableDepartmentIds;
-            return Task.FromResult(new List<WorkflowTargetPersonDto>());
+            return Task.FromResult(WorkflowTargetPeople);
+        }
+        public Task<List<WorkflowTargetPersonDto>> SearchRotationEligiblePeople(
+            string? query,
+            int limit = 20,
+            IReadOnlyCollection<int>? observableDepartmentIds = null)
+        {
+            SearchRotationEligiblePeopleCallCount += 1;
+            LastSearchRotationEligiblePeopleQuery = query;
+            LastSearchRotationEligiblePeopleLimit = limit;
+            LastSearchRotationEligiblePeopleDepartmentIds = observableDepartmentIds;
+            return Task.FromResult(RotationEligiblePeople);
+        }
+
+        public Task ApplyPersonLifecycleProjection(Guid workflowUid, long? actorUserId = null)
+        {
+            ApplyPersonLifecycleProjectionCallCount += 1;
+            LastApplyPersonLifecycleProjectionWorkflowUid = workflowUid;
+            LastApplyPersonLifecycleProjectionActorUserId = actorUserId;
+            return Task.CompletedTask;
         }
 
         public Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null)

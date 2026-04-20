@@ -8,6 +8,7 @@ internal interface IWorkflowCatalogService
     Task<IReadOnlyList<WorkflowProcessTypeDto>> GetProcessTypesAsync(CurrentUser currentUser, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSourcesAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchWorkflowTargetPeopleAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchRotationEligiblePeopleAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RequirementDto>> GetRequirementsAsync(string? processTypeKey, CancellationToken cancellationToken = default);
     Task<WorkflowConfigDto?> GetWorkflowConfigAsync(int? roleId, string? processTypeKey, CancellationToken cancellationToken = default);
 }

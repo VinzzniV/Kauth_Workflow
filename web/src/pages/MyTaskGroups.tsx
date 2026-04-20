@@ -12,6 +12,7 @@ import {
 import {
   getAvailableVisibleTaskStatuses,
   getVisibleTaskStatus,
+  getVisibleTaskStatusLabel,
   type VisibleTaskStatus,
 } from "../utils/taskStatus";
 import { toTaskStateKey } from "./myTasksPageModel";
@@ -144,7 +145,7 @@ export function MyTaskGroups({
                           >
                             {availableStatuses.map((status) => (
                               <option key={status} value={status}>
-                                {status === "open" ? "Offen" : status === "in_progress" ? "In Bearbeitung" : status === "blocked" ? "Blockiert" : "Erledigt"}
+                                {getVisibleTaskStatusLabel(status)}
                               </option>
                             ))}
                           </select>

@@ -113,10 +113,18 @@ OFFSET @offset;";
         long taskId)
     {
         const string sql = @"
-SELECT COALESCE(u.display_name, r.name) AS assignee_label
+SELECT COALESCE(
+    u.display_name,
+    CASE
+        WHEN r.id IS NULL THEN NULL
+        WHEN d.name IS NULL OR d.name = '' THEN r.name
+        ELSE d.name || ' - ' || r.name
+    END
+) AS assignee_label
 FROM task_assignments ta
 LEFT JOIN app_users u ON u.id = ta.assignee_user_id
 LEFT JOIN app_responsibilities r ON r.id = ta.assignee_responsibility_id
+LEFT JOIN departments d ON d.id = r.department_id
 WHERE ta.workflow_task_id = @taskId
   AND ta.is_primary = TRUE
 ORDER BY ta.id DESC
@@ -156,9 +164,13 @@ LIMIT 1;";
         int responsibilityId)
     {
         const string sql = @"
-SELECT name
-FROM app_responsibilities
-WHERE id = @responsibilityId
+SELECT CASE
+    WHEN d.name IS NULL OR d.name = '' THEN r.name
+    ELSE d.name || ' - ' || r.name
+END
+FROM app_responsibilities r
+LEFT JOIN departments d ON d.id = r.department_id
+WHERE r.id = @responsibilityId
 LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);

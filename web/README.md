@@ -65,6 +65,7 @@ Aktueller Stand:
 - Basis-Builder-Zugriff haengt jetzt an der bestehenden `workflowCreate`-Faehigkeit; Anlage von Ablaufvorlagen und Staenden, Aktionskatalog und Freigabe bleiben bewusst auf den `Admin-Modus` beschraenkt.
 - Die tieferen Spezialeditoren fuer Bedingungen und Actions bleiben vorerst bewusst schlank und teilweise JSON-basiert; die weitere Produktisierung folgt in den naechsten Builder-Phasen.
 - Seit T11 nutzt `/workflows/create` startbare Workflow-Definitionen aus dem Definition Layer statt `process_types`; die alten Admin-Sektionen fuer Process Types, Templates und Answer Defaults sind im sichtbaren Workspace ausgeblendet.
+- Seit dem mitarbeiterzentrierten Lifecycle-Schnitt legt `/workflows/create` bei neuen Onboardings zuerst einen kanonischen Mitarbeiter per `POST /people` an und startet danach den Workflow mit `targetPersonId`; bestehende Lifecycle-Prozesse suchen ihre Zielperson ueber `GET /people/search` statt ueber abgeschlossene Onboardings.
 - Die Workflow-Detailansicht zeigt parallel laufende Bereiche jetzt klarer ueber Pflichtfortschritt, sichtbare `blocked`-Status und konkrete aktuelle Fachbereiche statt generischer Parallel-Hinweise.
 
 Wichtig:
@@ -77,7 +78,7 @@ Wichtig:
 Wichtige Service-Bereiche:
 - `authApi.ts` fuer Login, Session und aktuellen Benutzer
 - `workflowApi.ts`, `taskApi.ts`, `peopleApi.ts`, `lookupApi.ts` fuer Fachdaten
-- `rotationApi.ts` und `services/queries/rotationQueries.ts` fuer HR-Planung des Rotations-/Durchlauf-Slices
+- `rotationApi.ts` und `services/queries/rotationQueries.ts` fuer HR-Planung und Uebersicht des Rotations-/Durchlauf-Slices; die Personenauswahl fuer neue Durchlaeufe kommt aus `/people/rotation-eligible`
 - `adminApi.ts` und `adminConfigApi.ts` fuer Administration und Konfiguration
 - `systemLogReporter.ts` fuer dedupliziertes Client-Error-Reporting an `/client/log-events`
 - `services/api/*` fuer DTOs, Mapping und Basis-Client
@@ -114,6 +115,7 @@ Workflow-Detail, Audit-Log und Aufgabenansichten:
 
 Rotation-/Durchlaufplanung fuer HR:
 `src/pages/RotationPlanningPage.tsx`, `src/pages/RotationPlanDetailPage.tsx`, `src/services/rotationApi.ts`, `src/services/queries/rotationQueries.ts` und `src/types/rotation.ts`
+`/rotation` ist die Uebersicht ueber bestehende Durchlaufplaene und deren Stände; die eigentliche Anlage eines neuen Abteilungsdurchlaufs startet fuer HR ueber `Neuer Vorgang` und den Einstieg nach `/rotation?mode=create`.
 
 Rotation-/Durchlaufoperationen fuer IT und Fachbereiche:
 `src/pages/RotationOperationsPage.tsx`, `src/pages/RotationTaskDetailPage.tsx`, `src/services/taskApi.ts`, `src/services/mutations/workflowMutations.ts`, `src/utils/taskStatus.ts` und die taskRef-faehigen Task-Envelope-Mappings in `src/services/api/`

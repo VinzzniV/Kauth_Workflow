@@ -40,8 +40,24 @@ SET
 -- =========================
 -- Departments
 -- =========================
--- Abteilungen werden nicht mehr statisch vorbefuellt. Fuehrend ist Entra:
--- der Directory-Sync legt departments aus directory_identities.department_name an.
+-- Basis-Abteilungen fuer Rollen, Verantwortlichkeiten und lokale Entwicklungs-/Teststarts.
+-- Der Directory-Sync kann diese Namen spaeter weiterhin angleichen und fortschreiben.
+WITH department_seed(name) AS (
+    VALUES
+        ('IT'),
+        ('AV'),
+        ('HR'),
+        ('Engineering'),
+        ('QS'),
+        ('QMB'),
+        ('Produktion'),
+        ('Vertrieb'),
+        ('Prototypenbau')
+)
+INSERT INTO departments (name)
+SELECT name
+FROM department_seed
+ON CONFLICT (name) DO NOTHING;
 
 -- =========================
 -- App roles

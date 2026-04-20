@@ -45,20 +45,10 @@ JOIN LATERAL (
     LEFT JOIN app_users u ON u.id = p.app_user_id
     WHERE w.target_person_id = p.id
        OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
-       OR (
-            w.employee_number > 0
-            AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
-                COALESCE(
-                    NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
-                    u.display_name,
-                    'Person #' || p.id::text
-                )
-       )
     ORDER BY
         CASE
             WHEN w.target_person_id = p.id THEN 0
             WHEN p.employee_number IS NOT NULL AND w.employee_number = p.employee_number THEN 1
-            ELSE 2
         END,
         p.id
     LIMIT 1
@@ -136,7 +126,7 @@ SELECT
     ) AS display_name,
     COALESCE(p.first_name, w.first_name) AS first_name,
     COALESCE(p.last_name, w.last_name) AS last_name,
-    COALESCE(w.department_id, p.department_id, u.department_id) AS department_id,
+    COALESCE(p.department_id, w.department_id, u.department_id) AS department_id,
     d.name AS department_name,
     rp.title,
     rp.status,
@@ -148,10 +138,10 @@ FROM rotation_plans rp
 JOIN people p ON p.id = rp.person_id
 JOIN workflows w ON w.id = rp.source_workflow_id
 LEFT JOIN app_users u ON u.id = p.app_user_id
-LEFT JOIN departments d ON d.id = COALESCE(w.department_id, p.department_id, u.department_id)
+LEFT JOIN departments d ON d.id = COALESCE(p.department_id, w.department_id, u.department_id)
 LEFT JOIN rotation_stations rs ON rs.rotation_plan_id = rp.id
 WHERE (@personId IS NULL OR rp.person_id = @personId)
-  AND (@departmentIds IS NULL OR COALESCE(w.department_id, p.department_id, u.department_id) = ANY(@departmentIds))
+  AND (@departmentIds IS NULL OR COALESCE(p.department_id, w.department_id, u.department_id) = ANY(@departmentIds))
 GROUP BY
     rp.id,
     rp.person_id,
@@ -162,8 +152,8 @@ GROUP BY
     w.first_name,
     w.last_name,
     u.display_name,
-    w.department_id,
     p.department_id,
+    w.department_id,
     u.department_id,
     d.name,
     rp.title,
@@ -205,7 +195,7 @@ SELECT
     ) AS display_name,
     COALESCE(p.first_name, w.first_name) AS first_name,
     COALESCE(p.last_name, w.last_name) AS last_name,
-    COALESCE(w.department_id, p.department_id, u.department_id) AS department_id,
+    COALESCE(p.department_id, w.department_id, u.department_id) AS department_id,
     d.name AS department_name,
     rp.title,
     rp.status,
@@ -216,7 +206,7 @@ FROM rotation_plans rp
 JOIN people p ON p.id = rp.person_id
 JOIN workflows w ON w.id = rp.source_workflow_id
 LEFT JOIN app_users u ON u.id = p.app_user_id
-LEFT JOIN departments d ON d.id = COALESCE(w.department_id, p.department_id, u.department_id)
+LEFT JOIN departments d ON d.id = COALESCE(p.department_id, w.department_id, u.department_id)
 WHERE rp.id = @planId
 LIMIT 1;";
 
@@ -259,19 +249,6 @@ WITH source_workflow AS (
                 WHERE p.id = @personId
                   AND p.employee_number IS NOT NULL
                   AND w.employee_number = p.employee_number
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM people p
-                LEFT JOIN app_users u ON u.id = p.app_user_id
-                WHERE p.id = @personId
-                  AND w.employee_number > 0
-                  AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
-                        COALESCE(
-                            NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
-                            u.display_name,
-                            'Person #' || p.id::text
-                        )
             )
       )
     LIMIT 1

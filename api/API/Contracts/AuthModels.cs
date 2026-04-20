@@ -263,6 +263,7 @@ public sealed class AdminUserDto
     public bool DirectorySynced { get; init; }
     public string DepartmentSource { get; init; } = "local";
     public bool DepartmentOverrideActive { get; init; }
+    public bool IsTechnicalActor { get; init; }
     public long? DirectoryIdentityId { get; init; }
     public string? UserPrincipalName { get; init; }
     public string? DirectoryDisplayName { get; init; }

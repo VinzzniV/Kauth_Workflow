@@ -21,50 +21,24 @@ internal sealed partial class PostgresWorkflowRepository
         var processType = await LoadProcessTypeForCreate(connection, transaction, processTypeKey);
         var requiresNewPersonFields = !processType.RequiresTargetPerson;
 
-        if (processType.RequiresTargetPerson)
+        if (!request.TargetPersonId.HasValue)
         {
-            if (!request.TargetPersonId.HasValue)
-            {
-                throw new InvalidOperationException($"Der Prozesstyp '{processType.Name}' erfordert eine Zielperson.");
-            }
-        }
-        else if (request.TargetPersonId.HasValue)
-        {
-            throw new InvalidOperationException($"Der Prozesstyp '{processType.Name}' darf keine bestehende Zielperson referenzieren.");
+            throw new InvalidOperationException($"Der Prozesstyp '{processType.Name}' erfordert eine Zielperson.");
         }
 
-        var targetPerson = request.TargetPersonId.HasValue
-            ? await LoadTargetPerson(connection, transaction, request.TargetPersonId.Value)
-            : null;
+        var targetPerson = await LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
 
-        var effectiveDepartmentId = request.DepartmentId;
-        int? effectiveRoleId = request.RoleId;
+        var effectiveDepartmentId = request.DepartmentId ?? targetPerson.DepartmentId;
+        int? effectiveRoleId = request.RoleId ?? targetPerson.RoleId;
 
         if (request.RoleId.HasValue)
         {
-            if (!request.DepartmentId.HasValue)
+            if (!effectiveDepartmentId.HasValue)
             {
                 throw new InvalidOperationException("Die Abteilung ist erforderlich, wenn eine Zielrolle direkt angegeben wird.");
             }
 
-            await EnsureValidPositionRole(connection, transaction, request.RoleId.Value, request.DepartmentId.Value);
-        }
-        else if (targetPerson is not null)
-        {
-            if (!targetPerson.DepartmentId.HasValue)
-            {
-                throw new InvalidOperationException(
-                    $"Fuer die Zielperson '{targetPerson.DisplayName}' ist keine aktuelle Abteilung ableitbar.");
-            }
-
-            if (!targetPerson.RoleId.HasValue)
-            {
-                throw new InvalidOperationException(
-                    $"Fuer die Zielperson '{targetPerson.DisplayName}' ist keine aktuelle Stelle ableitbar.");
-            }
-
-            effectiveDepartmentId = targetPerson.DepartmentId.Value;
-            effectiveRoleId = targetPerson.RoleId.Value;
+            await EnsureValidPositionRole(connection, transaction, request.RoleId.Value, effectiveDepartmentId.Value);
         }
 
         if (!effectiveDepartmentId.HasValue)
@@ -87,7 +61,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         var firstName = request.FirstName?.Trim();
         var lastName = request.LastName?.Trim();
-        if (!requiresNewPersonFields && targetPerson is not null)
+        if (!requiresNewPersonFields)
         {
             var derivedFirstName = targetPerson.FirstName;
             var derivedLastName = targetPerson.LastName;
@@ -164,8 +138,7 @@ RETURNING id, uid;";
             workflowInsertCommand.Parameters.AddWithValue("departmentId", departmentId);
             workflowInsertCommand.Parameters.AddWithValue("roleId", roleId);
             workflowInsertCommand.Parameters.AddWithValue("createdByUserId", createdByUserId);
-            workflowInsertCommand.Parameters.Add("targetPersonId", NpgsqlDbType.Bigint).Value =
-                (object?)request.TargetPersonId ?? DBNull.Value;
+            workflowInsertCommand.Parameters.AddWithValue("targetPersonId", request.TargetPersonId.Value);
             workflowInsertCommand.Parameters.AddWithValue("firstName", firstName);
             workflowInsertCommand.Parameters.AddWithValue("lastName", lastName);
             workflowInsertCommand.Parameters.AddWithValue("employeeNumber", employeeNumber.Value);
@@ -367,18 +340,20 @@ SELECT
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name), COALESCE(p.last_name, latest.last_name))), ''),
         u.display_name,
+        linked_directory.display_name,
         'Person #' || p.id::text
     ) AS display_name,
-    COALESCE(latest.department_id, p.department_id, u.department_id) AS department_id,
+    COALESCE(p.department_id, latest.department_id, u.department_id) AS department_id,
     d.name AS department_name,
-    latest.position_role_id,
+    COALESCE(p.current_position_role_id, latest.position_role_id) AS role_id,
     r.name AS role_name,
-    COALESCE(latest.employee_number, p.employee_number) AS employee_number,
-    COALESCE(latest.badge_number, p.badge_number) AS badge_number,
+    COALESCE(p.employee_number, latest.employee_number, linked_directory.employee_number) AS employee_number,
+    COALESCE(p.badge_number, latest.badge_number) AS badge_number,
     COALESCE(p.first_name, latest.first_name) AS first_name,
     COALESCE(p.last_name, latest.last_name) AS last_name
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
+LEFT JOIN directory_identities linked_directory ON linked_directory.id = p.directory_identity_id
 LEFT JOIN LATERAL (
     SELECT
         w.department_id,
@@ -403,8 +378,8 @@ LEFT JOIN LATERAL (
     ORDER BY w.created_at DESC
     LIMIT 1
 ) latest ON TRUE
-LEFT JOIN departments d ON d.id = COALESCE(latest.department_id, p.department_id, u.department_id)
-LEFT JOIN app_roles r ON r.id = latest.position_role_id
+LEFT JOIN departments d ON d.id = COALESCE(p.department_id, latest.department_id, u.department_id)
+LEFT JOIN app_roles r ON r.id = COALESCE(p.current_position_role_id, latest.position_role_id)
 WHERE p.id = @targetPersonId
 LIMIT 1;";
 

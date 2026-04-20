@@ -8,17 +8,20 @@ internal sealed class PostgresSupervisorStepService : ISupervisorStepService
     private readonly IWorkflowRepository _workflowRepository;
     private readonly IAuthorizationPolicyService _authorizationPolicy;
     private readonly IWorkflowNotificationDispatchService _workflowNotificationDispatchService;
+    private readonly IPersonLifecycleProjectionService _personLifecycleProjectionService;
     private readonly ILogger<PostgresSupervisorStepService> _logger;
 
     public PostgresSupervisorStepService(
         IWorkflowRepository workflowRepository,
         IAuthorizationPolicyService authorizationPolicy,
         IWorkflowNotificationDispatchService workflowNotificationDispatchService,
+        IPersonLifecycleProjectionService personLifecycleProjectionService,
         ILogger<PostgresSupervisorStepService> logger)
     {
         _workflowRepository = workflowRepository;
         _authorizationPolicy = authorizationPolicy;
         _workflowNotificationDispatchService = workflowNotificationDispatchService;
+        _personLifecycleProjectionService = personLifecycleProjectionService;
         _logger = logger;
     }
 
@@ -79,6 +82,12 @@ internal sealed class PostgresSupervisorStepService : ISupervisorStepService
                 currentUser.UserId,
                 selections.Count);
             await _workflowNotificationDispatchService.DispatchReadyTaskNotificationsAsync(workflowUid);
+            if (string.Equals(updatedWorkflow.WorkflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+            {
+                await _personLifecycleProjectionService.ApplyCompletedWorkflowProjectionAsync(
+                    workflowUid,
+                    currentUser.UserId);
+            }
         }
 
         return updatedWorkflow;

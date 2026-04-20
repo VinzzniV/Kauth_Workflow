@@ -34,7 +34,12 @@ function getIntroBadges(meta: AdminWorkspaceSectionMeta): Array<{ label: string;
         { label: "Sync", tone: "success" },
         { label: "Gruppenwirkung", tone: "warning" },
       ];
-    case "system":
+    case "system_logs":
+      return [
+        { label: "Live", tone: "warning" },
+        { label: "Monitoring", tone: "default" },
+      ];
+    case "system_configuration":
       return [
         { label: "Live", tone: "warning" },
         { label: "System", tone: "default" },

@@ -6,7 +6,7 @@ namespace API.Tests;
 [Collection(PostgresWorkflowRepositoryIntegrationCollection.Name)]
 public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 {
-    private const string DefaultTestConnectionString = "Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw";
+    private const string DefaultTestConnectionString = "Host=localhost;Port=26432;Database=appdb;Username=app;Password=app_pw";
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -168,27 +168,35 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
             connectionString,
             "laura.romankewicz@kauth.local",
             "Laura Romankewicz");
+        var targetPerson = await CreateWorkflowTargetPersonAsync(connectionString, departmentId, roleId);
 
-        await WithRepositoryConnectionStringAsync(connectionString, async repository =>
+        try
         {
-            var creation = await repository.CreateWorkflow(
-                CreateWorkflowRequest(departmentId, roleId),
-                actorUserId);
-
-            try
+            await WithRepositoryConnectionStringAsync(connectionString, async repository =>
             {
-                var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
-                    .Where(entry => entry.EventType == "tasks_generated")
-                    .ToList();
+                var creation = await repository.CreateWorkflow(
+                    CreateWorkflowRequest(departmentId, roleId, targetPerson),
+                    actorUserId);
 
-                Assert.Single(tasksGeneratedEntries);
-                Assert.EndsWith("Aufgabe(n) initial erstellt", tasksGeneratedEntries[0].Detail, StringComparison.Ordinal);
-            }
-            finally
-            {
-                await DeleteWorkflowAsync(connectionString, creation.WorkflowId);
-            }
-        });
+                try
+                {
+                    var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
+                        .Where(entry => entry.EventType == "tasks_generated")
+                        .ToList();
+
+                    Assert.Single(tasksGeneratedEntries);
+                    Assert.EndsWith("Aufgabe(n) initial erstellt", tasksGeneratedEntries[0].Detail, StringComparison.Ordinal);
+                }
+                finally
+                {
+                    await DeleteWorkflowAsync(connectionString, creation.WorkflowId);
+                }
+            });
+        }
+        finally
+        {
+            await DeletePersonAsync(connectionString, targetPerson.PersonId);
+        }
     }
 
     [Fact(Skip = "Current integration schema enforces NOT NULL on task_templates.icon_key. Fallback remains for legacy records.")]
@@ -361,39 +369,47 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
             connectionString,
             "tobias.lueck@kauth.local",
             "Tobias Lueck");
+        var targetPerson = await CreateWorkflowTargetPersonAsync(connectionString, departmentId, roleId);
 
-        await WithRepositoryConnectionStringAsync(connectionString, async repository =>
+        try
         {
-            var creation = await repository.CreateWorkflow(
-                CreateWorkflowRequest(departmentId, roleId),
-                createdByUserId);
-
-            try
+            await WithRepositoryConnectionStringAsync(connectionString, async repository =>
             {
-                var completedWorkflow = await repository.CompleteSupervisorStep(
-                    creation.Uid,
-                    await BuildPositiveSupervisorSelectionsAsync(connectionString),
-                    actorUserId);
+                var creation = await repository.CreateWorkflow(
+                    CreateWorkflowRequest(departmentId, roleId, targetPerson),
+                    createdByUserId);
 
-                Assert.NotNull(completedWorkflow);
+                try
+                {
+                    var completedWorkflow = await repository.CompleteSupervisorStep(
+                        creation.Uid,
+                        await BuildPositiveSupervisorSelectionsAsync(connectionString),
+                        actorUserId);
 
-                var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
-                    .Where(entry => entry.EventType == "tasks_generated")
-                    .ToList();
+                    Assert.NotNull(completedWorkflow);
 
-                Assert.Equal(2, tasksGeneratedEntries.Count);
-                Assert.Contains(
-                    tasksGeneratedEntries,
-                    entry => entry.Detail?.EndsWith("Aufgabe(n) initial erstellt", StringComparison.Ordinal) == true);
-                Assert.Contains(
-                    tasksGeneratedEntries,
-                    entry => entry.Detail?.EndsWith("Aufgabe(n) nach Anforderungsauswahl erstellt", StringComparison.Ordinal) == true);
-            }
-            finally
-            {
-                await DeleteWorkflowAsync(connectionString, creation.WorkflowId);
-            }
-        });
+                    var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
+                        .Where(entry => entry.EventType == "tasks_generated")
+                        .ToList();
+
+                    Assert.Equal(2, tasksGeneratedEntries.Count);
+                    Assert.Contains(
+                        tasksGeneratedEntries,
+                        entry => entry.Detail?.EndsWith("Aufgabe(n) initial erstellt", StringComparison.Ordinal) == true);
+                    Assert.Contains(
+                        tasksGeneratedEntries,
+                        entry => entry.Detail?.EndsWith("Aufgabe(n) nach Anforderungsauswahl erstellt", StringComparison.Ordinal) == true);
+                }
+                finally
+                {
+                    await DeleteWorkflowAsync(connectionString, creation.WorkflowId);
+                }
+            });
+        }
+        finally
+        {
+            await DeletePersonAsync(connectionString, targetPerson.PersonId);
+        }
     }
 
     [Fact]
@@ -411,36 +427,44 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
             connectionString,
             "tobias.lueck@kauth.local",
             "Tobias Lueck");
+        var targetPerson = await CreateWorkflowTargetPersonAsync(connectionString, departmentId, roleId);
 
-        await WithRepositoryConnectionStringAsync(connectionString, async repository =>
+        try
         {
-            var creation = await repository.CreateWorkflow(
-                CreateWorkflowRequest(departmentId, roleId),
-                createdByUserId);
-
-            try
+            await WithRepositoryConnectionStringAsync(connectionString, async repository =>
             {
-                var completedWorkflow = await repository.CompleteSupervisorStep(
-                    creation.Uid,
-                    await BuildZeroTaskSupervisorSelectionsAsync(connectionString),
-                    actorUserId);
+                var creation = await repository.CreateWorkflow(
+                    CreateWorkflowRequest(departmentId, roleId, targetPerson),
+                    createdByUserId);
 
-                Assert.NotNull(completedWorkflow);
+                try
+                {
+                    var completedWorkflow = await repository.CompleteSupervisorStep(
+                        creation.Uid,
+                        await BuildZeroTaskSupervisorSelectionsAsync(connectionString),
+                        actorUserId);
 
-                var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
-                    .Where(entry => entry.EventType == "tasks_generated")
-                    .ToList();
+                    Assert.NotNull(completedWorkflow);
 
-                Assert.Single(tasksGeneratedEntries);
-                Assert.DoesNotContain(
-                    tasksGeneratedEntries,
-                    entry => entry.Detail?.EndsWith("Aufgabe(n) nach Anforderungsauswahl erstellt", StringComparison.Ordinal) == true);
-            }
-            finally
-            {
-                await DeleteWorkflowAsync(connectionString, creation.WorkflowId);
-            }
-        });
+                    var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
+                        .Where(entry => entry.EventType == "tasks_generated")
+                        .ToList();
+
+                    Assert.Single(tasksGeneratedEntries);
+                    Assert.DoesNotContain(
+                        tasksGeneratedEntries,
+                        entry => entry.Detail?.EndsWith("Aufgabe(n) nach Anforderungsauswahl erstellt", StringComparison.Ordinal) == true);
+                }
+                finally
+                {
+                    await DeleteWorkflowAsync(connectionString, creation.WorkflowId);
+                }
+            });
+        }
+        finally
+        {
+            await DeletePersonAsync(connectionString, targetPerson.PersonId);
+        }
     }
 
     [Fact]
@@ -515,6 +539,83 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
             EmployeeNumber = Math.Abs(suffix[..8].GetHashCode()),
             BadgeNumber = Math.Abs(suffix[8..16].GetHashCode()),
             DeadlineDate = null
+        };
+    }
+
+    private static CreateWorkflowRequest CreateWorkflowRequest(
+        int departmentId,
+        int roleId,
+        WorkflowTargetPersonSeed targetPerson)
+    {
+        return new CreateWorkflowRequest
+        {
+            ProcessTypeKey = "onboarding",
+            DepartmentId = departmentId,
+            RoleId = roleId,
+            TargetPersonId = targetPerson.PersonId,
+            FirstName = targetPerson.FirstName,
+            LastName = targetPerson.LastName,
+            EmployeeNumber = targetPerson.EmployeeNumber,
+            BadgeNumber = targetPerson.BadgeNumber,
+            DeadlineDate = null
+        };
+    }
+
+    private static async Task<WorkflowTargetPersonSeed> CreateWorkflowTargetPersonAsync(
+        string connectionString,
+        int departmentId,
+        int roleId)
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var firstName = "Audit";
+        var lastName = $"Workflow-{suffix[..6]}";
+        var employeeNumber = Math.Abs(suffix[..8].GetHashCode());
+        var badgeNumber = Math.Abs(suffix[8..16].GetHashCode());
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        const string sql = @"
+INSERT INTO people (
+    department_id,
+    current_position_role_id,
+    first_name,
+    last_name,
+    employee_number,
+    badge_number,
+    employment_status,
+    updated_at
+)
+VALUES (
+    @departmentId,
+    @roleId,
+    @firstName,
+    @lastName,
+    @employeeNumber,
+    @badgeNumber,
+    'planned',
+    NOW()
+)
+RETURNING id;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        command.Parameters.AddWithValue("roleId", roleId);
+        command.Parameters.AddWithValue("firstName", firstName);
+        command.Parameters.AddWithValue("lastName", lastName);
+        command.Parameters.AddWithValue("employeeNumber", employeeNumber);
+        command.Parameters.AddWithValue("badgeNumber", badgeNumber);
+
+        var personId = (long)(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("Workflow target person could not be created."));
+
+        return new WorkflowTargetPersonSeed
+        {
+            PersonId = personId,
+            FirstName = firstName,
+            LastName = lastName,
+            EmployeeNumber = employeeNumber,
+            BadgeNumber = badgeNumber
         };
     }
 
@@ -917,6 +1018,18 @@ LIMIT 1;";
         await command.ExecuteNonQueryAsync();
     }
 
+    private static async Task DeletePersonAsync(string connectionString, long personId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "DELETE FROM people WHERE id = @personId;",
+            connection);
+        command.Parameters.AddWithValue("personId", personId);
+        await command.ExecuteNonQueryAsync();
+    }
+
     private static async Task DeleteRoleAsync(string connectionString, int roleId)
     {
         await using var connection = new NpgsqlConnection(connectionString);
@@ -961,5 +1074,14 @@ LIMIT 1;";
         public required long WorkflowId { get; init; }
         public required Guid WorkflowUid { get; init; }
         public int? TemporaryRoleId { get; init; }
+    }
+
+    private sealed class WorkflowTargetPersonSeed
+    {
+        public required long PersonId { get; init; }
+        public required string FirstName { get; init; }
+        public required string LastName { get; init; }
+        public required int EmployeeNumber { get; init; }
+        public required int BadgeNumber { get; init; }
     }
 }

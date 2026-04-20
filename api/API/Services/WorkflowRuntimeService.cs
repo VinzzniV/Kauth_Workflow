@@ -8,6 +8,7 @@ internal sealed class WorkflowRuntimeService(
     IAuthorizationPolicyService authorizationPolicyService,
     IWorkflowVisibilityService workflowVisibilityService,
     IWorkflowNotificationDispatchService workflowNotificationDispatchService,
+    IPersonLifecycleProjectionService personLifecycleProjectionService,
     ILogger<WorkflowRuntimeService> logger) : IWorkflowRuntimeService
 {
     private static readonly HashSet<string> SupportedWorkflowRuntimeStatuses = new(StringComparer.OrdinalIgnoreCase)
@@ -167,6 +168,8 @@ internal sealed class WorkflowRuntimeService(
             throw new WorkflowRuntimeConsistencyException("Workflow was created but could not be loaded afterwards.");
         }
 
+        await ApplyPersonLifecycleProjectionIfCompletedAsync(workflow, currentUser.UserId, cancellationToken);
+
         var taskCount = workflow.Tasks.Count;
         var assignmentCount = workflow.Tasks.Sum(task => task.Assignments.Count);
         var pendingNotifications = workflow.Notifications.Count(notification => notification.Status == "pending");
@@ -192,6 +195,27 @@ internal sealed class WorkflowRuntimeService(
                 PendingNotifications = pendingNotifications
             }
         };
+    }
+
+    public async Task<WorkflowTargetPersonDto> CreatePersonAsync(
+        CreatePersonRequest request,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!request.DepartmentId.HasValue || request.DepartmentId.Value <= 0)
+        {
+            throw new InvalidOperationException("Die Stamm-Abteilung ist erforderlich.");
+        }
+
+        var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
+        if (observableDepartmentIds is not null && !observableDepartmentIds.Contains(request.DepartmentId.Value))
+        {
+            throw new UnauthorizedAccessException("Die ausgewählte Stamm-Abteilung liegt außerhalb Ihrer freigegebenen Abteilungen.");
+        }
+
+        return await repository.CreatePerson(request, currentUser.UserId);
     }
 
     public async Task<WorkflowListPageDto> GetWorkflowsAsync(
@@ -402,21 +426,21 @@ internal sealed class WorkflowRuntimeService(
         string workflowLabel,
         bool requiresTargetPerson)
     {
-        if (requiresTargetPerson)
+        if (!request.TargetPersonId.HasValue)
         {
-            return request.TargetPersonId.HasValue
-                ? null
-                : $"Der Workflow '{workflowLabel}' erfordert eine bestehende Zielperson.";
+            return requiresTargetPerson
+                ? $"Der Workflow '{workflowLabel}' erfordert eine bestehende Zielperson."
+                : $"Der Workflow '{workflowLabel}' erfordert einen bestehenden Person-Stammsatz. Für neue Mitarbeitende muss zuerst die Person angelegt werden.";
         }
 
-        if (request.TargetPersonId.HasValue)
+        if (requiresTargetPerson)
         {
-            return $"Der Workflow '{workflowLabel}' darf nicht mit einer bestehenden Zielperson angelegt werden.";
+            return null;
         }
 
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
         {
-            return $"Der Workflow '{workflowLabel}' erfordert Vorname und Nachname der neuen Person.";
+            return $"Der Workflow '{workflowLabel}' erfordert Vorname und Nachname der Person als Snapshot.";
         }
 
         if (!request.EmployeeNumber.HasValue || request.EmployeeNumber.Value <= 0)
@@ -435,6 +459,22 @@ internal sealed class WorkflowRuntimeService(
         }
 
         return null;
+    }
+
+    private async Task ApplyPersonLifecycleProjectionIfCompletedAsync(
+        WorkflowDetailDto workflow,
+        long actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(workflow.WorkflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await personLifecycleProjectionService.ApplyCompletedWorkflowProjectionAsync(
+            workflow.Uid,
+            actorUserId,
+            cancellationToken);
     }
 
     private bool CanCreateWorkflowDefinition(

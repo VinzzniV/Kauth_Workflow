@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using System.Reflection;
 using Xunit;
@@ -7,7 +8,7 @@ namespace API.Tests;
 [Collection(PostgresWorkflowRepositoryIntegrationCollection.Name)]
 public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
 {
-    private const string DefaultTestConnectionString = "Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw";
+    private const string DefaultTestConnectionString = "Host=localhost;Port=26432;Database=appdb;Username=app;Password=app_pw";
 
     // ── Department assignment supervisor eligibility ───────────────────
 
@@ -81,11 +82,29 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             await using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
+                var runtimeSettings = new LifecycleRuntimeSettings
+                {
+                    EnvironmentName = "Development",
+                    IsProduction = false,
+                    AuthMode = "dev-sim",
+                    DevSimulationEnabled = true,
+                    EntraAuthEnabled = false,
+                    SwaggerEnabled = true,
+                    DirectorySyncEnabled = true,
+                    ConnectionString = connectionString,
+                    DirectorySyncScheduled = false,
+                    DirectorySyncIntervalMinutes = 15
+                };
+                var service = new EntraDirectorySyncService(
+                    new StubGraphApplicationConfigurationService(),
+                    runtimeSettings,
+                    new StubSystemEventLogService(),
+                    NullLogger<EntraDirectorySyncService>.Instance);
                 var method = typeof(EntraDirectorySyncService).GetMethod(
                     "SyncDepartmentLeadAssignmentsFromDirectory",
-                    BindingFlags.Static | BindingFlags.NonPublic);
+                    BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.NotNull(method);
-                var task = (Task?)method!.Invoke(null, [connection, CancellationToken.None]);
+                var task = (Task?)method!.Invoke(service, [connection, CancellationToken.None]);
                 Assert.NotNull(task);
                 await task!;
             }
@@ -131,6 +150,65 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 connectionString,
                 departmentId,
                 [managerUserId],
+                directoryIdentityId,
+                directoryGroupId);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task DirectorySync_UserProjectionSummaryQuery_CompletesAndProjectsDepartment()
+    {
+        var connectionString = GetTestConnectionString();
+        var suffix = Guid.NewGuid().ToString("N");
+        var departmentId = await CreateTemporaryDepartmentAsync(connectionString, suffix);
+        var userId = await CreateTemporaryUserAsync(connectionString, $"projection_{suffix}", isActive: true);
+        var directoryIdentityId = await CreateTemporaryDirectoryIdentityAsync(connectionString, userId, $"projection_{suffix}");
+        var directoryGroupId = await CreateTemporaryDirectoryGroupAsync(connectionString, $"projection_{suffix}");
+
+        try
+        {
+            await ConfigureDirectoryProjectionIdentityAsync(connectionString, userId, directoryIdentityId, departmentId);
+            await AddDirectoryGroupMemberAsync(connectionString, directoryGroupId, directoryIdentityId);
+
+            await using (var connection = new NpgsqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+                var method = typeof(EntraDirectorySyncService).GetMethod(
+                    "UpsertProjectedAppUsersFromDirectory",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+                Assert.NotNull(method);
+
+                var startedAt = DateTime.UtcNow.AddMinutes(-1);
+                var task = (Task?)method!.Invoke(null, [connection, startedAt, CancellationToken.None]);
+                Assert.NotNull(task);
+                await task!;
+            }
+
+            await using var verificationConnection = new NpgsqlConnection(connectionString);
+            await verificationConnection.OpenAsync();
+
+            await using var command = new NpgsqlCommand(
+                """
+                SELECT department_id, directory_synced, department_source
+                FROM app_users
+                WHERE id = @userId;
+                """,
+                verificationConnection);
+            command.Parameters.AddWithValue("userId", userId);
+
+            await using var reader = await command.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(departmentId, reader.GetInt32(0));
+            Assert.True(reader.GetBoolean(1));
+            Assert.Equal("directory", reader.GetString(2));
+        }
+        finally
+        {
+            await CleanupTemporaryDepartmentAssignmentScenarioAsync(
+                connectionString,
+                departmentId,
+                [userId],
                 directoryIdentityId,
                 directoryGroupId);
         }
@@ -1434,6 +1512,51 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         await command.ExecuteNonQueryAsync();
     }
 
+    private static async Task ConfigureDirectoryProjectionIdentityAsync(
+        string connectionString,
+        long userId,
+        long directoryIdentityId,
+        int departmentId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        Guid entraObjectId;
+        await using (var lookup = new NpgsqlCommand(
+            """
+            SELECT entra_object_id
+            FROM directory_identities
+            WHERE id = @directoryIdentityId;
+            """,
+            connection))
+        {
+            lookup.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+            entraObjectId = (Guid)(await lookup.ExecuteScalarAsync()
+                ?? throw new InvalidOperationException("Temporary directory identity missing entra_object_id."));
+        }
+
+        await using var command = new NpgsqlCommand(
+            """
+            UPDATE app_users
+            SET entra_object_id = @entraObjectId
+            WHERE id = @userId;
+
+            UPDATE directory_identities
+            SET department_name = (
+                SELECT name
+                FROM departments
+                WHERE id = @departmentId
+            )
+            WHERE id = @directoryIdentityId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("entraObjectId", entraObjectId);
+        command.Parameters.AddWithValue("userId", userId);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        command.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+        await command.ExecuteNonQueryAsync();
+    }
+
     private static async Task AddDirectoryGroupRoleMappingAsync(
         string connectionString,
         int directoryGroupId,
@@ -1770,5 +1893,45 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     {
         public required int Id { get; init; }
         public required string Suffix { get; init; }
+    }
+
+    private sealed class StubGraphApplicationConfigurationService : IGraphApplicationConfigurationService
+    {
+        public Task<AdminGraphApplicationConfigurationDto> GetAdminConfiguration(CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminGraphApplicationConfigurationDto
+            {
+                HasClientSecret = false,
+                ConfigurationSource = "test",
+                ConfigurationStatus = "unconfigured"
+            });
+
+        public Task<GraphApplicationRuntimeConfiguration> GetRuntimeConfiguration(CancellationToken cancellationToken = default)
+            => Task.FromResult(new GraphApplicationRuntimeConfiguration
+            {
+                HasClientSecret = false
+            });
+    }
+
+    private sealed class StubSystemEventLogService : ISystemEventLogService
+    {
+        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+
+        public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
+            SystemEventLogQuery query,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminSystemLogSummaryDto
+            {
+                TotalCount = 0,
+                InfoCount = 0,
+                WarningCount = 0,
+                ErrorCount = 0,
+                Sources = []
+            });
+
+        public Task WriteAsync(SystemEventLogWriteModel model, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

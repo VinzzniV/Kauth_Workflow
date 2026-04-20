@@ -25,9 +25,9 @@ export default function CreateWorkflowPage() {
     employee: workflowCreation.employee,
     selectedDepartmentId: workflowCreation.selectedDepartmentId,
     selectedRoleId: workflowCreation.selectedRoleId,
-    selectedTargetPersonSource: workflowCreation.selectedTargetPersonSource,
-    targetPersonSourcesLoading: workflowCreation.targetPersonSourcesLoading,
-    targetPersonSourcesError: workflowCreation.targetPersonSourcesError,
+    selectedTargetPerson: workflowCreation.selectedTargetPerson,
+    targetPeopleLoading: workflowCreation.targetPeopleLoading,
+    targetPeopleError: workflowCreation.targetPeopleError,
     rolesLoading: workflowCreation.rolesLoading,
     rolesError: workflowCreation.rolesError,
     availableRoles: workflowCreation.availableRoles,
@@ -46,6 +46,7 @@ export default function CreateWorkflowPage() {
 
         {workflowCreation.currentStep === "process" ? (
           <CreateWorkflowProcessStep
+            showRotationCreateEntry={capabilities.hasHrRole || capabilities.hasAdminRole}
             workflowDefinitionsLoading={workflowCreation.workflowDefinitionsLoading}
             workflowDefinitions={workflowCreation.workflowDefinitions}
             selectedWorkflowDefinitionKey={workflowCreation.selectedWorkflowDefinitionKey}
@@ -64,11 +65,11 @@ export default function CreateWorkflowPage() {
             contextStepTitle={view.contextStepTitle}
             requiresTargetPerson={workflowCreation.requiresTargetPerson}
             selectedWorkflowDefinition={workflowCreation.selectedWorkflowDefinition}
-            targetPersonSourceSearch={workflowCreation.targetPersonSourceSearch}
-            targetPersonSources={workflowCreation.targetPersonSources}
-            selectedTargetPersonSource={workflowCreation.selectedTargetPersonSource}
-            targetPersonSourcesLoading={workflowCreation.targetPersonSourcesLoading}
-            targetPersonSourcesError={workflowCreation.targetPersonSourcesError}
+            targetPersonSearch={workflowCreation.targetPersonSearch}
+            targetPeople={workflowCreation.targetPeople}
+            selectedTargetPerson={workflowCreation.selectedTargetPerson}
+            targetPeopleLoading={workflowCreation.targetPeopleLoading}
+            targetPeopleError={workflowCreation.targetPeopleError}
             targetPersonSelectionError={view.targetPersonSelectionError}
             employee={workflowCreation.employee}
             employeeFieldErrors={view.employeeFieldErrors}
@@ -84,8 +85,8 @@ export default function CreateWorkflowPage() {
             hasDerivedContextGap={view.hasDerivedContextGap}
             hasAttemptedContextNext={hasAttemptedContextNext}
             contextStepIssues={view.contextStepIssues}
-            onSearchChange={workflowCreation.setTargetPersonSourceSearch}
-            onSelectTargetPersonSource={workflowCreation.setSelectedTargetPersonSource}
+            onSearchChange={workflowCreation.setTargetPersonSearch}
+            onSelectTargetPerson={workflowCreation.setSelectedTargetPerson}
             onEmployeeChange={workflowCreation.setEmployeeField}
             onDepartmentChange={workflowCreation.setSelectedDepartment}
             onRoleChange={workflowCreation.setSelectedRole}
@@ -101,7 +102,7 @@ export default function CreateWorkflowPage() {
           <CreateWorkflowReviewStep
             requiresTargetPerson={workflowCreation.requiresTargetPerson}
             selectedWorkflowDefinition={workflowCreation.selectedWorkflowDefinition}
-            selectedTargetPersonSource={workflowCreation.selectedTargetPersonSource}
+            selectedTargetPerson={workflowCreation.selectedTargetPerson}
             employee={workflowCreation.employee}
             selectedDepartment={workflowCreation.selectedDepartment}
             selectedRole={workflowCreation.selectedRole}

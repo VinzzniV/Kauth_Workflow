@@ -133,6 +133,16 @@ public sealed class CreateWorkflowRequest
     public DateOnly? DeadlineDate { get; init; }
 }
 
+public sealed class CreatePersonRequest
+{
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public int? EmployeeNumber { get; init; }
+    public int? BadgeNumber { get; init; }
+    public int? DepartmentId { get; init; }
+    public int? RoleId { get; init; }
+}
+
 public sealed class WorkflowCreateResponse
 {
     public required Guid Uid { get; init; }
@@ -565,6 +575,16 @@ public sealed class WorkflowTargetPersonDto
     public int? BadgeNumber { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    public string? EmploymentStatus { get; init; }
+    public long? AppUserId { get; init; }
+    public long? DirectoryIdentityId { get; init; }
+    public string? DirectoryLinkStatus { get; init; }
+    public string? DirectoryDisplayName { get; init; }
+    public string? DirectoryUserPrincipalName { get; init; }
+    public string? DirectoryMail { get; init; }
+    public int? DirectoryEmployeeNumber { get; init; }
+    public Guid? LatestCompletedOnboardingWorkflowUid { get; init; }
+    public DateTime? LatestCompletedOnboardingAt { get; init; }
 }
 
 public sealed class WorkflowTargetPersonSourceDto
@@ -812,10 +832,24 @@ public sealed class PersonWorkflowHistoryDto
     public required string DisplayName { get; init; }
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }
+    public int? RoleId { get; init; }
+    public string? RoleName { get; init; }
     public int? EmployeeNumber { get; init; }
     public int? BadgeNumber { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    public string? EmploymentStatus { get; init; }
+    public DateOnly? EntryDate { get; init; }
+    public DateOnly? ExitDate { get; init; }
+    public long? AppUserId { get; init; }
+    public long? DirectoryIdentityId { get; init; }
+    public string? DirectoryLinkStatus { get; init; }
+    public string? DirectoryDisplayName { get; init; }
+    public string? DirectoryUserPrincipalName { get; init; }
+    public string? DirectoryMail { get; init; }
+    public int? DirectoryEmployeeNumber { get; init; }
+    public Guid? LatestCompletedOnboardingWorkflowUid { get; init; }
+    public DateTime? LatestCompletedOnboardingAt { get; init; }
     public required List<PersonWorkflowSummaryDto> Workflows { get; init; }
 }
 

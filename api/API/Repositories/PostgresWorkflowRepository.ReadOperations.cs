@@ -501,19 +501,123 @@ ORDER BY created_at, id;";
         await connection.OpenAsync();
 
         const string sql = @"
+WITH latest_workflow AS (
+    SELECT DISTINCT ON (resolved.person_id)
+        resolved.person_id,
+        resolved.department_id,
+        resolved.position_role_id,
+        resolved.employee_number,
+        resolved.badge_number,
+        resolved.first_name,
+        resolved.last_name
+    FROM (
+        SELECT
+            w.target_person_id AS person_id,
+            w.department_id,
+            w.position_role_id,
+            w.employee_number,
+            w.badge_number,
+            w.first_name,
+            w.last_name,
+            w.created_at,
+            w.id
+        FROM workflows w
+        WHERE w.target_person_id IS NOT NULL
+
+        UNION ALL
+
+        SELECT
+            p.id AS person_id,
+            w.department_id,
+            w.position_role_id,
+            w.employee_number,
+            w.badge_number,
+            w.first_name,
+            w.last_name,
+            w.created_at,
+            w.id
+        FROM people p
+        JOIN workflows w ON p.employee_number IS NOT NULL AND w.employee_number = p.employee_number
+    ) resolved
+    ORDER BY resolved.person_id, resolved.created_at DESC, resolved.id DESC
+),
+latest_completed_onboarding AS (
+    SELECT DISTINCT ON (resolved.person_id)
+        resolved.person_id,
+        resolved.workflow_uid,
+        resolved.completed_at
+    FROM (
+        SELECT
+            w.target_person_id AS person_id,
+            w.uid AS workflow_uid,
+            COALESCE(w.completed_at, w.created_at) AS completed_at,
+            w.id
+        FROM workflows w
+        JOIN process_types pt ON pt.id = w.process_type_id
+        LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
+        LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+        WHERE w.target_person_id IS NOT NULL
+          AND pt.key = 'onboarding'
+          AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+          AND w.status = 'completed'
+
+        UNION ALL
+
+        SELECT
+            p.id AS person_id,
+            w.uid AS workflow_uid,
+            COALESCE(w.completed_at, w.created_at) AS completed_at,
+            w.id
+        FROM people p
+        JOIN workflows w ON p.employee_number IS NOT NULL AND w.employee_number = p.employee_number
+        JOIN process_types pt ON pt.id = w.process_type_id
+        LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
+        LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+        WHERE pt.key = 'onboarding'
+          AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+          AND w.status = 'completed'
+    ) resolved
+    ORDER BY resolved.person_id, resolved.completed_at DESC, resolved.id DESC
+)
 SELECT
     p.id,
     COALESCE(
-        NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name), COALESCE(p.last_name, latest.last_name))), ''),
+        NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest_workflow.first_name), COALESCE(p.last_name, latest_workflow.last_name))), ''),
         u.display_name,
+        linked_directory.display_name,
         'Person #' || p.id::text
     ) AS display_name,
-    COALESCE(latest.department_id, p.department_id, u.department_id) AS resolved_department_id,
+    COALESCE(p.department_id, latest_workflow.department_id, u.department_id) AS resolved_department_id,
     d.name AS department_name,
-    COALESCE(latest.employee_number, p.employee_number) AS employee_number,
-    COALESCE(latest.badge_number, p.badge_number) AS badge_number,
-    COALESCE(p.first_name, latest.first_name) AS first_name,
-    COALESCE(p.last_name, latest.last_name) AS last_name,
+    COALESCE(p.current_position_role_id, latest_workflow.position_role_id) AS role_id,
+    role_ref.name AS role_name,
+    COALESCE(p.employee_number, latest_workflow.employee_number, linked_directory.employee_number) AS employee_number,
+    COALESCE(p.badge_number, latest_workflow.badge_number) AS badge_number,
+    COALESCE(p.first_name, latest_workflow.first_name) AS first_name,
+    COALESCE(p.last_name, latest_workflow.last_name) AS last_name,
+    COALESCE(
+        NULLIF(BTRIM(p.employment_status), ''),
+        CASE
+            WHEN p.exit_date IS NOT NULL THEN 'exited'
+            WHEN p.app_user_id IS NOT NULL THEN 'active'
+            ELSE 'planned'
+        END
+    ) AS employment_status,
+    p.entry_date,
+    p.exit_date,
+    p.app_user_id,
+    p.directory_identity_id,
+    CASE
+        WHEN p.directory_identity_id IS NOT NULL THEN 'linked'
+        WHEN p.app_user_id IS NOT NULL THEN 'user_only'
+        ELSE 'unlinked'
+    END AS directory_link_status,
+    linked_directory.display_name AS directory_display_name,
+    linked_directory.user_principal_name,
+    linked_directory.mail,
+    linked_directory.employee_number AS directory_employee_number,
+    latest_completed_onboarding.workflow_uid AS latest_completed_onboarding_workflow_uid,
+    latest_completed_onboarding.completed_at AS latest_completed_onboarding_at,
     w.uid,
     pt.key,
     pt.name,
@@ -531,22 +635,11 @@ SELECT
     COALESCE(vpt.requires_target_person, pt.requires_target_person)
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
-LEFT JOIN LATERAL (
-    SELECT
-        wl.department_id,
-        wl.employee_number,
-        wl.badge_number,
-        wl.first_name,
-        wl.last_name
-    FROM workflows wl
-    WHERE (
-            wl.target_person_id = p.id
-            OR (p.employee_number IS NOT NULL AND wl.employee_number = p.employee_number)
-      )
-    ORDER BY wl.created_at DESC
-    LIMIT 1
-) latest ON TRUE
-LEFT JOIN departments d ON d.id = COALESCE(latest.department_id, p.department_id, u.department_id)
+LEFT JOIN directory_identities linked_directory ON linked_directory.id = p.directory_identity_id
+LEFT JOIN latest_workflow ON latest_workflow.person_id = p.id
+LEFT JOIN latest_completed_onboarding ON latest_completed_onboarding.person_id = p.id
+LEFT JOIN departments d ON d.id = COALESCE(p.department_id, latest_workflow.department_id, u.department_id)
+LEFT JOIN app_roles role_ref ON role_ref.id = COALESCE(p.current_position_role_id, latest_workflow.position_role_id)
 LEFT JOIN workflows w
     ON (
         w.target_person_id = p.id
@@ -579,39 +672,53 @@ ORDER BY w.created_at DESC NULLS LAST;";
                     DisplayName = reader.GetString(1),
                     DepartmentId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
                     DepartmentName = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    EmployeeNumber = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                    BadgeNumber = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-                    FirstName = reader.IsDBNull(6) ? null : reader.GetString(6),
-                    LastName = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    RoleId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                    RoleName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    EmployeeNumber = reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                    BadgeNumber = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                    FirstName = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    LastName = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    EmploymentStatus = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    EntryDate = reader.IsDBNull(11) ? null : reader.GetFieldValue<DateOnly>(11),
+                    ExitDate = reader.IsDBNull(12) ? null : reader.GetFieldValue<DateOnly>(12),
+                    AppUserId = reader.IsDBNull(13) ? null : reader.GetInt64(13),
+                    DirectoryIdentityId = reader.IsDBNull(14) ? null : reader.GetInt64(14),
+                    DirectoryLinkStatus = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    DirectoryDisplayName = reader.IsDBNull(16) ? null : reader.GetString(16),
+                    DirectoryUserPrincipalName = reader.IsDBNull(17) ? null : reader.GetString(17),
+                    DirectoryMail = reader.IsDBNull(18) ? null : reader.GetString(18),
+                    DirectoryEmployeeNumber = reader.IsDBNull(19) ? null : reader.GetInt32(19),
+                    LatestCompletedOnboardingWorkflowUid = reader.IsDBNull(20) ? null : reader.GetGuid(20),
+                    LatestCompletedOnboardingAt = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
                     Workflows = workflows
                 };
             }
 
             // A person may have no workflows yet — skip the null workflow row.
-            if (reader.IsDBNull(8))
+            if (reader.IsDBNull(22))
             {
                 continue;
             }
 
-            var workflowStatus = reader.GetString(16);
+            var workflowStatus = reader.GetString(30);
             workflows.Add(new PersonWorkflowSummaryDto
             {
-                Uid = reader.GetGuid(8),
+                Uid = reader.GetGuid(22),
                 ProcessType = new WorkflowProcessTypeDto
                 {
-                    Key = reader.IsDBNull(20) ? reader.GetString(9) : reader.GetString(20),
-                    Name = reader.IsDBNull(21) ? reader.GetString(10) : reader.GetString(21),
-                    RequiresTargetPerson = reader.IsDBNull(22) ? reader.GetBoolean(11) : reader.GetBoolean(22)
+                    Key = reader.IsDBNull(34) ? reader.GetString(23) : reader.GetString(34),
+                    Name = reader.IsDBNull(35) ? reader.GetString(24) : reader.GetString(35),
+                    RequiresTargetPerson = reader.IsDBNull(36) ? reader.GetBoolean(25) : reader.GetBoolean(36)
                 },
-                FirstName = reader.GetString(12),
-                LastName = reader.GetString(13),
-                RoleName = reader.IsDBNull(14) ? string.Empty : reader.GetString(14),
-                DepartmentName = reader.IsDBNull(15) ? string.Empty : reader.GetString(15),
+                FirstName = reader.GetString(26),
+                LastName = reader.GetString(27),
+                RoleName = reader.IsDBNull(28) ? string.Empty : reader.GetString(28),
+                DepartmentName = reader.IsDBNull(29) ? string.Empty : reader.GetString(29),
                 Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                 WorkflowStatus = workflowStatus,
-                CreatedAt = reader.GetDateTime(17),
-                CompletedAt = reader.IsDBNull(18) ? null : reader.GetDateTime(18),
-                ArchivedAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19)
+                CreatedAt = reader.GetDateTime(31),
+                CompletedAt = reader.IsDBNull(32) ? null : reader.GetDateTime(32),
+                ArchivedAt = reader.IsDBNull(33) ? null : reader.GetDateTime(33)
             });
         }
 

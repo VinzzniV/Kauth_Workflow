@@ -7,7 +7,7 @@ namespace API.Tests;
 [Collection(PostgresWorkflowRepositoryIntegrationCollection.Name)]
 public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
 {
-    private const string DefaultTestConnectionString = "Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw";
+    private const string DefaultTestConnectionString = "Host=localhost;Port=26432;Database=appdb;Username=app;Password=app_pw";
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -24,6 +24,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
 
         WorkflowDefinitionSummaryDto? definition = null;
         WorkflowDefinitionRuntimeDetailDto? runtime = null;
+        WorkflowTargetPersonDto? targetPerson = null;
 
         try
         {
@@ -54,7 +55,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 {
                     Name = "Draft",
                     Description = "Sequential automation draft",
-                    PrimaryLegacyProcessTypeKey = "onboarding",
+                    PrimaryLegacyProcessTypeKey = "offboarding",
                     Nodes =
                     [
                         CreateNode("start", "start"),
@@ -80,6 +81,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
             var published = await repository.PublishWorkflowDefinitionVersion(version.Id);
             Assert.NotNull(published);
             Assert.True(published!.CanPublish);
+            targetPerson = await CreateTargetPersonAsync(repository, createContext, "Ada", "Lovelace", 123456, 654321);
 
             runtime = await repository.CreateWorkflowDefinitionInstance(
                 new CreateWorkflowDefinitionInstanceRequest
@@ -87,6 +89,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                     WorkflowDefinitionKey = definition.Key,
                     DepartmentId = createContext.DepartmentId,
                     RoleId = createContext.RoleId,
+                    TargetPersonId = targetPerson.PersonId,
                     FirstName = "Ada",
                     LastName = "Lovelace",
                     EmployeeNumber = 123456,
@@ -127,6 +130,11 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 await CleanupWorkflowAsync(connectionString, runtime.WorkflowId);
             }
 
+            if (targetPerson is not null)
+            {
+                await CleanupPersonAsync(connectionString, targetPerson.PersonId);
+            }
+
             if (definition is not null)
             {
                 await CleanupWorkflowDefinitionAsync(connectionString, definition.Id);
@@ -149,6 +157,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
 
         WorkflowDefinitionSummaryDto? definition = null;
         WorkflowDefinitionRuntimeDetailDto? runtime = null;
+        WorkflowTargetPersonDto? targetPerson = null;
 
         try
         {
@@ -179,7 +188,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 {
                     Name = "Draft",
                     Description = "Failure automation draft",
-                    PrimaryLegacyProcessTypeKey = "onboarding",
+                    PrimaryLegacyProcessTypeKey = "offboarding",
                     Nodes =
                     [
                         CreateNode("start", "start"),
@@ -201,6 +210,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
 
             Assert.NotNull(updatedVersion);
             Assert.NotNull(await repository.PublishWorkflowDefinitionVersion(version.Id));
+            targetPerson = await CreateTargetPersonAsync(repository, createContext, "Ada", "Lovelace", 223456, 754321);
 
             runtime = await repository.CreateWorkflowDefinitionInstance(
                 new CreateWorkflowDefinitionInstanceRequest
@@ -208,6 +218,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                     WorkflowDefinitionKey = definition.Key,
                     DepartmentId = createContext.DepartmentId,
                     RoleId = createContext.RoleId,
+                    TargetPersonId = targetPerson.PersonId,
                     FirstName = "Ada",
                     LastName = "Lovelace",
                     EmployeeNumber = 223456,
@@ -237,11 +248,37 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 await CleanupWorkflowAsync(connectionString, runtime.WorkflowId);
             }
 
+            if (targetPerson is not null)
+            {
+                await CleanupPersonAsync(connectionString, targetPerson.PersonId);
+            }
+
             if (definition is not null)
             {
                 await CleanupWorkflowDefinitionAsync(connectionString, definition.Id);
             }
         }
+    }
+
+    private static Task<WorkflowTargetPersonDto> CreateTargetPersonAsync(
+        PostgresWorkflowRepository repository,
+        (long ActorUserId, int DepartmentId, int RoleId) createContext,
+        string firstName,
+        string lastName,
+        int employeeNumber,
+        int badgeNumber)
+    {
+        return repository.CreatePerson(
+            new CreatePersonRequest
+            {
+                FirstName = firstName,
+                LastName = lastName,
+                EmployeeNumber = employeeNumber,
+                BadgeNumber = badgeNumber,
+                DepartmentId = createContext.DepartmentId,
+                RoleId = createContext.RoleId
+            },
+            createContext.ActorUserId);
     }
 
     private static WorkflowAutomationService CreateAutomationService(PostgresWorkflowRepository repository)
@@ -393,6 +430,21 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
             """,
             connection);
         command.Parameters.AddWithValue("workflowId", workflowId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task CleanupPersonAsync(string connectionString, long personId)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            """
+            DELETE FROM people
+            WHERE id = @personId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("personId", personId);
         await command.ExecuteNonQueryAsync();
     }
 

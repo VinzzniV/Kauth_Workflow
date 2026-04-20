@@ -79,6 +79,16 @@ internal sealed class WorkflowCatalogService(
         return await repository.SearchWorkflowTargetPeople(search, limit, observableDepartmentIds);
     }
 
+    public async Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchRotationEligiblePeopleAsync(
+        string? search,
+        CurrentUser currentUser,
+        int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
+        return await repository.SearchRotationEligiblePeople(search, limit, observableDepartmentIds);
+    }
+
     public async Task<IReadOnlyList<RequirementDto>> GetRequirementsAsync(string? processTypeKey, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(processTypeKey))

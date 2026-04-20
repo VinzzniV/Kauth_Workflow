@@ -11,19 +11,26 @@ export type RotationTaskType = "manual" | "technical" | "approval" | "informatio
 export type RotationNotificationStatus = "pending" | "sent" | "failed" | "disabled";
 
 export type CompletedOnboardingSearchResult = {
-  workflowUid: string;
   personId: number;
   displayName: string;
-  firstName: string;
-  lastName: string;
-  employeeNumber: number;
-  badgeNumber: number;
+  firstName: string | null;
+  lastName: string | null;
+  employeeNumber: number | null;
+  badgeNumber: number | null;
   departmentId: number | null;
   departmentName: string | null;
   roleId: number | null;
   roleName: string | null;
-  completedAt: string;
-  archivedAt: string | null;
+  employmentStatus: string | null;
+  appUserId: number | null;
+  directoryIdentityId: number | null;
+  directoryLinkStatus: string | null;
+  directoryDisplayName: string | null;
+  directoryUserPrincipalName: string | null;
+  directoryMail: string | null;
+  directoryEmployeeNumber: number | null;
+  latestCompletedOnboardingWorkflowUid: string | null;
+  latestCompletedOnboardingAt: string | null;
 };
 
 export type RotationPlanListItem = {
@@ -185,6 +192,39 @@ export type RotationAuditEntry = {
   newValue: Record<string, unknown> | null;
   detail: string | null;
   createdAt: string;
+};
+
+export type DepartmentActionTemplate = {
+  id: number;
+  departmentId: number;
+  departmentName: string | null;
+  triggerType: RotationTriggerType;
+  title: string;
+  description: string | null;
+  taskType: RotationTaskType;
+  defaultResponsibilityId: number | null;
+  defaultResponsibilityName: string | null;
+  dueOffsetDays: number;
+  reminderOffsetDays: number | null;
+  isAutomatable: boolean;
+  automationKey: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DepartmentActionTemplateUpsertPayload = {
+  departmentId: number;
+  triggerType: RotationTriggerType;
+  title: string;
+  description?: string | null;
+  taskType: RotationTaskType;
+  defaultResponsibilityId?: number | null;
+  dueOffsetDays: number;
+  reminderOffsetDays?: number | null;
+  isAutomatable?: boolean;
+  automationKey?: string | null;
+  isActive?: boolean;
 };
 
 export type CreateRotationPlanPayload = {

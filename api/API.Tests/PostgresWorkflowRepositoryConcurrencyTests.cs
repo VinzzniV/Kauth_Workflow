@@ -5,6 +5,7 @@ namespace API.Tests;
 
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class PostgresWorkflowRepositoryIntegrationCollection
+    : ICollectionFixture<PostgresWorkflowRepositoryDatabaseFixture>
 {
     public const string Name = "PostgresWorkflowRepositoryIntegration";
 }
@@ -12,7 +13,7 @@ public sealed class PostgresWorkflowRepositoryIntegrationCollection
 [Collection(PostgresWorkflowRepositoryIntegrationCollection.Name)]
 public sealed class PostgresWorkflowRepositoryConcurrencyTests
 {
-    private const string DefaultTestConnectionString = "Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw";
+    private const string DefaultTestConnectionString = "Host=localhost;Port=26432;Database=appdb;Username=app;Password=app_pw";
     private const long TestActorUserId = 1;
 
     [Fact]

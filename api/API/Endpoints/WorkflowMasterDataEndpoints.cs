@@ -146,6 +146,52 @@ internal static class WorkflowMasterDataEndpoints
             return Results.Ok(people);
         }).Produces<List<WorkflowTargetPersonDto>>(StatusCodes.Status200OK);
 
+        app.MapGet("/people/search", async (
+            [FromQuery] string? query,
+            [FromQuery] int? limit,
+            IWorkflowCatalogService workflowCatalogService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanCreateWorkflow,
+                "HR, Abteilungsleitung oder Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var people = await workflowCatalogService.SearchWorkflowTargetPeopleAsync(
+                query,
+                access.User!,
+                limit ?? 20);
+            return Results.Ok(people);
+        }).Produces<List<WorkflowTargetPersonDto>>(StatusCodes.Status200OK);
+
+        app.MapGet("/people/rotation-eligible", async (
+            [FromQuery] string? query,
+            [FromQuery] int? limit,
+            IWorkflowCatalogService workflowCatalogService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanCreateWorkflow,
+                "HR, Abteilungsleitung oder Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var people = await workflowCatalogService.SearchRotationEligiblePeopleAsync(
+                query,
+                access.User!,
+                limit ?? 20);
+            return Results.Ok(people);
+        }).Produces<List<WorkflowTargetPersonDto>>(StatusCodes.Status200OK);
+
         app.MapGet("/requirements", async (
             [FromQuery] string? processTypeKey,
             IWorkflowCatalogService workflowCatalogService,

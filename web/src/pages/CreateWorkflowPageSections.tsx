@@ -9,9 +9,38 @@ import type {
   EmployeeFormData,
   Role,
   StartableWorkflowDefinition,
-  WorkflowTargetPersonSource,
   WorkflowConfig,
+  WorkflowTargetPerson,
 } from "../types/workflow";
+
+function formatEmploymentStatus(status: string | null): string {
+  switch (status) {
+    case "planned":
+      return "Geplant";
+    case "active":
+      return "Aktiv";
+    case "inactive":
+      return "Inaktiv";
+    case "exited":
+      return "Ausgetreten";
+    default:
+      return "-";
+  }
+}
+
+function formatDirectoryLinkStatus(status: string | null): string {
+  switch (status) {
+    case "linked":
+      return "Mit Verzeichnis verknüpft";
+    case "user_only":
+      return "Nur App-Benutzer verknüpft";
+    case "unlinked":
+      return "Noch nicht verknüpft";
+    default:
+      return "-";
+  }
+}
+
 export function WorkflowCreationStepper({
   steps,
   currentStepIndex,
@@ -40,6 +69,7 @@ export function WorkflowCreationStepper({
 }
 
 export function CreateWorkflowProcessStep({
+  showRotationCreateEntry,
   workflowDefinitionsLoading,
   workflowDefinitions,
   selectedWorkflowDefinitionKey,
@@ -51,6 +81,7 @@ export function CreateWorkflowProcessStep({
   onGoToContextStep,
   onAttemptBlockedNext,
 }: {
+  showRotationCreateEntry: boolean;
   workflowDefinitionsLoading: boolean;
   workflowDefinitions: StartableWorkflowDefinition[];
   selectedWorkflowDefinitionKey: string | null;
@@ -65,6 +96,23 @@ export function CreateWorkflowProcessStep({
   return (
     <section className="panel">
       <h2>Workflow wählen</h2>
+
+      {showRotationCreateEntry ? (
+        <div className="panel panel-muted">
+          <div className="workflow-card-top">
+            <h3>Abteilungsdurchlauf starten</h3>
+            <span className="status-pill open">HR</span>
+          </div>
+          <p className="panel-text">
+            Startet einen neuen Durchlaufplan auf Basis einer bestehenden Person mit abgeschlossenem Onboarding.
+          </p>
+          <div className="action-row">
+            <Link className="btn btn-secondary" to="/rotation?mode=create">
+              Zum Abteilungsdurchlauf
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {workflowDefinitionsLoading ? <p className="panel-text">Startbare Workflows werden geladen...</p> : null}
 
@@ -144,11 +192,11 @@ export function CreateWorkflowContextStep(props: {
   contextStepTitle: string;
   requiresTargetPerson: boolean;
   selectedWorkflowDefinition: StartableWorkflowDefinition | null;
-  targetPersonSourceSearch: string;
-  targetPersonSources: WorkflowTargetPersonSource[];
-  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
-  targetPersonSourcesLoading: boolean;
-  targetPersonSourcesError: string | null;
+  targetPersonSearch: string;
+  targetPeople: WorkflowTargetPerson[];
+  selectedTargetPerson: WorkflowTargetPerson | null;
+  targetPeopleLoading: boolean;
+  targetPeopleError: string | null;
   targetPersonSelectionError: string | null;
   employee: EmployeeFormData;
   employeeFieldErrors: Record<string, string | undefined>;
@@ -165,7 +213,7 @@ export function CreateWorkflowContextStep(props: {
   hasAttemptedContextNext: boolean;
   contextStepIssues: string[];
   onSearchChange: (value: string) => void;
-  onSelectTargetPersonSource: (source: WorkflowTargetPersonSource | null) => void;
+  onSelectTargetPerson: (person: WorkflowTargetPerson | null) => void;
   onEmployeeChange: (field: keyof EmployeeFormData, value: string | number) => void;
   onDepartmentChange: (departmentId: number | null) => void;
   onRoleChange: (roleId: number | null) => void;
@@ -179,11 +227,11 @@ export function CreateWorkflowContextStep(props: {
     contextStepTitle,
     requiresTargetPerson,
     selectedWorkflowDefinition,
-    targetPersonSourceSearch,
-    targetPersonSources,
-    selectedTargetPersonSource,
-    targetPersonSourcesLoading,
-    targetPersonSourcesError,
+    targetPersonSearch,
+    targetPeople,
+    selectedTargetPerson,
+    targetPeopleLoading,
+    targetPeopleError,
     targetPersonSelectionError,
     employee,
     employeeFieldErrors,
@@ -200,7 +248,7 @@ export function CreateWorkflowContextStep(props: {
     hasAttemptedContextNext,
     contextStepIssues,
     onSearchChange,
-    onSelectTargetPersonSource,
+    onSelectTargetPerson,
     onEmployeeChange,
     onDepartmentChange,
     onRoleChange,
@@ -220,15 +268,15 @@ export function CreateWorkflowContextStep(props: {
       {requiresTargetPerson ? (
         <TargetPersonSelection
           processTypeName={selectedWorkflowDefinition?.name ?? "den Workflow"}
-          searchValue={targetPersonSourceSearch}
+          searchValue={targetPersonSearch}
           onSearchChange={onSearchChange}
-          targetPersonSources={targetPersonSources}
-          selectedWorkflowUid={selectedTargetPersonSource?.workflowUid ?? null}
-          selectedSource={selectedTargetPersonSource}
-          isLoading={targetPersonSourcesLoading}
-          error={targetPersonSourcesError}
+          targetPeople={targetPeople}
+          selectedPersonId={selectedTargetPerson?.personId ?? null}
+          selectedPerson={selectedTargetPerson}
+          isLoading={targetPeopleLoading}
+          error={targetPeopleError}
           selectionError={targetPersonSelectionError}
-          onSelectSource={onSelectTargetPersonSource}
+          onSelectPerson={(person) => onSelectTargetPerson(person)}
         />
       ) : (
         <>
@@ -259,7 +307,7 @@ export function CreateWorkflowContextStep(props: {
 
       {hasDerivedContextGap ? (
         <section className="panel panel-warning" role="status" aria-live="polite">
-          <h3 className="panel-title">Kontext der Zielperson ist unvollständig</h3>
+          <h3 className="panel-title">Person-Stammdaten sind unvollständig</h3>
           <p className="panel-text">
             Für die gewählte Person fehlen Angaben zu Abteilung, Stelle, Personalnummer oder Kartennummer.
           </p>
@@ -305,7 +353,7 @@ export function CreateWorkflowContextStep(props: {
 export function CreateWorkflowReviewStep(props: {
   requiresTargetPerson: boolean;
   selectedWorkflowDefinition: StartableWorkflowDefinition | null;
-  selectedTargetPersonSource: WorkflowTargetPersonSource | null;
+  selectedTargetPerson: WorkflowTargetPerson | null;
   employee: EmployeeFormData;
   selectedDepartment: Department | null;
   selectedRole: Role | null;
@@ -326,7 +374,7 @@ export function CreateWorkflowReviewStep(props: {
   const {
     requiresTargetPerson,
     selectedWorkflowDefinition,
-    selectedTargetPersonSource,
+    selectedTargetPerson,
     employee,
     selectedDepartment,
     selectedRole,
@@ -372,27 +420,33 @@ export function CreateWorkflowReviewStep(props: {
                 <dt>Name</dt>
                 <dd>
                   {requiresTargetPerson
-                    ? selectedTargetPersonSource?.displayName ?? "-"
+                    ? selectedTargetPerson?.displayName ?? "-"
                     : `${employee.firstName} ${employee.lastName}`.trim() || "-"}
                 </dd>
               </div>
               <div>
                 <dt>Personalnummer</dt>
-                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.employeeNumber ?? "-" : employee.employeeNumber || "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPerson?.employeeNumber ?? "-" : employee.employeeNumber || "-"}</dd>
               </div>
               <div>
                 <dt>Kartennummer</dt>
-                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.badgeNumber ?? "-" : employee.badgeNumber || "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPerson?.badgeNumber ?? "-" : employee.badgeNumber || "-"}</dd>
               </div>
               <div>
                 <dt>Deadline</dt>
                 <dd>{employee.deadlineDate || "Keine Deadline gesetzt"}</dd>
               </div>
               {requiresTargetPerson ? (
-                <div>
-                  <dt>Quellworkflow</dt>
-                  <dd>{selectedTargetPersonSource?.workflowUid ?? "-"}</dd>
-                </div>
+                <>
+                  <div>
+                    <dt>Beschäftigungsstatus</dt>
+                    <dd>{formatEmploymentStatus(selectedTargetPerson?.employmentStatus ?? null)}</dd>
+                  </div>
+                  <div>
+                    <dt>Directory-Link</dt>
+                    <dd>{formatDirectoryLinkStatus(selectedTargetPerson?.directoryLinkStatus ?? null)}</dd>
+                  </div>
+                </>
               ) : null}
             </dl>
           </div>
@@ -402,11 +456,11 @@ export function CreateWorkflowReviewStep(props: {
             <dl className="workflow-kv-grid">
               <div>
                 <dt>{reviewDepartmentLabel}</dt>
-                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.departmentName ?? "-" : selectedDepartment?.name ?? "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPerson?.departmentName ?? "-" : selectedDepartment?.name ?? "-"}</dd>
               </div>
               <div>
                 <dt>{reviewRoleLabel}</dt>
-                <dd>{requiresTargetPerson ? selectedTargetPersonSource?.roleName ?? "-" : selectedRole?.name ?? "-"}</dd>
+                <dd>{requiresTargetPerson ? selectedTargetPerson?.roleName ?? "-" : selectedRole?.name ?? "-"}</dd>
               </div>
               <div>
                 <dt>Anforderungen</dt>
@@ -416,6 +470,12 @@ export function CreateWorkflowReviewStep(props: {
                 <dt>Vorbelegungen</dt>
                 <dd>{roleRecommendationCount}</dd>
               </div>
+              {requiresTargetPerson ? (
+                <div>
+                  <dt>Letztes abgeschlossenes Onboarding</dt>
+                  <dd>{selectedTargetPerson?.latestCompletedOnboardingWorkflowUid ?? "-"}</dd>
+                </div>
+              ) : null}
             </dl>
           </div>
         </div>

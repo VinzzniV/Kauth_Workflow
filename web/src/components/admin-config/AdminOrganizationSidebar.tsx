@@ -50,6 +50,7 @@ export function AdminOrganizationSidebar({
   const [organizationSearch, setOrganizationSearch] = useState<string>("");
   const [userActivityFilter, setUserActivityFilter] = useState<UserActivityFilter>("all");
   const [userDepartmentFilter, setUserDepartmentFilter] = useState<string>("");
+  const [showTechnicalUsers, setShowTechnicalUsers] = useState<boolean>(false);
   const [departmentLeadFilter, setDepartmentLeadFilter] = useState<ValidityFilter>("all");
   const [departmentOwnerFilter, setDepartmentOwnerFilter] = useState<ValidityFilter>("all");
   const [responsibilityTypeFilter, setResponsibilityTypeFilter] =
@@ -66,8 +67,9 @@ export function AdminOrganizationSidebar({
         search: organizationSearch,
         activityFilter: userActivityFilter,
         departmentFilter: userDepartmentFilter,
+        includeTechnicalActors: showTechnicalUsers,
       }),
-    [organizationSearch, sortedUsers, userActivityFilter, userDepartmentFilter]
+    [organizationSearch, showTechnicalUsers, sortedUsers, userActivityFilter, userDepartmentFilter]
   );
   const filteredDepartments = useMemo(
     () =>
@@ -144,6 +146,17 @@ export function AdminOrganizationSidebar({
                   {department.departmentName}
                 </option>
               ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Technische Personen</span>
+            <select
+              value={showTechnicalUsers ? "show" : "hide"}
+              onChange={(event) => setShowTechnicalUsers(event.target.value === "show")}
+            >
+              <option value="hide">Standardmäßig ausblenden</option>
+              <option value="show">Auch anzeigen</option>
             </select>
           </label>
         </>

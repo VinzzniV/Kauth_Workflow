@@ -140,18 +140,18 @@ export function getAvailableVisibleTaskStatuses(
   switch (currentStatus) {
     case "open":
     case "ready":
-      return ["open", "in_progress", "blocked", "done", "failed"];
+      return ["open", "in_progress", "blocked", "done"];
     case "blocked":
       return ["blocked", "open"];
     case "in_progress":
-      return ["in_progress", "blocked", "done", "failed"];
+      return ["in_progress", "blocked", "done"];
     case "done":
     case "completed":
       return ["done"];
     case "failed":
-      return ["failed"];
+      return ["open", "in_progress", "blocked", "done"];
     case "cancelled":
-      return ["cancelled"];
+      return ["open", "in_progress", "blocked", "done"];
     default:
       return ["open"];
   }

@@ -1253,6 +1253,22 @@
   align-items: center;
 }
 
+.rotation-form-card {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-panel) 96%, transparent),
+    color-mix(in srgb, var(--surface-card-subtle) 86%, transparent)
+  );
+  border-color: var(--surface-card-border);
+  box-shadow: var(--surface-card-shadow);
+}
+
+:root[data-theme="dark"] .rotation-form-card {
+  background: var(--surface-hero-background);
+  border-color: var(--surface-focus-border);
+  box-shadow: var(--surface-focus-shadow);
+}
+
 .builder-validation-pill {
   display: inline-flex;
   align-items: center;

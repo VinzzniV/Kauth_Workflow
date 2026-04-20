@@ -9,13 +9,15 @@ import { toNullableNumber, toNullableText } from "./adminConfigHelpers";
 export type AdminWorkspaceSection =
   | "overview"
   | "organization"
+  | "rotation_requirements"
   | "templates"
   | "builder"
   | "answers"
   | "defaults"
   | "access"
   | "directory"
-  | "system";
+  | "system_logs"
+  | "system_configuration";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
 export type AdminWorkspaceArea = "organization" | "configuration" | "access" | "system";
 export type AdminWorkspaceWarningCategory =
@@ -97,8 +99,8 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     key: "organization",
     label: "Personen & Organisation",
     description: "Personen verwalten, Abteilungen pflegen und Zuständigkeiten sauber zuordnen.",
-    navLabel: "Personen & Organisation",
-    navDescription: "Personen, Abteilungen und Zuständigkeiten verständlich pflegen.",
+    navLabel: "Personen & Abteilungen",
+    navDescription: "Personen, Abteilungen und Bereichsstammdaten pflegen.",
     area: "organization",
     introTitle: "Personen, Bereiche und Verantwortungen aktuell halten",
     introDescription:
@@ -111,6 +113,25 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     affectedObjects: ["Benutzerkonten", "Abteilungen", "fachliche Zuständigkeiten"],
     impactNote: "Änderungen wirken sofort auf Zuordnungen, Filter, Verantwortlichkeiten und Prüfhinweise in der Administration.",
     riskNote: "Fehlende Leitung, fehlende Anforderungsverantwortung oder unklare Bereichszuordnungen erzeugen Lücken in nachgelagerten Prozessen.",
+  },
+  {
+    key: "rotation_requirements",
+    label: "Zuständigkeiten",
+    description: "Fachliche Zuständigkeiten und Abteilungsanforderungen für Durchläufe pflegen.",
+    navLabel: "Zuständigkeiten",
+    navDescription: "Fachliche Zuständigkeiten und Abteilungsanforderungen verwalten.",
+    area: "organization",
+    introTitle: "Zuständigkeiten und Abteilungsanforderungen",
+    introDescription:
+      "Hier pflegen Sie fachliche Zuständigkeiten (wer für Onboarding-Aufgaben verantwortlich ist) und Abteilungsanforderungen (welche Maßnahmen bei Eintritt oder Austritt in eine Abteilung entstehen).",
+    whatYouCanDo: [
+      "Fachliche Zuständigkeiten anlegen, Personen und Bereiche zuordnen",
+      "Maßnahmenvorlagen pro Abteilung und Auslöser (Eintritt/Austritt) konfigurieren",
+      "Automatisierbare Maßnahmen mit einem Automation-Key vorbereiten",
+    ],
+    affectedObjects: ["fachliche Zuständigkeiten", "Abteilungsanforderungen", "generierte Aufgaben in Durchläufen"],
+    impactNote: "Änderungen an Zuständigkeiten wirken sofort auf Aufgabenzuordnungen. Neue Vorlagen werden erst bei der nächsten Task-Synchronisierung eines Plans aktiv.",
+    riskNote: "Das Löschen einer Zuständigkeit kann Aufgaben ohne Verantwortlichkeit hinterlassen. Vorlagen sollten deaktiviert statt gelöscht werden, wenn laufende Pläne betroffen sind.",
   },
   {
     key: "templates",
@@ -229,11 +250,30 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     riskNote: "Falsche Gruppen-Mappings verteilen Rechte schnell breit. Änderungen deshalb zuerst mit kleiner Gruppe oder nach gezieltem Sync prüfen.",
   },
   {
-    key: "system",
-    label: "Benachrichtigungen & System",
+    key: "system_logs",
+    label: "Logs",
+    description: "Zentrale Betriebslogs, Fehler und technische Ereignisse app-weit überwachen.",
+    navLabel: "Logs",
+    navDescription: "Zentrale Betriebslogs und Fehlermeldungen prüfen.",
+    area: "system",
+    introTitle: "Zentrale System-Logs überwachen",
+    introDescription:
+      "Hier sehen Sie zentrale Betriebsereignisse der App, darunter Nutzerfehler, Backend-Fehler, Mailversand sowie Directory- und Automationsereignisse.",
+    whatYouCanDo: [
+      "Fehler, Warnungen und wichtige Systemereignisse filtern",
+      "Nutzermeldungen, HTTP-Kontext und technische Details nachvollziehen",
+      "Direkt aus Logs in betroffene Workflows, Pläne oder Tasks springen",
+    ],
+    affectedObjects: ["System-Logs", "Fehlerereignisse", "laufender Betrieb"],
+    impactNote: "Die Logansicht ist die zentrale Stelle, um produktive Probleme, Nutzerfehler und technische Auffälligkeiten schnell einzugrenzen.",
+    riskNote: "Leere oder fehlerhafte Logansichten verdecken betriebliche Probleme. Filter und Zeiträume sollten deshalb nachvollziehbar gesetzt werden.",
+  },
+  {
+    key: "system_configuration",
+    label: "Konfiguration",
     description: "Mailversand und technische Laufzeitkonfiguration für den laufenden Betrieb steuern.",
-    navLabel: "Benachrichtigungen & System",
-    navDescription: "Laufenden Systembetrieb und Versand konfigurieren.",
+    navLabel: "Konfiguration",
+    navDescription: "Mailversand und technische Systemkonfiguration pflegen.",
     area: "system",
     introTitle: "Laufenden Systembetrieb konfigurieren",
     introDescription:
@@ -254,7 +294,7 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
     label: "Personen & Organisation",
     description: "Stammdaten, Abteilungen und Zuständigkeiten pflegen.",
     defaultSection: "organization",
-    sections: ["organization"],
+    sections: ["organization", "rotation_requirements"],
   },
   {
     key: "access",
@@ -266,9 +306,9 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
   {
     key: "system",
     label: "System",
-    description: "Laufende Systemkonfiguration und zentrale Betriebslogs steuern.",
-    defaultSection: "system",
-    sections: ["system"],
+    description: "Zentrale Betriebslogs und laufende Systemkonfiguration geordnet steuern.",
+    defaultSection: "system_logs",
+    sections: ["system_logs", "system_configuration"],
   },
 ];
 
@@ -305,13 +345,17 @@ export function getAdminWorkspacePresentationSection(section: AdminWorkspaceSect
 export function normalizeAdminWorkspaceSection(value: string | null): AdminWorkspaceSection {
   switch ((value ?? "").trim().toLowerCase()) {
     case "organization":
+    case "rotation_requirements":
     case "builder":
     case "access":
     case "directory":
-    case "system":
+    case "system_logs":
+    case "system_configuration":
       return value!.trim().toLowerCase() as AdminWorkspaceSection;
+    case "system":
+      return "system_logs";
     case "operations":
-      return "system";
+      return "system_logs";
     case "templates":
     case "answers":
     case "defaults":
@@ -405,11 +449,16 @@ export function filterOrganizationUsers(args: {
   search: string;
   activityFilter: "all" | "active" | "inactive";
   departmentFilter: string;
+  includeTechnicalActors?: boolean;
 }): AdminUser[] {
-  const { users, search, activityFilter, departmentFilter } = args;
+  const { users, search, activityFilter, departmentFilter, includeTechnicalActors = false } = args;
   const normalizedSearch = search.trim().toLowerCase();
 
   return users.filter((user) => {
+    if (!includeTechnicalActors && user.isTechnicalActor) {
+      return false;
+    }
+
     if (activityFilter === "active" && !user.isActive) {
       return false;
     }
@@ -648,7 +697,7 @@ export function buildAdminOverviewWarnings(args: {
       title: "Mail-Konfiguration unvollständig",
       detail: notificationEmailConfiguration.configurationMessage ?? "Die Mail-Konfiguration ist noch nicht vollständig.",
       actionLabel: "System öffnen",
-      targetSection: "system",
+      targetSection: "system_configuration",
     });
   }
 
@@ -663,7 +712,7 @@ export function buildAdminOverviewWarnings(args: {
       title: "Mailversand aktiv ohne Sandbox",
       detail: "Aktiver Versand ohne Weiterleitungsadresse sendet an die hinterlegten Empfänger.",
       actionLabel: "System öffnen",
-      targetSection: "system",
+      targetSection: "system_configuration",
     });
   }
 
@@ -705,7 +754,7 @@ const ADMIN_WARNING_GROUP_META: Record<AdminWorkspaceWarningCategory, {
     title: "Mail- und Versandkonfiguration",
     detail: "Systemeinstellungen für Benachrichtigungen brauchen eine Prüfung.",
     actionLabel: "System prüfen",
-    targetSection: "system",
+    targetSection: "system_configuration",
   },
 };
 

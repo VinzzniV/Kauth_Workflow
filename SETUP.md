@@ -17,7 +17,7 @@ Architekturhinweis:
 - `compose.yml`
   Gemeinsame Compose-Basis fuer `db`, `api` und `web`.
 - `compose.dev-db.yml`
-  Lokales Override nur fuer PostgreSQL mit Dev-Init und Host-Port `25432`.
+  Lokales Override nur fuer PostgreSQL mit Dev-Init und Host-Port `26432`.
 - `compose.prod.yml`
   Produktionsnahes Override mit Entra-Auth, produktivem DB-Init und Caddy-Reverse-Proxy.
 - `.env.prod.example`
@@ -46,7 +46,7 @@ dotnet run --project api/API/API.csproj --launch-profile API
 Das lokale Launch-Profil setzt u. a.:
 - `ASPNETCORE_ENVIRONMENT=Development`
 - `AUTH_MODE=dev-sim`
-- `ConnectionStrings__Default=Host=localhost;Port=25432;...;GSS Encryption Mode=Disable;SSL Mode=Disable`
+- `ConnectionStrings__Default=Host=localhost;Port=26432;...;GSS Encryption Mode=Disable;SSL Mode=Disable`
 - `PUBLIC_BASE_URL=http://localhost:5173`
 - `DIRECTORY_GROUP_PREFIX=Onboarding-App-`
 - `DIRECTORY_SYNC_SCHEDULED=true`
@@ -109,7 +109,7 @@ npm run build
 ```
 
 Hinweis:
-- DB-gebundene Backend-Tests erwarten lokal PostgreSQL auf `127.0.0.1:25432`; ohne laufenden Docker-DB-Container schlagen diese Tests fehl.
+- DB-gebundene Backend-Tests erwarten lokal PostgreSQL auf `127.0.0.1:26432`; ohne laufenden Docker-DB-Container schlagen diese Tests fehl.
 
 ## Linux-VM Deployment
 
@@ -155,6 +155,7 @@ docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml logs -f
 - Production laedt `02_bootstrap.sql`, aber nicht `02_seed.sql`
 - Dev laedt `02_seed.sql` inklusive lokaler Defaults
 - Seit T12 laden beide Init-Reihenfolgen zusaetzlich `58_system_event_log.sql` fuer die zentrale Log-Tabelle `system_event_log`
+- Beide Init-Reihenfolgen laden ausserdem `47_responsibility_plain_names.sql` und `59_people_lifecycle_anchor.sql`; damit sind Verantwortungstexte konsistent und der kanonische Mitarbeiteranker (`people.employee_number`, `current_position_role_id`, Directory-Employee-Linking) beim Neuaufbau direkt vorhanden.
 
 ## Handoff / Release-ZIP
 

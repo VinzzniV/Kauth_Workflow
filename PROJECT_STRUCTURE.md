@@ -86,9 +86,10 @@ Hinweis:
 Seit T8 lebt der Workflow Builder auf der eigenen Route `/builder`; alte Builder-Einstiege unter `/admin/config?section=builder|templates|answers|defaults` werden dorthin umgeleitet. Die Builder-Logik sitzt primär in `src/pages/WorkflowBuilderPage.tsx`, `src/components/admin-config/`, `src/hooks/useAdminWorkflowBuilder.ts`, `src/hooks/adminWorkflowBuilderModel.ts` und `src/services/adminConfigApi.ts`.
 Seit T11 nutzt `/workflows/create` den startbaren Definitionen-Katalog aus `src/services/lookupApi.ts` statt `process_types`; die alten Konfigurationssektionen fuer Process Types, Templates und Answer Defaults sind im Admin-Workspace nicht mehr navigierbar.
 Seit T12 ist `Administration > System` die zentrale Betriebs- und Log-Konsole: `src/components/admin-config/AdminSystemLogSection.tsx`, `src/services/adminApi.ts` und `src/services/systemLogReporter.ts` verbinden die neue Admin-Log-Ansicht mit automatischem Frontend-Error-Reporting; der alte Admin-Bereich fuer `Massenaktionen` wurde vollstaendig entfernt.
-Seit Phase 6 gibt es fuer HR zusaetzlich den Rotation-Frontend-Slice auf `/rotation` und `/rotation/plans/:planId`; die Seiten in `src/pages/RotationPlanningPage.tsx` und `src/pages/RotationPlanDetailPage.tsx` nutzen `src/services/rotationApi.ts`, `src/services/queries/rotationQueries.ts` und `src/types/rotation.ts`.
+Seit Phase 6 gibt es fuer HR zusaetzlich den Rotation-Frontend-Slice auf `/rotation` und `/rotation/plans/:planId`; `/rotation` dient jetzt primaer als Uebersichts- und Einstiegseite fuer bestehende Durchlaufplaene, waehrend die Anlage neuer Durchlaeufe ueber `Neuer Vorgang` und den Link nach `/rotation?mode=create` startet. Die Seiten in `src/pages/RotationPlanningPage.tsx` und `src/pages/RotationPlanDetailPage.tsx` nutzen `src/services/rotationApi.ts`, `src/services/queries/rotationQueries.ts` und `src/types/rotation.ts`.
 Seit Phase 7 gibt es fuer IT und Fachbereiche den operativen Rotation-Slice auf `/rotation/operations` und `/rotation/tasks/:taskRef`; die Seiten `src/pages/RotationOperationsPage.tsx` und `src/pages/RotationTaskDetailPage.tsx` nutzen den familienfaehigen `/tasks`-Envelope, `src/services/taskApi.ts`, `src/services/mutations/workflowMutations.ts` und die erweiterten Task-/Status-Mappings in `src/services/api/` und `src/utils/taskStatus.ts`.
 Seit Phase 8 sind Audit-/Verlaufs- und Benachrichtigungshistorie in den bestehenden Rotations-Detailseiten sichtbar; `src/components/rotation/RotationAuditLog.tsx` und `src/components/rotation/RotationNotificationsPanel.tsx` werden in `RotationPlanDetailPage` und `RotationTaskDetailPage` eingebunden; `src/services/queries/rotationQueries.ts` enthaelt die planbezogenen History-Queries.
+Seit dem mitarbeiterzentrierten Lifecycle-Schnitt startet `/workflows/create` fachlich immer von einer kanonischen Person: bestehende Lifecycle-Prozesse suchen ueber `src/services/peopleApi.ts` und `src/services/queries/peopleQueries.ts`, neue Onboardings legen die Person zuerst per `POST /people` an und starten danach den Workflow mit `targetPersonId`. Die Personenhistorie lebt auf `src/pages/PersonWorkflowHistoryPage.tsx`.
 
 ## Backend: `api/API`
 
@@ -110,6 +111,7 @@ Hinweis:
 Der aktuelle Code bildet den alten lifecycle-/task-getriebenen Kern noch stark ab.
 Definition Layer, Runtime-Orchestrierung und Automation Layer werden gemaess Implementierungsplan schrittweise parallel eingefuehrt.
 Seit T11 existiert zusaetzlich ein definition-first Oeffnungspfad ueber `GET /workflow-definitions/startable` und `POST /workflows` mit `workflowDefinitionKey`; Legacy-`processTypeKey` bleibt nur noch als Kompatibilitaetsalias erhalten.
+Seit dem Mitarbeiter-Lifecycle-Schnitt sind `people` der fachliche Primäranker fuer Lifecycle und Rotation: `WorkflowMasterDataEndpoints` expose `POST /people`, `GET /people/search`, `GET /people/{personId}/workflow-history` und `GET /people/rotation-eligible`; `WorkflowRuntimeService`, `PostgresWorkflowRepository.PersonLifecycleOperations.cs` und `PersonLifecycleProjectionService` koppeln Workflow-Starts, Directory-Linking und kanonische Personenfortschreibung an `targetPersonId`.
 
 ## Backend-Tests: `api/API.Tests`
 
@@ -153,6 +155,9 @@ Fuehrt die Abteilungen `Azubis technisch` und `Azubis kaufmaennisch` ein. Techni
 `58_system_event_log.sql`
 Fuehrt die zentrale Tabelle `system_event_log` inklusive Indizes fuer Zeitpunkt, Severity/Source, Actor, Workflow, Rotation-Plan und Task-Referenz ein. Sie bildet die gemeinsame Timeline fuer Frontend-Fehler, API-/System-Fehler, Mail-/Entra-/Directory-Ereignisse und administrative Betriebsereignisse.
 
+`59_people_lifecycle_anchor.sql`
+Fuehrt den kanonischen Mitarbeiteranker weiter: `people.current_position_role_id`, Unique-Index auf `people.employee_number`, Directory-Employee-Number-Projektion und Backfill fuer bestehende Mitarbeiter-/Workflow-Zuordnung.
+
 `90_dev_defaults.sql`
 Lokale Entwicklungs-Defaults.
 
@@ -171,13 +176,13 @@ Read-DTOs fuer Action-Katalog sowie Automation-Job-, Attempt- und Log-Ansichten.
 DTOs fuer den neuen Rotations-/Durchlauf-Slice inklusive Plan-/Stations-Requests sowie Admin-Requests und Responses fuer `department_action_templates`.
 
 `api/API/Endpoints/RotationPlanningEndpoints.cs`
-Minimal-API-Endpunkte fuer die HR-Planung: Suche abgeschlossener Onboardings, Lesen/Erstellen von Durchlaufplaenen sowie CRUD fuer Stationen.
+Minimal-API-Endpunkte fuer die HR-Planung: Suche abgeschlossener Onboardings, Lesen/Erstellen von Durchlaufplaenen sowie CRUD fuer Stationen. Die Planliste unter `GET /rotation/plans` akzeptiert jetzt auch keinen Personenfilter mehr und dient damit sowohl der personenbezogenen Detailansicht als auch der globalen Durchlauf-Uebersicht.
 
 `api/API/Endpoints/AdminRotationConfigEndpoints.cs`
 Admin-Endpunkte fuer `department_action_templates` unter `/admin/rotation/action-templates`.
 
 `api/API/Services/RotationPlanningService.cs`
-Fachliche Phase-2-Schicht fuer Sichtpruefung, Plananlage aus abgeschlossenem Onboarding sowie Validierung von Stationskonflikten und Sortierung.
+Fachliche Phase-2-Schicht fuer Sichtpruefung, Plananlage aus abgeschlossenem Onboarding sowie Validierung von Stationskonflikten und Sortierung. Seit dem Follow-up nach Phase 10 laesst die Service-Schicht die globale Planliste auch ohne `personId` zu.
 
 `api/API/Services/RotationTemplateAdminService.cs`
 Fachliche Phase-3-Schicht fuer Validierung und Pflege von `department_action_templates`.
@@ -200,8 +205,8 @@ Fuegt `GetRotationAuditLogAsync` und `GetRotationNotificationsAsync` hinzu; Sich
 `api/API/Endpoints/RotationPlanningEndpoints.cs` (erweitert)
 Neue Lese-Endpunkte `GET /rotation/plans/{planId}/audit` und `GET /rotation/plans/{planId}/notifications` mit `limit`/`offset`-Validierung.
 
-`api/API/Repositories/IRotationRepository.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTemplateOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTaskGenerationOperations.cs`
-Rotation-spezifischer Persistenzzugriff auf Basis des bestehenden PostgreSQL-Repositories fuer Planung, Vorlagenpflege, Generated-Task-Sync und Rotation-Task-Mutationen.
+`api/API/Repositories/IRotationRepository.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.MasterDataOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTemplateOperations.cs`, `api/API/Repositories/PostgresWorkflowRepository.RotationTaskGenerationOperations.cs`
+Rotation-spezifischer Persistenzzugriff auf Basis des bestehenden PostgreSQL-Repositories fuer Planung, personenzentrierte Eligibility-Suche, Vorlagenpflege, Generated-Task-Sync und Rotation-Task-Mutationen. Die Auswahl fuer neue Durchlaeufe startet jetzt ueber `people`, waehrend `source_workflow_id` nur noch das letzte abgeschlossene Onboarding als Provenienz und Eligibility-Nachweis haelt.
 
 `api/API/Repositories/PostgresWorkflowRepository.RotationNotificationOperations.cs`
 PostgreSQL-Zugriff fuer die Generierung, Deduplizierung, Dispatch-Vorbereitung und Ergebnisverbuchung von `upcoming_change`, `reminder` und `overdue` in `rotation_notifications`.

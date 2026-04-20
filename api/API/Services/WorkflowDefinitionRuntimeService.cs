@@ -5,6 +5,7 @@ namespace API;
 internal sealed class WorkflowDefinitionRuntimeService(
     IWorkflowDefinitionRuntimeRepository repository,
     IWorkflowNotificationDispatchService workflowNotificationDispatchService,
+    IPersonLifecycleProjectionService personLifecycleProjectionService,
     ILogger<WorkflowDefinitionRuntimeService> logger) : IWorkflowDefinitionRuntimeService
 {
     public async Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(
@@ -14,6 +15,13 @@ internal sealed class WorkflowDefinitionRuntimeService(
     {
         var created = await repository.CreateWorkflowDefinitionInstance(request, currentUser.UserId);
         await workflowNotificationDispatchService.DispatchReadyTaskNotificationsAsync(created.WorkflowUid, cancellationToken);
+        if (string.Equals(created.LegacyWorkflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+        {
+            await personLifecycleProjectionService.ApplyCompletedWorkflowProjectionAsync(
+                created.WorkflowUid,
+                currentUser.UserId,
+                cancellationToken);
+        }
         logger.LogInformation(
             "Workflow definition runtime instance {WorkflowUid} created by user {UserId} for definition {DefinitionKey}.",
             created.WorkflowUid,
@@ -86,6 +94,13 @@ internal sealed class WorkflowDefinitionRuntimeService(
             await workflowNotificationDispatchService.DispatchTaskStatusChangeNotificationsAsync(
                 updated.WorkflowUid,
                 cancellationToken);
+            if (string.Equals(updated.LegacyWorkflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+            {
+                await personLifecycleProjectionService.ApplyCompletedWorkflowProjectionAsync(
+                    updated.WorkflowUid,
+                    actorUserId: null,
+                    cancellationToken);
+            }
         }
 
         return updated;

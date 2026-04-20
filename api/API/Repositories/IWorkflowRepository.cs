@@ -31,6 +31,7 @@ internal interface IWorkflowRepository
     Task<List<RequirementDto>> GetRequirements(string processTypeKey);
     Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey);
     Task<bool> IsManagerCreatableProcessType(string processTypeKey);
+    Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId);
     Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId);
     Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId);
     Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid);
@@ -69,6 +70,11 @@ internal interface IWorkflowRepository
         string? query,
         int limit = 20,
         IReadOnlyCollection<int>? observableDepartmentIds = null);
+    Task<List<WorkflowTargetPersonDto>> SearchRotationEligiblePeople(
+        string? query,
+        int limit = 20,
+        IReadOnlyCollection<int>? observableDepartmentIds = null);
+    Task ApplyPersonLifecycleProjection(Guid workflowUid, long? actorUserId = null);
     Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null);
     Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey);
     Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions();

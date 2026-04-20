@@ -1,13 +1,11 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import { useToast } from "../components/feedback/useToast";
 import PageHeader from "../components/layout/PageHeader";
-import {
-  createRotationPlan,
-} from "../services/rotationApi";
+import { createRotationPlan } from "../services/rotationApi";
 import { queryKeys } from "../services/queryKeys";
 import { useRotationCompletedOnboardings, useRotationPlans } from "../services/queries/rotationQueries";
 import type {
@@ -41,32 +39,56 @@ function getRotationPlanStatusPillClass(status: RotationPlanStatus): string {
   }
 }
 
+function formatEmploymentStatus(status: string | null): string {
+  switch (status) {
+    case "planned":
+      return "Geplant";
+    case "active":
+      return "Aktiv";
+    case "inactive":
+      return "Inaktiv";
+    case "exited":
+      return "Ausgetreten";
+    default:
+      return "-";
+  }
+}
+
 export default function RotationPlanningPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useToast();
+  const isCreateMode = searchParams.get("mode") === "create";
   const [search, setSearch] = useState("");
+  const [planSearch, setPlanSearch] = useState("");
   const [selectedPerson, setSelectedPerson] = useState<CompletedOnboardingSearchResult | null>(null);
   const [planTitle, setPlanTitle] = useState("");
   const [planStatus, setPlanStatus] = useState<RotationPlanStatus>("draft");
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
 
-  const completedOnboardingsQuery = useRotationCompletedOnboardings(search, true);
-  const rotationPlansQuery = useRotationPlans(selectedPerson?.personId ?? null, Boolean(selectedPerson));
+  const eligiblePeopleQuery = useRotationCompletedOnboardings(search, isCreateMode);
+  const rotationPlansQuery = useRotationPlans(
+    isCreateMode ? selectedPerson?.personId ?? null : null,
+    !isCreateMode || selectedPerson?.personId !== undefined
+  );
 
-  const completedOnboardings = completedOnboardingsQuery.data;
+  const eligiblePeople = eligiblePeopleQuery.data;
   const existingPlans = rotationPlansQuery.data ?? [];
-  const selectedPersonName = selectedPerson?.displayName ?? "Person";
-
-  const latestCompletedOnboarding = useMemo(() => {
-    if (!selectedPerson) {
-      return null;
+  const visiblePlans = useMemo(() => {
+    const normalizedSearch = planSearch.trim().toLowerCase();
+    if (!normalizedSearch) {
+      return existingPlans;
     }
 
-    return (completedOnboardings ?? [])
-      .filter((entry) => entry.personId === selectedPerson.personId)
-      .sort((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime())[0] ?? selectedPerson;
-  }, [completedOnboardings, selectedPerson]);
+    return existingPlans.filter((plan) =>
+      plan.title.toLowerCase().includes(normalizedSearch)
+      || plan.displayName.toLowerCase().includes(normalizedSearch)
+      || (plan.departmentName ?? "").toLowerCase().includes(normalizedSearch)
+      || plan.sourceWorkflowUid.toLowerCase().includes(normalizedSearch)
+    );
+  }, [existingPlans, planSearch]);
+  const selectedPersonName = selectedPerson?.displayName ?? "Person";
 
   async function handleCreatePlan() {
     if (!selectedPerson) {
@@ -74,18 +96,24 @@ export default function RotationPlanningPage() {
       return;
     }
 
+    if (!selectedPerson.latestCompletedOnboardingWorkflowUid) {
+      showError("Für die gewählte Person fehlt ein abgeschlossenes Onboarding als Referenz.");
+      return;
+    }
+
     setIsCreatingPlan(true);
     try {
       const createdPlan = await createRotationPlan({
         personId: selectedPerson.personId,
-        sourceWorkflowUid: selectedPerson.workflowUid,
+        sourceWorkflowUid: selectedPerson.latestCompletedOnboardingWorkflowUid,
         title: planTitle.trim() || undefined,
         status: planStatus,
       });
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.rotation.plans(selectedPerson.personId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.rotation.completedOnboardings(search) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.rotation.plans(null) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.people.rotationEligible(search) }),
       ]);
 
       showSuccess("Durchlaufplan wurde angelegt.");
@@ -105,61 +133,80 @@ export default function RotationPlanningPage() {
         <PageHeader
           variant="workspace"
           title="Durchlaufplanung"
-          description="HR plant hier Durchläufe auf Basis bereits abgeschlossener Onboardings und steigt danach in den Stationsplan ein."
+          description={
+            isCreateMode
+              ? "Neuen Abteilungsdurchlauf auf Basis einer bestehenden Person mit abgeschlossenem Onboarding starten."
+              : "Übersicht über bestehende Durchlaufpläne, Stände und Einstiege in die Detailansicht."
+          }
         />
 
-        <section className="panel panel-muted">
-          <div className="panel-head">
-            <h2>Person mit abgeschlossenem Onboarding suchen</h2>
-            <p>Die Suche nutzt nur bestehende Personen, deren Onboarding bereits abgeschlossen wurde.</p>
-          </div>
 
-          <div className="toolbar-row toolbar-row-filters">
-            <label className="field compact grow">
-              <span>Suche</span>
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Name, Personalnummer oder Ausweisnummer"
-              />
-            </label>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => void completedOnboardingsQuery.refetch()}
-              disabled={completedOnboardingsQuery.isFetching}
-            >
-              {completedOnboardingsQuery.isFetching ? "Aktualisiere..." : "Aktualisieren"}
-            </button>
-          </div>
-        </section>
+        {isCreateMode ? (
+          <section className="panel panel-muted">
+            <div className="panel-head">
+              <h2>Person mit abgeschlossenem Onboarding suchen</h2>
+              <p>Die Suche liefert nur Personen, deren letztes Onboarding bereits abgeschlossen wurde.</p>
+            </div>
 
-        {completedOnboardingsQuery.isLoading ? (
-          <LoadingState title="Abgeschlossene Onboardings werden geladen..." />
+            <div className="toolbar-row toolbar-row-filters">
+              <label className="field compact grow">
+                <span>Suche</span>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Name, Personalnummer, Abteilung oder UPN"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void eligiblePeopleQuery.refetch()}
+                disabled={eligiblePeopleQuery.isFetching}
+              >
+                {eligiblePeopleQuery.isFetching ? "Aktualisiere..." : "Aktualisieren"}
+              </button>
+            </div>
+          </section>
+        ) : (
+          <section className="panel panel-muted">
+            <div className="panel-head">
+              <h2>Neuen Durchlauf starten</h2>
+              <p>Die Anlage eines neuen Abteilungsdurchlaufs startet unter <strong>Neuer Vorgang</strong>.</p>
+            </div>
+            <div className="action-row">
+              <Link className="btn btn-primary" to="/create">
+                Zu Neuer Vorgang
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {isCreateMode && eligiblePeopleQuery.isLoading ? (
+          <LoadingState title="Personen mit abgeschlossenem Onboarding werden geladen..." />
         ) : null}
 
-        {!completedOnboardingsQuery.isLoading && completedOnboardingsQuery.error ? (
+        {isCreateMode && !eligiblePeopleQuery.isLoading && eligiblePeopleQuery.error ? (
           <EmptyState
-            title="Onboardings konnten nicht geladen werden."
+            title="Personen konnten nicht geladen werden."
             description={
-              completedOnboardingsQuery.error instanceof Error
-                ? completedOnboardingsQuery.error.message
+              eligiblePeopleQuery.error instanceof Error
+                ? eligiblePeopleQuery.error.message
                 : "Die Suche ist fehlgeschlagen."
             }
             actionLabel="Erneut versuchen"
-            onAction={() => void completedOnboardingsQuery.refetch()}
+            onAction={() => void eligiblePeopleQuery.refetch()}
           />
         ) : null}
 
-        {!completedOnboardingsQuery.isLoading &&
-        !completedOnboardingsQuery.error &&
-        (completedOnboardings?.length ?? 0) > 0 ? (
-          <section className="workflow-grid" aria-label="Abgeschlossene Onboardings">
-            {(completedOnboardings ?? []).map((entry) => {
-              const isSelected = selectedPerson?.workflowUid === entry.workflowUid;
+        {isCreateMode && !eligiblePeopleQuery.isLoading &&
+        !eligiblePeopleQuery.error &&
+        (eligiblePeople?.length ?? 0) > 0 ? (
+          <section className="workflow-grid" aria-label="Rotationsberechtigte Personen">
+            {(eligiblePeople ?? []).map((entry) => {
+              const isSelected = selectedPerson?.personId === entry.personId;
               return (
-                <article key={entry.workflowUid} className="workflow-card card-list">
+                <article key={entry.personId} className="workflow-card card-list">
                   <div className="workflow-card-top">
                     <h2>{entry.displayName}</h2>
                     <span className={`status-pill ${isSelected ? "running" : "open"}`}>
@@ -168,7 +215,7 @@ export default function RotationPlanningPage() {
                   </div>
                   <dl className="workflow-meta">
                     <div>
-                      <dt>Abteilung</dt>
+                      <dt>Stamm-Abteilung</dt>
                       <dd>{entry.departmentName ?? "-"}</dd>
                     </div>
                     <div>
@@ -177,11 +224,15 @@ export default function RotationPlanningPage() {
                     </div>
                     <div>
                       <dt>Personalnummer</dt>
-                      <dd>{entry.employeeNumber}</dd>
+                      <dd>{entry.employeeNumber ?? "-"}</dd>
                     </div>
                     <div>
-                      <dt>Abgeschlossen</dt>
-                      <dd>{formatDateTime(entry.completedAt)}</dd>
+                      <dt>Status</dt>
+                      <dd>{formatEmploymentStatus(entry.employmentStatus)}</dd>
+                    </div>
+                    <div>
+                      <dt>Letztes Onboarding</dt>
+                      <dd>{formatDateTime(entry.latestCompletedOnboardingAt)}</dd>
                     </div>
                   </dl>
                   <div className="action-row">
@@ -203,21 +254,21 @@ export default function RotationPlanningPage() {
           </section>
         ) : null}
 
-        {!completedOnboardingsQuery.isLoading &&
-        !completedOnboardingsQuery.error &&
-        (completedOnboardings?.length ?? 0) === 0 ? (
+        {isCreateMode && !eligiblePeopleQuery.isLoading &&
+        !eligiblePeopleQuery.error &&
+        (eligiblePeople?.length ?? 0) === 0 ? (
           <EmptyState
-            title="Keine abgeschlossenen Onboardings gefunden"
+            title="Keine geeigneten Personen gefunden"
             description="Passen Sie die Suche an oder prüfen Sie, ob bereits Onboardings abgeschlossen wurden."
           />
         ) : null}
 
-        {selectedPerson ? (
+        {isCreateMode && selectedPerson ? (
           <>
             <section className="panel">
               <div className="panel-head">
                 <h2>Personendetail</h2>
-                <p>Der Durchlaufplan startet immer aus einem abgeschlossenen Onboarding derselben Person.</p>
+                <p>Der Durchlaufplan referenziert die Person. Das letzte abgeschlossene Onboarding bleibt nur der Provenienz-Nachweis.</p>
               </div>
 
               <dl className="workflow-meta">
@@ -226,20 +277,24 @@ export default function RotationPlanningPage() {
                   <dd>{selectedPersonName}</dd>
                 </div>
                 <div>
-                  <dt>Abteilung</dt>
-                  <dd>{latestCompletedOnboarding?.departmentName ?? "-"}</dd>
+                  <dt>Stamm-Abteilung</dt>
+                  <dd>{selectedPerson.departmentName ?? "-"}</dd>
                 </div>
                 <div>
                   <dt>Rolle</dt>
-                  <dd>{latestCompletedOnboarding?.roleName ?? "-"}</dd>
+                  <dd>{selectedPerson.roleName ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>Beschäftigungsstatus</dt>
+                  <dd>{formatEmploymentStatus(selectedPerson.employmentStatus)}</dd>
                 </div>
                 <div>
                   <dt>Quell-Onboarding</dt>
-                  <dd>{latestCompletedOnboarding?.workflowUid ?? "-"}</dd>
+                  <dd>{selectedPerson.latestCompletedOnboardingWorkflowUid ?? "-"}</dd>
                 </div>
                 <div>
                   <dt>Abgeschlossen</dt>
-                  <dd>{formatDateTime(latestCompletedOnboarding?.completedAt)}</dd>
+                  <dd>{formatDateTime(selectedPerson.latestCompletedOnboardingAt)}</dd>
                 </div>
               </dl>
 
@@ -257,7 +312,7 @@ export default function RotationPlanningPage() {
               </div>
 
               <div className="workflow-grid" aria-label="Plananlage">
-                <div className="dashboard-card card-primary">
+                <div className="dashboard-card card-primary rotation-form-card">
                   <label className="field compact">
                     <span>Titel</span>
                     <input
@@ -357,6 +412,96 @@ export default function RotationPlanningPage() {
               ) : null}
             </section>
           </>
+        ) : null}
+
+        {!isCreateMode ? (
+          <section className="panel">
+            <div className="panel-head">
+              <h2>Bestehende Durchlaufpläne</h2>
+              <p>Aktive, abgeschlossene und archivierte Pläne aus den sichtbaren Abteilungen.</p>
+            </div>
+
+            <div className="toolbar-row toolbar-row-filters">
+              <label className="field compact grow">
+                <span>Suche</span>
+                <input
+                  type="text"
+                  value={planSearch}
+                  onChange={(event) => setPlanSearch(event.target.value)}
+                  placeholder="Name, Titel, Abteilung oder Quell-Onboarding"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void rotationPlansQuery.refetch()}
+                disabled={rotationPlansQuery.isFetching}
+              >
+                {rotationPlansQuery.isFetching ? "Aktualisiere..." : "Aktualisieren"}
+              </button>
+            </div>
+
+            {rotationPlansQuery.isLoading ? (
+              <LoadingState title="Durchlaufpläne werden geladen..." />
+            ) : null}
+
+            {!rotationPlansQuery.isLoading && rotationPlansQuery.error ? (
+              <EmptyState
+                title="Durchlaufpläne konnten nicht geladen werden."
+                description={
+                  rotationPlansQuery.error instanceof Error
+                    ? rotationPlansQuery.error.message
+                    : "Die Planliste ist fehlgeschlagen."
+                }
+                actionLabel="Erneut versuchen"
+                onAction={() => void rotationPlansQuery.refetch()}
+              />
+            ) : null}
+
+            {!rotationPlansQuery.isLoading && !rotationPlansQuery.error && visiblePlans.length === 0 ? (
+              <p className="panel-note">Es sind aktuell keine sichtbaren Durchlaufpläne vorhanden.</p>
+            ) : null}
+
+            {!rotationPlansQuery.isLoading && !rotationPlansQuery.error && visiblePlans.length > 0 ? (
+              <div className="workflow-grid" aria-label="Durchlaufpläne">
+                {visiblePlans.map((plan) => (
+                  <article key={plan.id} className="workflow-card card-list">
+                    <div className="workflow-card-top">
+                      <h3>{plan.title}</h3>
+                      <span className={`status-pill ${getRotationPlanStatusPillClass(plan.status)}`}>
+                        {getRotationPlanStatusLabel(plan.status)}
+                      </span>
+                    </div>
+
+                    <dl className="workflow-meta">
+                      <div>
+                        <dt>Person</dt>
+                        <dd>{plan.displayName}</dd>
+                      </div>
+                      <div>
+                        <dt>Abteilung</dt>
+                        <dd>{plan.departmentName ?? "-"}</dd>
+                      </div>
+                      <div>
+                        <dt>Stationen</dt>
+                        <dd>{plan.stationCount}</dd>
+                      </div>
+                      <div>
+                        <dt>Zuletzt geändert</dt>
+                        <dd>{formatDateTime(plan.updatedAt)}</dd>
+                      </div>
+                    </dl>
+
+                    <div className="action-row">
+                      <Link className="btn btn-primary" to={`/rotation/plans/${plan.id}`}>
+                        Plan öffnen
+                      </Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
         ) : null}
       </div>
     </main>

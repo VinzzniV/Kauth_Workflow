@@ -858,6 +858,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey) => throw new NotSupportedException();
         public Task<bool> IsManagerCreatableProcessType(string processTypeKey) => throw new NotSupportedException();
         public Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId) => throw new NotSupportedException();
+        public Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId) => throw new NotSupportedException();
         public Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(Guid workflowUid) => throw new NotSupportedException();
@@ -889,6 +890,8 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<bool> DeleteWorkflowLink(Guid workflowUid, long linkId, long actorUserId) => throw new NotSupportedException();
         public Task<List<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSources(string? search, int limit = 20, IReadOnlyCollection<int>? observableDepartmentIds = null) => throw new NotSupportedException();
         public Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(string? query, int limit = 20, IReadOnlyCollection<int>? observableDepartmentIds = null) => throw new NotSupportedException();
+        public Task<List<WorkflowTargetPersonDto>> SearchRotationEligiblePeople(string? query, int limit = 20, IReadOnlyCollection<int>? observableDepartmentIds = null) => throw new NotSupportedException();
+        public Task ApplyPersonLifecycleProjection(Guid workflowUid, long? actorUserId = null) => throw new NotSupportedException();
         public Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null) => throw new NotSupportedException();
         public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey) => throw new NotSupportedException();
         public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions()

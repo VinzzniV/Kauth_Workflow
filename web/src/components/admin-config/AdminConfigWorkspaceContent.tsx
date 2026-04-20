@@ -6,7 +6,9 @@ import {
   renderDirectoryWorkspace,
   renderOrganizationWorkspace,
   renderOverviewWorkspace,
-  renderSystemWorkspace,
+  renderRotationRequirementsWorkspace,
+  renderSystemConfigurationWorkspace,
+  renderSystemLogsWorkspace,
   renderTemplateWorkspace,
 } from "./AdminConfigWorkspaceSections";
 import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceContentTypes";
@@ -17,6 +19,8 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       return renderOverviewWorkspace(props);
     case "organization":
       return renderOrganizationWorkspace(props);
+    case "rotation_requirements":
+      return renderRotationRequirementsWorkspace(props);
     case "access":
       return renderAccessWorkspace(props);
     case "directory":
@@ -29,8 +33,10 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       return renderAnswerWorkspace(props);
     case "defaults":
       return renderDefaultWorkspace(props);
-    case "system":
-      return renderSystemWorkspace(props);
+    case "system_logs":
+      return renderSystemLogsWorkspace(props);
+    case "system_configuration":
+      return renderSystemConfigurationWorkspace(props);
     default:
       return null;
   }

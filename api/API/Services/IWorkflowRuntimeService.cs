@@ -2,6 +2,7 @@ namespace API;
 
 internal interface IWorkflowRuntimeService
 {
+    Task<WorkflowTargetPersonDto> CreatePersonAsync(CreatePersonRequest request, CurrentUser currentUser, CancellationToken cancellationToken = default);
     Task<WorkflowCreateResponse> CreateWorkflowAsync(CreateWorkflowRequest request, CurrentUser currentUser, CancellationToken cancellationToken = default);
     Task<WorkflowListPageDto> GetWorkflowsAsync(
         string? status,

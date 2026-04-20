@@ -149,50 +149,25 @@ WHERE id = @versionId;
             throw new InvalidOperationException("Die Deadline darf nicht in der Vergangenheit liegen.");
         }
 
-        var targetPerson = request.TargetPersonId.HasValue
-            ? await LoadTargetPerson(connection, transaction, request.TargetPersonId.Value)
-            : null;
-
-        if (processType.RequiresTargetPerson && targetPerson is null)
+        if (!request.TargetPersonId.HasValue)
         {
             throw new InvalidOperationException(
                 $"Die publizierte Workflow-Definition '{publishedVersion.WorkflowDefinitionKey}' erfordert eine bestehende Zielperson.");
         }
 
-        if (!processType.RequiresTargetPerson && request.TargetPersonId.HasValue)
-        {
-            throw new InvalidOperationException(
-                $"Die publizierte Workflow-Definition '{publishedVersion.WorkflowDefinitionKey}' darf keine bestehende Zielperson referenzieren.");
-        }
+        var targetPerson = await LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
 
-        var effectiveDepartmentId = request.DepartmentId;
-        int? effectiveRoleId = request.RoleId;
+        var effectiveDepartmentId = request.DepartmentId ?? targetPerson.DepartmentId;
+        int? effectiveRoleId = request.RoleId ?? targetPerson.RoleId;
 
         if (request.RoleId.HasValue)
         {
-            if (!request.DepartmentId.HasValue)
+            if (!effectiveDepartmentId.HasValue)
             {
                 throw new InvalidOperationException("Die Abteilung ist erforderlich, wenn eine Zielrolle direkt angegeben wird.");
             }
 
-            await EnsureValidPositionRole(connection, transaction, request.RoleId.Value, request.DepartmentId.Value);
-        }
-        else if (targetPerson is not null)
-        {
-            if (!targetPerson.DepartmentId.HasValue)
-            {
-                throw new InvalidOperationException(
-                    $"Fuer die Zielperson '{targetPerson.DisplayName}' ist keine aktuelle Abteilung ableitbar.");
-            }
-
-            if (!targetPerson.RoleId.HasValue)
-            {
-                throw new InvalidOperationException(
-                    $"Fuer die Zielperson '{targetPerson.DisplayName}' ist keine aktuelle Stelle ableitbar.");
-            }
-
-            effectiveDepartmentId = targetPerson.DepartmentId.Value;
-            effectiveRoleId = targetPerson.RoleId.Value;
+            await EnsureValidPositionRole(connection, transaction, request.RoleId.Value, effectiveDepartmentId.Value);
         }
 
         if (!effectiveDepartmentId.HasValue)
@@ -207,10 +182,14 @@ WHERE id = @versionId;
 
         var departmentId = effectiveDepartmentId.Value;
         var roleId = effectiveRoleId.Value;
+        if (request.RoleId.HasValue)
+        {
+            await EnsureValidPositionRole(connection, transaction, roleId, departmentId);
+        }
 
         var firstName = NormalizeRuntimeOptionalText(request.FirstName);
         var lastName = NormalizeRuntimeOptionalText(request.LastName);
-        if (!processType.RequiresTargetPerson && targetPerson is not null)
+        if (!processType.RequiresTargetPerson)
         {
             var derivedFirstName = targetPerson.FirstName;
             var derivedLastName = targetPerson.LastName;
@@ -290,8 +269,7 @@ RETURNING id, uid;
             insertWorkflowCommand.Parameters.AddWithValue("departmentId", departmentId);
             insertWorkflowCommand.Parameters.AddWithValue("roleId", roleId);
             insertWorkflowCommand.Parameters.AddWithValue("createdByUserId", createdByUserId);
-            insertWorkflowCommand.Parameters.Add("targetPersonId", NpgsqlDbType.Bigint).Value =
-                (object?)request.TargetPersonId ?? DBNull.Value;
+            insertWorkflowCommand.Parameters.AddWithValue("targetPersonId", request.TargetPersonId.Value);
             insertWorkflowCommand.Parameters.AddWithValue("firstName", firstName);
             insertWorkflowCommand.Parameters.AddWithValue("lastName", lastName);
             insertWorkflowCommand.Parameters.AddWithValue("employeeNumber", employeeNumber.Value);
@@ -1910,6 +1888,11 @@ RETURNING id;
                 $"Node '{node.NodeKey}' references task template '{template.TemplateKey}' without a resolvable assignment.");
         }
 
+        var assignmentType = assigneeUserId.HasValue ? "user" : "responsibility";
+        var storedAssigneeResponsibilityId = assignmentType == "responsibility"
+            ? assigneeResponsibilityId
+            : null;
+
         const string insertAssignmentSql = """
 INSERT INTO task_assignments (
     workflow_task_id,
@@ -1932,10 +1915,10 @@ VALUES (
         insertAssignmentCommand.Parameters.AddWithValue("assigneeUserId", (object?)assigneeUserId ?? DBNull.Value);
         insertAssignmentCommand.Parameters.AddWithValue(
             "assigneeResponsibilityId",
-            (object?)assigneeResponsibilityId ?? DBNull.Value);
+            (object?)storedAssigneeResponsibilityId ?? DBNull.Value);
         insertAssignmentCommand.Parameters.AddWithValue(
             "assignmentType",
-            assigneeUserId.HasValue ? "user" : "responsibility");
+            assignmentType);
         await insertAssignmentCommand.ExecuteNonQueryAsync();
 
         return workflowTaskId;

@@ -48,6 +48,7 @@
 \i /docker-entrypoint-sql/44_runtime_task_bridge.sql
 \i /docker-entrypoint-sql/45_automation_layer.sql
 \i /docker-entrypoint-sql/46_workflow_builder_positions.sql
+\i /docker-entrypoint-sql/47_responsibility_plain_names.sql
 \i /docker-entrypoint-sql/48_measure_generation_node_types.sql
 \i /docker-entrypoint-sql/49_measure_generation_phase_c.sql
 \i /docker-entrypoint-sql/50_onboarding_gatekeeper_measure_flow.sql
@@ -59,3 +60,4 @@
 \i /docker-entrypoint-sql/56_rotation_task_generation_sync.sql
 \i /docker-entrypoint-sql/57_azubi_departments.sql
 \i /docker-entrypoint-sql/58_system_event_log.sql
+\i /docker-entrypoint-sql/59_people_lifecycle_anchor.sql

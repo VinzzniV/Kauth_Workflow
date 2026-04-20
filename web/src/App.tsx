@@ -24,6 +24,7 @@ const RotationPlanningPage = lazy(() => import("./pages/RotationPlanningPage"));
 const RotationPlanDetailPage = lazy(() => import("./pages/RotationPlanDetailPage"));
 const RotationOperationsPage = lazy(() => import("./pages/RotationOperationsPage"));
 const RotationTaskDetailPage = lazy(() => import("./pages/RotationTaskDetailPage"));
+const AdminRotationConfigPage = lazy(() => import("./pages/AdminRotationConfigPage"));
 
 function RouteLoadingFallback() {
   return (
@@ -199,6 +200,16 @@ export default function App() {
             <RouteGuard feature="adminConfig">
               <LazyRoute>
                 <AdminConfigPage />
+              </LazyRoute>
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/admin/rotation/config"
+          element={
+            <RouteGuard feature="adminConfig">
+              <LazyRoute>
+                <AdminRotationConfigPage />
               </LazyRoute>
             </RouteGuard>
           }

@@ -6,7 +6,7 @@ namespace API.Tests;
 [Collection(PostgresWorkflowRepositoryIntegrationCollection.Name)]
 public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 {
-    private const string DefaultTestConnectionString = "Host=localhost;Port=25432;Database=appdb;Username=app;Password=app_pw";
+    private const string DefaultTestConnectionString = "Host=localhost;Port=26432;Database=appdb;Username=app;Password=app_pw";
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -185,6 +185,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "onboarding",
+                    TargetPersonId = targetPerson.PersonId,
                     DepartmentId = targetPerson.DepartmentId,
                     RoleId = targetPerson.RoleId,
                     FirstName = "Ada",
@@ -415,6 +416,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "onboarding",
+                    TargetPersonId = targetPerson.PersonId,
                     DepartmentId = targetPerson.DepartmentId,
                     RoleId = targetPerson.RoleId,
                     FirstName = "Ada",
@@ -493,6 +495,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "onboarding",
+                    TargetPersonId = targetPerson.PersonId,
                     DepartmentId = targetPerson.DepartmentId,
                     RoleId = targetPerson.RoleId,
                     FirstName = "Ada",
@@ -618,6 +621,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = definition.Key,
+                    TargetPersonId = targetPerson.PersonId,
                     DepartmentId = targetPerson.DepartmentId,
                     RoleId = targetPerson.RoleId,
                     FirstName = "Ada",
@@ -838,8 +842,30 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 
         await using (var command = new NpgsqlCommand(
                          """
-                         INSERT INTO people (app_user_id, department_id)
-                         VALUES (@appUserId, @departmentId)
+                         INSERT INTO people (
+                             app_user_id,
+                             department_id,
+                             current_position_role_id,
+                             first_name,
+                             last_name,
+                             employee_number,
+                             badge_number,
+                             employment_status,
+                             entry_date,
+                             updated_at
+                         )
+                         VALUES (
+                             @appUserId,
+                             @departmentId,
+                             @roleId,
+                             'Target',
+                             'Person',
+                             @employeeNumber,
+                             @badgeNumber,
+                             'active',
+                             CURRENT_DATE,
+                             NOW()
+                         )
                          RETURNING id;
                          """,
                          connection,
@@ -847,6 +873,9 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             command.Parameters.AddWithValue("appUserId", targetUserId);
             command.Parameters.AddWithValue("departmentId", departmentId);
+            command.Parameters.AddWithValue("roleId", roleId);
+            command.Parameters.AddWithValue("employeeNumber", employeeNumber);
+            command.Parameters.AddWithValue("badgeNumber", badgeNumber);
             personId = (long)(await command.ExecuteScalarAsync() ?? throw new InvalidOperationException("Target person could not be created."));
         }
 
@@ -927,6 +956,18 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             command.Parameters.AddWithValue("personId", targetPerson.PersonId);
             command.Parameters.AddWithValue("actorUserId", targetPerson.ActorUserId);
             command.Parameters.AddWithValue("targetUserId", targetPerson.TargetUserId);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await using (var command = new NpgsqlCommand(
+                         """
+                         DELETE FROM people
+                         WHERE id = @personId;
+                         """,
+                         connection,
+                         transaction))
+        {
+            command.Parameters.AddWithValue("personId", targetPerson.PersonId);
             await command.ExecuteNonQueryAsync();
         }
 

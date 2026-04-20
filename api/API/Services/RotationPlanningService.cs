@@ -29,7 +29,7 @@ internal sealed class RotationPlanningService(
         CurrentUser currentUser,
         CancellationToken cancellationToken = default)
     {
-        if (personId is <= 0)
+        if (personId.HasValue && personId.Value <= 0)
         {
             throw new InvalidOperationException("personId must be greater than zero.");
         }
