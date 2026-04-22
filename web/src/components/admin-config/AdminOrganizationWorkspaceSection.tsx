@@ -1,16 +1,14 @@
 import AdminOrganizationRelationsPanel from "./AdminOrganizationRelationsPanel";
 import { AdminOrganizationDepartmentEditor } from "./AdminOrganizationDepartmentEditor";
-import { AdminOrganizationResponsibilityEditor } from "./AdminOrganizationResponsibilityEditor";
 import { AdminOrganizationSidebar } from "./AdminOrganizationSidebar";
 import { AdminOrganizationUserEditor } from "./AdminOrganizationUserEditor";
 import type {
   AdminDepartmentAssignment,
-  AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
 } from "../../types/auth";
 import { type AdminOrganizationEntity } from "./adminWorkspaceModel";
-import type { DepartmentDraft, NewResponsibilityDraft, PositionDraft, ResponsibilityDraft } from "./adminOrganizationTypes";
+import type { DepartmentDraft, PositionDraft } from "./adminOrganizationTypes";
 import { useAdminOrganizationWorkspaceView } from "./useAdminOrganizationWorkspaceView";
 
 type AdminOrganizationWorkspaceSectionProps = {
@@ -19,7 +17,6 @@ type AdminOrganizationWorkspaceSectionProps = {
   sortedUsers: AdminUser[];
   sortedDepartmentPositions: AdminRole[];
   sortedDepartments: AdminDepartmentAssignment[];
-  sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
   eligibleRequirementOwnerUsers: AdminUser[];
   selectedUser: AdminUser | null;
@@ -42,19 +39,14 @@ type AdminOrganizationWorkspaceSectionProps = {
   deletingUserId: number | null;
   newDepartmentNameDraft: string;
   newPositionNameDraft: string;
-  newResponsibilityDraft: NewResponsibilityDraft;
   departmentDrafts: Record<number, DepartmentDraft>;
   positionDrafts: Record<number, PositionDraft>;
-  responsibilityDrafts: Record<number, ResponsibilityDraft>;
   isCreatingDepartment: boolean;
   creatingPositionDepartmentId: number | null;
-  isCreatingResponsibility: boolean;
   deletingDepartmentId: number | null;
   deletingPositionId: number | null;
-  deletingResponsibilityId: number | null;
   savingDepartmentId: number | null;
   savingPositionId: number | null;
-  savingResponsibilityId: number | null;
   onSelectOrganizationEntity: (entity: AdminOrganizationEntity, id?: number | null) => void;
   onSelectUser: (user: AdminUser) => void;
   onNewUserDisplayNameChange: (value: string) => void;
@@ -74,19 +66,14 @@ type AdminOrganizationWorkspaceSectionProps = {
   onRemoveUser: (user: AdminUser) => void | Promise<void>;
   onNewDepartmentNameChange: (value: string) => void;
   onNewPositionNameChange: (value: string) => void;
-  onNewResponsibilityDraftChange: (draft: NewResponsibilityDraft) => void;
   onDepartmentDraftChange: (departmentId: number, draft: DepartmentDraft) => void;
   onCreateDepartment: () => void | Promise<void>;
   onCreateDepartmentPosition: (departmentId: number) => void | Promise<void>;
-  onCreateResponsibility: () => void | Promise<AdminResponsibilityOwner | null> | AdminResponsibilityOwner | null;
   onSaveDepartmentAssignment: (departmentId: number) => void | Promise<void>;
   onRemoveDepartment: (department: AdminDepartmentAssignment) => void | Promise<void>;
   onPositionDraftChange: (positionId: number, draft: PositionDraft) => void;
   onSaveDepartmentPosition: (positionId: number) => void | Promise<void>;
   onRemoveDepartmentPosition: (position: AdminRole) => void | Promise<void>;
-  onResponsibilityDraftChange: (responsibilityId: number, draft: ResponsibilityDraft) => void;
-  onRemoveResponsibility: (responsibility: AdminResponsibilityOwner) => void | Promise<boolean> | boolean;
-  onSaveResponsibilityAssignment: (responsibilityId: number) => void | Promise<void>;
 };
 
 export function AdminOrganizationWorkspaceSection({
@@ -95,7 +82,6 @@ export function AdminOrganizationWorkspaceSection({
   sortedUsers,
   sortedDepartmentPositions,
   sortedDepartments,
-  sortedResponsibilities,
   eligibleSupervisorUsers,
   eligibleRequirementOwnerUsers,
   selectedUser,
@@ -118,19 +104,14 @@ export function AdminOrganizationWorkspaceSection({
   deletingUserId,
   newDepartmentNameDraft,
   newPositionNameDraft,
-  newResponsibilityDraft,
   departmentDrafts,
   positionDrafts,
-  responsibilityDrafts,
   isCreatingDepartment,
   creatingPositionDepartmentId,
-  isCreatingResponsibility,
   deletingDepartmentId,
   deletingPositionId,
-  deletingResponsibilityId,
   savingDepartmentId,
   savingPositionId,
-  savingResponsibilityId,
   onSelectOrganizationEntity,
   onSelectUser,
   onNewUserDisplayNameChange,
@@ -150,26 +131,19 @@ export function AdminOrganizationWorkspaceSection({
   onRemoveUser,
   onNewDepartmentNameChange,
   onNewPositionNameChange,
-  onNewResponsibilityDraftChange,
   onDepartmentDraftChange,
   onCreateDepartment,
   onCreateDepartmentPosition,
-  onCreateResponsibility,
   onSaveDepartmentAssignment,
   onRemoveDepartment,
   onPositionDraftChange,
   onSaveDepartmentPosition,
   onRemoveDepartmentPosition,
-  onResponsibilityDraftChange,
-  onRemoveResponsibility,
-  onSaveResponsibilityAssignment,
 }: AdminOrganizationWorkspaceSectionProps) {
   const {
     selectedDepartment,
-    selectedResponsibility,
     userRelations,
     departmentRelations,
-    responsibilityRelations,
     canCreateUser,
     canSaveUser,
     selectedDepartmentDraft,
@@ -177,15 +151,13 @@ export function AdminOrganizationWorkspaceSection({
     selectedDepartmentLeadOptions,
     selectedDepartmentOwnerOptions,
     canSaveDepartment,
-    selectedResponsibilityDraft,
-    canSaveResponsibility,
   } = useAdminOrganizationWorkspaceView({
     organizationEntity,
     selectedEntityId,
     sortedUsers,
     sortedDepartmentPositions,
     sortedDepartments,
-    sortedResponsibilities,
+    sortedResponsibilities: [],
     eligibleSupervisorUsers,
     eligibleRequirementOwnerUsers,
     selectedUser,
@@ -200,25 +172,24 @@ export function AdminOrganizationWorkspaceSection({
     isCreatingUser,
     isSavingUserMasterData,
     departmentDrafts,
-    responsibilityDrafts,
+    responsibilityDrafts: {},
     savingDepartmentId,
-    savingResponsibilityId,
+    savingResponsibilityId: null,
   });
 
   return (
     <div className="content-stack">
       <div className="master-detail-layout">
-        <AdminOrganizationSidebar
-          organizationEntity={organizationEntity}
-          selectedEntityId={selectedEntityId}
-          sortedUsers={sortedUsers}
-          sortedDepartments={sortedDepartments}
-          sortedResponsibilities={sortedResponsibilities}
-          eligibleSupervisorUsers={eligibleSupervisorUsers}
-          eligibleRequirementOwnerUsers={eligibleRequirementOwnerUsers}
-          onSelectOrganizationEntity={onSelectOrganizationEntity}
-          onSelectUser={onSelectUser}
-        />
+          <AdminOrganizationSidebar
+            organizationEntity={organizationEntity}
+            selectedEntityId={selectedEntityId}
+            sortedUsers={sortedUsers}
+            sortedDepartments={sortedDepartments}
+            eligibleSupervisorUsers={eligibleSupervisorUsers}
+            eligibleRequirementOwnerUsers={eligibleRequirementOwnerUsers}
+            onSelectOrganizationEntity={onSelectOrganizationEntity}
+            onSelectUser={onSelectUser}
+          />
 
         <div className="content-stack admin-organization-main master-detail-main">
           {organizationEntity === "user" ? (
@@ -294,33 +265,14 @@ export function AdminOrganizationWorkspaceSection({
             />
           ) : null}
 
-          {organizationEntity === "responsibility" ? (
-            <AdminOrganizationResponsibilityEditor
-              selectedResponsibility={selectedResponsibility}
-              selectedResponsibilityDraft={selectedResponsibilityDraft}
-              sortedDepartments={sortedDepartments}
-              sortedUsers={sortedUsers}
-              newResponsibilityDraft={newResponsibilityDraft}
-              isCreatingResponsibility={isCreatingResponsibility}
-              deletingResponsibilityId={deletingResponsibilityId}
-              savingResponsibilityId={savingResponsibilityId}
-              canSaveResponsibility={canSaveResponsibility}
-              onNewResponsibilityDraftChange={onNewResponsibilityDraftChange}
-              onCreateResponsibility={onCreateResponsibility}
-              onResponsibilityDraftChange={onResponsibilityDraftChange}
-              onRemoveResponsibility={onRemoveResponsibility}
-              onSaveResponsibilityAssignment={onSaveResponsibilityAssignment}
-            />
-          ) : null}
-
           <AdminOrganizationRelationsPanel
             organizationEntity={organizationEntity}
             selectedUser={selectedUser}
             userRelations={userRelations}
             selectedDepartment={selectedDepartment}
             departmentRelations={departmentRelations}
-            selectedResponsibility={selectedResponsibility}
-            responsibilityRelations={responsibilityRelations}
+            selectedResponsibility={null}
+            responsibilityRelations={null}
             onSelectOrganizationEntity={onSelectOrganizationEntity}
           />
         </div>

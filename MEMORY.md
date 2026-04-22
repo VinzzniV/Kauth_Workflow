@@ -4,7 +4,7 @@
 
 Diese Datei ist nur kurzfristiges Arbeitsgedaechtnis.
 Sie ist kein Backlog, kein Changelog und keine zweite Architektur-Doku.
-Sollte die Datei Inhatle enthalten, die nicht mehr aktuell sind, dann bereinige diese
+Sollte die Datei Inhalte enthalten, die nicht mehr aktuell sind, dann bereinige diese
 
 Verwende sie nur fuer:
 - aktuellen Fokus
@@ -39,6 +39,7 @@ Verwende sie nur fuer:
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
 - Mehrere sichtbare Legacy-Vertraege bleiben bewusst bestehen, vor allem `completed-onboardings`, `CompletedOnboardingSearchResultDto`, `workflows.create.onboarding` und `hr_onboarding`.
 - DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432`.
+- Offener Follow-up aus dem Fachbereich: Es muss geprueft werden, warum manche Personen der Fachabteilung Aufgaben anderer Personen erhalten oder keine Aufgaben sehen.
 
 ## Temporary Notes
 

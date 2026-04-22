@@ -15,7 +15,7 @@ SELECT upsert_linearized_workflow_definition(
     'name_change',
     'Namensaenderung',
     'Business-phase workflow definition mapped to the legacy name change task generator.',
-    'Business Phase Mapping',
+    'Namensaenderung Standard',
     'Published name change mapping with a rename measure block and internal task generation.',
     'name_change',
     $json$
@@ -39,7 +39,7 @@ SELECT upsert_linearized_workflow_definition(
     'position_change',
     'Positionswechsel',
     'Business-phase workflow definition mapped to the legacy position change task generator.',
-    'Business Phase Mapping',
+    'Positionswechsel Standard',
     'Published position change mapping with a change measure block and internal task generation.',
     'position_change',
     $json$
@@ -63,7 +63,7 @@ SELECT upsert_linearized_workflow_definition(
     'role_change',
     'Rollenwechsel',
     'Business-phase workflow definition mapped to the legacy role change task generator.',
-    'Business Phase Mapping',
+    'Rollenwechsel Standard',
     'Published role change mapping with a change measure block and internal task generation.',
     'role_change',
     $json$

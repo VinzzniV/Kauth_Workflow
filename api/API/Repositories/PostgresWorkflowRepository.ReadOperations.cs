@@ -631,7 +631,7 @@ SELECT
     w.completed_at,
     w.archived_at,
     wd.definition_key,
-    COALESCE(NULLIF(BTRIM(v.name), ''), wd.name),
+    COALESCE(NULLIF(BTRIM(wd.name), ''), pt.name),
     COALESCE(vpt.requires_target_person, pt.requires_target_person)
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id

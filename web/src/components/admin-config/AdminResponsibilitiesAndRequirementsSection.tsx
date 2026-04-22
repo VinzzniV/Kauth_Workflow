@@ -38,6 +38,12 @@ function getResponsibilityTypeLabel(type: string | null): string {
   return "Prozess";
 }
 
+function getResponsibilityUserOptionLabel(user: { displayName: string; departmentName: string | null }): string {
+  return user.departmentName?.trim()
+    ? `${user.displayName} (${user.departmentName.trim()})`
+    : user.displayName;
+}
+
 function FachlicheZustaendigkeitenPanel() {
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useToast();
@@ -224,12 +230,20 @@ function FachlicheZustaendigkeitenPanel() {
                       <span>Person</span>
                       <select
                         value={editDraft.appUserId}
-                        onChange={(e) => setEditDraft((d) => ({ ...d, appUserId: e.target.value }))}
+                        onChange={(e) => {
+                          const nextUserId = e.target.value;
+                          const selectedUser = users.find((user) => String(user.userId) === nextUserId) ?? null;
+                          setEditDraft((draft) => ({
+                            ...draft,
+                            appUserId: nextUserId,
+                            departmentId: selectedUser?.departmentId ? String(selectedUser.departmentId) : "",
+                          }));
+                        }}
                         disabled={usersQuery.isLoading}
                       >
                         <option value="">Keine Person</option>
                         {users.map((u) => (
-                          <option key={u.userId} value={String(u.userId)}>{u.displayName}</option>
+                          <option key={u.userId} value={String(u.userId)}>{getResponsibilityUserOptionLabel(u)}</option>
                         ))}
                       </select>
                     </label>
@@ -377,7 +391,7 @@ function AbteilungsanforderungenPanel() {
   const { showError, showSuccess } = useToast();
 
   const [filterDepartmentId, setFilterDepartmentId] = useState<number | null>(null);
-  const [filterIsActive, setFilterIsActive] = useState<boolean | null>(null);
+  const [filterIsActive, setFilterIsActive] = useState<boolean | null>(true);
   const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<TemplateFormState>(createEmptyTemplateForm());
@@ -466,7 +480,7 @@ function AbteilungsanforderungenPanel() {
       <section className="panel panel-muted">
         <div className="panel-head">
           <h2>Abteilungsanforderungen</h2>
-          <p>Vorlagen legen fest, welche Maßnahmen bei Eintritt oder Austritt in eine Abteilung entstehen – z. B. Ordnerrechte, Portalzugänge, Software.</p>
+          <p>Vorlagen legen fest, welche Maßnahmen bei Eintritt oder Austritt in eine Abteilung entstehen. Inaktive Vorlagen sind standardmäßig ausgeblendet.</p>
         </div>
         <div className="toolbar-row toolbar-row-filters">
           <label className="field compact">
@@ -482,17 +496,17 @@ function AbteilungsanforderungenPanel() {
               ))}
             </select>
           </label>
-          <label className="field compact">
-            <span>Status</span>
-            <select
-              value={filterIsActive === null ? "" : String(filterIsActive)}
-              onChange={(e) => setFilterIsActive(e.target.value === "" ? null : e.target.value === "true")}
-            >
-              <option value="">Alle</option>
-              <option value="true">Nur aktive</option>
-              <option value="false">Nur inaktive</option>
-            </select>
-          </label>
+              <label className="field compact">
+                <span>Status</span>
+                <select
+                  value={filterIsActive === null ? "" : String(filterIsActive)}
+                  onChange={(e) => setFilterIsActive(e.target.value === "" ? null : e.target.value === "true")}
+                >
+                  <option value="true">Nur aktive</option>
+                  <option value="">Alle</option>
+                  <option value="false">Nur inaktive</option>
+                </select>
+              </label>
           <button type="button" className="btn btn-primary" onClick={openCreateForm} disabled={showForm}>
             Neue Vorlage
           </button>
@@ -632,6 +646,23 @@ function AbteilungsanforderungenPanel() {
                 <button type="button" className="btn btn-primary" onClick={() => void handleSave()} disabled={isSaving}>
                   {isSaving ? "Speichere..." : editingTemplateId ? "Vorlage aktualisieren" : "Vorlage anlegen"}
                 </button>
+                {editingTemplateId ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const currentTemplate = templates.find((template) => template.id === editingTemplateId) ?? null;
+                      if (!currentTemplate) {
+                        return;
+                      }
+
+                      void handleDelete(currentTemplate);
+                    }}
+                    disabled={isSaving || deletingId === editingTemplateId}
+                  >
+                    {deletingId === editingTemplateId ? "Lösche..." : "Vorlage löschen"}
+                  </button>
+                ) : null}
                 <button type="button" className="btn btn-secondary" onClick={closeForm} disabled={isSaving}>
                   Abbrechen
                 </button>
@@ -667,7 +698,11 @@ function AbteilungsanforderungenPanel() {
         {!templatesQuery.isLoading && !templatesQuery.error && templates.length === 0 ? (
           <EmptyState
             title="Keine Vorlagen vorhanden"
-            description="Legen Sie die erste Maßnahmenvorlage über 'Neue Vorlage' an."
+            description={
+              filterIsActive === true
+                ? "Aktuell sind keine aktiven Vorlagen sichtbar. Blenden Sie bei Bedarf inaktive Vorlagen über den Statusfilter ein oder legen Sie eine neue Vorlage an."
+                : "Legen Sie die erste Maßnahmenvorlage über 'Neue Vorlage' an."
+            }
             actionLabel="Neue Vorlage anlegen"
             onAction={openCreateForm}
           />

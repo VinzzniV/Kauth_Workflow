@@ -18,6 +18,7 @@ import {
   EMPTY_USER_NEW_DRAFT,
   type SavingOperation,
 } from "./adminUserManagementModel";
+import { useAdminSharedQueryInvalidation } from "./useAdminSharedQueryInvalidation";
 
 export const SIMULATION_USERS_REFRESH_EVENT = "sim-users-refresh";
 
@@ -74,6 +75,7 @@ export function useAdminUserMutations({
   setLastSyncedSelectedUserSignature,
   setLastSyncedSelectedGroupSignature,
 }: UseAdminUserMutationsOptions) {
+  const { invalidatePeopleLookups } = useAdminSharedQueryInvalidation();
   const notifySimulationUsersChanged = useCallback(() => {
     if (typeof window === "undefined") {
       return;
@@ -109,6 +111,7 @@ export function useAdminUserMutations({
       setSelectedUserId(updatedUser.userId);
       setEditDraft(buildEditDraft(updatedUser));
       setLastSyncedSelectedUserSignature(buildSelectedUserSignature(updatedUser));
+      await invalidatePeopleLookups();
       await refreshCurrentUser();
       notifySimulationUsersChanged();
       setUsersFormNotice(`Personenstammdaten für ${updatedUser.displayName} wurden gespeichert.`);
@@ -122,6 +125,7 @@ export function useAdminUserMutations({
     }
   }, [
     editDraft,
+    invalidatePeopleLookups,
     notifySimulationUsersChanged,
     onError,
     onNotice,
@@ -155,6 +159,7 @@ export function useAdminUserMutations({
       setEditDraft(buildEditDraft(createdUser));
       setLastSyncedSelectedUserSignature(buildSelectedUserSignature(createdUser));
       setNewUserDraft(EMPTY_USER_NEW_DRAFT);
+      await invalidatePeopleLookups();
       notifySimulationUsersChanged();
       onNotice(`Person ${createdUser.displayName} wurde angelegt.`);
     } catch (err) {
@@ -164,6 +169,7 @@ export function useAdminUserMutations({
       setSavingOperation(null);
     }
   }, [
+    invalidatePeopleLookups,
     newUserDraft,
     notifySimulationUsersChanged,
     onError,
@@ -197,6 +203,7 @@ export function useAdminUserMutations({
         setSelectedUserId(null);
       }
       await reload();
+      await invalidatePeopleLookups();
       notifySimulationUsersChanged();
       onNotice(`Person ${user.displayName} wurde gelöscht.`);
     } catch (err) {
@@ -205,7 +212,7 @@ export function useAdminUserMutations({
     } finally {
       setDeletingUserId(null);
     }
-  }, [confirm, notifySimulationUsersChanged, onError, onNotice, reload, selectedUserId, setDeletingUserId, setSelectedUserId]);
+  }, [confirm, invalidatePeopleLookups, notifySimulationUsersChanged, onError, onNotice, reload, selectedUserId, setDeletingUserId, setSelectedUserId]);
 
   const saveUserRoles = useCallback(async () => {
     if (!selectedUser) {

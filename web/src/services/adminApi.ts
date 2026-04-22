@@ -4,6 +4,10 @@ import type {
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
+  AdminNotificationTemplate,
+  AdminNotificationTemplatePreviewResponse,
+  AdminNotificationTemplateRotationPlanPreviewTarget,
+  AdminNotificationTemplateWorkflowPreviewTarget,
   AdminPermission,
   AdminPermissionAuditEntry,
   AdminResponsibilityOwner,
@@ -20,6 +24,10 @@ import type {
   BackendAdminGroupDto,
   BackendAdminNotificationEmailConfigurationDto,
   BackendAdminNotificationEmailTestResponseDto,
+  BackendAdminNotificationTemplateDto,
+  BackendAdminNotificationTemplatePreviewResponseDto,
+  BackendAdminNotificationTemplateRotationPlanPreviewTargetDto,
+  BackendAdminNotificationTemplateWorkflowPreviewTargetDto,
   BackendAdminPermissionAuditEntryDto,
   BackendAdminPermissionDto,
   BackendAdminResponsibilityOwnerDto,
@@ -130,6 +138,69 @@ export async function sendAdminNotificationEmailTest(recipientEmail: string | nu
     method: "POST",
     body: { recipientEmail },
   });
+}
+
+export async function getAdminNotificationTemplates(): Promise<AdminNotificationTemplate[]> {
+  return requestJson<BackendAdminNotificationTemplateDto[]>("/admin/notification-templates");
+}
+
+export async function updateAdminNotificationTemplate(
+  templateKey: string,
+  payload: {
+    subjectTemplate: string;
+    bodyTemplate: string;
+  }
+): Promise<AdminNotificationTemplate> {
+  return requestJson<BackendAdminNotificationTemplateDto>(`/admin/notification-templates/${encodeURIComponent(templateKey)}`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export async function searchAdminNotificationTemplateWorkflows(
+  query: string,
+  limit = 20
+): Promise<AdminNotificationTemplateWorkflowPreviewTarget[]> {
+  const params = new URLSearchParams();
+  if (query.trim()) {
+    params.set("query", query.trim());
+  }
+  params.set("limit", String(limit));
+
+  return requestJson<BackendAdminNotificationTemplateWorkflowPreviewTargetDto[]>(
+    `/admin/notification-templates/preview-targets/workflows?${params.toString()}`
+  );
+}
+
+export async function searchAdminNotificationTemplateRotationPlans(
+  query: string,
+  limit = 20
+): Promise<AdminNotificationTemplateRotationPlanPreviewTarget[]> {
+  const params = new URLSearchParams();
+  if (query.trim()) {
+    params.set("query", query.trim());
+  }
+  params.set("limit", String(limit));
+
+  return requestJson<BackendAdminNotificationTemplateRotationPlanPreviewTargetDto[]>(
+    `/admin/notification-templates/preview-targets/rotation-plans?${params.toString()}`
+  );
+}
+
+export async function previewAdminNotificationTemplate(
+  templateKey: string,
+  payload: {
+    workflowUid?: string | null;
+    rotationPlanId?: number | null;
+  }
+): Promise<AdminNotificationTemplatePreviewResponse> {
+  return requestJson<BackendAdminNotificationTemplatePreviewResponseDto>(
+    `/admin/notification-templates/${encodeURIComponent(templateKey)}/preview`,
+    {
+      method: "POST",
+      body: payload,
+    }
+  );
 }
 
 export async function getAdminSystemLogs(options: AdminSystemLogQueryOptions): Promise<AdminSystemLogEntry[]> {

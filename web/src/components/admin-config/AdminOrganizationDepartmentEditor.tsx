@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type {
   AdminDepartmentAssignment,
   AdminRole,
@@ -54,6 +55,26 @@ function toSyncStateLabel(syncState: string): string {
 }
 
 export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepartmentEditorProps) {
+  const panelRef = useRef<HTMLElement | null>(null);
+  const [isFocusedFromNavigation, setIsFocusedFromNavigation] = useState(false);
+
+  useEffect(() => {
+    if (!props.selectedDepartment) {
+      return;
+    }
+
+    setIsFocusedFromNavigation(true);
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const timeoutId = window.setTimeout(() => {
+      setIsFocusedFromNavigation(false);
+    }, 2200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [props.selectedDepartment?.departmentId]);
+
   if (!props.selectedDepartment) {
     return (
       <section className="panel">
@@ -105,7 +126,10 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
   ) && Boolean(selectedDepartmentDraft.requirementOwnerUserId);
 
   return (
-    <section className="panel">
+    <section
+      ref={panelRef}
+      className={`panel${isFocusedFromNavigation ? " admin-panel-focus" : ""}`}
+    >
       <div className="panel-head">
         <h2>Abteilung pflegen: {selectedDepartment.departmentName}</h2>
         <p>Leitung und Anforderungsverantwortung werden bewusst gemeinsam gepflegt.</p>

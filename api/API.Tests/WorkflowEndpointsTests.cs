@@ -1086,6 +1086,7 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddSingleton<IWorkflowEmailNotificationSender, StubWorkflowEmailNotificationSender>();
         builder.Services.AddSingleton<INotificationEmailTestSender, StubNotificationEmailTestSender>();
         builder.Services.AddSingleton<INotificationEmailConfigurationService, StubNotificationEmailConfigurationService>();
+        builder.Services.AddSingleton<INotificationTemplateService, StubNotificationTemplateService>();
         builder.Services.AddSingleton<ISupervisorStepService, StubSupervisorStepService>();
         builder.Services.AddSingleton<ISystemEventLogService, StubSystemEventLogService>();
         builder.Services.AddSingleton<IRotationTemplateAdminService>(_ => throw new NotSupportedException());
@@ -1884,6 +1885,42 @@ public sealed class WorkflowEndpointsTests
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<NotificationEmailRuntimeConfiguration> GetRuntimeConfiguration(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private sealed class StubNotificationTemplateService : INotificationTemplateService
+    {
+        public Task<IReadOnlyList<AdminNotificationTemplateDto>> GetAdminTemplates(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminNotificationTemplateDto>>([]);
+
+        public Task<AdminNotificationTemplateDto> UpdateAdminTemplate(
+            string templateKey,
+            AdminNotificationTemplateUpdateRequest request,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<AdminNotificationTemplateWorkflowPreviewTargetDto>> SearchWorkflowPreviewTargets(
+            string? query,
+            int limit,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminNotificationTemplateWorkflowPreviewTargetDto>>([]);
+
+        public Task<IReadOnlyList<AdminNotificationTemplateRotationPlanPreviewTargetDto>> SearchRotationPlanPreviewTargets(
+            string? query,
+            int limit,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AdminNotificationTemplateRotationPlanPreviewTargetDto>>([]);
+
+        public Task<AdminNotificationTemplatePreviewResponseDto> BuildPreview(
+            string templateKey,
+            AdminNotificationTemplatePreviewRequest request,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<NotificationTemplateRenderResult> RenderWorkflowNotification(
+            WorkflowNotificationRenderContext context,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<NotificationTemplateRenderResult> RenderRotationNotification(
+            RotationNotificationRenderContext context,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class StubNotificationEmailTestSender : INotificationEmailTestSender

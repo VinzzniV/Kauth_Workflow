@@ -7,6 +7,7 @@ internal static class AdminEndpoints
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapAdminRuntimeConfigEndpoints();
+        app.MapAdminNotificationTemplateEndpoints();
         app.MapAdminOrgEndpoints();
         app.MapAdminSystemLogEndpoints();
         app.MapAdminRotationConfigEndpoints();

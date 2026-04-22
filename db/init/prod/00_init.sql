@@ -60,3 +60,10 @@
 \i /docker-entrypoint-sql/57_azubi_departments.sql
 \i /docker-entrypoint-sql/58_system_event_log.sql
 \i /docker-entrypoint-sql/59_people_lifecycle_anchor.sql
+\i /docker-entrypoint-sql/60_remove_non_entra_demo_departments.sql
+\i /docker-entrypoint-sql/61_rename_azubi_departments.sql
+\i /docker-entrypoint-sql/62_notification_templates.sql
+\i /docker-entrypoint-sql/63_remove_bootstrap_demo_seed_artifacts.sql
+\i /docker-entrypoint-sql/64_rename_business_phase_mapping_versions.sql
+\i /docker-entrypoint-sql/65_fix_notification_template_newlines.sql
+\i /docker-entrypoint-sql/66_hardware_takeover_requirement.sql

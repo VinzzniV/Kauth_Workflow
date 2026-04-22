@@ -5,6 +5,7 @@ import type {
 } from "../../types/workflow";
 import { getRequirementEditorVisibleRequirements } from "../../utils/requirementEditor";
 import {
+  getRequirementEditorSelection,
   getRequirementSelection,
   hasRequirementSelectionChanges,
   type RequirementEntry,
@@ -106,6 +107,76 @@ function formatSelectionValue(requirement: RequirementEntry, selection: Requirem
   return labels.join(", ") || "-";
 }
 
+function renderEditableRequirementField(
+  requirement: RequirementEntry,
+  selection: RequirementSelectionState,
+  requirementId: number,
+  onTextChange?: (requirementId: number, value: string) => void,
+  onSelectOption?: (requirementId: number, optionId: number | null) => void,
+  onToggleMultiOption?: (requirementId: number, optionId: number) => void
+) {
+  if (requirement.inputType === "text") {
+    return (
+      <label className="field">
+        <span>Antwort</span>
+        <input
+          type="text"
+          value={selection.valueText}
+          onChange={(event) => onTextChange?.(requirementId, event.target.value)}
+          placeholder="Bitte angeben"
+        />
+      </label>
+    );
+  }
+
+  if (requirement.inputType === "select") {
+    return (
+      <label className="field">
+        <span>Bitte auswählen</span>
+        <select
+          value={selection.selectedOptionId ?? ""}
+          onChange={(event) =>
+            onSelectOption?.(requirementId, event.target.value ? Number(event.target.value) : null)
+          }
+        >
+          <option value="">Bitte auswählen</option>
+          {requirement.options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  if (requirement.inputType === "multi_select") {
+    return (
+      <div className="field">
+        <span>Auswahl</span>
+        <div className="chips-row" role="group" aria-label={`Optionen für ${requirement.title}`}>
+          {requirement.options.map((option) => {
+            const isActive = selection.selectedOptionIds.includes(option.id);
+            return (
+              <button
+                key={option.id}
+                type="button"
+                className={`chip chip-action ${isActive ? "active" : ""}`}
+                aria-pressed={isActive}
+                onClick={() => onToggleMultiOption?.(requirementId, option.id)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function RequirementsSelection({
   requirements,
   mode = "edit",
@@ -181,126 +252,124 @@ export default function RequirementsSelection({
 
       {!isLoading && !error && requirements.length > 0 ? (
         <div className="requirement-groups" aria-label="Auswahlgruppen">
-          {groupedRequirements.map((group) => (
-            <section key={group.categoryKey} className="requirement-group">
-              <header className="requirement-group-head">
-                <h3>{group.categoryLabel}</h3>
-                <p>
-                  {group.items.length} Punkt{group.items.length === 1 ? "" : "e"}
-                </p>
-              </header>
+          {groupedRequirements.map((group) => {
+            const booleanRequirements = group.items.filter((requirement) => requirement.inputType === "boolean");
+            const detailRequirements = group.items.filter((requirement) => requirement.inputType !== "boolean");
 
-              <ul className="requirements-list" aria-label={`Auswahlpunkte in ${group.categoryLabel}`}>
-                {group.items.map((requirement) => {
-                  const selection = getRequirementSelection(requirement, effectiveSelections);
-                  const requirementId = getRequirementId(requirement);
-                  const isViewMode = mode === "view";
-                  const selectionValue = formatSelectionValue(requirement, selection);
+            return (
+              <section key={group.categoryKey} className="requirement-group">
+                <header className="requirement-group-head">
+                  <h3>{group.categoryLabel}</h3>
+                  <p>
+                    {group.items.length} Punkt{group.items.length === 1 ? "" : "e"}
+                  </p>
+                </header>
 
-                  return (
-                    <li key={requirementId} className="requirement-item requirement-card">
-                      <div className="requirement-layout">
-                        <div className="requirement-content">
-                          <div className="panel-head">
-                            <div className="requirement-title-row">
-                              <h4>{requirement.title}</h4>
-                            </div>
-                            <p>{requirement.description}</p>
-                          </div>
+                {mode === "edit" ? (
+                  <>
+                    {booleanRequirements.length > 0 ? (
+                      <div className="requirement-toggle-grid" aria-label={`Schnellauswahl in ${group.categoryLabel}`}>
+                        {booleanRequirements.map((requirement) => {
+                          const selection = getRequirementEditorSelection(requirement, effectiveSelections);
+                          const requirementId = getRequirementId(requirement);
+                          const isActive = selection.valueBoolean === true;
 
-                          {isViewMode ? (
-                            <p className="panel-note">Gespeicherter Wert: {selectionValue}</p>
-                          ) : (() => {
-                            if (requirement.inputType === "boolean") {
-                              return (
-                                <div className="toggle-group" role="group" aria-label={`Antwort für ${requirement.title}`}>
-                                  <button
-                                    type="button"
-                                    className={`toggle-btn ${selection.valueBoolean === true ? "active" : ""}`}
-                                    onClick={() => onToggleBoolean?.(requirementId, true)}
-                                  >
-                                    Ja
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={`toggle-btn ${selection.valueBoolean === false ? "active" : ""}`}
-                                    onClick={() => onToggleBoolean?.(requirementId, false)}
-                                  >
-                                    Nein
-                                  </button>
-                                </div>
-                              );
-                            }
-
-                            if (requirement.inputType === "text") {
-                              return (
-                                <label className="field">
-                                  <span>Antwort</span>
-                                  <input
-                                    type="text"
-                                    value={selection.valueText}
-                                    onChange={(event) => onTextChange?.(requirementId, event.target.value)}
-                                    placeholder="Bitte angeben"
-                                  />
-                                </label>
-                              );
-                            }
-
-                            if (requirement.inputType === "select") {
-                              return (
-                                <label className="field">
-                                  <span>Bitte auswählen</span>
-                                  <select
-                                    value={selection.selectedOptionId ?? ""}
-                                    onChange={(event) =>
-                                      onSelectOption?.(requirementId, event.target.value ? Number(event.target.value) : null)
-                                    }
-                                  >
-                                    <option value="">Bitte auswählen</option>
-                                    {requirement.options.map((option) => (
-                                      <option key={option.id} value={option.id}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                              );
-                            }
-
-                            if (requirement.inputType === "multi_select") {
-                              return (
-                                <div className="chips-row" aria-label={`Mehrfachauswahl für ${requirement.title}`}>
-                                  {requirement.options.map((option) => {
-                                    const isActive = selection.selectedOptionIds.includes(option.id);
-                                    return (
-                                      <button
-                                        type="button"
-                                        key={option.id}
-                                        className={`chip chip-action ${isActive ? "active" : ""}`}
-                                        onClick={() => onToggleMultiOption?.(requirementId, option.id)}
-                                      >
-                                        {option.label}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            }
-
-                            return null;
-                          })()}
-                        </div>
-
-                        <div className="requirement-icon-side">
-                          <RequirementIcon iconKey={getIconKey(requirement)} title={requirement.title} />
-                        </div>
+                          return (
+                            <button
+                              key={requirementId}
+                              type="button"
+                              className={`requirement-toggle-card ${isActive ? "is-active" : ""}`}
+                              aria-pressed={isActive}
+                              onClick={() => onToggleBoolean?.(requirementId, isActive ? false : true)}
+                            >
+                              <div className="requirement-toggle-card__icon">
+                                <RequirementIcon
+                                  iconKey={getIconKey(requirement)}
+                                  title={requirement.title}
+                                  size="md"
+                                />
+                              </div>
+                              <div className="requirement-toggle-card__body">
+                                <span className="requirement-toggle-card__title">{requirement.title}</span>
+                                <span className="requirement-toggle-card__description">{requirement.description}</span>
+                              </div>
+                              <span className="requirement-toggle-card__state">{isActive ? "Ja" : "Nein"}</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
+                    ) : null}
+
+                    {detailRequirements.length > 0 ? (
+                      <ul className="requirements-list requirement-details-list" aria-label={`Detailfelder in ${group.categoryLabel}`}>
+                        {detailRequirements.map((requirement) => {
+                          const selection = getRequirementEditorSelection(requirement, effectiveSelections);
+                          const requirementId = getRequirementId(requirement);
+
+                          return (
+                            <li key={requirementId} className="requirement-item requirement-card">
+                              <div className="requirement-layout">
+                                <div className="requirement-content">
+                                  <div className="panel-head">
+                                    <div className="requirement-title-row">
+                                      <h4>{requirement.title}</h4>
+                                    </div>
+                                    <p>{requirement.description}</p>
+                                  </div>
+
+                                  {renderEditableRequirementField(
+                                    requirement,
+                                    selection,
+                                    requirementId,
+                                    onTextChange,
+                                    onSelectOption,
+                                    onToggleMultiOption
+                                  )}
+                                </div>
+
+                                <div className="requirement-icon-side">
+                                  <RequirementIcon iconKey={getIconKey(requirement)} title={requirement.title} />
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </>
+                ) : (
+                  <ul className="requirements-list" aria-label={`Auswahlpunkte in ${group.categoryLabel}`}>
+                    {group.items.map((requirement) => {
+                      const selection = getRequirementSelection(requirement, effectiveSelections);
+                      const requirementId = getRequirementId(requirement);
+                      const selectionValue = formatSelectionValue(requirement, selection);
+
+                      return (
+                        <li key={requirementId} className="requirement-item requirement-card">
+                          <div className="requirement-layout">
+                            <div className="requirement-content">
+                              <div className="panel-head">
+                                <div className="requirement-title-row">
+                                  <h4>{requirement.title}</h4>
+                                </div>
+                                <p>{requirement.description}</p>
+                              </div>
+
+                              <p className="panel-note">Gespeicherter Wert: {selectionValue}</p>
+                            </div>
+
+                            <div className="requirement-icon-side">
+                              <RequirementIcon iconKey={getIconKey(requirement)} title={requirement.title} />
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
         </div>
       ) : null}
     </section>

@@ -15,6 +15,7 @@ import {
   updateAdminResponsibilityOwner,
 } from "../services/adminApi";
 import type { AdminDepartmentAssignment, AdminResponsibilityOwner, AdminRole } from "../types/auth";
+import { useAdminSharedQueryInvalidation } from "./useAdminSharedQueryInvalidation";
 
 type DepartmentDraft = {
   departmentLeadUserId: string;
@@ -50,6 +51,7 @@ export function useAdminOrganizationManagement({
   onError,
 }: UseAdminOrganizationManagementOptions) {
   const confirm = useConfirmationDialog();
+  const { invalidateOrganizationLookups } = useAdminSharedQueryInvalidation();
   const [newDepartmentNameDraft, setNewDepartmentNameDraft] = useState<string>("");
   const [newPositionNameDraft, setNewPositionNameDraft] = useState<string>("");
   const [newResponsibilityDraft, setNewResponsibilityDraft] = useState<NewResponsibilityDraft>({
@@ -129,6 +131,7 @@ export function useAdminOrganizationManagement({
         current.concat(createdDepartment).sort((left, right) => left.departmentName.localeCompare(right.departmentName, "de"))
       );
       setNewDepartmentNameDraft("");
+      await invalidateOrganizationLookups();
       onNotice(`Abteilung ${createdDepartment.departmentName} wurde angelegt.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Abteilung konnte nicht angelegt werden.";
@@ -136,7 +139,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setIsCreatingDepartment(false);
     }
-  }, [newDepartmentNameDraft, onError, onNotice, setDepartmentAssignments]);
+  }, [invalidateOrganizationLookups, newDepartmentNameDraft, onError, onNotice, setDepartmentAssignments]);
 
   const createDepartmentPosition = useCallback(async (departmentId: number) => {
     const nextPositionName = newPositionNameDraft.trim();
@@ -160,6 +163,7 @@ export function useAdminOrganizationManagement({
         })
       );
       setNewPositionNameDraft("");
+      await invalidateOrganizationLookups();
       onNotice(`Stelle ${createdPosition.roleName} wurde angelegt.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Stelle konnte nicht angelegt werden.";
@@ -167,7 +171,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setCreatingPositionDepartmentId(null);
     }
-  }, [newPositionNameDraft, onError, onNotice, setDepartmentPositions]);
+  }, [invalidateOrganizationLookups, newPositionNameDraft, onError, onNotice, setDepartmentPositions]);
 
   const createResponsibility = useCallback(async () => {
     const nextResponsibilityName = newResponsibilityDraft.responsibilityName.trim();
@@ -225,6 +229,7 @@ export function useAdminOrganizationManagement({
     try {
       await deleteAdminDepartment(department.departmentId);
       await reload();
+      await invalidateOrganizationLookups();
       onNotice(`Abteilung ${department.departmentName} wurde gelöscht.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Abteilung konnte nicht gelöscht werden.";
@@ -232,7 +237,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setDeletingDepartmentId(null);
     }
-  }, [confirm, onError, onNotice, reload]);
+  }, [confirm, invalidateOrganizationLookups, onError, onNotice, reload]);
 
   const removeDepartmentPosition = useCallback(async (position: AdminRole) => {
     const shouldDelete = await confirm({
@@ -257,6 +262,7 @@ export function useAdminOrganizationManagement({
         delete nextDrafts[position.roleId];
         return nextDrafts;
       });
+      await invalidateOrganizationLookups();
       onNotice(`Stelle ${position.roleName} wurde gelöscht.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Stelle konnte nicht gelöscht werden.";
@@ -264,7 +270,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setDeletingPositionId(null);
     }
-  }, [confirm, onError, onNotice, setDepartmentPositions]);
+  }, [confirm, invalidateOrganizationLookups, onError, onNotice, setDepartmentPositions]);
 
   const removeResponsibility = useCallback(async (responsibility: AdminResponsibilityOwner) => {
     const shouldDelete = await confirm({
@@ -357,6 +363,7 @@ export function useAdminOrganizationManagement({
       setDepartmentPositions((current) =>
         current.map((item) => (item.roleId === updatedPosition.roleId ? updatedPosition : item))
       );
+      await invalidateOrganizationLookups();
       onNotice(`Stelle ${updatedPosition.roleName} wurde gespeichert.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Stelle konnte nicht gespeichert werden.";
@@ -364,7 +371,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setSavingPositionId(null);
     }
-  }, [onError, onNotice, positionDrafts, setDepartmentPositions]);
+  }, [invalidateOrganizationLookups, onError, onNotice, positionDrafts, setDepartmentPositions]);
 
   const saveResponsibilityAssignment = useCallback(async (responsibilityId: number) => {
     const draft = responsibilityDrafts[responsibilityId] ?? { appUserId: "", departmentId: "" };

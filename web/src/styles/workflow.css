@@ -893,6 +893,10 @@
   transform: translateY(-1px);
 }
 
+.requirement-details-list {
+  margin-top: 0.85rem;
+}
+
 .requirement-card {
   display: flex;
   flex-direction: column;
@@ -1022,33 +1026,92 @@
 }
 
 /* ─── Toggle / Boolean Input ─── */
-.toggle-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+.requirement-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
 }
 
-.toggle-btn {
+.requirement-toggle-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
   border: 1px solid var(--surface-card-border);
   background: var(--surface-list-background);
-  border-radius: 10px;
-  padding: 0.32rem 0.65rem;
+  border-radius: 14px;
+  padding: 0.75rem 0.85rem;
   font: inherit;
-  font-size: 0.82rem;
+  text-align: left;
   cursor: pointer;
-  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 }
 
-.toggle-btn:hover {
+.requirement-toggle-card:hover {
   border-color: var(--brand-border-soft);
+  background: var(--surface-row-hover);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
-.toggle-btn.active {
+.requirement-toggle-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.requirement-toggle-card.is-active {
   border-color: var(--brand);
   background: var(--surface-focus-background);
-  color: var(--brand);
-  font-weight: 600;
   box-shadow: 0 0 0 1px var(--brand-ring);
+}
+
+.requirement-toggle-card__icon {
+  display: flex;
+  align-items: center;
+}
+
+.requirement-toggle-card__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.requirement-toggle-card__title {
+  color: var(--text-primary);
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.requirement-toggle-card__description {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.requirement-toggle-card__state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--surface-card-border);
+  padding: 0.2rem 0.55rem;
+  color: var(--text-secondary);
+  background: var(--surface-card-subtle);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.requirement-toggle-card.is-active .requirement-toggle-card__state {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-panel));
+  color: var(--brand);
 }
 
 /* ─── Chips (Multi-Select) ─── */

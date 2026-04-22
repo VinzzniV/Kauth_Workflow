@@ -16,6 +16,7 @@ WHERE answer_definition_id IN (
         'comparison_user_name',
         'hardware_requested',
         'hardware_available',
+        'hardware_takeover_details',
         'hardware_type',
         'laptop_vpn_type',
         'phone_requested',
@@ -32,6 +33,7 @@ WHERE answer_definition_id IN (
             'ad_user_requested',
             'comparison_user_available',
             'hardware_requested',
+            'hardware_available',
             'hardware_type',
             'internal_drive_access_requested'
         )
@@ -43,6 +45,7 @@ WHERE answer_definition_id IN (
             'comparison_user_available',
             'comparison_user_name',
             'hardware_available',
+            'hardware_takeover_details',
             'hardware_type',
             'laptop_vpn_type',
             'phone_requested',
@@ -56,6 +59,7 @@ WHERE answer_definition_id IN (
     FROM workflow_answer_definitions
     WHERE answer_key IN (
         'comparison_user_name',
+        'hardware_takeover_details',
         'laptop_vpn_type',
         'internal_drive_access_roles'
     )
@@ -69,6 +73,7 @@ WHERE answer_definition_id IN (
         'comparison_user_available',
         'comparison_user_name',
         'hardware_available',
+        'hardware_takeover_details',
         'hardware_type',
         'laptop_vpn_type',
         'phone_requested',

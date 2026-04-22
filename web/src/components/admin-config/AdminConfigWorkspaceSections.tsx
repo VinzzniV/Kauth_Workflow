@@ -6,6 +6,7 @@ import { AdminOrganizationWorkspaceSection } from "./AdminOrganizationWorkspaceS
 import { AdminOverviewWorkspaceSection } from "./AdminOverviewWorkspaceSection";
 import { AdminResponsibilitiesAndRequirementsSection } from "./AdminResponsibilitiesAndRequirementsSection";
 import { AdminPermissionsSection } from "./AdminPermissionsSection";
+import { AdminNotificationTemplateSection } from "./AdminNotificationTemplateSection";
 import { AdminSystemConfigurationSection } from "./AdminSystemConfigurationSection";
 import { AdminSystemWorkspaceSection } from "./AdminSystemWorkspaceSection";
 import { AdminTaskTemplateSection } from "./AdminTaskTemplateSection";
@@ -55,7 +56,6 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       sortedUsers={props.sortedUsers}
       sortedDepartmentPositions={props.sortedDepartmentPositions}
       sortedDepartments={props.sortedDepartments}
-      sortedResponsibilities={props.sortedResponsibilities}
       eligibleSupervisorUsers={props.eligibleSupervisorUsers}
       eligibleRequirementOwnerUsers={props.eligibleRequirementOwnerUsers}
       selectedUser={props.workspaceSelectedUser}
@@ -78,19 +78,14 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       deletingUserId={props.deletingUserId}
       newDepartmentNameDraft={props.newDepartmentNameDraft}
       newPositionNameDraft={props.newPositionNameDraft}
-      newResponsibilityDraft={props.newResponsibilityDraft}
       departmentDrafts={props.departmentDrafts}
       positionDrafts={props.positionDrafts}
-      responsibilityDrafts={props.responsibilityDrafts}
       isCreatingDepartment={props.isCreatingDepartment}
       creatingPositionDepartmentId={props.creatingPositionDepartmentId}
-      isCreatingResponsibility={props.isCreatingResponsibility}
       deletingDepartmentId={props.deletingDepartmentId}
       deletingPositionId={props.deletingPositionId}
-      deletingResponsibilityId={props.deletingResponsibilityId}
       savingDepartmentId={props.savingDepartmentId}
       savingPositionId={props.savingPositionId}
-      savingResponsibilityId={props.savingResponsibilityId}
       onSelectOrganizationEntity={props.onOpenOrganization}
       onSelectUser={props.onSelectUser}
       onNewUserDisplayNameChange={props.onNewUserDisplayNameChange}
@@ -110,19 +105,14 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       onRemoveUser={props.onRemoveUser}
       onNewDepartmentNameChange={props.onNewDepartmentNameChange}
       onNewPositionNameChange={props.onNewPositionNameChange}
-      onNewResponsibilityDraftChange={props.onNewResponsibilityDraftChange}
       onDepartmentDraftChange={props.onDepartmentDraftChange}
       onCreateDepartment={props.onCreateDepartment}
       onCreateDepartmentPosition={props.onCreateDepartmentPosition}
-      onCreateResponsibility={props.onCreateResponsibility}
       onSaveDepartmentAssignment={props.onSaveDepartmentAssignment}
       onRemoveDepartment={props.onRemoveDepartment}
       onPositionDraftChange={props.onPositionDraftChange}
       onSaveDepartmentPosition={props.onSaveDepartmentPosition}
       onRemoveDepartmentPosition={props.onRemoveDepartmentPosition}
-      onResponsibilityDraftChange={props.onResponsibilityDraftChange}
-      onRemoveResponsibility={props.onRemoveResponsibility}
-      onSaveResponsibilityAssignment={props.onSaveResponsibilityAssignment}
     />
   );
 }
@@ -214,6 +204,42 @@ export function renderSystemLogsWorkspace(_props: AdminConfigWorkspaceContentPro
   return renderWorkspaceWithIntro(
     "system_logs",
     <AdminSystemWorkspaceSection />
+  );
+}
+
+export function renderSystemMailTemplatesWorkspace(props: AdminConfigWorkspaceContentProps) {
+  return renderWorkspaceWithIntro(
+    "system_mail_templates",
+    <AdminNotificationTemplateSection
+      notificationTemplates={props.notificationTemplates}
+      selectedTemplate={props.selectedNotificationTemplate}
+      selectedTemplateKey={props.selectedNotificationTemplateKey}
+      selectedTemplateSubjectDraft={props.selectedNotificationTemplateSubjectDraft}
+      selectedTemplateBodyDraft={props.selectedNotificationTemplateBodyDraft}
+      hasSelectedTemplateChanges={props.hasSelectedNotificationTemplateChanges}
+      workflowPreviewSearch={props.workflowPreviewSearch}
+      rotationPlanPreviewSearch={props.rotationPlanPreviewSearch}
+      workflowPreviewTargets={props.workflowPreviewTargets}
+      rotationPlanPreviewTargets={props.rotationPlanPreviewTargets}
+      selectedWorkflowPreviewUid={props.selectedWorkflowPreviewUid}
+      selectedRotationPlanPreviewId={props.selectedRotationPlanPreviewId}
+      previewResponse={props.notificationTemplatePreviewResponse}
+      selectedPreviewVariantIndex={props.selectedNotificationTemplatePreviewVariantIndex}
+      isLoadingNotificationTemplates={props.isLoadingNotificationTemplates}
+      isSavingNotificationTemplate={props.isSavingNotificationTemplate}
+      isLoadingPreviewTargets={props.isLoadingNotificationTemplatePreviewTargets}
+      isLoadingPreview={props.isLoadingNotificationTemplatePreview}
+      onSelectTemplate={props.onSelectNotificationTemplate}
+      onSelectedTemplateSubjectChange={props.onSelectedNotificationTemplateSubjectChange}
+      onSelectedTemplateBodyChange={props.onSelectedNotificationTemplateBodyChange}
+      onWorkflowPreviewSearchChange={props.onWorkflowPreviewSearchChange}
+      onRotationPlanPreviewSearchChange={props.onRotationPlanPreviewSearchChange}
+      onSelectWorkflowPreviewTarget={props.onSelectWorkflowPreviewTarget}
+      onSelectRotationPlanPreviewTarget={props.onSelectRotationPlanPreviewTarget}
+      onSaveSelectedTemplate={props.onSaveSelectedNotificationTemplate}
+      onRenderPreview={props.onRenderNotificationTemplatePreview}
+      onSelectPreviewVariant={props.onSelectNotificationTemplatePreviewVariant}
+    />
   );
 }
 

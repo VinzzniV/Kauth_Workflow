@@ -9,6 +9,7 @@ import {
 import type { AdminConfigWorkspaceContentProps } from "../components/admin-config/adminConfigWorkspaceContentTypes";
 import type { AdminGraphApplicationConfiguration, AdminUser } from "../types/auth";
 import type { useAdminNotificationEmailConfiguration } from "./useAdminNotificationEmailConfiguration";
+import type { useAdminNotificationTemplates } from "./useAdminNotificationTemplates";
 
 type UseAdminConfigPageViewArgs = {
   searchParams: URLSearchParams;
@@ -36,6 +37,7 @@ type UseAdminConfigPageViewArgs = {
   deletingDirectoryMappingId: number | null;
   graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
   notificationConfig: ReturnType<typeof useAdminNotificationEmailConfiguration>;
+  notificationTemplateConfig: ReturnType<typeof useAdminNotificationTemplates>;
   selectedUserId: number | null;
   selectedUser: AdminConfigWorkspaceContentProps["selectedUser"];
   selectedGroupId: AdminConfigWorkspaceContentProps["selectedGroupId"];
@@ -160,6 +162,7 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     deletingDirectoryMappingId,
     graphApplicationConfiguration,
     notificationConfig,
+    notificationTemplateConfig,
     selectedUserId,
     selectedUser,
     selectedGroupId,
@@ -457,6 +460,24 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     directoryStatus,
     graphApplicationConfiguration,
     notificationEmailConfiguration: notificationConfig.notificationEmailConfiguration,
+    notificationTemplates: notificationTemplateConfig.notificationTemplates,
+    selectedNotificationTemplate: notificationTemplateConfig.selectedTemplate,
+    selectedNotificationTemplateKey: notificationTemplateConfig.selectedTemplateKey,
+    selectedNotificationTemplateSubjectDraft: notificationTemplateConfig.selectedTemplateSubjectDraft,
+    selectedNotificationTemplateBodyDraft: notificationTemplateConfig.selectedTemplateBodyDraft,
+    hasSelectedNotificationTemplateChanges: notificationTemplateConfig.hasSelectedTemplateChanges,
+    workflowPreviewSearch: notificationTemplateConfig.workflowPreviewSearch,
+    rotationPlanPreviewSearch: notificationTemplateConfig.rotationPlanPreviewSearch,
+    workflowPreviewTargets: notificationTemplateConfig.workflowPreviewTargets,
+    rotationPlanPreviewTargets: notificationTemplateConfig.rotationPlanPreviewTargets,
+    selectedWorkflowPreviewUid: notificationTemplateConfig.selectedWorkflowPreviewUid,
+    selectedRotationPlanPreviewId: notificationTemplateConfig.selectedRotationPlanPreviewId,
+    notificationTemplatePreviewResponse: notificationTemplateConfig.previewResponse,
+    selectedNotificationTemplatePreviewVariantIndex: notificationTemplateConfig.selectedPreviewVariantIndex,
+    isLoadingNotificationTemplates: notificationTemplateConfig.isLoadingNotificationTemplates,
+    isSavingNotificationTemplate: notificationTemplateConfig.isSavingNotificationTemplate,
+    isLoadingNotificationTemplatePreviewTargets: notificationTemplateConfig.isLoadingPreviewTargets,
+    isLoadingNotificationTemplatePreview: notificationTemplateConfig.isLoadingPreview,
     notificationEnabledDraft: notificationConfig.notificationEnabledDraft,
     notificationSenderEmailDraft: notificationConfig.notificationSenderEmailDraft,
     notificationFrontendBaseUrlDraft: notificationConfig.notificationFrontendBaseUrlDraft,
@@ -528,6 +549,16 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     onNotice,
     onError,
     onNotificationEnabledChange: notificationConfig.setNotificationEnabledDraft,
+    onSelectNotificationTemplate: notificationTemplateConfig.setSelectedTemplateKey,
+    onSelectedNotificationTemplateSubjectChange: notificationTemplateConfig.setSelectedTemplateSubjectDraft,
+    onSelectedNotificationTemplateBodyChange: notificationTemplateConfig.setSelectedTemplateBodyDraft,
+    onWorkflowPreviewSearchChange: notificationTemplateConfig.setWorkflowPreviewSearch,
+    onRotationPlanPreviewSearchChange: notificationTemplateConfig.setRotationPlanPreviewSearch,
+    onSelectWorkflowPreviewTarget: notificationTemplateConfig.setSelectedWorkflowPreviewUid,
+    onSelectRotationPlanPreviewTarget: notificationTemplateConfig.setSelectedRotationPlanPreviewId,
+    onSaveSelectedNotificationTemplate: notificationTemplateConfig.saveSelectedTemplate,
+    onRenderNotificationTemplatePreview: notificationTemplateConfig.renderPreview,
+    onSelectNotificationTemplatePreviewVariant: notificationTemplateConfig.setSelectedPreviewVariantIndex,
     onNotificationSenderEmailChange: notificationConfig.setNotificationSenderEmailDraft,
     onNotificationFrontendBaseUrlChange: notificationConfig.setNotificationFrontendBaseUrlDraft,
     onNotificationTestRecipientChange: notificationConfig.setNotificationTestRecipientDraft,

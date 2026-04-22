@@ -5,100 +5,67 @@ namespace API.Tests;
 public sealed class NotificationEmailTemplateBuilderTests
 {
     [Fact]
-    public void BuildWorkflowCreated_UsesConfiguredProcessTypeName()
+    public void ResolveProcessTypeEmailContext_UsesConfiguredProcessTypeName()
     {
-        var template = NotificationEmailTemplateBuilder.BuildWorkflowCreated(
-            "Max Mustermann",
-            "https://example.test/workflows/123",
+        var context = NotificationEmailTemplateBuilder.ResolveProcessTypeEmailContext(
             "offboarding",
             "Offboarding");
 
-        Assert.Contains("Offboarding-Workflow gestartet", template.Subject);
-        Assert.Contains("Offboarding-Workflow", template.HtmlBody);
-        Assert.DoesNotContain("Onboarding-Workflow", template.HtmlBody);
+        Assert.Equal("Offboarding", context.Name);
+        Assert.Equal("Offboarding-Workflow", context.WorkflowLabel);
+        Assert.Equal("Offboarding-Prozess", context.ProcessLabel);
     }
 
     [Fact]
-    public void BuildTaskReady_UsesConfiguredProcessTypeName()
+    public void Build_RendersWorkflowTemplateWithGreetingAndLink()
     {
-        var template = NotificationEmailTemplateBuilder.BuildTaskReady(
-            "Max Mustermann",
-            "https://example.test/tasks/my",
-            [],
-            "department_change",
-            "Abteilungswechsel");
-
-        Assert.Contains("Abteilungswechsel", template.HtmlBody);
-        Assert.DoesNotContain("Onboarding-Prozess", template.HtmlBody);
-    }
-
-    [Fact]
-    public void BuildWorkflowCompleted_UsesConfiguredProcessTypeName()
-    {
-        var template = NotificationEmailTemplateBuilder.BuildWorkflowCompleted(
+        var template = NotificationEmailTemplateBuilder.Build(
+            "{{workflow_label}} gestartet",
+            "Ein neuer {{workflow_label}} wurde gestartet.\n\nBitte öffnen Sie den Vorgang.",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["recipient_name"] = "Max Mustermann",
+                ["workflow_label"] = "Offboarding-Workflow",
+                ["workflow_url"] = "https://example.test/workflows/123"
+            },
             "Max Mustermann",
             "https://example.test/workflows/123",
-            "role_change",
-            "Rollenwechsel");
+            "Workflow öffnen");
 
-        Assert.Equal("Rollenwechsel abgeschlossen", template.Subject);
-        Assert.Contains("Rollenwechsel", template.HtmlBody);
-        Assert.DoesNotContain("Onboarding-Workflow", template.HtmlBody);
+        Assert.Equal("Offboarding-Workflow gestartet", template.Subject);
+        Assert.Contains("Hallo Max Mustermann", template.TextBody);
+        Assert.Contains("Workflow öffnen: https://example.test/workflows/123", template.TextBody);
+        Assert.Contains("Offboarding-Workflow", template.HtmlBody);
+        Assert.Contains("https://example.test/workflows/123", template.HtmlBody);
     }
 
     [Fact]
-    public void BuildRotationUpcomingChange_IncludesDepartmentContextAndTasks()
+    public void Build_RendersBulletListsInHtml()
     {
-        var template = NotificationEmailTemplateBuilder.BuildRotationUpcomingChange(
-            "Julia Verantwortlich",
-            "https://example.test/tasks/my?taskRef=rot%3A44",
-            CreateRotationPayload());
+        var template = NotificationEmailTemplateBuilder.Build(
+            "Neue Aufgaben",
+            "Für Sie wurden Aufgaben vorbereitet.\n\n- Notebook vorbereiten\n- Konto anlegen",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["recipient_name"] = "Max Mustermann"
+            },
+            "Max Mustermann",
+            "https://example.test/tasks/my",
+            "Aufgabe öffnen");
 
-        Assert.Contains("Bevorstehender Wechsel", template.Subject);
-        Assert.Contains("Aktueller Bereich", template.HtmlBody);
-        Assert.Contains("Naechster Bereich", template.HtmlBody);
+        Assert.Contains("<ul>", template.HtmlBody);
         Assert.Contains("Notebook vorbereiten", template.HtmlBody);
+        Assert.Contains("Konto anlegen", template.HtmlBody);
     }
 
     [Fact]
-    public void BuildRotationOverdue_UsesOverdueSubject()
+    public void ExtractPlaceholderKeys_ReturnsNormalizedKeys()
     {
-        var template = NotificationEmailTemplateBuilder.BuildRotationOverdue(
-            "Julia Verantwortlich",
-            "https://example.test/tasks/my?taskRef=rot%3A44",
-            CreateRotationPayload());
+        var keys = NotificationEmailTemplateBuilder.ExtractPlaceholderKeys(
+            "{{Recipient_Name}} {{ process_name }} {{workflow_url}}");
 
-        Assert.Contains("Ueberfaellige Rotationsaufgaben", template.Subject);
-        Assert.Contains("Anika Sattler", template.HtmlBody);
-        Assert.Contains("31.05.2026", template.HtmlBody);
-    }
-
-    private static RotationNotificationPayload CreateRotationPayload()
-    {
-        return new RotationNotificationPayload
-        {
-            DedupeKey = "demo",
-            RecipientName = "Julia Verantwortlich",
-            PlanTitle = "Anika - Durchlauf",
-            SourceWorkflowUid = Guid.NewGuid(),
-            PersonId = 10,
-            PersonDisplayName = "Anika Sattler",
-            CurrentDepartmentName = "HR",
-            NextDepartmentName = "IT",
-            ChangeDate = new DateOnly(2026, 6, 1),
-            LinkPath = "/tasks/my?taskRef=rot%3A44",
-            Tasks =
-            [
-                new RotationNotificationTaskMailItem
-                {
-                    GeneratedTaskId = 44,
-                    TaskRef = "rot:44",
-                    Title = "Notebook vorbereiten",
-                    Status = "open",
-                    DueDate = new DateOnly(2026, 5, 31),
-                    DepartmentName = "IT"
-                }
-            ]
-        };
+        Assert.Contains("recipient_name", keys);
+        Assert.Contains("process_name", keys);
+        Assert.Contains("workflow_url", keys);
     }
 }

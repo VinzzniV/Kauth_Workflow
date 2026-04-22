@@ -23,6 +23,10 @@ import type {
   AdminGroup,
   AdminNotificationEmailConfiguration,
   AdminNotificationEmailTestResponse,
+  AdminNotificationTemplate,
+  AdminNotificationTemplatePreviewResponse,
+  AdminNotificationTemplateRotationPlanPreviewTarget,
+  AdminNotificationTemplateWorkflowPreviewTarget,
   AdminSystemLogEntry,
   AdminSystemLogSummary,
   AdminAnswerDefinition,
@@ -412,6 +416,10 @@ export type BackendAdminPermissionDto = AdminPermission;
 export type BackendAdminPermissionAuditEntryDto = AdminPermissionAuditEntry;
 export type BackendAdminNotificationEmailConfigurationDto = AdminNotificationEmailConfiguration;
 export type BackendAdminNotificationEmailTestResponseDto = AdminNotificationEmailTestResponse;
+export type BackendAdminNotificationTemplateDto = AdminNotificationTemplate;
+export type BackendAdminNotificationTemplateWorkflowPreviewTargetDto = AdminNotificationTemplateWorkflowPreviewTarget;
+export type BackendAdminNotificationTemplateRotationPlanPreviewTargetDto = AdminNotificationTemplateRotationPlanPreviewTarget;
+export type BackendAdminNotificationTemplatePreviewResponseDto = AdminNotificationTemplatePreviewResponse;
 export type BackendAdminDirectoryGroupDto = AdminDirectoryGroup;
 export type BackendAdminDirectoryGroupRoleMappingDto = AdminDirectoryGroupRoleMapping;
 export type BackendAdminDirectoryIdentityDto = AdminDirectoryIdentity;

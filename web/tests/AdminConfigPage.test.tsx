@@ -36,11 +36,16 @@ vi.mock("../src/services/adminApi", async () => {
     getAdminGroups: vi.fn(),
     getAdminGraphApplicationConfiguration: vi.fn(),
     getAdminNotificationEmailConfiguration: vi.fn(),
+    getAdminNotificationTemplates: vi.fn(),
     getAdminPermissionAudit: vi.fn(),
     getAdminPermissions: vi.fn(),
     getAdminResponsibilityOwners: vi.fn(),
     getAdminRoles: vi.fn(),
     getAdminUsers: vi.fn(),
+    previewAdminNotificationTemplate: vi.fn(),
+    searchAdminNotificationTemplateRotationPlans: vi.fn(),
+    searchAdminNotificationTemplateWorkflows: vi.fn(),
+    updateAdminNotificationTemplate: vi.fn(),
   };
 });
 
@@ -73,11 +78,15 @@ const mockedGetAdminGraphApplicationConfiguration = vi.mocked(adminApi.getAdminG
 const mockedGetAdminNotificationEmailConfiguration = vi.mocked(
   adminApi.getAdminNotificationEmailConfiguration
 );
+const mockedGetAdminNotificationTemplates = vi.mocked(adminApi.getAdminNotificationTemplates);
 const mockedGetAdminPermissionAudit = vi.mocked(adminApi.getAdminPermissionAudit);
 const mockedGetAdminPermissions = vi.mocked(adminApi.getAdminPermissions);
 const mockedGetAdminResponsibilityOwners = vi.mocked(adminApi.getAdminResponsibilityOwners);
 const mockedGetAdminRoles = vi.mocked(adminApi.getAdminRoles);
 const mockedGetAdminUsers = vi.mocked(adminApi.getAdminUsers);
+const mockedPreviewAdminNotificationTemplate = vi.mocked(adminApi.previewAdminNotificationTemplate);
+const mockedSearchAdminNotificationTemplateRotationPlans = vi.mocked(adminApi.searchAdminNotificationTemplateRotationPlans);
+const mockedSearchAdminNotificationTemplateWorkflows = vi.mocked(adminApi.searchAdminNotificationTemplateWorkflows);
 
 function createResponsibility(
   overrides: Partial<AdminResponsibilityOwner> = {}
@@ -165,6 +174,25 @@ function createGraphConfiguration(
   };
 }
 
+function createNotificationTemplate(overrides: Partial<import("../src/types/auth").AdminNotificationTemplate> = {}) {
+  return {
+    templateKey: "workflow_created",
+    displayName: "Vorgang gestartet",
+    triggerDescription: "Startet bei neuem Vorgang.",
+    subjectTemplate: "{{workflow_label}} gestartet",
+    bodyTemplate: "Ein neuer {{workflow_label}} wurde gestartet.",
+    isSystemLocked: false,
+    updatedAt: "2026-04-22T08:00:00.000Z",
+    previewTargetType: "workflow" as const,
+    placeholders: [
+      { key: "workflow_label", label: "Workflow-Label", description: "Lesbarer Vorgangsname" },
+      { key: "recipient_name", label: "Empfänger", description: "Anzeigename" },
+      { key: "workflow_url", label: "Link", description: "Direkter Link" },
+    ],
+    ...overrides,
+  };
+}
+
 function mockSuccessfulLoad() {
   mockedGetAdminUsers.mockResolvedValue([
     createAdminUser(),
@@ -180,10 +208,53 @@ function mockSuccessfulLoad() {
   mockedGetAdminResponsibilityOwners.mockResolvedValue([createResponsibility()]);
   mockedGetAdminGraphApplicationConfiguration.mockResolvedValue(createGraphConfiguration());
   mockedGetAdminNotificationEmailConfiguration.mockResolvedValue(createNotificationConfiguration());
+  mockedGetAdminNotificationTemplates.mockResolvedValue([createNotificationTemplate()]);
   mockedGetAdminPermissionAudit.mockResolvedValue([]);
   mockedGetAdminPermissions.mockResolvedValue([]);
   mockedGetAdminRoles.mockResolvedValue([createRole()]);
   mockedGetAdminGroups.mockResolvedValue([createGroup()]);
+  mockedSearchAdminNotificationTemplateWorkflows.mockResolvedValue([
+    {
+      workflowUid: "11111111-1111-1111-1111-111111111111",
+      displayName: "Lea Lead",
+      processName: "Onboarding",
+      departmentName: "IT",
+      workflowStatus: "draft",
+      createdAt: "2026-04-22T08:00:00.000Z",
+    },
+  ]);
+  mockedSearchAdminNotificationTemplateRotationPlans.mockResolvedValue([]);
+  mockedPreviewAdminNotificationTemplate.mockResolvedValue({
+    templateKey: "workflow_created",
+    displayName: "Vorgang gestartet",
+    triggerDescription: "Startet bei neuem Vorgang.",
+    previewTargetType: "workflow",
+    isCurrentlyTriggerable: true,
+    blockingReason: null,
+    target: {
+      targetType: "workflow",
+      workflowUid: "11111111-1111-1111-1111-111111111111",
+      rotationPlanId: null,
+      primaryLabel: "Lea Lead",
+      secondaryLabel: "Onboarding | IT",
+      status: "draft",
+    },
+    variants: [
+      {
+        recipient: {
+          recipientUserId: 1,
+          name: "Lea Lead",
+          email: "lea.lead@demo.local",
+        },
+        renderedSubject: "Onboarding-Workflow gestartet",
+        renderedTextBody: "Hallo Lea Lead,\n\nEin neuer Onboarding-Workflow wurde gestartet.",
+        renderedHtmlBody: "<p>Hallo Lea Lead</p>",
+        placeholderValues: [
+          { key: "workflow_label", value: "Onboarding-Workflow" },
+        ],
+      },
+    ],
+  });
 }
 
 describe("AdminConfigPage", () => {
@@ -198,10 +269,14 @@ describe("AdminConfigPage", () => {
     mockedGetAdminResponsibilityOwners.mockReset();
     mockedGetAdminGraphApplicationConfiguration.mockReset();
     mockedGetAdminNotificationEmailConfiguration.mockReset();
+    mockedGetAdminNotificationTemplates.mockReset();
     mockedGetAdminPermissionAudit.mockReset();
     mockedGetAdminPermissions.mockReset();
     mockedGetAdminRoles.mockReset();
     mockedGetAdminGroups.mockReset();
+    mockedPreviewAdminNotificationTemplate.mockReset();
+    mockedSearchAdminNotificationTemplateRotationPlans.mockReset();
+    mockedSearchAdminNotificationTemplateWorkflows.mockReset();
     mockSuccessfulLoad();
     mockedGetAdminWorkflowDefinitions.mockResolvedValue([
       {
@@ -282,6 +357,17 @@ describe("AdminConfigPage", () => {
     expect(screen.getByText(/Leitung und Anforderungsverantwortung/)).toBeTruthy();
   });
 
+  it("does not show responsibilities inside the organization workspace anymore", async () => {
+    renderWithApp(<AdminConfigPage />, {
+      roleKeys: ["auth_admin"],
+      route: "/admin/config?section=organization&entity=responsibility&id=10",
+    });
+
+    expect(await screen.findByText("Person anlegen")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Fachbereiche / Zuständigkeiten" })).toBeNull();
+    expect(screen.queryByText("Feste Zuständigkeiten")).toBeNull();
+  });
+
   it("renders only graph and mail configuration in the system section", async () => {
     renderWithApp(<AdminConfigPage />, {
       roleKeys: ["auth_admin"],
@@ -292,6 +378,17 @@ describe("AdminConfigPage", () => {
     expect(await screen.findByText("Konfiguration: Mailversand")).toBeTruthy();
     expect(screen.queryByText("Prozesstypen")).toBeNull();
     expect(screen.queryByText("Workflow-Konfiguration")).toBeNull();
+  });
+
+  it("renders the mail template workspace with preview controls", async () => {
+    renderWithApp(<AdminConfigPage />, {
+      roleKeys: ["auth_admin"],
+      route: "/admin/config?section=system_mail_templates",
+    });
+
+    expect(await screen.findByText("Konfiguration: Mail-Vorlagen")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Vorgang gestartet" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Preview laden" })).toBeTruthy();
   });
 
   it("loads roles and groups only when the access section is opened", async () => {

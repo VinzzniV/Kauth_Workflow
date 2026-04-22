@@ -57,7 +57,7 @@ export function notificationModeLabel(configuration: AdminNotificationEmailConfi
 
   switch (configuration.mode) {
     case "sandbox":
-      return "Sandbox";
+      return "Testpostfach aktiv";
     case "enabled":
       return "Aktiviert";
     default:

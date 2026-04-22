@@ -391,6 +391,37 @@
   color: var(--text-tertiary);
 }
 
+.admin-panel-focus {
+  border-color: color-mix(in srgb, var(--brand) 48%, var(--surface-panel-border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--brand) 28%, transparent),
+    0 0 0 10px color-mix(in srgb, var(--brand-soft) 42%, transparent);
+  animation: adminPanelFocusPulse 2.2s ease-out 1;
+}
+
+@keyframes adminPanelFocusPulse {
+  0% {
+    transform: translateY(6px);
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--brand) 38%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--brand-soft) 62%, transparent);
+  }
+
+  45% {
+    transform: translateY(0);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent),
+      0 0 0 14px color-mix(in srgb, var(--brand-soft) 52%, transparent);
+  }
+
+  100% {
+    transform: translateY(0);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--brand) 18%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--brand-soft) 0%, transparent);
+  }
+}
+
 .admin-workspace-intro {
   display: grid;
   gap: 0.85rem;

@@ -86,6 +86,7 @@ Hinweis:
 Seit T8 lebt der Workflow Builder auf der eigenen Route `/builder`; alte Builder-Einstiege unter `/admin/config?section=builder|templates|answers|defaults` werden dorthin umgeleitet. Die Builder-Logik sitzt primär in `src/pages/WorkflowBuilderPage.tsx`, `src/components/admin-config/`, `src/hooks/useAdminWorkflowBuilder.ts`, `src/hooks/adminWorkflowBuilderModel.ts` und `src/services/adminConfigApi.ts`.
 Seit T11 nutzt `/workflows/create` den startbaren Definitionen-Katalog aus `src/services/lookupApi.ts` statt `process_types`; die alten Konfigurationssektionen fuer Process Types, Templates und Answer Defaults sind im Admin-Workspace nicht mehr navigierbar.
 Seit T12 ist `Administration > System` die zentrale Betriebs- und Log-Konsole: `src/components/admin-config/AdminSystemLogSection.tsx`, `src/services/adminApi.ts` und `src/services/systemLogReporter.ts` verbinden die neue Admin-Log-Ansicht mit automatischem Frontend-Error-Reporting; der alte Admin-Bereich fuer `Massenaktionen` wurde vollstaendig entfernt.
+Seit T13 hat `Administration > System > Mail-Vorlagen` einen eigenen Workspace fuer konfigurierbare Benachrichtigungen. `src/components/admin-config/AdminNotificationTemplateSection.tsx`, `src/hooks/useAdminNotificationTemplates.ts` und die neuen Admin-APIs in `src/services/adminApi.ts` pflegen Betreff/Text, Trigger-Info und eine read-only Preview auf Basis echter Workflows bzw. Durchlaufplaene.
 Seit Phase 6 gibt es fuer HR zusaetzlich den Rotation-Frontend-Slice auf `/rotation` und `/rotation/plans/:planId`; `/rotation` dient jetzt primaer als Uebersichts- und Einstiegseite fuer bestehende Durchlaufplaene, waehrend die Anlage neuer Durchlaeufe ueber `Neuer Vorgang` und den Link nach `/rotation?mode=create` startet. Die Seiten in `src/pages/RotationPlanningPage.tsx` und `src/pages/RotationPlanDetailPage.tsx` nutzen `src/services/rotationApi.ts`, `src/services/queries/rotationQueries.ts` und `src/types/rotation.ts`.
 Seit Phase 7 gibt es fuer IT und Fachbereiche den operativen Rotation-Slice auf `/rotation/operations` und `/rotation/tasks/:taskRef`; die Seiten `src/pages/RotationOperationsPage.tsx` und `src/pages/RotationTaskDetailPage.tsx` nutzen den familienfaehigen `/tasks`-Envelope, `src/services/taskApi.ts`, `src/services/mutations/workflowMutations.ts` und die erweiterten Task-/Status-Mappings in `src/services/api/` und `src/utils/taskStatus.ts`.
 Seit Phase 8 sind Audit-/Verlaufs- und Benachrichtigungshistorie in den bestehenden Rotations-Detailseiten sichtbar; `src/components/rotation/RotationAuditLog.tsx` und `src/components/rotation/RotationNotificationsPanel.tsx` werden in `RotationPlanDetailPage` und `RotationTaskDetailPage` eingebunden; `src/services/queries/rotationQueries.ts` enthaelt die planbezogenen History-Queries.
@@ -126,7 +127,7 @@ Unit- und integrationsnahe Tests fuer:
 ## Datenbank: `db/`
 
 `01_schema.sql`
-Grundschema fuer Stammdaten, Workflow-Laufzeit, Definition Layer, Automation Layer, Directory-Projektion, Rollen-/Permission-Modell und Runtime-Konfiguration.
+Grundschema fuer Stammdaten, Workflow-Laufzeit, Definition Layer, Automation Layer, Directory-Projektion, Rollen-/Permission-Modell, Runtime-Konfiguration und konfigurierbare Mail-Vorlagen (`notification_templates`).
 
 `02_bootstrap.sql`
 Produktiver Bootstrap ohne Dev-Spezifika.
@@ -157,6 +158,9 @@ Fuehrt die zentrale Tabelle `system_event_log` inklusive Indizes fuer Zeitpunkt,
 
 `59_people_lifecycle_anchor.sql`
 Fuehrt den kanonischen Mitarbeiteranker weiter: `people.current_position_role_id`, Unique-Index auf `people.employee_number`, Directory-Employee-Number-Projektion und Backfill fuer bestehende Mitarbeiter-/Workflow-Zuordnung.
+
+`62_notification_templates.sql`
+Fuehrt `notification_templates` ein und seeded die sechs konfigurierbaren Mailtypen (`workflow_created`, `task_ready`, `workflow_completed`, `upcoming_change`, `reminder`, `overdue`) fuer den neuen Admin-Workspace inklusive Default-Betreff und Default-Text.
 
 `90_dev_defaults.sql`
 Lokale Entwicklungs-Defaults.
@@ -218,7 +222,10 @@ Gemeinsame Phase-4-Helfer fuer globale `taskRef`-Adressen (`wf:*`, `rot:*`) und 
 Liefert seit Phase 4 kanonische `/tasks/ref/{taskRef}`-Routen fuer Read, Status, Assignment, Kommentare und Approval-Entscheidungen; Rotation-Tasks werden jetzt mit Workflow-Tasks aggregiert in `/tasks` ausgeliefert.
 
 `api/API/Services/GraphWorkflowEmailNotificationSender.cs`, `api/API/Services/NotificationEmailTemplateBuilder.cs`
-Der bestehende Mail-Unterbau versendet jetzt neben Workflow-Mails auch Rotation-Notifications; neue Mail-Templates decken `upcoming_change`, `reminder` und `overdue` ab.
+Der bestehende Mail-Unterbau versendet jetzt neben Workflow-Mails auch Rotation-Notifications; Rendering, Platzhalterersetzung und feste HTML-Huelle laufen ueber das konfigurierbare Template-System.
+
+`api/API/Services/NotificationTemplateService.cs`, `api/API/Services/NotificationTemplateCatalog.cs`, `api/API/Repositories/PostgresNotificationTemplateRepository.cs`, `api/API/Endpoints/AdminNotificationTemplateEndpoints.cs`
+Neuer Mail-Template-Slice fuer Admin-Read/Write, Platzhalter-Validierung, read-only Preview mit echten Vorgangs-/Durchlaufdaten und Persistenz in `notification_templates`.
 
 `api/API/Services/WorkflowAutomationService.cs`
 Koordiniert Job-Claiming, Handler-Ausfuehrung, Retry-Regeln und Runtime-Fortschritt fuer `automation`-Nodes.

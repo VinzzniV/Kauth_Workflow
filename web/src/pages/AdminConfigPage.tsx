@@ -15,6 +15,7 @@ import { useAdminConfigData } from "../hooks/useAdminConfigData";
 import { useAdminConfigPageView } from "../hooks/useAdminConfigPageView";
 import { useAdminGraphApplicationConfiguration } from "../hooks/useAdminGraphApplicationConfiguration";
 import { useAdminNotificationEmailConfiguration } from "../hooks/useAdminNotificationEmailConfiguration";
+import { useAdminNotificationTemplates } from "../hooks/useAdminNotificationTemplates";
 import { useAdminOrganizationManagement } from "../hooks/useAdminOrganizationManagement";
 import { useAdminPermissionManagement } from "../hooks/useAdminPermissionManagement";
 import { useAdminUserManagement } from "../hooks/useAdminUserManagement";
@@ -59,6 +60,11 @@ export default function AdminConfigPage() {
   } = useAdminGraphApplicationConfiguration();
 
   const notificationConfig = useAdminNotificationEmailConfiguration({
+    onNotice: setNotice,
+    onError: handleError,
+  });
+  const notificationTemplateConfig = useAdminNotificationTemplates({
+    enabled: section === "system_mail_templates",
     onNotice: setNotice,
     onError: handleError,
   });
@@ -255,6 +261,7 @@ export default function AdminConfigPage() {
     deletingDirectoryMappingId,
     graphApplicationConfiguration,
     notificationConfig,
+    notificationTemplateConfig,
     selectedUserId,
     selectedUser,
     selectedGroupId,

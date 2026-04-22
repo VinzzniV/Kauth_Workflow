@@ -38,32 +38,12 @@ SET
     sort_order = EXCLUDED.sort_order;
 
 -- =========================
--- Departments
--- =========================
--- Basis-Abteilungen fuer Rollen, Verantwortlichkeiten und lokale Entwicklungs-/Teststarts.
--- Der Directory-Sync kann diese Namen spaeter weiterhin angleichen und fortschreiben.
-WITH department_seed(name) AS (
-    VALUES
-        ('IT'),
-        ('AV'),
-        ('HR'),
-        ('Engineering'),
-        ('QS'),
-        ('QMB'),
-        ('Produktion'),
-        ('Vertrieb'),
-        ('Prototypenbau')
-)
-INSERT INTO departments (name)
-SELECT name
-FROM department_seed
-ON CONFLICT (name) DO NOTHING;
-
--- =========================
 -- App roles
 -- role_kind:
 --   position       -> employee target role for onboarding request
 --   system         -> authorization role for app access control
+-- Position roles are linked only when the corresponding department already
+-- exists, for example via Entra directory sync.
 -- =========================
 WITH role_seed(department_name, role_key, role_name, role_kind) AS (
     VALUES
@@ -107,6 +87,8 @@ SET
 --   process         -> prozessbezogene Verantwortung
 --   department_lead -> Fuehrungsverantwortung fuer eine Abteilung
 --   application     -> fachliche System-/Themenverantwortung
+-- Department links remain optional and are resolved only against existing
+-- Entra-backed departments.
 -- =========================
 WITH responsibility_seed(department_name, responsibility_key, system_key, responsibility_name, responsibility_type, description) AS (
     VALUES
@@ -157,6 +139,7 @@ WITH answer_seed(answer_key, title, category, description, icon_key, input_type,
         ('ln_user_requested', 'InforLN', 'Programme und Systeme', 'Soll ein InforLN-User für die neue Person angelegt werden?', 'inforln', 'boolean', FALSE, 8, TRUE),
         ('hardware_requested', 'Hardware benötigt?', 'Ausstattung', 'Wird für die neue Person überhaupt Hardware benötigt?', 'pc', 'boolean', TRUE, 9, TRUE),
         ('hardware_available', 'Hardware vorhanden?', 'Ausstattung', 'Ist für die neue Person bereits passende Hardware vorhanden?', 'pc', 'boolean', FALSE, 10, TRUE),
+        ('hardware_takeover_details', 'Zu übernehmende Hardware', 'Ausstattung', 'Welche vorhandene Hardware wird übernommen? Bitte z. B. Rechnernummer, Asset-ID oder kurzen Hinweis angeben.', 'pc', 'text', FALSE, 10, TRUE),
         ('phone_requested', 'Tragbares Telefon', 'Ausstattung', 'Wird für die neue Person ein tragbares Telefon benötigt?', 'phone', 'boolean', FALSE, 13, TRUE),
         ('hardware_type', 'Hardware', 'Ausstattung', 'Welche Hardware soll bereitgestellt werden?', 'pc', 'select', FALSE, 11, TRUE),
         ('laptop_vpn_type', 'Laptop', 'Ausstattung', 'Soll der Laptop mit VPN oder ohne VPN bereitgestellt werden?', 'vpn', 'select', FALSE, 12, TRUE),
@@ -283,6 +266,7 @@ WITH visibility_seed(answer_key, dependency_answer_key, dependency_kind, expecte
         ('comparison_user_name', 'ad_user_requested', 'boolean_true', NULL::text, FALSE, 1),
         ('comparison_user_name', 'comparison_user_available', 'boolean_true', NULL::text, FALSE, 2),
         ('hardware_available', 'hardware_requested', 'boolean_true', NULL::text, FALSE, 1),
+        ('hardware_takeover_details', 'hardware_available', 'boolean_true', NULL::text, FALSE, 1),
         ('hardware_type', 'hardware_requested', 'boolean_true', NULL::text, TRUE, 1),
         ('phone_requested', 'hardware_requested', 'boolean_true', NULL::text, TRUE, 1),
         ('internal_drive_access_roles', 'internal_drive_access_requested', 'boolean_true', NULL::text, FALSE, 1),
@@ -311,6 +295,7 @@ JOIN workflow_answer_definitions dependency_definition ON dependency_definition.
 WITH validation_seed(answer_key, validation_kind, message) AS (
     VALUES
         ('comparison_user_name', 'text_required', 'Bitte den Referenzuser angeben.'),
+        ('hardware_takeover_details', 'text_required', 'Bitte angeben, welche Hardware übernommen wird.'),
         ('internal_drive_access_roles', 'multi_select_required', 'Bitte mindestens eine Funktion für die Laufwerksrechte auswählen.'),
         ('laptop_vpn_type', 'single_select_required', 'Bitte auswählen, ob der Laptop mit VPN oder ohne VPN benötigt wird.')
 )
@@ -345,6 +330,7 @@ WITH reset_seed(
         ('hardware_requested', 'when_not_true', 'phone_requested', TRUE, FALSE, FALSE, FALSE, FALSE, 2),
         ('hardware_requested', 'when_not_true', 'hardware_type', FALSE, FALSE, FALSE, TRUE, TRUE, 3),
         ('hardware_requested', 'when_not_true', 'laptop_vpn_type', FALSE, FALSE, FALSE, TRUE, TRUE, 4),
+        ('hardware_available', 'when_not_true', 'hardware_takeover_details', FALSE, TRUE, FALSE, FALSE, FALSE, 1),
         ('internal_drive_access_requested', 'when_not_true', 'internal_drive_access_roles', FALSE, FALSE, FALSE, FALSE, TRUE, 1),
         ('hardware_type', 'single_select_mismatch', 'laptop_vpn_type', FALSE, FALSE, FALSE, TRUE, TRUE, 1)
 )

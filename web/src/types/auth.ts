@@ -256,6 +256,81 @@ export type AdminNotificationEmailTestResponse = {
   result: AdminNotificationEmailTestResult;
 };
 
+export type AdminNotificationTemplatePlaceholder = {
+  key: string;
+  label: string;
+  description: string;
+};
+
+export type AdminNotificationTemplate = {
+  templateKey: string;
+  displayName: string;
+  triggerDescription: string;
+  subjectTemplate: string;
+  bodyTemplate: string;
+  isSystemLocked: boolean;
+  updatedAt: string | null;
+  previewTargetType: "workflow" | "rotation_plan";
+  placeholders: AdminNotificationTemplatePlaceholder[];
+};
+
+export type AdminNotificationTemplateWorkflowPreviewTarget = {
+  workflowUid: string;
+  displayName: string;
+  processName: string;
+  departmentName: string;
+  workflowStatus: string;
+  createdAt: string;
+};
+
+export type AdminNotificationTemplateRotationPlanPreviewTarget = {
+  rotationPlanId: number;
+  title: string;
+  displayName: string;
+  departmentName: string | null;
+  status: string;
+  updatedAt: string;
+};
+
+export type AdminNotificationTemplatePreviewTarget = {
+  targetType: "workflow" | "rotation_plan";
+  workflowUid: string | null;
+  rotationPlanId: number | null;
+  primaryLabel: string;
+  secondaryLabel: string;
+  status: string;
+};
+
+export type AdminNotificationTemplatePreviewRecipient = {
+  recipientUserId: number | null;
+  name: string;
+  email: string;
+};
+
+export type AdminNotificationTemplatePlaceholderValue = {
+  key: string;
+  value: string;
+};
+
+export type AdminNotificationTemplatePreviewVariant = {
+  recipient: AdminNotificationTemplatePreviewRecipient;
+  renderedSubject: string;
+  renderedTextBody: string;
+  renderedHtmlBody: string;
+  placeholderValues: AdminNotificationTemplatePlaceholderValue[];
+};
+
+export type AdminNotificationTemplatePreviewResponse = {
+  templateKey: string;
+  displayName: string;
+  triggerDescription: string;
+  previewTargetType: "workflow" | "rotation_plan";
+  isCurrentlyTriggerable: boolean;
+  blockingReason: string | null;
+  target: AdminNotificationTemplatePreviewTarget;
+  variants: AdminNotificationTemplatePreviewVariant[];
+};
+
 export type AdminSystemLogEntry = {
   id: number;
   createdAt: string;

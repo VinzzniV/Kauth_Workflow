@@ -480,6 +480,102 @@ public sealed class AdminNotificationEmailTestResponse
     public required AdminNotificationEmailTestResultDto Result { get; init; }
 }
 
+public sealed class AdminNotificationTemplatePlaceholderDto
+{
+    public required string Key { get; init; }
+    public required string Label { get; init; }
+    public required string Description { get; init; }
+}
+
+public sealed class AdminNotificationTemplateDto
+{
+    public required string TemplateKey { get; init; }
+    public required string DisplayName { get; init; }
+    public required string TriggerDescription { get; init; }
+    public required string SubjectTemplate { get; init; }
+    public required string BodyTemplate { get; init; }
+    public required bool IsSystemLocked { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+    public required string PreviewTargetType { get; init; }
+    public required List<AdminNotificationTemplatePlaceholderDto> Placeholders { get; init; }
+}
+
+public sealed class AdminNotificationTemplateUpdateRequest
+{
+    public required string SubjectTemplate { get; init; }
+    public required string BodyTemplate { get; init; }
+}
+
+public sealed class AdminNotificationTemplateWorkflowPreviewTargetDto
+{
+    public required Guid WorkflowUid { get; init; }
+    public required string DisplayName { get; init; }
+    public required string ProcessName { get; init; }
+    public required string DepartmentName { get; init; }
+    public required string WorkflowStatus { get; init; }
+    public required DateTime CreatedAt { get; init; }
+}
+
+public sealed class AdminNotificationTemplateRotationPlanPreviewTargetDto
+{
+    public required long RotationPlanId { get; init; }
+    public required string Title { get; init; }
+    public required string DisplayName { get; init; }
+    public string? DepartmentName { get; init; }
+    public required string Status { get; init; }
+    public required DateTime UpdatedAt { get; init; }
+}
+
+public sealed class AdminNotificationTemplatePreviewRequest
+{
+    public Guid? WorkflowUid { get; init; }
+    public long? RotationPlanId { get; init; }
+}
+
+public sealed class AdminNotificationTemplatePreviewTargetDto
+{
+    public required string TargetType { get; init; }
+    public Guid? WorkflowUid { get; init; }
+    public long? RotationPlanId { get; init; }
+    public required string PrimaryLabel { get; init; }
+    public required string SecondaryLabel { get; init; }
+    public required string Status { get; init; }
+}
+
+public sealed class AdminNotificationTemplatePreviewRecipientDto
+{
+    public long? RecipientUserId { get; init; }
+    public required string Name { get; init; }
+    public required string Email { get; init; }
+}
+
+public sealed class AdminNotificationTemplatePlaceholderValueDto
+{
+    public required string Key { get; init; }
+    public required string Value { get; init; }
+}
+
+public sealed class AdminNotificationTemplatePreviewVariantDto
+{
+    public required AdminNotificationTemplatePreviewRecipientDto Recipient { get; init; }
+    public required string RenderedSubject { get; init; }
+    public required string RenderedTextBody { get; init; }
+    public required string RenderedHtmlBody { get; init; }
+    public required List<AdminNotificationTemplatePlaceholderValueDto> PlaceholderValues { get; init; }
+}
+
+public sealed class AdminNotificationTemplatePreviewResponseDto
+{
+    public required string TemplateKey { get; init; }
+    public required string DisplayName { get; init; }
+    public required string TriggerDescription { get; init; }
+    public required string PreviewTargetType { get; init; }
+    public required bool IsCurrentlyTriggerable { get; init; }
+    public string? BlockingReason { get; init; }
+    public required AdminNotificationTemplatePreviewTargetDto Target { get; init; }
+    public required List<AdminNotificationTemplatePreviewVariantDto> Variants { get; init; }
+}
+
 public sealed class AdminGraphApplicationConfigurationDto
 {
     public string? TenantId { get; init; }

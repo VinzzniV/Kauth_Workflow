@@ -97,7 +97,7 @@ export function AdminOverviewWorkspaceSection({
                     }
 
                     if (group.targetEntity) {
-                      onOpenOrganization(group.targetEntity, null);
+                      onOpenOrganization(group.targetEntity, group.targetId ?? null);
                     }
                   }}
                 >

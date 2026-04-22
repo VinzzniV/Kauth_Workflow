@@ -189,7 +189,7 @@ SELECT upsert_linearized_workflow_definition(
     'onboarding',
     'Onboarding',
     'Business-phase workflow definition mapped to the legacy onboarding task generator.',
-    'Business Phase Mapping',
+    'Onboarding Standard',
     'Published onboarding mapping with a provision measure block and internal task generation.',
     'onboarding',
     $json$
@@ -215,7 +215,7 @@ SELECT upsert_linearized_workflow_definition(
     'offboarding',
     'Offboarding',
     'Business-phase workflow definition mapped to the legacy offboarding task generator.',
-    'Business Phase Mapping',
+    'Offboarding Standard',
     'Published offboarding mapping with a deprovision measure block and internal task generation.',
     'offboarding',
     $json$
@@ -239,7 +239,7 @@ SELECT upsert_linearized_workflow_definition(
     'department_change',
     'Abteilungswechsel',
     'Business-phase workflow definition mapped to the legacy department change task generator.',
-    'Business Phase Mapping',
+    'Abteilungswechsel Standard',
     'Published department change mapping with a change measure block and internal task generation.',
     'department_change',
     $json$

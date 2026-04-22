@@ -148,9 +148,13 @@ internal static class TaskConditionEvaluator
                     ? $"Referenzuser: {comparisonUserName}."
                     : null),
             "hardware_procure" or "hardware_setup" or "hardware_handover" => AppendTaskContext(
-                description,
-                GetHardwareTypeText(answersByKey) is { Length: > 0 } hardwareType
-                    ? $"Gewünschte Hardware: {hardwareType}."
+                AppendTaskContext(
+                    description,
+                    GetHardwareTypeText(answersByKey) is { Length: > 0 } hardwareType
+                        ? $"Gewünschte Hardware: {hardwareType}."
+                        : null),
+                GetTextAnswer(answersByKey, RequirementKeys.HardwareTakeoverDetails) is { Length: > 0 } hardwareTakeover
+                    ? $"Übernahme: {hardwareTakeover}."
                     : null),
             _ => description
         };

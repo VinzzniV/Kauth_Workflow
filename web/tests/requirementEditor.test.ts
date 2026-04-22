@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyRequirementBooleanEditorSelection,
+  getRequirementEditorVisibleRequirements,
   applyRequirementSingleSelectEditorSelection,
 } from "../src/utils/requirementEditor";
 import { buildRequirementSelections } from "../src/utils/requirements";
@@ -56,6 +57,54 @@ describe("requirementEditor", () => {
 
     expect(nextSelections[1]?.valueBoolean).toBe(false);
     expect(nextSelections[2]?.valueText).toBe("");
+  });
+
+  it("treats untouched boolean editor selections as false for visibility checks", () => {
+    const requirements = [
+      createRequirementSnapshot({
+        id: 1,
+        workflowRequirementId: 1,
+        key: "hardware_available",
+        inputType: "boolean",
+        value: {
+          valueBoolean: null,
+          valueText: null,
+          valueNumber: null,
+          selectedOptionId: null,
+          selectedOptionKey: null,
+          selectedOptionValue: null,
+          selectedOptionLabel: null,
+          selectedOptions: [],
+        },
+      }),
+      createRequirementSnapshot({
+        id: 2,
+        workflowRequirementId: 2,
+        key: "hardware_takeover_details",
+        inputType: "text",
+        behavior: {
+          visibilityDependencies: [
+            {
+              dependencyKey: "hardware_available",
+              kind: "boolean_true",
+              expectedValue: null,
+              missingResult: false,
+            },
+          ],
+          validation: null,
+          resetTargetsWhenNotTrue: [],
+          singleSelectReset: null,
+        },
+      }),
+    ];
+
+    const visibleRequirements = getRequirementEditorVisibleRequirements(
+      requirements,
+      buildRequirementSelections(requirements)
+    );
+
+    expect(visibleRequirements).toHaveLength(1);
+    expect(visibleRequirements[0]?.key).toBe("hardware_available");
   });
 
   it("applies single-select editor resets when the selected option is not in the keep list", () => {

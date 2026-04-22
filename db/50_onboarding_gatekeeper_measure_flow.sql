@@ -5,7 +5,7 @@ SELECT upsert_linearized_workflow_definition(
     'onboarding',
     'Onboarding',
     'Business-phase workflow definition mapped to the legacy onboarding task generator.',
-    'Business Phase Mapping',
+    'Onboarding Standard',
     'Published onboarding mapping with a provision measure block and internal task generation.',
     'onboarding',
     $json$

@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import RequirementsSelection from "../src/components/workflows/RequirementsSelection";
 import { buildRequirementSelections } from "../src/utils/requirements";
 import { createRequirementSnapshot } from "./testUtils";
@@ -77,5 +77,90 @@ describe("RequirementsSelection", () => {
     );
 
     expect(screen.getByText("Hardwaredetails")).toBeTruthy();
+  });
+
+  it("renders boolean requirements as toggle cards and reveals dependent text fields", () => {
+    const onToggleBoolean = vi.fn();
+    const requirements = [
+      createRequirementSnapshot({
+        id: 1,
+        workflowRequirementId: 1,
+        key: "hardware_available",
+        title: "Hardware vorhanden?",
+        description: "Ist passende Hardware bereits vorhanden?",
+        inputType: "boolean",
+        category: "ausstattung",
+        value: {
+          valueBoolean: false,
+          valueText: null,
+          valueNumber: null,
+          selectedOptionId: null,
+          selectedOptionKey: null,
+          selectedOptionValue: null,
+          selectedOptionLabel: null,
+          selectedOptions: [],
+        },
+      }),
+      createRequirementSnapshot({
+        id: 2,
+        workflowRequirementId: 2,
+        key: "hardware_takeover_details",
+        title: "Zu übernehmende Hardware",
+        inputType: "text",
+        category: "ausstattung",
+        isVisible: false,
+        behavior: {
+          visibilityDependencies: [
+            {
+              dependencyKey: "hardware_available",
+              kind: "boolean_true",
+              expectedValue: null,
+              missingResult: false,
+            },
+          ],
+          validation: null,
+          resetTargetsWhenNotTrue: [],
+          singleSelectReset: null,
+        },
+      }),
+    ];
+
+    const initialSelections = buildRequirementSelections(requirements);
+    const { rerender } = render(
+      <RequirementsSelection
+        requirements={requirements}
+        mode="edit"
+        selections={initialSelections}
+        onToggleBoolean={onToggleBoolean}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    const toggleCard = screen.getByRole("button", { name: /Hardware vorhanden/i });
+    expect(toggleCard.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.queryByText("Zu übernehmende Hardware")).toBeNull();
+
+    fireEvent.click(toggleCard);
+    expect(onToggleBoolean).toHaveBeenCalledWith(1, true);
+
+    rerender(
+      <RequirementsSelection
+        requirements={requirements}
+        mode="edit"
+        selections={{
+          ...initialSelections,
+          1: {
+            ...initialSelections[1],
+            valueBoolean: true,
+          },
+        }}
+        onToggleBoolean={onToggleBoolean}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    expect(screen.getByText("Zu übernehmende Hardware")).toBeTruthy();
   });
 });

@@ -3,9 +3,9 @@ import type {
   RequirementSelectionState,
 } from "../types/workflow";
 import {
-  createEmptyRequirementSelection,
+  createRequirementEditorSelection,
+  getRequirementEditorSelection,
   getRequirementSelectedOptionValue,
-  getRequirementSelection,
   type RequirementEntry,
 } from "./requirements";
 
@@ -14,15 +14,16 @@ function findRequirementByKey(requirements: RequirementEntry[], key: string): Re
 }
 
 function applyResetTarget(
+  requirement: RequirementEntry,
   currentSelection: RequirementSelectionState | undefined,
   target: RequirementResetTarget
 ): RequirementSelectionState {
   const nextSelection = {
-    ...(currentSelection ?? createEmptyRequirementSelection()),
+    ...(currentSelection ?? createRequirementEditorSelection(requirement)),
   };
 
   if (target.clearBoolean) {
-    nextSelection.valueBoolean = null;
+    nextSelection.valueBoolean = false;
   }
 
   if (target.clearText) {
@@ -57,7 +58,11 @@ function applyConfiguredResets(
       continue;
     }
 
-    nextSelections[targetRequirement.id] = applyResetTarget(nextSelections[targetRequirement.id], target);
+    nextSelections[targetRequirement.id] = applyResetTarget(
+      targetRequirement,
+      nextSelections[targetRequirement.id],
+      target
+    );
   }
 
   return nextSelections;
@@ -97,7 +102,7 @@ function isRequirementVisibleInEditor(
       return dependency.missingResult;
     }
 
-    const dependencySelection = getRequirementSelection(dependencyRequirement, selections);
+    const dependencySelection = getRequirementEditorSelection(dependencyRequirement, selections);
     if (!hasMeaningfulSelection(dependencyRequirement, dependencySelection)) {
       return dependency.missingResult;
     }
@@ -124,17 +129,23 @@ export function applyRequirementBooleanEditorSelection(
   requirementId: number,
   value: boolean | null
 ): Record<number, RequirementSelectionState> {
+  const changedRequirement = requirements.find((requirement) => requirement.id === requirementId);
   const nextSelections = {
     ...currentSelections,
     [requirementId]: {
-      ...(currentSelections[requirementId] ?? createEmptyRequirementSelection()),
+      ...(currentSelections[requirementId] ?? createRequirementEditorSelection(changedRequirement)),
       valueBoolean: value,
     },
   };
 
-  const changedRequirement = requirements.find((requirement) => requirement.id === requirementId);
   if (!changedRequirement) {
-    return nextSelections;
+    return {
+      ...currentSelections,
+      [requirementId]: {
+        ...(currentSelections[requirementId] ?? createRequirementEditorSelection()),
+        valueBoolean: value,
+      },
+    };
   }
 
   if (value === true || changedRequirement.behavior.resetTargetsWhenNotTrue.length === 0) {
@@ -153,7 +164,7 @@ export function applyRequirementSingleSelectEditorSelection(
   const nextSelections = {
     ...currentSelections,
     [requirementId]: {
-      ...(currentSelections[requirementId] ?? createEmptyRequirementSelection()),
+      ...(currentSelections[requirementId] ?? createRequirementEditorSelection()),
       selectedOptionId: optionId,
     },
   };

@@ -30,12 +30,24 @@ export function createEmptyRequirementSelection(): RequirementSelectionState {
   };
 }
 
+export function createRequirementEditorSelection(
+  requirement?: RequirementLike
+): RequirementSelectionState {
+  return {
+    ...createEmptyRequirementSelection(),
+    valueBoolean: requirement?.inputType === "boolean" ? false : null,
+  };
+}
+
 export function buildRequirementSelections(
   requirements: WorkflowRequirementSnapshot[]
 ): Record<number, RequirementSelectionState> {
   return requirements.reduce<Record<number, RequirementSelectionState>>((acc, requirement) => {
     acc[requirement.id] = {
-      valueBoolean: requirement.value.valueBoolean,
+      valueBoolean:
+        requirement.inputType === "boolean"
+          ? requirement.value.valueBoolean ?? false
+          : requirement.value.valueBoolean,
       valueText: requirement.value.valueText ?? "",
       valueNumber: requirement.value.valueNumber,
       selectedOptionId: requirement.value.selectedOptionId,
@@ -70,6 +82,22 @@ export function hasRequirementSelectionChanges(
       selection.selectedOptionIds.some((optionId, index) => optionId !== selectedOptionIds[index])
     );
   });
+}
+
+export function getRequirementEditorSelection(
+  requirement: RequirementLike,
+  selections?: Record<number, RequirementSelectionState>
+): RequirementSelectionState {
+  const selection = getRequirementSelection(requirement, selections);
+
+  if (requirement.inputType !== "boolean") {
+    return selection;
+  }
+
+  return {
+    ...selection,
+    valueBoolean: selection.valueBoolean ?? false,
+  };
 }
 
 export function getRequirementSelection(
@@ -118,7 +146,10 @@ export function toRequirementSelectionPayload(
   selections: Record<number, RequirementSelectionState>
 ): RequirementSelectionPayload[] {
   return requirements.map((requirement) => {
-    const selection = selections[requirement.id] ?? createEmptyRequirementSelection();
+    const selection =
+      requirement.inputType === "boolean"
+        ? getRequirementEditorSelection(requirement, selections)
+        : selections[requirement.id] ?? createRequirementEditorSelection(requirement);
 
     if (requirement.inputType === "boolean") {
       return {

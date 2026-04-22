@@ -42,6 +42,56 @@ internal sealed partial class PostgresWorkflowRepository
         public required long GeneratedTaskId { get; init; }
     }
 
+    public async Task<List<RotationNotificationDispatchTarget>> GetRotationNotificationPreviewTargets(
+        long rotationPlanId,
+        string notificationType,
+        DateOnly asOfDate)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        var candidateRows = notificationType.Trim().ToLowerInvariant() switch
+        {
+            NotificationTemplateKeys.UpcomingChange => await LoadUpcomingChangeNotificationCandidateRows(connection, transaction, asOfDate),
+            NotificationTemplateKeys.Reminder => await LoadReminderNotificationCandidateRows(connection, transaction, asOfDate),
+            NotificationTemplateKeys.Overdue => await LoadOverdueNotificationCandidateRows(connection, transaction, asOfDate),
+            _ => throw new InvalidOperationException($"Unsupported rotation notification type '{notificationType}'.")
+        };
+
+        var candidates = await BuildRotationNotificationCandidates(
+            connection,
+            transaction,
+            candidateRows.Where(row => row.RotationPlanId == rotationPlanId).ToList(),
+            asOfDate);
+
+        var previewTargets = new List<RotationNotificationDispatchTarget>();
+        foreach (var candidate in candidates)
+        {
+            if (await RotationNotificationExists(connection, transaction, candidate))
+            {
+                continue;
+            }
+
+            previewTargets.Add(new RotationNotificationDispatchTarget
+            {
+                NotificationId = 0,
+                NotificationType = candidate.NotificationType,
+                RotationPlanId = candidate.RotationPlanId,
+                RotationStationId = candidate.RotationStationId,
+                GeneratedTaskId = candidate.GeneratedTaskId,
+                RecipientUserId = candidate.RecipientUserId,
+                TargetName = candidate.RecipientName,
+                TargetEmail = candidate.RecipientEmail,
+                Subject = candidate.Subject,
+                Payload = candidate.Payload
+            });
+        }
+
+        await transaction.CommitAsync();
+        return previewTargets;
+    }
+
     public async Task<int> CreateDueRotationNotifications(DateOnly asOfDate)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());

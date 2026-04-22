@@ -39,6 +39,11 @@ function getIntroBadges(meta: AdminWorkspaceSectionMeta): Array<{ label: string;
         { label: "Live", tone: "warning" },
         { label: "Monitoring", tone: "default" },
       ];
+    case "system_mail_templates":
+      return [
+        { label: "Live", tone: "warning" },
+        { label: "Preview", tone: "info" },
+      ];
     case "system_configuration":
       return [
         { label: "Live", tone: "warning" },

@@ -9,15 +9,18 @@ namespace API;
 internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotificationSender, INotificationEmailTestSender
 {
     private readonly INotificationEmailConfigurationService configurationService;
+    private readonly INotificationTemplateService notificationTemplateService;
     private readonly ISystemEventLogService systemEventLogService;
     private readonly ILogger<GraphWorkflowEmailNotificationSender> logger;
 
     public GraphWorkflowEmailNotificationSender(
         INotificationEmailConfigurationService configurationService,
+        INotificationTemplateService notificationTemplateService,
         ISystemEventLogService systemEventLogService,
         ILogger<GraphWorkflowEmailNotificationSender> logger)
     {
         this.configurationService = configurationService;
+        this.notificationTemplateService = notificationTemplateService;
         this.systemEventLogService = systemEventLogService;
         this.logger = logger;
     }
@@ -70,31 +73,33 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
 
         foreach (var batch in GroupTargetsForDispatch(enabledTargets))
         {
+            var isSandbox = !string.IsNullOrWhiteSpace(configuration.SandboxRedirectEmail);
+            var effectiveRecipientEmail = isSandbox
+                ? configuration.SandboxRedirectEmail!
+                : batch.PrimaryTarget.TargetEmail;
+            var effectiveRecipientName = isSandbox
+                ? $"[SANDBOX] {batch.PrimaryTarget.TargetName}"
+                : batch.PrimaryTarget.TargetName;
+            var subjectPrefix = isSandbox ? $"[TEST -> {batch.PrimaryTarget.TargetEmail}] " : string.Empty;
+
             try
             {
-                var isSandbox = !string.IsNullOrWhiteSpace(configuration.SandboxRedirectEmail);
                 var workflowUrl = BuildWorkflowAccessUrl(
                     configuration.FrontendBaseUrl,
                     workflowUid,
                     batch);
-                var effectiveRecipientEmail = isSandbox
-                    ? configuration.SandboxRedirectEmail!
-                    : batch.PrimaryTarget.TargetEmail;
-                var effectiveRecipientName = isSandbox
-                    ? $"[SANDBOX] {batch.PrimaryTarget.TargetName}"
-                    : batch.PrimaryTarget.TargetName;
-                var subjectPrefix = isSandbox ? $"[TEST -> {batch.PrimaryTarget.TargetEmail}] " : string.Empty;
                 await client
                     .Users[configuration.SenderEmail!]
                     .SendMail
                     .PostAsync(
-                        BuildNotificationMail(
+                        await BuildNotificationMail(
                             batch,
                             workflowUrl,
                             configuration.SaveToSentItems,
                             effectiveRecipientEmail,
                             effectiveRecipientName,
-                            subjectPrefix),
+                            subjectPrefix,
+                            cancellationToken),
                         cancellationToken: cancellationToken);
 
                 results.AddRange(batch.Targets.Select(target => new NotificationDispatchResult
@@ -111,13 +116,17 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     Severity = "info",
                     Source = "mail",
                     Category = "dispatch",
-                    EventKey = "workflow_notifications_sent",
-                    Message = $"Workflow notifications sent to {batch.PrimaryTarget.TargetEmail}.",
+                    EventKey = isSandbox ? "workflow_notifications_redirected" : "workflow_notifications_sent",
+                    Message = isSandbox
+                        ? $"Workflow notifications redirected from {batch.PrimaryTarget.TargetEmail} to {effectiveRecipientEmail}."
+                        : $"Workflow notifications sent to {batch.PrimaryTarget.TargetEmail}.",
                     WorkflowUid = workflowUid,
                     Details = new
                     {
                         notificationType = batch.NotificationType,
-                        recipient = batch.PrimaryTarget.TargetEmail,
+                        recipient = effectiveRecipientEmail,
+                        originalRecipient = batch.PrimaryTarget.TargetEmail,
+                        redirected = isSandbox,
                         targetCount = batch.Targets.Count,
                         notificationIds = batch.Targets.Select(target => target.NotificationId).ToArray()
                     }
@@ -145,13 +154,17 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     Severity = "error",
                     Source = "mail",
                     Category = "dispatch",
-                    EventKey = "workflow_notifications_failed",
-                    Message = $"Workflow notification dispatch failed for {batch.PrimaryTarget.TargetEmail}: {ex.Message}",
+                    EventKey = isSandbox ? "workflow_notifications_redirect_failed" : "workflow_notifications_failed",
+                    Message = isSandbox
+                        ? $"Workflow notification redirect failed for {batch.PrimaryTarget.TargetEmail} via {effectiveRecipientEmail}: {ex.Message}"
+                        : $"Workflow notification dispatch failed for {batch.PrimaryTarget.TargetEmail}: {ex.Message}",
                     WorkflowUid = workflowUid,
                     Details = new
                     {
                         notificationType = batch.NotificationType,
-                        recipient = batch.PrimaryTarget.TargetEmail,
+                        recipient = effectiveRecipientEmail,
+                        originalRecipient = batch.PrimaryTarget.TargetEmail,
+                        redirected = isSandbox,
                         targetCount = batch.Targets.Count,
                         notificationIds = batch.Targets.Select(target => target.NotificationId).ToArray(),
                         error = ex.Message
@@ -210,28 +223,30 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
 
         foreach (var target in enabledTargets)
         {
+            var isSandbox = !string.IsNullOrWhiteSpace(configuration.SandboxRedirectEmail);
+            var effectiveRecipientEmail = isSandbox
+                ? configuration.SandboxRedirectEmail!
+                : target.TargetEmail;
+            var effectiveRecipientName = isSandbox
+                ? $"[SANDBOX] {target.TargetName}"
+                : target.TargetName;
+            var subjectPrefix = isSandbox ? $"[TEST -> {target.TargetEmail}] " : string.Empty;
+
             try
             {
-                var isSandbox = !string.IsNullOrWhiteSpace(configuration.SandboxRedirectEmail);
-                var effectiveRecipientEmail = isSandbox
-                    ? configuration.SandboxRedirectEmail!
-                    : target.TargetEmail;
-                var effectiveRecipientName = isSandbox
-                    ? $"[SANDBOX] {target.TargetName}"
-                    : target.TargetName;
-                var subjectPrefix = isSandbox ? $"[TEST -> {target.TargetEmail}] " : string.Empty;
                 var appUrl = BuildRotationAccessUrl(configuration.FrontendBaseUrl, target.Payload.LinkPath);
                 await client
                     .Users[configuration.SenderEmail!]
                     .SendMail
                     .PostAsync(
-                        BuildRotationNotificationMail(
+                        await BuildRotationNotificationMail(
                             target,
                             appUrl,
                             configuration.SaveToSentItems,
                             effectiveRecipientEmail,
                             effectiveRecipientName,
-                            subjectPrefix),
+                            subjectPrefix,
+                            cancellationToken),
                         cancellationToken: cancellationToken);
 
                 results.Add(new NotificationDispatchResult
@@ -247,15 +262,19 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     Severity = "info",
                     Source = "mail",
                     Category = "dispatch",
-                    EventKey = "rotation_notification_sent",
-                    Message = $"Rotation notification sent to {target.TargetEmail}.",
+                    EventKey = isSandbox ? "rotation_notification_redirected" : "rotation_notification_sent",
+                    Message = isSandbox
+                        ? $"Rotation notification redirected from {target.TargetEmail} to {effectiveRecipientEmail}."
+                        : $"Rotation notification sent to {target.TargetEmail}.",
                     RotationPlanId = target.RotationPlanId,
                     TaskRef = target.Payload.LinkPath,
                     Details = new
                     {
                         notificationId = target.NotificationId,
                         notificationType = target.NotificationType,
-                        recipient = target.TargetEmail
+                        recipient = effectiveRecipientEmail,
+                        originalRecipient = target.TargetEmail,
+                        redirected = isSandbox
                     }
                 }, cancellationToken);
             }
@@ -281,14 +300,18 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                     Severity = "error",
                     Source = "mail",
                     Category = "dispatch",
-                    EventKey = "rotation_notification_failed",
-                    Message = $"Rotation notification dispatch failed for {target.TargetEmail}: {ex.Message}",
+                    EventKey = isSandbox ? "rotation_notification_redirect_failed" : "rotation_notification_failed",
+                    Message = isSandbox
+                        ? $"Rotation notification redirect failed for {target.TargetEmail} via {effectiveRecipientEmail}: {ex.Message}"
+                        : $"Rotation notification dispatch failed for {target.TargetEmail}: {ex.Message}",
                     RotationPlanId = target.RotationPlanId,
                     Details = new
                     {
                         notificationId = target.NotificationId,
                         notificationType = target.NotificationType,
-                        recipient = target.TargetEmail,
+                        recipient = effectiveRecipientEmail,
+                        originalRecipient = target.TargetEmail,
+                        redirected = isSandbox,
                         error = ex.Message
                     }
                 }, cancellationToken);
@@ -457,33 +480,26 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
             .ToList();
     }
 
-    private SendMailPostRequestBody BuildNotificationMail(
+    private async Task<SendMailPostRequestBody> BuildNotificationMail(
         NotificationDispatchBatch batch,
         string workflowUrl,
         bool saveToSentItems,
         string recipientEmail,
         string recipientName,
-        string subjectPrefix)
+        string subjectPrefix,
+        CancellationToken cancellationToken)
     {
-        var template = batch.NotificationType switch
-        {
-            "task_ready" => NotificationEmailTemplateBuilder.BuildTaskReady(
-                recipientName,
-                workflowUrl,
-                batch.TaskTitles,
-                batch.PrimaryTarget.ProcessTypeKey,
-                batch.PrimaryTarget.ProcessTypeName),
-            "workflow_completed" => NotificationEmailTemplateBuilder.BuildWorkflowCompleted(
-                recipientName,
-                workflowUrl,
-                batch.PrimaryTarget.ProcessTypeKey,
-                batch.PrimaryTarget.ProcessTypeName),
-            _ => NotificationEmailTemplateBuilder.BuildWorkflowCreated(
-                recipientName,
-                workflowUrl,
-                batch.PrimaryTarget.ProcessTypeKey,
-                batch.PrimaryTarget.ProcessTypeName)
-        };
+        var template = await notificationTemplateService.RenderWorkflowNotification(
+            new WorkflowNotificationRenderContext
+            {
+                TemplateKey = batch.NotificationType,
+                RecipientName = recipientName,
+                WorkflowUrl = workflowUrl,
+                ProcessTypeKey = batch.PrimaryTarget.ProcessTypeKey,
+                ProcessTypeName = batch.PrimaryTarget.ProcessTypeName,
+                TaskTitles = batch.TaskTitles
+            },
+            cancellationToken);
 
         return new SendMailPostRequestBody
         {
@@ -510,20 +526,24 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
         };
     }
 
-    private SendMailPostRequestBody BuildRotationNotificationMail(
+    private async Task<SendMailPostRequestBody> BuildRotationNotificationMail(
         RotationNotificationDispatchTarget target,
         string appUrl,
         bool saveToSentItems,
         string recipientEmail,
         string recipientName,
-        string subjectPrefix)
+        string subjectPrefix,
+        CancellationToken cancellationToken)
     {
-        var template = target.NotificationType switch
-        {
-            "overdue" => NotificationEmailTemplateBuilder.BuildRotationOverdue(recipientName, appUrl, target.Payload),
-            "reminder" => NotificationEmailTemplateBuilder.BuildRotationReminder(recipientName, appUrl, target.Payload),
-            _ => NotificationEmailTemplateBuilder.BuildRotationUpcomingChange(recipientName, appUrl, target.Payload)
-        };
+        var template = await notificationTemplateService.RenderRotationNotification(
+            new RotationNotificationRenderContext
+            {
+                TemplateKey = target.NotificationType,
+                RecipientName = recipientName,
+                AppUrl = appUrl,
+                Payload = target.Payload
+            },
+            cancellationToken);
 
         return new SendMailPostRequestBody
         {

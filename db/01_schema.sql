@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS workflow_notifications CASCADE;
 DROP TABLE IF EXISTS workflow_task_comments CASCADE;
 DROP TABLE IF EXISTS workflow_audit_log CASCADE;
 DROP TABLE IF EXISTS system_event_log CASCADE;
+DROP TABLE IF EXISTS notification_templates CASCADE;
 DROP TABLE IF EXISTS notification_email_settings CASCADE;
 DROP TABLE IF EXISTS graph_application_settings CASCADE;
 DROP TABLE IF EXISTS task_assignments CASCADE;
@@ -551,6 +552,17 @@ CREATE TABLE rotation_plans (
     status VARCHAR(32) NOT NULL DEFAULT 'draft'
         CHECK (status IN ('draft', 'active', 'completed', 'archived')),
     created_by_user_id BIGINT REFERENCES app_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE notification_templates (
+    template_key VARCHAR(64) PRIMARY KEY,
+    display_name VARCHAR(160) NOT NULL,
+    trigger_description TEXT NOT NULL,
+    subject_template TEXT NOT NULL,
+    body_template TEXT NOT NULL,
+    is_system_locked BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

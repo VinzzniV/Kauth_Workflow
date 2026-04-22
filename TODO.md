@@ -50,6 +50,9 @@ Wichtig:
 ## Umsetzungssteuerung
 
 Alles was an Mails versendet wird soll zentral über Administration -> System -> Konfigration gepflegt werden können. das man die Texte sieht die die leute bekommen und man die bei bedarf ändern kann. In den Logs soll man auch sehen können wann welche Mail versendet wurde und was der Inhalt war
+
+Offene Nacharbeit:
+- Prüfen, warum manche Personen in der Fachabteilung entweder Aufgaben anderer Personen sehen bzw. bekommen oder gar keine Aufgaben erhalten.
 ---
 
 ## Abschlussregel für jede KI-Aufgabe

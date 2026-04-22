@@ -110,6 +110,25 @@ public sealed class TaskConditionEvaluatorTests
         Assert.Equal("Gerät vorbereiten Gewünschte Hardware: Laptop (Cisco Anyconnect).", result);
     }
 
+    [Fact]
+    public void BuildTaskDescription_AppendsHardwareTakeoverDetails()
+    {
+        var template = CreateTemplate(1, "hardware_handover", description: "Gerät bereitstellen");
+        var answers = new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase)
+        {
+            [RequirementKeys.HardwareType] = CreateAnswer(RequirementKeys.HardwareType, selectedOptionValue: "laptop"),
+            [RequirementKeys.HardwareTakeoverDetails] = CreateAnswer(
+                RequirementKeys.HardwareTakeoverDetails,
+                valueText: "Rechnernummer IT-204")
+        };
+
+        var result = TaskConditionEvaluator.BuildTaskDescription(template, answers);
+
+        Assert.Equal(
+            "Gerät bereitstellen Gewünschte Hardware: Laptop. Übernahme: Rechnernummer IT-204.",
+            result);
+    }
+
     private static StoredWorkflowAnswerRecord CreateAnswer(
         string key,
         bool? valueBoolean = null,

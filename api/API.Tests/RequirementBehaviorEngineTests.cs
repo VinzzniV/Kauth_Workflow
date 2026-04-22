@@ -31,24 +31,27 @@ public sealed class RequirementBehaviorEngineTests
         var definitions = ToDefinitions(
             CreateDefinition(1, RequirementKeys.HardwareRequested, "boolean"),
             CreateDefinition(2, RequirementKeys.HardwareAvailable, "boolean"),
-            CreateDefinition(3, RequirementKeys.HardwareType, "select", ("laptop", "Laptop"), ("workstation", "Workstation")),
-            CreateDefinition(4, RequirementKeys.LaptopVpnType, "select", ("with_vpn", "Mit VPN"), ("without_vpn", "Ohne VPN")));
+            CreateDefinition(3, RequirementKeys.HardwareTakeoverDetails, "text"),
+            CreateDefinition(4, RequirementKeys.HardwareType, "select", ("laptop", "Laptop"), ("workstation", "Workstation")),
+            CreateDefinition(5, RequirementKeys.LaptopVpnType, "select", ("with_vpn", "Mit VPN"), ("without_vpn", "Ohne VPN")));
 
         var selections = new Dictionary<int, RequirementSelectionStateRecord>
         {
             [1] = CreateSelectionState(valueBoolean: false),
             [2] = CreateSelectionState(valueBoolean: true),
-            [3] = CreateSelectionState(selectedOptionId: 1, selectedOptionIds: new List<int> { 1 }),
-            [4] = CreateSelectionState(selectedOptionId: 1, selectedOptionIds: new List<int> { 1 })
+            [3] = CreateSelectionState(valueText: "Asset IT-204"),
+            [4] = CreateSelectionState(selectedOptionId: 1, selectedOptionIds: new List<int> { 1 }),
+            [5] = CreateSelectionState(selectedOptionId: 1, selectedOptionIds: new List<int> { 1 })
         };
 
         RequirementBehaviorEngine.ApplyResetRules(definitions, selections);
 
         Assert.Null(selections[2].ValueBoolean);
-        Assert.Null(selections[3].SelectedOptionId);
-        Assert.Empty(selections[3].SelectedOptionIds);
+        Assert.Null(selections[3].ValueText);
         Assert.Null(selections[4].SelectedOptionId);
         Assert.Empty(selections[4].SelectedOptionIds);
+        Assert.Null(selections[5].SelectedOptionId);
+        Assert.Empty(selections[5].SelectedOptionIds);
     }
 
     [Fact]
@@ -123,6 +126,24 @@ public sealed class RequirementBehaviorEngineTests
         var driveException = Assert.Throws<InvalidOperationException>(() =>
             RequirementBehaviorEngine.ValidateSelections(driveDefinitions, driveAnswers));
         Assert.Equal("Bitte mindestens eine Funktion für die Laufwerksrechte auswählen.", driveException.Message);
+    }
+
+    [Fact]
+    public void ValidateSelections_RequiresHardwareTakeoverDetailsWhenHardwareIsAvailable()
+    {
+        var definitions = ToDefinitions(
+            CreateDefinition(1, RequirementKeys.HardwareRequested, "boolean"),
+            CreateDefinition(2, RequirementKeys.HardwareAvailable, "boolean"),
+            CreateDefinition(3, RequirementKeys.HardwareTakeoverDetails, "text"));
+
+        var answers = ToAnswers(
+            CreateAnswer(1, RequirementKeys.HardwareRequested, "boolean", valueBoolean: true),
+            CreateAnswer(2, RequirementKeys.HardwareAvailable, "boolean", valueBoolean: true),
+            CreateAnswer(3, RequirementKeys.HardwareTakeoverDetails, "text", valueText: null));
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            RequirementBehaviorEngine.ValidateSelections(definitions, answers));
+        Assert.Equal("Bitte angeben, welche Hardware übernommen wird.", exception.Message);
     }
 
     [Fact]
@@ -243,6 +264,19 @@ public sealed class RequirementBehaviorEngineTests
                     CreateBooleanTrueDependency(RequirementKeys.HardwareRequested, missingResult: false)
                 },
                 Validation = null,
+                ResetTargetsWhenNotTrue = new List<RequirementResetTargetDto>
+                {
+                    CreateResetTarget(RequirementKeys.HardwareTakeoverDetails, clearText: true)
+                },
+                SingleSelectReset = null
+            },
+            RequirementKeys.HardwareTakeoverDetails => new RequirementBehaviorDto
+            {
+                VisibilityDependencies = new List<RequirementVisibilityDependencyDto>
+                {
+                    CreateBooleanTrueDependency(RequirementKeys.HardwareAvailable, missingResult: false)
+                },
+                Validation = CreateValidation("text_required", "Bitte angeben, welche Hardware übernommen wird."),
                 ResetTargetsWhenNotTrue = new List<RequirementResetTargetDto>(),
                 SingleSelectReset = null
             },

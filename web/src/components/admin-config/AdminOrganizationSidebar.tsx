@@ -1,35 +1,25 @@
 import { useMemo, useState } from "react";
 import type {
   AdminDepartmentAssignment,
-  AdminResponsibilityOwner,
   AdminUser,
 } from "../../types/auth";
 import {
   filterOrganizationDepartments,
-  filterOrganizationResponsibilities,
   filterOrganizationUsers,
   type AdminOrganizationEntity,
 } from "./adminWorkspaceModel";
-import {
-  responsibilityAreaLabel,
-  responsibilityTypeLabel,
-} from "./adminConfigHelpers";
 import { ADMIN_ORGANIZATION_ENTITY_LABELS } from "./adminOrganizationTypes";
 import SectionHeader from "../ui/SectionHeader";
 import SelectionListItem from "../ui/SelectionListItem";
 
 type UserActivityFilter = "all" | "active" | "inactive";
 type ValidityFilter = "all" | "valid" | "invalid";
-type ResponsibilityTypeFilter = "all" | "process" | "application";
-type ResponsibilityPresenceFilter = "all" | "with_person" | "without_person";
-type ResponsibilityDepartmentFilter = "all" | "with_department" | "without_department";
 
 type AdminOrganizationSidebarProps = {
   organizationEntity: AdminOrganizationEntity;
   selectedEntityId: number | null;
   sortedUsers: AdminUser[];
   sortedDepartments: AdminDepartmentAssignment[];
-  sortedResponsibilities: AdminResponsibilityOwner[];
   eligibleSupervisorUsers: AdminUser[];
   eligibleRequirementOwnerUsers: AdminUser[];
   onSelectOrganizationEntity: (entity: AdminOrganizationEntity, id?: number | null) => void;
@@ -41,7 +31,6 @@ export function AdminOrganizationSidebar({
   selectedEntityId,
   sortedUsers,
   sortedDepartments,
-  sortedResponsibilities,
   eligibleSupervisorUsers,
   eligibleRequirementOwnerUsers,
   onSelectOrganizationEntity,
@@ -53,12 +42,6 @@ export function AdminOrganizationSidebar({
   const [showTechnicalUsers, setShowTechnicalUsers] = useState<boolean>(false);
   const [departmentLeadFilter, setDepartmentLeadFilter] = useState<ValidityFilter>("all");
   const [departmentOwnerFilter, setDepartmentOwnerFilter] = useState<ValidityFilter>("all");
-  const [responsibilityTypeFilter, setResponsibilityTypeFilter] =
-    useState<ResponsibilityTypeFilter>("all");
-  const [responsibilityPersonFilter, setResponsibilityPersonFilter] =
-    useState<ResponsibilityPresenceFilter>("all");
-  const [responsibilityDepartmentFilter, setResponsibilityDepartmentFilter] =
-    useState<ResponsibilityDepartmentFilter>("all");
 
   const filteredUsers = useMemo(
     () =>
@@ -88,23 +71,6 @@ export function AdminOrganizationSidebar({
       eligibleSupervisorUsers,
       organizationSearch,
       sortedDepartments,
-    ]
-  );
-  const filteredResponsibilities = useMemo(
-    () =>
-      filterOrganizationResponsibilities({
-        responsibilities: sortedResponsibilities,
-        search: organizationSearch,
-        typeFilter: responsibilityTypeFilter,
-        personFilter: responsibilityPersonFilter,
-        departmentFilter: responsibilityDepartmentFilter,
-      }),
-    [
-      organizationSearch,
-      responsibilityDepartmentFilter,
-      responsibilityPersonFilter,
-      responsibilityTypeFilter,
-      sortedResponsibilities,
     ]
   );
 
@@ -203,61 +169,7 @@ export function AdminOrganizationSidebar({
       );
     }
 
-    return (
-      <>
-        <label className="field">
-          <span>Suche</span>
-          <input
-            type="search"
-            value={organizationSearch}
-            onChange={(event) => setOrganizationSearch(event.target.value)}
-            placeholder="Name, Bereich oder System-Key"
-          />
-        </label>
-
-        <label className="field">
-          <span>Typ</span>
-          <select
-            value={responsibilityTypeFilter}
-            onChange={(event) =>
-              setResponsibilityTypeFilter(event.target.value as ResponsibilityTypeFilter)
-            }
-          >
-            <option value="all">Alle</option>
-            <option value="process">Nur Prozess</option>
-            <option value="application">Nur System</option>
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Feste Person</span>
-          <select
-            value={responsibilityPersonFilter}
-            onChange={(event) =>
-              setResponsibilityPersonFilter(event.target.value as ResponsibilityPresenceFilter)
-            }
-          >
-            <option value="all">Alle</option>
-            <option value="with_person">Mit fester Person</option>
-            <option value="without_person">Ohne feste Person</option>
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Bereich</span>
-          <select
-            value={responsibilityDepartmentFilter}
-            onChange={(event) =>
-              setResponsibilityDepartmentFilter(event.target.value as ResponsibilityDepartmentFilter)
-            }
-          >
-            <option value="all">Alle</option>
-            <option value="with_department">Mit Bereich</option>
-            <option value="without_department">Ohne Bereich</option>
-          </select>
-        </label>
-      </>
-    );
+    return null;
   }
 
   function renderList() {
@@ -306,24 +218,7 @@ export function AdminOrganizationSidebar({
       );
     }
 
-    if (filteredResponsibilities.length === 0) {
-      return <p className="panel-note">Keine Zuständigkeiten für den aktuellen Filter.</p>;
-    }
-
-    return (
-      <div className="selection-list" aria-label="Zuständigkeitsliste">
-        {filteredResponsibilities.map((responsibility) => (
-          <SelectionListItem
-            key={responsibility.responsibilityId}
-            active={selectedEntityId === responsibility.responsibilityId}
-            title={responsibility.responsibilityName}
-            meta={`${responsibilityAreaLabel(responsibility)} | ${responsibilityTypeLabel(responsibility)}`}
-            secondaryMeta={`Person: ${responsibility.appUserDisplayName ?? "keine feste Person"}`}
-            onClick={() => onSelectOrganizationEntity("responsibility", responsibility.responsibilityId)}
-          />
-        ))}
-      </div>
-    );
+    return <p className="panel-note">Wählen Sie links Personen oder Abteilungen aus.</p>;
   }
 
   return (
@@ -334,7 +229,7 @@ export function AdminOrganizationSidebar({
       />
 
       <div className="admin-entity-switcher" role="group" aria-label="Organisationsobjekte">
-        {(["user", "department", "responsibility"] as const).map((entity) => (
+        {(["user", "department"] as const).map((entity) => (
           <button
             key={entity}
             type="button"

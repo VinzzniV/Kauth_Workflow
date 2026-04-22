@@ -17,6 +17,7 @@ export type AdminWorkspaceSection =
   | "access"
   | "directory"
   | "system_logs"
+  | "system_mail_templates"
   | "system_configuration";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
 export type AdminWorkspaceArea = "organization" | "configuration" | "access" | "system";
@@ -72,8 +73,23 @@ export type AdminWorkspaceWarningGroup = {
   affectedLabels: string[];
   actionLabel: string;
   targetEntity?: AdminOrganizationEntity;
+  targetId?: number | null;
   targetSection?: AdminWorkspaceSection;
 };
+
+function hasAssignedResponsibilityUser(responsibility: AdminResponsibilityOwner): boolean {
+  return Boolean(
+    responsibility.appUserId
+    || responsibility.appUserDisplayName?.trim()
+  );
+}
+
+function hasAssignedResponsibilityDepartment(responsibility: AdminResponsibilityOwner): boolean {
+  return Boolean(
+    responsibility.departmentId
+    || responsibility.departmentName?.trim()
+  );
+}
 
 export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
   {
@@ -98,20 +114,19 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
   {
     key: "organization",
     label: "Personen & Organisation",
-    description: "Personen verwalten, Abteilungen pflegen und Zuständigkeiten sauber zuordnen.",
+    description: "Personen verwalten und Abteilungen pflegen.",
     navLabel: "Personen & Abteilungen",
     navDescription: "Personen, Abteilungen und Bereichsstammdaten pflegen.",
     area: "organization",
-    introTitle: "Personen, Bereiche und Verantwortungen aktuell halten",
+    introTitle: "Personen und Bereiche aktuell halten",
     introDescription:
-      "Hier pflegen Sie die organisatorische Grundlage der App. Änderungen wirken auf Verantwortlichkeiten, Bereichszuordnungen und Auswahlmöglichkeiten im laufenden Betrieb.",
+      "Hier pflegen Sie die organisatorische Grundlage der App. Änderungen wirken auf Stammdaten, Bereichszuordnungen und Auswahlmöglichkeiten im laufenden Betrieb.",
     whatYouCanDo: [
       "Personen anlegen und Stammdaten pflegen",
       "Abteilungen mit Leitung und Anforderungsverantwortung hinterlegen",
-      "Zuständigkeiten sauber einer Person oder einem Bereich zuordnen",
     ],
-    affectedObjects: ["Benutzerkonten", "Abteilungen", "fachliche Zuständigkeiten"],
-    impactNote: "Änderungen wirken sofort auf Zuordnungen, Filter, Verantwortlichkeiten und Prüfhinweise in der Administration.",
+    affectedObjects: ["Benutzerkonten", "Abteilungen"],
+    impactNote: "Änderungen wirken sofort auf Zuordnungen, Filter und Prüfhinweise in der Administration.",
     riskNote: "Fehlende Leitung, fehlende Anforderungsverantwortung oder unklare Bereichszuordnungen erzeugen Lücken in nachgelagerten Prozessen.",
   },
   {
@@ -269,6 +284,25 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     riskNote: "Leere oder fehlerhafte Logansichten verdecken betriebliche Probleme. Filter und Zeiträume sollten deshalb nachvollziehbar gesetzt werden.",
   },
   {
+    key: "system_mail_templates",
+    label: "Mail-Vorlagen",
+    description: "Inhalt, Trigger-Info und Preview der versendeten System-Mails pflegen.",
+    navLabel: "Mail-Vorlagen",
+    navDescription: "Mailtexte, Trigger und echte Vorschau verwalten.",
+    area: "system",
+    introTitle: "Mailtexte fachlich steuern und realistisch prüfen",
+    introDescription:
+      "Hier pflegen Sie Betreff und Text der System-Mails. Die Vorschau nutzt echte Vorgänge oder Durchlaufpläne und zeigt nur Mails, die aktuell real auslösbar wären.",
+    whatYouCanDo: [
+      "Betreff und Text pro Mailtyp anpassen",
+      "Erlaubte Platzhalter und Trigger je Mailtyp prüfen",
+      "Mit echten Vorgängen oder Durchlaufplänen eine reale Vorschau rendern",
+    ],
+    affectedObjects: ["Mail-Vorlagen", "ausgehende Benachrichtigungen", "Preview auf Basis echter Vorgänge"],
+    impactNote: "Änderungen wirken auf zukünftige Mails dieses Typs und bleiben unabhängig von der technischen Versandkonfiguration.",
+    riskNote: "Unpassende Formulierungen oder fehlerhafte Platzhalter wirken sofort auf produktive Benachrichtigungen. Vorschau deshalb vor dem Speichern prüfen.",
+  },
+  {
     key: "system_configuration",
     label: "Konfiguration",
     description: "Mailversand und technische Laufzeitkonfiguration für den laufenden Betrieb steuern.",
@@ -292,7 +326,7 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
   {
     key: "organization",
     label: "Personen & Organisation",
-    description: "Stammdaten, Abteilungen und Zuständigkeiten pflegen.",
+    description: "Stammdaten und Abteilungen pflegen.",
     defaultSection: "organization",
     sections: ["organization", "rotation_requirements"],
   },
@@ -308,7 +342,7 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
     label: "System",
     description: "Zentrale Betriebslogs und laufende Systemkonfiguration geordnet steuern.",
     defaultSection: "system_logs",
-    sections: ["system_logs", "system_configuration"],
+    sections: ["system_logs", "system_mail_templates", "system_configuration"],
   },
 ];
 
@@ -350,6 +384,7 @@ export function normalizeAdminWorkspaceSection(value: string | null): AdminWorks
     case "access":
     case "directory":
     case "system_logs":
+    case "system_mail_templates":
     case "system_configuration":
       return value!.trim().toLowerCase() as AdminWorkspaceSection;
     case "system":
@@ -368,7 +403,6 @@ export function normalizeAdminWorkspaceSection(value: string | null): AdminWorks
 export function normalizeAdminOrganizationEntity(value: string | null): AdminOrganizationEntity {
   switch ((value ?? "").trim().toLowerCase()) {
     case "department":
-    case "responsibility":
       return value!.trim().toLowerCase() as AdminOrganizationEntity;
     default:
       return "user";
@@ -537,8 +571,8 @@ export function filterOrganizationResponsibilities(args: {
 
   return responsibilities.filter((responsibility) => {
     const isApplication = responsibility.responsibilityType === "application";
-    const hasPerson = Boolean(responsibility.appUserId);
-    const hasDepartment = Boolean(responsibility.departmentId);
+    const hasPerson = hasAssignedResponsibilityUser(responsibility);
+    const hasDepartment = hasAssignedResponsibilityDepartment(responsibility);
 
     if (typeFilter === "process" && isApplication) {
       return false;
@@ -662,7 +696,7 @@ export function buildAdminOverviewWarnings(args: {
   }
 
   for (const responsibility of responsibilities) {
-    if (!responsibility.appUserId) {
+    if (!hasAssignedResponsibilityUser(responsibility)) {
       warnings.push({
         key: `responsibility-user-${responsibility.responsibilityId}`,
         category: "responsibility_user",
@@ -670,12 +704,11 @@ export function buildAdminOverviewWarnings(args: {
         title: `Zuständigkeit ohne feste Person: ${responsibility.responsibilityName}`,
         detail: "Die Zuständigkeit ist aktuell nur über die Abteilung oder den Standardfall abgesichert.",
         actionLabel: "Zuständigkeit öffnen",
-        targetEntity: "responsibility",
-        targetId: responsibility.responsibilityId,
+        targetSection: "rotation_requirements",
       });
     }
 
-    if (!responsibility.departmentId) {
+    if (!hasAssignedResponsibilityDepartment(responsibility)) {
       warnings.push({
         key: `responsibility-department-${responsibility.responsibilityId}`,
         category: "responsibility_department",
@@ -683,8 +716,7 @@ export function buildAdminOverviewWarnings(args: {
         title: `Zuständigkeit ohne Bereich: ${responsibility.responsibilityName}`,
         detail: "Die Zuständigkeit hat aktuell keine saubere Bereichszuordnung.",
         actionLabel: "Zuständigkeit öffnen",
-        targetEntity: "responsibility",
-        targetId: responsibility.responsibilityId,
+        targetSection: "rotation_requirements",
       });
     }
   }
@@ -742,13 +774,13 @@ const ADMIN_WARNING_GROUP_META: Record<AdminWorkspaceWarningCategory, {
     title: "Zuständigkeiten ohne feste Person",
     detail: "Diese Zuständigkeiten sind aktuell nicht eindeutig einer Person zugeordnet.",
     actionLabel: "Zuständigkeiten prüfen",
-    targetEntity: "responsibility",
+    targetSection: "rotation_requirements",
   },
   responsibility_department: {
     title: "Zuständigkeiten ohne Bereich",
     detail: "Bei diesen Zuständigkeiten fehlt die organisatorische Bereichszuordnung.",
     actionLabel: "Zuständigkeiten prüfen",
-    targetEntity: "responsibility",
+    targetSection: "rotation_requirements",
   },
   mail_configuration: {
     title: "Mail- und Versandkonfiguration",
@@ -788,6 +820,7 @@ export function groupAdminOverviewWarnings(
       affectedLabels: categoryWarnings.slice(0, 4).map((warning) => warning.subjectLabel),
       actionLabel: meta.actionLabel,
       targetEntity: meta.targetEntity,
+      targetId: categoryWarnings[0]?.targetId ?? null,
       targetSection: meta.targetSection,
     });
   }

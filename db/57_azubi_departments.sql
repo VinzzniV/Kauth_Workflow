@@ -1,8 +1,8 @@
--- Abteilungen fuer Azubis und Studenten (technisch und kaufmaennisch).
+-- Abteilungen fuer Ausbildung und Studenten (technisch und kaufmaennisch).
 --
 -- Designentscheidung:
---   Azubis technisch: stabile Ausbildungsleitung (ausbildungsleitung_technisch).
---   Azubis kaufmaennisch: keine feste Ausbildungsleitung auf Abteilungsebene.
+--   Ausbildung technisch: stabile Ausbildungsleitung (ausbildungsleitung_technisch).
+--   Ausbildung kaufmaennisch: keine feste Ausbildungsleitung auf Abteilungsebene.
 --   Die Verantwortlichen bei kaufmaennischen Azubis kommen pro Rotationsstation
 --   aus der jeweiligen besuchten Abteilung (Einkauf-Lead, IT-Lead usw.).
 --   HR uebernimmt die administrative Begleitung (hr_onboarding).
@@ -15,8 +15,8 @@ INSERT INTO departments (name)
 SELECT department_name
 FROM (
     VALUES
-        ('Azubis technisch'),
-        ('Azubis kaufmaennisch')
+        ('Ausbildung technisch'),
+        ('Ausbildung kaufmaennisch')
 ) AS seed(department_name)
 WHERE NOT EXISTS (
     SELECT 1
@@ -31,7 +31,7 @@ WHERE NOT EXISTS (
 -- =========================
 
 WITH dept AS (
-    SELECT id FROM departments WHERE LOWER(name) = 'azubis technisch'
+    SELECT id FROM departments WHERE LOWER(name) = 'ausbildung technisch'
 )
 INSERT INTO app_responsibilities (
     department_id,
@@ -48,7 +48,7 @@ SELECT
     NULL,
     'Ausbildungsleitung Technik',
     'department_lead',
-    'Stabile Leitung fuer technische Azubis und Studenten. Immer dieselbe Ansprechperson.',
+    'Stabile Leitung fuer technische Ausbildung und Studenten. Immer dieselbe Ansprechperson.',
     TRUE
 FROM dept
 ON CONFLICT (responsibility_key) DO UPDATE
@@ -60,30 +60,30 @@ SET
     is_active        = EXCLUDED.is_active;
 
 -- =========================
--- DepartmentActionTemplates: Azubis technisch
+-- DepartmentActionTemplates: Ausbildung technisch
 -- Verantwortlicher: ausbildungsleitung_technisch (stabile Leitung)
 -- =========================
 
 WITH template_seed(department_name, trigger_type, title, description, task_type, responsibility_system_key, due_offset_days, reminder_offset_days) AS (
     VALUES
         -- Eintritt: Betreuung und Grundvorbereitung
-        ('Azubis technisch', 'enter',
+        ('Ausbildung technisch', 'enter',
          'Betreuer aus Ausbildungsleitung Technik benennen',
          'Zustaendige Kontaktperson fuer den technischen Azubi oder Studenten festlegen und dem Azubi mitteilen.',
          'manual', 'ausbildungsleitung_technisch', -5, 1),
 
-        ('Azubis technisch', 'enter',
+        ('Ausbildung technisch', 'enter',
          'Technische Sicherheitsunterweisung koordinieren',
          'Pflichtunterweisung fuer technischen Bereich vor Stationsstart sicherstellen.',
          'manual', 'ausbildungsleitung_technisch', -2, 0),
 
-        ('Azubis technisch', 'enter',
+        ('Ausbildung technisch', 'enter',
          'AD-Konto und Grundausstattung vorbereiten',
          'AD-Zugang und notwendige Hardware rechtzeitig vor Stationsbeginn bereitstellen.',
          'technical', 'ad', -5, 1),
 
         -- Austritt: Abschluss und Beurteilung
-        ('Azubis technisch', 'exit',
+        ('Ausbildung technisch', 'exit',
          'Abschlussbeurteilung durch Ausbildungsleitung Technik erstellen',
          'Fachliche Beurteilung durch die technische Ausbildungsleitung nach Stationsende anfertigen.',
          'manual', 'ausbildungsleitung_technisch', 3, 1)
@@ -125,7 +125,7 @@ WHERE NOT EXISTS (
 );
 
 -- =========================
--- DepartmentActionTemplates: Azubis kaufmaennisch
+-- DepartmentActionTemplates: Ausbildung kaufmaennisch
 -- Keine feste Ausbildungsleitung auf dieser Ebene.
 -- Operative Aufgaben kommen pro Station aus den besuchten Abteilungen.
 -- Administrative Begleitung laeuft ueber hr_onboarding.
@@ -134,18 +134,18 @@ WHERE NOT EXISTS (
 WITH template_seed(department_name, trigger_type, title, description, task_type, responsibility_key, due_offset_days, reminder_offset_days) AS (
     VALUES
         -- Eintritt: administrative Koordination
-        ('Azubis kaufmaennisch', 'enter',
+        ('Ausbildung kaufmaennisch', 'enter',
          'AD-Konto und Grundausstattung vorbereiten',
          'AD-Zugang und notwendige Hardware rechtzeitig vor Stationsstart bereitstellen.',
          'technical', 'ad', -5, 1),
 
-        ('Azubis kaufmaennisch', 'enter',
+        ('Ausbildung kaufmaennisch', 'enter',
          'Aufnahme in Abteilung durch HR koordinieren',
          'HR informiert die aufnehmende Abteilung ueber den bevorstehenden Einsatz und klaert offene Fragen.',
          'information', 'hr_onboarding', -2, 0),
 
         -- Austritt: administrativer Abschluss
-        ('Azubis kaufmaennisch', 'exit',
+        ('Ausbildung kaufmaennisch', 'exit',
          'Abschlussbericht bei aufnehmender Abteilung anfordern',
          'HR fordert nach Stationsende eine kurze Rueckmeldung bei der Abteilung an.',
          'manual', 'hr_onboarding', 3, 1)

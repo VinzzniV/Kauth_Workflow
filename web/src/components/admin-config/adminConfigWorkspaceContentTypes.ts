@@ -7,6 +7,10 @@ import type {
   AdminGraphApplicationConfiguration,
   AdminGroup,
   AdminNotificationEmailConfiguration,
+  AdminNotificationTemplate,
+  AdminNotificationTemplatePreviewResponse,
+  AdminNotificationTemplateRotationPlanPreviewTarget,
+  AdminNotificationTemplateWorkflowPreviewTarget,
   AdminPermission,
   AdminPermissionAuditEntry,
   AdminResponsibilityOwner,
@@ -93,6 +97,24 @@ export type AdminConfigWorkspaceContentProps = {
   directoryStatus: AdminDirectorySyncStatus | null;
   graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
+  notificationTemplates: AdminNotificationTemplate[];
+  selectedNotificationTemplate: AdminNotificationTemplate | null;
+  selectedNotificationTemplateKey: string | null;
+  selectedNotificationTemplateSubjectDraft: string;
+  selectedNotificationTemplateBodyDraft: string;
+  hasSelectedNotificationTemplateChanges: boolean;
+  workflowPreviewSearch: string;
+  rotationPlanPreviewSearch: string;
+  workflowPreviewTargets: AdminNotificationTemplateWorkflowPreviewTarget[];
+  rotationPlanPreviewTargets: AdminNotificationTemplateRotationPlanPreviewTarget[];
+  selectedWorkflowPreviewUid: string | null;
+  selectedRotationPlanPreviewId: number | null;
+  notificationTemplatePreviewResponse: AdminNotificationTemplatePreviewResponse | null;
+  selectedNotificationTemplatePreviewVariantIndex: number;
+  isLoadingNotificationTemplates: boolean;
+  isSavingNotificationTemplate: boolean;
+  isLoadingNotificationTemplatePreviewTargets: boolean;
+  isLoadingNotificationTemplatePreview: boolean;
   notificationEnabledDraft: boolean;
   notificationSenderEmailDraft: string;
   notificationFrontendBaseUrlDraft: string;
@@ -166,6 +188,16 @@ export type AdminConfigWorkspaceContentProps = {
   onNotice: (message: string | null) => void;
   onError: (message: string | null) => void;
   onNotificationEnabledChange: (enabled: boolean) => void;
+  onSelectNotificationTemplate: (templateKey: string) => void;
+  onSelectedNotificationTemplateSubjectChange: (value: string) => void;
+  onSelectedNotificationTemplateBodyChange: (value: string) => void;
+  onWorkflowPreviewSearchChange: (value: string) => void;
+  onRotationPlanPreviewSearchChange: (value: string) => void;
+  onSelectWorkflowPreviewTarget: (workflowUid: string | null) => void;
+  onSelectRotationPlanPreviewTarget: (rotationPlanId: number | null) => void;
+  onSaveSelectedNotificationTemplate: () => void | Promise<void>;
+  onRenderNotificationTemplatePreview: () => void | Promise<void>;
+  onSelectNotificationTemplatePreviewVariant: (index: number) => void;
   onNotificationSenderEmailChange: (value: string) => void;
   onNotificationFrontendBaseUrlChange: (value: string) => void;
   onNotificationTestRecipientChange: (value: string) => void;

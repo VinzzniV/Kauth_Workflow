@@ -8,6 +8,7 @@ import {
   renderOverviewWorkspace,
   renderRotationRequirementsWorkspace,
   renderSystemConfigurationWorkspace,
+  renderSystemMailTemplatesWorkspace,
   renderSystemLogsWorkspace,
   renderTemplateWorkspace,
 } from "./AdminConfigWorkspaceSections";
@@ -35,6 +36,8 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       return renderDefaultWorkspace(props);
     case "system_logs":
       return renderSystemLogsWorkspace(props);
+    case "system_mail_templates":
+      return renderSystemMailTemplatesWorkspace(props);
     case "system_configuration":
       return renderSystemConfigurationWorkspace(props);
     default:

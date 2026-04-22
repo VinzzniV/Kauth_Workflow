@@ -103,7 +103,7 @@ export function AdminNotificationEmailSection({
     <section className="panel">
       <div className="panel-head">
         <h2>Konfiguration: Mailversand</h2>
-        <p>Begrenzter Admin-Bereich für Mail-Konfiguration, Testversand und den aktuellen Versandstatus.</p>
+        <p>Begrenzter Admin-Bereich für Mail-Konfiguration, Testversand und ein globales Testpostfach für den Dev-Betrieb.</p>
       </div>
 
       <div className="dashboard-grid" aria-label="Mailversand Status">
@@ -124,7 +124,7 @@ export function AdminNotificationEmailSection({
               : ""}
           </p>
           {notificationEmailConfiguration?.mode === "sandbox" ? (
-            <p className="panel-note">Sandbox aktiv: alle Mails werden an die Testadresse umgeleitet.</p>
+            <p className="panel-note">Testpostfach aktiv: alle Workflow- und Rotationsmails werden an eine globale Testadresse umgeleitet.</p>
           ) : null}
         </article>
 
@@ -189,17 +189,21 @@ export function AdminNotificationEmailSection({
         </label>
 
         <label className="field compact">
-          <span>Testempfänger-Mailadresse</span>
+          <span>Postfach für Konfig-Testmail</span>
           <input
             type="email"
             value={notificationTestRecipientDraft}
             onChange={(event) => onNotificationTestRecipientChange(event.target.value)}
-            placeholder="optional"
+            placeholder="test-konfig@example.com"
           />
         </label>
 
+        <p className="panel-note">
+          Dieses Postfach wird nur für den Button "Testmail senden" verwendet. Es hat keinen Einfluss auf echte Workflow- oder Rotationsmails.
+        </p>
+
         <label className="field compact">
-          <span>Sandbox-Weiterleitungsadresse</span>
+          <span>Globales Testpostfach</span>
           <input
             type="email"
             value={notificationSandboxRedirectDraft}
@@ -209,12 +213,12 @@ export function AdminNotificationEmailSection({
         </label>
 
         <p className="panel-note">
-          Wenn gesetzt, werden alle Benachrichtigungen an diese Adresse weitergeleitet. Der Versand bleibt dabei nur aktiv, wenn der Modus nicht deaktiviert ist.
+          Wenn gesetzt, werden alle echten System-Benachrichtigungen an diese Adresse weitergeleitet. Das ist für Dev- und Testbetrieb gedacht, damit keine echten Empfängeradressen verwendet werden.
         </p>
 
         {showsDirectDeliveryWarning ? (
           <p className="panel-note">
-            Achtung: Aktivierter Versand ohne Sandbox-Weiterleitung sendet an die in der Konfiguration bzw. an den Workflows hinterlegten Empfänger.
+            Achtung: Aktivierter Versand ohne globales Testpostfach sendet an die in der Konfiguration bzw. an den Workflows hinterlegten echten Empfänger.
           </p>
         ) : null}
 

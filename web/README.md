@@ -80,6 +80,7 @@ Wichtige Service-Bereiche:
 - `workflowApi.ts`, `taskApi.ts`, `peopleApi.ts`, `lookupApi.ts` fuer Fachdaten
 - `rotationApi.ts` und `services/queries/rotationQueries.ts` fuer HR-Planung und Uebersicht des Rotations-/Durchlauf-Slices; die Personenauswahl fuer neue Durchlaeufe kommt aus `/people/rotation-eligible`
 - `adminApi.ts` und `adminConfigApi.ts` fuer Administration und Konfiguration
+- `adminApi.ts` enthaelt seit T13 zusaetzlich die Admin-Endpunkte fuer Mail-Vorlagen, Preview-Zielsuche und read-only Preview-Rendering
 - `systemLogReporter.ts` fuer dedupliziertes Client-Error-Reporting an `/client/log-events`
 - `services/api/*` fuer DTOs, Mapping und Basis-Client
 - `services/queries/*` und `services/mutations/*` fuer React Query
@@ -103,6 +104,7 @@ Admin-Workspaces und Builder-nahe Pflege:
 
 Wichtiger aktueller Admin-Slice:
 - `Administration > System` ist die zentrale Betriebs- und Log-Konsole mit `src/components/admin-config/AdminSystemLogSection.tsx`
+- `Administration > System > Mail-Vorlagen` nutzt `src/components/admin-config/AdminNotificationTemplateSection.tsx` und `src/hooks/useAdminNotificationTemplates.ts` fuer Betreff/Text, Trigger-Hinweise, echte Preview-Zielsuche und read-only Mail-Preview
 - `requestJson` meldet fehlgeschlagene API- und Transportfehler automatisch an den Backend-Log-Ingest
 - lokale sichtbare Fehler aus Admin-Seiten, Builder und Toasts werden zusaetzlich ueber `src/services/systemLogReporter.ts` erfasst
 - der fruehere Admin-Bereich `Massenaktionen` wurde entfernt

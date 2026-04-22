@@ -86,6 +86,7 @@ WHERE answer_definition_id IN (
             'ad_user_requested',
             'comparison_user_available',
             'hardware_requested',
+            'hardware_available',
             'hardware_type',
             'internal_drive_access_requested'
         )
@@ -97,6 +98,7 @@ WHERE answer_definition_id IN (
             'comparison_user_available',
             'comparison_user_name',
             'hardware_available',
+            'hardware_takeover_details',
             'hardware_type',
             'laptop_vpn_type',
             'phone_requested',
@@ -110,6 +112,7 @@ WHERE answer_definition_id IN (
     FROM workflow_answer_definitions
     WHERE answer_key IN (
         'comparison_user_name',
+        'hardware_takeover_details',
         'laptop_vpn_type',
         'internal_drive_access_roles'
     )
@@ -123,6 +126,7 @@ WHERE answer_definition_id IN (
         'comparison_user_available',
         'comparison_user_name',
         'hardware_available',
+        'hardware_takeover_details',
         'hardware_type',
         'laptop_vpn_type',
         'phone_requested',
@@ -136,6 +140,7 @@ WITH visibility_seed(answer_key, dependency_answer_key, dependency_kind, expecte
         ('comparison_user_name', 'ad_user_requested', 'boolean_true', NULL::text, FALSE, 1),
         ('comparison_user_name', 'comparison_user_available', 'boolean_true', NULL::text, FALSE, 2),
         ('hardware_available', 'hardware_requested', 'boolean_true', NULL::text, FALSE, 1),
+        ('hardware_takeover_details', 'hardware_available', 'boolean_true', NULL::text, FALSE, 1),
         ('hardware_type', 'hardware_requested', 'boolean_true', NULL::text, TRUE, 1),
         ('phone_requested', 'hardware_requested', 'boolean_true', NULL::text, TRUE, 1),
         ('internal_drive_access_roles', 'internal_drive_access_requested', 'boolean_true', NULL::text, FALSE, 1),
@@ -164,6 +169,7 @@ JOIN workflow_answer_definitions dependency_definition ON dependency_definition.
 WITH validation_seed(answer_key, validation_kind, message) AS (
     VALUES
         ('comparison_user_name', 'text_required', 'Bitte den Referenzuser angeben.'),
+        ('hardware_takeover_details', 'text_required', 'Bitte angeben, welche Hardware übernommen wird.'),
         ('internal_drive_access_roles', 'multi_select_required', 'Bitte mindestens eine Funktion für die Laufwerksrechte auswählen.'),
         ('laptop_vpn_type', 'single_select_required', 'Bitte auswählen, ob der Laptop mit VPN oder ohne VPN benötigt wird.')
 )
@@ -198,6 +204,7 @@ WITH reset_seed(
         ('hardware_requested', 'when_not_true', 'phone_requested', TRUE, FALSE, FALSE, FALSE, FALSE, 2),
         ('hardware_requested', 'when_not_true', 'hardware_type', FALSE, FALSE, FALSE, TRUE, TRUE, 3),
         ('hardware_requested', 'when_not_true', 'laptop_vpn_type', FALSE, FALSE, FALSE, TRUE, TRUE, 4),
+        ('hardware_available', 'when_not_true', 'hardware_takeover_details', FALSE, TRUE, FALSE, FALSE, FALSE, 1),
         ('internal_drive_access_requested', 'when_not_true', 'internal_drive_access_roles', FALSE, FALSE, FALSE, FALSE, TRUE, 1),
         ('hardware_type', 'single_select_mismatch', 'laptop_vpn_type', FALSE, FALSE, FALSE, TRUE, TRUE, 1)
 )

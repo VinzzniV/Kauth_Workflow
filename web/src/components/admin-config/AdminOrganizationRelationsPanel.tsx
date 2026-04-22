@@ -105,28 +105,6 @@ export default function AdminOrganizationRelationsPanel({
               <p className="panel-note">Keine Abteilungen mit dieser Person als Anforderungsverantwortung.</p>
             )}
           </div>
-
-          <div>
-            <h3 className="panel-title">Feste Zuständigkeiten</h3>
-            {userRelations.responsibilities.length > 0 ? (
-              <div className="admin-relation-list">
-                {userRelations.responsibilities.map((responsibility) => (
-                  <button
-                    key={`responsibility-${responsibility.responsibilityId}`}
-                    type="button"
-                    className="admin-relation-link"
-                    onClick={() =>
-                      onSelectOrganizationEntity("responsibility", responsibility.responsibilityId)
-                    }
-                  >
-                    {responsibility.responsibilityName}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="panel-note">Keine festen Zuständigkeiten auf diese Person.</p>
-            )}
-          </div>
         </div>
       </section>
     );
@@ -167,28 +145,6 @@ export default function AdminOrganizationRelationsPanel({
               </div>
             ) : (
               <p className="panel-note">Noch keine Personen dieser Abteilung zugeordnet.</p>
-            )}
-          </div>
-
-          <div>
-            <h3 className="panel-title">Fachliche Zuständigkeiten</h3>
-            {departmentRelations.responsibilities.length > 0 ? (
-              <div className="admin-relation-list">
-                {departmentRelations.responsibilities.map((responsibility) => (
-                  <button
-                    key={`department-responsibility-${responsibility.responsibilityId}`}
-                    type="button"
-                    className="admin-relation-link"
-                    onClick={() =>
-                      onSelectOrganizationEntity("responsibility", responsibility.responsibilityId)
-                    }
-                  >
-                    {responsibility.responsibilityName}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="panel-note">Keine fachlichen Zuständigkeiten dieser Abteilung zugeordnet.</p>
             )}
           </div>
         </div>

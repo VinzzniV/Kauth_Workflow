@@ -4,7 +4,7 @@ using NpgsqlTypes;
 namespace API;
 
 // Kapselt den kompletten PostgreSQL-Zugriff fuer Workflows, Anforderungen, Aufgaben und Benachrichtigungen.
-internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository, IRotationRepository, IWorkflowDefinitionRuntimeRepository, IWorkflowAutomationRepository
+internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository, IRotationRepository, IWorkflowDefinitionRuntimeRepository, IWorkflowAutomationRepository, INotificationTemplatePreviewRepository
 {
     private readonly IWorkflowDefinitionValidationService _workflowDefinitionValidationService;
 

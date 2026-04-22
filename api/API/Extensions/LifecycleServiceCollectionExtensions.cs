@@ -108,6 +108,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IIdentityProvider, IdentityProvider>();
         services.AddScoped<IUserAuthorizationRepository, PostgresUserAuthorizationRepository>();
         services.AddScoped<INotificationEmailConfigurationRepository, PostgresNotificationEmailConfigurationRepository>();
+        services.AddScoped<INotificationTemplateRepository, PostgresNotificationTemplateRepository>();
         services.AddScoped<ICurrentUserResolver, CurrentUserResolver>();
         services.AddScoped<IUserContext, CurrentUserContext>();
         services.AddScoped<IAuthorizationPolicyService, AuthorizationPolicyService>();
@@ -135,6 +136,9 @@ internal static class LifecycleServiceCollectionExtensions
             configuration.GetSection(NotificationEmailOptions.SectionName));
         services.AddScoped<IGraphApplicationConfigurationService, GraphApplicationConfigurationService>();
         services.AddScoped<INotificationEmailConfigurationService, NotificationEmailConfigurationService>();
+        services.AddScoped<INotificationTemplatePreviewRepository>(sp =>
+            (INotificationTemplatePreviewRepository)sp.GetRequiredService<IWorkflowRepository>());
+        services.AddScoped<INotificationTemplateService, NotificationTemplateService>();
         services.AddScoped<IWorkflowEmailNotificationSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<INotificationEmailTestSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<IDirectorySyncService, EntraDirectorySyncService>();
