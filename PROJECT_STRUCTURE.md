@@ -11,8 +11,8 @@ Steuerungsdatei fuer Doku-Lesereihenfolge, Schreibziele und Pflege-Regeln.
 `PROJECT_CONTEXT.md`
 Stabile Projektwahrheit und fachliche Guardrails fuer die Workflow-Plattform.
 
-`IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`
-Aktive Umsetzungsanweisung fuer das Rotations-/Durchlauf-Feature.
+`CODE_REVIEW.md`
+Aktuelle CodeReview mit priorisierten Risiken und konkreter Nacharbeit.
 
 `PRODUCTIVE_TARGET_ARCHITECTURE.md`
 Stabiles Sollbild der Plattformarchitektur.
@@ -27,7 +27,7 @@ Kurzlebiges Arbeitsgedaechtnis fuer naechste Sessions.
 Technische Arbeitsregeln fuer inkrementelle, migrationssichere Umsetzung.
 
 `TODO.md`
-Priorisierter Umsetzungs-Backlog fuer das Rotations-/Durchlauf-Feature.
+Priorisierte Umsetzungssteuerung fuer Review-Nacharbeit.
 
 `SETUP.md`
 Operative Doku fuer lokale Entwicklung und Linux-Deployment.
@@ -110,7 +110,7 @@ Wichtige Bereiche:
 
 Hinweis:
 Der aktuelle Code bildet den alten lifecycle-/task-getriebenen Kern noch stark ab.
-Definition Layer, Runtime-Orchestrierung und Automation Layer werden gemaess Implementierungsplan schrittweise parallel eingefuehrt.
+Definition Layer, Runtime-Orchestrierung und Automation Layer werden schrittweise parallel eingefuehrt; die aktuelle Review priorisiert zusaetzlich Transaktionen, SQL-seitige Task-Sichtbarkeit und Repository-Schnitte.
 Seit T11 existiert zusaetzlich ein definition-first Oeffnungspfad ueber `GET /workflow-definitions/startable` und `POST /workflows` mit `workflowDefinitionKey`; Legacy-`processTypeKey` bleibt nur noch als Kompatibilitaetsalias erhalten.
 Seit dem Mitarbeiter-Lifecycle-Schnitt sind `people` der fachliche Primäranker fuer Lifecycle und Rotation: `WorkflowMasterDataEndpoints` expose `POST /people`, `GET /people/search`, `GET /people/{personId}/workflow-history` und `GET /people/rotation-eligible`; `WorkflowRuntimeService`, `PostgresWorkflowRepository.PersonLifecycleOperations.cs` und `PersonLifecycleProjectionService` koppeln Workflow-Starts, Directory-Linking und kanonische Personenfortschreibung an `targetPersonId`.
 
@@ -264,5 +264,5 @@ Frontend-Client fuer Definition-Layer-Admin-Endpunkte inklusive Definitionen, Ve
 
 ## Root-Dokumente
 
-`LEGACY_WORKFLOW_MAPPING.md`
-T6-Mapping-Artefakt fuer die ersten drei Legacy-Prozesse auf publizierte Workflow-Definitionen.
+`CODE_REVIEW.md`
+Aktuelles Review-Artefakt vom 2026-04-23 mit Findings, Prioritaeten und empfohlenen Umsetzungsschnitten.

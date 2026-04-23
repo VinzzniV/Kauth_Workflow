@@ -20,6 +20,8 @@
 /api/API/obj/
 /api/API.Tests/bin/
 /api/API.Tests/obj/
+__pycache__/
+*.pyc
 
 # Handoff artifacts
 /handoff/

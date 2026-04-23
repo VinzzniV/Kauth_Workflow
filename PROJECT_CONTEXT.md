@@ -30,10 +30,12 @@ Noch nicht im Zielbild:
 - eigenstaendige Runtime-/Orchestrierungsschicht
 - kontrollierter Automation Layer als eigenes Subsystem
 - generischer Builder fuer Workflow-Definitionen
+- explizit transaktionale und skalierbare Rotation-Task-Generierung
 
 Wichtige Diagnose:
 - Das Problem ist nicht nur "zu viel hardcoded".
 - Das aktuelle Kernmodell ist fuer das Produktziel zu eng und noch zu task-generator-lastig.
+- Die aktuelle CodeReview benennt zusaetzlich das monolithische Repository, fehlende Transaktionsgrenzen, in-memory Task-Filter und unvollstaendige Validierungen als wichtigste technische Risiken.
 
 ---
 
@@ -145,7 +147,7 @@ Wir bewegen uns in diese Richtung:
 ## Arbeitsdokumente
 
 - `DOCS_CONTROL.md` = Lesereihenfolge, Schreibziele, Doku-Hygiene
-- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md` = aktive Umsetzungsanweisung fuer das Rotations-/Durchlauf-Feature
+- `CODE_REVIEW.md` = aktuelle CodeReview und priorisierte Nacharbeit
 - `PRODUCTIVE_TARGET_ARCHITECTURE.md` = stabiles Sollbild der Plattform
 - `DECISIONS.md` = langfristige Architekturentscheidungen
 - `MEMORY.md` = kurzfristiger Session-Kontext

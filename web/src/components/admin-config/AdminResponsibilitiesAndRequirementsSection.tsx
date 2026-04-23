@@ -721,6 +721,11 @@ function AbteilungsanforderungenPanel() {
                     {template.isActive ? "Aktiv" : "Inaktiv"}
                   </span>
                 </div>
+                {template.isActive && !template.defaultResponsibilityName ? (
+                  <p className="panel-note" style={{ color: "var(--color-warning, #b45309)" }}>
+                    Keine Zuständigkeit: generierte Aufgaben sind für Fachbereiche nicht sichtbar.
+                  </p>
+                ) : null}
                 <dl className="workflow-meta">
                   <div><dt>Abteilung</dt><dd>{template.departmentName ?? "–"}</dd></div>
                   <div><dt>Auslöser</dt><dd>{getTriggerLabel(template.triggerType)}</dd></div>

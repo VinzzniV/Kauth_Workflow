@@ -34,7 +34,7 @@
 ## Dokumentationsregeln
 
 - Vor groesseren Aenderungen `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md` und `MEMORY.md` lesen
-- Bei Rotations-/Durchlauf-Arbeit immer auch `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md` und `TODO.md` lesen
+- Bei Rotations-/Durchlauf-Arbeit und Review-Nacharbeit immer auch `CODE_REVIEW.md` und `TODO.md` lesen
 - Relevante Dokus im selben Arbeitsgang aktualisieren
 - Nach dem Lesen aktiv festhalten, welche Dokus bei dieser Aufgabe potenziell mitgezogen werden muessen
 - Stabile Wahrheit in `PROJECT_CONTEXT.md` oder `DECISIONS.md`, nicht in ad-hoc Notizen

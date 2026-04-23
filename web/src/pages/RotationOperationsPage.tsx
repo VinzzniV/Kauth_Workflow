@@ -94,7 +94,6 @@ export default function RotationOperationsPage() {
 
   const filteredRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    const daysWindow = Number(changeWindowDays);
 
     return rotationRows
       .filter((row) => {
@@ -116,8 +115,6 @@ export default function RotationOperationsPage() {
           || row.task.title.toLowerCase().includes(normalizedSearch)
           || row.taskRef.toLowerCase().includes(normalizedSearch)
           || row.rotation.departmentName.toLowerCase().includes(normalizedSearch);
-        const matchesChangeWindow =
-          !Number.isFinite(daysWindow) || daysWindow <= 0 || isUpcomingAnchorDate(row.rotation.anchorDate, daysWindow);
 
         return (
           matchesDepartment
@@ -126,7 +123,6 @@ export default function RotationOperationsPage() {
           && matchesIt
           && matchesOwnDepartment
           && matchesSearch
-          && matchesChangeWindow
         );
       })
       .sort((left, right) => {
@@ -139,7 +135,6 @@ export default function RotationOperationsPage() {
         return left.rotation.displayName.localeCompare(right.rotation.displayName, "de");
       });
   }, [
-    changeWindowDays,
     departmentFilter,
     inferredOwnDepartmentId,
     onlyItTasks,
@@ -303,7 +298,7 @@ export default function RotationOperationsPage() {
             </label>
 
             <label className="field compact">
-              <span>Wechsel in</span>
+              <span>Kommende Wechsel in</span>
               <select value={changeWindowDays} onChange={(event) => setChangeWindowDays(event.target.value)}>
                 <option value="7">7 Tagen</option>
                 <option value="14">14 Tagen</option>

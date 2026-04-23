@@ -1,7 +1,7 @@
 # Produktive Zielarchitektur
 
 Dieses Dokument beschreibt das stabile Sollbild fuer den Ausbau zur internen Workflow-Plattform.
-Die aktive Feature-Umsetzung fuer Rotation/Durchlauf steht in `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`.
+Die aktuelle Review-Nacharbeit steht in `CODE_REVIEW.md`.
 
 ## Statusbild April 2026
 
@@ -17,6 +17,7 @@ Noch nicht im Zielbild:
 - eigenstaendige Runtime-/Orchestrierungsschicht
 - Automation Layer mit kontrollierten Actions und Jobs
 - Guided Builder fuer neue Workflow-Definitionen
+- Repository- und Service-Grenzen, die Rotation, Workflow-Runtime, Automation, Audit und Notifications testbar trennen
 
 ---
 
@@ -181,3 +182,4 @@ Diese Richtung bleibt bestehen:
 - Das bestehende Fachwissen in Templates, Conditions und Dependencies wird migriert, nicht weggeworfen.
 - Der Plattformkern wird versioniert, kontrolliert und validierbar.
 - Sicherheit und Kontrollierbarkeit gehen vor maximaler Flexibilitaet.
+- Produktive Listenpfade filtern und paginieren in der Datenbank; in-memory Filterung bleibt nur fuer kleine, bewusst begrenzte Mengen akzeptabel.

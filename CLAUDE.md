@@ -17,7 +17,7 @@ When working on non-trivial tasks, read these first:
 - `MEMORY.md`
 
 For rotation / department-rotation work also read:
-- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`
+- `CODE_REVIEW.md`
 - `TODO.md`
 
 For architecture, migration, runtime, or data-model work also read:
@@ -80,7 +80,7 @@ Important current code areas:
 
 Important architecture docs:
 - `DOCS_CONTROL.md`
-- `IMPLEMENTATION_PLAN_ROTATION_ONBOARDING.md`
+- `CODE_REVIEW.md`
 - `PRODUCTIVE_TARGET_ARCHITECTURE.md`
 - `TODO.md`
 
