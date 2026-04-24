@@ -8,32 +8,39 @@ import type { IIdentityProvider } from "./IdentityProvider";
 import type { Me, SimulationLoginResponse, SimulationLoginUserOption } from "../types/auth";
 import { requestJson } from "../services/api/client";
 
-const msalInstance = new PublicClientApplication(msalConfig);
+let msalInstance: PublicClientApplication | null = null;
 let msalInitialized: Promise<void> | null = null;
 
 // MSAL redirect promise must be handled once at app start.
 let redirectHandled = false;
 
+function getMsalInstance(): PublicClientApplication {
+  msalInstance ??= new PublicClientApplication(msalConfig);
+  return msalInstance;
+}
+
 async function ensureMsalInitialized(): Promise<void> {
-  msalInitialized ??= msalInstance.initialize();
+  msalInitialized ??= getMsalInstance().initialize();
   await msalInitialized;
 }
 
 export async function handleMsalRedirect(): Promise<AccountInfo | null> {
   await ensureMsalInitialized();
 
-  if (redirectHandled) return msalInstance.getActiveAccount();
+  const instance = getMsalInstance();
+
+  if (redirectHandled) return instance.getActiveAccount();
   redirectHandled = true;
 
-  const response = await msalInstance.handleRedirectPromise();
+  const response = await instance.handleRedirectPromise();
   if (response?.account) {
-    msalInstance.setActiveAccount(response.account);
+    instance.setActiveAccount(response.account);
     return response.account;
   }
 
-  const accounts = msalInstance.getAllAccounts();
+  const accounts = instance.getAllAccounts();
   if (accounts.length > 0) {
-    msalInstance.setActiveAccount(accounts[0]);
+    instance.setActiveAccount(accounts[0]);
     return accounts[0];
   }
 
@@ -43,11 +50,13 @@ export async function handleMsalRedirect(): Promise<AccountInfo | null> {
 async function acquireToken(forceRefresh = false): Promise<string | null> {
   await ensureMsalInitialized();
 
-  const account = msalInstance.getActiveAccount();
+  const instance = getMsalInstance();
+
+  const account = instance.getActiveAccount();
   if (!account) return null;
 
   try {
-    const result = await msalInstance.acquireTokenSilent({
+    const result = await instance.acquireTokenSilent({
       ...loginRequest,
       account,
       forceRefresh,
@@ -93,9 +102,11 @@ export class EntraIdentityProvider implements IIdentityProvider {
     await ensureMsalInitialized();
     void userId;
 
+    const instance = getMsalInstance();
+
     // Trigger the MSAL redirect flow. This navigates away from the SPA,
     // so the returned promise will not resolve in the current page load.
-    await msalInstance.loginRedirect(loginRequest);
+    await instance.loginRedirect(loginRequest);
 
     // This line is only reached if redirect didn't happen (shouldn't occur).
     throw new Error("Redirect to Microsoft login initiated.");
@@ -104,7 +115,9 @@ export class EntraIdentityProvider implements IIdentityProvider {
   public async logout(): Promise<void> {
     await ensureMsalInitialized();
 
-    await msalInstance.logoutRedirect({
+    const instance = getMsalInstance();
+
+    await instance.logoutRedirect({
       postLogoutRedirectUri: msalConfig.auth.redirectUri as string,
     });
   }

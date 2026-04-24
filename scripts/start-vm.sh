@@ -52,6 +52,12 @@ ensure_supported_node_version() {
     local version="${raw_version#v}"
     local major="${version%%.*}"
 
+    if [[ "$major" == "18" ]]; then
+        version_ge "$version" "18.19.0" || fail "Node $version ist zu alt. Fuer den Dev-Webserver wird mindestens Node 18.19.0 benoetigt."
+        echo "WARNUNG: Node $version liegt unter der offiziell bevorzugten Vite-7-Version. Es wird ein lokaler Kompatibilitaetspfad genutzt."
+        return 0
+    fi
+
     if [[ "$major" == "20" ]]; then
         version_ge "$version" "20.19.0" || fail "Node $version ist zu alt. Fuer Vite 7 wird mindestens Node 20.19.0 oder 22.12.0 benoetigt."
         return 0
@@ -66,7 +72,7 @@ ensure_supported_node_version() {
         return 0
     fi
 
-    fail "Node $version wird nicht unterstuetzt. Fuer den Dev-Webserver wird Node 20.19.0+ oder 22.12.0+ benoetigt."
+    fail "Node $version wird nicht unterstuetzt. Fuer den Dev-Webserver wird mindestens Node 18.19.0 benoetigt; bevorzugt 20.19.0+ oder 22.12.0+."
 }
 
 assert_file() {
