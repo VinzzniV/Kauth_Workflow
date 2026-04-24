@@ -148,7 +148,7 @@ Wir bewegen uns in diese Richtung:
 
 - `DOCS_CONTROL.md` = Lesereihenfolge, Schreibziele, Doku-Hygiene
 - `CODE_REVIEW.md` = aktuelle CodeReview und priorisierte Nacharbeit
-- `PRODUCTIVE_TARGET_ARCHITECTURE.md` = stabiles Sollbild der Plattform
-- `DECISIONS.md` = langfristige Architekturentscheidungen
+- `KauthWorkflow/Architektur/Zielarchitektur.md` = stabiles Sollbild der Plattform
+- `KauthWorkflow/Architektur/Entscheidungen.md` = langfristige Architekturentscheidungen
 - `MEMORY.md` = kurzfristiger Session-Kontext
 - `TODO.md` = priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature

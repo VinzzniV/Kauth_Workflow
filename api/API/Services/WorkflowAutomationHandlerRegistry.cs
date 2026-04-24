@@ -9,6 +9,13 @@ internal sealed class WorkflowAutomationHandlerRegistry : IWorkflowAutomationHan
         _handlers = handlers.ToDictionary(handler => handler.ActionKey, StringComparer.OrdinalIgnoreCase);
     }
 
+    public IReadOnlyCollection<string> GetRegisteredKeys()
+    {
+        return _handlers.Keys
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     public IWorkflowAutomationActionHandler Resolve(string actionKey)
     {
         if (_handlers.TryGetValue(actionKey, out var handler))

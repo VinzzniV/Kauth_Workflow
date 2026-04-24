@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text;
+using System.Text.Json;
 using Xunit;
 
 namespace API.Tests;
@@ -127,6 +130,70 @@ public sealed class RotationPlanningEndpointsTests
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
     }
 
+    [Fact]
+    public async Task CreateRotationStationEndpoint_ReturnsConflictForOverlappingDateRange()
+    {
+        var service = new StubRotationPlanningService
+        {
+            CreateStationException = new InvalidOperationException("Die Station überschneidet sich mit der bestehenden Station 7.")
+        };
+        var app = CreateApp(service, CreateAdminHrUser());
+        var endpoint = GetEndpoint(app, "/rotation/plans/{planId:long}/stations", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/rotation/plans/42/stations",
+            new RotationStationUpsertRequest
+            {
+                DepartmentId = 4,
+                StartDate = new DateOnly(2026, 6, 15),
+                EndDate = new DateOnly(2026, 7, 1),
+                OrderIndex = 1,
+                Status = "planned"
+            },
+            ("planId", 42));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.True(
+            context.Response.StatusCode == StatusCodes.Status409Conflict,
+            $"Expected 409, got {context.Response.StatusCode}. Service calls: {service.CreateRotationStationCallCount}. Body: {ReadResponseBody(context)}");
+        Assert.Equal(1, service.CreateRotationStationCallCount);
+    }
+
+    [Fact]
+    public async Task UpdateRotationStationEndpoint_ReturnsConflictForDuplicateOrderIndex()
+    {
+        var service = new StubRotationPlanningService
+        {
+            UpdateStationException = new InvalidOperationException("orderIndex 1 wird im Durchlaufplan bereits verwendet.")
+        };
+        var app = CreateApp(service, CreateAdminHrUser());
+        var endpoint = GetEndpoint(app, "/rotation/stations/{stationId:long}", HttpMethods.Put);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Put,
+            "/rotation/stations/8",
+            new RotationStationUpsertRequest
+            {
+                DepartmentId = 4,
+                StartDate = new DateOnly(2026, 6, 21),
+                EndDate = new DateOnly(2026, 7, 1),
+                OrderIndex = 1,
+                Status = "planned"
+            },
+            ("stationId", 8));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.True(
+            context.Response.StatusCode == StatusCodes.Status409Conflict,
+            $"Expected 409, got {context.Response.StatusCode}. Service calls: {service.UpdateRotationStationCallCount}. Body: {ReadResponseBody(context)}");
+        Assert.Equal(1, service.UpdateRotationStationCallCount);
+    }
+
     private static WebApplication CreateApp(StubRotationPlanningService service, CurrentUser user)
     {
         var builder = WebApplication.CreateBuilder();
@@ -175,6 +242,42 @@ public sealed class RotationPlanningEndpointsTests
         return context;
     }
 
+    private static DefaultHttpContext CreateJsonRequestContext(
+        IServiceProvider services,
+        RouteEndpoint endpoint,
+        string method,
+        string path,
+        object body,
+        params (string Key, object Value)[] routeValues)
+    {
+        var context = new DefaultHttpContext
+        {
+            RequestServices = services
+        };
+        context.Request.Method = method;
+        context.Request.Path = path;
+        context.Request.ContentType = "application/json";
+        var json = JsonSerializer.Serialize(body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        context.Request.ContentLength = context.Request.Body.Length;
+        context.Features.Set<IHttpRequestBodyDetectionFeature>(new TestRequestBodyDetectionFeature());
+        foreach (var (key, value) in routeValues)
+        {
+            context.Request.RouteValues[key] = value.ToString();
+        }
+
+        context.Response.Body = new MemoryStream();
+        context.SetEndpoint(endpoint);
+        return context;
+    }
+
+    private static string ReadResponseBody(DefaultHttpContext context)
+    {
+        context.Response.Body.Position = 0;
+        using var reader = new StreamReader(context.Response.Body, Encoding.UTF8, leaveOpen: true);
+        return reader.ReadToEnd();
+    }
+
     private static CurrentUser CreateAdminHrUser()
     {
         var adminRole = new CurrentUserRole
@@ -216,8 +319,12 @@ public sealed class RotationPlanningEndpointsTests
         public IReadOnlyList<RotationAuditEntryDto>? AuditEntries { get; set; } = [];
         public IReadOnlyList<RotationNotificationDto>? Notifications { get; set; } = [];
         public Exception? GetNotificationsException { get; set; }
+        public Exception? CreateStationException { get; set; }
+        public Exception? UpdateStationException { get; set; }
         public int GetRotationAuditLogCallCount { get; private set; }
         public int GetRotationNotificationsCallCount { get; private set; }
+        public int CreateRotationStationCallCount { get; private set; }
+        public int UpdateRotationStationCallCount { get; private set; }
         public int? LastAuditLimit { get; private set; }
         public int? LastAuditOffset { get; private set; }
 
@@ -263,10 +370,26 @@ public sealed class RotationPlanningEndpointsTests
             => throw new NotSupportedException();
 
         public Task<RotationStationDto?> CreateRotationStationAsync(long planId, RotationStationUpsertRequest request, CurrentUser currentUser, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            CreateRotationStationCallCount += 1;
+            if (CreateStationException is not null)
+            {
+                throw CreateStationException;
+            }
+
+            return Task.FromResult<RotationStationDto?>(null);
+        }
 
         public Task<RotationStationDto?> UpdateRotationStationAsync(long stationId, RotationStationUpsertRequest request, CurrentUser currentUser, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            UpdateRotationStationCallCount += 1;
+            if (UpdateStationException is not null)
+            {
+                throw UpdateStationException;
+            }
+
+            return Task.FromResult<RotationStationDto?>(null);
+        }
 
         public Task<bool> DeleteRotationStationAsync(long stationId, CurrentUser currentUser, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -276,5 +399,10 @@ public sealed class RotationPlanningEndpointsTests
     {
         public Task<CurrentUser?> GetCurrentUser(CancellationToken cancellationToken = default)
             => Task.FromResult<CurrentUser?>(user);
+    }
+
+    private sealed class TestRequestBodyDetectionFeature : IHttpRequestBodyDetectionFeature
+    {
+        public bool CanHaveBody => true;
     }
 }

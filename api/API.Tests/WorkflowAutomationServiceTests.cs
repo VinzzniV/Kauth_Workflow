@@ -134,6 +134,8 @@ public sealed class WorkflowAutomationServiceTests
     private sealed class StubWorkflowAutomationHandlerRegistry(Func<string, IWorkflowAutomationActionHandler> factory)
         : IWorkflowAutomationHandlerRegistry
     {
+        public IReadOnlyCollection<string> GetRegisteredKeys() => ["CreateAdUser", "CreateErpEmployee"];
+
         public IWorkflowAutomationActionHandler Resolve(string actionKey) => factory(actionKey);
     }
 

@@ -161,7 +161,7 @@ ORDER BY n.id;";
 
             if (pendingNotification.RecipientUserId.HasValue)
             {
-                var recipient = await LoadActiveUserNotificationRecipient(
+                var recipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(
                     connection,
                     transaction,
                     pendingNotification.RecipientUserId.Value);
@@ -335,7 +335,7 @@ LIMIT 1;";
             }
         }
 
-        var recipient = await LoadActiveUserNotificationRecipient(connection, transaction, createdByUserId.Value);
+        var recipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, createdByUserId.Value);
         if (!recipient.HasValue)
         {
             await transaction.RollbackAsync();
@@ -435,7 +435,7 @@ LIMIT 1;";
             }
         }
 
-        var recipient = await LoadActiveUserNotificationRecipient(connection, transaction, createdByUserId.Value);
+        var recipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, createdByUserId.Value);
         if (!recipient.HasValue)
         {
             await transaction.RollbackAsync();
@@ -533,70 +533,6 @@ WHERE id = @notificationId;";
         await transaction.CommitAsync();
     }
 
-    private static async Task<(long UserId, string DisplayName, string Email, string IdentityKey, string PreferredPath)?> LoadActiveUserNotificationRecipient(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        long userId)
-    {
-        const string sql = @"
-WITH effective_roles AS (
-    SELECT r.role_key
-    FROM app_user_roles ur
-    JOIN app_roles r ON r.id = ur.app_role_id
-    WHERE ur.app_user_id = @userId
-      AND r.is_active = TRUE
-      AND r.role_kind = 'system'
-    UNION
-    SELECT r.role_key
-    FROM app_user_groups ug
-    JOIN app_groups g ON g.id = ug.app_group_id
-    JOIN app_group_roles gr ON gr.app_group_id = ug.app_group_id
-    JOIN app_roles r ON r.id = gr.app_role_id
-    WHERE ug.app_user_id = @userId
-      AND g.is_active = TRUE
-      AND r.is_active = TRUE
-      AND r.role_kind = 'system'
-)
-SELECT
-    u.id,
-    u.display_name,
-    COALESCE(NULLIF(BTRIM(u.notification_email), ''), u.email) AS target_email,
-    COALESCE(NULLIF(BTRIM(u.external_key), ''), u.email) AS identity_key,
-    EXISTS (
-        SELECT 1
-        FROM effective_roles er
-        WHERE er.role_key IN ('auth_hr', 'auth_admin', 'auth_reader')
-    ) AS can_access_workflow_overview,
-    EXISTS (
-        SELECT 1
-        FROM effective_roles er
-        WHERE er.role_key = 'auth_manager'
-    ) AS can_access_supervisor
-FROM app_users u
-WHERE u.id = @userId
-  AND u.is_active = TRUE
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("userId", userId);
-
-        await using var reader = await command.ExecuteReaderAsync();
-        if (!await reader.ReadAsync())
-        {
-            return null;
-        }
-
-        var canAccessWorkflowOverview = reader.GetBoolean(4);
-        var canAccessSupervisor = reader.GetBoolean(5);
-
-        var preferredPath = canAccessWorkflowOverview
-            ? "/workflows"
-            : canAccessSupervisor
-                ? "/supervisor"
-                : "/tasks/my";
-
-        return (reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), preferredPath);
-    }
 
     private static async Task<(string Key, string Name)> LoadWorkflowProcessTypeForNotifications(
         NpgsqlConnection connection,
@@ -732,14 +668,14 @@ RETURNING id;";
             processTypeKey);
         if (workflowCreatedResponsibilityId.HasValue)
         {
-            var workflowCreatedUserId = await ResolvePrimaryAssigneeUserId(
+            var workflowCreatedUserId = await PostgresRepositorySharedHelpers.ResolvePrimaryAssigneeUserId(
                 connection,
                 transaction,
                 workflowCreatedResponsibilityId.Value,
                 departmentId);
             if (workflowCreatedUserId.HasValue)
             {
-                var workflowCreatedRecipient = await LoadActiveUserNotificationRecipient(
+                var workflowCreatedRecipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(
                     connection,
                     transaction,
                     workflowCreatedUserId.Value);
@@ -763,7 +699,7 @@ RETURNING id;";
 
             if (departmentSelectionAssignment.UserId.HasValue)
             {
-                var departmentRecipient = await LoadActiveUserNotificationRecipient(
+                var departmentRecipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(
                     connection,
                     transaction,
                     departmentSelectionAssignment.UserId.Value);
@@ -868,7 +804,7 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
                 continue;
             }
 
-            var recipient = await LoadActiveUserNotificationRecipient(connection, transaction, recipientUserId);
+            var recipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, recipientUserId);
             if (!recipient.HasValue)
             {
                 continue;
@@ -1021,7 +957,7 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
                 continue;
             }
 
-            var recipient = await LoadActiveUserNotificationRecipient(connection, transaction, recipientUserId);
+            var recipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, recipientUserId);
             if (!recipient.HasValue)
             {
                 continue;

@@ -12,9 +12,21 @@ internal sealed class TaskApplicationService(
 {
     public async Task<IReadOnlyList<TaskWithWorkflowDto>> GetTasksAsync(CurrentUser currentUser, CancellationToken cancellationToken = default)
     {
-        var tasks = await repository.GetTasks();
-        if (!authorizationPolicyService.CanManageAdminConfiguration(currentUser))
+        var isAdmin = authorizationPolicyService.CanManageAdminConfiguration(currentUser);
+        List<TaskWithWorkflowDto> tasks;
+
+        if (isAdmin)
         {
+            tasks = await repository.GetTasks();
+        }
+        else
+        {
+            // Rotation tasks are pre-filtered in SQL by responsibility/direct assignment.
+            // Workflow tasks are still filtered in-memory below (phase-based logic).
+            var responsibilityIds = currentUser.EffectiveResponsibilities
+                .Select(r => r.ResponsibilityId)
+                .ToArray();
+            tasks = await repository.GetTasksForUser(currentUser.UserId, responsibilityIds);
             tasks = tasks
                 .Where(task =>
                     authorizationPolicyService.CanUpdateTaskStatus(currentUser, task)

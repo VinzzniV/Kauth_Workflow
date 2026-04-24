@@ -48,6 +48,19 @@ public sealed class RotationTemplateAdminServiceTests
     }
 
     [Fact]
+    public async Task CreateDepartmentActionTemplateAsync_RejectsMissingResponsibility()
+    {
+        var repository = new StubRotationRepository();
+        var service = CreateService(repository);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateDepartmentActionTemplateAsync(
+            CreateRequest(defaultResponsibilityId: null),
+            CreateUser()));
+
+        Assert.Contains("defaultResponsibilityId", ex.Message);
+    }
+
+    [Fact]
     public async Task CreateDepartmentActionTemplateAsync_RejectsUnknownResponsibility()
     {
         var repository = new StubRotationRepository
@@ -76,14 +89,14 @@ public sealed class RotationTemplateAdminServiceTests
                 title: "  Ordnerrechte Einkauf setzen  ",
                 description: "  Beschreibung  ",
                 isAutomatable: true,
-                automationKey: "  folder-rights  "),
+                automationKey: "  CreateAdUser  "),
             CreateUser());
 
         Assert.Equal("enter", created.TriggerType);
         Assert.Equal("technical", created.TaskType);
         Assert.Equal("Ordnerrechte Einkauf setzen", created.Title);
         Assert.Equal("Beschreibung", created.Description);
-        Assert.Equal("folder-rights", created.AutomationKey);
+        Assert.Equal("CreateAdUser", created.AutomationKey);
     }
 
     [Fact]
@@ -113,6 +126,32 @@ public sealed class RotationTemplateAdminServiceTests
         Assert.Equal("template_created", generationService.LastReason);
     }
 
+    [Fact]
+    public async Task CreateDepartmentActionTemplateAsync_RejectsUnknownAutomationKey()
+    {
+        var repository = new StubRotationRepository();
+        var service = CreateService(repository);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateDepartmentActionTemplateAsync(
+            CreateRequest(isAutomatable: true, automationKey: "UnknownAction"),
+            CreateUser()));
+
+        Assert.Contains("automationKey", ex.Message);
+    }
+
+    [Fact]
+    public async Task CreateDepartmentActionTemplateAsync_RejectsMissingAutomationKeyForAutomatableTemplate()
+    {
+        var repository = new StubRotationRepository();
+        var service = CreateService(repository);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateDepartmentActionTemplateAsync(
+            CreateRequest(isAutomatable: true, automationKey: null),
+            CreateUser()));
+
+        Assert.Contains("automationKey", ex.Message);
+    }
+
     private static RotationTemplateAdminService CreateService(
         StubRotationRepository repository,
         StubRotationTaskGenerationService? generationService = null)
@@ -120,6 +159,7 @@ public sealed class RotationTemplateAdminServiceTests
         return new RotationTemplateAdminService(
             repository,
             generationService ?? new StubRotationTaskGenerationService(),
+            new StubWorkflowAutomationHandlerRegistry(),
             NullLogger<RotationTemplateAdminService>.Instance);
     }
 
@@ -148,7 +188,7 @@ public sealed class RotationTemplateAdminServiceTests
         string title = "Ordnerrechte Einkauf setzen",
         string? description = null,
         string taskType = "manual",
-        int? defaultResponsibilityId = null,
+        int? defaultResponsibilityId = 5,
         int dueOffsetDays = -2,
         int? reminderOffsetDays = 1,
         bool isAutomatable = false,
@@ -319,6 +359,12 @@ public sealed class RotationTemplateAdminServiceTests
         public Task<bool> DeleteDepartmentActionTemplate(int templateId)
             => Task.FromResult(true);
 
+        public Task<List<TaskWithWorkflowDto>> GetAllRotationTaskEnvelopes()
+            => Task.FromResult(new List<TaskWithWorkflowDto>());
+
+        public Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] responsibilityIds)
+            => Task.FromResult(new List<TaskWithWorkflowDto>());
+
         public Task<TaskWithWorkflowDto?> GetRotationTaskEnvelope(long taskId)
             => Task.FromResult<TaskWithWorkflowDto?>(null);
 
@@ -370,5 +416,15 @@ public sealed class RotationTemplateAdminServiceTests
             LastReason = reason;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class StubWorkflowAutomationHandlerRegistry : IWorkflowAutomationHandlerRegistry
+    {
+        private static readonly string[] RegisteredKeys = ["CreateAdUser", "SendWelcomeMail"];
+
+        public IReadOnlyCollection<string> GetRegisteredKeys() => RegisteredKeys;
+
+        public IWorkflowAutomationActionHandler Resolve(string actionKey)
+            => throw new NotSupportedException();
     }
 }

@@ -160,6 +160,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
     [InlineData("invalid_parallel_split")]
     [InlineData("invalid_parallel_join")]
     [InlineData("invalid_multi_outgoing_task")]
+    [InlineData("unreachable_node")]
     public void ValidateAndNormalize_RejectsInvalidDrafts(string scenario)
     {
         var request = scenario switch
@@ -284,12 +285,52 @@ public sealed class WorkflowDefinitionValidationServiceTests
                     CreateEdge("Task", "End_B", 1)
                 ]
             },
+            "unreachable_node" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes =
+                [
+                    CreateNode("Start", "start"),
+                    CreateNode("Main", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                    CreateNode("Orphan", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                    CreateNode("End", "end")
+                ],
+                Edges =
+                [
+                    CreateEdge("Start", "Main", 0),
+                    CreateEdge("Main", "End", 0),
+                    CreateEdge("Orphan", "End", 1)
+                ]
+            },
             _ => throw new InvalidOperationException($"Unknown scenario '{scenario}'.")
         };
 
         var exception = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(request));
 
         Assert.False(string.IsNullOrWhiteSpace(exception.Message));
+    }
+
+    [Fact]
+    public void ValidateSnapshot_RejectsUnreachableNode()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Main", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Orphan", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("End", "end")
+            ],
+            Edges =
+            [
+                CreateEdge("Start", "Main", 0),
+                CreateEdge("Main", "End", 0),
+                CreateEdge("Orphan", "End", 1)
+            ]
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, issue => issue.Code == "node_not_reachable" && issue.ReferenceKey == "orphan");
     }
 
     [Fact]

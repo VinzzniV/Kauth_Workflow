@@ -4,7 +4,7 @@ using NpgsqlTypes;
 
 namespace API;
 
-internal sealed partial class PostgresWorkflowRepository
+internal sealed partial class PostgresRotationRepository
 {
     private sealed class RotationNotificationCandidateRow
     {
@@ -128,7 +128,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         const string sql = @"
 SELECT
-    rn.id,
+    rn.id AS notification_id,
     rn.rotation_plan_id,
     rn.rotation_station_id,
     rn.generated_task_id,
@@ -136,7 +136,7 @@ SELECT
     rn.recipient_email,
     rn.recipient_user_id,
     rn.subject,
-    rn.payload_json::text
+    rn.payload_json::text AS payload_text
 FROM rotation_notifications rn
 JOIN rotation_plans rp ON rp.id = rn.rotation_plan_id
 WHERE rn.status IN ('pending', 'failed')
@@ -149,7 +149,17 @@ ORDER BY rn.created_at, rn.id;";
         var targets = new List<RotationNotificationDispatchTarget>();
         while (await reader.ReadAsync())
         {
-            var payloadText = reader.IsDBNull(8) ? null : reader.GetString(8);
+            var notificationId = reader.GetOrdinal("notification_id");
+            var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+            var rotationStationId = reader.GetOrdinal("rotation_station_id");
+            var generatedTaskId = reader.GetOrdinal("generated_task_id");
+            var notificationType = reader.GetOrdinal("notification_type");
+            var recipientEmail = reader.GetOrdinal("recipient_email");
+            var recipientUserId = reader.GetOrdinal("recipient_user_id");
+            var subject = reader.GetOrdinal("subject");
+            var payloadTextOrdinal = reader.GetOrdinal("payload_text");
+
+            var payloadText = reader.IsDBNull(payloadTextOrdinal) ? null : reader.GetString(payloadTextOrdinal);
             if (string.IsNullOrWhiteSpace(payloadText))
             {
                 continue;
@@ -163,15 +173,15 @@ ORDER BY rn.created_at, rn.id;";
 
             targets.Add(new RotationNotificationDispatchTarget
             {
-                NotificationId = reader.GetInt64(0),
-                RotationPlanId = reader.GetInt64(1),
-                RotationStationId = reader.IsDBNull(2) ? null : reader.GetInt64(2),
-                GeneratedTaskId = reader.IsDBNull(3) ? null : reader.GetInt64(3),
-                NotificationType = reader.GetString(4),
-                TargetEmail = reader.GetString(5),
-                RecipientUserId = reader.IsDBNull(6) ? null : reader.GetInt64(6),
+                NotificationId = reader.GetInt64(notificationId),
+                RotationPlanId = reader.GetInt64(rotationPlanId),
+                RotationStationId = reader.IsDBNull(rotationStationId) ? null : reader.GetInt64(rotationStationId),
+                GeneratedTaskId = reader.IsDBNull(generatedTaskId) ? null : reader.GetInt64(generatedTaskId),
+                NotificationType = reader.GetString(notificationType),
+                TargetEmail = reader.GetString(recipientEmail),
+                RecipientUserId = reader.IsDBNull(recipientUserId) ? null : reader.GetInt64(recipientUserId),
                 TargetName = payload.RecipientName,
-                Subject = reader.GetString(7),
+                Subject = reader.GetString(subject),
                 Payload = payload
             });
         }
@@ -197,7 +207,7 @@ SELECT
     generated_task_id,
     notification_type,
     recipient_email,
-    status
+    status AS old_status
 FROM rotation_notifications
 WHERE id = @notificationId
 LIMIT 1;";
@@ -226,12 +236,19 @@ WHERE id = @notificationId;";
                 await using var reader = await selectCommand.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
                 {
-                    rotationPlanId = reader.GetInt64(0);
-                    rotationStationId = reader.IsDBNull(1) ? null : reader.GetInt64(1);
-                    generatedTaskId = reader.IsDBNull(2) ? null : reader.GetInt64(2);
-                    notificationType = reader.IsDBNull(3) ? null : reader.GetString(3);
-                    recipientEmail = reader.IsDBNull(4) ? null : reader.GetString(4);
-                    oldStatus = reader.IsDBNull(5) ? null : reader.GetString(5);
+                    var rotationPlanIdOrdinal = reader.GetOrdinal("rotation_plan_id");
+                    var rotationStationIdOrdinal = reader.GetOrdinal("rotation_station_id");
+                    var generatedTaskIdOrdinal = reader.GetOrdinal("generated_task_id");
+                    var notificationTypeOrdinal = reader.GetOrdinal("notification_type");
+                    var recipientEmailOrdinal = reader.GetOrdinal("recipient_email");
+                    var oldStatusOrdinal = reader.GetOrdinal("old_status");
+
+                    rotationPlanId = reader.GetInt64(rotationPlanIdOrdinal);
+                    rotationStationId = reader.IsDBNull(rotationStationIdOrdinal) ? null : reader.GetInt64(rotationStationIdOrdinal);
+                    generatedTaskId = reader.IsDBNull(generatedTaskIdOrdinal) ? null : reader.GetInt64(generatedTaskIdOrdinal);
+                    notificationType = reader.IsDBNull(notificationTypeOrdinal) ? null : reader.GetString(notificationTypeOrdinal);
+                    recipientEmail = reader.IsDBNull(recipientEmailOrdinal) ? null : reader.GetString(recipientEmailOrdinal);
+                    oldStatus = reader.IsDBNull(oldStatusOrdinal) ? null : reader.GetString(oldStatusOrdinal);
                 }
             }
 
@@ -370,7 +387,7 @@ WHERE id = @notificationId;";
     {
         if (row.AssigneeUserId.HasValue)
         {
-            var directRecipient = await LoadActiveUserNotificationRecipient(connection, transaction, row.AssigneeUserId.Value);
+            var directRecipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, row.AssigneeUserId.Value);
             if (directRecipient.HasValue)
             {
                 return (directRecipient.Value.UserId, directRecipient.Value.DisplayName, directRecipient.Value.Email);
@@ -382,7 +399,7 @@ WHERE id = @notificationId;";
             return null;
         }
 
-        var responsibilityUserId = await ResolvePrimaryAssigneeUserId(
+        var responsibilityUserId = await PostgresRepositorySharedHelpers.ResolvePrimaryAssigneeUserId(
             connection,
             transaction,
             row.AssigneeResponsibilityId.Value,
@@ -392,7 +409,7 @@ WHERE id = @notificationId;";
             return null;
         }
 
-        var resolvedRecipient = await LoadActiveUserNotificationRecipient(connection, transaction, responsibilityUserId.Value);
+        var resolvedRecipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, responsibilityUserId.Value);
         return resolvedRecipient.HasValue
             ? (resolvedRecipient.Value.UserId, resolvedRecipient.Value.DisplayName, resolvedRecipient.Value.Email)
             : null;
@@ -500,17 +517,17 @@ VALUES (
 SELECT
     rgt.rotation_plan_id,
     rgt.rotation_station_id,
-    rgt.id,
+    rgt.id AS generated_task_id,
     rp.person_id,
-    w.uid,
-    rp.title,
+    w.uid AS source_workflow_uid,
+    rp.title AS plan_title,
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, w.first_name), COALESCE(p.last_name, w.last_name))), ''),
         u.display_name,
         'Person #' || rp.person_id::text
     ) AS display_name,
     rgt.department_id,
-    station_d.name,
+    station_d.name AS department_name,
     rgt.trigger_type,
     rgt.anchor_date,
     CASE
@@ -521,8 +538,8 @@ SELECT
         WHEN rgt.trigger_type = 'exit' THEN COALESCE(next_d.name, plan_d.name, station_d.name)
         ELSE station_d.name
     END AS next_department_name,
-    rgt.title,
-    rgt.status,
+    rgt.title AS task_title,
+    rgt.status AS task_status,
     rgt.due_date,
     ta.assignee_user_id,
     ta.assignee_responsibility_id
@@ -564,17 +581,17 @@ ORDER BY rgt.rotation_plan_id, rgt.rotation_station_id, rgt.id;";
 SELECT
     rgt.rotation_plan_id,
     rgt.rotation_station_id,
-    rgt.id,
+    rgt.id AS generated_task_id,
     rp.person_id,
-    w.uid,
-    rp.title,
+    w.uid AS source_workflow_uid,
+    rp.title AS plan_title,
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, w.first_name), COALESCE(p.last_name, w.last_name))), ''),
         u.display_name,
         'Person #' || rp.person_id::text
     ) AS display_name,
     rgt.department_id,
-    station_d.name,
+    station_d.name AS department_name,
     rgt.trigger_type,
     rgt.anchor_date,
     CASE
@@ -585,8 +602,8 @@ SELECT
         WHEN rgt.trigger_type = 'exit' THEN COALESCE(next_d.name, plan_d.name, station_d.name)
         ELSE station_d.name
     END AS next_department_name,
-    rgt.title,
-    rgt.status,
+    rgt.title AS task_title,
+    rgt.status AS task_status,
     rgt.due_date,
     ta.assignee_user_id,
     ta.assignee_responsibility_id
@@ -626,17 +643,17 @@ ORDER BY rgt.rotation_plan_id, rgt.rotation_station_id, rgt.id;";
 SELECT
     rgt.rotation_plan_id,
     rgt.rotation_station_id,
-    rgt.id,
+    rgt.id AS generated_task_id,
     rp.person_id,
-    w.uid,
-    rp.title,
+    w.uid AS source_workflow_uid,
+    rp.title AS plan_title,
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, w.first_name), COALESCE(p.last_name, w.last_name))), ''),
         u.display_name,
         'Person #' || rp.person_id::text
     ) AS display_name,
     rgt.department_id,
-    station_d.name,
+    station_d.name AS department_name,
     rgt.trigger_type,
     rgt.anchor_date,
     CASE
@@ -647,8 +664,8 @@ SELECT
         WHEN rgt.trigger_type = 'exit' THEN COALESCE(next_d.name, plan_d.name, station_d.name)
         ELSE station_d.name
     END AS next_department_name,
-    rgt.title,
-    rgt.status,
+    rgt.title AS task_title,
+    rgt.status AS task_status,
     rgt.due_date,
     ta.assignee_user_id,
     ta.assignee_responsibility_id
@@ -694,27 +711,46 @@ ORDER BY rgt.rotation_plan_id, rgt.rotation_station_id, rgt.id;";
         var rows = new List<RotationNotificationCandidateRow>();
         while (await reader.ReadAsync())
         {
+            var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+            var rotationStationId = reader.GetOrdinal("rotation_station_id");
+            var generatedTaskId = reader.GetOrdinal("generated_task_id");
+            var personId = reader.GetOrdinal("person_id");
+            var sourceWorkflowUid = reader.GetOrdinal("source_workflow_uid");
+            var planTitle = reader.GetOrdinal("plan_title");
+            var displayName = reader.GetOrdinal("display_name");
+            var departmentId = reader.GetOrdinal("department_id");
+            var departmentName = reader.GetOrdinal("department_name");
+            var triggerType = reader.GetOrdinal("trigger_type");
+            var anchorDate = reader.GetOrdinal("anchor_date");
+            var currentDepartmentName = reader.GetOrdinal("current_department_name");
+            var nextDepartmentName = reader.GetOrdinal("next_department_name");
+            var taskTitle = reader.GetOrdinal("task_title");
+            var taskStatus = reader.GetOrdinal("task_status");
+            var dueDate = reader.GetOrdinal("due_date");
+            var assigneeUserId = reader.GetOrdinal("assignee_user_id");
+            var assigneeResponsibilityId = reader.GetOrdinal("assignee_responsibility_id");
+
             rows.Add(new RotationNotificationCandidateRow
             {
                 NotificationType = notificationType,
-                RotationPlanId = reader.GetInt64(0),
-                RotationStationId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
-                GeneratedTaskId = reader.GetInt64(2),
-                PersonId = reader.GetInt64(3),
-                SourceWorkflowUid = reader.GetGuid(4),
-                PlanTitle = reader.GetString(5),
-                PersonDisplayName = reader.GetString(6),
-                DepartmentId = reader.GetInt32(7),
-                DepartmentName = reader.IsDBNull(8) ? null : reader.GetString(8),
-                TriggerType = reader.IsDBNull(9) ? null : reader.GetString(9),
-                ChangeDate = reader.IsDBNull(10) ? null : reader.GetFieldValue<DateOnly>(10),
-                CurrentDepartmentName = reader.IsDBNull(11) ? null : reader.GetString(11),
-                NextDepartmentName = reader.IsDBNull(12) ? null : reader.GetString(12),
-                TaskTitle = reader.GetString(13),
-                TaskStatus = reader.GetString(14),
-                DueDate = reader.IsDBNull(15) ? null : reader.GetFieldValue<DateOnly>(15),
-                AssigneeUserId = reader.IsDBNull(16) ? null : reader.GetInt64(16),
-                AssigneeResponsibilityId = reader.IsDBNull(17) ? null : reader.GetInt32(17)
+                RotationPlanId = reader.GetInt64(rotationPlanId),
+                RotationStationId = reader.IsDBNull(rotationStationId) ? null : reader.GetInt64(rotationStationId),
+                GeneratedTaskId = reader.GetInt64(generatedTaskId),
+                PersonId = reader.GetInt64(personId),
+                SourceWorkflowUid = reader.GetGuid(sourceWorkflowUid),
+                PlanTitle = reader.GetString(planTitle),
+                PersonDisplayName = reader.GetString(displayName),
+                DepartmentId = reader.GetInt32(departmentId),
+                DepartmentName = reader.IsDBNull(departmentName) ? null : reader.GetString(departmentName),
+                TriggerType = reader.IsDBNull(triggerType) ? null : reader.GetString(triggerType),
+                ChangeDate = reader.IsDBNull(anchorDate) ? null : reader.GetFieldValue<DateOnly>(anchorDate),
+                CurrentDepartmentName = reader.IsDBNull(currentDepartmentName) ? null : reader.GetString(currentDepartmentName),
+                NextDepartmentName = reader.IsDBNull(nextDepartmentName) ? null : reader.GetString(nextDepartmentName),
+                TaskTitle = reader.GetString(taskTitle),
+                TaskStatus = reader.GetString(taskStatus),
+                DueDate = reader.IsDBNull(dueDate) ? null : reader.GetFieldValue<DateOnly>(dueDate),
+                AssigneeUserId = reader.IsDBNull(assigneeUserId) ? null : reader.GetInt64(assigneeUserId),
+                AssigneeResponsibilityId = reader.IsDBNull(assigneeResponsibilityId) ? null : reader.GetInt32(assigneeResponsibilityId)
             });
         }
 

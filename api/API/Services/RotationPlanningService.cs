@@ -10,18 +10,18 @@ internal sealed class RotationPlanningService(
 {
     private static readonly HashSet<string> SupportedPlanStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "draft",
-        "active",
-        "completed",
-        "archived"
+        RotationPlanStatuses.Draft,
+        RotationPlanStatuses.Active,
+        RotationPlanStatuses.Completed,
+        RotationPlanStatuses.Archived
     };
 
     private static readonly HashSet<string> SupportedStationStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "planned",
-        "active",
-        "completed",
-        "cancelled"
+        RotationStationStatuses.Planned,
+        RotationStationStatuses.Active,
+        RotationStationStatuses.Completed,
+        RotationStationStatuses.Cancelled
     };
 
     public async Task<IReadOnlyList<RotationPlanListItemDto>> GetRotationPlansAsync(
@@ -123,7 +123,7 @@ internal sealed class RotationPlanningService(
 
         var normalizedStatus = NormalizePlanStatus(request.Status);
         var conflictState = await rotationRepository.GetRotationPlanConflictState(request.PersonId, request.SourceWorkflowUid);
-        if (normalizedStatus == "active" && conflictState.HasActivePlanForPerson)
+        if (normalizedStatus == RotationPlanStatuses.Active && conflictState.HasActivePlanForPerson)
         {
             throw new InvalidOperationException("Für diese Person existiert bereits ein aktiver Durchlaufplan.");
         }
@@ -305,7 +305,7 @@ internal sealed class RotationPlanningService(
     private static string NormalizePlanStatus(string? status)
     {
         var normalizedStatus = string.IsNullOrWhiteSpace(status)
-            ? "draft"
+            ? RotationPlanStatuses.Draft
             : status.Trim().ToLowerInvariant();
 
         if (!SupportedPlanStatuses.Contains(normalizedStatus))
@@ -348,7 +348,7 @@ internal sealed class RotationPlanningService(
         }
 
         var normalizedStatus = string.IsNullOrWhiteSpace(request.Status)
-            ? "planned"
+            ? RotationStationStatuses.Planned
             : request.Status.Trim().ToLowerInvariant();
         if (!SupportedStationStatuses.Contains(normalizedStatus))
         {
@@ -406,7 +406,7 @@ internal sealed class RotationPlanningService(
 
     private static void EnsurePlanAllowsStationChanges(RotationPlanDetailDto plan)
     {
-        if (plan.Status is "completed" or "archived")
+        if (plan.Status is RotationPlanStatuses.Completed or RotationPlanStatuses.Archived)
         {
             throw new InvalidOperationException(
                 "Stationen koennen nur in Durchlaufplaenen mit Status draft oder active geaendert werden.");

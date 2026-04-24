@@ -1874,7 +1874,7 @@ RETURNING id;
         {
             assigneeResponsibilityId = template.DefaultResponsibilityId;
             assigneeUserId = assigneeResponsibilityId.HasValue
-                ? await ResolvePrimaryAssigneeUserId(
+                ? await PostgresRepositorySharedHelpers.ResolvePrimaryAssigneeUserId(
                     connection,
                     transaction,
                     assigneeResponsibilityId.Value,

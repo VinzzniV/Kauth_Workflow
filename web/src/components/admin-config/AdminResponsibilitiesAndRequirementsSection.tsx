@@ -377,6 +377,22 @@ function getTriggerLabel(t: RotationTriggerType): string {
   return t === "enter" ? "Eintritt" : "Austritt";
 }
 
+function formatDueOffsetHint(offsetStr: string, triggerType: string): string {
+  const offset = parseInt(offsetStr, 10);
+  if (isNaN(offset)) return "";
+  const anchor = triggerType === "enter" ? "Stationsbeginn" : "Stationsende";
+  if (offset === 0) return `Am Tag des ${anchor} fällig`;
+  if (offset < 0) return `${Math.abs(offset)} Tag${Math.abs(offset) === 1 ? "" : "e"} vor ${anchor} fällig`;
+  return `${offset} Tag${offset === 1 ? "" : "e"} nach ${anchor} fällig`;
+}
+
+function formatReminderOffsetHint(offsetStr: string): string {
+  const offset = parseInt(offsetStr, 10);
+  if (offsetStr === "" || isNaN(offset)) return "Kein Reminder — zuständige Stelle wird nicht vorab benachrichtigt";
+  if (offset === 0) return "Benachrichtigung am Tag des Stationswechsels";
+  return `Benachrichtigung ${offset} Tag${offset === 1 ? "" : "e"} vor dem Stationswechsel`;
+}
+
 function getTaskTypeLabel(t: RotationTaskType): string {
   switch (t) {
     case "technical": return "Technisch";
@@ -517,7 +533,6 @@ function AbteilungsanforderungenPanel() {
         <section className="panel panel-muted">
           <div className="panel-head">
             <h2>{editingTemplateId ? "Vorlage bearbeiten" : "Neue Vorlage anlegen"}</h2>
-            <p>Der Fälligkeits-Offset bezieht sich auf das Stationsdatum (negativ = Tage vorher).</p>
           </div>
           <div className="workflow-grid" aria-label="Vorlagenformular">
             <div className="dashboard-card card-primary rotation-form-card">
@@ -575,13 +590,14 @@ function AbteilungsanforderungenPanel() {
                 </select>
               </label>
               <label className="field compact">
-                <span>Zuständige Stelle</span>
+                <span>Zuständige Stelle *</span>
                 <select
                   value={form.defaultResponsibilityId}
                   onChange={(e) => setForm((c) => ({ ...c, defaultResponsibilityId: e.target.value }))}
                   disabled={responsibilitiesQuery.isLoading}
+                  required
                 >
-                  <option value="">Keine Zuweisung</option>
+                  <option value="" disabled>Bitte Zuständigkeit wählen</option>
                   {responsibilities.map((r) => (
                     <option key={r.responsibilityId} value={String(r.responsibilityId)}>
                       {r.responsibilityName}{r.responsibilityType ? ` (${r.responsibilityType})` : ""}
@@ -589,28 +605,36 @@ function AbteilungsanforderungenPanel() {
                   ))}
                 </select>
               </label>
-              <label className="field compact">
-                <span>Fälligkeits-Offset (Tage)</span>
-                <input
-                  type="number"
-                  value={form.dueOffsetDays}
-                  onChange={(e) => setForm((c) => ({ ...c, dueOffsetDays: e.target.value }))}
-                  placeholder="0 = am Wechseltag, -3 = 3 Tage vorher"
-                  min={-365}
-                  max={365}
-                />
-              </label>
-              <label className="field compact">
-                <span>Reminder-Offset (Tage, optional)</span>
-                <input
-                  type="number"
-                  value={form.reminderOffsetDays}
-                  onChange={(e) => setForm((c) => ({ ...c, reminderOffsetDays: e.target.value }))}
-                  placeholder="Leer lassen für keinen Reminder"
-                  min={-365}
-                  max={365}
-                />
-              </label>
+              <div className="field compact">
+                <label>
+                  <span>Fälligkeit (Tage relativ zum Auslöser)</span>
+                  <input
+                    type="number"
+                    value={form.dueOffsetDays}
+                    onChange={(e) => setForm((c) => ({ ...c, dueOffsetDays: e.target.value }))}
+                    placeholder="0 = am Wechseltag, -5 = 5 Tage vorher"
+                    min={-365}
+                    max={365}
+                  />
+                </label>
+                {form.dueOffsetDays !== "" ? (
+                  <p className="panel-note">{formatDueOffsetHint(form.dueOffsetDays, form.triggerType)}</p>
+                ) : null}
+              </div>
+              <div className="field compact">
+                <label>
+                  <span>Erinnerung (Tage vor Wechsel, optional)</span>
+                  <input
+                    type="number"
+                    value={form.reminderOffsetDays}
+                    onChange={(e) => setForm((c) => ({ ...c, reminderOffsetDays: e.target.value }))}
+                    placeholder="Leer lassen = kein Reminder"
+                    min={0}
+                    max={365}
+                  />
+                </label>
+                <p className="panel-note">{formatReminderOffsetHint(form.reminderOffsetDays)}</p>
+              </div>
               <label className="field compact">
                 <span>Status</span>
                 <select

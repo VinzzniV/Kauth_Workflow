@@ -29,7 +29,7 @@ Verwende sie nur fuer:
 
 ## Temporary Notes
 
-- `PRODUCTIVE_TARGET_ARCHITECTURE.md` beschreibt das stabile Plattform-Zielbild.
+- `KauthWorkflow/Architektur/Zielarchitektur.md` beschreibt das stabile Plattform-Zielbild.
 - `PROJECT_STRUCTURE.md` und `web/README.md` muessen bei sichtbaren Admin-/UI-Verschiebungen mitgezogen werden.
 - Diese Datei enthaelt nur noch Hinweise fuer die naechsten Sessions, keine laengere Historie.
 

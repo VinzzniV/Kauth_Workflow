@@ -52,7 +52,7 @@
 
 ### Sackgassen und unklare Zustände
 
-- **Rotation ohne Zuständigkeit**: Ein Template ohne `default_responsibility_id` erzeugt Aufgaben, die für niemanden sichtbar sind. Kein Block beim Speichern, nur eine UI-Warnung (neu hinzugefügt). Nutzer bekommen keine Aufgaben, ohne zu wissen warum.
+- **Rotation ohne Zuständigkeit**: ✓ Behoben (2026-04-24) — `DefaultResponsibilityId` ist jetzt Pflichtfeld. Bestehende Templates ohne Zuständigkeit zeigen weiter eine Warnung in der Admin-Ansicht.
 - **Workflow-Builder ohne Publish-Validierung**: Man kann einen Workflow bauen und veröffentlichen, der logisch unvollständig ist (kein Exit-Knoten geprüft).
 - **Automation-Keys ohne Binding**: Ein Template mit falschem `automation_key` schlägt erst beim Job-Execute fehl — kein Fehler beim Speichern.
 - **Filter "Wechsel in X Tagen"**: War bis zum letzten Fix auf die gesamte Aufgabenliste angewendet — hat alle Aufgaben jenseits von 14 Tagen versteckt.
@@ -155,175 +155,24 @@ Das ist kein Repository-Pattern — das ist eine Daten-God-Klasse. Unit-Tests si
 
 ---
 
-## 6. Priorisierte Probleme
+## 6. Offene Punkte (nach Review-Zyklus 2026-04-23)
 
-### CRITICAL (blockiert Nutzung oder birgt Datenverlust)
+Alle priorisierten Aufgaben (COD-1..6, CLA-1..4) sind abgeschlossen. Folgende Punkte wurden bewusst ausgeklammert oder entstanden als Folgearbeit:
 
-- **C1**: `SynchronizeRotationGeneratedTasks` ohne explizite Transaktionsgrenzen → Teilfehler hinterlassen inkonsistente Datenstände.
-- **C2**: Rotations-Template ohne Zuständigkeit → Aufgaben sind für Abteilungen unsichtbar, keine sichtbare Fehlermeldung beim Erzeugen (nur Admin-Warnung in Config).
-- **C3**: Kein Soft-Delete / Deaktivierung für Entra-gelöschte User → Berechtigungen bleiben aktiv.
-- **C4**: Skalierungsproblem bei `GetTasksAsync`: Alle Tasks werden in Memory gefiltert — versagt bei wachsender Datenmenge.
+### Nicht im Zyklus adressiert
 
-### HIGH (stark verbesserungswürdig)
-
-- **H1**: Monolithisches Repository (23.758 Zeilen) — nicht testbar, nicht wartbar.
-- **H2**: Rotations-Stations-Überschneidung nicht geprüft — Duplikat-Aufgaben möglich.
-- **H3**: Automation-Key beim Template-Speichern nicht validiert → Silent Failures bei Job-Ausführung.
-- **H4**: Notification-Template-Platzhalter nicht geprüft → Render-Fehler erst beim Mailversand.
-- **H5**: Keine DAG-Vollständigkeitsprüfung vor Workflow-Definition-Publish.
-- **H6**: `RotationTaskGenerationOperations.cs` (1.444 Zeilen) mit eingebetteter Business-Logik in Repository — untestbar.
-- **H7**: Positions-SQL-Mapping (positionale Reader-Indizes `GetString(0)`) → fragil bei Schema-Änderungen.
-
-### LOW (optional, verbesserungswürdig)
-
+- **C2** (HIGH): ✓ erledigt (2026-04-24) — `DefaultResponsibilityId` ist jetzt Pflichtfeld in Service + Frontend. SQL-Sichtbarkeitsfilter korrigiert (`rta.responsibility_id` → `rta.assignee_responsibility_id`, `rta.user_id` → `rta.assignee_user_id`).
+- **H6** (HIGH): `RotationTaskRegenerationEngine` aus `PostgresRotationRepository.TaskGenerationOperations.cs` als reinen Domain-Service extrahieren — Regenerierungslogik ist weiter im Repository eingebettet, Unit-Tests ohne DB nicht möglich.
 - **L1**: Hardcodierte Retry-Delays (1m, 5min, 5min) nicht konfigurierbar.
 - **L2**: Datenbereinigung für Drafts/abgebrochene Pläne fehlt.
 - **L3**: `/client/log-events` ohne Rate-Limiting.
-- **L4**: String-Konstanten (Status-Enums, Systemkeys) an mehreren Stellen — kein zentrales Enum.
 - **L5**: Permission-Audit ohne Begründungsfeld.
 - **L6**: `AUTH_MODE=dev-sim` kein Guard gegen Prod-Aktivierung.
 - **L7**: `WorkflowBuilderPage` + Canvas-Feature für vermutlich sehr seltene Nutzung übergebaut.
 
 ---
 
-## 7. Konkrete Verbesserungsvorschläge
-
-### C1 — Transaktionen in Rotation-Regenerierung
-
-```csharp
-// PostgresWorkflowRepository.RotationTaskGenerationOperations.cs
-// JETZT: Mehrere INSERT/UPDATE ohne gemeinsame Transaktion
-// FIX:
-await using var transaction = await connection.BeginTransactionAsync();
-try {
-    // ... alle Task-Mutationen ...
-    await transaction.CommitAsync();
-} catch {
-    await transaction.RollbackAsync();
-    throw;
-}
-```
-
-### C4 — Task-Filter ins SQL verlagern
-
-```csharp
-// TaskApplicationService.cs: GetTasksAsync lädt alle Tasks
-// FIX: WHERE-Klausel in LoadRotationTaskEnvelopes() erweitern
-// SQL:
-// WHERE rgt.rotation_station_id = @stationId
-//   AND EXISTS (SELECT 1 FROM rotation_task_assignments rta 
-//               WHERE rta.rotation_generated_task_id = rgt.id 
-//               AND rta.responsibility_id = ANY(@responsibilityIds))
-```
-
-### H1 — Repository aufteilen
-
-Folgende Aufteilung:
-- `RotationRepository.cs` (aus RotationTaskGenerationOperations + RotationOperations extrahieren)
-- `WorkflowRuntimeRepository.cs` (aus WorkflowRuntimeOperations)
-- `AutomationRepository.cs` (aus AutomationOperations)
-- `AuditRepository.cs` (aus Audit-Operationen)
-- `NotificationRepository.cs` (aus NotificationOperations)
-
-`PostgresWorkflowRepository.cs` bleibt als Kern für Workflow-CRUD, wird auf < 3.000 Zeilen reduziert.
-
-### H2 — Stations-Überschneidung prüfen
-
-```csharp
-// RotationPlanningService.cs: CreateRotationStation()
-// FIX: Vor Insert prüfen:
-var existingStations = await repo.GetRotationStations(planId);
-var conflict = existingStations.Any(s =>
-    s.StartDate < request.EndDate && s.EndDate > request.StartDate);
-if (conflict) return Results.Conflict("Zeitraum überschneidet bestehende Station.");
-```
-
-### H3 — Automation-Key validieren
-
-```csharp
-// AdminRotationConfigEndpoints.cs: UpsertDepartmentActionTemplate
-// FIX: Vor dem Speichern:
-if (request.IsAutomatable && request.AutomationKey != null) {
-    var knownKeys = await automationRegistry.GetRegisteredKeys();
-    if (!knownKeys.Contains(request.AutomationKey))
-        return Results.BadRequest($"Unbekannter automation_key: {request.AutomationKey}");
-}
-```
-
-### H4 — Platzhalter-Validierung beim Template-Speichern
-
-```csharp
-// NotificationTemplateService.cs: UpsertTemplate()
-// FIX: Extracte {{...}}-Ausdrücke, prüfe gegen erlaubten Katalog:
-var usedPlaceholders = Regex.Matches(body, @"\{\{(\w+)\}\}").Select(m => m.Groups[1].Value);
-var unknown = usedPlaceholders.Except(AllowedPlaceholders.ForTemplateType(templateKey));
-if (unknown.Any())
-    throw new ValidationException($"Unbekannte Platzhalter: {string.Join(", ", unknown)}");
-```
-
-### H5 — DAG-Validierung vor Publish
-
-```csharp
-// WorkflowDefinitionValidationService.cs
-// FIX: Prüfen, ob DAG genau einen Exit-Knoten hat und keine offenen Pfade:
-public ValidationResult ValidateForPublish(WorkflowDefinitionVersion version) {
-    var exitNodes = version.Nodes.Where(n => n.Type == "exit").ToList();
-    if (exitNodes.Count != 1)
-        return ValidationResult.Error("Workflow braucht genau einen Exit-Knoten.");
-    // Erreichbarkeits-Check: Alle Knoten vom Start erreichbar?
-    // ...
-}
-```
-
-### H6 — RotationTaskRegenerationEngine extrahieren
-
-```csharp
-// NEU: RotationTaskRegenerationEngine.cs (in Services/)
-// Enthält: MatchTemplatesToStation(), CalculateAnchorDate(), DetermineTaskAction()
-// Repository nur noch für DB-Operationen, keine Business-Logik
-// Ermöglicht Unit-Tests ohne DB-Mock
-```
-
-### H7 — Column-Name-Mapping statt positionalem Indexing
-
-```csharp
-// JETZT: reader.GetString(0), reader.GetBoolean(3) etc.
-// FIX: reader.GetOrdinal() nutzen oder Dapper TypedRow-Mapping einführen:
-var nameOrdinal = reader.GetOrdinal("display_name");
-var name = reader.GetString(nameOrdinal);
-// Oder Dapper: var tasks = await conn.QueryAsync<TaskRow>(sql, params);
-```
-
-### C3 — Entra-User-Deaktivierung
-
-```csharp
-// EntraDirectorySyncService.cs
-// FIX: Nach Sync lokale User gegen Entra-Antwort diffsen:
-var syncedExternalKeys = entraUsers.Select(u => u.Id).ToHashSet();
-var localUsers = await repo.GetAllAppUsers();
-foreach (var local in localUsers.Where(u => !syncedExternalKeys.Contains(u.ExternalKey)))
-    await repo.DeactivateAppUser(local.Id); // soft-delete, Audit-Log
-```
-
-### L4 — String-Konstanten zentralisieren
-
-```csharp
-// NEU: RotationConstants.cs
-public static class RotationStatus {
-    public const string Draft = "draft";
-    public const string Active = "active";
-    public const string Completed = "completed";
-    public const string Archived = "archived";
-}
-public static class TriggerType {
-    public const string Enter = "enter";
-    public const string Exit = "exit";
-}
-```
-
----
-
-## 8. Gesamtbewertung
+## 7. Gesamtbewertung
 
 | Bereich | Note | Hauptbegründung |
 |---------|------|-----------------|
@@ -336,8 +185,4 @@ public static class TriggerType {
 | Skalierbarkeit | **C** | In-Memory-Filter für Tasks ist ein strukturelles Scaling-Problem |
 | Sicherheit | **B** | Auth konsistent umgesetzt; `/client/log-events` ohne Rate-Limiting ist ein kleines Leck |
 
-**Priorisierung für die nächsten Schritte:**
-1. Transaktionsgrenzen in Rotation-Generierung (C1)
-2. Task-Filter ins SQL verlagern (C4)
-3. Repository-Aufteilung starten (H1) — beginnen mit `RotationRepository`
-4. Stations-Überschneidungsprüfung (H2)
+**Stand nach Review-Zyklus 2026-04-23:** CRITICAL- und HIGH-Punkte des Zyklus abgeschlossen. Backend-Architektur und Sicherheit deutlich verbessert. Offene Punkte sind in Abschnitt 6 dokumentiert.

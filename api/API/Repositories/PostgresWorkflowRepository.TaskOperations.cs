@@ -13,7 +13,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (RotationTaskRef.TryParse(taskRef, out _))
         {
-            return await UpdateRotationTaskStatusByRef(taskRef, status, actorUserId);
+            return await _rotationRepository.UpdateRotationTaskStatusByRef(taskRef, status, actorUserId);
         }
 
         return null;
@@ -31,7 +31,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (RotationTaskRef.TryParse(taskRef, out _))
         {
-            return await DecideRotationTaskApprovalByRef(taskRef, request, actorUserId);
+            return await _rotationRepository.DecideRotationTaskApprovalByRef(taskRef, request, actorUserId);
         }
 
         return null;
@@ -49,7 +49,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (RotationTaskRef.TryParse(taskRef, out _))
         {
-            return await UpdateRotationTaskAssignmentByRef(taskRef, request, actorUserId);
+            return await _rotationRepository.UpdateRotationTaskAssignmentByRef(taskRef, request, actorUserId);
         }
 
         return null;
@@ -64,7 +64,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (RotationTaskRef.TryParse(taskRef, out _))
         {
-            return await AddRotationTaskCommentByRef(taskRef, commentText, actorUserId);
+            return await _rotationRepository.AddRotationTaskCommentByRef(taskRef, commentText, actorUserId);
         }
 
         return null;
@@ -263,17 +263,17 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (request.AssigneeResponsibilityId.HasValue)
         {
-            await EnsureAssignableResponsibilityExists(connection, transaction, request.AssigneeResponsibilityId.Value);
+            await PostgresRepositorySharedHelpers.EnsureAssignableResponsibilityExists(connection, transaction, request.AssigneeResponsibilityId.Value);
         }
 
         if (request.AssigneeUserId.HasValue)
         {
-            await EnsureAssignableUserExists(connection, transaction, request.AssigneeUserId.Value);
+            await PostgresRepositorySharedHelpers.EnsureAssignableUserExists(connection, transaction, request.AssigneeUserId.Value);
         }
 
         if (request.AssigneeUserId.HasValue && request.AssigneeResponsibilityId.HasValue)
         {
-            await EnsureUserHasResponsibility(
+            await PostgresRepositorySharedHelpers.EnsureUserHasResponsibility(
                 connection,
                 transaction,
                 request.AssigneeUserId.Value,
@@ -286,8 +286,8 @@ internal sealed partial class PostgresWorkflowRepository
             ? request.AssigneeResponsibilityId
             : null;
         var newAssigneeLabel = assignmentType == "user"
-            ? await LoadAssigneeUserAuditLabel(connection, transaction, request.AssigneeUserId!.Value)
-            : await LoadAssigneeResponsibilityAuditLabel(connection, transaction, request.AssigneeResponsibilityId!.Value);
+            ? await PostgresRepositorySharedHelpers.LoadAssigneeUserAuditLabel(connection, transaction, request.AssigneeUserId!.Value)
+            : await PostgresRepositorySharedHelpers.LoadAssigneeResponsibilityAuditLabel(connection, transaction, request.AssigneeResponsibilityId!.Value);
 
         const string clearPrimarySql = @"
 UPDATE task_assignments

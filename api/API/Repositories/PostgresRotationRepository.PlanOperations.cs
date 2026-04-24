@@ -3,7 +3,7 @@ using NpgsqlTypes;
 
 namespace API;
 
-internal sealed partial class PostgresWorkflowRepository
+internal sealed partial class PostgresRotationRepository
 {
     public async Task<WorkflowTargetPersonSourceDto?> GetCompletedOnboardingSource(Guid workflowUid)
     {
@@ -70,7 +70,7 @@ LIMIT 1;";
             return null;
         }
 
-        return MapWorkflowTargetPersonSource(reader);
+        return PostgresRepositorySharedHelpers.MapWorkflowTargetPersonSource(reader);
     }
 
     public async Task<RotationPlanConflictState> GetRotationPlanConflictState(long personId, Guid sourceWorkflowUid)
@@ -85,14 +85,14 @@ SELECT
         FROM rotation_plans
         WHERE person_id = @personId
           AND status = 'active'
-    ),
+    ) AS has_active_plan_for_person,
     EXISTS(
         SELECT 1
         FROM rotation_plans rp
         JOIN workflows w ON w.id = rp.source_workflow_id
         WHERE w.uid = @sourceWorkflowUid
           AND rp.status IN ('draft', 'active')
-    );";
+    ) AS has_open_plan_for_source_workflow;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("personId", personId);
@@ -100,10 +100,12 @@ SELECT
         await using var reader = await command.ExecuteReaderAsync();
 
         await reader.ReadAsync();
+        var hasActivePlanForPerson = reader.GetOrdinal("has_active_plan_for_person");
+        var hasOpenPlanForSourceWorkflow = reader.GetOrdinal("has_open_plan_for_source_workflow");
         return new RotationPlanConflictState
         {
-            HasActivePlanForPerson = reader.GetBoolean(0),
-            HasOpenPlanForSourceWorkflow = reader.GetBoolean(1)
+            HasActivePlanForPerson = reader.GetBoolean(hasActivePlanForPerson),
+            HasOpenPlanForSourceWorkflow = reader.GetBoolean(hasOpenPlanForSourceWorkflow)
         };
     }
 
@@ -116,9 +118,9 @@ SELECT
 
         const string sql = @"
 SELECT
-    rp.id,
+    rp.id AS rotation_plan_id,
     rp.person_id,
-    w.uid,
+    w.uid AS source_workflow_uid,
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, w.first_name), COALESCE(p.last_name, w.last_name))), ''),
         u.display_name,
@@ -185,9 +187,9 @@ ORDER BY rp.created_at DESC, rp.id DESC;";
 
         const string sql = @"
 SELECT
-    rp.id,
+    rp.id AS rotation_plan_id,
     rp.person_id,
-    w.uid,
+    w.uid AS source_workflow_uid,
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, w.first_name), COALESCE(p.last_name, w.last_name))), ''),
         u.display_name,
@@ -319,10 +321,10 @@ RETURNING id;";
 
         const string sql = @"
 SELECT
-    rs.id,
+    rs.id AS rotation_station_id,
     rs.rotation_plan_id,
     rs.department_id,
-    d.name,
+    d.name AS department_name,
     rs.start_date,
     rs.end_date,
     rs.order_index,
@@ -562,10 +564,10 @@ WHERE id = @stationId;";
     {
         const string sql = @"
 SELECT
-    rs.id,
+    rs.id AS rotation_station_id,
     rs.rotation_plan_id,
     rs.department_id,
-    d.name,
+    d.name AS department_name,
     rs.start_date,
     rs.end_date,
     rs.order_index,
@@ -592,10 +594,10 @@ LIMIT 1;";
     {
         const string sql = @"
 SELECT
-    rs.id,
+    rs.id AS rotation_station_id,
     rs.rotation_plan_id,
     rs.department_id,
-    d.name,
+    d.name AS department_name,
     rs.start_date,
     rs.end_date,
     rs.order_index,
@@ -624,62 +626,104 @@ ORDER BY rs.order_index, rs.start_date, rs.id;";
 
     private static RotationPlanListItemDto MapRotationPlanListItem(NpgsqlDataReader reader)
     {
+        var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+        var personId = reader.GetOrdinal("person_id");
+        var sourceWorkflowUid = reader.GetOrdinal("source_workflow_uid");
+        var displayName = reader.GetOrdinal("display_name");
+        var firstName = reader.GetOrdinal("first_name");
+        var lastName = reader.GetOrdinal("last_name");
+        var departmentId = reader.GetOrdinal("department_id");
+        var departmentName = reader.GetOrdinal("department_name");
+        var title = reader.GetOrdinal("title");
+        var status = reader.GetOrdinal("status");
+        var createdByUserId = reader.GetOrdinal("created_by_user_id");
+        var createdAt = reader.GetOrdinal("created_at");
+        var updatedAt = reader.GetOrdinal("updated_at");
+        var stationCount = reader.GetOrdinal("station_count");
+
         return new RotationPlanListItemDto
         {
-            Id = reader.GetInt64(0),
-            PersonId = reader.GetInt64(1),
-            SourceWorkflowUid = reader.GetGuid(2),
-            DisplayName = reader.GetString(3),
-            FirstName = reader.IsDBNull(4) ? null : reader.GetString(4),
-            LastName = reader.IsDBNull(5) ? null : reader.GetString(5),
-            DepartmentId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-            DepartmentName = reader.IsDBNull(7) ? null : reader.GetString(7),
-            Title = reader.GetString(8),
-            Status = reader.GetString(9),
-            CreatedByUserId = reader.IsDBNull(10) ? null : reader.GetInt64(10),
-            CreatedAt = reader.GetDateTime(11),
-            UpdatedAt = reader.GetDateTime(12),
-            StationCount = reader.GetInt64(13)
+            Id = reader.GetInt64(rotationPlanId),
+            PersonId = reader.GetInt64(personId),
+            SourceWorkflowUid = reader.GetGuid(sourceWorkflowUid),
+            DisplayName = reader.GetString(displayName),
+            FirstName = reader.IsDBNull(firstName) ? null : reader.GetString(firstName),
+            LastName = reader.IsDBNull(lastName) ? null : reader.GetString(lastName),
+            DepartmentId = reader.IsDBNull(departmentId) ? null : reader.GetInt32(departmentId),
+            DepartmentName = reader.IsDBNull(departmentName) ? null : reader.GetString(departmentName),
+            Title = reader.GetString(title),
+            Status = reader.GetString(status),
+            CreatedByUserId = reader.IsDBNull(createdByUserId) ? null : reader.GetInt64(createdByUserId),
+            CreatedAt = reader.GetDateTime(createdAt),
+            UpdatedAt = reader.GetDateTime(updatedAt),
+            StationCount = reader.GetInt64(stationCount)
         };
     }
 
     private static RotationPlanDetailDto MapRotationPlanDetail(NpgsqlDataReader reader)
     {
+        var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+        var personId = reader.GetOrdinal("person_id");
+        var sourceWorkflowUid = reader.GetOrdinal("source_workflow_uid");
+        var displayName = reader.GetOrdinal("display_name");
+        var firstName = reader.GetOrdinal("first_name");
+        var lastName = reader.GetOrdinal("last_name");
+        var departmentId = reader.GetOrdinal("department_id");
+        var departmentName = reader.GetOrdinal("department_name");
+        var title = reader.GetOrdinal("title");
+        var status = reader.GetOrdinal("status");
+        var createdByUserId = reader.GetOrdinal("created_by_user_id");
+        var createdAt = reader.GetOrdinal("created_at");
+        var updatedAt = reader.GetOrdinal("updated_at");
+
         return new RotationPlanDetailDto
         {
-            Id = reader.GetInt64(0),
-            PersonId = reader.GetInt64(1),
-            SourceWorkflowUid = reader.GetGuid(2),
-            DisplayName = reader.GetString(3),
-            FirstName = reader.IsDBNull(4) ? null : reader.GetString(4),
-            LastName = reader.IsDBNull(5) ? null : reader.GetString(5),
-            DepartmentId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-            DepartmentName = reader.IsDBNull(7) ? null : reader.GetString(7),
-            Title = reader.GetString(8),
-            Status = reader.GetString(9),
-            CreatedByUserId = reader.IsDBNull(10) ? null : reader.GetInt64(10),
-            CreatedAt = reader.GetDateTime(11),
-            UpdatedAt = reader.GetDateTime(12),
+            Id = reader.GetInt64(rotationPlanId),
+            PersonId = reader.GetInt64(personId),
+            SourceWorkflowUid = reader.GetGuid(sourceWorkflowUid),
+            DisplayName = reader.GetString(displayName),
+            FirstName = reader.IsDBNull(firstName) ? null : reader.GetString(firstName),
+            LastName = reader.IsDBNull(lastName) ? null : reader.GetString(lastName),
+            DepartmentId = reader.IsDBNull(departmentId) ? null : reader.GetInt32(departmentId),
+            DepartmentName = reader.IsDBNull(departmentName) ? null : reader.GetString(departmentName),
+            Title = reader.GetString(title),
+            Status = reader.GetString(status),
+            CreatedByUserId = reader.IsDBNull(createdByUserId) ? null : reader.GetInt64(createdByUserId),
+            CreatedAt = reader.GetDateTime(createdAt),
+            UpdatedAt = reader.GetDateTime(updatedAt),
             Stations = []
         };
     }
 
     private static RotationStationDto MapRotationStation(NpgsqlDataReader reader)
     {
+        var rotationStationId = reader.GetOrdinal("rotation_station_id");
+        var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+        var departmentId = reader.GetOrdinal("department_id");
+        var departmentName = reader.GetOrdinal("department_name");
+        var startDate = reader.GetOrdinal("start_date");
+        var endDate = reader.GetOrdinal("end_date");
+        var orderIndex = reader.GetOrdinal("order_index");
+        var location = reader.GetOrdinal("location");
+        var notes = reader.GetOrdinal("notes");
+        var status = reader.GetOrdinal("status");
+        var createdAt = reader.GetOrdinal("created_at");
+        var updatedAt = reader.GetOrdinal("updated_at");
+
         return new RotationStationDto
         {
-            Id = reader.GetInt64(0),
-            RotationPlanId = reader.GetInt64(1),
-            DepartmentId = reader.GetInt32(2),
-            DepartmentName = reader.GetString(3),
-            StartDate = reader.GetFieldValue<DateOnly>(4),
-            EndDate = reader.GetFieldValue<DateOnly>(5),
-            OrderIndex = reader.GetInt32(6),
-            Location = reader.IsDBNull(7) ? null : reader.GetString(7),
-            Notes = reader.IsDBNull(8) ? null : reader.GetString(8),
-            Status = reader.GetString(9),
-            CreatedAt = reader.GetDateTime(10),
-            UpdatedAt = reader.GetDateTime(11)
+            Id = reader.GetInt64(rotationStationId),
+            RotationPlanId = reader.GetInt64(rotationPlanId),
+            DepartmentId = reader.GetInt32(departmentId),
+            DepartmentName = reader.GetString(departmentName),
+            StartDate = reader.GetFieldValue<DateOnly>(startDate),
+            EndDate = reader.GetFieldValue<DateOnly>(endDate),
+            OrderIndex = reader.GetInt32(orderIndex),
+            Location = reader.IsDBNull(location) ? null : reader.GetString(location),
+            Notes = reader.IsDBNull(notes) ? null : reader.GetString(notes),
+            Status = reader.GetString(status),
+            CreatedAt = reader.GetDateTime(createdAt),
+            UpdatedAt = reader.GetDateTime(updatedAt)
         };
     }
 }

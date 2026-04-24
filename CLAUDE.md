@@ -21,12 +21,36 @@ For rotation / department-rotation work also read:
 - `TODO.md`
 
 For architecture, migration, runtime, or data-model work also read:
-- `PRODUCTIVE_TARGET_ARCHITECTURE.md`
-- `DECISIONS.md`
+- `KauthWorkflow/Architektur/Zielarchitektur.md`
+- `KauthWorkflow/Architektur/Entscheidungen.md`
 
 After reading, explicitly keep track of which docs must be updated in the same pass if assumptions, structure, behavior, setup, or scope changed.
 
 Documentation and task descriptions are primarily written in German.
+
+---
+
+## Obsidian Vault
+
+There is a knowledge base at `KauthWorkflow/` (Obsidian vault, lives inside the repo).
+
+**Read from the vault when:**
+- Planning architecture changes or migration steps → `KauthWorkflow/Architektur/`
+- Clarifying domain concepts (Rotation, Identity, Automation, Workflow) → `KauthWorkflow/Domäne/`
+- Checking what is open vs. done in the code review → `KauthWorkflow/Stand/Code-Review-Status.md`
+- Understanding how Claude and Codex are supposed to work together → `KauthWorkflow/Arbeit/KI-Workflow.md`
+- Start at `KauthWorkflow/00 Start.md` for the full index
+
+**Write to the vault when:**
+- A new architecture decision was made → update `KauthWorkflow/Architektur/Entscheidungen.md`
+- A migration step was completed → update `KauthWorkflow/Architektur/Migrationspfad.md`
+- A new domain concept was introduced → update or create the relevant file in `KauthWorkflow/Domäne/`
+- Review status changed significantly → update `KauthWorkflow/Stand/Code-Review-Status.md`
+
+**Do not write to the vault for:**
+- Short-term session context → use `MEMORY.md`
+- Task tracking → use `TODO.md`
+- Code snippets or diffs → stay in the repo
 
 ---
 
@@ -81,7 +105,7 @@ Important current code areas:
 Important architecture docs:
 - `DOCS_CONTROL.md`
 - `CODE_REVIEW.md`
-- `PRODUCTIVE_TARGET_ARCHITECTURE.md`
+- `KauthWorkflow/Architektur/Zielarchitektur.md`
 - `TODO.md`
 
 The codebase still reflects the older task-/process-type-driven model in many places.

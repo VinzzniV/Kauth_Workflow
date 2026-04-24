@@ -1663,6 +1663,7 @@ public sealed class WorkflowEndpointsTests
             return Task.FromResult(RequirementSelectionDepartmentIdsResult);
         }
         public Task<List<TaskWithWorkflowDto>> GetTasks() => throw new NotSupportedException();
+        public Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskById(long taskId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId) => throw new NotSupportedException();

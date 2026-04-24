@@ -184,6 +184,8 @@ public sealed class RotationNotificationServiceTests
         public Task<DepartmentActionTemplateDto> CreateDepartmentActionTemplate(DepartmentActionTemplateUpsertRequest request) => throw new NotSupportedException();
         public Task<DepartmentActionTemplateDto?> UpdateDepartmentActionTemplate(int templateId, DepartmentActionTemplateUpsertRequest request) => Task.FromResult<DepartmentActionTemplateDto?>(null);
         public Task<bool> DeleteDepartmentActionTemplate(int templateId) => Task.FromResult(false);
+        public Task<List<TaskWithWorkflowDto>> GetAllRotationTaskEnvelopes() => Task.FromResult(new List<TaskWithWorkflowDto>());
+        public Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] responsibilityIds) => Task.FromResult(new List<TaskWithWorkflowDto>());
         public Task<TaskWithWorkflowDto?> GetRotationTaskEnvelope(long taskId) => Task.FromResult<TaskWithWorkflowDto?>(null);
         public Task<TaskWithWorkflowDto?> GetRotationTaskEnvelopeByRef(string taskRef) => Task.FromResult<TaskWithWorkflowDto?>(null);
         public Task<TaskWithWorkflowDto?> UpdateRotationTaskStatusByRef(string taskRef, string status, long actorUserId) => Task.FromResult<TaskWithWorkflowDto?>(null);

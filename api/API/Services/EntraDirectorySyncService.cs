@@ -260,7 +260,34 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             {
                 await EnsureDevelopmentDefaultGroupMappings(connection, cancellationToken);
             }
-            await UpdateDirectoryUserActivationStates(connection, cancellationToken);
+            var activationChanges = await UpdateDirectoryUserActivationStates(connection, cancellationToken);
+            foreach (var change in activationChanges)
+            {
+                await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = change.IsNowActive ? "info" : "warning",
+                    Source = "directory",
+                    Category = "user_activation",
+                    EventKey = change.IsNowActive ? "directory_user_reactivated" : "directory_user_deactivated",
+                    Message = change.IsNowActive
+                        ? $"Benutzer {change.DisplayName} wurde durch den Verzeichnis-Sync reaktiviert."
+                        : $"Benutzer {change.DisplayName} wurde durch den Verzeichnis-Sync deaktiviert (kein Entra-Zugriff mehr).",
+                    EntityType = "app_user",
+                    EntityId = change.UserId.ToString(),
+                    Details = new
+                    {
+                        change.UserId,
+                        change.DisplayName,
+                        change.Email,
+                        change.WasActive,
+                        change.IsNowActive,
+                        reason = change.IsNowActive
+                            ? "User regained access via Entra group membership or permission override"
+                            : "User lost all Entra group memberships granting app.access, or account was disabled in Entra"
+                    }
+                }, cancellationToken);
+            }
+
             var departmentLeadSyncResult = await SyncDepartmentLeadAssignmentsFromDirectory(connection, cancellationToken);
             await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
             {
@@ -1597,12 +1624,20 @@ ALTER TABLE app_users
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task UpdateDirectoryUserActivationStates(
+    private static async Task<IReadOnlyList<DirectoryUserActivationChange>> UpdateDirectoryUserActivationStates(
         NpgsqlConnection connection,
         CancellationToken cancellationToken)
     {
+        // before MATERIALIZED captures the state before the UPDATE runs.
+        // updated CTE runs the UPDATE with RETURNING to get new values.
+        // Final SELECT joins both to identify changed users only.
         const string sql = @"
-WITH role_based_access AS (
+WITH before AS MATERIALIZED (
+    SELECT u.id, u.display_name, u.email, u.is_active
+    FROM app_users u
+    WHERE u.directory_synced = TRUE
+),
+role_based_access AS (
     SELECT DISTINCT di.app_user_id AS user_id
     FROM directory_identities di
     JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
@@ -1628,22 +1663,46 @@ override_deny AS (
     JOIN app_permissions p ON p.id = upo.app_permission_id
     WHERE p.permission_key = 'app.access'
       AND upo.effect = 'deny'
-)
-UPDATE app_users u
-SET is_active = (
-    di.account_enabled = TRUE
-    AND (
-        u.id IN (SELECT user_id FROM role_based_access)
-        OR u.id IN (SELECT user_id FROM override_allow)
+),
+updated AS (
+    UPDATE app_users u
+    SET is_active = (
+        di.account_enabled = TRUE
+        AND (
+            u.id IN (SELECT user_id FROM role_based_access)
+            OR u.id IN (SELECT user_id FROM override_allow)
+        )
+        AND u.id NOT IN (SELECT user_id FROM override_deny)
     )
-    AND u.id NOT IN (SELECT user_id FROM override_deny)
+    FROM directory_identities di
+    WHERE di.app_user_id = u.id
+      AND u.directory_synced = TRUE
+    RETURNING u.id, u.is_active AS new_is_active
 )
-FROM directory_identities di
-WHERE di.app_user_id = u.id
-  AND u.directory_synced = TRUE;";
+SELECT
+    updated.id,
+    b.display_name,
+    b.email,
+    b.is_active AS was_active,
+    updated.new_is_active
+FROM updated
+JOIN before b ON b.id = updated.id
+WHERE b.is_active IS DISTINCT FROM updated.new_is_active;";
 
         await using var command = new NpgsqlCommand(sql, connection);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var changes = new List<DirectoryUserActivationChange>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            changes.Add(new DirectoryUserActivationChange(
+                UserId: reader.GetInt64(0),
+                DisplayName: reader.GetString(1),
+                Email: reader.IsDBNull(2) ? null : reader.GetString(2),
+                WasActive: reader.GetBoolean(3),
+                IsNowActive: reader.GetBoolean(4)));
+        }
+
+        return changes;
     }
 
     private async Task<DepartmentLeadSyncSummary> SyncDepartmentLeadAssignmentsFromDirectory(
@@ -2085,4 +2144,11 @@ DO UPDATE SET is_active = TRUE;";
         public required string SyncState { get; init; }
         public IReadOnlyList<string> CandidateNames { get; init; } = [];
     }
+
+    private sealed record DirectoryUserActivationChange(
+        long UserId,
+        string DisplayName,
+        string? Email,
+        bool WasActive,
+        bool IsNowActive);
 }

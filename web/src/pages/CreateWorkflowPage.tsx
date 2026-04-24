@@ -46,7 +46,6 @@ export default function CreateWorkflowPage() {
 
         {workflowCreation.currentStep === "process" ? (
           <CreateWorkflowProcessStep
-            showRotationCreateEntry={capabilities.hasHrRole || capabilities.hasAdminRole}
             workflowDefinitionsLoading={workflowCreation.workflowDefinitionsLoading}
             workflowDefinitions={workflowCreation.workflowDefinitions}
             selectedWorkflowDefinitionKey={workflowCreation.selectedWorkflowDefinitionKey}

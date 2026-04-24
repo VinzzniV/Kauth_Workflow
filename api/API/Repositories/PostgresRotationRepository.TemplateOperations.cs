@@ -3,7 +3,7 @@ using NpgsqlTypes;
 
 namespace API;
 
-internal sealed partial class PostgresWorkflowRepository
+internal sealed partial class PostgresRotationRepository
 {
     public async Task<bool> DepartmentExists(int departmentId)
     {
@@ -36,15 +36,15 @@ internal sealed partial class PostgresWorkflowRepository
 
         const string sql = @"
 SELECT
-    t.id,
+    t.id AS template_id,
     t.department_id,
-    d.name,
+    d.name AS department_name,
     t.trigger_type,
     t.title,
     t.description,
     t.task_type,
     t.default_responsibility_id,
-    r.name,
+    r.name AS default_responsibility_name,
     t.due_offset_days,
     t.reminder_offset_days,
     t.is_automatable,
@@ -80,15 +80,15 @@ ORDER BY d.name, t.trigger_type, t.title, t.id;";
 
         const string sql = @"
 SELECT
-    t.id,
+    t.id AS template_id,
     t.department_id,
-    d.name,
+    d.name AS department_name,
     t.trigger_type,
     t.title,
     t.description,
     t.task_type,
     t.default_responsibility_id,
-    r.name,
+    r.name AS default_responsibility_name,
     t.due_offset_days,
     t.reminder_offset_days,
     t.is_automatable,
@@ -236,24 +236,41 @@ WHERE id = @templateId
 
     private static DepartmentActionTemplateDto MapDepartmentActionTemplate(NpgsqlDataReader reader)
     {
+        var templateId = reader.GetOrdinal("template_id");
+        var departmentId = reader.GetOrdinal("department_id");
+        var departmentName = reader.GetOrdinal("department_name");
+        var triggerType = reader.GetOrdinal("trigger_type");
+        var title = reader.GetOrdinal("title");
+        var description = reader.GetOrdinal("description");
+        var taskType = reader.GetOrdinal("task_type");
+        var defaultResponsibilityId = reader.GetOrdinal("default_responsibility_id");
+        var defaultResponsibilityName = reader.GetOrdinal("default_responsibility_name");
+        var dueOffsetDays = reader.GetOrdinal("due_offset_days");
+        var reminderOffsetDays = reader.GetOrdinal("reminder_offset_days");
+        var isAutomatable = reader.GetOrdinal("is_automatable");
+        var automationKey = reader.GetOrdinal("automation_key");
+        var isActive = reader.GetOrdinal("is_active");
+        var createdAt = reader.GetOrdinal("created_at");
+        var updatedAt = reader.GetOrdinal("updated_at");
+
         return new DepartmentActionTemplateDto
         {
-            Id = reader.GetInt32(0),
-            DepartmentId = reader.GetInt32(1),
-            DepartmentName = reader.IsDBNull(2) ? null : reader.GetString(2),
-            TriggerType = reader.GetString(3),
-            Title = reader.GetString(4),
-            Description = reader.IsDBNull(5) ? null : reader.GetString(5),
-            TaskType = reader.GetString(6),
-            DefaultResponsibilityId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-            DefaultResponsibilityName = reader.IsDBNull(8) ? null : reader.GetString(8),
-            DueOffsetDays = reader.GetInt32(9),
-            ReminderOffsetDays = reader.IsDBNull(10) ? null : reader.GetInt32(10),
-            IsAutomatable = reader.GetBoolean(11),
-            AutomationKey = reader.IsDBNull(12) ? null : reader.GetString(12),
-            IsActive = reader.GetBoolean(13),
-            CreatedAt = reader.GetDateTime(14),
-            UpdatedAt = reader.GetDateTime(15)
+            Id = reader.GetInt32(templateId),
+            DepartmentId = reader.GetInt32(departmentId),
+            DepartmentName = reader.IsDBNull(departmentName) ? null : reader.GetString(departmentName),
+            TriggerType = reader.GetString(triggerType),
+            Title = reader.GetString(title),
+            Description = reader.IsDBNull(description) ? null : reader.GetString(description),
+            TaskType = reader.GetString(taskType),
+            DefaultResponsibilityId = reader.IsDBNull(defaultResponsibilityId) ? null : reader.GetInt32(defaultResponsibilityId),
+            DefaultResponsibilityName = reader.IsDBNull(defaultResponsibilityName) ? null : reader.GetString(defaultResponsibilityName),
+            DueOffsetDays = reader.GetInt32(dueOffsetDays),
+            ReminderOffsetDays = reader.IsDBNull(reminderOffsetDays) ? null : reader.GetInt32(reminderOffsetDays),
+            IsAutomatable = reader.GetBoolean(isAutomatable),
+            AutomationKey = reader.IsDBNull(automationKey) ? null : reader.GetString(automationKey),
+            IsActive = reader.GetBoolean(isActive),
+            CreatedAt = reader.GetDateTime(createdAt),
+            UpdatedAt = reader.GetDateTime(updatedAt)
         };
     }
 }

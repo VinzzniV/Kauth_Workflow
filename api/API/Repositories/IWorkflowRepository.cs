@@ -45,6 +45,7 @@ internal interface IWorkflowRepository
     Task<List<WorkflowAuditEntryDto>> GetWorkflowAuditLog(Guid workflowUid, int limit = 200, int offset = 0);
     Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId);
     Task<List<TaskWithWorkflowDto>> GetTasks();
+    Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds);
     Task<TaskWithWorkflowDto?> GetTaskById(long taskId);
     Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef);
     Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId);

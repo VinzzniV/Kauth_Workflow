@@ -5,20 +5,21 @@ namespace API;
 internal sealed class RotationTemplateAdminService(
     IRotationRepository rotationRepository,
     IRotationTaskGenerationService rotationTaskGenerationService,
+    IWorkflowAutomationHandlerRegistry automationHandlerRegistry,
     ILogger<RotationTemplateAdminService> logger) : IRotationTemplateAdminService
 {
     private static readonly HashSet<string> SupportedTriggerTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "enter",
-        "exit"
+        RotationTriggerTypes.Enter,
+        RotationTriggerTypes.Exit
     };
 
     private static readonly HashSet<string> SupportedTaskTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "manual",
-        "technical",
-        "approval",
-        "information"
+        RotationTaskTypes.Manual,
+        RotationTaskTypes.Technical,
+        RotationTaskTypes.Approval,
+        RotationTaskTypes.Information
     };
 
     public async Task<IReadOnlyList<DepartmentActionTemplateDto>> GetDepartmentActionTemplatesAsync(
@@ -162,6 +163,11 @@ internal sealed class RotationTemplateAdminService(
             throw new InvalidOperationException("Die angegebene Abteilung existiert nicht.");
         }
 
+        if (!request.DefaultResponsibilityId.HasValue)
+        {
+            throw new InvalidOperationException("defaultResponsibilityId ist erforderlich. Aufgaben ohne Zuständigkeit sind für Fachbereiche nicht sichtbar.");
+        }
+
         if (request.DefaultResponsibilityId is <= 0)
         {
             throw new InvalidOperationException("defaultResponsibilityId must be greater than zero when provided.");
@@ -179,7 +185,7 @@ internal sealed class RotationTemplateAdminService(
         var normalizedDescription = string.IsNullOrWhiteSpace(request.Description)
             ? null
             : request.Description.Trim();
-        var normalizedAutomationKey = NormalizeAutomationKey(request.IsAutomatable, request.AutomationKey);
+        var normalizedAutomationKey = ValidateAndNormalizeAutomationKey(request.IsAutomatable, request.AutomationKey);
 
         if (request.DueOffsetDays < -365 || request.DueOffsetDays > 365)
         {
@@ -245,7 +251,7 @@ internal sealed class RotationTemplateAdminService(
         return normalizedValue;
     }
 
-    private static string? NormalizeAutomationKey(bool isAutomatable, string? automationKey)
+    private string? ValidateAndNormalizeAutomationKey(bool isAutomatable, string? automationKey)
     {
         var normalizedValue = string.IsNullOrWhiteSpace(automationKey)
             ? null
@@ -260,6 +266,21 @@ internal sealed class RotationTemplateAdminService(
         if (normalizedValue is not null && normalizedValue.Length > 120)
         {
             throw new InvalidOperationException("automationKey darf maximal 120 Zeichen haben.");
+        }
+
+        if (isAutomatable && normalizedValue is null)
+        {
+            throw new InvalidOperationException(
+                "automationKey ist erforderlich, wenn die Vorlage als automatable markiert ist.");
+        }
+
+        if (normalizedValue is not null)
+        {
+            var registeredKeys = automationHandlerRegistry.GetRegisteredKeys();
+            if (!registeredKeys.Contains(normalizedValue, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Unbekannter automationKey '{normalizedValue}'.");
+            }
         }
 
         return normalizedValue;

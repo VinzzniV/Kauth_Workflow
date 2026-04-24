@@ -4,72 +4,6 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    private static async Task EnsureAssignableResponsibilityExists(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        int responsibilityId)
-    {
-        const string sql = @"
-SELECT id
-FROM app_responsibilities
-WHERE id = @responsibilityId
-  AND is_active = TRUE
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
-        var scalar = await command.ExecuteScalarAsync();
-        if (scalar is null)
-        {
-            throw new InvalidOperationException("Assignee responsibility is invalid or inactive.");
-        }
-    }
-
-    private static async Task EnsureAssignableUserExists(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        long userId)
-    {
-        const string sql = @"
-SELECT id
-FROM app_users
-WHERE id = @userId
-  AND is_active = TRUE
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("userId", userId);
-        var scalar = await command.ExecuteScalarAsync();
-        if (scalar is null)
-        {
-            throw new InvalidOperationException("Assignee user is invalid or inactive.");
-        }
-    }
-
-    private static async Task EnsureUserHasResponsibility(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        long userId,
-        int responsibilityId)
-    {
-        const string sql = @"
-SELECT 1
-FROM app_user_responsibilities
-WHERE app_user_id = @userId
-  AND app_responsibility_id = @responsibilityId
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("userId", userId);
-        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
-
-        var scalar = await command.ExecuteScalarAsync();
-        if (scalar is null)
-        {
-            throw new InvalidOperationException("The selected user is not directly assigned to the selected responsibility.");
-        }
-    }
-
     private static async Task<int?> LoadResponsibilityIdByKey(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -108,86 +42,6 @@ LIMIT 1;";
 
         var scalar = await command.ExecuteScalarAsync();
         return scalar is null ? null : (int?)scalar;
-    }
-
-    private static async Task<long?> LoadExplicitResponsibilityOwnerUserId(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        int responsibilityId)
-    {
-        const string sql = @"
-SELECT u.id
-FROM system_responsibilities sr
-JOIN people p ON p.id = sr.responsible_person_id
-JOIN app_users u ON u.id = p.app_user_id
-WHERE sr.app_responsibility_id = @responsibilityId
-  AND u.is_active = TRUE
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
-
-        var scalar = await command.ExecuteScalarAsync();
-        return scalar is null ? null : (long?)scalar;
-    }
-
-    private static async Task<int?> LoadResponsibilityDepartmentOverrideId(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        int responsibilityId)
-    {
-        const string sql = @"
-SELECT COALESCE(sr.responsible_department_id, r.department_id)
-FROM app_responsibilities r
-LEFT JOIN system_responsibilities sr ON sr.app_responsibility_id = r.id
-WHERE r.id = @responsibilityId
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
-
-        var scalar = await command.ExecuteScalarAsync();
-        return scalar is null || scalar is DBNull ? null : (int?)scalar;
-    }
-
-    private static async Task<long?> ResolvePrimaryAssigneeUserId(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        int responsibilityId,
-        int departmentId)
-    {
-        var explicitOwnerUserId = await LoadExplicitResponsibilityOwnerUserId(connection, transaction, responsibilityId);
-        if (explicitOwnerUserId.HasValue)
-        {
-            return explicitOwnerUserId.Value;
-        }
-
-        var effectiveDepartmentId = await LoadResponsibilityDepartmentOverrideId(connection, transaction, responsibilityId)
-            ?? departmentId;
-
-        const string sql = @"
-SELECT u.id
-FROM app_users u
-LEFT JOIN people p ON p.app_user_id = u.id
-JOIN app_user_responsibilities ur ON ur.app_user_id = u.id
-LEFT JOIN app_responsibilities r ON r.id = ur.app_responsibility_id
-WHERE u.is_active = TRUE
-  AND ur.app_responsibility_id = @responsibilityId
-  AND (
-      r.department_id = @effectiveDepartmentId
-      OR r.department_id IS NULL
-      OR COALESCE(p.department_id, u.department_id) = @effectiveDepartmentId
-      OR COALESCE(p.department_id, u.department_id) IS NULL
-  )
-ORDER BY CASE WHEN COALESCE(p.department_id, u.department_id) = @effectiveDepartmentId THEN 0 ELSE 1 END, u.id
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("responsibilityId", responsibilityId);
-        command.Parameters.AddWithValue("effectiveDepartmentId", effectiveDepartmentId);
-
-        var scalar = await command.ExecuteScalarAsync();
-        return scalar is null ? null : (long?)scalar;
     }
 
     private static async Task<(long? UserId, int? ResponsibilityId)> ResolveDepartmentRequirementSelectionAssignment(
@@ -233,7 +87,7 @@ LIMIT 1;";
             return (null, null);
         }
 
-        var fallbackUserId = await ResolvePrimaryAssigneeUserId(
+        var fallbackUserId = await PostgresRepositorySharedHelpers.ResolvePrimaryAssigneeUserId(
             connection,
             transaction,
             fallbackResponsibilityId.Value,

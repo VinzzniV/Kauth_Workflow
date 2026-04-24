@@ -33,6 +33,10 @@ internal interface INotificationTemplatePreviewRepository
     Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedPreviewTargets(Guid workflowUid);
     Task<List<WorkflowNotificationDispatchTarget>> GetTaskReadyPreviewTargets(Guid workflowUid);
     Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCompletedPreviewTargets(Guid workflowUid);
+}
+
+internal interface IRotationNotificationPreviewRepository
+{
     Task<List<RotationNotificationDispatchTarget>> GetRotationNotificationPreviewTargets(
         long rotationPlanId,
         string notificationType,

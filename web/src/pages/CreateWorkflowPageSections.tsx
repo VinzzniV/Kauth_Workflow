@@ -69,7 +69,6 @@ export function WorkflowCreationStepper({
 }
 
 export function CreateWorkflowProcessStep({
-  showRotationCreateEntry,
   workflowDefinitionsLoading,
   workflowDefinitions,
   selectedWorkflowDefinitionKey,
@@ -81,7 +80,6 @@ export function CreateWorkflowProcessStep({
   onGoToContextStep,
   onAttemptBlockedNext,
 }: {
-  showRotationCreateEntry: boolean;
   workflowDefinitionsLoading: boolean;
   workflowDefinitions: StartableWorkflowDefinition[];
   selectedWorkflowDefinitionKey: string | null;
@@ -96,23 +94,6 @@ export function CreateWorkflowProcessStep({
   return (
     <section className="panel">
       <h2>Workflow wählen</h2>
-
-      {showRotationCreateEntry ? (
-        <div className="panel panel-muted">
-          <div className="workflow-card-top">
-            <h3>Abteilungsdurchlauf starten</h3>
-            <span className="status-pill open">HR</span>
-          </div>
-          <p className="panel-text">
-            Startet einen neuen Durchlaufplan auf Basis einer bestehenden Person mit abgeschlossenem Onboarding.
-          </p>
-          <div className="action-row">
-            <Link className="btn btn-secondary" to="/rotation?mode=create">
-              Zum Abteilungsdurchlauf
-            </Link>
-          </div>
-        </div>
-      ) : null}
 
       {workflowDefinitionsLoading ? <p className="panel-text">Startbare Workflows werden geladen...</p> : null}
 

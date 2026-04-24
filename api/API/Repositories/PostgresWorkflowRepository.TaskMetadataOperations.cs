@@ -7,11 +7,32 @@ internal sealed partial class PostgresWorkflowRepository
 {
     public async Task<List<TaskWithWorkflowDto>> GetTasks()
     {
-        await using var connection = new NpgsqlConnection(GetConnectionString());
-        await connection.OpenAsync();
+        List<TaskWithWorkflowDto> workflowTasks;
+        await using (var connection = new NpgsqlConnection(GetConnectionString()))
+        {
+            await connection.OpenAsync();
+            workflowTasks = await LoadTasks(connection, null, null);
+        }
 
-        var workflowTasks = await LoadTasks(connection, null, null);
-        var rotationTasks = await LoadRotationTaskEnvelopes(connection, null, null, null);
+        var rotationTasks = await _rotationRepository.GetAllRotationTaskEnvelopes();
+        return workflowTasks
+            .Concat(rotationTasks)
+            .OrderByDescending(task => task.Task.CreatedAt)
+            .ThenBy(task => task.Task.SortOrder)
+            .ThenBy(task => task.Task.Id)
+            .ToList();
+    }
+
+    public async Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds)
+    {
+        List<TaskWithWorkflowDto> workflowTasks;
+        await using (var connection = new NpgsqlConnection(GetConnectionString()))
+        {
+            await connection.OpenAsync();
+            workflowTasks = await LoadTasks(connection, null, null);
+        }
+
+        var rotationTasks = await _rotationRepository.GetRotationTaskEnvelopesForUser(userId, responsibilityIds);
         return workflowTasks
             .Concat(rotationTasks)
             .OrderByDescending(task => task.Task.CreatedAt)
@@ -38,7 +59,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (RotationTaskRef.TryParse(taskRef, out var rotationTaskId))
         {
-            return await GetRotationTaskEnvelope(rotationTaskId);
+            return await _rotationRepository.GetRotationTaskEnvelope(rotationTaskId);
         }
 
         return null;

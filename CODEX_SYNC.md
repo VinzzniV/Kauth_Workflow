@@ -22,7 +22,7 @@ Dieses Dokument ist das Handoff-Protokoll zwischen Codex und Claude.
 
 | Datum | Aufgabe | Status | Betroffene Dateien | Zusammenfassung | Offene Risiken |
 |-------|---------|--------|--------------------|-----------------|----------------|
-| — | — | — | — | Noch keine Eintraege | — |
+| — | — | — | — | Kein aktiver Zyklus — Review 2026-04-23 vollstaendig abgeschlossen (COD-1..6, CLA-1..4) | — |
 
 ---
 

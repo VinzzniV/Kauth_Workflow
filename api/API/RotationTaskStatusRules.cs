@@ -4,28 +4,39 @@ internal static class RotationTaskStatusRules
 {
     public static readonly HashSet<string> AllowedTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "open",
-        "in_progress",
-        "completed",
-        "failed",
-        "cancelled"
+        RotationTaskStatuses.Open,
+        RotationTaskStatuses.InProgress,
+        RotationTaskStatuses.Completed,
+        RotationTaskStatuses.Failed,
+        RotationTaskStatuses.Cancelled
     };
 
     public static readonly HashSet<string> TerminalTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "completed",
-        "failed",
-        "cancelled"
+        RotationTaskStatuses.Completed,
+        RotationTaskStatuses.Failed,
+        RotationTaskStatuses.Cancelled
     };
 
     public static readonly IReadOnlyDictionary<string, HashSet<string>> AllowedTaskTransitions =
         new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["open"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "in_progress", "completed", "failed", "cancelled" },
-            ["in_progress"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "completed", "failed", "cancelled" },
-            ["completed"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            ["failed"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            ["cancelled"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            [RotationTaskStatuses.Open] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                RotationTaskStatuses.InProgress,
+                RotationTaskStatuses.Completed,
+                RotationTaskStatuses.Failed,
+                RotationTaskStatuses.Cancelled
+            },
+            [RotationTaskStatuses.InProgress] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                RotationTaskStatuses.Completed,
+                RotationTaskStatuses.Failed,
+                RotationTaskStatuses.Cancelled
+            },
+            [RotationTaskStatuses.Completed] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            [RotationTaskStatuses.Failed] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            [RotationTaskStatuses.Cancelled] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         };
 
     public static string NormalizeTaskStatus(string status)

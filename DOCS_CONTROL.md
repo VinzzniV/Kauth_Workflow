@@ -7,6 +7,20 @@ Sie ist die Ordnungsdatei fuer Dokumentationsfluss, nicht der Ort fuer Fachlogik
 
 ---
 
+## Obsidian Vault
+
+Stabiles Domänenwissen und Architekturkontext leben im Vault unter `KauthWorkflow/`.
+Einstieg: `KauthWorkflow/00 Start.md`
+
+Vault-Dateien nach Thema:
+- Architektur, Zielarchitektur, Entscheidungen, Migrationspfad → `KauthWorkflow/Architektur/`
+- Domänenkonzepte (Workflow, Rotation, Identity, Automation) → `KauthWorkflow/Domäne/`
+- Betrieb, Setup, Deployment → `KauthWorkflow/Betrieb/`
+- Aktueller Stand (Code Review, Onboarding-Entkopplung) → `KauthWorkflow/Stand/`
+- KI-Workflow, Engineering-Regeln → `KauthWorkflow/Arbeit/`
+
+---
+
 ## Zuerst lesen
 
 Vor allen nicht-trivialen Aenderungen:
@@ -15,13 +29,13 @@ Vor allen nicht-trivialen Aenderungen:
 - `MEMORY.md`
 - `CODEX_SYNC.md` — immer lesen, wenn Codex zuletzt am Repo gearbeitet hat (neue Eintraege pruefen)
 
-Zusatzlich je nach Aufgabe:
+Zusaetzlich je nach Aufgabe:
 - `CODE_REVIEW.md` und `TODO.md` bei allen Aufgaben zum Rotations-/Durchlauf-Feature oder bei Review-Nacharbeit
 - `PROJECT_STRUCTURE.md` fuer Dateilayout, Module und Einstiegspunkte
-- `PRODUCTIVE_TARGET_ARCHITECTURE.md` fuer das stabile Sollbild
-- `DECISIONS.md` fuer langfristige Architektur- und Produktentscheidungen
-- `ENGINEERING_RULES.md` fuer Umsetzungs- und Handoff-Regeln
-- `SETUP.md` fuer lokale Entwicklung, Deployment und Laufzeitkonfiguration
+- `KauthWorkflow/Architektur/Zielarchitektur.md` fuer das stabile Sollbild
+- `KauthWorkflow/Architektur/Entscheidungen.md` fuer langfristige Architektur- und Produktentscheidungen
+- `KauthWorkflow/Arbeit/Engineering-Regeln.md` fuer Umsetzungs- und Handoff-Regeln
+- `KauthWorkflow/Betrieb/Setup.md` fuer lokale Entwicklung, Deployment und Laufzeitkonfiguration
 - `web/README.md` fuer Frontend-Orientierung
 
 Pflicht nach dem Lesen:
@@ -37,15 +51,15 @@ Pflicht nach dem Lesen:
 
 Verwende diese Dateien bewusst:
 
-- stabile Projektwahrheit und Guardrails -> `PROJECT_CONTEXT.md`
-- verbindliche Zielarchitektur der Plattform -> `PRODUCTIVE_TARGET_ARCHITECTURE.md`
-- aktuelle CodeReview, Risiken und empfohlene Nacharbeit -> `CODE_REVIEW.md`
-- langfristige Architektur- und Produktentscheidungen -> `DECISIONS.md`
-- kurzfristiger Session-Kontext, aktive Risiken, naechste Schritte -> `MEMORY.md`
-- Repo-/Modulstruktur und wichtige Einstiegspunkte -> `PROJECT_STRUCTURE.md`
-- lokale Setup-, Deploy- und Laufzeitdoku -> `SETUP.md`
-- priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature -> `TODO.md`
-- Frontend-spezifische Orientierung -> `web/README.md`
+- stabile Projektwahrheit und Guardrails → `PROJECT_CONTEXT.md`
+- verbindliche Zielarchitektur der Plattform → `KauthWorkflow/Architektur/Zielarchitektur.md`
+- aktuelle CodeReview, Risiken und empfohlene Nacharbeit → `CODE_REVIEW.md`
+- langfristige Architektur- und Produktentscheidungen → `KauthWorkflow/Architektur/Entscheidungen.md`
+- kurzfristiger Session-Kontext, aktive Risiken, naechste Schritte → `MEMORY.md`
+- Repo-/Modulstruktur und wichtige Einstiegspunkte → `PROJECT_STRUCTURE.md`
+- lokale Setup-, Deploy- und Laufzeitdoku → `KauthWorkflow/Betrieb/Setup.md`
+- priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature → `TODO.md`
+- Frontend-spezifische Orientierung → `web/README.md`
 
 ---
 
@@ -53,13 +67,13 @@ Verwende diese Dateien bewusst:
 
 Wenn sich diese Bereiche aendern, muessen die passenden Dokus im selben Arbeitsgang mitgezogen werden:
 
-- Zielbild, Plattformbegriffe, Migrationsannahmen -> `PRODUCTIVE_TARGET_ARCHITECTURE.md` und ggf. `DECISIONS.md`
-- Review-Priorisierung, Reihenfolge oder Deliverables der Nacharbeit -> `CODE_REVIEW.md` oder `TODO.md`
-- stabile Produktregeln oder Guardrails -> `PROJECT_CONTEXT.md`
-- neue Ordner, neue Entry-Points, umbenannte Module -> `PROJECT_STRUCTURE.md`
-- veraendertes Runtime-, Compose-, Deploy- oder Env-Verhalten -> `SETUP.md`
-- neue offene Risiken oder bewusst unvollstaendige Nacharbeiten -> `MEMORY.md`
-- veraenderte Frontend-Modulgrenzen oder Admin-/Builder-Flows -> `web/README.md`
+- Zielbild, Plattformbegriffe, Migrationsannahmen → `KauthWorkflow/Architektur/Zielarchitektur.md` und ggf. `KauthWorkflow/Architektur/Entscheidungen.md`
+- Review-Priorisierung, Reihenfolge oder Deliverables der Nacharbeit → `CODE_REVIEW.md` oder `TODO.md`
+- stabile Produktregeln oder Guardrails → `PROJECT_CONTEXT.md`
+- neue Ordner, neue Entry-Points, umbenannte Module → `PROJECT_STRUCTURE.md`
+- veraendertes Runtime-, Compose-, Deploy- oder Env-Verhalten → `KauthWorkflow/Betrieb/Setup.md`
+- neue offene Risiken oder bewusst unvollstaendige Nacharbeiten → `MEMORY.md`
+- veraenderte Frontend-Modulgrenzen oder Admin-/Builder-Flows → `web/README.md`
 
 ---
 
@@ -68,7 +82,7 @@ Wenn sich diese Bereiche aendern, muessen die passenden Dokus im selben Arbeitsg
 Fuer Architektur-, Datenmodell- oder Runtime-Arbeit:
 1. `DOCS_CONTROL.md`
 2. `PROJECT_CONTEXT.md`
-3. `PRODUCTIVE_TARGET_ARCHITECTURE.md`
+3. `KauthWorkflow/Architektur/Zielarchitektur.md`
 4. `MEMORY.md`
 5. `PROJECT_STRUCTURE.md`
 
@@ -97,8 +111,8 @@ Fuer Frontend-Arbeit:
 Fuer Infra, Auth oder Deployment:
 1. `DOCS_CONTROL.md`
 2. `PROJECT_CONTEXT.md`
-3. `SETUP.md`
-4. `PRODUCTIVE_TARGET_ARCHITECTURE.md`
+3. `KauthWorkflow/Betrieb/Setup.md`
+4. `KauthWorkflow/Architektur/Zielarchitektur.md`
 5. `.env.prod.example` und Compose-Dateien
 
 ---
@@ -106,7 +120,7 @@ Fuer Infra, Auth oder Deployment:
 ## Hygiene-Regeln
 
 - Dieselbe Wahrheit nicht ohne Grund in mehreren Dateien pflegen.
-- Stabile Informationen gehoeren nicht nur in `MEMORY.md`.
+- Stabile Informationen gehoeren in den Vault (`KauthWorkflow/`), nicht nur in `MEMORY.md`.
 - Unsichere oder temporaere Notizen gehoeren nicht vorschnell in `PROJECT_CONTEXT.md`.
 - `CODE_REVIEW.md` ist die aktuelle Review-Quelle fuer Nacharbeit, nicht der Ort fuer Session-Notizen.
 - Nach dem Lesen der Pflichtdokumente immer aktiv pruefen, welche davon durch die aktuelle Aufgabe aenderungsrelevant werden.

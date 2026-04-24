@@ -288,6 +288,7 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
 
         app.MapPost("/admin/config/workflow-definition-versions/{versionId:long}/publish", async (
             long versionId,
+            [FromServices] IWorkflowRepository repository,
             [FromServices] IWorkflowDefinitionRuntimeRepository runtimeRepository,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
@@ -303,6 +304,24 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
 
             try
             {
+                var version = await repository.GetAdminWorkflowDefinitionVersion(versionId);
+                if (version is null)
+                {
+                    return Results.NotFound(new { message = "Workflow definition version not found." });
+                }
+
+                if (!version.CanPublish)
+                {
+                    var issueMessages = version.ValidationIssues
+                        .Select(i => i.Message)
+                        .ToList();
+                    return Results.BadRequest(new
+                    {
+                        message = "Workflow definition version cannot be published due to validation errors.",
+                        issues = issueMessages
+                    });
+                }
+
                 var published = await runtimeRepository.PublishWorkflowDefinitionVersion(versionId);
                 return published is null
                     ? Results.NotFound(new { message = "Workflow definition version not found." })

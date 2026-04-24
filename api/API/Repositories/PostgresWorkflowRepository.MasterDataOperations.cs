@@ -462,7 +462,7 @@ LIMIT @limit;";
         var results = new List<WorkflowTargetPersonSourceDto>();
         while (await reader.ReadAsync())
         {
-            results.Add(MapWorkflowTargetPersonSource(reader));
+            results.Add(PostgresRepositorySharedHelpers.MapWorkflowTargetPersonSource(reader));
         }
 
         return results;
@@ -498,26 +498,6 @@ LIMIT @limit;";
         {
             Requirements = requirements,
             RoleRecommendations = roleRecommendations
-        };
-    }
-
-    private static WorkflowTargetPersonSourceDto MapWorkflowTargetPersonSource(NpgsqlDataReader reader)
-    {
-        return new WorkflowTargetPersonSourceDto
-        {
-            WorkflowUid = reader.GetGuid(0),
-            PersonId = reader.GetInt64(1),
-            DisplayName = reader.GetString(2),
-            FirstName = reader.GetString(3),
-            LastName = reader.GetString(4),
-            DepartmentId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-            DepartmentName = reader.IsDBNull(6) ? null : reader.GetString(6),
-            RoleId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-            RoleName = reader.IsDBNull(8) ? null : reader.GetString(8),
-            EmployeeNumber = reader.GetInt32(9),
-            BadgeNumber = reader.GetInt32(10),
-            CompletedAt = reader.GetDateTime(11),
-            ArchivedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12)
         };
     }
 

@@ -59,7 +59,7 @@ internal static class LifecycleServiceCollectionExtensions
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Employee Lifecycle API", Version = "v1" });
         });
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();
-        services.AddScoped<IRotationRepository, PostgresWorkflowRepository>();
+        services.AddScoped<IRotationRepository, PostgresRotationRepository>();
         services.AddScoped<IWorkflowDefinitionRuntimeRepository, PostgresWorkflowRepository>();
         services.AddScoped<IWorkflowAutomationRepository, PostgresWorkflowRepository>();
         services.AddScoped<IWorkflowDefinitionValidationService, WorkflowDefinitionValidationService>();
@@ -138,6 +138,8 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<INotificationEmailConfigurationService, NotificationEmailConfigurationService>();
         services.AddScoped<INotificationTemplatePreviewRepository>(sp =>
             (INotificationTemplatePreviewRepository)sp.GetRequiredService<IWorkflowRepository>());
+        services.AddScoped<IRotationNotificationPreviewRepository>(sp =>
+            (IRotationNotificationPreviewRepository)sp.GetRequiredService<IRotationRepository>());
         services.AddScoped<INotificationTemplateService, NotificationTemplateService>();
         services.AddScoped<IWorkflowEmailNotificationSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<INotificationEmailTestSender, GraphWorkflowEmailNotificationSender>();

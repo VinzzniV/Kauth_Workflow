@@ -382,6 +382,12 @@ public sealed class RotationPlanningServiceTests
         public Task<bool> DeleteDepartmentActionTemplate(int templateId)
             => Task.FromResult(true);
 
+        public Task<List<TaskWithWorkflowDto>> GetAllRotationTaskEnvelopes()
+            => Task.FromResult(new List<TaskWithWorkflowDto>());
+
+        public Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] responsibilityIds)
+            => Task.FromResult(new List<TaskWithWorkflowDto>());
+
         public Task<TaskWithWorkflowDto?> GetRotationTaskEnvelope(long taskId)
             => Task.FromResult<TaskWithWorkflowDto?>(null);
 

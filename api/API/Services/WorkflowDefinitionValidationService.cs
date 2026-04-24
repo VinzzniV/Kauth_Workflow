@@ -134,6 +134,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         }
 
         ValidateGraphStructure(normalizedNodes, normalizedEdges, nodeByKey, errors);
+        ValidateReachability(normalizedNodes, normalizedEdges, errors);
         ValidateNodeConfigurations(normalizedNodes, errors);
         ValidateNodeActions(normalizedNodes, errors);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, errors);
@@ -244,6 +245,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         }
 
         ValidateGraphStructure(normalizedNodes, normalizedEdges, nodeByKey, issues);
+        ValidateReachability(normalizedNodes, normalizedEdges, issues);
         ValidateNodeConfigurations(normalizedNodes, issues);
         ValidateNodeActions(normalizedNodes, issues);
         ValidateDecisionConditions(normalizedNodes, normalizedEdges, nodeByKey, issues);
@@ -464,6 +466,81 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     "workflow_node",
                     node.NodeKey));
             }
+        }
+    }
+
+    private static IReadOnlyList<string> FindUnreachableNodeKeys(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges)
+    {
+        var startNode = nodes.FirstOrDefault(n => string.Equals(n.NodeType, "start", StringComparison.Ordinal));
+        if (startNode is null)
+        {
+            return [];
+        }
+
+        var adjacency = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var node in nodes)
+        {
+            adjacency[node.NodeKey] = [];
+        }
+
+        foreach (var edge in edges)
+        {
+            if (adjacency.TryGetValue(edge.SourceNodeKey, out var targets) && adjacency.ContainsKey(edge.TargetNodeKey))
+            {
+                targets.Add(edge.TargetNodeKey);
+            }
+        }
+
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var queue = new Queue<string>();
+        queue.Enqueue(startNode.NodeKey);
+        visited.Add(startNode.NodeKey);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (!adjacency.TryGetValue(current, out var neighbors))
+            {
+                continue;
+            }
+
+            foreach (var neighbor in neighbors)
+            {
+                if (visited.Add(neighbor))
+                {
+                    queue.Enqueue(neighbor);
+                }
+            }
+        }
+
+        return nodes.Select(n => n.NodeKey).Where(key => !visited.Contains(key)).ToList();
+    }
+
+    private static void ValidateReachability(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        List<string> errors)
+    {
+        foreach (var unreachableKey in FindUnreachableNodeKeys(nodes, edges))
+        {
+            errors.Add($"Node '{unreachableKey}' is not reachable from the start node.");
+        }
+    }
+
+    private static void ValidateReachability(
+        IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
+        IReadOnlyList<WorkflowDefinitionDraftEdge> edges,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        foreach (var unreachableKey in FindUnreachableNodeKeys(nodes, edges))
+        {
+            issues.Add(CreateIssue(
+                "node_not_reachable",
+                $"Node '{unreachableKey}' is not reachable from the start node.",
+                "workflow_node",
+                unreachableKey));
         }
     }
 

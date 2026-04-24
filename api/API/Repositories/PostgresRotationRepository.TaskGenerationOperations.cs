@@ -4,7 +4,7 @@ using NpgsqlTypes;
 
 namespace API;
 
-internal sealed partial class PostgresWorkflowRepository
+internal sealed partial class PostgresRotationRepository
 {
     private sealed class RotationDesiredTaskRecord
     {
@@ -71,6 +71,20 @@ internal sealed partial class PostgresWorkflowRepository
         return await LoadRotationGeneratedTasks(connection, null, planId, null);
     }
 
+    public async Task<List<TaskWithWorkflowDto>> GetAllRotationTaskEnvelopes()
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+        return await LoadRotationTaskEnvelopes(connection, null, null, null);
+    }
+
+    public async Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] responsibilityIds)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+        return await LoadRotationTaskEnvelopesForUser(connection, userId, responsibilityIds);
+    }
+
     public async Task<RotationGeneratedTaskDto?> GetRotationGeneratedTask(long taskId)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
@@ -98,7 +112,7 @@ ORDER BY rs.rotation_plan_id;";
         var planIds = new List<long>();
         while (await reader.ReadAsync())
         {
-            planIds.Add(reader.GetInt64(0));
+            planIds.Add(reader.GetInt64(reader.GetOrdinal("rotation_plan_id")));
         }
 
         return planIds;
@@ -113,144 +127,153 @@ ORDER BY rs.rotation_plan_id;";
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        var planRecord = await LoadRotationPlanEnvelopeRecord(connection, transaction, planId);
-        if (planRecord is null || planRecord.PlanStatus is "completed" or "archived")
+        try
         {
-            await transaction.CommitAsync();
-            return new RotationTaskRegenerationResultDto
+            var planRecord = await LoadRotationPlanEnvelopeRecord(connection, transaction, planId);
+            if (planRecord is null
+                || planRecord.PlanStatus is RotationPlanStatuses.Completed or RotationPlanStatuses.Archived)
             {
-                Created = 0,
-                Updated = 0,
-                Cancelled = 0,
-                Unchanged = 0
-            };
-        }
+                await transaction.CommitAsync();
+                return new RotationTaskRegenerationResultDto
+                {
+                    Created = 0,
+                    Updated = 0,
+                    Cancelled = 0,
+                    Unchanged = 0
+                };
+            }
 
-        var desiredTasks = await LoadDesiredRotationTasks(connection, transaction, planId);
-        var existingTasks = await LoadRotationGeneratedTaskRecords(connection, transaction, planId, null);
-        var existingByKey = existingTasks
-            .Where(task => task.RotationStationId.HasValue && task.TemplateId.HasValue)
-            .ToDictionary(
-                task => BuildRotationTaskMatchKey(task.RotationStationId!.Value, task.TemplateId!.Value),
-                task => task);
+            var desiredTasks = await LoadDesiredRotationTasks(connection, transaction, planId);
+            var existingTasks = await LoadRotationGeneratedTaskRecords(connection, transaction, planId, null);
+            var existingByKey = existingTasks
+                .Where(task => task.RotationStationId.HasValue && task.TemplateId.HasValue)
+                .ToDictionary(
+                    task => BuildRotationTaskMatchKey(task.RotationStationId!.Value, task.TemplateId!.Value),
+                    task => task);
 
-        var created = 0;
-        var updated = 0;
-        var cancelled = 0;
-        var unchanged = 0;
-        var matchedTaskIds = new HashSet<long>();
+            var created = 0;
+            var updated = 0;
+            var cancelled = 0;
+            var unchanged = 0;
+            var matchedTaskIds = new HashSet<long>();
 
-        foreach (var desiredTask in desiredTasks)
-        {
-            var key = BuildRotationTaskMatchKey(desiredTask.RotationStationId, desiredTask.TemplateId);
-            if (!existingByKey.TryGetValue(key, out var existingTask))
+            foreach (var desiredTask in desiredTasks)
             {
-                var createdTaskId = await InsertRotationGeneratedTask(connection, transaction, desiredTask);
-                await UpsertRotationPrimaryAssignment(
-                    connection,
-                    transaction,
-                    createdTaskId,
-                    desiredTask.ResponsibilityId);
+                var key = BuildRotationTaskMatchKey(desiredTask.RotationStationId, desiredTask.TemplateId);
+                if (!existingByKey.TryGetValue(key, out var existingTask))
+                {
+                    var createdTaskId = await InsertRotationGeneratedTask(connection, transaction, desiredTask);
+                    await UpsertRotationPrimaryAssignment(
+                        connection,
+                        transaction,
+                        createdTaskId,
+                        desiredTask.ResponsibilityId);
+                    await InsertRotationAuditEntry(
+                        connection,
+                        transaction,
+                        desiredTask.RotationPlanId,
+                        desiredTask.RotationStationId,
+                        createdTaskId,
+                        actorUserId,
+                        "rotation_task_generated",
+                        null,
+                        CreateRotationGeneratedTaskAuditSnapshot(desiredTask),
+                        reason);
+                    created++;
+                    matchedTaskIds.Add(createdTaskId);
+                    continue;
+                }
+
+                matchedTaskIds.Add(existingTask.Id);
+                if (RotationTaskStatusRules.TerminalTaskStatuses.Contains(existingTask.Status))
+                {
+                    unchanged++;
+                    continue;
+                }
+
+                if (RotationTaskNeedsUpdate(existingTask, desiredTask))
+                {
+                    await UpdateRotationGeneratedTask(connection, transaction, existingTask.Id, desiredTask);
+                    await UpsertRotationPrimaryAssignment(
+                        connection,
+                        transaction,
+                        existingTask.Id,
+                        desiredTask.ResponsibilityId);
+                    await InsertRotationAuditEntry(
+                        connection,
+                        transaction,
+                        desiredTask.RotationPlanId,
+                        desiredTask.RotationStationId,
+                        existingTask.Id,
+                        actorUserId,
+                        "rotation_task_updated",
+                        CreateRotationGeneratedTaskAuditSnapshot(existingTask),
+                        CreateRotationGeneratedTaskAuditSnapshot(desiredTask),
+                        reason);
+                    updated++;
+                }
+                else
+                {
+                    unchanged++;
+                }
+            }
+
+            foreach (var existingTask in existingTasks)
+            {
+                if (matchedTaskIds.Contains(existingTask.Id))
+                {
+                    continue;
+                }
+
+                if (!string.Equals(existingTask.Status, RotationTaskStatuses.Open, StringComparison.OrdinalIgnoreCase))
+                {
+                    unchanged++;
+                    continue;
+                }
+
+                await CancelRotationGeneratedTask(connection, transaction, existingTask.Id);
                 await InsertRotationAuditEntry(
                     connection,
                     transaction,
-                    desiredTask.RotationPlanId,
-                    desiredTask.RotationStationId,
-                    createdTaskId,
-                    actorUserId,
-                    "rotation_task_generated",
-                    null,
-                    CreateRotationGeneratedTaskAuditSnapshot(desiredTask),
-                    reason);
-                created++;
-                matchedTaskIds.Add(createdTaskId);
-                continue;
-            }
-
-            matchedTaskIds.Add(existingTask.Id);
-            if (RotationTaskStatusRules.TerminalTaskStatuses.Contains(existingTask.Status))
-            {
-                unchanged++;
-                continue;
-            }
-
-            if (RotationTaskNeedsUpdate(existingTask, desiredTask))
-            {
-                await UpdateRotationGeneratedTask(connection, transaction, existingTask.Id, desiredTask);
-                await UpsertRotationPrimaryAssignment(
-                    connection,
-                    transaction,
-                    existingTask.Id,
-                    desiredTask.ResponsibilityId);
-                await InsertRotationAuditEntry(
-                    connection,
-                    transaction,
-                    desiredTask.RotationPlanId,
-                    desiredTask.RotationStationId,
+                    existingTask.RotationPlanId,
+                    existingTask.RotationStationId,
                     existingTask.Id,
                     actorUserId,
-                    "rotation_task_updated",
+                    "rotation_task_cancelled",
                     CreateRotationGeneratedTaskAuditSnapshot(existingTask),
-                    CreateRotationGeneratedTaskAuditSnapshot(desiredTask),
+                    new { status = RotationTaskStatuses.Cancelled },
                     reason);
-                updated++;
-            }
-            else
-            {
-                unchanged++;
-            }
-        }
-
-        foreach (var existingTask in existingTasks)
-        {
-            if (matchedTaskIds.Contains(existingTask.Id))
-            {
-                continue;
+                cancelled++;
             }
 
-            if (!string.Equals(existingTask.Status, "open", StringComparison.OrdinalIgnoreCase))
+            var result = new RotationTaskRegenerationResultDto
             {
-                unchanged++;
-                continue;
-            }
+                Created = created,
+                Updated = updated,
+                Cancelled = cancelled,
+                Unchanged = unchanged
+            };
 
-            await CancelRotationGeneratedTask(connection, transaction, existingTask.Id);
             await InsertRotationAuditEntry(
                 connection,
                 transaction,
-                existingTask.RotationPlanId,
-                existingTask.RotationStationId,
-                existingTask.Id,
+                planId,
+                null,
+                null,
                 actorUserId,
-                "rotation_task_cancelled",
-                CreateRotationGeneratedTaskAuditSnapshot(existingTask),
-                new { status = "cancelled" },
+                "rotation_task_sync_completed",
+                null,
+                result,
                 reason);
-            cancelled++;
+
+            await transaction.CommitAsync();
+            return result;
         }
-
-        var result = new RotationTaskRegenerationResultDto
+        catch
         {
-            Created = created,
-            Updated = updated,
-            Cancelled = cancelled,
-            Unchanged = unchanged
-        };
-
-        await InsertRotationAuditEntry(
-            connection,
-            transaction,
-            planId,
-            null,
-            null,
-            actorUserId,
-            "rotation_task_sync_completed",
-            null,
-            result,
-            reason);
-
-        await transaction.CommitAsync();
-        return result;
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<TaskWithWorkflowDto?> GetRotationTaskEnvelope(long taskId)
@@ -358,17 +381,17 @@ ORDER BY rs.rotation_plan_id;";
 
         if (request.AssigneeResponsibilityId.HasValue)
         {
-            await EnsureAssignableResponsibilityExists(connection, transaction, request.AssigneeResponsibilityId.Value);
+            await PostgresRepositorySharedHelpers.EnsureAssignableResponsibilityExists(connection, transaction, request.AssigneeResponsibilityId.Value);
         }
 
         if (request.AssigneeUserId.HasValue)
         {
-            await EnsureAssignableUserExists(connection, transaction, request.AssigneeUserId.Value);
+            await PostgresRepositorySharedHelpers.EnsureAssignableUserExists(connection, transaction, request.AssigneeUserId.Value);
         }
 
         if (request.AssigneeUserId.HasValue && request.AssigneeResponsibilityId.HasValue)
         {
-            await EnsureUserHasResponsibility(
+            await PostgresRepositorySharedHelpers.EnsureUserHasResponsibility(
                 connection,
                 transaction,
                 request.AssigneeUserId.Value,
@@ -398,8 +421,8 @@ WHERE id = @taskId;";
         }
 
         var newAssigneeLabel = request.AssigneeUserId.HasValue
-            ? await LoadAssigneeUserAuditLabel(connection, transaction, request.AssigneeUserId.Value)
-            : await LoadAssigneeResponsibilityAuditLabel(connection, transaction, request.AssigneeResponsibilityId!.Value);
+            ? await PostgresRepositorySharedHelpers.LoadAssigneeUserAuditLabel(connection, transaction, request.AssigneeUserId.Value)
+            : await PostgresRepositorySharedHelpers.LoadAssigneeResponsibilityAuditLabel(connection, transaction, request.AssigneeResponsibilityId!.Value);
 
         await InsertRotationAuditEntry(
             connection,
@@ -442,7 +465,7 @@ WHERE id = @taskId;";
             return null;
         }
 
-        if (planRecord.PlanStatus is "completed" or "archived")
+        if (planRecord.PlanStatus is RotationPlanStatuses.Completed or RotationPlanStatuses.Archived)
         {
             throw new InvalidOperationException("Kommentare sind fuer abgeschlossene Durchlaufplaene nicht mehr erlaubt.");
         }
@@ -503,14 +526,14 @@ VALUES (
     {
         const string sql = @"
 SELECT
-    rp.id,
+    rp.id AS rotation_plan_id,
     rp.person_id,
-    rs.id,
+    rs.id AS rotation_station_id,
     rs.department_id,
-    d.name,
+    d.name AS department_name,
     rs.order_index,
-    t.id,
-    t.title,
+    t.id AS template_id,
+    t.title AS template_title,
     t.trigger_type,
     CASE
         WHEN t.trigger_type = 'enter' THEN rs.start_date
@@ -519,7 +542,7 @@ SELECT
     t.description,
     t.task_type,
     t.default_responsibility_id,
-    r.name,
+    r.name AS responsibility_name,
     CASE
         WHEN t.trigger_type = 'enter' THEN rs.start_date + t.due_offset_days
         ELSE rs.end_date + t.due_offset_days
@@ -539,29 +562,45 @@ ORDER BY rs.order_index, rs.id, t.id;";
         command.Parameters.AddWithValue("planId", planId);
         await using var reader = await command.ExecuteReaderAsync();
 
-        var records = new List<RotationDesiredTaskRecord>();
-        while (await reader.ReadAsync())
+    var records = new List<RotationDesiredTaskRecord>();
+    while (await reader.ReadAsync())
+    {
+        var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+        var personId = reader.GetOrdinal("person_id");
+        var rotationStationId = reader.GetOrdinal("rotation_station_id");
+        var departmentId = reader.GetOrdinal("department_id");
+        var departmentName = reader.GetOrdinal("department_name");
+        var orderIndex = reader.GetOrdinal("order_index");
+        var templateId = reader.GetOrdinal("template_id");
+        var templateTitle = reader.GetOrdinal("template_title");
+        var triggerType = reader.GetOrdinal("trigger_type");
+        var anchorDate = reader.GetOrdinal("anchor_date");
+        var description = reader.GetOrdinal("description");
+        var taskType = reader.GetOrdinal("task_type");
+        var defaultResponsibilityId = reader.GetOrdinal("default_responsibility_id");
+        var responsibilityName = reader.GetOrdinal("responsibility_name");
+        var dueDate = reader.GetOrdinal("due_date");
+
+        records.Add(new RotationDesiredTaskRecord
         {
-            records.Add(new RotationDesiredTaskRecord
-            {
-                RotationPlanId = reader.GetInt64(0),
-                PersonId = reader.GetInt64(1),
-                RotationStationId = reader.GetInt64(2),
-                DepartmentId = reader.GetInt32(3),
-                DepartmentName = reader.GetString(4),
-                OrderIndex = reader.GetInt32(5),
-                TemplateId = reader.GetInt32(6),
-                TemplateTitle = reader.GetString(7),
-                TriggerType = reader.GetString(8),
-                AnchorDate = reader.GetFieldValue<DateOnly>(9),
-                Title = reader.GetString(7),
-                Description = reader.IsDBNull(10) ? null : reader.GetString(10),
-                TaskType = reader.GetString(11),
-                ResponsibilityId = reader.IsDBNull(12) ? null : reader.GetInt32(12),
-                ResponsibilityName = reader.IsDBNull(13) ? null : reader.GetString(13),
-                DueDate = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14)
-            });
-        }
+            RotationPlanId = reader.GetInt64(rotationPlanId),
+            PersonId = reader.GetInt64(personId),
+            RotationStationId = reader.GetInt64(rotationStationId),
+            DepartmentId = reader.GetInt32(departmentId),
+            DepartmentName = reader.GetString(departmentName),
+            OrderIndex = reader.GetInt32(orderIndex),
+            TemplateId = reader.GetInt32(templateId),
+            TemplateTitle = reader.GetString(templateTitle),
+            TriggerType = reader.GetString(triggerType),
+            AnchorDate = reader.GetFieldValue<DateOnly>(anchorDate),
+            Title = reader.GetString(templateTitle),
+            Description = reader.IsDBNull(description) ? null : reader.GetString(description),
+            TaskType = reader.GetString(taskType),
+            ResponsibilityId = reader.IsDBNull(defaultResponsibilityId) ? null : reader.GetInt32(defaultResponsibilityId),
+            ResponsibilityName = reader.IsDBNull(responsibilityName) ? null : reader.GetString(responsibilityName),
+            DueDate = reader.IsDBNull(dueDate) ? null : reader.GetFieldValue<DateOnly>(dueDate)
+        });
+    }
 
         return records;
     }
@@ -691,7 +730,7 @@ WHERE id = @taskId;";
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("taskId", taskId);
         await command.ExecuteNonQueryAsync();
-        await SyncRotationPrimaryAssignmentCompletion(connection, transaction, taskId, "cancelled");
+        await SyncRotationPrimaryAssignmentCompletion(connection, transaction, taskId, RotationTaskStatuses.Cancelled);
     }
 
     private static async Task PersistRotationTaskStatus(
@@ -765,7 +804,7 @@ WHERE rotation_generated_task_id = @taskId
             return;
         }
 
-        await EnsureAssignableResponsibilityExists(connection, transaction, responsibilityId.Value);
+        await PostgresRepositorySharedHelpers.EnsureAssignableResponsibilityExists(connection, transaction, responsibilityId.Value);
 
         const string insertSql = @"
 INSERT INTO rotation_task_assignments (
@@ -896,21 +935,21 @@ LIMIT 1;";
     {
         const string sql = @"
 SELECT
-    rgt.id,
+    rgt.id AS generated_task_id,
     rgt.rotation_plan_id,
     rgt.rotation_station_id,
     rgt.person_id,
     rgt.department_id,
-    department.name,
+    department.name AS department_name,
     rgt.template_id,
-    template.title,
+    template.title AS template_title,
     rgt.trigger_type,
     rgt.anchor_date,
     rgt.title,
     rgt.description,
     rgt.task_type,
     rgt.responsibility_id,
-    responsibility.name,
+    responsibility.name AS responsibility_name,
     rgt.due_date,
     rgt.status,
     rgt.completion_note,
@@ -931,35 +970,58 @@ ORDER BY rgt.created_at DESC, rgt.id DESC;";
         command.Parameters.Add("taskId", NpgsqlDbType.Bigint).Value = (object?)taskId ?? DBNull.Value;
         await using var reader = await command.ExecuteReaderAsync();
 
-        var records = new List<RotationGeneratedTaskRecord>();
-        while (await reader.ReadAsync())
+    var records = new List<RotationGeneratedTaskRecord>();
+    while (await reader.ReadAsync())
+    {
+        var generatedTaskId = reader.GetOrdinal("generated_task_id");
+        var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+        var rotationStationId = reader.GetOrdinal("rotation_station_id");
+        var personId = reader.GetOrdinal("person_id");
+        var departmentId = reader.GetOrdinal("department_id");
+        var departmentName = reader.GetOrdinal("department_name");
+        var templateId = reader.GetOrdinal("template_id");
+        var templateTitle = reader.GetOrdinal("template_title");
+        var triggerType = reader.GetOrdinal("trigger_type");
+        var anchorDate = reader.GetOrdinal("anchor_date");
+        var title = reader.GetOrdinal("title");
+        var description = reader.GetOrdinal("description");
+        var taskType = reader.GetOrdinal("task_type");
+        var responsibilityId = reader.GetOrdinal("responsibility_id");
+        var responsibilityName = reader.GetOrdinal("responsibility_name");
+        var dueDate = reader.GetOrdinal("due_date");
+        var status = reader.GetOrdinal("status");
+        var completionNote = reader.GetOrdinal("completion_note");
+        var startedAt = reader.GetOrdinal("started_at");
+        var completedAt = reader.GetOrdinal("completed_at");
+        var createdAt = reader.GetOrdinal("created_at");
+        var updatedAt = reader.GetOrdinal("updated_at");
+
+        records.Add(new RotationGeneratedTaskRecord
         {
-            records.Add(new RotationGeneratedTaskRecord
-            {
-                Id = reader.GetInt64(0),
-                RotationPlanId = reader.GetInt64(1),
-                RotationStationId = reader.IsDBNull(2) ? null : reader.GetInt64(2),
-                PersonId = reader.GetInt64(3),
-                DepartmentId = reader.GetInt32(4),
-                DepartmentName = reader.IsDBNull(5) ? null : reader.GetString(5),
-                TemplateId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-                TemplateTitle = reader.IsDBNull(7) ? null : reader.GetString(7),
-                TriggerType = reader.GetString(8),
-                AnchorDate = reader.GetFieldValue<DateOnly>(9),
-                Title = reader.GetString(10),
-                Description = reader.IsDBNull(11) ? null : reader.GetString(11),
-                TaskType = reader.GetString(12),
-                ResponsibilityId = reader.IsDBNull(13) ? null : reader.GetInt32(13),
-                ResponsibilityName = reader.IsDBNull(14) ? null : reader.GetString(14),
-                DueDate = reader.IsDBNull(15) ? null : reader.GetFieldValue<DateOnly>(15),
-                Status = reader.GetString(16),
-                CompletionNote = reader.IsDBNull(17) ? null : reader.GetString(17),
-                StartedAt = reader.IsDBNull(18) ? null : reader.GetDateTime(18),
-                CompletedAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19),
-                CreatedAt = reader.GetDateTime(20),
-                UpdatedAt = reader.GetDateTime(21)
-            });
-        }
+            Id = reader.GetInt64(generatedTaskId),
+            RotationPlanId = reader.GetInt64(rotationPlanId),
+            RotationStationId = reader.IsDBNull(rotationStationId) ? null : reader.GetInt64(rotationStationId),
+            PersonId = reader.GetInt64(personId),
+            DepartmentId = reader.GetInt32(departmentId),
+            DepartmentName = reader.IsDBNull(departmentName) ? null : reader.GetString(departmentName),
+            TemplateId = reader.IsDBNull(templateId) ? null : reader.GetInt32(templateId),
+            TemplateTitle = reader.IsDBNull(templateTitle) ? null : reader.GetString(templateTitle),
+            TriggerType = reader.GetString(triggerType),
+            AnchorDate = reader.GetFieldValue<DateOnly>(anchorDate),
+            Title = reader.GetString(title),
+            Description = reader.IsDBNull(description) ? null : reader.GetString(description),
+            TaskType = reader.GetString(taskType),
+            ResponsibilityId = reader.IsDBNull(responsibilityId) ? null : reader.GetInt32(responsibilityId),
+            ResponsibilityName = reader.IsDBNull(responsibilityName) ? null : reader.GetString(responsibilityName),
+            DueDate = reader.IsDBNull(dueDate) ? null : reader.GetFieldValue<DateOnly>(dueDate),
+            Status = reader.GetString(status),
+            CompletionNote = reader.IsDBNull(completionNote) ? null : reader.GetString(completionNote),
+            StartedAt = reader.IsDBNull(startedAt) ? null : reader.GetDateTime(startedAt),
+            CompletedAt = reader.IsDBNull(completedAt) ? null : reader.GetDateTime(completedAt),
+            CreatedAt = reader.GetDateTime(createdAt),
+            UpdatedAt = reader.GetDateTime(updatedAt)
+        });
+    }
 
         return records;
     }
@@ -1010,19 +1072,27 @@ ORDER BY rgt.created_at DESC, rgt.id DESC;";
         }).ToList();
     }
 
+    private static Task<List<TaskWithWorkflowDto>> LoadRotationTaskEnvelopesForUser(
+        NpgsqlConnection connection,
+        long userId,
+        int[] responsibilityIds)
+        => LoadRotationTaskEnvelopes(connection, null, null, null, userId, responsibilityIds);
+
     private static async Task<List<TaskWithWorkflowDto>> LoadRotationTaskEnvelopes(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         long? planId,
-        long? taskId)
+        long? taskId,
+        long? filterUserId = null,
+        int[]? filterResponsibilityIds = null)
     {
         const string sql = @"
 SELECT
-    rgt.id,
+    rgt.id AS generated_task_id,
     rgt.rotation_plan_id,
-    rp.status,
-    rp.title,
-    w.uid,
+    rp.status AS plan_status,
+    rp.title AS plan_title,
+    w.uid AS source_workflow_uid,
     rp.person_id,
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, w.first_name), COALESCE(p.last_name, w.last_name))), ''),
@@ -1030,17 +1100,17 @@ SELECT
         'Person #' || rp.person_id::text
     ) AS display_name,
     rgt.department_id,
-    d.name,
+    d.name AS department_name,
     rgt.rotation_station_id,
     rgt.template_id,
-    template.title,
+    template.title AS template_title,
     rgt.trigger_type,
     rgt.anchor_date,
     rgt.title,
     rgt.description,
     rgt.task_type,
     rgt.responsibility_id,
-    responsibility.name,
+    responsibility.name AS responsibility_name,
     rgt.due_date,
     rgt.status,
     rgt.completion_note,
@@ -1058,6 +1128,18 @@ LEFT JOIN department_action_templates template ON template.id = rgt.template_id
 LEFT JOIN app_responsibilities responsibility ON responsibility.id = rgt.responsibility_id
 WHERE (@planId IS NULL OR rgt.rotation_plan_id = @planId)
   AND (@taskId IS NULL OR rgt.id = @taskId)
+  AND (
+      @filterUserId IS NULL
+      OR EXISTS (
+          SELECT 1 FROM rotation_task_assignments rta
+          WHERE rta.rotation_generated_task_id = rgt.id
+            AND rta.is_primary = TRUE
+            AND (
+                rta.assignee_responsibility_id = ANY(@filterResponsibilityIds)
+                OR rta.assignee_user_id = @filterUserId
+            )
+      )
+  )
 ORDER BY rgt.created_at DESC, rgt.id DESC;";
 
         var taskRecords = new List<RotationGeneratedTaskRecord>();
@@ -1066,46 +1148,76 @@ ORDER BY rgt.created_at DESC, rgt.id DESC;";
         {
             command.Parameters.Add("planId", NpgsqlDbType.Bigint).Value = (object?)planId ?? DBNull.Value;
             command.Parameters.Add("taskId", NpgsqlDbType.Bigint).Value = (object?)taskId ?? DBNull.Value;
+            command.Parameters.Add("filterUserId", NpgsqlDbType.Bigint).Value = (object?)filterUserId ?? DBNull.Value;
+            command.Parameters.Add("filterResponsibilityIds", NpgsqlDbType.Array | NpgsqlDbType.Integer).Value =
+                (object?)filterResponsibilityIds ?? DBNull.Value;
             await using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                var id = reader.GetInt64(0);
+                var generatedTaskId = reader.GetOrdinal("generated_task_id");
+                var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+                var planStatus = reader.GetOrdinal("plan_status");
+                var planTitle = reader.GetOrdinal("plan_title");
+                var sourceWorkflowUid = reader.GetOrdinal("source_workflow_uid");
+                var personId = reader.GetOrdinal("person_id");
+                var displayName = reader.GetOrdinal("display_name");
+                var departmentId = reader.GetOrdinal("department_id");
+                var departmentName = reader.GetOrdinal("department_name");
+                var rotationStationId = reader.GetOrdinal("rotation_station_id");
+                var templateId = reader.GetOrdinal("template_id");
+                var templateTitle = reader.GetOrdinal("template_title");
+                var triggerType = reader.GetOrdinal("trigger_type");
+                var anchorDate = reader.GetOrdinal("anchor_date");
+                var title = reader.GetOrdinal("title");
+                var description = reader.GetOrdinal("description");
+                var taskType = reader.GetOrdinal("task_type");
+                var responsibilityId = reader.GetOrdinal("responsibility_id");
+                var responsibilityName = reader.GetOrdinal("responsibility_name");
+                var dueDate = reader.GetOrdinal("due_date");
+                var status = reader.GetOrdinal("status");
+                var completionNote = reader.GetOrdinal("completion_note");
+                var createdAt = reader.GetOrdinal("created_at");
+                var updatedAt = reader.GetOrdinal("updated_at");
+                var startedAt = reader.GetOrdinal("started_at");
+                var completedAt = reader.GetOrdinal("completed_at");
+
+                var id = reader.GetInt64(generatedTaskId);
                 taskRecords.Add(new RotationGeneratedTaskRecord
                 {
                     Id = id,
-                    RotationPlanId = reader.GetInt64(1),
-                    RotationStationId = reader.IsDBNull(9) ? null : reader.GetInt64(9),
-                    PersonId = reader.GetInt64(5),
-                    DepartmentId = reader.GetInt32(7),
-                    DepartmentName = reader.GetString(8),
-                    TemplateId = reader.IsDBNull(10) ? null : reader.GetInt32(10),
-                    TemplateTitle = reader.IsDBNull(11) ? null : reader.GetString(11),
-                    TriggerType = reader.GetString(12),
-                    AnchorDate = reader.GetFieldValue<DateOnly>(13),
-                    Title = reader.GetString(14),
-                    Description = reader.IsDBNull(15) ? null : reader.GetString(15),
-                    TaskType = reader.GetString(16),
-                    ResponsibilityId = reader.IsDBNull(17) ? null : reader.GetInt32(17),
-                    ResponsibilityName = reader.IsDBNull(18) ? null : reader.GetString(18),
-                    DueDate = reader.IsDBNull(19) ? null : reader.GetFieldValue<DateOnly>(19),
-                    Status = reader.GetString(20),
-                    CompletionNote = reader.IsDBNull(21) ? null : reader.GetString(21),
-                    CreatedAt = reader.GetDateTime(22),
-                    UpdatedAt = reader.GetDateTime(23),
-                    StartedAt = reader.IsDBNull(24) ? null : reader.GetDateTime(24),
-                    CompletedAt = reader.IsDBNull(25) ? null : reader.GetDateTime(25)
+                    RotationPlanId = reader.GetInt64(rotationPlanId),
+                    RotationStationId = reader.IsDBNull(rotationStationId) ? null : reader.GetInt64(rotationStationId),
+                    PersonId = reader.GetInt64(personId),
+                    DepartmentId = reader.GetInt32(departmentId),
+                    DepartmentName = reader.GetString(departmentName),
+                    TemplateId = reader.IsDBNull(templateId) ? null : reader.GetInt32(templateId),
+                    TemplateTitle = reader.IsDBNull(templateTitle) ? null : reader.GetString(templateTitle),
+                    TriggerType = reader.GetString(triggerType),
+                    AnchorDate = reader.GetFieldValue<DateOnly>(anchorDate),
+                    Title = reader.GetString(title),
+                    Description = reader.IsDBNull(description) ? null : reader.GetString(description),
+                    TaskType = reader.GetString(taskType),
+                    ResponsibilityId = reader.IsDBNull(responsibilityId) ? null : reader.GetInt32(responsibilityId),
+                    ResponsibilityName = reader.IsDBNull(responsibilityName) ? null : reader.GetString(responsibilityName),
+                    DueDate = reader.IsDBNull(dueDate) ? null : reader.GetFieldValue<DateOnly>(dueDate),
+                    Status = reader.GetString(status),
+                    CompletionNote = reader.IsDBNull(completionNote) ? null : reader.GetString(completionNote),
+                    CreatedAt = reader.GetDateTime(createdAt),
+                    UpdatedAt = reader.GetDateTime(updatedAt),
+                    StartedAt = reader.IsDBNull(startedAt) ? null : reader.GetDateTime(startedAt),
+                    CompletedAt = reader.IsDBNull(completedAt) ? null : reader.GetDateTime(completedAt)
                 });
 
                 planRecordsByTaskId[id] = new RotationPlanEnvelopeRecord
                 {
-                    RotationPlanId = reader.GetInt64(1),
-                    PlanStatus = reader.GetString(2),
-                    PlanTitle = reader.GetString(3),
-                    SourceWorkflowUid = reader.GetGuid(4),
-                    PersonId = reader.GetInt64(5),
-                    DisplayName = reader.GetString(6),
-                    DepartmentId = reader.GetInt32(7),
-                    DepartmentName = reader.GetString(8)
+                    RotationPlanId = reader.GetInt64(rotationPlanId),
+                    PlanStatus = reader.GetString(planStatus),
+                    PlanTitle = reader.GetString(planTitle),
+                    SourceWorkflowUid = reader.GetGuid(sourceWorkflowUid),
+                    PersonId = reader.GetInt64(personId),
+                    DisplayName = reader.GetString(displayName),
+                    DepartmentId = reader.GetInt32(departmentId),
+                    DepartmentName = reader.GetString(departmentName)
                 };
             }
         }
@@ -1191,18 +1303,18 @@ ORDER BY rgt.created_at DESC, rgt.id DESC;";
         const string sql = @"
 SELECT
     ta.rotation_generated_task_id,
-    ta.id,
+    ta.id AS assignment_id,
     ta.assignment_type,
     ta.is_primary,
     ta.assigned_at,
     ta.completed_at,
     ta.assignee_user_id,
-    u.display_name,
-    u.email,
+    u.display_name AS assignee_user_name,
+    u.email AS assignee_user_email,
     ta.assignee_responsibility_id,
-    r.responsibility_key,
-    r.name,
-    r.responsibility_type
+    r.responsibility_key AS assignee_responsibility_key,
+    r.name AS assignee_responsibility_name,
+    r.responsibility_type AS assignee_responsibility_type
 FROM rotation_task_assignments ta
 LEFT JOIN app_users u ON u.id = ta.assignee_user_id
 LEFT JOIN app_responsibilities r ON r.id = ta.assignee_responsibility_id
@@ -1211,26 +1323,40 @@ ORDER BY ta.rotation_generated_task_id, ta.is_primary DESC, ta.id;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.Add("taskIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = taskIds.ToArray();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+    await using var reader = await command.ExecuteReaderAsync();
+    while (await reader.ReadAsync())
+    {
+        var rotationGeneratedTaskId = reader.GetOrdinal("rotation_generated_task_id");
+        var assignmentId = reader.GetOrdinal("assignment_id");
+        var assignmentType = reader.GetOrdinal("assignment_type");
+        var isPrimary = reader.GetOrdinal("is_primary");
+        var assignedAt = reader.GetOrdinal("assigned_at");
+        var completedAt = reader.GetOrdinal("completed_at");
+        var assigneeUserId = reader.GetOrdinal("assignee_user_id");
+        var assigneeUserName = reader.GetOrdinal("assignee_user_name");
+        var assigneeUserEmail = reader.GetOrdinal("assignee_user_email");
+        var assigneeResponsibilityId = reader.GetOrdinal("assignee_responsibility_id");
+        var assigneeResponsibilityKey = reader.GetOrdinal("assignee_responsibility_key");
+        var assigneeResponsibilityName = reader.GetOrdinal("assignee_responsibility_name");
+        var assigneeResponsibilityType = reader.GetOrdinal("assignee_responsibility_type");
+
+        var taskId = reader.GetInt64(rotationGeneratedTaskId);
+        result[taskId].Add(new WorkflowTaskAssignmentDto
         {
-            var taskId = reader.GetInt64(0);
-            result[taskId].Add(new WorkflowTaskAssignmentDto
-            {
-                Id = reader.GetInt64(1),
-                AssignmentType = reader.GetString(2),
-                IsPrimary = reader.GetBoolean(3),
-                AssignedAt = reader.GetDateTime(4),
-                CompletedAt = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-                AssigneeUserId = reader.IsDBNull(6) ? null : reader.GetInt64(6),
-                AssigneeUserName = reader.IsDBNull(7) ? null : reader.GetString(7),
-                AssigneeUserEmail = reader.IsDBNull(8) ? null : reader.GetString(8),
-                AssigneeResponsibilityId = reader.IsDBNull(9) ? null : reader.GetInt32(9),
-                AssigneeResponsibilityKey = reader.IsDBNull(10) ? null : reader.GetString(10),
-                AssigneeResponsibilityName = reader.IsDBNull(11) ? null : reader.GetString(11),
-                AssigneeResponsibilityType = reader.IsDBNull(12) ? null : reader.GetString(12)
-            });
-        }
+            Id = reader.GetInt64(assignmentId),
+            AssignmentType = reader.GetString(assignmentType),
+            IsPrimary = reader.GetBoolean(isPrimary),
+            AssignedAt = reader.GetDateTime(assignedAt),
+            CompletedAt = reader.IsDBNull(completedAt) ? null : reader.GetDateTime(completedAt),
+            AssigneeUserId = reader.IsDBNull(assigneeUserId) ? null : reader.GetInt64(assigneeUserId),
+            AssigneeUserName = reader.IsDBNull(assigneeUserName) ? null : reader.GetString(assigneeUserName),
+            AssigneeUserEmail = reader.IsDBNull(assigneeUserEmail) ? null : reader.GetString(assigneeUserEmail),
+            AssigneeResponsibilityId = reader.IsDBNull(assigneeResponsibilityId) ? null : reader.GetInt32(assigneeResponsibilityId),
+            AssigneeResponsibilityKey = reader.IsDBNull(assigneeResponsibilityKey) ? null : reader.GetString(assigneeResponsibilityKey),
+            AssigneeResponsibilityName = reader.IsDBNull(assigneeResponsibilityName) ? null : reader.GetString(assigneeResponsibilityName),
+            AssigneeResponsibilityType = reader.IsDBNull(assigneeResponsibilityType) ? null : reader.GetString(assigneeResponsibilityType)
+        });
+    }
 
         return result;
     }
@@ -1249,9 +1375,9 @@ ORDER BY ta.rotation_generated_task_id, ta.is_primary DESC, ta.id;";
         const string sql = @"
 SELECT
     c.rotation_generated_task_id,
-    c.id,
+    c.id AS comment_id,
     c.author_user_id,
-    u.display_name,
+    u.display_name AS author_user_name,
     c.comment_text,
     c.created_at
 FROM rotation_task_comments c
@@ -1264,15 +1390,22 @@ ORDER BY c.rotation_generated_task_id, c.created_at, c.id;";
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            var taskId = reader.GetInt64(0);
+            var rotationGeneratedTaskId = reader.GetOrdinal("rotation_generated_task_id");
+            var commentId = reader.GetOrdinal("comment_id");
+            var authorUserId = reader.GetOrdinal("author_user_id");
+            var authorUserName = reader.GetOrdinal("author_user_name");
+            var commentText = reader.GetOrdinal("comment_text");
+            var createdAt = reader.GetOrdinal("created_at");
+
+            var taskId = reader.GetInt64(rotationGeneratedTaskId);
             result[taskId].Add(new WorkflowTaskCommentDto
             {
-                Id = reader.GetInt64(1),
+                Id = reader.GetInt64(commentId),
                 TaskId = taskId,
-                AuthorUserId = reader.IsDBNull(2) ? null : reader.GetInt64(2),
-                AuthorUserName = reader.IsDBNull(3) ? null : reader.GetString(3),
-                CommentText = reader.GetString(4),
-                CreatedAt = reader.GetDateTime(5)
+                AuthorUserId = reader.IsDBNull(authorUserId) ? null : reader.GetInt64(authorUserId),
+                AuthorUserName = reader.IsDBNull(authorUserName) ? null : reader.GetString(authorUserName),
+                CommentText = reader.GetString(commentText),
+                CreatedAt = reader.GetDateTime(createdAt)
             });
         }
 
@@ -1286,18 +1419,18 @@ ORDER BY c.rotation_generated_task_id, c.created_at, c.id;";
     {
         const string sql = @"
 SELECT
-    rp.id,
+    rp.id AS rotation_plan_id,
     rp.person_id,
-    w.uid,
-    rp.status,
-    rp.title,
+    w.uid AS source_workflow_uid,
+    rp.status AS plan_status,
+    rp.title AS plan_title,
     COALESCE(
         NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, w.first_name), COALESCE(p.last_name, w.last_name))), ''),
         u.display_name,
         'Person #' || rp.person_id::text
     ) AS display_name,
     COALESCE(w.department_id, p.department_id, u.department_id) AS department_id,
-    d.name
+    d.name AS department_name
 FROM rotation_plans rp
 JOIN workflows w ON w.id = rp.source_workflow_id
 LEFT JOIN people p ON p.id = rp.person_id
@@ -1314,16 +1447,25 @@ LIMIT 1;";
             return null;
         }
 
+        var rotationPlanId = reader.GetOrdinal("rotation_plan_id");
+        var personId = reader.GetOrdinal("person_id");
+        var sourceWorkflowUid = reader.GetOrdinal("source_workflow_uid");
+        var planStatus = reader.GetOrdinal("plan_status");
+        var planTitle = reader.GetOrdinal("plan_title");
+        var displayName = reader.GetOrdinal("display_name");
+        var departmentId = reader.GetOrdinal("department_id");
+        var departmentName = reader.GetOrdinal("department_name");
+
         return new RotationPlanEnvelopeRecord
         {
-            RotationPlanId = reader.GetInt64(0),
-            PersonId = reader.GetInt64(1),
-            SourceWorkflowUid = reader.GetGuid(2),
-            PlanStatus = reader.GetString(3),
-            PlanTitle = reader.GetString(4),
-            DisplayName = reader.GetString(5),
-            DepartmentId = reader.GetInt32(6),
-            DepartmentName = reader.IsDBNull(7) ? string.Empty : reader.GetString(7)
+            RotationPlanId = reader.GetInt64(rotationPlanId),
+            PersonId = reader.GetInt64(personId),
+            SourceWorkflowUid = reader.GetGuid(sourceWorkflowUid),
+            PlanStatus = reader.GetString(planStatus),
+            PlanTitle = reader.GetString(planTitle),
+            DisplayName = reader.GetString(displayName),
+            DepartmentId = reader.GetInt32(departmentId),
+            DepartmentName = reader.IsDBNull(departmentName) ? string.Empty : reader.GetString(departmentName)
         };
     }
 
@@ -1435,9 +1577,9 @@ VALUES (
     {
         return taskType.Trim().ToLowerInvariant() switch
         {
-            "technical" => "computer",
-            "information" => "info",
-            "approval" => "approval",
+            RotationTaskTypes.Technical => "computer",
+            RotationTaskTypes.Information => "info",
+            RotationTaskTypes.Approval => "approval",
             _ => "checklist"
         };
     }

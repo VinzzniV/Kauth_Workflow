@@ -68,3 +68,4 @@
 \i /docker-entrypoint-sql/64_rename_business_phase_mapping_versions.sql
 \i /docker-entrypoint-sql/65_fix_notification_template_newlines.sql
 \i /docker-entrypoint-sql/66_hardware_takeover_requirement.sql
+\i /docker-entrypoint-sql/67_rotation_department_templates.sql

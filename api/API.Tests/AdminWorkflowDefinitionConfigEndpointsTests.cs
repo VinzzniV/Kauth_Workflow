@@ -311,24 +311,80 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
     [Fact]
     public async Task PublishDefinitionVersionEndpoint_ReturnsPublishedVersion()
     {
+        var publishedVersion = new WorkflowDefinitionVersionDetailDto
+        {
+            Id = 12,
+            WorkflowDefinitionId = 7,
+            DefinitionKey = "hr-onboarding",
+            DefinitionName = "HR Onboarding",
+            VersionNumber = 2,
+            Status = "published",
+            Name = "Published",
+            Description = "Go live",
+            PrimaryLegacyProcessTypeKey = "onboarding",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            PublishedAt = DateTime.UtcNow,
+            CanPublish = true,
+            ValidationIssues = new List<ValidationIssueDto>(),
+            Nodes = new List<WorkflowDefinitionNodeDto>(),
+            Edges = new List<WorkflowDefinitionEdgeDto>()
+        };
+
         var repository = new StubWorkflowDefinitionRepository
         {
-            PublishedVersion = new WorkflowDefinitionVersionDetailDto
+            VersionDetailForGet = publishedVersion,
+            PublishedVersion = publishedVersion
+        };
+
+        var app = CreateApp(repository);
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definition-versions/{versionId:long}/publish", HttpMethods.Post);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Post,
+            "/admin/config/workflow-definition-versions/12/publish",
+            new { },
+            ("versionId", 12L));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetAdminWorkflowDefinitionVersionCallCount);
+        Assert.Equal(1, repository.PublishWorkflowDefinitionVersionCallCount);
+        Assert.Equal(12L, repository.LastPublishWorkflowDefinitionVersionId);
+    }
+
+    [Fact]
+    public async Task PublishDefinitionVersionEndpoint_ReturnsBadRequestWhenNotPublishable()
+    {
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            VersionDetailForGet = new WorkflowDefinitionVersionDetailDto
             {
                 Id = 12,
                 WorkflowDefinitionId = 7,
                 DefinitionKey = "hr-onboarding",
                 DefinitionName = "HR Onboarding",
-                VersionNumber = 2,
-                Status = "published",
-                Name = "Published",
-                Description = "Go live",
-                PrimaryLegacyProcessTypeKey = "onboarding",
+                VersionNumber = 1,
+                Status = "draft",
+                Name = "Broken Draft",
+                Description = null,
+                PrimaryLegacyProcessTypeKey = null,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                PublishedAt = DateTime.UtcNow,
-                CanPublish = true,
-                ValidationIssues = new List<ValidationIssueDto>(),
+                PublishedAt = null,
+                CanPublish = false,
+                ValidationIssues =
+                [
+                    new ValidationIssueDto
+                    {
+                        Code = "node_not_reachable",
+                        Severity = "error",
+                        Scope = "workflow_node",
+                        Message = "Node 'orphan' is not reachable from the start node."
+                    }
+                ],
                 Nodes = new List<WorkflowDefinitionNodeDto>(),
                 Edges = new List<WorkflowDefinitionEdgeDto>()
             }
@@ -346,9 +402,13 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
 
         await endpoint.RequestDelegate!(context);
 
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.PublishWorkflowDefinitionVersionCallCount);
-        Assert.Equal(12L, repository.LastPublishWorkflowDefinitionVersionId);
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetAdminWorkflowDefinitionVersionCallCount);
+        Assert.Equal(0, repository.PublishWorkflowDefinitionVersionCallCount);
+        context.Response.Body.Position = 0;
+        using var reader = new StreamReader(context.Response.Body, leaveOpen: true);
+        var body = await reader.ReadToEndAsync();
+        Assert.Contains("cannot be published", body);
     }
 
     [Fact]
@@ -871,6 +931,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<WorkflowAuditEntryDto>> GetWorkflowAuditLog(Guid workflowUid, int limit = 200, int offset = 0) => throw new NotSupportedException();
         public Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId) => throw new NotSupportedException();
         public Task<List<TaskWithWorkflowDto>> GetTasks() => throw new NotSupportedException();
+        public Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskById(long taskId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId) => throw new NotSupportedException();

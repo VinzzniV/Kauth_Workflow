@@ -343,7 +343,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
 
     private static bool IsTerminalRotationPlan(TaskWithWorkflowDto task)
     {
-        return task.Rotation?.PlanStatus is "completed" or "archived";
+        return task.Rotation?.PlanStatus is RotationPlanStatuses.Completed or RotationPlanStatuses.Archived;
     }
 
     private static bool MatchesTaskAssignment(CurrentUser user, TaskWithWorkflowDto task)

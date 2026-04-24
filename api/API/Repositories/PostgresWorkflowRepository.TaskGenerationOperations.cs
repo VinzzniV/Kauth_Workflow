@@ -352,7 +352,7 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
             }
             else if (template.DefaultResponsibilityId.HasValue)
             {
-                assigneeUserId = await ResolvePrimaryAssigneeUserId(
+                assigneeUserId = await PostgresRepositorySharedHelpers.ResolvePrimaryAssigneeUserId(
                     connection,
                     transaction,
                     template.DefaultResponsibilityId.Value,

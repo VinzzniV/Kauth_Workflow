@@ -1,11 +1,15 @@
-# Production Checklist
+# Deployment-Checkliste
 
-Knappe, ausfuehrbare Checkliste fuer ein sauberes Production-Deployment.
-Details stehen in `SETUP.md`.
+#betrieb #deployment #checkliste
+
+Ausführbare Checkliste für ein sauberes Production-Deployment.
+Primärquelle im Repo war: `PRODUCTION_CHECKLIST.md` (in Vault migriert)
+
+Detailbeschreibungen → [[Setup]]
 
 ---
 
-## 1 - Entra-App-Registration
+## 1 — Entra-App-Registration
 
 - [ ] App Registration angelegt
 - [ ] `ENTRA_CLIENT_ID` notiert
@@ -14,21 +18,21 @@ Details stehen in `SETUP.md`.
 - [ ] `ENTRA_AUDIENCE` gesetzt
 - [ ] Redirect URI als SPA eingetragen und exakt auf `PUBLIC_BASE_URL` abgestimmt
 - [ ] API Permission `<audience>/access_as_user` freigegeben
-- [ ] Gruppen fuer Rollen-Mapping vorbereitet
+- [ ] Gruppen für Rollen-Mapping vorbereitet
 
 ---
 
-## 2 - Host-Voraussetzungen
+## 2 — Host-Voraussetzungen
 
 - [ ] Docker Engine installiert
-- [ ] `docker compose` verfuegbar
-- [ ] DNS fuer `PUBLIC_HOSTNAME` gesetzt
+- [ ] `docker compose` verfügbar
+- [ ] DNS für `PUBLIC_HOSTNAME` gesetzt
 - [ ] Ports 80 und 443 offen
 - [ ] Repo oder Handoff-ZIP bereitgestellt
 
 ---
 
-## 3 - Konfiguration
+## 3 — Konfiguration
 
 ```bash
 cp .env.prod.example .env.prod
@@ -36,27 +40,23 @@ cp .env.prod.example .env.prod
 
 Pflichtfelder setzen:
 - `PUBLIC_HOSTNAME`
-- `PUBLIC_BASE_URL`
+- `PUBLIC_BASE_URL` (muss `https://` beginnen)
 - `POSTGRES_PASSWORD`
-- `ENTRA_TENANT_ID`
-- `ENTRA_CLIENT_ID`
-- `ENTRA_AUDIENCE`
-- `ENTRA_CLIENT_SECRET`
+- `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_AUDIENCE`, `ENTRA_CLIENT_SECRET`
 
-Wichtige Regeln:
-- `PUBLIC_BASE_URL` muss mit `https://` beginnen
-- `SWAGGER_ENABLED=true` ist in Production verboten
-- Secrets kommen aus der Umgebung, nicht aus der Datenbank
+Regeln:
+- `SWAGGER_ENABLED=true` ist in Production **verboten**
+- Secrets kommen aus der Umgebung, nicht aus der DB
 
 ---
 
-## 4 - Stack starten
+## 4 — Stack starten
 
 ```bash
 docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml up -d --build
 ```
 
-Danach:
+Danach prüfen:
 
 ```bash
 docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml ps
@@ -65,7 +65,7 @@ docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml logs -f
 
 ---
 
-## 5 - Smoke-Tests
+## 5 — Smoke-Tests
 
 ```bash
 curl -k https://<PUBLIC_HOSTNAME>/api/health/live
@@ -76,34 +76,40 @@ curl -k -i https://<PUBLIC_HOSTNAME>/api/me
 ```
 
 Erwartung:
-- `/api/health/live` -> `200`
-- `/api/health/ready` -> `200` bei erreichbarer DB
-- `/api/health` -> Deep-Health-JSON
-- `/api/auth/provider-info` -> `mode=entra`
-- `/api/me` ohne Login typischerweise `401`
+- `/api/health/live` → `200`
+- `/api/health/ready` → `200` bei erreichbarer DB
+- `/api/health` → Deep-Health-JSON
+- `/api/auth/provider-info` → `mode=entra`
+- `/api/me` ohne Login → `401`
 
-Browser-Test:
-- [ ] `https://<PUBLIC_HOSTNAME>` oeffnet
+Browser:
+- [ ] `https://<PUBLIC_HOSTNAME>` öffnet
 - [ ] Entra-Login funktioniert
 
 ---
 
-## 6 - Directory-Sync pruefen
+## 6 — Directory-Sync prüfen
 
-- [ ] erster Sync laeuft ohne Fehler
+- [ ] Erster Sync läuft ohne Fehler
 - [ ] Benutzer und Gruppen sind im Admin-Bereich sichtbar
 
 ---
 
-## 7 - TLS
+## 7 — TLS
 
 - [ ] Clients vertrauen dem verwendeten Zertifikat
 - [ ] Redirects und Login funktionieren ohne Browser-Warnungen
 
 ---
 
-## 8 - Secret-Rotation
+## 8 — Secret-Rotation
 
 1. Neues Secret in `.env.prod` setzen
 2. API-Container neu starten
 3. Smoke-Tests wiederholen
+
+---
+
+## Verwandte Notizen
+
+- [[Setup]] — Details zu Konfiguration und Deployment

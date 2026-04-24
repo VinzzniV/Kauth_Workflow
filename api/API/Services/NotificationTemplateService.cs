@@ -3,6 +3,7 @@ namespace API;
 internal sealed class NotificationTemplateService(
     INotificationTemplateRepository repository,
     INotificationTemplatePreviewRepository previewRepository,
+    IRotationNotificationPreviewRepository rotationPreviewRepository,
     IWorkflowRepository workflowRepository,
     IRotationRepository rotationRepository,
     INotificationEmailConfigurationService notificationEmailConfigurationService) : INotificationTemplateService
@@ -276,7 +277,7 @@ internal sealed class NotificationTemplateService(
         string frontendBaseUrl,
         CancellationToken cancellationToken)
     {
-        var targets = await previewRepository.GetRotationNotificationPreviewTargets(
+        var targets = await rotationPreviewRepository.GetRotationNotificationPreviewTargets(
             rotationPlanId,
             definition.TemplateKey,
             DateOnly.FromDateTime(DateTime.UtcNow));

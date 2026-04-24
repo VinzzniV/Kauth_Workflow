@@ -363,12 +363,17 @@ internal static class RotationPlanningEndpoints
             {
                 return EndpointSupport.Forbidden(ex.Message);
             }
+            catch (InvalidOperationException ex) when (IsRotationStationConflict(ex))
+            {
+                return Results.Conflict(new { message = ex.Message });
+            }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
         }).Produces<RotationStationDto>(StatusCodes.Status201Created)
           .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status409Conflict)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
 
@@ -399,12 +404,17 @@ internal static class RotationPlanningEndpoints
             {
                 return EndpointSupport.Forbidden(ex.Message);
             }
+            catch (InvalidOperationException ex) when (IsRotationStationConflict(ex))
+            {
+                return Results.Conflict(new { message = ex.Message });
+            }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
         }).Produces<RotationStationDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status409Conflict)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status404NotFound);
 
@@ -465,5 +475,11 @@ internal static class RotationPlanningEndpoints
             CompletedAt = source.CompletedAt,
             ArchivedAt = source.ArchivedAt
         };
+    }
+
+    private static bool IsRotationStationConflict(InvalidOperationException exception)
+    {
+        return exception.Message.Contains("überschneidet", StringComparison.OrdinalIgnoreCase)
+            || exception.Message.Contains("orderIndex", StringComparison.OrdinalIgnoreCase);
     }
 }

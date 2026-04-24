@@ -14,29 +14,21 @@ Stabile Projektwahrheit und fachliche Guardrails fuer die Workflow-Plattform.
 `CODE_REVIEW.md`
 Aktuelle CodeReview mit priorisierten Risiken und konkreter Nacharbeit.
 
-`PRODUCTIVE_TARGET_ARCHITECTURE.md`
-Stabiles Sollbild der Plattformarchitektur.
-
-`DECISIONS.md`
-Langfristige Architektur- und Produktentscheidungen.
-
 `MEMORY.md`
 Kurzlebiges Arbeitsgedaechtnis fuer naechste Sessions.
-
-`ENGINEERING_RULES.md`
-Technische Arbeitsregeln fuer inkrementelle, migrationssichere Umsetzung.
 
 `TODO.md`
 Priorisierte Umsetzungssteuerung fuer Review-Nacharbeit.
 
-`SETUP.md`
-Operative Doku fuer lokale Entwicklung und Linux-Deployment.
-
-`PRODUCTION_CHECKLIST.md`
-Kurze Deploy-Checkliste fuer produktive Umgebungen.
+`CODEX_SYNC.md`
+Handoff-Protokoll zwischen Claude und Codex.
 
 `CLAUDE.md`
 Hinweise fuer KI-Zusammenarbeit im Repo.
+
+`KauthWorkflow/`
+Obsidian Vault mit stabiler Wissensbasis. Einstieg: `KauthWorkflow/00 Start.md`
+Enthaelt: Zielarchitektur, Entscheidungen, Migrationspfad, Domänenkonzepte, Betriebsdoku, Stand.
 
 `compose.yml`, `compose.dev-db.yml`, `compose.prod.yml`
 Compose-Basis und Overlays fuer Dev-DB sowie produktionsnahen Stack.
