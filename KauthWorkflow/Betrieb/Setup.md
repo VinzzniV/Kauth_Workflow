@@ -184,6 +184,8 @@ Nützliche Kommandos:
 Hinweise:
 - Laufzeitdateien und Logs landen unter `.tmp-vm-dev/`
 - Der Vite-Dev-Server braucht `node >= 20.19.0` (Node 18 reicht nicht)
+- Das Script meldet `dev` erst als erfolgreich, wenn API (`/health/ready`) und Web wirklich erreichbar sind
+- `dev stop` bereinigt auch haengengebliebene Port-Prozesse auf `5001` und `5173`
 - Falls die öffentliche Dev-URL nicht automatisch passt: `export DEV_PUBLIC_BASE_URL=http://<vm-host>:5173`
 - Für `dev` müssen auf der VM zusätzlich `dotnet` und `npm` installiert sein
 

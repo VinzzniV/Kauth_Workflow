@@ -74,6 +74,22 @@ assert_file() {
     [[ -e "$path" ]] || fail "Pfad fehlt: $path"
 }
 
+http_ok() {
+    local url="$1"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS "$url" >/dev/null 2>&1
+        return $?
+    fi
+
+    if command -v wget >/dev/null 2>&1; then
+        wget -qO- "$url" >/dev/null 2>&1
+        return $?
+    fi
+
+    fail "Weder curl noch wget ist verfuegbar. HTTP-Healthchecks koennen nicht ausgefuehrt werden."
+}
+
 run_in_repo() {
     (
         cd "$REPO_ROOT"
@@ -99,6 +115,67 @@ read_pid_file() {
 is_pid_running() {
     local pid="$1"
     kill -0 "$pid" >/dev/null 2>&1
+}
+
+list_child_pids() {
+    local pid="$1"
+
+    if command -v pgrep >/dev/null 2>&1; then
+        pgrep -P "$pid" 2>/dev/null || true
+        return 0
+    fi
+
+    if command -v ps >/dev/null 2>&1; then
+        ps -o pid= --ppid "$pid" 2>/dev/null | awk '{print $1}' || true
+        return 0
+    fi
+
+    return 0
+}
+
+kill_pid_tree() {
+    local pid="$1"
+    local signal="${2:-TERM}"
+    local child_pid
+
+    for child_pid in $(list_child_pids "$pid"); do
+        [[ -n "$child_pid" ]] || continue
+        kill_pid_tree "$child_pid" "$signal"
+    done
+
+    kill "-$signal" "$pid" >/dev/null 2>&1 || true
+}
+
+find_listening_pids_by_port() {
+    local port="$1"
+
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true
+        return 0
+    fi
+
+    if command -v fuser >/dev/null 2>&1; then
+        fuser -n tcp "$port" 2>/dev/null | tr ' ' '\n' | awk 'NF' || true
+        return 0
+    fi
+
+    return 0
+}
+
+describe_port_usage() {
+    local port="$1"
+
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true
+        return 0
+    fi
+
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnp "( sport = :$port )" 2>/dev/null || true
+        return 0
+    fi
+
+    return 0
 }
 
 get_running_pid_from_file() {
@@ -138,6 +215,12 @@ assert_port_free() {
     local description="$2"
 
     if port_is_listening "$port"; then
+        local usage
+        usage="$(describe_port_usage "$port")"
+        if [[ -n "$usage" ]]; then
+            fail "$description-Port $port ist bereits belegt.\n$usage"
+        fi
+
         fail "$description-Port $port ist bereits belegt."
     fi
 }
@@ -260,6 +343,48 @@ resolve_dev_public_base_url() {
     printf 'http://%s:5173\n' "$detected_host"
 }
 
+wait_for_dev_api_ready() {
+    local timeout_seconds="${1:-90}"
+    local deadline
+    deadline=$((SECONDS + timeout_seconds))
+
+    while (( SECONDS < deadline )); do
+        local api_pid
+        if ! api_pid="$(get_running_pid_from_file "$DEV_API_PID_FILE")"; then
+            fail "API-Prozess ist vorzeitig beendet. Details: $DEV_API_LOG_FILE"
+        fi
+
+        if http_ok "http://127.0.0.1:5001/health/ready"; then
+            return 0
+        fi
+
+        sleep 2
+    done
+
+    fail "API wurde innerhalb von $timeout_seconds Sekunden nicht auf /health/ready bereit. Details: $DEV_API_LOG_FILE"
+}
+
+wait_for_dev_web_ready() {
+    local timeout_seconds="${1:-60}"
+    local deadline
+    deadline=$((SECONDS + timeout_seconds))
+
+    while (( SECONDS < deadline )); do
+        local web_pid
+        if ! web_pid="$(get_running_pid_from_file "$DEV_WEB_PID_FILE")"; then
+            fail "Web-Prozess ist vorzeitig beendet. Details: $DEV_WEB_LOG_FILE"
+        fi
+
+        if http_ok "http://127.0.0.1:5173"; then
+            return 0
+        fi
+
+        sleep 2
+    done
+
+    fail "Web wurde innerhalb von $timeout_seconds Sekunden nicht erreichbar. Details: $DEV_WEB_LOG_FILE"
+}
+
 start_dev_api() {
     local existing_pid
     if existing_pid="$(get_running_pid_from_file "$DEV_API_PID_FILE")"; then
@@ -296,6 +421,8 @@ start_dev_api() {
         fail "API konnte nicht gestartet werden. Details: $DEV_API_LOG_FILE"
     fi
 
+    wait_for_dev_api_ready
+
     echo "API gestartet (PID $started_pid, Log: $DEV_API_LOG_FILE)."
 }
 
@@ -325,33 +452,48 @@ start_dev_web() {
         fail "Web konnte nicht gestartet werden. Details: $DEV_WEB_LOG_FILE"
     fi
 
+    wait_for_dev_web_ready
+
     echo "Web gestartet (PID $started_pid, Log: $DEV_WEB_LOG_FILE)."
 }
 
 stop_dev_process() {
     local pid_file="$1"
     local label="$2"
+    local port="${3:-}"
     local pid
 
     if ! pid="$(get_running_pid_from_file "$pid_file")"; then
         echo "$label laeuft nicht."
-        return 0
+    else
+        echo "Stoppe $label (PID $pid) ..."
+        kill_pid_tree "$pid" TERM
+
+        local deadline
+        deadline=$((SECONDS + 15))
+        while is_pid_running "$pid" && (( SECONDS < deadline )); do
+            sleep 1
+        done
+
+        if is_pid_running "$pid"; then
+            kill_pid_tree "$pid" KILL
+        fi
+
+        rm -f "$pid_file"
     fi
 
-    echo "Stoppe $label (PID $pid) ..."
-    kill "$pid" >/dev/null 2>&1 || true
-
-    local deadline
-    deadline=$((SECONDS + 15))
-    while is_pid_running "$pid" && (( SECONDS < deadline )); do
-        sleep 1
-    done
-
-    if is_pid_running "$pid"; then
-        kill -9 "$pid" >/dev/null 2>&1 || true
+    if [[ -n "$port" ]] && port_is_listening "$port"; then
+        local stray_pid
+        for stray_pid in $(find_listening_pids_by_port "$port"); do
+            [[ -n "$stray_pid" ]] || continue
+            echo "Bereinige uebrig gebliebenen $label-Portprozess (PID $stray_pid) ..."
+            kill_pid_tree "$stray_pid" TERM
+            sleep 1
+            if is_pid_running "$stray_pid"; then
+                kill_pid_tree "$stray_pid" KILL
+            fi
+        done
     fi
-
-    rm -f "$pid_file"
 }
 
 dev_status() {
@@ -404,8 +546,8 @@ start_dev_environment() {
 
 stop_dev_environment() {
     ensure_dev_state_dir
-    stop_dev_process "$DEV_WEB_PID_FILE" "Web"
-    stop_dev_process "$DEV_API_PID_FILE" "API"
+    stop_dev_process "$DEV_WEB_PID_FILE" "Web" "5173"
+    stop_dev_process "$DEV_API_PID_FILE" "API" "5001"
     echo "Stoppe Dev-Datenbank ..."
     dev_compose down
 }
