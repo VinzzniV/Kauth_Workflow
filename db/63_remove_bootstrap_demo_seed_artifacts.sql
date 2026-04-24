@@ -50,8 +50,7 @@ WITH demo_department_names(name) AS (
         ('Vertrieb'),
         ('Prototypenbau'),
         ('BS'),
-        ('VT'),
-        ('Einkauf')
+        ('VT')
 ),
 removable_departments AS (
     SELECT d.id
@@ -96,8 +95,7 @@ WITH demo_department_names(name) AS (
         ('Vertrieb'),
         ('Prototypenbau'),
         ('BS'),
-        ('VT'),
-        ('Einkauf')
+        ('VT')
 ),
 removable_departments AS (
     SELECT d.id
