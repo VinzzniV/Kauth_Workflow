@@ -22,6 +22,7 @@ Dieses Dokument ist das Handoff-Protokoll zwischen Codex und Claude.
 
 | Datum | Aufgabe | Status | Betroffene Dateien | Zusammenfassung | Offene Risiken |
 |-------|---------|--------|--------------------|-----------------|----------------|
+| 2026-04-24 | OPS-VM-START | done | `.gitignore`, `scripts/start-vm.sh`, `PROJECT_STRUCTURE.md`, `KauthWorkflow/Betrieb/Setup.md`, `KauthWorkflow/Betrieb/Deployment-Checkliste.md` | Linux-VM-Startscript fuer `dev` und `prod` inkl. `status/logs/stop/restart` hinzugefuegt und Betriebsdoku auf den neuen Startpfad umgestellt. | `dev` auf der VM setzt neben Docker auch `dotnet` und `npm` voraus; bei externer Nutzung sollte `DEV_PUBLIC_BASE_URL` bewusst gesetzt werden. |
 | — | — | — | — | Kein aktiver Zyklus — Review 2026-04-23 vollstaendig abgeschlossen (COD-1..6, CLA-1..4) | — |
 
 ---

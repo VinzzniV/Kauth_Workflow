@@ -53,14 +53,15 @@ Regeln:
 ## 4 — Stack starten
 
 ```bash
-docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml up -d --build
+chmod +x scripts/start-vm.sh
+./scripts/start-vm.sh prod
 ```
 
 Danach prüfen:
 
 ```bash
-docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml ps
-docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml logs -f
+./scripts/start-vm.sh prod status
+./scripts/start-vm.sh prod logs
 ```
 
 ---

@@ -36,6 +36,12 @@ Compose-Basis und Overlays fuer Dev-DB sowie produktionsnahen Stack.
 `.env.prod.example`
 Vorlage fuer produktive Laufzeitkonfiguration.
 
+`start.ps1`
+Windows-Helferscript zum Starten von `dev` oder `prod`.
+
+`scripts/start-vm.sh`
+Linux-VM-Helferscript fuer `dev`- und `prod`-Start sowie `status`, `logs`, `stop` und `restart`.
+
 `db/`
 Schema, Bootstrap, historische Migrationen und Init-Reihenfolge.
 

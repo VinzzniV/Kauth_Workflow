@@ -25,6 +25,7 @@ __pycache__/
 
 # Handoff artifacts
 /handoff/
+/.tmp-vm-dev/
 
 # Editors / OS
 .DS_Store

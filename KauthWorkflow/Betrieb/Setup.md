@@ -25,6 +25,7 @@ Primärquelle im Repo war: `SETUP.md` (in Vault migriert)
 | `compose.dev-db.yml` | Lokales Override nur für PostgreSQL (Port 26432) |
 | `compose.prod.yml` | Produktionsnahes Override mit Entra-Auth, Caddy |
 | `.env.prod.example` | Vorlage für produktive Laufzeitvariablen |
+| `scripts/start-vm.sh` | Linux-VM-Helfer für `dev`/`prod` inkl. `status`, `logs`, `stop`, `restart` |
 | `web/.env.local` | Lokale Frontend-Entwicklung (unversioniert) |
 
 ---
@@ -133,15 +134,57 @@ Regeln:
 ### 2 — Stack starten
 
 ```bash
+chmod +x scripts/start-vm.sh
+./scripts/start-vm.sh prod
+```
+
+Fallback ohne Script:
+
+```bash
 docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml up -d --build
 ```
 
 ### 3 — Status prüfen
 
 ```bash
+./scripts/start-vm.sh prod status
+./scripts/start-vm.sh prod logs
+```
+
+Fallback ohne Script:
+
+```bash
 docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml ps
 docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml logs -f
 ```
+
+### 4 — Dev-Modus auf derselben VM
+
+Wenn auf derselben Linux-VM statt des produktionsnahen Stacks kurzfristig der Entwicklungsmodus gebraucht wird:
+
+```bash
+chmod +x scripts/start-vm.sh
+./scripts/start-vm.sh dev
+```
+
+Der Dev-Modus startet:
+- PostgreSQL über `docker compose -f compose.yml -f compose.dev-db.yml`
+- API als Hintergrundprozess auf `0.0.0.0:5001`
+- Vite-Webserver als Hintergrundprozess auf `0.0.0.0:5173`
+
+Nützliche Kommandos:
+
+```bash
+./scripts/start-vm.sh dev status
+./scripts/start-vm.sh dev logs
+./scripts/start-vm.sh dev stop
+./scripts/start-vm.sh dev restart
+```
+
+Hinweise:
+- Laufzeitdateien und Logs landen unter `.tmp-vm-dev/`
+- Falls die öffentliche Dev-URL nicht automatisch passt: `export DEV_PUBLIC_BASE_URL=http://<vm-host>:5173`
+- Für `dev` müssen auf der VM zusätzlich `dotnet` und `npm` installiert sein
 
 ---
 
