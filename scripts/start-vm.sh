@@ -36,6 +36,39 @@ require_command() {
     command -v "$name" >/dev/null 2>&1 || fail "'$name' wurde nicht gefunden."
 }
 
+version_ge() {
+    local left="$1"
+    local right="$2"
+    [[ "$(printf '%s\n%s\n' "$right" "$left" | sort -V | tail -n1)" == "$left" ]]
+}
+
+ensure_supported_node_version() {
+    require_command node
+
+    local raw_version
+    raw_version="$(node -v 2>/dev/null || true)"
+    [[ -n "$raw_version" ]] || fail "Node-Version konnte nicht gelesen werden."
+
+    local version="${raw_version#v}"
+    local major="${version%%.*}"
+
+    if [[ "$major" == "20" ]]; then
+        version_ge "$version" "20.19.0" || fail "Node $version ist zu alt. Fuer Vite 7 wird mindestens Node 20.19.0 oder 22.12.0 benoetigt."
+        return 0
+    fi
+
+    if [[ "$major" == "22" ]]; then
+        version_ge "$version" "22.12.0" || fail "Node $version ist zu alt. Fuer Vite 7 wird mindestens Node 20.19.0 oder 22.12.0 benoetigt."
+        return 0
+    fi
+
+    if [[ "$major" =~ ^[2-9][3-9]$|^[3-9][0-9]+$ ]]; then
+        return 0
+    fi
+
+    fail "Node $version wird nicht unterstuetzt. Fuer den Dev-Webserver wird Node 20.19.0+ oder 22.12.0+ benoetigt."
+}
+
 assert_file() {
     local path="$1"
     [[ -e "$path" ]] || fail "Pfad fehlt: $path"
@@ -195,6 +228,8 @@ ensure_dev_database_ready() {
 }
 
 ensure_web_dependencies() {
+    ensure_supported_node_version
+
     if [[ -d "$REPO_ROOT/web/node_modules" ]]; then
         return 0
     fi

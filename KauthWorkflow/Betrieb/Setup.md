@@ -183,6 +183,7 @@ Nützliche Kommandos:
 
 Hinweise:
 - Laufzeitdateien und Logs landen unter `.tmp-vm-dev/`
+- Der Vite-Dev-Server braucht `node >= 20.19.0` (Node 18 reicht nicht)
 - Falls die öffentliche Dev-URL nicht automatisch passt: `export DEV_PUBLIC_BASE_URL=http://<vm-host>:5173`
 - Für `dev` müssen auf der VM zusätzlich `dotnet` und `npm` installiert sein
 
