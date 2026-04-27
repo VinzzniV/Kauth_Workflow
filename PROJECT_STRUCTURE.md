@@ -125,46 +125,21 @@ Unit- und integrationsnahe Tests fuer:
 ## Datenbank: `db/`
 
 `01_schema.sql`
-Grundschema fuer Stammdaten, Workflow-Laufzeit, Definition Layer, Automation Layer, Directory-Projektion, Rollen-/Permission-Modell, Runtime-Konfiguration und konfigurierbare Mail-Vorlagen (`notification_templates`).
+Konsolidiertes Grundschema fuer Stammdaten, Workflow-Laufzeit, Definition Layer, Automation Layer, Directory-Projektion, Rollen-/Permission-Modell, Runtime-Konfiguration, Rotations-Layer, `system_event_log` und konfigurierbare Mail-Vorlagen (`notification_templates`). Erzeugt aus `pg_dump --schema-only` nach Anwendung aller historischen Migrationen.
 
 `02_bootstrap.sql`
-Produktiver Bootstrap ohne Dev-Spezifika.
+Konsolidierte Produktions-Seed-Daten (Process Types, System Responsibilities, Action Definitions, Notification Templates, Default-Departments).
 
-`02_seed.sql`
-Dev-Wrapper fuer produktiven Bootstrap plus lokale Defaults.
+`02_dev_seed.sql`
+Konsolidierte Dev-Seed-Daten: prod-Bootstrap plus dev-spezifische Inhalte (Rotations-Beispieltemplates, Azubi-Abteilungen, lokale `notification_email_settings`).
 
-`03_*.sql` bis `40_*.sql`
-Historische Migrationen und Erweiterungen fuer Task-Layer, Prozessarten, Identity-/People-Trennung, Gruppen-/Permission-Modell und Runtime-Konfiguration.
-
-`41_workflow_definition_layer.sql`, `42_workflow_runtime_layer.sql`, `43_workflow_definition_mappings.sql`, `45_automation_layer.sql`
-Inkrementelle Einfuehrung von Definition Layer, paralleler Runtime, ersten publizierten Legacy-Mappings fuer `onboarding`, `offboarding` und `department_change` sowie dem ersten Automation Layer mit Action-Katalog, Job-Queue und Ausfuehrungslogs.
-
-`54_rotation_phase1_persistence.sql`
-Fuehrt die Phase-1-Persistenz fuer das Rotations-/Durchlauf-Feature ein: `rotation_plans`, `rotation_stations`, `department_action_templates`, `rotation_generated_tasks`, `rotation_notifications` und `rotation_audit_log`.
-
-`55_rotation_dev_template_examples.sql`
-Entwicklungs-Seed fuer Beispielabteilungen und erste `department_action_templates` in Einkauf, Produktion und IT.
-
-`56_rotation_task_generation_sync.sql`
-Erweitert den Rotation-Slice fuer Phase 4 um `trigger_type`, `anchor_date`, `started_at`, `rotation_task_assignments`, `rotation_task_comments` sowie den eindeutigen Soll-Task-Schluessel fuer `station + template`.
-
-`57_azubi_departments.sql`
-Fuehrt die Abteilungen `Azubis technisch` und `Azubis kaufmaennisch` ein. Technische Azubis haben eine stabile Ausbildungsleitung (`ausbildungsleitung_technisch`); fuer kaufmaennische Azubis variiert die Zustaendigkeit pro Station (Einkauf-Lead, IT-Lead usw.) — administrative Begleitung laeuft ueber `hr_onboarding`.
-
-`58_system_event_log.sql`
-Fuehrt die zentrale Tabelle `system_event_log` inklusive Indizes fuer Zeitpunkt, Severity/Source, Actor, Workflow, Rotation-Plan und Task-Referenz ein. Sie bildet die gemeinsame Timeline fuer Frontend-Fehler, API-/System-Fehler, Mail-/Entra-/Directory-Ereignisse und administrative Betriebsereignisse.
-
-`59_people_lifecycle_anchor.sql`
-Fuehrt den kanonischen Mitarbeiteranker weiter: `people.current_position_role_id`, Unique-Index auf `people.employee_number`, Directory-Employee-Number-Projektion und Backfill fuer bestehende Mitarbeiter-/Workflow-Zuordnung.
-
-`62_notification_templates.sql`
-Fuehrt `notification_templates` ein und seeded die sechs konfigurierbaren Mailtypen (`workflow_created`, `task_ready`, `workflow_completed`, `upcoming_change`, `reminder`, `overdue`) fuer den neuen Admin-Workspace inklusive Default-Betreff und Default-Text.
-
-`90_dev_defaults.sql`
-Lokale Entwicklungs-Defaults.
+`_archive/`
+Originale Migrationen `02_reset.sql`, `02_seed.sql`, `03_*.sql` … `67_*.sql`, `90_dev_defaults.sql` sowie der vor-konsolidierte Stand von `01_schema.sql` und `02_bootstrap.sql`. Werden nicht mehr von den Init-Scripten geladen, dienen nur noch als Referenz fuer Historie und Domaenen-Kontext.
 
 `init/dev/00_init.sql`, `init/prod/00_init.sql`
-Init-Reihenfolgen fuer Dev und Production.
+Init-Reihenfolgen fuer Dev und Production. Beide laden `01_schema.sql` plus den jeweiligen Seed.
+
+Solange die Plattform nicht produktiv laeuft, werden Schema-/Seed-Aenderungen direkt in den drei konsolidierten Dateien gepflegt. Sobald produktiv: konsolidierte Dateien einfrieren, Aenderungen nur noch additiv ueber neue Migrationen.
 
 Hinweis:
 Das neue Ziel-Datenmodell fuer Definition Layer, Runtime Events und Automation Layer wird inkrementell eingefuehrt; T9 verankert den ersten produktiv nutzbaren Automation-Kern, Builder-UI und echte externe Adapter folgen spaeter.

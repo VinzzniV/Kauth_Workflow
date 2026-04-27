@@ -195,10 +195,10 @@ Hinweise:
 
 | Umgebung | Init-Datei | Besonderheiten |
 |----------|-----------|----------------|
-| Dev | `db/init/dev/00_init.sql` | lädt `02_seed.sql` + lokale Defaults |
-| Production | `db/init/prod/00_init.sql` | lädt nur `02_bootstrap.sql` |
+| Dev | `db/init/dev/00_init.sql` | lädt `01_schema.sql` + `02_dev_seed.sql` |
+| Production | `db/init/prod/00_init.sql` | lädt `01_schema.sql` + `02_bootstrap.sql` |
 
-Beide laden: `58_system_event_log.sql`, `47_responsibility_plain_names.sql`, `59_people_lifecycle_anchor.sql`
+Solange das System nicht produktiv läuft, werden Schema- und Seed-Änderungen direkt in `01_schema.sql` / `02_bootstrap.sql` / `02_dev_seed.sql` gepflegt — nicht als neue Migrationen. Die ursprünglichen 60+ Migrationen liegen unter `db/_archive/` als Referenz. Sobald die Plattform live geht, sind diese drei Dateien einzufrieren und neue Änderungen kommen nur noch additiv über Migrationen.
 
 ---
 

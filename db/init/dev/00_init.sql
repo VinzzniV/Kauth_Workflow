@@ -1,71 +1,9 @@
 \set ON_ERROR_STOP on
 
+-- Konsolidierter Init fuer dev. Statt 60+ Migrationen wird einmalig
+-- das fertige Schema und die dev-Seed-Daten geladen.
+-- 02_dev_seed.sql enthaelt prod-Bootstrap plus dev-Extras
+-- (Rotations-Beispieltemplates, Department-Templates, lokale notification_email_settings).
+
 \i /docker-entrypoint-sql/01_schema.sql
-\i /docker-entrypoint-sql/02_reset.sql
-\i /docker-entrypoint-sql/02_seed.sql
-\i /docker-entrypoint-sql/03_legacy_cleanup.sql
-\i /docker-entrypoint-sql/04_workflow_backfills.sql
-\i /docker-entrypoint-sql/05_task_assignment_hardening.sql
-\i /docker-entrypoint-sql/06_responsibility_system_keys.sql
-\i /docker-entrypoint-sql/07_requirement_behavior_rules.sql
-\i /docker-entrypoint-sql/08_audit_log.sql
-\i /docker-entrypoint-sql/09_task_comments.sql
-\i /docker-entrypoint-sql/10_task_due_dates.sql
-\i /docker-entrypoint-sql/11_notification_settings_v2.sql
-\i /docker-entrypoint-sql/12_workflow_deadline.sql
-\i /docker-entrypoint-sql/13_remove_skipped_task_status.sql
-\i /docker-entrypoint-sql/14_indexes.sql
-\i /docker-entrypoint-sql/15_process_types.sql
-\i /docker-entrypoint-sql/16_workflows_process_type.sql
-\i /docker-entrypoint-sql/17_task_templates_process_type.sql
-\i /docker-entrypoint-sql/18_workflow_answer_definitions_process_type.sql
-\i /docker-entrypoint-sql/19_app_role_answer_defaults_process_type.sql
-\i /docker-entrypoint-sql/20_process_types_approval_task.sql
-\i /docker-entrypoint-sql/21_offboarding.sql
-\i /docker-entrypoint-sql/22_department_change.sql
-\i /docker-entrypoint-sql/23_name_change.sql
-\i /docker-entrypoint-sql/23_workflow_links.sql
-\i /docker-entrypoint-sql/24_position_change.sql
-\i /docker-entrypoint-sql/25_role_change.sql
-\i /docker-entrypoint-sql/26_drop_task_cancelled_at.sql
-\i /docker-entrypoint-sql/27_app_role_answer_defaults_process_type_consistency.sql
-\i /docker-entrypoint-sql/28_drop_workflow_cancelled_at.sql
-\i /docker-entrypoint-sql/29_process_types_manager_creation.sql
-\i /docker-entrypoint-sql/30_answer_definitions_unique_constraint.sql
-\i /docker-entrypoint-sql/31_workflow_archive.sql
-\i /docker-entrypoint-sql/32_activate_lifecycle_process_types.sql
-\i /docker-entrypoint-sql/33_fix_qmb_consense_tasks.sql
-\i /docker-entrypoint-sql/34_add_entra_object_id.sql
-\i /docker-entrypoint-sql/35_directory_tables.sql
-\i /docker-entrypoint-sql/36_people_identity_separation.sql
-\i /docker-entrypoint-sql/37_directory_mapping_audit_log.sql
-\i /docker-entrypoint-sql/38_permission_model.sql
-\i /docker-entrypoint-sql/39_graph_application_settings.sql
-\i /docker-entrypoint-sql/40_remove_secret_persistence.sql
-\i /docker-entrypoint-sql/41_workflow_definition_layer.sql
-\i /docker-entrypoint-sql/42_workflow_runtime_layer.sql
-\i /docker-entrypoint-sql/43_workflow_definition_mappings.sql
-\i /docker-entrypoint-sql/44_runtime_task_bridge.sql
-\i /docker-entrypoint-sql/45_automation_layer.sql
-\i /docker-entrypoint-sql/46_workflow_builder_positions.sql
-\i /docker-entrypoint-sql/47_responsibility_plain_names.sql
-\i /docker-entrypoint-sql/48_measure_generation_node_types.sql
-\i /docker-entrypoint-sql/49_measure_generation_phase_c.sql
-\i /docker-entrypoint-sql/50_onboarding_gatekeeper_measure_flow.sql
-\i /docker-entrypoint-sql/51_remove_seeded_demo_departments.sql
-\i /docker-entrypoint-sql/52_restore_core_responsibilities.sql
-\i /docker-entrypoint-sql/53_task_process_area_labels.sql
-\i /docker-entrypoint-sql/54_rotation_phase1_persistence.sql
-\i /docker-entrypoint-sql/55_rotation_dev_template_examples.sql
-\i /docker-entrypoint-sql/56_rotation_task_generation_sync.sql
-\i /docker-entrypoint-sql/57_azubi_departments.sql
-\i /docker-entrypoint-sql/58_system_event_log.sql
-\i /docker-entrypoint-sql/59_people_lifecycle_anchor.sql
-\i /docker-entrypoint-sql/60_remove_non_entra_demo_departments.sql
-\i /docker-entrypoint-sql/61_rename_azubi_departments.sql
-\i /docker-entrypoint-sql/62_notification_templates.sql
-\i /docker-entrypoint-sql/63_remove_bootstrap_demo_seed_artifacts.sql
-\i /docker-entrypoint-sql/64_rename_business_phase_mapping_versions.sql
-\i /docker-entrypoint-sql/65_fix_notification_template_newlines.sql
-\i /docker-entrypoint-sql/66_hardware_takeover_requirement.sql
-\i /docker-entrypoint-sql/67_rotation_department_templates.sql
+\i /docker-entrypoint-sql/02_dev_seed.sql
