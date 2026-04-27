@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>ERD – Kauth Workflow</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f8f9fa; color: #1a1a2e; }
+    header { background: #16213e; color: #e2e8f0; padding: 1.2rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 2rem; }
+    header h1 { margin: 0; font-size: 1.2rem; white-space: nowrap; }
+    nav { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    nav a { color: #90cdf4; text-decoration: none; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid #2d3748; white-space: nowrap; }
+    nav a:hover { background: #2d3748; }
+    main { max-width: 100%; padding: 1rem 2rem 4rem; }
+    section { margin: 2rem 0; background: white; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
+    h2 { margin-top: 0; font-size: 1.1rem; color: #2d3748; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
+    .mermaid { min-height: 60px; }
+    p.meta { color: #718096; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ERD – Kauth Workflow</h1>
+    <nav><a href="#section-0">Übersicht (alle Domains)</a>
+<a href="#section-1">Identity</a>
+<a href="#section-2">Auth & Rollen</a>
+<a href="#section-3">Prozess-Konfiguration</a>
+<a href="#section-4">Workflow Runtime</a>
+<a href="#section-5">Workflow Definition</a>
+<a href="#section-6">Automation</a>
+<a href="#section-7">Rotation</a>
+<a href="#section-8">Admin & Konfiguration</a>
+<a href="#section-9">System</a></nav>
+  </header>
+  <main>
+    <p class="meta">Automatisch generiert aus <code>db/01_schema.sql</code> &mdash; 69 Tabellen, 134 Foreign Keys.</p>
+    
+        <section id="section-0">
+            <h2>Übersicht (alle Domains)</h2>
+            <div class="mermaid">flowchart LR
+  subgraph Identity["Identity"]
+    people
+    app_users
+    directory_identities
+    directory_groups
+    directory_group_members
+    directory_group_role_mappings
+    directory_mapping_audit_log
+    directory_sync_log
+  end
+  subgraph Auth_und_Rollen["Auth & Rollen"]
+    app_roles
+    app_permissions
+    app_responsibilities
+    app_groups
+    app_user_roles
+    app_role_permissions
+    app_user_groups
+    app_group_roles
+    app_group_responsibilities
+    app_user_responsibilities
+    app_user_permission_overrides
+    auth_permission_audit_log
+    system_responsibilities
+  end
+  subgraph Prozess-Konfiguration["Prozess-Konfiguration"]
+    process_types
+    task_templates
+    task_template_conditions
+    task_template_dependencies
+    workflow_answer_definitions
+    workflow_answer_options
+    workflow_answer_validation_rules
+    workflow_answer_visibility_rules
+    workflow_answer_reset_rules
+    workflow_answer_derivation_rules
+    workflow_answer_single_select_keep_values
+    app_role_answer_defaults
+    app_role_answer_default_options
+  end
+  subgraph Workflow_Runtime["Workflow Runtime"]
+    workflows
+    workflow_tasks
+    workflow_task_comments
+    workflow_links
+    workflow_audit_log
+    workflow_answers
+    workflow_answer_selected_options
+    workflow_notifications
+    workflow_task_dependencies
+    workflow_runtime_events
+    task_assignments
+  end
+  subgraph Workflow_Definition["Workflow Definition"]
+    workflow_definitions
+    workflow_definition_versions
+    workflow_nodes
+    workflow_edges
+    workflow_node_configs
+    workflow_node_instances
+    workflow_node_actions
+  end
+  subgraph Automation["Automation"]
+    action_definitions
+    automation_jobs
+    automation_job_attempts
+    automation_job_logs
+    department_action_templates
+  end
+  subgraph Rotation["Rotation"]
+    rotation_plans
+    rotation_stations
+    rotation_generated_tasks
+    rotation_task_assignments
+    rotation_task_comments
+    rotation_notifications
+    rotation_audit_log
+  end
+  subgraph Admin_und_Konfiguration["Admin & Konfiguration"]
+    departments
+    department_settings
+    notification_email_settings
+    notification_templates
+  end
+  subgraph System["System"]
+    system_event_log
+  end
+
+  app_group_responsibilities --> app_groups
+  app_group_responsibilities --> app_responsibilities
+  app_group_roles --> app_groups
+  app_group_roles --> app_roles
+  app_responsibilities --> departments
+  app_role_answer_default_options --> app_role_answer_defaults
+  app_role_answer_default_options --> workflow_answer_options
+  app_role_answer_defaults --> workflow_answer_definitions
+  app_role_answer_defaults --> app_roles
+  app_role_answer_defaults --> process_types
+  app_role_permissions --> app_permissions
+  app_role_permissions --> app_roles
+  app_roles --> departments
+  app_user_groups --> app_groups
+  app_user_groups --> app_users
+  app_user_permission_overrides --> app_permissions
+  app_user_permission_overrides --> app_users
+  app_user_permission_overrides --> departments
+  app_user_responsibilities --> app_responsibilities
+  app_user_responsibilities --> app_users
+  app_user_roles --> app_roles
+  app_user_roles --> app_users
+  app_users --> departments
+  auth_permission_audit_log --> app_users
+  automation_job_attempts --> automation_jobs
+  automation_job_logs --> automation_jobs
+  automation_jobs --> action_definitions
+  automation_jobs --> workflows
+  automation_jobs --> workflow_node_actions
+  automation_jobs --> workflow_node_instances
+  department_action_templates --> app_responsibilities
+  department_action_templates --> departments
+  department_settings --> departments
+  department_settings --> people
+  directory_group_members --> directory_groups
+  directory_group_members --> directory_identities
+  directory_group_role_mappings --> app_roles
+  directory_group_role_mappings --> directory_groups
+  directory_group_role_mappings --> departments
+  directory_identities --> app_users
+  directory_mapping_audit_log --> app_users
+  task_assignments --> app_responsibilities
+  task_assignments --> app_users
+  workflow_answers --> workflow_answer_options
+  workflows --> workflow_definition_versions
+  people --> app_users
+  people --> app_roles
+  people --> departments
+  people --> directory_identities
+  rotation_audit_log --> app_users
+  rotation_audit_log --> rotation_generated_tasks
+  rotation_audit_log --> rotation_plans
+  rotation_audit_log --> rotation_stations
+  rotation_generated_tasks --> departments
+  rotation_generated_tasks --> people
+  rotation_generated_tasks --> app_responsibilities
+  rotation_generated_tasks --> rotation_plans
+  rotation_generated_tasks --> rotation_stations
+  rotation_generated_tasks --> department_action_templates
+  rotation_notifications --> rotation_generated_tasks
+  rotation_notifications --> app_users
+  rotation_notifications --> rotation_plans
+  rotation_notifications --> rotation_stations
+  rotation_plans --> app_users
+  rotation_plans --> people
+  rotation_plans --> workflows
+  rotation_stations --> departments
+  rotation_stations --> rotation_plans
+  rotation_task_assignments --> app_responsibilities
+  rotation_task_assignments --> app_users
+  rotation_task_assignments --> rotation_generated_tasks
+  rotation_task_comments --> app_users
+  rotation_task_comments --> rotation_generated_tasks
+  system_event_log --> app_users
+  system_responsibilities --> app_responsibilities
+  system_responsibilities --> departments
+  system_responsibilities --> people
+  task_assignments --> workflow_tasks
+  task_template_conditions --> task_templates
+  task_template_dependencies --> task_templates
+  task_templates --> app_responsibilities
+  task_templates --> departments
+  task_templates --> process_types
+  workflow_answer_definitions --> process_types
+  workflow_answer_derivation_rules --> process_types
+  workflow_answer_options --> workflow_answer_definitions
+  workflow_answer_reset_rules --> workflow_answer_definitions
+  workflow_answer_selected_options --> workflow_answer_options
+  workflow_answer_selected_options --> workflow_answers
+  workflow_answer_single_select_keep_values --> workflow_answer_definitions
+  workflow_answer_validation_rules --> workflow_answer_definitions
+  workflow_answer_visibility_rules --> workflow_answer_definitions
+  workflow_answers --> workflow_answer_definitions
+  workflow_answers --> workflows
+  workflow_audit_log --> app_users
+  workflow_audit_log --> workflow_tasks
+  workflow_audit_log --> workflows
+  workflow_definition_versions --> process_types
+  workflow_definition_versions --> workflow_definitions
+  workflow_edges --> workflow_nodes
+  workflow_edges --> workflow_definition_versions
+  workflow_links --> app_users
+  workflow_links --> workflows
+  workflow_node_actions --> action_definitions
+  workflow_node_actions --> workflow_nodes
+  workflow_node_configs --> workflow_nodes
+  workflow_node_instances --> workflows
+  workflow_node_instances --> workflow_nodes
+  workflow_nodes --> workflow_definition_versions
+  workflow_notifications --> app_users
+  workflow_notifications --> workflows
+  workflow_notifications --> workflow_tasks
+  workflow_runtime_events --> workflows
+  workflow_runtime_events --> workflow_node_instances
+  workflow_task_comments --> app_users
+  workflow_task_comments --> workflow_tasks
+  workflow_task_dependencies --> workflow_tasks
+  workflow_tasks --> workflow_node_instances
+  workflow_tasks --> task_templates
+  workflow_tasks --> workflows
+  workflows --> app_users
+  workflows --> departments
+  workflows --> app_roles
+  workflows --> process_types
+  workflows --> people</div>
+        </section>
+        
+        <section id="section-1">
+            <h2>Identity</h2>
+            <div class="mermaid">erDiagram
+  people {
+    bigint id PK
+    bigint app_user_id
+    int department_id
+    timestamptz created_at
+    timestamptz updated_at
+    bigint directory_identity_id
+    varchar first_name
+    varchar last_name
+    int employee_number
+    int badge_number
+    varchar employment_status
+    date entry_date
+    date exit_date
+    int current_position_role_id
+  }
+  app_users {
+    bigint id PK
+    varchar external_key
+    int department_id
+    varchar display_name
+    varchar email
+    varchar notification_email
+    bool is_active
+    timestamptz created_at
+    uuid entra_object_id
+    bool directory_synced
+    timestamptz last_directory_synced_at
+    varchar department_source
+    bool department_override_active
+  }
+  directory_identities {
+    bigint id PK
+    uuid entra_object_id
+    uuid onprem_object_guid
+    varchar user_principal_name
+    varchar mail
+    varchar display_name
+    bool account_enabled
+    varchar source_system
+    bool is_managed_externally
+    bigint app_user_id
+    timestamptz last_synced_at
+    timestamptz created_at
+    varchar department_name
+    int employee_number
+  }
+  directory_groups {
+    int id PK
+    uuid external_group_id
+    varchar display_name
+    text description
+    varchar source_system
+    timestamptz last_synced_at
+    timestamptz created_at
+  }
+  directory_group_members {
+    int directory_group_id
+    bigint directory_identity_id
+    timestamptz synced_at
+  }
+  directory_group_role_mappings {
+    int id PK
+    int directory_group_id
+    int app_role_id
+    varchar scope
+    int scope_department_id
+    bool is_active
+    timestamptz created_at
+  }
+  directory_mapping_audit_log {
+    bigint id PK
+    bigint actor_user_id
+    varchar event_type
+    varchar entity_type
+    text detail
+    jsonb old_value
+    jsonb new_value
+    timestamptz created_at
+  }
+  directory_sync_log {
+    bigint id PK
+    varchar sync_type
+    varchar status
+    int groups_synced
+    int identities_synced
+    int memberships_synced
+    text error_message
+    timestamptz started_at
+    timestamptz completed_at
+  }
+
+  departments {
+  }
+  app_users }o..|| departments : "department_id →"
+  directory_group_members }o--|| directory_groups : "directory_group_id"
+  directory_group_members }o--|| directory_identities : "directory_identity_id"
+  app_roles {
+  }
+  directory_group_role_mappings }o..|| app_roles : "app_role_id →"
+  directory_group_role_mappings }o--|| directory_groups : "directory_group_id"
+  directory_group_role_mappings }o..|| departments : "scope_department_id →"
+  directory_identities }o--|| app_users : "app_user_id"
+  directory_mapping_audit_log }o--|| app_users : "actor_user_id"
+  people }o--|| app_users : "app_user_id"
+  people }o..|| app_roles : "current_position_role_id →"
+  people }o..|| departments : "department_id →"
+  people }o--|| directory_identities : "directory_identity_id"</div>
+        </section>
+        
+        <section id="section-2">
+            <h2>Auth & Rollen</h2>
+            <div class="mermaid">erDiagram
+  app_roles {
+    int id PK
+    int department_id
+    varchar role_key
+    varchar name
+    varchar role_kind
+    bool is_active
+    timestamptz created_at
+  }
+  app_permissions {
+    int id PK
+    varchar permission_key
+    varchar name
+    text description
+    varchar scope_kind
+    varchar category
+    bool is_active
+    timestamptz created_at
+  }
+  app_responsibilities {
+    int id PK
+    int department_id
+    varchar responsibility_key
+    varchar system_key
+    varchar name
+    varchar responsibility_type
+    text description
+    bool is_active
+    timestamptz created_at
+  }
+  app_groups {
+    int id PK
+    varchar group_key
+    varchar name
+    text description
+    bool is_active
+    timestamptz created_at
+  }
+  app_user_roles {
+    bigint app_user_id
+    int app_role_id
+    timestamptz assigned_at
+  }
+  app_role_permissions {
+    int app_role_id
+    int app_permission_id
+    timestamptz assigned_at
+  }
+  app_user_groups {
+    bigint app_user_id
+    int app_group_id
+    timestamptz assigned_at
+  }
+  app_group_roles {
+    int app_group_id
+    int app_role_id
+    timestamptz assigned_at
+  }
+  app_group_responsibilities {
+    int app_group_id
+    int app_responsibility_id
+    timestamptz assigned_at
+  }
+  app_user_responsibilities {
+    bigint app_user_id
+    int app_responsibility_id
+    timestamptz assigned_at
+  }
+  app_user_permission_overrides {
+    bigint id PK
+    bigint app_user_id
+    int app_permission_id
+    varchar effect
+    varchar scope
+    int scope_department_id
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  auth_permission_audit_log {
+    bigint id PK
+    bigint actor_user_id
+    varchar event_type
+    varchar entity_type
+    text detail
+    jsonb old_value
+    jsonb new_value
+    timestamptz created_at
+  }
+  system_responsibilities {
+    int id PK
+    varchar system_key
+    int app_responsibility_id
+    bigint responsible_person_id
+    int responsible_department_id
+    timestamptz updated_at
+  }
+
+  app_group_responsibilities }o--|| app_groups : "app_group_id"
+  app_group_responsibilities }o--|| app_responsibilities : "app_responsibility_id"
+  app_group_roles }o--|| app_groups : "app_group_id"
+  app_group_roles }o--|| app_roles : "app_role_id"
+  departments {
+  }
+  app_responsibilities }o..|| departments : "department_id →"
+  app_role_permissions }o--|| app_permissions : "app_permission_id"
+  app_role_permissions }o--|| app_roles : "app_role_id"
+  app_roles }o..|| departments : "department_id →"
+  app_user_groups }o--|| app_groups : "app_group_id"
+  app_users {
+  }
+  app_user_groups }o..|| app_users : "app_user_id →"
+  app_user_permission_overrides }o--|| app_permissions : "app_permission_id"
+  app_user_permission_overrides }o..|| app_users : "app_user_id →"
+  app_user_permission_overrides }o..|| departments : "scope_department_id →"
+  app_user_responsibilities }o--|| app_responsibilities : "app_responsibility_id"
+  app_user_responsibilities }o..|| app_users : "app_user_id →"
+  app_user_roles }o--|| app_roles : "app_role_id"
+  app_user_roles }o..|| app_users : "app_user_id →"
+  auth_permission_audit_log }o..|| app_users : "actor_user_id →"
+  system_responsibilities }o--|| app_responsibilities : "app_responsibility_id"
+  system_responsibilities }o..|| departments : "responsible_department_id →"
+  people {
+  }
+  system_responsibilities }o..|| people : "responsible_person_id →"</div>
+        </section>
+        
+        <section id="section-3">
+            <h2>Prozess-Konfiguration</h2>
+            <div class="mermaid">erDiagram
+  process_types {
+    int id PK
+    varchar key
+    varchar name
+    text description
+    bool requires_supervisor_step
+    varchar approval_task_template_key
+    bool requires_target_person
+    varchar icon_key
+    bool allows_manager_creation
+    bool is_active
+    int sort_order
+    timestamptz created_at
+  }
+  task_templates {
+    int id PK
+    int process_type_id
+    varchar template_key
+    varchar title
+    varchar category
+    text description
+    varchar icon_key
+    int owning_department_id
+    int default_responsibility_id
+    varchar process_area_label
+    bool is_department_phase_task
+    bool is_required
+    int due_in_days
+    int sort_order
+    bool is_active
+    timestamptz created_at
+  }
+  task_template_conditions {
+    bigint id PK
+    int task_template_id
+    int condition_group
+    varchar answer_key
+    varchar operator
+    text expected_value_text
+    bool expected_value_boolean
+    numeric expected_value_number
+    timestamptz created_at
+  }
+  task_template_dependencies {
+    bigint id PK
+    int task_template_id
+    int depends_on_task_template_id
+    varchar required_status
+  }
+  workflow_answer_definitions {
+    int id PK
+    int process_type_id
+    varchar answer_key
+    varchar title
+    varchar category
+    text description
+    varchar icon_key
+    varchar input_type
+    bool is_required
+    int sort_order
+    bool is_active
+  }
+  workflow_answer_options {
+    int id PK
+    int answer_definition_id
+    varchar option_key
+    varchar option_value
+    varchar option_label
+    int sort_order
+  }
+  workflow_answer_validation_rules {
+    int answer_definition_id
+    varchar validation_kind
+    text message
+    timestamptz created_at
+  }
+  workflow_answer_visibility_rules {
+    bigint id PK
+    int answer_definition_id
+    int dependency_answer_definition_id
+    varchar dependency_kind
+    text expected_value_text
+    bool missing_result
+    int sort_order
+    timestamptz created_at
+  }
+  workflow_answer_reset_rules {
+    bigint id PK
+    int answer_definition_id
+    varchar trigger_kind
+    int target_answer_definition_id
+    bool clear_boolean
+    bool clear_text
+    bool clear_number
+    bool clear_selected_option
+    bool clear_selected_options
+    int sort_order
+    timestamptz created_at
+  }
+  workflow_answer_derivation_rules {
+    int id PK
+    int source_process_type_id
+    int target_process_type_id
+    varchar source_answer_key
+    varchar target_answer_key
+    varchar derivation_kind
+    bool is_active
+    int sort_order
+    timestamptz created_at
+  }
+  workflow_answer_single_select_keep_values {
+    bigint id PK
+    int answer_definition_id
+    varchar option_value
+    int sort_order
+    timestamptz created_at
+  }
+  app_role_answer_defaults {
+    int process_type_id
+    int app_role_id
+    int answer_definition_id
+    bool is_recommended
+    bool is_default
+    bool default_value_boolean
+    text default_value_text
+    numeric default_value_number
+    int sort_order
+  }
+  app_role_answer_default_options {
+    int app_role_id
+    int answer_definition_id
+    int answer_option_id
+    bool is_default
+  }
+
+  app_role_answer_default_options }o--|| app_role_answer_defaults : "app_role_id"
+  app_role_answer_default_options }o--|| workflow_answer_options : "answer_option_id"
+  app_role_answer_defaults }o--|| workflow_answer_definitions : "answer_definition_id"
+  app_roles {
+  }
+  app_role_answer_defaults }o..|| app_roles : "app_role_id →"
+  app_role_answer_defaults }o--|| process_types : "process_type_id"
+  task_template_conditions }o--|| task_templates : "task_template_id"
+  task_template_dependencies }o--|| task_templates : "depends_on_task_template_id"
+  task_template_dependencies }o--|| task_templates : "task_template_id"
+  app_responsibilities {
+  }
+  task_templates }o..|| app_responsibilities : "default_responsibility_id →"
+  departments {
+  }
+  task_templates }o..|| departments : "owning_department_id →"
+  task_templates }o--|| process_types : "process_type_id"
+  workflow_answer_definitions }o--|| process_types : "process_type_id"
+  workflow_answer_derivation_rules }o--|| process_types : "source_process_type_id"
+  workflow_answer_derivation_rules }o--|| process_types : "target_process_type_id"
+  workflow_answer_options }o--|| workflow_answer_definitions : "answer_definition_id"
+  workflow_answer_reset_rules }o--|| workflow_answer_definitions : "answer_definition_id"
+  workflow_answer_reset_rules }o--|| workflow_answer_definitions : "target_answer_definition_id"
+  workflow_answer_single_select_keep_values }o--|| workflow_answer_definitions : "answer_definition_id"
+  workflow_answer_validation_rules }o--|| workflow_answer_definitions : "answer_definition_id"
+  workflow_answer_visibility_rules }o--|| workflow_answer_definitions : "dependency_answer_definition_id"
+  workflow_answer_visibility_rules }o--|| workflow_answer_definitions : "answer_definition_id"</div>
+        </section>
+        
+        <section id="section-4">
+            <h2>Workflow Runtime</h2>
+            <div class="mermaid">erDiagram
+  workflows {
+    bigint id PK
+    uuid uid
+    int process_type_id
+    bigint workflow_definition_version_id
+    int department_id
+    int position_role_id
+    bigint created_by_user_id
+    bigint target_person_id
+    varchar first_name
+    varchar last_name
+    int employee_number
+    int badge_number
+    date deadline_date
+    varchar current_runtime_status
+    varchar status
+    timestamptz started_at
+    timestamptz completed_at
+    timestamptz archived_at
+    timestamptz created_at
+  }
+  workflow_tasks {
+    bigint id PK
+    bigint workflow_id
+    int task_template_id
+    varchar task_key
+    varchar title
+    varchar category
+    text description
+    varchar icon_key
+    varchar process_area_label
+    bool is_department_phase_task
+    varchar status
+    bool is_required
+    int due_in_days
+    timestamptz due_at
+    int sort_order
+    timestamptz created_at
+    timestamptz ready_at
+    timestamptz started_at
+    timestamptz completed_at
+    bigint node_instance_id
+  }
+  workflow_task_comments {
+    bigint id PK
+    bigint workflow_task_id
+    bigint author_user_id
+    text comment_text
+    timestamptz created_at
+  }
+  workflow_links {
+    bigint id PK
+    bigint source_workflow_id
+    bigint target_workflow_id
+    varchar link_type
+    bigint created_by_user_id
+    text notes
+    timestamptz created_at
+  }
+  workflow_audit_log {
+    bigint id PK
+    bigint workflow_id
+    bigint task_id
+    bigint actor_user_id
+    varchar event_type
+    varchar old_value
+    varchar new_value
+    text detail
+    timestamptz created_at
+  }
+  workflow_answers {
+    bigint id PK
+    bigint workflow_id
+    int answer_definition_id
+    varchar answer_key
+    varchar input_type
+    bool value_boolean
+    text value_text
+    numeric value_number
+    int selected_option_id
+    timestamptz created_at
+  }
+  workflow_answer_selected_options {
+    bigint id PK
+    bigint workflow_answer_id
+    int answer_option_id
+    timestamptz created_at
+  }
+  workflow_notifications {
+    bigint id PK
+    bigint workflow_id
+    bigint workflow_task_id
+    bigint recipient_user_id
+    varchar target_email
+    varchar target_name
+    varchar notification_type
+    varchar status
+    int attempts
+    text last_error
+    timestamptz created_at
+    timestamptz sent_at
+  }
+  workflow_task_dependencies {
+    bigint id PK
+    bigint workflow_task_id
+    bigint depends_on_workflow_task_id
+    varchar required_status
+  }
+  workflow_runtime_events {
+    bigint id PK
+    bigint workflow_id
+    bigint workflow_node_instance_id
+    varchar event_type
+    jsonb payload_json
+    timestamptz created_at
+  }
+  task_assignments {
+    bigint id PK
+    bigint workflow_task_id
+    bigint assignee_user_id
+    int assignee_responsibility_id
+    varchar assignment_type
+    bool is_primary
+    timestamptz assigned_at
+    timestamptz completed_at
+  }
+
+  app_responsibilities {
+  }
+  task_assignments }o..|| app_responsibilities : "assignee_responsibility_id →"
+  app_users {
+  }
+  task_assignments }o..|| app_users : "assignee_user_id →"
+  workflow_answer_options {
+  }
+  workflow_answers }o..|| workflow_answer_options : "answer_definition_id →"
+  workflow_definition_versions {
+  }
+  workflows }o..|| workflow_definition_versions : "workflow_definition_version_id →"
+  task_assignments }o--|| workflow_tasks : "workflow_task_id"
+  workflow_answer_selected_options }o..|| workflow_answer_options : "answer_option_id →"
+  workflow_answer_selected_options }o--|| workflow_answers : "workflow_answer_id"
+  workflow_answer_definitions {
+  }
+  workflow_answers }o..|| workflow_answer_definitions : "answer_definition_id →"
+  workflow_answers }o--|| workflows : "workflow_id"
+  workflow_audit_log }o..|| app_users : "actor_user_id →"
+  workflow_audit_log }o--|| workflow_tasks : "task_id"
+  workflow_audit_log }o--|| workflows : "workflow_id"
+  workflow_links }o..|| app_users : "created_by_user_id →"
+  workflow_links }o--|| workflows : "source_workflow_id"
+  workflow_links }o--|| workflows : "target_workflow_id"
+  workflow_notifications }o..|| app_users : "recipient_user_id →"
+  workflow_notifications }o--|| workflows : "workflow_id"
+  workflow_notifications }o--|| workflow_tasks : "workflow_task_id"
+  workflow_runtime_events }o--|| workflows : "workflow_id"
+  workflow_node_instances {
+  }
+  workflow_runtime_events }o..|| workflow_node_instances : "workflow_node_instance_id →"
+  workflow_task_comments }o..|| app_users : "author_user_id →"
+  workflow_task_comments }o--|| workflow_tasks : "workflow_task_id"
+  workflow_task_dependencies }o--|| workflow_tasks : "depends_on_workflow_task_id"
+  workflow_task_dependencies }o--|| workflow_tasks : "workflow_task_id"
+  workflow_tasks }o..|| workflow_node_instances : "node_instance_id →"
+  task_templates {
+  }
+  workflow_tasks }o..|| task_templates : "task_template_id →"
+  workflow_tasks }o--|| workflows : "workflow_id"
+  workflows }o..|| app_users : "created_by_user_id →"
+  departments {
+  }
+  workflows }o..|| departments : "department_id →"
+  app_roles {
+  }
+  workflows }o..|| app_roles : "position_role_id →"
+  process_types {
+  }
+  workflows }o..|| process_types : "process_type_id →"
+  people {
+  }
+  workflows }o..|| people : "target_person_id →"</div>
+        </section>
+        
+        <section id="section-5">
+            <h2>Workflow Definition</h2>
+            <div class="mermaid">erDiagram
+  workflow_definitions {
+    int id PK
+    varchar definition_key
+    varchar name
+    text description
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  workflow_definition_versions {
+    bigint id PK
+    int workflow_definition_id
+    int version_number
+    varchar status
+    varchar name
+    text description
+    int primary_legacy_process_type_id
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz published_at
+  }
+  workflow_nodes {
+    bigint id PK
+    bigint workflow_definition_version_id
+    varchar node_key
+    varchar node_type
+    varchar title
+    int sort_order
+    int position_x
+    int position_y
+    timestamptz created_at
+  }
+  workflow_edges {
+    bigint id PK
+    bigint workflow_definition_version_id
+    bigint source_workflow_node_id
+    bigint target_workflow_node_id
+    int priority
+    text condition_expression
+    timestamptz created_at
+  }
+  workflow_node_configs {
+    bigint id PK
+    bigint workflow_node_id
+    jsonb config_json
+    timestamptz created_at
+  }
+  workflow_node_instances {
+    bigint id PK
+    bigint workflow_id
+    bigint workflow_node_id
+    varchar status
+    timestamptz started_at
+    timestamptz completed_at
+    jsonb result_json
+    timestamptz created_at
+  }
+  workflow_node_actions {
+    bigint id PK
+    bigint workflow_node_id
+    bigint action_definition_id
+    jsonb input_mapping_json
+    int execution_order
+    varchar on_error_behavior
+    timestamptz created_at
+  }
+
+  process_types {
+  }
+  workflow_definition_versions }o..|| process_types : "primary_legacy_process_type_id →"
+  workflow_definition_versions }o--|| workflow_definitions : "workflow_definition_id"
+  workflow_edges }o--|| workflow_nodes : "source_workflow_node_id"
+  workflow_edges }o--|| workflow_nodes : "target_workflow_node_id"
+  workflow_edges }o--|| workflow_definition_versions : "workflow_definition_version_id"
+  action_definitions {
+  }
+  workflow_node_actions }o..|| action_definitions : "action_definition_id →"
+  workflow_node_actions }o--|| workflow_nodes : "workflow_node_id"
+  workflow_node_configs }o--|| workflow_nodes : "workflow_node_id"
+  workflows {
+  }
+  workflow_node_instances }o..|| workflows : "workflow_id →"
+  workflow_node_instances }o--|| workflow_nodes : "workflow_node_id"
+  workflow_nodes }o--|| workflow_definition_versions : "workflow_definition_version_id"</div>
+        </section>
+        
+        <section id="section-6">
+            <h2>Automation</h2>
+            <div class="mermaid">erDiagram
+  action_definitions {
+    bigint id PK
+    varchar action_key
+    varchar name
+    text description
+    varchar handler_type
+    jsonb parameter_schema_json
+    bool is_active
+    bool requires_approval
+    bool is_idempotent
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  automation_jobs {
+    bigint id PK
+    bigint workflow_id
+    bigint workflow_node_instance_id
+    bigint workflow_node_action_id
+    bigint action_definition_id
+    varchar status
+    jsonb payload_json
+    timestamptz available_at
+    timestamptz created_at
+    timestamptz started_at
+    timestamptz completed_at
+  }
+  automation_job_attempts {
+    bigint id PK
+    bigint automation_job_id
+    int attempt_number
+    varchar status
+    text error_message
+    timestamptz started_at
+    timestamptz completed_at
+  }
+  automation_job_logs {
+    bigint id PK
+    bigint automation_job_id
+    varchar level
+    text message
+    jsonb details_json
+    timestamptz created_at
+  }
+  department_action_templates {
+    int id PK
+    int department_id
+    varchar trigger_type
+    varchar title
+    text description
+    varchar task_type
+    int default_responsibility_id
+    int due_offset_days
+    int reminder_offset_days
+    bool is_automatable
+    varchar automation_key
+    bool is_active
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  automation_job_attempts }o--|| automation_jobs : "automation_job_id"
+  automation_job_logs }o--|| automation_jobs : "automation_job_id"
+  automation_jobs }o--|| action_definitions : "action_definition_id"
+  workflows {
+  }
+  automation_jobs }o..|| workflows : "workflow_id →"
+  workflow_node_actions {
+  }
+  automation_jobs }o..|| workflow_node_actions : "workflow_node_action_id →"
+  workflow_node_instances {
+  }
+  automation_jobs }o..|| workflow_node_instances : "workflow_node_instance_id →"
+  app_responsibilities {
+  }
+  department_action_templates }o..|| app_responsibilities : "default_responsibility_id →"
+  departments {
+  }
+  department_action_templates }o..|| departments : "department_id →"</div>
+        </section>
+        
+        <section id="section-7">
+            <h2>Rotation</h2>
+            <div class="mermaid">erDiagram
+  rotation_plans {
+    bigint id PK
+    bigint person_id
+    bigint source_workflow_id
+    varchar title
+    varchar status
+    bigint created_by_user_id
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  rotation_stations {
+    bigint id PK
+    bigint rotation_plan_id
+    int department_id
+    date start_date
+    date end_date
+    int order_index
+    varchar location
+    text notes
+    varchar status
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  rotation_generated_tasks {
+    bigint id PK
+    bigint rotation_plan_id
+    bigint rotation_station_id
+    bigint person_id
+    int department_id
+    int template_id
+    varchar trigger_type
+    date anchor_date
+    varchar title
+    text description
+    varchar task_type
+    int responsibility_id
+    date due_date
+    varchar status
+    text completion_note
+    timestamptz started_at
+    timestamptz completed_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  rotation_task_assignments {
+    bigint id PK
+    bigint rotation_generated_task_id
+    bigint assignee_user_id
+    int assignee_responsibility_id
+    varchar assignment_type
+    bool is_primary
+    timestamptz assigned_at
+    timestamptz completed_at
+  }
+  rotation_task_comments {
+    bigint id PK
+    bigint rotation_generated_task_id
+    bigint author_user_id
+    text comment_text
+    timestamptz created_at
+  }
+  rotation_notifications {
+    bigint id PK
+    bigint rotation_plan_id
+    bigint rotation_station_id
+    bigint generated_task_id
+    varchar notification_type
+    varchar recipient_email
+    bigint recipient_user_id
+    varchar subject
+    jsonb payload_json
+    varchar status
+    int attempts
+    text last_error
+    timestamptz sent_at
+    timestamptz created_at
+  }
+  rotation_audit_log {
+    bigint id PK
+    bigint rotation_plan_id
+    bigint rotation_station_id
+    bigint generated_task_id
+    bigint actor_user_id
+    varchar event_type
+    jsonb old_value
+    jsonb new_value
+    text detail
+    timestamptz created_at
+  }
+
+  app_users {
+  }
+  rotation_audit_log }o..|| app_users : "actor_user_id →"
+  rotation_audit_log }o--|| rotation_generated_tasks : "generated_task_id"
+  rotation_audit_log }o--|| rotation_plans : "rotation_plan_id"
+  rotation_audit_log }o--|| rotation_stations : "rotation_station_id"
+  departments {
+  }
+  rotation_generated_tasks }o..|| departments : "department_id →"
+  people {
+  }
+  rotation_generated_tasks }o..|| people : "person_id →"
+  app_responsibilities {
+  }
+  rotation_generated_tasks }o..|| app_responsibilities : "responsibility_id →"
+  rotation_generated_tasks }o--|| rotation_plans : "rotation_plan_id"
+  rotation_generated_tasks }o--|| rotation_stations : "rotation_station_id"
+  department_action_templates {
+  }
+  rotation_generated_tasks }o..|| department_action_templates : "template_id →"
+  rotation_notifications }o--|| rotation_generated_tasks : "generated_task_id"
+  rotation_notifications }o..|| app_users : "recipient_user_id →"
+  rotation_notifications }o--|| rotation_plans : "rotation_plan_id"
+  rotation_notifications }o--|| rotation_stations : "rotation_station_id"
+  rotation_plans }o..|| app_users : "created_by_user_id →"
+  rotation_plans }o..|| people : "person_id →"
+  workflows {
+  }
+  rotation_plans }o..|| workflows : "source_workflow_id →"
+  rotation_stations }o..|| departments : "department_id →"
+  rotation_stations }o--|| rotation_plans : "rotation_plan_id"
+  rotation_task_assignments }o..|| app_responsibilities : "assignee_responsibility_id →"
+  rotation_task_assignments }o..|| app_users : "assignee_user_id →"
+  rotation_task_assignments }o--|| rotation_generated_tasks : "rotation_generated_task_id"
+  rotation_task_comments }o..|| app_users : "author_user_id →"
+  rotation_task_comments }o--|| rotation_generated_tasks : "rotation_generated_task_id"</div>
+        </section>
+        
+        <section id="section-8">
+            <h2>Admin & Konfiguration</h2>
+            <div class="mermaid">erDiagram
+  departments {
+    int id PK
+    varchar name
+  }
+  department_settings {
+    int department_id
+    bigint department_lead_person_id
+    bigint requirement_approver_person_id
+    timestamptz updated_at
+  }
+  notification_email_settings {
+    smallint id PK
+    bool enabled
+    varchar sender_email
+    varchar frontend_base_url
+    varchar test_recipient_email
+    varchar sandbox_redirect_email
+    bool notify_on_workflow_created
+    bool notify_on_task_ready
+    bool notify_on_workflow_completed
+    varchar last_test_status
+    timestamptz last_test_at
+    text last_error
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  notification_templates {
+    varchar template_key
+    varchar display_name
+    text trigger_description
+    text subject_template
+    text body_template
+    bool is_system_locked
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  department_settings }o--|| departments : "department_id"
+  people {
+  }
+  department_settings }o..|| people : "department_lead_person_id →"
+  department_settings }o..|| people : "requirement_approver_person_id →"</div>
+        </section>
+        
+        <section id="section-9">
+            <h2>System</h2>
+            <div class="mermaid">erDiagram
+  system_event_log {
+    bigint id PK
+    timestamptz created_at
+    varchar severity
+    varchar source
+    varchar category
+    varchar event_key
+    text message
+    text user_message
+    bigint actor_user_id
+    varchar client_route
+    varchar client_function
+    varchar http_method
+    varchar http_path
+    int http_status
+    varchar trace_identifier
+    uuid workflow_uid
+    bigint rotation_plan_id
+    varchar task_ref
+    varchar entity_type
+    varchar entity_id
+    jsonb details_json
+  }
+
+  app_users {
+  }
+  system_event_log }o..|| app_users : "actor_user_id →"</div>
+        </section>
+        
+  </main>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default', er: { diagramPadding: 30 }, flowchart: { padding: 20 } });
+  </script>
+</body>
+</html>

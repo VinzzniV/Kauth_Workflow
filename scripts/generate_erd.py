@@ -13,6 +13,7 @@ from collections import defaultdict
 
 SCHEMA_PATH = Path(__file__).parent.parent / "db" / "01_schema.sql"
 OUT_PATH = Path(__file__).parent.parent / "docs" / "ERD.md"
+OUT_HTML = Path(__file__).parent.parent / "docs" / "ERD.html"
 
 # ── Domain-Gruppen ─────────────────────────────────────────────────────────────
 DOMAINS = {
@@ -270,16 +271,85 @@ def build_markdown(tables: dict, fks: list) -> str:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def build_html(tables: dict, fks: list) -> str:
+    sections = []
+
+    # Uebersicht
+    sections.append(("Übersicht (alle Domains)", overview_diagram(tables, fks)))
+
+    # Detail-ERDs
+    for domain, members in DOMAINS.items():
+        if not any(t in tables for t in members):
+            continue
+        diagram = detail_diagram(domain, members, tables, fks)
+        sections.append((domain, diagram))
+
+    nav_links = "\n".join(
+        f'<a href="#section-{i}">{title}</a>'
+        for i, (title, _) in enumerate(sections)
+    )
+
+    section_html = ""
+    for i, (title, diagram) in enumerate(sections):
+        esc = diagram.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        section_html += f"""
+        <section id="section-{i}">
+            <h2>{title}</h2>
+            <div class="mermaid">{diagram}</div>
+        </section>
+        """
+
+    return f"""<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>ERD – Kauth Workflow</title>
+  <style>
+    body {{ font-family: system-ui, sans-serif; margin: 0; background: #f8f9fa; color: #1a1a2e; }}
+    header {{ background: #16213e; color: #e2e8f0; padding: 1.2rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 2rem; }}
+    header h1 {{ margin: 0; font-size: 1.2rem; white-space: nowrap; }}
+    nav {{ display: flex; flex-wrap: wrap; gap: 0.5rem; }}
+    nav a {{ color: #90cdf4; text-decoration: none; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid #2d3748; white-space: nowrap; }}
+    nav a:hover {{ background: #2d3748; }}
+    main {{ max-width: 100%; padding: 1rem 2rem 4rem; }}
+    section {{ margin: 2rem 0; background: white; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }}
+    h2 {{ margin-top: 0; font-size: 1.1rem; color: #2d3748; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }}
+    .mermaid {{ min-height: 60px; }}
+    p.meta {{ color: #718096; font-size: 0.85rem; }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ERD – Kauth Workflow</h1>
+    <nav>{nav_links}</nav>
+  </header>
+  <main>
+    <p class="meta">Automatisch generiert aus <code>db/01_schema.sql</code> &mdash; {len(tables)} Tabellen, {len(fks)} Foreign Keys.</p>
+    {section_html}
+  </main>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({{ startOnLoad: true, theme: 'default', er: {{ diagramPadding: 30 }}, flowchart: {{ padding: 20 }} }});
+  </script>
+</body>
+</html>
+"""
+
+
 def main():
     sql = SCHEMA_PATH.read_text(encoding="utf-8")
     tables, fks = parse_schema(sql)
     print(f"Geparst: {len(tables)} Tabellen, {len(fks)} FKs", file=sys.stderr)
 
-    md = build_markdown(tables, fks)
-
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    md = build_markdown(tables, fks)
     OUT_PATH.write_text(md, encoding="utf-8")
-    print(f"Ausgabe: {OUT_PATH}", file=sys.stderr)
+    print(f"Markdown: {OUT_PATH}", file=sys.stderr)
+
+    html = build_html(tables, fks)
+    OUT_HTML.write_text(html, encoding="utf-8")
+    print(f"HTML:     {OUT_HTML}", file=sys.stderr)
 
 
 if __name__ == "__main__":
