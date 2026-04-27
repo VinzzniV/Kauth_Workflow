@@ -21,7 +21,7 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
     case "organization":
       return renderOrganizationWorkspace(props);
     case "rotation_requirements":
-      return renderRotationRequirementsWorkspace(props);
+      return renderRotationRequirementsWorkspace();
     case "access":
       return renderAccessWorkspace(props);
     case "directory":
@@ -35,7 +35,7 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
     case "defaults":
       return renderDefaultWorkspace(props);
     case "system_logs":
-      return renderSystemLogsWorkspace(props);
+      return renderSystemLogsWorkspace();
     case "system_mail_templates":
       return renderSystemMailTemplatesWorkspace(props);
     case "system_configuration":
