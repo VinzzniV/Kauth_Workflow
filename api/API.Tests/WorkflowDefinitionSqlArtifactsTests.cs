@@ -4,12 +4,10 @@ namespace API.Tests;
 
 public sealed class WorkflowDefinitionSqlArtifactsTests
 {
-    [Theory]
-    [InlineData("db/01_schema.sql")]
-    [InlineData("db/41_workflow_definition_layer.sql")]
-    public async Task SqlArtifacts_DefineWorkflowDefinitionLayerTables(string relativePath)
+    [Fact]
+    public async Task SqlArtifacts_DefineWorkflowDefinitionLayerTables()
     {
-        var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
+        var content = await File.ReadAllTextAsync(FindRepositoryFile("db/01_schema.sql"));
 
         Assert.Contains("workflow_definitions", content);
         Assert.Contains("workflow_definition_versions", content);
@@ -18,24 +16,19 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
         Assert.Contains("workflow_node_configs", content);
     }
 
-    [Theory]
-    [InlineData("db/01_schema.sql")]
-    [InlineData("db/41_workflow_definition_layer.sql")]
-    [InlineData("db/46_workflow_builder_positions.sql")]
-    public async Task SqlArtifacts_DefineWorkflowBuilderPositionArtifacts(string relativePath)
+    [Fact]
+    public async Task SqlArtifacts_DefineWorkflowBuilderPositionArtifacts()
     {
-        var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
+        var content = await File.ReadAllTextAsync(FindRepositoryFile("db/01_schema.sql"));
 
         Assert.Contains("position_x", content);
         Assert.Contains("position_y", content);
     }
 
-    [Theory]
-    [InlineData("db/01_schema.sql")]
-    [InlineData("db/42_workflow_runtime_layer.sql")]
-    public async Task SqlArtifacts_DefineWorkflowRuntimeLayerArtifacts(string relativePath)
+    [Fact]
+    public async Task SqlArtifacts_DefineWorkflowRuntimeLayerArtifacts()
     {
-        var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
+        var content = await File.ReadAllTextAsync(FindRepositoryFile("db/01_schema.sql"));
 
         Assert.Contains("workflow_definition_version_id", content);
         Assert.Contains("current_runtime_status", content);
@@ -45,28 +38,25 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
         Assert.Contains("workflow_runtime_events", content);
     }
 
-    [Theory]
-    [InlineData("db/01_schema.sql")]
-    [InlineData("db/45_automation_layer.sql")]
-    public async Task SqlArtifacts_DefineAutomationLayerArtifacts(string relativePath)
+    [Fact]
+    public async Task SqlArtifacts_DefineAutomationLayerArtifacts()
     {
-        var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
+        var schemaContent = await File.ReadAllTextAsync(FindRepositoryFile("db/01_schema.sql"));
+        var seedContent = await File.ReadAllTextAsync(FindRepositoryFile("db/02_bootstrap.sql"));
 
-        Assert.Contains("action_definitions", content);
-        Assert.Contains("workflow_node_actions", content);
-        Assert.Contains("automation_jobs", content);
-        Assert.Contains("automation_job_attempts", content);
-        Assert.Contains("automation_job_logs", content);
-        Assert.Contains("CreateAdUser", content);
-        Assert.Contains("SendWelcomeMail", content);
+        Assert.Contains("action_definitions", schemaContent);
+        Assert.Contains("workflow_node_actions", schemaContent);
+        Assert.Contains("automation_jobs", schemaContent);
+        Assert.Contains("automation_job_attempts", schemaContent);
+        Assert.Contains("automation_job_logs", schemaContent);
+        Assert.Contains("CreateAdUser", seedContent);
+        Assert.Contains("SendWelcomeMail", seedContent);
     }
 
-    [Theory]
-    [InlineData("db/01_schema.sql")]
-    [InlineData("db/44_runtime_task_bridge.sql")]
-    public async Task SqlArtifacts_DefineRuntimeTaskBridgeArtifacts(string relativePath)
+    [Fact]
+    public async Task SqlArtifacts_DefineRuntimeTaskBridgeArtifacts()
     {
-        var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
+        var content = await File.ReadAllTextAsync(FindRepositoryFile("db/01_schema.sql"));
 
         Assert.Contains("node_instance_id", content);
         Assert.Contains("ux_workflow_tasks_node_instance_id", content);
@@ -75,13 +65,14 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
     [Fact]
     public async Task SqlArtifacts_DefineSeededWorkflowMappings()
     {
-        var content = await File.ReadAllTextAsync(FindRepositoryFile("db/43_workflow_definition_mappings.sql"));
+        var schemaContent = await File.ReadAllTextAsync(FindRepositoryFile("db/01_schema.sql"));
+        var seedContent = await File.ReadAllTextAsync(FindRepositoryFile("db/02_bootstrap.sql"));
 
-        Assert.Contains("upsert_linearized_workflow_definition", content);
-        Assert.Contains("'onboarding'", content);
-        Assert.Contains("'offboarding'", content);
-        Assert.Contains("'department_change'", content);
-        Assert.Contains("'published'", content);
+        Assert.Contains("upsert_linearized_workflow_definition", schemaContent);
+        Assert.Contains("'onboarding'", seedContent);
+        Assert.Contains("'offboarding'", seedContent);
+        Assert.Contains("'department_change'", seedContent);
+        Assert.Contains("'published'", seedContent);
     }
 
     [Theory]
@@ -91,17 +82,15 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
     {
         var content = await File.ReadAllTextAsync(FindRepositoryFile(relativePath));
 
-        Assert.Contains("/docker-entrypoint-sql/41_workflow_definition_layer.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/42_workflow_runtime_layer.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/43_workflow_definition_mappings.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/44_runtime_task_bridge.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/45_automation_layer.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/46_workflow_builder_positions.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/48_measure_generation_node_types.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/49_measure_generation_phase_c.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/50_onboarding_gatekeeper_measure_flow.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/51_remove_seeded_demo_departments.sql", content);
-        Assert.Contains("/docker-entrypoint-sql/52_restore_core_responsibilities.sql", content);
+        Assert.Contains("/docker-entrypoint-sql/01_schema.sql", content);
+
+        if (relativePath.EndsWith("dev/00_init.sql", StringComparison.Ordinal))
+        {
+            Assert.Contains("/docker-entrypoint-sql/02_dev_seed.sql", content);
+            return;
+        }
+
+        Assert.Contains("/docker-entrypoint-sql/02_bootstrap.sql", content);
     }
 
     private static string FindRepositoryFile(string relativePath)

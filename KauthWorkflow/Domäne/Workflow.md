@@ -116,8 +116,8 @@ Abteilungsleiter sehen nur explizit aufgelöste, beobachtbare Abteilungen:
 | `api/API/Services/` | Fachlogik |
 | `api/API/Repositories/` | SQL-Zugriff |
 | `api/API/Contracts/` | DTOs |
-| `db/41_workflow_definition_layer.sql` | Definition Layer Schema |
-| `db/42_workflow_runtime_layer.sql` | Runtime Schema |
+| `db/01_schema.sql` | Konsolidiertes Schema inkl. Definition Layer und Runtime |
+| `db/02_bootstrap.sql` | Konsolidierte prod-Seed-Daten inkl. Workflow-Mappings |
 
 ---
 

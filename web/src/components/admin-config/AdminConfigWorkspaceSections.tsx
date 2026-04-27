@@ -117,7 +117,7 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
   );
 }
 
-export function renderRotationRequirementsWorkspace(_props: AdminConfigWorkspaceContentProps) {
+export function renderRotationRequirementsWorkspace() {
   return renderWorkspaceWithIntro(
     "rotation_requirements",
     <AdminResponsibilitiesAndRequirementsSection />
@@ -200,7 +200,7 @@ export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps
   );
 }
 
-export function renderSystemLogsWorkspace(_props: AdminConfigWorkspaceContentProps) {
+export function renderSystemLogsWorkspace() {
   return renderWorkspaceWithIntro(
     "system_logs",
     <AdminSystemWorkspaceSection />

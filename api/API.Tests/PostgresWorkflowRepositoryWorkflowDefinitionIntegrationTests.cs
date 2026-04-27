@@ -700,13 +700,15 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
 
-            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/46_workflow_builder_positions.sql" })
-            {
-                var migrationSql = await File.ReadAllTextAsync(FindRepositoryFile(migration.Replace('/', Path.DirectorySeparatorChar)));
-                await using var command = new NpgsqlCommand(migrationSql, connection);
-                await command.ExecuteNonQueryAsync();
-            }
-            return true;
+            await using var command = new NpgsqlCommand(
+                """
+                SELECT to_regclass('public.workflow_definitions') IS NOT NULL
+                   AND to_regclass('public.workflow_definition_versions') IS NOT NULL
+                   AND to_regclass('public.workflow_nodes') IS NOT NULL
+                   AND to_regclass('public.workflow_edges') IS NOT NULL;
+                """,
+                connection);
+            return (bool?)await command.ExecuteScalarAsync() == true;
         }
         catch (NpgsqlException ex)
         {
@@ -722,14 +724,20 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
 
-            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/42_workflow_runtime_layer.sql", "db/43_workflow_definition_mappings.sql", "db/45_automation_layer.sql", "db/46_workflow_builder_positions.sql", "db/48_measure_generation_node_types.sql", "db/49_measure_generation_phase_c.sql", "db/50_onboarding_gatekeeper_measure_flow.sql" })
-            {
-                var migrationSql = await File.ReadAllTextAsync(FindRepositoryFile(migration.Replace('/', Path.DirectorySeparatorChar)));
-                await using var command = new NpgsqlCommand(migrationSql, connection);
-                await command.ExecuteNonQueryAsync();
-            }
-
-            return true;
+            await using var command = new NpgsqlCommand(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM workflow_definitions
+                    WHERE definition_key IN ('onboarding', 'offboarding', 'department_change')
+                ) AND EXISTS (
+                    SELECT 1
+                    FROM workflow_definition_versions
+                    WHERE status = 'published'
+                );
+                """,
+                connection);
+            return (bool?)await command.ExecuteScalarAsync() == true;
         }
         catch (NpgsqlException ex)
         {

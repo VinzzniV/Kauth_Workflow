@@ -97,7 +97,7 @@ Platzhalter (`{{PERSON_NAME}}` etc.) werden gegen einen erlaubten Katalog geprü
 | `api/API/Services/SimulatedWorkflowAutomationHandlers.cs` | Simulierte Handler |
 | `api/API/Repositories/.../AutomationOperations.cs` | DB-Zugriff |
 | `api/API/Services/NotificationTemplateService.cs` | Template-Pflege + Validierung |
-| `db/45_automation_layer.sql` | Automation-Schema |
+| `db/01_schema.sql` | Konsolidiertes Schema inkl. Automation-Layer |
 
 ---
 

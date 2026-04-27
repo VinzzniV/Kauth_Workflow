@@ -333,14 +333,16 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
 
-            foreach (var migration in new[] { "db/41_workflow_definition_layer.sql", "db/42_workflow_runtime_layer.sql", "db/45_automation_layer.sql" })
-            {
-                var migrationSql = await File.ReadAllTextAsync(FindRepositoryFile(migration.Replace('/', Path.DirectorySeparatorChar)));
-                await using var command = new NpgsqlCommand(migrationSql, connection);
-                await command.ExecuteNonQueryAsync();
-            }
-
-            return true;
+            await using var command = new NpgsqlCommand(
+                """
+                SELECT to_regclass('public.workflow_definitions') IS NOT NULL
+                   AND to_regclass('public.workflow_definition_versions') IS NOT NULL
+                   AND to_regclass('public.action_definitions') IS NOT NULL
+                   AND to_regclass('public.workflow_node_actions') IS NOT NULL
+                   AND to_regclass('public.automation_jobs') IS NOT NULL;
+                """,
+                connection);
+            return (bool?)await command.ExecuteScalarAsync() == true;
         }
         catch (NpgsqlException ex)
         {

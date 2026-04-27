@@ -809,7 +809,9 @@ function tryParseConfigObject(configText: string): Record<string, unknown> | nul
   try {
     const parsed = JSON.parse(configText) as unknown;
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
-  } catch {}
+  } catch {
+    return null;
+  }
   return null;
 }
 

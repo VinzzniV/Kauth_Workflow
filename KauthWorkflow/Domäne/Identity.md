@@ -100,7 +100,7 @@ Lokale Sonderfälle (manuelle Rollen ohne Gruppen-Basis) bleiben Ausnahme.
 | `api/API/Services/EntraDirectorySyncService.cs` | Sync-Logik, User-Deaktivierung |
 | `api/API/Authorization/AuthorizationPolicyService.cs` | Policy-Auflösung |
 | `api/API/Repositories/.../PersonLifecycleOperations.cs` | Personen-Lifecycle |
-| `db/59_people_lifecycle_anchor.sql` | People-Tabelle-Erweiterungen |
+| `db/01_schema.sql` | Konsolidiertes Schema inkl. People-/Identity-Erweiterungen |
 
 ---
 

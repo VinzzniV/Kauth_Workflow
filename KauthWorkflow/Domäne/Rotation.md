@@ -100,8 +100,8 @@ Eine Rotationsaufgabe ist **nur sichtbar**, wenn:
 | `api/API/Services/RotationTaskGenerationService.cs` | Task-Generierung |
 | `api/API/Services/RotationNotificationService.cs` | Benachrichtigungen |
 | `api/API/RotationDomainConstants.cs` | Zentrale Status-/Typ-Konstanten |
-| `db/54_rotation_phase1_persistence.sql` | Basisschema |
-| `db/56_rotation_task_generation_sync.sql` | Task-Sync-Erweiterungen |
+| `db/01_schema.sql` | Konsolidiertes Schema inkl. Rotation, Sync und Historie |
+| `db/02_dev_seed.sql` | Dev-Seed mit Rotations-Beispieltemplates |
 
 ---
 

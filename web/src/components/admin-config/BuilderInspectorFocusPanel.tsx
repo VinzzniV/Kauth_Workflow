@@ -119,6 +119,7 @@ export function BuilderInspectorFocusPanel({
       || focus.mode === "task_template_conditions"
       || focus.mode === "task_template_dependencies" ? (
         <BuilderFocusedTaskTemplateEditor
+          key={`${focus.mode}:${focus.processTypeId ?? "none"}:${focus.templateId ?? "none"}:${focus.templateSection ?? "details"}`}
           focus={focus}
           responsibilityOwners={responsibilityOwners}
           onNotice={onNotice}
@@ -521,12 +522,7 @@ function BuilderFocusedTaskTemplateEditor({
   );
 
   useEffect(() => {
-    setActiveSection(focus.templateSection ?? "details");
-  }, [focus.templateSection]);
-
-  useEffect(() => {
     let isCancelled = false;
-    setIsLoadingDepartments(true);
     getAdminDepartmentAssignments()
       .then((loadedDepartments) => {
         if (!isCancelled) {

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import RotationPlanDetailPage from "../src/pages/RotationPlanDetailPage";
 import * as rotationApi from "../src/services/rotationApi";
 import * as rotationQueries from "../src/services/queries/rotationQueries";
+import * as roleQueries from "../src/services/queries/roleQueries";
 import { renderWithApp } from "./testUtils";
 import type {
   RotationAuditEntry,
@@ -45,12 +46,23 @@ vi.mock("../src/services/queries/rotationQueries", async () => {
   };
 });
 
+vi.mock("../src/services/queries/roleQueries", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/queries/roleQueries")>(
+    "../src/services/queries/roleQueries"
+  );
+  return {
+    ...actual,
+    useDepartments: vi.fn(),
+  };
+});
+
 const mockedCreateRotationStation = vi.mocked(rotationApi.createRotationStation);
 const mockedRegenerateRotationGeneratedTasks = vi.mocked(rotationApi.regenerateRotationGeneratedTasks);
 const mockedUseRotationPlanDetail = vi.mocked(rotationQueries.useRotationPlanDetail);
 const mockedUseRotationGeneratedTasks = vi.mocked(rotationQueries.useRotationGeneratedTasks);
 const mockedUseRotationAuditLog = vi.mocked(rotationQueries.useRotationAuditLog);
 const mockedUseRotationNotifications = vi.mocked(rotationQueries.useRotationNotifications);
+const mockedUseDepartments = vi.mocked(roleQueries.useDepartments);
 
 function createPlanDetail(overrides: Partial<RotationPlanDetail> = {}): RotationPlanDetail {
   return {
@@ -163,6 +175,7 @@ describe("RotationPlanDetailPage", () => {
     mockedUseRotationGeneratedTasks.mockReset();
     mockedUseRotationAuditLog.mockReset();
     mockedUseRotationNotifications.mockReset();
+    mockedUseDepartments.mockReset();
 
     mockedUseRotationPlanDetail.mockReturnValue({
       data: createPlanDetail(),
@@ -188,6 +201,14 @@ describe("RotationPlanDetailPage", () => {
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
+    } as never);
+    mockedUseDepartments.mockReturnValue({
+      data: [
+        { id: 3, name: "BS" },
+        { id: 9, name: "IT" },
+      ],
+      isLoading: false,
+      error: null,
     } as never);
   });
 
@@ -231,10 +252,9 @@ describe("RotationPlanDetailPage", () => {
 
     renderWithApp(<RotationPlanDetailPage />, { roleKeys: ["auth_hr"] });
 
-    fireEvent.change(await screen.findByLabelText("Abteilungs-ID"), { target: { value: "9" } });
+    fireEvent.change(await screen.findByLabelText("Abteilung"), { target: { value: "9" } });
     fireEvent.change(screen.getByLabelText("Startdatum"), { target: { value: "2026-06-21" } });
     fireEvent.change(screen.getByLabelText("Enddatum"), { target: { value: "2026-06-30" } });
-    fireEvent.change(screen.getByLabelText("Reihenfolge"), { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: "Station anlegen" }));
 
     await waitFor(() => {
@@ -242,7 +262,7 @@ describe("RotationPlanDetailPage", () => {
         departmentId: 9,
         startDate: "2026-06-21",
         endDate: "2026-06-30",
-        orderIndex: 1,
+        orderIndex: 0,
         location: undefined,
         notes: undefined,
         status: "planned",

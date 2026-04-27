@@ -74,7 +74,7 @@ export default function RotationPlanningPage() {
   );
 
   const eligiblePeople = eligiblePeopleQuery.data;
-  const existingPlans = rotationPlansQuery.data ?? [];
+  const existingPlans = useMemo(() => rotationPlansQuery.data ?? [], [rotationPlansQuery.data]);
   const visiblePlans = useMemo(() => {
     const normalizedSearch = planSearch.trim().toLowerCase();
     if (!normalizedSearch) {

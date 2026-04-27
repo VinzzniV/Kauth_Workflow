@@ -63,8 +63,8 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
                 Assert.Equal(2, assignmentEntries.Count);
                 Assert.Equal("Vinzent Niederwieser", assignmentEntries[0].OldValue);
-                Assert.Equal("IT - Hardware", assignmentEntries[0].NewValue);
-                Assert.Equal("IT - AD", assignmentEntries[1].OldValue);
+                Assert.Equal("Hardware", assignmentEntries[0].NewValue);
+                Assert.Equal("AD", assignmentEntries[1].OldValue);
                 Assert.Equal("Vinzent Niederwieser", assignmentEntries[1].NewValue);
             });
         }

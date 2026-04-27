@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router-dom";
+import type { ReactNode } from "react";
 import AdminConfigPage from "../src/pages/AdminConfigPage";
 import * as adminApi from "../src/services/adminApi";
 import * as adminConfigApi from "../src/services/adminConfigApi";
@@ -20,7 +21,7 @@ vi.mock("@xyflow/react", () => ({
   Handle: () => null,
   Position: { Left: "left", Right: "right" },
   MarkerType: { ArrowClosed: "arrowclosed" },
-  ReactFlow: ({ children }: { children?: any }) => <div>{children}</div>,
+  ReactFlow: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("../src/services/adminApi", async () => {

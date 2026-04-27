@@ -1,5 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import WorkflowBuilderPage from "../src/pages/WorkflowBuilderPage";
 import * as adminConfigApi from "../src/services/adminConfigApi";
 import { renderWithApp } from "./testUtils";
@@ -11,7 +12,7 @@ vi.mock("@xyflow/react", () => ({
   Handle: () => null,
   Position: { Left: "left", Right: "right" },
   MarkerType: { ArrowClosed: "arrowclosed" },
-  ReactFlow: ({ children }: { children?: any }) => <div data-testid="mock-react-flow-page">{children}</div>,
+  ReactFlow: ({ children }: { children?: ReactNode }) => <div data-testid="mock-react-flow-page">{children}</div>,
 }));
 
 vi.mock("../src/services/adminConfigApi", () => ({

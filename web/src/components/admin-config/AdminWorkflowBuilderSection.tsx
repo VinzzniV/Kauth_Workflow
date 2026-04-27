@@ -172,6 +172,7 @@ export function AdminWorkflowBuilderSection({
   }, [
     actionDefinitionsByKey,
     builder.selectedNode?.id,
+    builder.taskTemplates,
     builder.versionDraft,
     nodesByKey,
     processTypesByKey,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type {
   AdminDepartmentAssignment,
   AdminRole,
@@ -56,24 +56,18 @@ function toSyncStateLabel(syncState: string): string {
 
 export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepartmentEditorProps) {
   const panelRef = useRef<HTMLElement | null>(null);
-  const [isFocusedFromNavigation, setIsFocusedFromNavigation] = useState(false);
+  const selectedDepartmentId = props.selectedDepartment?.departmentId ?? null;
 
   useEffect(() => {
-    if (!props.selectedDepartment) {
+    if (selectedDepartmentId === null) {
       return;
     }
 
-    setIsFocusedFromNavigation(true);
-    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-    const timeoutId = window.setTimeout(() => {
-      setIsFocusedFromNavigation(false);
-    }, 2200);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [props.selectedDepartment?.departmentId]);
+    const panel = panelRef.current;
+    if (panel && typeof panel.scrollIntoView === "function") {
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedDepartmentId]);
 
   if (!props.selectedDepartment) {
     return (
@@ -128,7 +122,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
   return (
     <section
       ref={panelRef}
-      className={`panel${isFocusedFromNavigation ? " admin-panel-focus" : ""}`}
+      className="panel"
     >
       <div className="panel-head">
         <h2>Abteilung pflegen: {selectedDepartment.departmentName}</h2>

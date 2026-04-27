@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { AdminWorkflowBuilderSection } from "../src/components/admin-config/AdminWorkflowBuilderSection";
 import * as adminConfigApi from "../src/services/adminConfigApi";
 import * as adminApi from "../src/services/adminApi";
@@ -21,7 +22,7 @@ vi.mock("@xyflow/react", () => ({
     onEdgeClick?: (event: unknown, edge: { id: string }) => void;
     onConnect?: (connection: { source: string | null; target: string | null }) => void;
     onPaneClick?: () => void;
-    children?: any;
+    children?: ReactNode;
   }) => (
     <div>
       <div data-testid="mock-react-flow">nodes:{nodes.length} edges:{edges.length}</div>
