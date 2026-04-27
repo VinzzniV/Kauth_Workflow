@@ -27,6 +27,11 @@ __pycache__/
 /handoff/
 /.tmp-vm-dev/
 
+# Build- und Test-Caches (sollten nie committed werden)
+/artifacts/
+/.tmp-build/
+/.tmp-test-obj/
+
 # Editors / OS
 .DS_Store
 Thumbs.db
