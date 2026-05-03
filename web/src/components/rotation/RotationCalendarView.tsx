@@ -88,7 +88,7 @@ export default function RotationCalendarView({ stations }: Props) {
 
   if (ordered.length === 0) return null;
 
-  const border = "1px solid #d1d5db";
+  const border = "1px solid var(--border)";
 
   return (
     <section className="panel">
@@ -133,7 +133,7 @@ export default function RotationCalendarView({ stations }: Props) {
                         <td
                           key={`${year}-${month}-x`}
                           colSpan={3}
-                          style={{ border, backgroundColor: "#f3f4f6" }}
+                          style={{ border, backgroundColor: "var(--bg-card-muted)" }}
                         />
                       );
                     }
@@ -144,7 +144,7 @@ export default function RotationCalendarView({ stations }: Props) {
                     const station = dateToStation.get(dateKey);
                     const colorIdx = station !== undefined ? (colorByStationId.get(station.id) ?? 0) : -1;
                     const color = colorIdx >= 0 ? STATION_COLORS[colorIdx] : null;
-                    const cellBg = color?.bg ?? (isWeekend ? "#f9fafb" : "#ffffff");
+                    const cellBg = color?.bg ?? (isWeekend ? "var(--bg-card-muted)" : "var(--bg-card)");
 
                     return (
                       <Fragment key={`${year}-${month}`}>
@@ -154,7 +154,7 @@ export default function RotationCalendarView({ stations }: Props) {
                             border,
                             textAlign: "right",
                             backgroundColor: cellBg,
-                            color: isWeekend ? "#9ca3af" : "#374151",
+                            color: isWeekend ? "var(--text-secondary)" : "var(--text-primary)",
                             fontWeight: isWeekend ? 400 : 500,
                             minWidth: "16px",
                             whiteSpace: "nowrap",
@@ -167,7 +167,7 @@ export default function RotationCalendarView({ stations }: Props) {
                             padding: "1px 3px",
                             border,
                             backgroundColor: cellBg,
-                            color: isWeekend ? "#9ca3af" : "#6b7280",
+                            color: isWeekend ? "var(--text-secondary)" : "var(--text-tertiary)",
                             minWidth: "20px",
                           }}
                         >
@@ -178,7 +178,7 @@ export default function RotationCalendarView({ stations }: Props) {
                             padding: "1px 5px",
                             border,
                             backgroundColor: cellBg,
-                            color: color ? color.text : "#9ca3af",
+                            color: color ? color.text : "var(--text-secondary)",
                             fontWeight: station ? 600 : 400,
                             minWidth: "32px",
                             whiteSpace: "nowrap",
@@ -210,14 +210,14 @@ export default function RotationCalendarView({ stations }: Props) {
                   width: "14px",
                   height: "14px",
                   backgroundColor: color.bg,
-                  border: "1px solid #aaa",
+                  border: "1px solid var(--border)",
                   borderRadius: "2px",
                   flexShrink: 0,
                 }}
               />
-              <span style={{ color: "#374151" }}>
+              <span style={{ color: "var(--text-primary)" }}>
                 {station.departmentName}
-                <span style={{ color: "#9ca3af" }}> ({abbreviateDept(station.departmentName)})</span>
+                <span style={{ color: "var(--text-secondary)" }}> ({abbreviateDept(station.departmentName)})</span>
               </span>
             </div>
           );
