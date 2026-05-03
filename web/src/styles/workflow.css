@@ -2154,10 +2154,13 @@
   font-size: 0.72rem;
 }
 
+/* FE-7: Status-Farben ueber dark-mode-aware Tokens (--text-info/warning/danger).
+ * Vorher waren ready/in_progress/blocked mit hardcoded Hex-Werten gefuellt, was
+ * im Dark-Mode zu unzureichendem Kontrast fuehrte. */
 .dep-status-badge--done { background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); }
-.dep-status-badge--ready { background: color-mix(in srgb, #2563eb 12%, transparent); color: #2563eb; }
-.dep-status-badge--in_progress { background: color-mix(in srgb, #b88200 12%, transparent); color: #b88200; }
-.dep-status-badge--blocked { background: color-mix(in srgb, #dc2626 12%, transparent); color: #dc2626; }
+.dep-status-badge--ready { background: color-mix(in srgb, var(--text-info) 12%, transparent); color: var(--text-info); }
+.dep-status-badge--in_progress { background: color-mix(in srgb, var(--text-warning) 12%, transparent); color: var(--text-warning); }
+.dep-status-badge--blocked { background: color-mix(in srgb, var(--text-danger) 12%, transparent); color: var(--text-danger); }
 .dep-status-badge--open { background: var(--surface-elevated, var(--bg-card)); color: var(--text-secondary); }
 
 .btn-ghost--small {

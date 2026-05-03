@@ -746,7 +746,7 @@ function AbteilungsanforderungenPanel() {
                   </span>
                 </div>
                 {template.isActive && !template.defaultResponsibilityName ? (
-                  <p className="panel-note" style={{ color: "var(--color-warning, #b45309)" }}>
+                  <p className="panel-note" style={{ color: "var(--text-warning)" }}>
                     Keine Zuständigkeit: generierte Aufgaben sind für Fachbereiche nicht sichtbar.
                   </p>
                 ) : null}
