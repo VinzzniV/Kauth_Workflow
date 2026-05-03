@@ -163,7 +163,7 @@ WHERE id = @versionId;
         var processType = await PostgresWorkflowRepository.LoadProcessTypeForCreate(connection, transaction, publishedVersion.PrimaryLegacyProcessTypeKey);
         var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
 
-        var gatekeeperEvaluation = EvaluateSupervisorGatekeeper(
+        var gatekeeperEvaluation = WorkflowRuntimeEngine.EvaluateSupervisorGatekeeper(
             graph,
             publishedVersion.PrimaryLegacyProcessTypeKey,
             processType.RequiresSupervisorStep);
@@ -625,7 +625,7 @@ ORDER BY e.created_at, e.id;
         IReadOnlyList<RequirementSelectionInputDto> selections,
         long actorUserId)
     {
-        var legacyProcessTypeKey = GetRequiredNodeConfigString(activeNodeExecution.Node, "legacyProcessTypeKey");
+        var legacyProcessTypeKey = WorkflowRuntimeEngine.GetRequiredNodeConfigString(activeNodeExecution.Node, "legacyProcessTypeKey");
         var legacyProcessTypeId = await PostgresWorkflowRepository.ResolveWorkflowDefinitionLegacyProcessTypeId(
             connection,
             transaction,
@@ -1016,9 +1016,9 @@ RETURNING id;
 
         try
         {
-            foreach (var nextNode in ResolveNextNodes(graph, completedNode, answersByKey))
+            foreach (var nextNode in WorkflowRuntimeEngine.ResolveNextNodes(graph, completedNode, answersByKey))
             {
-                EnqueueIfNeeded(pendingNodes, scheduledNodeIds, nextNode);
+                WorkflowRuntimeEngine.EnqueueIfNeeded(pendingNodes, scheduledNodeIds, nextNode);
             }
         }
         catch (InvalidOperationException ex)
@@ -1089,9 +1089,9 @@ RETURNING id;
                         nextNode.NodeType,
                         nextNode.NodeKey);
 
-                    foreach (var resolvedNode in ResolveNextNodes(graph, nextNode, answersByKey))
+                    foreach (var resolvedNode in WorkflowRuntimeEngine.ResolveNextNodes(graph, nextNode, answersByKey))
                     {
-                        EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolvedNode);
+                        WorkflowRuntimeEngine.EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolvedNode);
                     }
 
                     continue;
@@ -1123,7 +1123,7 @@ RETURNING id;
 
                         if (string.Equals(nextNode.NodeType, "decision", StringComparison.OrdinalIgnoreCase))
                         {
-                            var decisionTarget = ResolveDecisionTarget(graph, nextNode, answersByKey, out var selectedEdge);
+                            var decisionTarget = WorkflowRuntimeEngine.ResolveDecisionTarget(graph, nextNode, answersByKey, out var selectedEdge);
                             if (decisionTarget is null || selectedEdge is null)
                             {
                                 throw new InvalidOperationException(
@@ -1156,9 +1156,9 @@ RETURNING id;
                                 }));
                         }
 
-                        foreach (var resolvedNode in ResolveNextNodes(graph, nextNode, answersByKey))
+                        foreach (var resolvedNode in WorkflowRuntimeEngine.ResolveNextNodes(graph, nextNode, answersByKey))
                         {
-                            EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolvedNode);
+                            WorkflowRuntimeEngine.EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolvedNode);
                         }
 
                         break;
@@ -1317,7 +1317,7 @@ RETURNING id;
             else
             {
                 var workflowStatusContext = await LoadRuntimeWorkflowStatusContext(connection, transaction, workflowId);
-                legacyStatus = MapLegacyStatusForActiveNodes(
+                legacyStatus = WorkflowRuntimeEngine.MapLegacyStatusForActiveNodes(
                     graph,
                     activeNodes,
                     workflowStatusContext.PrimaryLegacyProcessTypeKey,
@@ -1335,53 +1335,6 @@ RETURNING id;
         }
 
         await CompleteRuntimeWorkflow(connection, transaction, workflowId, actorUserId, RuntimeStatusCompleted, "workflow_completed");
-    }
-
-    private static void EnqueueIfNeeded(
-        Queue<WorkflowDefinitionNodeRecord> queue,
-        ISet<long> scheduledNodeIds,
-        WorkflowDefinitionNodeRecord node)
-    {
-        if (scheduledNodeIds.Add(node.NodeId))
-        {
-            queue.Enqueue(node);
-        }
-    }
-
-    private static IReadOnlyList<WorkflowDefinitionNodeRecord> ResolveNextNodes(
-        WorkflowDefinitionGraphRecord graph,
-        WorkflowDefinitionNodeRecord currentNode,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
-    {
-        if (!graph.OutgoingEdgesBySourceNodeId.TryGetValue(currentNode.NodeId, out var outgoingEdges)
-            || outgoingEdges.Count == 0)
-        {
-            return [];
-        }
-
-        if (string.Equals(currentNode.NodeType, "decision", StringComparison.OrdinalIgnoreCase))
-        {
-            var decisionTarget = ResolveDecisionTarget(graph, currentNode, answersByKey, out _);
-            return decisionTarget is null ? [] : [decisionTarget];
-        }
-
-        if (string.Equals(currentNode.NodeType, "parallel_split", StringComparison.OrdinalIgnoreCase))
-        {
-            return outgoingEdges
-                .Select(edge => graph.NodeById.GetValueOrDefault(edge.TargetNodeId))
-                .Where(node => node is not null)
-                .Cast<WorkflowDefinitionNodeRecord>()
-                .ToList();
-        }
-
-        if (outgoingEdges.Count != 1)
-        {
-            throw new InvalidOperationException(
-                $"Node '{currentNode.NodeKey}' uses {outgoingEdges.Count} outgoing edges, but only decision and parallel_split nodes may branch.");
-        }
-
-        var nextNode = graph.NodeById.GetValueOrDefault(outgoingEdges[0].TargetNodeId);
-        return nextNode is null ? [] : [nextNode];
     }
 
     private static async Task<bool> CanActivateRuntimeNode(
@@ -1543,39 +1496,6 @@ LIMIT 1;
         };
     }
 
-    private static WorkflowDefinitionSupervisorGatekeeperEvaluation EvaluateSupervisorGatekeeper(
-        WorkflowDefinitionGraphRecord graph,
-        string? primaryLegacyProcessTypeKey,
-        bool requiresSupervisorStep)
-    {
-        return WorkflowDefinitionSupervisorGatekeeperRules.Evaluate(
-            graph.Nodes.Select(node => new WorkflowDefinitionSupervisorGatekeeperNode
-            {
-                NodeKey = node.NodeKey,
-                NodeType = node.NodeType,
-                LegacyProcessTypeKey = TryGetNodeConfigString(node, "legacyProcessTypeKey")
-            }).ToList(),
-            graph.Edges.Select(edge => new WorkflowDefinitionSupervisorGatekeeperEdge
-            {
-                SourceNodeKey = graph.NodeById[edge.SourceNodeId].NodeKey,
-                TargetNodeKey = graph.NodeById[edge.TargetNodeId].NodeKey,
-                Priority = edge.Priority
-            }).ToList(),
-            primaryLegacyProcessTypeKey,
-            requiresSupervisorStep);
-    }
-
-    private static bool IsSupervisorGatekeeperNode(
-        WorkflowDefinitionGraphRecord graph,
-        string nodeKey,
-        string? primaryLegacyProcessTypeKey,
-        bool requiresSupervisorStep)
-    {
-        var evaluation = EvaluateSupervisorGatekeeper(graph, primaryLegacyProcessTypeKey, requiresSupervisorStep);
-        return evaluation.IsSatisfied
-            && string.Equals(evaluation.GatekeeperNodeKey, nodeKey, StringComparison.OrdinalIgnoreCase);
-    }
-
     private static async Task<WorkflowNodeExecutionRecord?> LoadActiveSupervisorGatekeeperNodeExecution(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -1584,7 +1504,7 @@ LIMIT 1;
         string? primaryLegacyProcessTypeKey,
         bool requiresSupervisorStep)
     {
-        var evaluation = EvaluateSupervisorGatekeeper(graph, primaryLegacyProcessTypeKey, requiresSupervisorStep);
+        var evaluation = WorkflowRuntimeEngine.EvaluateSupervisorGatekeeper(graph, primaryLegacyProcessTypeKey, requiresSupervisorStep);
         if (!evaluation.IsSatisfied || string.IsNullOrWhiteSpace(evaluation.GatekeeperNodeKey))
         {
             return null;
@@ -1833,8 +1753,8 @@ VALUES (
             return false;
         }
 
-        var gatekeeperProcessTypeKey = TryGetNodeConfigString(completedNode, "legacyProcessTypeKey");
-        if (!IsSupervisorGatekeeperNode(
+        var gatekeeperProcessTypeKey = WorkflowRuntimeEngine.TryGetNodeConfigString(completedNode, "legacyProcessTypeKey");
+        if (!WorkflowRuntimeEngine.IsSupervisorGatekeeperNode(
                 graph,
                 completedNode.NodeKey,
                 gatekeeperProcessTypeKey,
@@ -2167,109 +2087,6 @@ FOR UPDATE OF ni;
     {
         return !string.IsNullOrWhiteSpace(nodeType)
                && MeasureGenerationNodeTypes.Contains(nodeType.Trim(), StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static WorkflowDefinitionNodeRecord? ResolveDecisionTarget(
-        WorkflowDefinitionGraphRecord graph,
-        WorkflowDefinitionNodeRecord decisionNode,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
-        out WorkflowDefinitionEdgeRecord? selectedEdge)
-    {
-        selectedEdge = null;
-        if (!graph.OutgoingEdgesBySourceNodeId.TryGetValue(decisionNode.NodeId, out var outgoingEdges)
-            || outgoingEdges.Count == 0)
-        {
-            return null;
-        }
-
-        WorkflowDefinitionEdgeRecord? fallbackEdge = null;
-        foreach (var edge in outgoingEdges.OrderBy(edge => edge.Priority).ThenBy(edge => edge.EdgeId))
-        {
-            if (string.IsNullOrWhiteSpace(edge.ConditionExpression))
-            {
-                fallbackEdge ??= edge;
-                continue;
-            }
-
-            TaskTemplateConditionRecord condition;
-            try
-            {
-                condition = ParseDecisionCondition(edge.ConditionExpression);
-            }
-            catch (InvalidOperationException ex)
-            {
-                var sourceKey = graph.NodeById.TryGetValue(edge.SourceNodeId, out var src) ? src.NodeKey : edge.SourceNodeId.ToString();
-                var targetKey = graph.NodeById.TryGetValue(edge.TargetNodeId, out var tgt) ? tgt.NodeKey : edge.TargetNodeId.ToString();
-                throw new InvalidOperationException(
-                    $"Decision condition on edge '{sourceKey}' → '{targetKey}' is invalid: {ex.Message}", ex);
-            }
-
-            if (TaskConditionEvaluator.EvaluateCondition(condition, answersByKey))
-            {
-                selectedEdge = edge;
-                return graph.NodeById.GetValueOrDefault(edge.TargetNodeId);
-            }
-        }
-
-        if (fallbackEdge is not null)
-        {
-            selectedEdge = fallbackEdge;
-            return graph.NodeById.GetValueOrDefault(fallbackEdge.TargetNodeId);
-        }
-
-        return null;
-    }
-
-    private static TaskTemplateConditionRecord ParseDecisionCondition(string conditionExpression)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(conditionExpression);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                throw new InvalidOperationException("Decision condition must be a JSON object.");
-            }
-
-            if (!root.TryGetProperty("answerKey", out var answerKeyProperty)
-                || answerKeyProperty.ValueKind != JsonValueKind.String
-                || string.IsNullOrWhiteSpace(answerKeyProperty.GetString()))
-            {
-                throw new InvalidOperationException("Decision condition requires answerKey.");
-            }
-
-            if (!root.TryGetProperty("operator", out var operatorProperty)
-                || operatorProperty.ValueKind != JsonValueKind.String
-                || string.IsNullOrWhiteSpace(operatorProperty.GetString()))
-            {
-                throw new InvalidOperationException("Decision condition requires operator.");
-            }
-
-            return new TaskTemplateConditionRecord
-            {
-                TaskTemplateId = 0,
-                ConditionGroup = 0,
-                AnswerKey = answerKeyProperty.GetString()!.Trim(),
-                Operator = operatorProperty.GetString()!.Trim().ToLowerInvariant(),
-                ExpectedValueText = root.TryGetProperty("expectedValueText", out var expectedTextProperty)
-                    && expectedTextProperty.ValueKind == JsonValueKind.String
-                    ? expectedTextProperty.GetString()
-                    : null,
-                ExpectedValueBoolean = root.TryGetProperty("expectedValueBoolean", out var expectedBooleanProperty)
-                    && expectedBooleanProperty.ValueKind is JsonValueKind.True or JsonValueKind.False
-                    ? expectedBooleanProperty.GetBoolean()
-                    : null,
-                ExpectedValueNumber = root.TryGetProperty("expectedValueNumber", out var expectedNumberProperty)
-                    && expectedNumberProperty.ValueKind == JsonValueKind.Number
-                    && expectedNumberProperty.TryGetDecimal(out var expectedNumber)
-                        ? expectedNumber
-                        : null
-            };
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidOperationException($"Decision condition is not valid JSON: {ex.Message}", ex);
-        }
     }
 
     internal static async Task<RuntimeWorkflowHeaderRecord?> LoadRuntimeWorkflowHeader(
@@ -2672,41 +2489,6 @@ FOR UPDATE OF ni;
         }
     }
 
-    private static string GetRequiredNodeConfigString(WorkflowDefinitionNodeRecord node, string propertyName)
-    {
-        if (!node.Config.HasValue || node.Config.Value.ValueKind != JsonValueKind.Object)
-        {
-            throw new InvalidOperationException(
-                $"Node '{node.NodeKey}' requires config property '{propertyName}'.");
-        }
-
-        if (!node.Config.Value.TryGetProperty(propertyName, out var property)
-            || property.ValueKind != JsonValueKind.String
-            || string.IsNullOrWhiteSpace(property.GetString()))
-        {
-            throw new InvalidOperationException(
-                $"Node '{node.NodeKey}' requires config property '{propertyName}' as non-empty string.");
-        }
-
-        return property.GetString()!.Trim();
-    }
-
-    private static string? TryGetNodeConfigString(WorkflowDefinitionNodeRecord node, string propertyName)
-    {
-        if (!node.Config.HasValue || node.Config.Value.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        if (!node.Config.Value.TryGetProperty(propertyName, out var property)
-            || property.ValueKind != JsonValueKind.String
-            || string.IsNullOrWhiteSpace(property.GetString()))
-        {
-            return null;
-        }
-
-        return property.GetString()!.Trim();
-    }
 
     private static async Task DeleteWorkflowAnswersForProcessType(
         NpgsqlConnection connection,
@@ -2810,35 +2592,6 @@ WHERE id = @workflowId;
             reason);
     }
 
-    private static string MapLegacyStatusForActiveNodes(
-        WorkflowDefinitionGraphRecord graph,
-        IReadOnlyCollection<ActiveRuntimeNodeRecord> activeNodes,
-        string? primaryLegacyProcessTypeKey,
-        bool requiresSupervisorStep)
-    {
-        if (activeNodes.Any(node =>
-                IsSupervisorGatekeeperNode(
-                    graph,
-                    node.NodeKey,
-                    primaryLegacyProcessTypeKey,
-                    requiresSupervisorStep)))
-        {
-            return "waiting_for_supervisor";
-        }
-
-        if (activeNodes.Any(node => string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase)))
-        {
-            return "waiting_for_supervisor";
-        }
-
-        if (activeNodes.Any(node => string.Equals(node.NodeType, "task", StringComparison.OrdinalIgnoreCase)))
-        {
-            return "waiting_for_department";
-        }
-
-        return "in_progress";
-    }
-
     internal static string? CreateJsonbPayload(object? value)
     {
         return value is null ? null : JsonSerializer.Serialize(value);
@@ -2882,13 +2635,6 @@ WHERE id = @workflowId;
     {
         public required long Id { get; init; }
         public required string Status { get; init; }
-    }
-
-    private sealed class ActiveRuntimeNodeRecord
-    {
-        public required long NodeInstanceId { get; init; }
-        public required string NodeKey { get; init; }
-        public required string NodeType { get; init; }
     }
 
     private sealed class RuntimeWorkflowStatusContextRecord
