@@ -74,6 +74,43 @@ public sealed class WorkflowDefinitionNodeDto
     public int? PositionY { get; init; }
     public JsonElement? Config { get; init; }
     public List<WorkflowNodeActionDto> Actions { get; init; } = new();
+    // FE-9: Task-Specs reisen mit der Version-DTO. Vorher hingen Specs implizit
+    // am workflow_node_id der published Version; bei Versions-Wechseln gingen sie
+    // verloren. Jetzt: jede Version traegt ihre Specs explizit, EnsureWorkingDraft
+    // klont sie automatisch, Replace persistiert sie diff-basiert.
+    public List<WorkflowDefinitionNodeSpecDto> Specs { get; init; } = new();
+}
+
+public sealed class WorkflowDefinitionNodeSpecDto
+{
+    public string? SpecKey { get; init; }
+    public string? Title { get; init; }
+    public string? Category { get; init; }
+    public string? Description { get; init; }
+    public string? IconKey { get; init; }
+    public int? DefaultResponsibilityId { get; init; }
+    public string? ProcessAreaLabel { get; init; }
+    public bool IsDepartmentPhaseTask { get; init; }
+    public bool IsRequired { get; init; }
+    public int? DueInDays { get; init; }
+    public int SortOrder { get; init; }
+    public List<WorkflowDefinitionNodeSpecConditionDto> Conditions { get; init; } = new();
+    public List<WorkflowDefinitionNodeSpecDependencyDto> Dependencies { get; init; } = new();
+}
+
+public sealed class WorkflowDefinitionNodeSpecConditionDto
+{
+    public string? AnswerKey { get; init; }
+    public string? Operator { get; init; }
+    public string? ExpectedValueText { get; init; }
+    public bool? ExpectedValueBoolean { get; init; }
+    public decimal? ExpectedValueNumber { get; init; }
+}
+
+public sealed class WorkflowDefinitionNodeSpecDependencyDto
+{
+    // Same-node-only: zeigt auf einen anderen Spec-Key am SELBEN node
+    public string? DependsOnSpecKey { get; init; }
 }
 
 public sealed class WorkflowDefinitionEdgeDto

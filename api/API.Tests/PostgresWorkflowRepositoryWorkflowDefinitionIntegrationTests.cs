@@ -395,6 +395,148 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 
     [Fact]
     [Trait("Category", "Integration")]
+    public async Task EnsureAdminWorkflowDefinitionWorkingDraft_ClonesSpecsFromPublishedMeasureNode()
+    {
+        // FE-9 Regression: Specs hingen frueher am workflow_node_id der published Version.
+        // Bei EnsureAdminWorkflowDefinitionWorkingDraft wurden Nodes geklont, Specs aber nicht.
+        // Nach FE-9 reisen Specs in der Version-DTO mit, weshalb die Klon-Methode (ToDraftNode)
+        // sie automatisch ueberfuehrt. Test: published Version mit measure-Node + Specs anlegen,
+        // working draft erzeugen, asserten dass Specs am neuen measure-Node landen.
+        var connectionString = GetTestConnectionString();
+        if (!await EnsureWorkflowDefinitionMappingsAsync(connectionString))
+        {
+            return;
+        }
+
+        WorkflowDefinitionSummaryDto? definition = null;
+        var previousConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        Environment.SetEnvironmentVariable("CONNECTION_STRING", connectionString);
+
+        try
+        {
+            var repository = new PostgresWorkflowRepository();
+            var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+
+            definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
+            {
+                Name = $"Spec Carry Over {Guid.NewGuid():N}",
+                Description = "FE-9 spec carry-over integration test"
+            });
+
+            var initialVersionId = definition.Versions.Single().Id;
+
+            var measureNode = new WorkflowDefinitionNodeDto
+            {
+                NodeKey = "department_setup",
+                NodeType = "measure_provision",
+                Title = "Massnahmen",
+                SortOrder = 20,
+                Specs = new List<WorkflowDefinitionNodeSpecDto>
+                {
+                    new()
+                    {
+                        SpecKey = "spec_a",
+                        Title = "Spec A — Account anlegen",
+                        Category = "general",
+                        Description = "AD-Account fuer den neuen Mitarbeiter",
+                        IsDepartmentPhaseTask = true,
+                        IsRequired = true,
+                        DueInDays = 3,
+                        SortOrder = 0,
+                        Conditions = new List<WorkflowDefinitionNodeSpecConditionDto>
+                        {
+                            new()
+                            {
+                                AnswerKey = "needs_account",
+                                Operator = "is_true",
+                            }
+                        },
+                        Dependencies = new List<WorkflowDefinitionNodeSpecDependencyDto>(),
+                    },
+                    new()
+                    {
+                        SpecKey = "spec_b",
+                        Title = "Spec B — Schulung buchen",
+                        Category = "general",
+                        Description = "Onboarding-Schulung",
+                        IsDepartmentPhaseTask = true,
+                        IsRequired = false,
+                        SortOrder = 10,
+                        Conditions = new List<WorkflowDefinitionNodeSpecConditionDto>(),
+                        Dependencies = new List<WorkflowDefinitionNodeSpecDependencyDto>
+                        {
+                            new() { DependsOnSpecKey = "spec_a" },
+                        },
+                    },
+                }
+            };
+
+            var replacedVersion = await repository.ReplaceAdminWorkflowDefinitionVersion(
+                initialVersionId,
+                new ReplaceWorkflowDefinitionVersionRequest
+                {
+                    Name = "Published baseline",
+                    Description = "Baseline graph",
+                    Nodes =
+                    [
+                        WorkflowDefinitionTestData.FormNode("start", "start"),
+                        WorkflowDefinitionTestData.FormNode("collect_requirements", "form", """{"legacyProcessTypeKey":"onboarding"}""", 10),
+                        measureNode,
+                        WorkflowDefinitionTestData.FormNode("end", "end", null, 30)
+                    ],
+                    Edges =
+                    [
+                        WorkflowDefinitionTestData.Edge("start", "collect_requirements", 0),
+                        WorkflowDefinitionTestData.Edge("collect_requirements", "department_setup", 0),
+                        WorkflowDefinitionTestData.Edge("department_setup", "end", 0),
+                    ]
+                });
+
+            Assert.NotNull(replacedVersion);
+            var publishedMeasureNode = replacedVersion!.Nodes.Single(n => n.NodeKey == "department_setup");
+            Assert.Equal(2, publishedMeasureNode.Specs.Count);
+            Assert.Contains(publishedMeasureNode.Specs, s => s.SpecKey == "spec_a" && s.Conditions.Count == 1);
+            Assert.Contains(publishedMeasureNode.Specs, s => s.SpecKey == "spec_b" && s.Dependencies.Count == 1 && s.Dependencies[0].DependsOnSpecKey == "spec_a");
+
+            var publishedVersion = await runtimeRepository.PublishWorkflowDefinitionVersion(initialVersionId);
+            Assert.NotNull(publishedVersion);
+
+            var workingDraft = await repository.EnsureAdminWorkflowDefinitionWorkingDraft(definition.Id);
+
+            Assert.NotNull(workingDraft);
+            Assert.Equal("draft", workingDraft!.Status);
+            Assert.Equal(2, workingDraft.VersionNumber);
+
+            var draftMeasureNode = workingDraft.Nodes.Single(n => n.NodeKey == "department_setup");
+            Assert.Equal(2, draftMeasureNode.Specs.Count);
+
+            var draftSpecA = draftMeasureNode.Specs.Single(s => s.SpecKey == "spec_a");
+            Assert.Equal("Spec A — Account anlegen", draftSpecA.Title);
+            Assert.True(draftSpecA.IsRequired);
+            Assert.Equal(3, draftSpecA.DueInDays);
+            Assert.Single(draftSpecA.Conditions);
+            Assert.Equal("needs_account", draftSpecA.Conditions[0].AnswerKey);
+            Assert.Equal("is_true", draftSpecA.Conditions[0].Operator);
+            Assert.Empty(draftSpecA.Dependencies);
+
+            var draftSpecB = draftMeasureNode.Specs.Single(s => s.SpecKey == "spec_b");
+            Assert.False(draftSpecB.IsRequired);
+            Assert.Single(draftSpecB.Dependencies);
+            Assert.Equal("spec_a", draftSpecB.Dependencies[0].DependsOnSpecKey);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONNECTION_STRING", previousConnectionString);
+
+            if (definition is not null)
+            {
+                await CleanupWorkflowDefinitionAsync(connectionString, definition.Id);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
     public async Task DefinitionRuntime_SupervisorStepCompletesGatekeeperBeforeActivatingTasks()
     {
         var connectionString = GetTestConnectionString();

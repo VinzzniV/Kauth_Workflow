@@ -726,10 +726,162 @@ ORDER BY source_node.node_key, e.priority, target_node.node_key, e.id;
             }
         }
 
+        // FE-9: Specs + Conditions + Dependencies pro Node der Version laden.
+        await LoadNodeSpecsForVersion(connection, transaction, versionId, detail.Nodes);
+
         var validationSnapshot = await BuildWorkflowDefinitionValidationSnapshot(connection, transaction, detail, automation, validationService);
         detail.CanPublish = validationSnapshot.CanPublish;
         detail.ValidationIssues = MapValidationIssues(validationSnapshot.Issues);
         return detail;
+    }
+
+    // FE-9: Laed Specs aus workflow_node_task_specs (+ Conditions + Dependencies)
+    // pro Version und mappt sie auf die NodeDtos. 3 Queries — vermeidet N+1 ueber
+    // viele Nodes pro Version.
+    private static async Task LoadNodeSpecsForVersion(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        long versionId,
+        List<WorkflowDefinitionNodeDto> nodes)
+    {
+        if (nodes.Count == 0)
+        {
+            return;
+        }
+
+        var nodesByKey = nodes
+            .Where(n => !string.IsNullOrEmpty(n.NodeKey))
+            .GroupBy(n => n.NodeKey!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        // Spec-Id -> (NodeKey, SpecDto) zur Laufzeit, damit Conditions + Deps zugewiesen werden koennen
+        var specsByDbId = new Dictionary<long, WorkflowDefinitionNodeSpecDto>();
+
+        const string specSql = """
+SELECT
+    n.node_key,
+    s.id,
+    s.spec_key,
+    s.title,
+    s.category,
+    s.description,
+    s.icon_key,
+    s.default_responsibility_id,
+    s.process_area_label,
+    s.is_department_phase_task,
+    s.is_required,
+    s.due_in_days,
+    s.sort_order
+FROM workflow_node_task_specs s
+JOIN workflow_nodes n ON n.id = s.workflow_node_id
+WHERE n.workflow_definition_version_id = @versionId
+ORDER BY n.sort_order, n.node_key, s.sort_order, s.spec_key, s.id;
+""";
+
+        await using (var specCommand = new NpgsqlCommand(specSql, connection, transaction))
+        {
+            specCommand.Parameters.AddWithValue("versionId", versionId);
+            await using var reader = await specCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var nodeKey = reader.GetString(0);
+                if (!nodesByKey.TryGetValue(nodeKey, out var node))
+                {
+                    continue;
+                }
+
+                var dto = new WorkflowDefinitionNodeSpecDto
+                {
+                    SpecKey = reader.GetString(2),
+                    Title = reader.GetString(3),
+                    Category = reader.GetString(4),
+                    Description = reader.GetString(5),
+                    IconKey = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    DefaultResponsibilityId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                    ProcessAreaLabel = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    IsDepartmentPhaseTask = reader.GetBoolean(9),
+                    IsRequired = reader.GetBoolean(10),
+                    DueInDays = reader.IsDBNull(11) ? null : reader.GetInt32(11),
+                    SortOrder = reader.GetInt32(12),
+                    Conditions = new List<WorkflowDefinitionNodeSpecConditionDto>(),
+                    Dependencies = new List<WorkflowDefinitionNodeSpecDependencyDto>()
+                };
+                node.Specs.Add(dto);
+                specsByDbId[reader.GetInt64(1)] = dto;
+            }
+        }
+
+        if (specsByDbId.Count == 0)
+        {
+            return;
+        }
+
+        const string conditionSql = """
+SELECT
+    c.workflow_node_task_spec_id,
+    c.answer_key,
+    c.operator,
+    c.expected_value_text,
+    c.expected_value_boolean,
+    c.expected_value_number
+FROM workflow_node_task_spec_conditions c
+JOIN workflow_node_task_specs s ON s.id = c.workflow_node_task_spec_id
+JOIN workflow_nodes n ON n.id = s.workflow_node_id
+WHERE n.workflow_definition_version_id = @versionId
+ORDER BY c.workflow_node_task_spec_id, c.id;
+""";
+
+        await using (var conditionCommand = new NpgsqlCommand(conditionSql, connection, transaction))
+        {
+            conditionCommand.Parameters.AddWithValue("versionId", versionId);
+            await using var reader = await conditionCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var specDbId = reader.GetInt64(0);
+                if (!specsByDbId.TryGetValue(specDbId, out var specDto))
+                {
+                    continue;
+                }
+                specDto.Conditions.Add(new WorkflowDefinitionNodeSpecConditionDto
+                {
+                    AnswerKey = reader.GetString(1),
+                    Operator = reader.GetString(2),
+                    ExpectedValueText = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    ExpectedValueBoolean = reader.IsDBNull(4) ? null : reader.GetBoolean(4),
+                    ExpectedValueNumber = reader.IsDBNull(5) ? null : reader.GetDecimal(5),
+                });
+            }
+        }
+
+        const string dependencySql = """
+SELECT
+    d.workflow_node_task_spec_id,
+    src.spec_key AS depends_on_spec_key
+FROM workflow_node_task_spec_dependencies d
+JOIN workflow_node_task_specs src ON src.id = d.depends_on_workflow_node_task_spec_id
+JOIN workflow_node_task_specs dep ON dep.id = d.workflow_node_task_spec_id
+JOIN workflow_nodes n ON n.id = dep.workflow_node_id
+WHERE n.workflow_definition_version_id = @versionId
+ORDER BY d.workflow_node_task_spec_id, d.id;
+""";
+
+        await using (var dependencyCommand = new NpgsqlCommand(dependencySql, connection, transaction))
+        {
+            dependencyCommand.Parameters.AddWithValue("versionId", versionId);
+            await using var reader = await dependencyCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var specDbId = reader.GetInt64(0);
+                if (!specsByDbId.TryGetValue(specDbId, out var specDto))
+                {
+                    continue;
+                }
+                specDto.Dependencies.Add(new WorkflowDefinitionNodeSpecDependencyDto
+                {
+                    DependsOnSpecKey = reader.GetString(1),
+                });
+            }
+        }
     }
 
     private static WorkflowDefinitionVersionSummaryDto MapWorkflowDefinitionVersionSummary(

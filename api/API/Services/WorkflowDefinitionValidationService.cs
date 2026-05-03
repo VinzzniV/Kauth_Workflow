@@ -91,7 +91,8 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     PositionX = node.PositionX,
                     PositionY = node.PositionY,
                     Config = CloneConfig(node.Config),
-                    Actions = NormalizeNodeActions(node, errors, $"Node[{index}]")
+                    Actions = NormalizeNodeActions(node, errors, $"Node[{index}]"),
+                    Specs = NormalizeNodeSpecs(node, nodeType, errors, $"Node[{index}]")
                 }))
             {
                 errors.Add($"Duplicate node key '{nodeKey}'.");
@@ -190,7 +191,8 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     PositionX = node.PositionX,
                     PositionY = node.PositionY,
                     Config = CloneConfig(node.Config),
-                    Actions = NormalizeNodeActions(node, issues, $"Node[{index}]", nodeKey)
+                    Actions = NormalizeNodeActions(node, issues, $"Node[{index}]", nodeKey),
+                    Specs = NormalizeNodeSpecs(node, nodeType, issues, $"Node[{index}]", nodeKey)
                 }))
             {
                 issues.Add(CreateIssue(
@@ -1632,6 +1634,389 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
             .ToList();
     }
 
+    // FE-9: Specs normalisieren + validieren — Write-Pfad (errors-Liste, wirft InvalidOperationException am Ende).
+    // Validiert Spec-Key-Eindeutigkeit pro Node, Same-Node-Dependencies, gueltige Operatoren, Node-Typ-Compatibilitaet.
+    private static List<WorkflowDefinitionDraftNodeSpec> NormalizeNodeSpecs(
+        WorkflowDefinitionNodeDto node,
+        string nodeType,
+        List<string> errors,
+        string fieldPrefix)
+    {
+        var specs = node.Specs ?? [];
+        var canHaveSpecs = NodeTypeCanHaveSpecs(nodeType);
+        if (specs.Count > 0 && !canHaveSpecs)
+        {
+            errors.Add($"{fieldPrefix}: Node-Type '{nodeType}' darf keine Specs tragen.");
+            return new List<WorkflowDefinitionDraftNodeSpec>();
+        }
+
+        if (NodeTypeAllowsAtMostOneSpec(nodeType) && specs.Count > 1)
+        {
+            errors.Add($"{fieldPrefix}: Node-Type '{nodeType}' darf maximal 1 Spec haben (gefunden: {specs.Count}).");
+            return new List<WorkflowDefinitionDraftNodeSpec>();
+        }
+
+        var normalized = new List<WorkflowDefinitionDraftNodeSpec>(specs.Count);
+        var specKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < specs.Count; index += 1)
+        {
+            var spec = specs[index];
+            var specPrefix = $"{fieldPrefix}.specs[{index}]";
+            var specKey = NormalizeOptionalText(spec.SpecKey);
+            if (string.IsNullOrWhiteSpace(specKey))
+            {
+                errors.Add($"{specPrefix}.specKey is required.");
+                continue;
+            }
+            if (!specKeys.Add(specKey))
+            {
+                errors.Add($"{specPrefix}.specKey '{specKey}' ist innerhalb des Nodes nicht eindeutig.");
+                continue;
+            }
+
+            var title = NormalizeOptionalText(spec.Title);
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                errors.Add($"{specPrefix}.title is required.");
+                continue;
+            }
+
+            normalized.Add(new WorkflowDefinitionDraftNodeSpec
+            {
+                SpecKey = specKey,
+                Title = title,
+                Category = NormalizeOptionalText(spec.Category) ?? "general",
+                Description = NormalizeOptionalText(spec.Description) ?? string.Empty,
+                IconKey = NormalizeOptionalText(spec.IconKey),
+                DefaultResponsibilityId = spec.DefaultResponsibilityId,
+                ProcessAreaLabel = NormalizeOptionalText(spec.ProcessAreaLabel),
+                IsDepartmentPhaseTask = spec.IsDepartmentPhaseTask,
+                IsRequired = spec.IsRequired,
+                DueInDays = spec.DueInDays,
+                SortOrder = spec.SortOrder,
+                Conditions = NormalizeSpecConditions(spec, errors, specPrefix),
+                Dependencies = NormalizeSpecDependencies(spec, errors, specPrefix),
+            });
+        }
+
+        ValidateSpecDependenciesPointToSiblings(normalized, errors, fieldPrefix);
+
+        return normalized
+            .OrderBy(s => s.SortOrder)
+            .ThenBy(s => s.SpecKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    // FE-9: Read-Pfad — Issue-Liste statt errors. Verhalten parallel zur Write-Variante.
+    private static List<WorkflowDefinitionDraftNodeSpec> NormalizeNodeSpecs(
+        WorkflowDefinitionNodeDto node,
+        string nodeType,
+        List<WorkflowDefinitionValidationIssue> issues,
+        string fieldPrefix,
+        string nodeKey)
+    {
+        var specs = node.Specs ?? [];
+        var canHaveSpecs = NodeTypeCanHaveSpecs(nodeType);
+        if (specs.Count > 0 && !canHaveSpecs)
+        {
+            issues.Add(CreateIssue(
+                "specs_not_allowed_for_node_type",
+                $"{fieldPrefix}: Node-Type '{nodeType}' darf keine Specs tragen.",
+                "workflow_node",
+                nodeKey));
+            return new List<WorkflowDefinitionDraftNodeSpec>();
+        }
+
+        if (NodeTypeAllowsAtMostOneSpec(nodeType) && specs.Count > 1)
+        {
+            issues.Add(CreateIssue(
+                "too_many_specs_for_node_type",
+                $"{fieldPrefix}: Node-Type '{nodeType}' darf maximal 1 Spec haben (gefunden: {specs.Count}).",
+                "workflow_node",
+                nodeKey));
+            return new List<WorkflowDefinitionDraftNodeSpec>();
+        }
+
+        var normalized = new List<WorkflowDefinitionDraftNodeSpec>(specs.Count);
+        var specKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < specs.Count; index += 1)
+        {
+            var spec = specs[index];
+            var specKey = NormalizeOptionalText(spec.SpecKey);
+            if (string.IsNullOrWhiteSpace(specKey))
+            {
+                issues.Add(CreateIssue(
+                    "spec_key_missing",
+                    $"{fieldPrefix}.specs[{index}].specKey is required.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+            if (!specKeys.Add(specKey))
+            {
+                issues.Add(CreateIssue(
+                    "duplicate_spec_key",
+                    $"{fieldPrefix}.specs[{index}].specKey '{specKey}' ist innerhalb des Nodes nicht eindeutig.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+
+            var title = NormalizeOptionalText(spec.Title);
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                issues.Add(CreateIssue(
+                    "spec_title_missing",
+                    $"{fieldPrefix}.specs[{index}].title is required.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+
+            normalized.Add(new WorkflowDefinitionDraftNodeSpec
+            {
+                SpecKey = specKey,
+                Title = title,
+                Category = NormalizeOptionalText(spec.Category) ?? "general",
+                Description = NormalizeOptionalText(spec.Description) ?? string.Empty,
+                IconKey = NormalizeOptionalText(spec.IconKey),
+                DefaultResponsibilityId = spec.DefaultResponsibilityId,
+                ProcessAreaLabel = NormalizeOptionalText(spec.ProcessAreaLabel),
+                IsDepartmentPhaseTask = spec.IsDepartmentPhaseTask,
+                IsRequired = spec.IsRequired,
+                DueInDays = spec.DueInDays,
+                SortOrder = spec.SortOrder,
+                Conditions = NormalizeSpecConditionsForRead(spec, issues, $"{fieldPrefix}.specs[{index}]", nodeKey),
+                Dependencies = NormalizeSpecDependenciesForRead(spec, issues, $"{fieldPrefix}.specs[{index}]", nodeKey),
+            });
+        }
+
+        ValidateSpecDependenciesPointToSiblingsForRead(normalized, issues, fieldPrefix, nodeKey);
+
+        return normalized
+            .OrderBy(s => s.SortOrder)
+            .ThenBy(s => s.SpecKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool NodeTypeCanHaveSpecs(string nodeType) =>
+        nodeType.StartsWith("measure_", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(nodeType, "task", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(nodeType, "approval", StringComparison.OrdinalIgnoreCase);
+
+    private static bool NodeTypeAllowsAtMostOneSpec(string nodeType) =>
+        string.Equals(nodeType, "task", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(nodeType, "approval", StringComparison.OrdinalIgnoreCase);
+
+    private static readonly HashSet<string> AllowedSpecConditionOperators =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "eq", "neq", "is_true", "is_false", "is_null", "is_not_null"
+        };
+
+    private static List<WorkflowDefinitionDraftNodeSpecCondition> NormalizeSpecConditions(
+        WorkflowDefinitionNodeSpecDto spec,
+        List<string> errors,
+        string fieldPrefix)
+    {
+        var conditions = spec.Conditions ?? [];
+        var normalized = new List<WorkflowDefinitionDraftNodeSpecCondition>(conditions.Count);
+        for (var index = 0; index < conditions.Count; index += 1)
+        {
+            var c = conditions[index];
+            var answerKey = NormalizeOptionalText(c.AnswerKey);
+            var op = NormalizeOptionalText(c.Operator)?.ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(answerKey))
+            {
+                errors.Add($"{fieldPrefix}.conditions[{index}].answerKey is required.");
+                continue;
+            }
+            if (op is null || !AllowedSpecConditionOperators.Contains(op))
+            {
+                errors.Add($"{fieldPrefix}.conditions[{index}].operator '{c.Operator}' ist ungueltig.");
+                continue;
+            }
+            normalized.Add(new WorkflowDefinitionDraftNodeSpecCondition
+            {
+                AnswerKey = answerKey,
+                Operator = op,
+                ExpectedValueText = NormalizeOptionalText(c.ExpectedValueText),
+                ExpectedValueBoolean = c.ExpectedValueBoolean,
+                ExpectedValueNumber = c.ExpectedValueNumber,
+            });
+        }
+        return normalized;
+    }
+
+    private static List<WorkflowDefinitionDraftNodeSpecCondition> NormalizeSpecConditionsForRead(
+        WorkflowDefinitionNodeSpecDto spec,
+        List<WorkflowDefinitionValidationIssue> issues,
+        string fieldPrefix,
+        string nodeKey)
+    {
+        var conditions = spec.Conditions ?? [];
+        var normalized = new List<WorkflowDefinitionDraftNodeSpecCondition>(conditions.Count);
+        for (var index = 0; index < conditions.Count; index += 1)
+        {
+            var c = conditions[index];
+            var answerKey = NormalizeOptionalText(c.AnswerKey);
+            var op = NormalizeOptionalText(c.Operator)?.ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(answerKey))
+            {
+                issues.Add(CreateIssue(
+                    "spec_condition_answer_key_missing",
+                    $"{fieldPrefix}.conditions[{index}].answerKey is required.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+            if (op is null || !AllowedSpecConditionOperators.Contains(op))
+            {
+                issues.Add(CreateIssue(
+                    "spec_condition_operator_invalid",
+                    $"{fieldPrefix}.conditions[{index}].operator '{c.Operator}' ist ungueltig.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+            normalized.Add(new WorkflowDefinitionDraftNodeSpecCondition
+            {
+                AnswerKey = answerKey,
+                Operator = op,
+                ExpectedValueText = NormalizeOptionalText(c.ExpectedValueText),
+                ExpectedValueBoolean = c.ExpectedValueBoolean,
+                ExpectedValueNumber = c.ExpectedValueNumber,
+            });
+        }
+        return normalized;
+    }
+
+    private static List<WorkflowDefinitionDraftNodeSpecDependency> NormalizeSpecDependencies(
+        WorkflowDefinitionNodeSpecDto spec,
+        List<string> errors,
+        string fieldPrefix)
+    {
+        var dependencies = spec.Dependencies ?? [];
+        var normalized = new List<WorkflowDefinitionDraftNodeSpecDependency>(dependencies.Count);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < dependencies.Count; index += 1)
+        {
+            var dep = dependencies[index];
+            var dependsOn = NormalizeOptionalText(dep.DependsOnSpecKey);
+            if (string.IsNullOrWhiteSpace(dependsOn))
+            {
+                errors.Add($"{fieldPrefix}.dependencies[{index}].dependsOnSpecKey is required.");
+                continue;
+            }
+            if (string.Equals(dependsOn, spec.SpecKey, StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add($"{fieldPrefix}.dependencies[{index}]: Spec '{spec.SpecKey}' darf nicht von sich selbst abhaengen.");
+                continue;
+            }
+            if (!seen.Add(dependsOn))
+            {
+                errors.Add($"{fieldPrefix}.dependencies[{index}]: Doppelte Abhaengigkeit auf '{dependsOn}'.");
+                continue;
+            }
+            normalized.Add(new WorkflowDefinitionDraftNodeSpecDependency
+            {
+                DependsOnSpecKey = dependsOn,
+            });
+        }
+        return normalized;
+    }
+
+    private static List<WorkflowDefinitionDraftNodeSpecDependency> NormalizeSpecDependenciesForRead(
+        WorkflowDefinitionNodeSpecDto spec,
+        List<WorkflowDefinitionValidationIssue> issues,
+        string fieldPrefix,
+        string nodeKey)
+    {
+        var dependencies = spec.Dependencies ?? [];
+        var normalized = new List<WorkflowDefinitionDraftNodeSpecDependency>(dependencies.Count);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < dependencies.Count; index += 1)
+        {
+            var dep = dependencies[index];
+            var dependsOn = NormalizeOptionalText(dep.DependsOnSpecKey);
+            if (string.IsNullOrWhiteSpace(dependsOn))
+            {
+                issues.Add(CreateIssue(
+                    "spec_dependency_target_missing",
+                    $"{fieldPrefix}.dependencies[{index}].dependsOnSpecKey is required.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+            if (string.Equals(dependsOn, spec.SpecKey, StringComparison.OrdinalIgnoreCase))
+            {
+                issues.Add(CreateIssue(
+                    "spec_dependency_self_loop",
+                    $"{fieldPrefix}.dependencies[{index}]: Spec '{spec.SpecKey}' darf nicht von sich selbst abhaengen.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+            if (!seen.Add(dependsOn))
+            {
+                issues.Add(CreateIssue(
+                    "spec_dependency_duplicate",
+                    $"{fieldPrefix}.dependencies[{index}]: Doppelte Abhaengigkeit auf '{dependsOn}'.",
+                    "workflow_node",
+                    nodeKey));
+                continue;
+            }
+            normalized.Add(new WorkflowDefinitionDraftNodeSpecDependency
+            {
+                DependsOnSpecKey = dependsOn,
+            });
+        }
+        return normalized;
+    }
+
+    private static void ValidateSpecDependenciesPointToSiblings(
+        IReadOnlyList<WorkflowDefinitionDraftNodeSpec> specs,
+        List<string> errors,
+        string fieldPrefix)
+    {
+        var siblingKeys = new HashSet<string>(specs.Select(s => s.SpecKey), StringComparer.OrdinalIgnoreCase);
+        foreach (var spec in specs)
+        {
+            foreach (var dep in spec.Dependencies)
+            {
+                if (!siblingKeys.Contains(dep.DependsOnSpecKey))
+                {
+                    errors.Add($"{fieldPrefix}: Spec '{spec.SpecKey}' haengt von '{dep.DependsOnSpecKey}' ab, aber dieser Spec existiert nicht am selben Node.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateSpecDependenciesPointToSiblingsForRead(
+        IReadOnlyList<WorkflowDefinitionDraftNodeSpec> specs,
+        List<WorkflowDefinitionValidationIssue> issues,
+        string fieldPrefix,
+        string nodeKey)
+    {
+        var siblingKeys = new HashSet<string>(specs.Select(s => s.SpecKey), StringComparer.OrdinalIgnoreCase);
+        foreach (var spec in specs)
+        {
+            foreach (var dep in spec.Dependencies)
+            {
+                if (!siblingKeys.Contains(dep.DependsOnSpecKey))
+                {
+                    issues.Add(CreateIssue(
+                        "spec_dependency_target_missing",
+                        $"{fieldPrefix}: Spec '{spec.SpecKey}' haengt von '{dep.DependsOnSpecKey}' ab, aber dieser Spec existiert nicht am selben Node.",
+                        "workflow_node",
+                        nodeKey));
+                }
+            }
+        }
+    }
+
     private static string? TryGetNodeConfigValue(WorkflowDefinitionDraftNode node, string propertyName)
     {
         if (!node.Config.HasValue || node.Config.Value.ValueKind != JsonValueKind.Object)
@@ -1693,6 +2078,40 @@ internal sealed class WorkflowDefinitionDraftNode
     public int? PositionY { get; init; }
     public JsonElement? Config { get; init; }
     public required List<WorkflowDefinitionDraftNodeAction> Actions { get; init; }
+    // FE-9: Specs reisen mit der Version. Bei `task`/`approval`-Nodes 0..1, bei
+    // `measure_*` 0..N. Andere Node-Typen sollten leer bleiben (Validation).
+    public required List<WorkflowDefinitionDraftNodeSpec> Specs { get; init; }
+}
+
+internal sealed class WorkflowDefinitionDraftNodeSpec
+{
+    public required string SpecKey { get; init; }
+    public required string Title { get; init; }
+    public required string Category { get; init; }
+    public required string Description { get; init; }
+    public string? IconKey { get; init; }
+    public int? DefaultResponsibilityId { get; init; }
+    public string? ProcessAreaLabel { get; init; }
+    public bool IsDepartmentPhaseTask { get; init; }
+    public bool IsRequired { get; init; }
+    public int? DueInDays { get; init; }
+    public int SortOrder { get; init; }
+    public required List<WorkflowDefinitionDraftNodeSpecCondition> Conditions { get; init; }
+    public required List<WorkflowDefinitionDraftNodeSpecDependency> Dependencies { get; init; }
+}
+
+internal sealed class WorkflowDefinitionDraftNodeSpecCondition
+{
+    public required string AnswerKey { get; init; }
+    public required string Operator { get; init; }
+    public string? ExpectedValueText { get; init; }
+    public bool? ExpectedValueBoolean { get; init; }
+    public decimal? ExpectedValueNumber { get; init; }
+}
+
+internal sealed class WorkflowDefinitionDraftNodeSpecDependency
+{
+    public required string DependsOnSpecKey { get; init; }
 }
 
 internal sealed class WorkflowDefinitionDraftEdge

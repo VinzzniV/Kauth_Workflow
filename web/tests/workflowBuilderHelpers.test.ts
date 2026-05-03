@@ -59,7 +59,7 @@ function makeNode(
     positionX: null,
     positionY: null,
     configText: "",
-    actions: [],
+    actions: [], specs: [],
   };
 }
 

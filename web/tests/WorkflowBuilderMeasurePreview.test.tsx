@@ -55,7 +55,7 @@ function makeNode(nodeType: WorkflowBuilderNodeDraft["nodeType"]): WorkflowBuild
     positionX: null,
     positionY: null,
     configText: "",
-    actions: [],
+    actions: [], specs: [],
   };
 }
 

@@ -1,7 +1,8 @@
 # FE-9 — Spec-Carry-Over zwischen Definition-Versionen (Architekturskizze)
 
-**Status:** Entwurf zur Abnahme — Vorbedingung fuer FE-9 (FRONTEND_TODO.md)
+**Status:** ✅ ERLEDIGT (2026-05-03) — Option B umgesetzt. Specs reisen jetzt mit der Version-DTO.
 **Datum:** 2026-05-03
+**Implementierung:** Commit-Range siehe FRONTEND_TODO FE-DONE-7
 **Hintergrund:** LA5 hat Specs vom globalen `task_templates`-Cluster auf `workflow_node_task_specs.workflow_node_id` umgezogen. Specs haengen jetzt am Massnahmen-Node der **published** Version. Die Konsequenz wurde im LA5-Plan als Watch-Item festgehalten: "Wenn Admin per Builder eine neue Definition-Version published, werden Specs aktuell **nicht automatisch** vom alten zum neuen Massnahmen-Node geklont."
 
 Dieses Dokument fixiert die Befunde, beschreibt drei Optionen und schlaegt eine Empfehlung vor. Implementierung beginnt erst nach expliziter Freigabe.
@@ -310,4 +311,32 @@ Sobald die separate AdminTaskTemplate-Editor-Sektion abgeschafft werden soll (pa
 
 ## 8. Naechster Schritt
 
-Diese Skizze wartet auf Freigabe (Option A / B / C / D). Nach Entscheidung wird das Slicing in `TODO.md` als FE9-A..F eingetragen und implementiert.
+~~Diese Skizze wartet auf Freigabe (Option A / B / C / D).~~ — **Option B wurde gewaehlt und umgesetzt am 2026-05-03.**
+
+## 9. Was tatsaechlich umgesetzt wurde (Option B)
+
+**Backend:**
+- `WorkflowDefinitionNodeDto.Specs` (+ Sub-Types `Spec`, `SpecCondition`, `SpecDependency`) als Teil der Version-DTO.
+- `WorkflowDefinitionDraftNode.Specs` als interne Validation-Repraesentation.
+- `WorkflowDefinitionValidationService`: 6 neue Validierungsregeln — Specs-Allowed-per-Node-Type, Spec-Key-Uniqueness, Sibling-Dependencies, Self-Loop-Verbot, At-Most-One-Spec fuer task/approval, Operator-Whitelist.
+- `GetAdminWorkflowDefinitionVersionDetailById`: laedt Specs + Conditions + Dependencies in 3 Querys (kein N+1).
+- `PersistWorkflowDefinitionVersionGraph`: persistiert Specs nach Nodes in 3 Phasen (Spec-Insert mit ID-Tracking → Conditions → Dependencies).
+- `EnsureAdminWorkflowDefinitionWorkingDraft`: klont Specs **automatisch** (via `ToDraftNode → Persist`), keine Sondermethode noetig — der vorherige Plan-Kommentar (`ClonePreviousVersionTaskSpecs`) wurde durch erklaerenden Kommentar ersetzt.
+
+**Frontend:**
+- `AdminWorkflowDefinitionNode.specs` + Sub-Types in `types/auth.ts`.
+- `WorkflowBuilderNodeDraft.specs` im Builder-Modell.
+- `toVersionDraft` / `buildVersionReplacePayload` round-trippen Specs transparent — Builder editiert sie noch nicht inline, behaelt sie aber bei.
+- `replaceAdminWorkflowDefinitionVersion`-Service-DTO um Spec-Felder erweitert.
+
+**Tests:**
+- Backend: 6 neue Validation-Tests + 1 neuer Integration-Test (`EnsureAdminWorkflowDefinitionWorkingDraft_ClonesSpecsFromPublishedMeasureNode`) — 384/385 passing (1 long-skipped LA5-Test).
+- Frontend: 2 neue Round-Trip-Tests in `adminWorkflowBuilderModel.test.ts` — 205 passing.
+
+## 10. Was bewusst NICHT umgesetzt wurde
+
+- **AdminTaskTemplate-Editor wurde NICHT versions-aware.** Er pflegt Specs weiterhin via separate `/admin/config/task-templates/...`-Endpoints, die auf die `latest published` Version's measure-Node schreiben (`ResolveMeasureNodeIdForDefinition`). Das ist OK fuer Pre-Prod (genau eine published Version pro Definition). Der **Cross-Version-Leak** aus §1.6 bleibt latent: editiert ein Admin Specs **waehrend** ein Builder-Draft offen ist, landen die Aenderungen in der Live-Version, nicht im Draft. Das wird relevant, sobald produktive Pilot-Use-Cases parallele Builder-Drafts und Spec-Edits triggern.
+- **Builder-Inline-Edit-UI fuer Specs.** Der Builder zeigt Specs nicht als editierbare Liste — Pflege passiert weiter im AdminTaskTemplate-Editor. Wenn der Use-Case "Specs im Builder bearbeiten" konkret wird, ist das ein additiver Schritt — Datenmodell ist bereits dafuer da.
+- **Stale-Detection.** Wenn der Builder eine Version laed, der Admin parallel im AdminTaskTemplate-Editor Specs aendert und der Builder dann saved, wird die alte Spec-Liste re-gespeichert (= Spec-Edit-Verlust). Pre-Prod-akzeptabel; bei Bedarf Stale-Check ueber `updatedAt` nachruesten.
+
+Folge-Watch-Items in `FRONTEND_TODO.md` und `MEMORY.md` dokumentiert.

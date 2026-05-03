@@ -597,6 +597,216 @@ public sealed class WorkflowDefinitionValidationServiceTests
         Assert.Contains(snapshot.Issues, issue => issue.Code == "measure_flow_process_type_mismatch");
     }
 
+    // FE-9: Spec-Validierung am Write-Pfad. Specs reisen jetzt im DTO mit;
+    // Validation muss Eindeutigkeit, Sibling-Dependencies und Node-Type-Compat pruefen.
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsSpecsOnNonSpecNodeType()
+    {
+        var formNodeWithSpecs = new WorkflowDefinitionNodeDto
+        {
+            NodeKey = "form",
+            NodeType = "form",
+            SortOrder = 10,
+            Config = JsonDocument.Parse("""{"legacyProcessTypeKey":"onboarding"}""").RootElement.Clone(),
+            Specs = new List<WorkflowDefinitionNodeSpecDto>
+            {
+                new() { SpecKey = "should_not_be_here", Title = "Spec on form" }
+            }
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes = [CreateNode("Start", "start"), formNodeWithSpecs, CreateNode("End", "end", sortOrder: 20)],
+            Edges = [CreateEdge("Start", "form", 0), CreateEdge("form", "End", 0)]
+        }));
+
+        Assert.Contains("'form' darf keine Specs", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsDuplicateSpecKeyOnSameNode()
+    {
+        var measureNode = new WorkflowDefinitionNodeDto
+        {
+            NodeKey = "measure",
+            NodeType = "measure_provision",
+            SortOrder = 10,
+            Specs = new List<WorkflowDefinitionNodeSpecDto>
+            {
+                new() { SpecKey = "dup", Title = "First" },
+                new() { SpecKey = "dup", Title = "Second" },
+            }
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                measureNode,
+                CreateNode("End", "end", sortOrder: 20)
+            ],
+            Edges = [CreateEdge("Start", "Form", 0), CreateEdge("Form", "measure", 0), CreateEdge("measure", "End", 0)]
+        }));
+
+        Assert.Contains("'dup' ist innerhalb des Nodes nicht eindeutig", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsSpecDependencyOnNonSibling()
+    {
+        var measureNode = new WorkflowDefinitionNodeDto
+        {
+            NodeKey = "measure",
+            NodeType = "measure_provision",
+            SortOrder = 10,
+            Specs = new List<WorkflowDefinitionNodeSpecDto>
+            {
+                new()
+                {
+                    SpecKey = "spec_a",
+                    Title = "Spec A",
+                    Dependencies = new List<WorkflowDefinitionNodeSpecDependencyDto>
+                    {
+                        new() { DependsOnSpecKey = "ghost_sibling" }
+                    }
+                }
+            }
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                measureNode,
+                CreateNode("End", "end", sortOrder: 20)
+            ],
+            Edges = [CreateEdge("Start", "Form", 0), CreateEdge("Form", "measure", 0), CreateEdge("measure", "End", 0)]
+        }));
+
+        Assert.Contains("'ghost_sibling'", ex.Message);
+        Assert.Contains("nicht am selben Node", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsSpecSelfDependency()
+    {
+        var measureNode = new WorkflowDefinitionNodeDto
+        {
+            NodeKey = "measure",
+            NodeType = "measure_provision",
+            SortOrder = 10,
+            Specs = new List<WorkflowDefinitionNodeSpecDto>
+            {
+                new()
+                {
+                    SpecKey = "spec_a",
+                    Title = "Spec A",
+                    Dependencies = new List<WorkflowDefinitionNodeSpecDependencyDto>
+                    {
+                        new() { DependsOnSpecKey = "spec_a" }
+                    }
+                }
+            }
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                measureNode,
+                CreateNode("End", "end", sortOrder: 20)
+            ],
+            Edges = [CreateEdge("Start", "Form", 0), CreateEdge("Form", "measure", 0), CreateEdge("measure", "End", 0)]
+        }));
+
+        Assert.Contains("darf nicht von sich selbst abhaengen", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsTaskNodeWithMultipleSpecs()
+    {
+        var taskNode = new WorkflowDefinitionNodeDto
+        {
+            NodeKey = "task1",
+            NodeType = "task",
+            SortOrder = 10,
+            Specs = new List<WorkflowDefinitionNodeSpecDto>
+            {
+                new() { SpecKey = "first", Title = "First" },
+                new() { SpecKey = "second", Title = "Second" },
+            }
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                taskNode,
+                CreateNode("End", "end", sortOrder: 20)
+            ],
+            Edges = [CreateEdge("Start", "task1", 0), CreateEdge("task1", "End", 0)]
+        }));
+
+        Assert.Contains("'task' darf maximal 1 Spec haben", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_AcceptsValidMeasureNodeSpecs()
+    {
+        var measureNode = new WorkflowDefinitionNodeDto
+        {
+            NodeKey = "measure",
+            NodeType = "measure_provision",
+            SortOrder = 10,
+            Specs = new List<WorkflowDefinitionNodeSpecDto>
+            {
+                new()
+                {
+                    SpecKey = "spec_a",
+                    Title = "Spec A",
+                    Conditions = new List<WorkflowDefinitionNodeSpecConditionDto>
+                    {
+                        new() { AnswerKey = "needs_a", Operator = "is_true" }
+                    }
+                },
+                new()
+                {
+                    SpecKey = "spec_b",
+                    Title = "Spec B",
+                    Dependencies = new List<WorkflowDefinitionNodeSpecDependencyDto>
+                    {
+                        new() { DependsOnSpecKey = "spec_a" }
+                    }
+                },
+            }
+        };
+
+        var result = _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                measureNode,
+                CreateNode("End", "end", sortOrder: 20)
+            ],
+            Edges = [CreateEdge("Start", "Form", 0), CreateEdge("Form", "measure", 0), CreateEdge("measure", "End", 0)]
+        });
+
+        var measureDraft = result.Nodes.Single(n => n.NodeKey == "measure");
+        Assert.Equal(2, measureDraft.Specs.Count);
+        Assert.Single(measureDraft.Specs.Single(s => s.SpecKey == "spec_a").Conditions);
+        Assert.Single(measureDraft.Specs.Single(s => s.SpecKey == "spec_b").Dependencies);
+    }
+
     private static WorkflowDefinitionNodeDto CreateNode(
         string nodeKey,
         string nodeType,

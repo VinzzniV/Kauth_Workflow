@@ -43,9 +43,11 @@ internal sealed partial class PostgresWorkflowRepository
                 }
             }
 
-            // LA5: task/approval-Nodes referenzieren Specs ueber workflow_node_task_specs.workflow_node_id
-            // (statt frueher per legacyTemplateKey-String). Spec-Existenz wird beim Persistieren der
-            // Version sichergestellt (siehe ClonePreviousVersionTaskSpecs in PersistWorkflowDefinitionVersionGraph).
+            // LA5 + FE-9: task/approval-Nodes referenzieren Specs ueber workflow_node_task_specs.workflow_node_id
+            // (statt frueher per legacyTemplateKey-String). Specs reisen seit FE-9 mit der Version-DTO und werden
+            // in PersistWorkflowDefinitionVersionGraph persistiert. Der frueher in einem Plan-Kommentar referenzierte
+            // ClonePreviousVersionTaskSpecs-Helper ist nicht mehr noetig — EnsureAdminWorkflowDefinitionWorkingDraft
+            // klont Specs automatisch via ToDraftNode -> Persist.
 
             if (string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
             {
@@ -125,6 +127,9 @@ internal sealed partial class PostgresWorkflowRepository
         return property.GetString()!.Trim().ToLowerInvariant();
     }
 
+    // FE-9: Konvertiert eine NodeDto in eine DraftNode-Struktur fuer Persistierung.
+    // Wird von EnsureAdminWorkflowDefinitionWorkingDraft genutzt — dadurch klonen
+    // Specs jetzt automatisch von source -> draft, ohne Sondermethoden.
     private static WorkflowDefinitionDraftNode ToDraftNode(WorkflowDefinitionNodeDto node)
     {
         return new WorkflowDefinitionDraftNode
@@ -143,6 +148,38 @@ internal sealed partial class PostgresWorkflowRepository
                     ExecutionOrder = action.ExecutionOrder,
                     OnErrorBehavior = NormalizeWorkflowDefinitionOptionalText(action.OnErrorBehavior)?.ToLowerInvariant() ?? "fail_workflow",
                     InputMapping = action.InputMapping?.Clone()
+                })
+                .ToList(),
+            Specs = (node.Specs ?? [])
+                .Select(spec => new WorkflowDefinitionDraftNodeSpec
+                {
+                    SpecKey = spec.SpecKey ?? string.Empty,
+                    Title = spec.Title ?? string.Empty,
+                    Category = spec.Category ?? "general",
+                    Description = spec.Description ?? string.Empty,
+                    IconKey = NormalizeWorkflowDefinitionOptionalText(spec.IconKey),
+                    DefaultResponsibilityId = spec.DefaultResponsibilityId,
+                    ProcessAreaLabel = NormalizeWorkflowDefinitionOptionalText(spec.ProcessAreaLabel),
+                    IsDepartmentPhaseTask = spec.IsDepartmentPhaseTask,
+                    IsRequired = spec.IsRequired,
+                    DueInDays = spec.DueInDays,
+                    SortOrder = spec.SortOrder,
+                    Conditions = (spec.Conditions ?? [])
+                        .Select(c => new WorkflowDefinitionDraftNodeSpecCondition
+                        {
+                            AnswerKey = c.AnswerKey ?? string.Empty,
+                            Operator = c.Operator ?? string.Empty,
+                            ExpectedValueText = NormalizeWorkflowDefinitionOptionalText(c.ExpectedValueText),
+                            ExpectedValueBoolean = c.ExpectedValueBoolean,
+                            ExpectedValueNumber = c.ExpectedValueNumber,
+                        })
+                        .ToList(),
+                    Dependencies = (spec.Dependencies ?? [])
+                        .Select(d => new WorkflowDefinitionDraftNodeSpecDependency
+                        {
+                            DependsOnSpecKey = d.DependsOnSpecKey ?? string.Empty,
+                        })
+                        .ToList(),
                 })
                 .ToList()
         };
@@ -288,6 +325,153 @@ VALUES (
                 insertActionCommand.Parameters.AddWithValue("executionOrder", action.ExecutionOrder);
                 insertActionCommand.Parameters.AddWithValue("onErrorBehavior", action.OnErrorBehavior);
                 await insertActionCommand.ExecuteNonQueryAsync();
+            }
+        }
+
+        // FE-9: Specs (+ Conditions + Dependencies) pro Node persistieren.
+        // Reihenfolge: erst alle Specs aller Nodes anlegen (Sammeln der neuen IDs),
+        // dann Conditions, dann Dependencies (mit Spec-Key-Lookup auf NEUE IDs).
+        // Composite-FK auf workflow_node_task_specs (id, workflow_node_id) erzwingt
+        // Same-Node-Scope; Validation hat das vorher schon gepruft.
+        var specIdByNodeAndKey = new Dictionary<(long NodeId, string SpecKey), long>();
+
+        const string insertSpecSql = """
+INSERT INTO workflow_node_task_specs (
+    workflow_node_id,
+    spec_key,
+    title,
+    category,
+    description,
+    icon_key,
+    default_responsibility_id,
+    process_area_label,
+    is_department_phase_task,
+    is_required,
+    due_in_days,
+    sort_order
+)
+VALUES (
+    @workflowNodeId,
+    @specKey,
+    @title,
+    @category,
+    @description,
+    @iconKey,
+    @defaultResponsibilityId,
+    @processAreaLabel,
+    @isDepartmentPhaseTask,
+    @isRequired,
+    @dueInDays,
+    @sortOrder
+)
+RETURNING id;
+""";
+
+        foreach (var node in nodes)
+        {
+            if (node.Specs.Count == 0)
+            {
+                continue;
+            }
+
+            var workflowNodeId = nodeIdByKey[node.NodeKey];
+            foreach (var spec in node.Specs)
+            {
+                await using var insertSpecCommand = new NpgsqlCommand(insertSpecSql, connection, transaction);
+                insertSpecCommand.Parameters.AddWithValue("workflowNodeId", workflowNodeId);
+                insertSpecCommand.Parameters.AddWithValue("specKey", spec.SpecKey);
+                insertSpecCommand.Parameters.AddWithValue("title", spec.Title);
+                insertSpecCommand.Parameters.AddWithValue("category", spec.Category);
+                insertSpecCommand.Parameters.AddWithValue("description", spec.Description);
+                insertSpecCommand.Parameters.AddWithValue("iconKey", PostgresRepositorySharedHelpers.NormalizeAdminTaskTemplateIconKey(spec.IconKey));
+                insertSpecCommand.Parameters.AddWithValue("defaultResponsibilityId", (object?)spec.DefaultResponsibilityId ?? DBNull.Value);
+                insertSpecCommand.Parameters.AddWithValue("processAreaLabel", (object?)spec.ProcessAreaLabel ?? DBNull.Value);
+                insertSpecCommand.Parameters.AddWithValue("isDepartmentPhaseTask", spec.IsDepartmentPhaseTask);
+                insertSpecCommand.Parameters.AddWithValue("isRequired", spec.IsRequired);
+                insertSpecCommand.Parameters.AddWithValue("dueInDays", (object?)spec.DueInDays ?? DBNull.Value);
+                insertSpecCommand.Parameters.AddWithValue("sortOrder", spec.SortOrder);
+
+                var specIdResult = await insertSpecCommand.ExecuteScalarAsync();
+                if (specIdResult is not long specDbId)
+                {
+                    throw new InvalidOperationException($"Spec '{spec.SpecKey}' for node '{node.NodeKey}' could not be created.");
+                }
+
+                specIdByNodeAndKey.Add((workflowNodeId, spec.SpecKey), specDbId);
+            }
+        }
+
+        const string insertConditionSql = """
+INSERT INTO workflow_node_task_spec_conditions (
+    workflow_node_task_spec_id,
+    answer_key,
+    operator,
+    expected_value_text,
+    expected_value_boolean,
+    expected_value_number
+)
+VALUES (
+    @workflowNodeTaskSpecId,
+    @answerKey,
+    @operator,
+    @expectedValueText,
+    @expectedValueBoolean,
+    @expectedValueNumber
+);
+""";
+
+        const string insertDependencySql = """
+INSERT INTO workflow_node_task_spec_dependencies (
+    workflow_node_task_spec_id,
+    depends_on_workflow_node_task_spec_id,
+    workflow_node_id
+)
+VALUES (
+    @workflowNodeTaskSpecId,
+    @dependsOnWorkflowNodeTaskSpecId,
+    @workflowNodeId
+);
+""";
+
+        foreach (var node in nodes)
+        {
+            if (node.Specs.Count == 0)
+            {
+                continue;
+            }
+
+            var workflowNodeId = nodeIdByKey[node.NodeKey];
+            foreach (var spec in node.Specs)
+            {
+                var specDbId = specIdByNodeAndKey[(workflowNodeId, spec.SpecKey)];
+
+                foreach (var condition in spec.Conditions)
+                {
+                    await using var insertConditionCommand = new NpgsqlCommand(insertConditionSql, connection, transaction);
+                    insertConditionCommand.Parameters.AddWithValue("workflowNodeTaskSpecId", specDbId);
+                    insertConditionCommand.Parameters.AddWithValue("answerKey", condition.AnswerKey);
+                    insertConditionCommand.Parameters.AddWithValue("operator", condition.Operator);
+                    insertConditionCommand.Parameters.AddWithValue("expectedValueText", (object?)condition.ExpectedValueText ?? DBNull.Value);
+                    insertConditionCommand.Parameters.AddWithValue("expectedValueBoolean", (object?)condition.ExpectedValueBoolean ?? DBNull.Value);
+                    insertConditionCommand.Parameters.AddWithValue("expectedValueNumber", (object?)condition.ExpectedValueNumber ?? DBNull.Value);
+                    await insertConditionCommand.ExecuteNonQueryAsync();
+                }
+
+                foreach (var dependency in spec.Dependencies)
+                {
+                    if (!specIdByNodeAndKey.TryGetValue((workflowNodeId, dependency.DependsOnSpecKey), out var dependsOnSpecDbId))
+                    {
+                        // Validation hat das eigentlich schon abgefangen — hier defensiv.
+                        throw new InvalidOperationException(
+                            $"Spec '{spec.SpecKey}' for node '{node.NodeKey}' depends on '{dependency.DependsOnSpecKey}' which is not a sibling spec.");
+                    }
+
+                    await using var insertDependencyCommand = new NpgsqlCommand(insertDependencySql, connection, transaction);
+                    insertDependencyCommand.Parameters.AddWithValue("workflowNodeTaskSpecId", specDbId);
+                    insertDependencyCommand.Parameters.AddWithValue("dependsOnWorkflowNodeTaskSpecId", dependsOnSpecDbId);
+                    insertDependencyCommand.Parameters.AddWithValue("workflowNodeId", workflowNodeId);
+                    await insertDependencyCommand.ExecuteNonQueryAsync();
+                }
             }
         }
 

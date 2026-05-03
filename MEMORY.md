@@ -26,7 +26,8 @@ Verwende sie nur fuer:
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
 - Permission-Schema ist seit Slice 6.3d-iv vollstaendig definitionsgetrieben (`workflows.create.<definition_key>`). Responsibility `hr_onboarding` wurde 2026-05-01 zu `hr_workflow_initiator` umbenannt (Slice 7B).
 - DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432`.
-- LA5 done (2026-05-03): Task-Specs liegen jetzt am `workflow_node_id` der published Version. AdminTaskTemplate-DTO behaelt Form (Frontend-Rename auf `Spec*` ist Watch-Item, ~22 Files). `workflow_definitions.approval_task_template_key` heisst nominell noch `_template_key` — Naming-Cleanup defer. Wenn echte Versions-Wechsel ueber den Builder passieren: Spec-Carry-Over zwischen Versionen ist noch nicht implementiert (siehe Legacy-Abbau-Plan LA5 Watch-Items).
+- LA5 done (2026-05-03): Task-Specs liegen am `workflow_node_id`. AdminTaskTemplate-DTO behaelt Form (Frontend-Rename auf `Spec*` ist Watch-Item, ~22 Files). `workflow_definitions.approval_task_template_key` heisst nominell noch `_template_key` — Naming-Cleanup defer.
+- FE-9 done (2026-05-03): Spec-Carry-Over zwischen Definition-Versionen ist umgesetzt. Specs reisen jetzt als Pflichtfeld in `WorkflowDefinitionNodeDto.Specs` — `EnsureAdminWorkflowDefinitionWorkingDraft` klont Specs automatisch via DTO, `PersistWorkflowDefinitionVersionGraph` schreibt sie atomar. AdminTaskTemplate-Editor schreibt weiterhin auf die latest published Version — Cross-Version-Leak (Edits waehrend offenem Draft leaken in Live) bleibt Watch-Item bis zum ersten Pilotkunden-Use-Case (FE-11/13 in `FRONTEND_TODO.md`).
 
 ## Temporary Notes
 

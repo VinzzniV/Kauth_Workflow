@@ -1,6 +1,9 @@
 import type {
   AdminWorkflowDefinitionEdge,
   AdminWorkflowDefinitionNode,
+  AdminWorkflowDefinitionNodeSpec,
+  AdminWorkflowDefinitionNodeSpecCondition,
+  AdminWorkflowDefinitionNodeSpecDependency,
   AdminWorkflowDefinitionSummary,
   AdminWorkflowDefinitionVersionDetail,
   AdminWorkflowDefinitionVersionSummary,
@@ -30,6 +33,11 @@ export type WorkflowBuilderNodeDraft = {
   positionY: number | null;
   configText: string;
   actions: WorkflowBuilderActionDraft[];
+  // FE-9: Specs reisen mit der Version. Builder editiert sie noch nicht inline,
+  // muss sie aber durch Save round-trippen, sonst werden sie beim Replace
+  // ueber die DELETE/CASCADE-Logik geloescht. Pflege passiert (vorerst) im
+  // AdminTaskTemplate-Editor. Bei UI-Inline-Edit wird dieses Feld aufgeruestet.
+  specs: AdminWorkflowDefinitionNodeSpec[];
 };
 
 export type WorkflowBuilderActionDraft = {
@@ -152,6 +160,7 @@ export function createEmptyNodeDraft(
     positionY: null,
     configText: "",
     actions: [],
+    specs: [],
   };
 }
 
@@ -200,6 +209,9 @@ function toNodeDraft(
     positionY: node.positionY ?? null,
     configText: toJsonText(node.config),
     actions: node.actions.map(toActionDraft),
+    // FE-9: Specs durchreichen (frueher fehlte das, weshalb Replace die Specs geloescht haette).
+    // Defensive []-Default, falls Backend ein altes (Pre-FE-9) Detail-DTO liefert.
+    specs: node.specs ?? [],
   };
 }
 
@@ -347,6 +359,10 @@ export function buildVersionReplacePayload(draft: WorkflowBuilderVersionDraft) {
             onErrorBehavior: action.onErrorBehavior,
           }))
         : [],
+      // FE-9: Specs werden am Save mitgeschickt — sonst loescht der Backend-Replace
+      // (DELETE FROM workflow_nodes -> CASCADE) sie. Builder editiert sie noch nicht
+      // inline, aber Round-Trip muss funktionieren.
+      specs: node.specs.map(toSpecPayload),
     })),
     edges: draft.edges.map((edge, index) => ({
       sourceNodeKey: toNullableText(edge.sourceNodeKey),
@@ -354,6 +370,40 @@ export function buildVersionReplacePayload(draft: WorkflowBuilderVersionDraft) {
       priority: toPositiveInteger(edge.priority, index + 1),
       conditionExpression: toNullableText(edge.conditionExpression),
     })),
+  };
+}
+
+function toSpecPayload(spec: AdminWorkflowDefinitionNodeSpec) {
+  return {
+    specKey: spec.specKey,
+    title: spec.title,
+    category: spec.category,
+    description: spec.description,
+    iconKey: spec.iconKey,
+    defaultResponsibilityId: spec.defaultResponsibilityId,
+    processAreaLabel: spec.processAreaLabel,
+    isDepartmentPhaseTask: spec.isDepartmentPhaseTask,
+    isRequired: spec.isRequired,
+    dueInDays: spec.dueInDays,
+    sortOrder: spec.sortOrder,
+    conditions: spec.conditions.map(toSpecConditionPayload),
+    dependencies: spec.dependencies.map(toSpecDependencyPayload),
+  };
+}
+
+function toSpecConditionPayload(condition: AdminWorkflowDefinitionNodeSpecCondition) {
+  return {
+    answerKey: condition.answerKey,
+    operator: condition.operator,
+    expectedValueText: condition.expectedValueText,
+    expectedValueBoolean: condition.expectedValueBoolean,
+    expectedValueNumber: condition.expectedValueNumber,
+  };
+}
+
+function toSpecDependencyPayload(dependency: AdminWorkflowDefinitionNodeSpecDependency) {
+  return {
+    dependsOnSpecKey: dependency.dependsOnSpecKey,
   };
 }
 

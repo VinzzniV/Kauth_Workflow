@@ -500,6 +500,38 @@ export type AdminWorkflowDefinitionNode = {
   positionY: number | null;
   config: Record<string, unknown> | null;
   actions: AdminWorkflowNodeAction[];
+  // FE-9: Task-Specs reisen mit der Version. Bei measure_*-Nodes 0..N, bei
+  // task/approval 0..1. Builder editiert sie (noch) nicht inline, muss sie
+  // aber durch Save round-trippen, sonst werden sie beim Replace geloescht.
+  specs: AdminWorkflowDefinitionNodeSpec[];
+};
+
+export type AdminWorkflowDefinitionNodeSpec = {
+  specKey: string;
+  title: string;
+  category: string;
+  description: string;
+  iconKey: string | null;
+  defaultResponsibilityId: number | null;
+  processAreaLabel: string | null;
+  isDepartmentPhaseTask: boolean;
+  isRequired: boolean;
+  dueInDays: number | null;
+  sortOrder: number;
+  conditions: AdminWorkflowDefinitionNodeSpecCondition[];
+  dependencies: AdminWorkflowDefinitionNodeSpecDependency[];
+};
+
+export type AdminWorkflowDefinitionNodeSpecCondition = {
+  answerKey: string;
+  operator: "eq" | "neq" | "is_true" | "is_false" | "is_null" | "is_not_null";
+  expectedValueText: string | null;
+  expectedValueBoolean: boolean | null;
+  expectedValueNumber: number | null;
+};
+
+export type AdminWorkflowDefinitionNodeSpecDependency = {
+  dependsOnSpecKey: string;
 };
 
 export type AdminWorkflowDefinitionEdge = {

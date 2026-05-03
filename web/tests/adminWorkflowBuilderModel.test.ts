@@ -22,7 +22,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 120,
           positionY: 80,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
       ],
       edges: [],
@@ -32,12 +32,138 @@ describe("adminWorkflowBuilderModel", () => {
     expect(payload.nodes[0]?.positionY).toBe(80);
   });
 
+  // FE-9: Specs MUESSEN durch buildVersionReplacePayload round-trippen, sonst loescht
+  // der Backend-Replace via DELETE/CASCADE alle existierenden Specs.
+  it("round-trips specs (with conditions and dependencies) through the replace payload", () => {
+    const payload = buildVersionReplacePayload({
+      name: "Draft",
+      description: "",
+      primaryLegacyProcessTypeKey: "onboarding",
+      nodes: [
+        {
+          id: "node_measure",
+          nodeKey: "measure",
+          nodeType: "measure_provision",
+          title: "Massnahmen",
+          sortOrder: "1",
+          positionX: null,
+          positionY: null,
+          configText: "",
+          actions: [],
+          specs: [
+            {
+              specKey: "spec_a",
+              title: "Spec A",
+              category: "general",
+              description: "Description A",
+              iconKey: "berechtigungen",
+              defaultResponsibilityId: 1,
+              processAreaLabel: "IT",
+              isDepartmentPhaseTask: true,
+              isRequired: true,
+              dueInDays: 5,
+              sortOrder: 0,
+              conditions: [
+                {
+                  answerKey: "needs_account",
+                  operator: "is_true",
+                  expectedValueText: null,
+                  expectedValueBoolean: null,
+                  expectedValueNumber: null,
+                },
+              ],
+              dependencies: [],
+            },
+            {
+              specKey: "spec_b",
+              title: "Spec B",
+              category: "general",
+              description: "Description B",
+              iconKey: null,
+              defaultResponsibilityId: null,
+              processAreaLabel: null,
+              isDepartmentPhaseTask: true,
+              isRequired: false,
+              dueInDays: null,
+              sortOrder: 1,
+              conditions: [],
+              dependencies: [{ dependsOnSpecKey: "spec_a" }],
+            },
+          ],
+        },
+      ],
+      edges: [],
+    });
+
+    expect(payload.nodes[0]?.specs).toHaveLength(2);
+    const specA = payload.nodes[0]?.specs?.find((s) => s.specKey === "spec_a");
+    expect(specA?.title).toBe("Spec A");
+    expect(specA?.conditions).toHaveLength(1);
+    expect(specA?.conditions?.[0]?.answerKey).toBe("needs_account");
+    expect(specA?.conditions?.[0]?.operator).toBe("is_true");
+    const specB = payload.nodes[0]?.specs?.find((s) => s.specKey === "spec_b");
+    expect(specB?.dependencies).toHaveLength(1);
+    expect(specB?.dependencies?.[0]?.dependsOnSpecKey).toBe("spec_a");
+  });
+
+  it("toVersionDraft mapps specs from version detail (with [] default for legacy detail without specs)", () => {
+    const draft = toVersionDraft({
+      id: 1,
+      workflowDefinitionId: 1,
+      definitionKey: "onboarding",
+      definitionName: "Onboarding",
+      definitionDescription: null,
+      versionNumber: 1,
+      status: "draft",
+      name: "Draft",
+      description: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      publishedAt: null,
+      canPublish: false,
+      validationIssues: [],
+      nodes: [
+        {
+          nodeKey: "measure",
+          nodeType: "measure_provision",
+          title: null,
+          sortOrder: 0,
+          positionX: null,
+          positionY: null,
+          config: null,
+          actions: [],
+          specs: [
+            {
+              specKey: "spec_a",
+              title: "Spec A",
+              category: "general",
+              description: "",
+              iconKey: null,
+              defaultResponsibilityId: null,
+              processAreaLabel: null,
+              isDepartmentPhaseTask: true,
+              isRequired: true,
+              dueInDays: null,
+              sortOrder: 0,
+              conditions: [],
+              dependencies: [],
+            },
+          ],
+        },
+      ],
+      edges: [],
+    });
+
+    expect(draft.nodes[0]?.specs).toHaveLength(1);
+    expect(draft.nodes[0]?.specs[0]?.specKey).toBe("spec_a");
+  });
+
   it("orders nodes topologically based on edges", () => {
     const ordered = topologicallyOrderNodes(
       [
-        { id: "n_end", nodeKey: "end", nodeType: "end", title: "End", sortOrder: "3", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_task", nodeKey: "task", nodeType: "task", title: "Task", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_start", nodeKey: "start", nodeType: "start", title: "Start", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [] },
+        { id: "n_end", nodeKey: "end", nodeType: "end", title: "End", sortOrder: "3", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_task", nodeKey: "task", nodeType: "task", title: "Task", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_start", nodeKey: "start", nodeType: "start", title: "Start", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
       ],
       [
         { id: "e1", sourceNodeKey: "start", targetNodeKey: "task", priority: "1", conditionExpression: "" },
@@ -51,8 +177,8 @@ describe("adminWorkflowBuilderModel", () => {
   it("handles cycles by appending unsorted nodes at end", () => {
     const ordered = topologicallyOrderNodes(
       [
-        { id: "n_a", nodeKey: "a", nodeType: "task", title: "A", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_b", nodeKey: "b", nodeType: "task", title: "B", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [] },
+        { id: "n_a", nodeKey: "a", nodeType: "task", title: "A", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_b", nodeKey: "b", nodeType: "task", title: "B", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
       ],
       [
         { id: "e1", sourceNodeKey: "a", targetNodeKey: "b", priority: "1", conditionExpression: "" },
@@ -66,8 +192,8 @@ describe("adminWorkflowBuilderModel", () => {
   it("ignores edges with self-loops", () => {
     const ordered = topologicallyOrderNodes(
       [
-        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_a", nodeKey: "a", nodeType: "task", title: "A", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [] },
+        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_a", nodeKey: "a", nodeType: "task", title: "A", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
       ],
       [
         { id: "e1", sourceNodeKey: "start", targetNodeKey: "a", priority: "1", conditionExpression: "" },
@@ -80,8 +206,8 @@ describe("adminWorkflowBuilderModel", () => {
   it("ignores edges with unknown source/target node keys", () => {
     const ordered = topologicallyOrderNodes(
       [
-        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_end", nodeKey: "end", nodeType: "end", title: "E", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [] },
+        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_end", nodeKey: "end", nodeType: "end", title: "E", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
       ],
       [
         { id: "e1", sourceNodeKey: "ghost", targetNodeKey: "end", priority: "1", conditionExpression: "" },
@@ -94,8 +220,8 @@ describe("adminWorkflowBuilderModel", () => {
   it("handles nodes without nodeKey by appending in array order", () => {
     const ordered = topologicallyOrderNodes(
       [
-        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_blank", nodeKey: "", nodeType: "task", title: "X", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [] },
+        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_blank", nodeKey: "", nodeType: "task", title: "X", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
       ],
       []
     );
@@ -105,10 +231,10 @@ describe("adminWorkflowBuilderModel", () => {
   it("uses array index as tie-breaker for parallel paths", () => {
     const ordered = topologicallyOrderNodes(
       [
-        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_a", nodeKey: "a", nodeType: "task", title: "A", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_b", nodeKey: "b", nodeType: "task", title: "B", sortOrder: "3", positionX: null, positionY: null, configText: "", actions: [] },
-        { id: "n_end", nodeKey: "end", nodeType: "end", title: "E", sortOrder: "4", positionX: null, positionY: null, configText: "", actions: [] },
+        { id: "n_start", nodeKey: "start", nodeType: "start", title: "S", sortOrder: "1", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_a", nodeKey: "a", nodeType: "task", title: "A", sortOrder: "2", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_b", nodeKey: "b", nodeType: "task", title: "B", sortOrder: "3", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
+        { id: "n_end", nodeKey: "end", nodeType: "end", title: "E", sortOrder: "4", positionX: null, positionY: null, configText: "", actions: [], specs: [] },
       ],
       [
         { id: "e1", sourceNodeKey: "start", targetNodeKey: "a", priority: "1", conditionExpression: "" },
@@ -137,7 +263,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "node_end",
@@ -148,7 +274,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 320,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
       ],
       edges: [
@@ -197,7 +323,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 160,
           positionY: 90,
           config: null,
-          actions: [],
+          actions: [], specs: [],
         },
       ],
       edges: [],
@@ -232,7 +358,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: null,
           positionY: null,
           config: null,
-          actions: [],
+          actions: [], specs: [],
         },
         {
           nodeKey: "join",
@@ -242,7 +368,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: null,
           positionY: null,
           config: null,
-          actions: [],
+          actions: [], specs: [],
         },
       ],
       edges: [],
@@ -271,7 +397,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "split",
@@ -282,7 +408,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "join",
@@ -293,7 +419,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "end",
@@ -304,7 +430,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
       ],
       edges: [
@@ -343,7 +469,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "form",
@@ -354,7 +480,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "{\"legacyProcessTypeKey\":\"onboarding\"}",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "task",
@@ -365,7 +491,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "{\"legacyTemplateKey\":\"collect_equipment\"}",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "setup",
@@ -376,7 +502,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "end",
@@ -387,7 +513,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
       ],
       edges: [
@@ -427,7 +553,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "form",
@@ -438,7 +564,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "{\"legacyProcessTypeKey\":\"role_change\"}",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "measure",
@@ -449,7 +575,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
         {
           id: "end",
@@ -460,7 +586,7 @@ describe("adminWorkflowBuilderModel", () => {
           positionX: 0,
           positionY: 0,
           configText: "",
-          actions: [],
+          actions: [], specs: [],
         },
       ],
       edges: [

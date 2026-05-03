@@ -412,6 +412,32 @@ export async function replaceAdminWorkflowDefinitionVersion(
         executionOrder: number;
         onErrorBehavior: string | null;
       }>;
+      // FE-9: Specs reisen mit der Version-DTO. Builder serialisiert sie immer
+      // (ggf. leeres Array). Ohne dieses Feld wuerden Specs beim Replace via
+      // CASCADE-Delete verschwinden.
+      specs: Array<{
+        specKey: string;
+        title: string;
+        category: string;
+        description: string;
+        iconKey: string | null;
+        defaultResponsibilityId: number | null;
+        processAreaLabel: string | null;
+        isDepartmentPhaseTask: boolean;
+        isRequired: boolean;
+        dueInDays: number | null;
+        sortOrder: number;
+        conditions: Array<{
+          answerKey: string;
+          operator: "eq" | "neq" | "is_true" | "is_false" | "is_null" | "is_not_null";
+          expectedValueText: string | null;
+          expectedValueBoolean: boolean | null;
+          expectedValueNumber: number | null;
+        }>;
+        dependencies: Array<{
+          dependsOnSpecKey: string;
+        }>;
+      }>;
     }>;
     edges: Array<{
       sourceNodeKey: string | null;
