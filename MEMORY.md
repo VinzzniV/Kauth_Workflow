@@ -15,19 +15,17 @@ Verwende sie nur fuer:
 
 ## Current Focus
 
-- `DOCS_CONTROL.md` ist wieder der zentrale Einstieg fuer KI-Arbeit im Repo.
-- Nach dem Lesen der Pflichtdokumente muss pro Aufgabe mitgedacht werden, welche Doku im selben Arbeitsgang aktualisiert werden muss.
-- Der Lifecycle-/Mitarbeiter-Schnitt ist jetzt personenzentriert: neue Onboardings legen zuerst einen kanonischen `people`-Datensatz an, starten danach den Workflow mit `targetPersonId` und halten Workflow-Felder nur noch als Snapshot.
-- Mail-Vorlagen und Mail-Preview sind jetzt im Admin-Bereich pflegbar; fachliche Namen duerfen in Benachrichtigungen nicht aus technischen Versionsnamen abgeleitet werden.
-- Die Anforderungsmaske nutzt im Edit-Modus Kartenlogik fuer Boolean-Felder; `hardware_takeover_details` erfasst uebernommene Hardware bei `hardware_available = true`.
+- **Schritt 7 (Runtime ↔ Task-System) ist aktiv.** Architektur-Skizze + Slice 0 Inventur done (2026-05-03). Option B (Engine als pure Domain-Service, analog H6) angenommen. Q1–Q5 entschieden; Q6 (rekursiver Loop-Pfad) offen vor Slice 1. Skizze: `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`.
+- Slice 1 (Engine-Extraktion, ~3–5 d, opus) ist gated auf Q6-Entscheidung + lokale Postgres-DB.
+- `DOCS_CONTROL.md` bleibt zentraler Einstieg; pro Aufgabe mitdenken, welche Doku im selben Arbeitsgang aktualisiert wird.
 
 ## Active Risks / Watchouts
 
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
-- Permission-Schema ist seit Slice 6.3d-iv vollstaendig definitionsgetrieben (`workflows.create.<definition_key>`). Responsibility `hr_onboarding` wurde 2026-05-01 zu `hr_workflow_initiator` umbenannt (Slice 7B).
-- DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432`.
-- LA5 done (2026-05-03): Task-Specs liegen am `workflow_node_id`. AdminTaskTemplate-DTO behaelt Form (Frontend-Rename auf `Spec*` ist Watch-Item, ~22 Files). `workflow_definitions.approval_task_template_key` heisst nominell noch `_template_key` — Naming-Cleanup defer.
-- FE-9 done (2026-05-03): Spec-Carry-Over zwischen Definition-Versionen ist umgesetzt. Specs reisen jetzt als Pflichtfeld in `WorkflowDefinitionNodeDto.Specs` — `EnsureAdminWorkflowDefinitionWorkingDraft` klont Specs automatisch via DTO, `PersistWorkflowDefinitionVersionGraph` schreibt sie atomar. AdminTaskTemplate-Editor schreibt weiterhin auf die latest published Version — Cross-Version-Leak (Edits waehrend offenem Draft leaken in Live) bleibt Watch-Item bis zum ersten Pilotkunden-Use-Case (FE-11/13 in `FRONTEND_TODO.md`).
+- DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432` — relevant fuer Slice 1 (Verhaltens-Paritaets-Beweis).
+- Permission-Schema ist seit Slice 6.3d-iv vollstaendig definitionsgetrieben (`workflows.create.<definition_key>`).
+- LA5 done: Task-Specs liegen am `workflow_node_id`. `workflow_definitions.approval_task_template_key` heisst nominell noch `_template_key` — Naming-Cleanup als FE-8 backlog.
+- FE-9 done: Spec-Carry-Over via `WorkflowDefinitionNodeDto.Specs`. AdminTaskTemplate-Editor schreibt weiter auf published Version — Cross-Version-Leak bleibt Watch-Item (FE-11/13).
 
 ## Temporary Notes
 

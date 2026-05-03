@@ -43,7 +43,7 @@ Primärquelle im Repo: `PROJECT_CONTEXT.md`
 | 4 | Definition Layer einführen | ✓ teilweise |
 | 5 | Runtime parallel einführen | in Arbeit |
 | 6 | Bestehende Workflows mappen | ✓ für Kern-3 |
-| 7 | Task-System an Node-Runtime anbinden | offen |
+| 7 | Task-System an Node-Runtime anbinden | in Arbeit (Skizze + Slice 0 Inventur done 2026-05-03; Slice 1 + 2 pending) |
 | 8 | Generische Validierung einführen | ✓ erledigt (CLA-4, DAG-Erreichbarkeitscheck + Publish-Guard) |
 | 9 | Automation Layer bauen | Basis da, echte Handler fehlen |
 | 10 | Guided Builder ausbauen | Basis da |
