@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDepartments, useRoles } from "../services/queries/roleQueries";
-import { useStartableWorkflowDefinitions } from "../services/queries/processTypeQueries";
+import { useStartableWorkflowDefinitions } from "../services/queries/workflowDefinitionQueries";
 import { usePeopleSearch } from "../services/queries/peopleQueries";
 import { useWorkflowConfig } from "../services/queries/workflowQueries";
 import type {
@@ -182,22 +182,22 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
 
   const workflowConfigQuery = useWorkflowConfig(
     effectiveRoleIdForConfig,
-    selectedWorkflowDefinition?.primaryLegacyProcessTypeKey ?? null,
-    Boolean(selectedWorkflowDefinition?.primaryLegacyProcessTypeKey)
+    selectedWorkflowDefinition?.definitionKey ?? null,
+    Boolean(selectedWorkflowDefinition?.definitionKey)
   );
   const workflowConfig = useMemo<WorkflowConfig | null>(
     () =>
-      selectedWorkflowDefinition?.primaryLegacyProcessTypeKey
+      selectedWorkflowDefinition?.definitionKey
         ? workflowConfigQuery.data ?? null
         : null,
-    [selectedWorkflowDefinition?.primaryLegacyProcessTypeKey, workflowConfigQuery.data]
+    [selectedWorkflowDefinition?.definitionKey, workflowConfigQuery.data]
   );
   const workflowConfigLoading =
-    Boolean(selectedWorkflowDefinition?.primaryLegacyProcessTypeKey) && workflowConfigQuery.isFetching;
+    Boolean(selectedWorkflowDefinition?.definitionKey) && workflowConfigQuery.isFetching;
   const workflowConfigError =
-    selectedWorkflowDefinition?.primaryLegacyProcessTypeKey && workflowConfigQuery.error instanceof Error
+    selectedWorkflowDefinition?.definitionKey && workflowConfigQuery.error instanceof Error
       ? workflowConfigQuery.error.message
-      : selectedWorkflowDefinition?.primaryLegacyProcessTypeKey && workflowConfigQuery.error
+      : selectedWorkflowDefinition?.definitionKey && workflowConfigQuery.error
         ? "Workflow-Konfiguration konnte nicht geladen werden."
         : null;
   const {
@@ -209,7 +209,6 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
     submitWorkflow,
   } = useWorkflowCreationSubmission({
     selectedWorkflowDefinitionKey,
-    selectedLegacyProcessTypeKey: selectedWorkflowDefinition?.primaryLegacyProcessTypeKey ?? null,
     selectedWorkflowDefinition,
     requiresTargetPerson,
     selectedDepartmentId,

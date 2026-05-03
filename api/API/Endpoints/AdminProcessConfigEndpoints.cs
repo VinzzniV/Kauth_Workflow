@@ -9,92 +9,8 @@ internal static class AdminProcessConfigEndpoints
 {
     public static IEndpointRouteBuilder MapAdminProcessConfigEndpoints(this IEndpointRouteBuilder app)
     {
-        // Prozesstyp-Verwaltung
-        app.MapGet("/admin/config/process-types", async (
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            return Results.Ok(await repository.GetAdminProcessTypes());
-        }).Produces<List<AdminProcessTypeDto>>(StatusCodes.Status200OK)
-          .Produces(StatusCodes.Status403Forbidden)
-          .Produces(StatusCodes.Status401Unauthorized);
-
-        app.MapPatch("/admin/config/process-types/{processTypeId:int}", async (
-            int processTypeId,
-            [FromBody] AdminProcessTypeUpdateRequest request,
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            try
-            {
-                var result = await repository.UpdateProcessType(processTypeId, request);
-                if (result is null)
-                {
-                    return Results.NotFound(new { message = "Process type not found." });
-                }
-
-                return Results.Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(new { message = ex.Message });
-            }
-        }).Produces<AdminProcessTypeDto>(StatusCodes.Status200OK)
-          .Produces(StatusCodes.Status400BadRequest)
-          .Produces(StatusCodes.Status404NotFound)
-          .Produces(StatusCodes.Status403Forbidden)
-          .Produces(StatusCodes.Status401Unauthorized);
-
-        app.MapGet("/admin/config/process-types/{processTypeId:int}/dependency-graph", async (
-            int processTypeId,
-            IWorkflowRepository repository,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanManageAdminConfiguration,
-                "Admin role is required.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            try
-            {
-                return Results.Ok(await repository.GetAdminDependencyGraph(processTypeId));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.BadRequest(new { message = ex.Message });
-            }
-        }).Produces<AdminDependencyGraphDto>(StatusCodes.Status200OK)
-          .Produces(StatusCodes.Status400BadRequest)
-          .Produces(StatusCodes.Status403Forbidden)
-          .Produces(StatusCodes.Status401Unauthorized);
-
         app.MapGet("/admin/config/task-templates", async (
-            [FromQuery] int processTypeId,
+            [FromQuery] int workflowDefinitionId,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -110,7 +26,7 @@ internal static class AdminProcessConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminTaskTemplates(processTypeId));
+                return Results.Ok(await repository.GetAdminTaskTemplates(workflowDefinitionId));
             }
             catch (InvalidOperationException ex)
             {

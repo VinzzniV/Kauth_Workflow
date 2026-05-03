@@ -56,7 +56,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
                     },
                     actorUserId);
 
-                var assignmentEntries = (await repository.GetWorkflowAuditLog(workflow.WorkflowUid, 10, 0))
+                var assignmentEntries = (await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(workflow.WorkflowUid, 10, 0))
                     .Where(entry => entry.EventType == "task_assigned")
                     .Take(2)
                     .ToList();
@@ -101,7 +101,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
             {
                 await repository.AddTaskComment(taskId, "  Audit-Kommentar  ", actorUserId);
 
-                var commentEntry = (await repository.GetWorkflowAuditLog(workflow.WorkflowUid, 10, 0))
+                var commentEntry = (await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(workflow.WorkflowUid, 10, 0))
                     .Single(entry => entry.EventType == "task_comment_added");
 
                 Assert.Equal("Audit-Kommentar", commentEntry.Detail);
@@ -144,10 +144,10 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
             await WithRepositoryConnectionStringAsync(connectionString, async repository =>
             {
-                var allEntries = await repository.GetWorkflowAuditLog(workflow.WorkflowUid, 3, 0);
+                var allEntries = await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(workflow.WorkflowUid, 3, 0);
                 Assert.Equal(new[] { "B", "A", "C" }, allEntries.Select(entry => entry.Detail).ToArray());
 
-                var pagedEntries = await repository.GetWorkflowAuditLog(workflow.WorkflowUid, 2, 1);
+                var pagedEntries = await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(workflow.WorkflowUid, 2, 1);
                 Assert.Equal(new[] { "A", "C" }, pagedEntries.Select(entry => entry.Detail).ToArray());
             });
         }
@@ -180,7 +180,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
                 try
                 {
-                    var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
+                    var tasksGeneratedEntries = (await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(creation.Uid, 20, 0))
                         .Where(entry => entry.EventType == "tasks_generated")
                         .ToList();
 
@@ -388,7 +388,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
                     Assert.NotNull(completedWorkflow);
 
-                    var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
+                    var tasksGeneratedEntries = (await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(creation.Uid, 20, 0))
                         .Where(entry => entry.EventType == "tasks_generated")
                         .ToList();
 
@@ -446,7 +446,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
                     Assert.NotNull(completedWorkflow);
 
-                    var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(creation.Uid, 20, 0))
+                    var tasksGeneratedEntries = (await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(creation.Uid, 20, 0))
                         .Where(entry => entry.EventType == "tasks_generated")
                         .ToList();
 
@@ -500,7 +500,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
                 Assert.NotNull(completedWorkflow);
 
-                var tasksGeneratedEntries = (await repository.GetWorkflowAuditLog(workflow.WorkflowUid, 20, 0))
+                var tasksGeneratedEntries = (await new PostgresWorkflowAuditReadRepository().GetWorkflowAuditLog(workflow.WorkflowUid, 20, 0))
                     .Where(entry => entry.EventType == "tasks_generated")
                     .ToList();
 
@@ -531,7 +531,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
 
         return new CreateWorkflowRequest
         {
-            ProcessTypeKey = "onboarding",
+            WorkflowDefinitionKey = "onboarding",
             DepartmentId = departmentId,
             RoleId = roleId,
             FirstName = "Audit",
@@ -549,7 +549,7 @@ public sealed class PostgresWorkflowRepositoryAuditLogIntegrationTests
     {
         return new CreateWorkflowRequest
         {
-            ProcessTypeKey = "onboarding",
+            WorkflowDefinitionKey = "onboarding",
             DepartmentId = departmentId,
             RoleId = roleId,
             TargetPersonId = targetPerson.PersonId,
@@ -666,7 +666,7 @@ RETURNING id;";
 
         const string sql = @"
 INSERT INTO workflows (
-    process_type_id,
+    workflow_definition_id,
     department_id,
     position_role_id,
     created_by_user_id,
@@ -677,7 +677,7 @@ INSERT INTO workflows (
     status
 )
 VALUES (
-    (SELECT id FROM process_types WHERE key = 'onboarding'),
+    (SELECT id FROM workflow_definitions WHERE definition_key = 'onboarding'),
     @departmentId,
     @roleId,
     @createdByUserId,

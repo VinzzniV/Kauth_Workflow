@@ -4,7 +4,7 @@ internal sealed class WorkflowListQuery
 {
     public bool ReaderOnly { get; init; }
     public string? Status { get; init; }
-    public string? ProcessTypeKey { get; init; }
+    public string? WorkflowDefinitionKey { get; init; }
     public string? Search { get; init; }
     public int? DepartmentId { get; init; }
     public string? Responsibility { get; init; }
@@ -26,26 +26,27 @@ internal interface IWorkflowRepository
 {
     Task<List<DepartmentDto>> GetDepartments();
     Task<List<RoleDto>> GetRoles();
-    Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false);
     Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions();
-    Task<List<RequirementDto>> GetRequirements(string processTypeKey);
-    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey);
-    Task<bool> IsManagerCreatableProcessType(string processTypeKey);
+    Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey);
+    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey);
+    Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey);
     Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId);
     Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId);
     Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId);
-    Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid);
     Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(Guid workflowUid);
     Task<List<WorkflowNotificationDispatchTarget>> CreateWorkflowCompletionNotifications(Guid workflowUid);
-    Task<List<Guid>> GetWorkflowUidsWithDisabledNotifications(string notificationType);
     Task ApplyNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results);
     Task<List<WorkflowListItemDto>> GetWorkflows();
     Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query);
     Task<WorkflowDetailDto?> GetWorkflowByUid(Guid workflowUid);
-    Task<List<WorkflowAuditEntryDto>> GetWorkflowAuditLog(Guid workflowUid, int limit = 200, int offset = 0);
     Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId);
     Task<List<TaskWithWorkflowDto>> GetTasks();
-    Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds);
+    Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] effectiveResponsibilityIds);
+    // Narrowed variant: workflow tasks pre-filtered in SQL to (a) non-terminal workflows
+    // and (b) tasks with at least one primary assignment matching userId or
+    // effectiveResponsibilityIds (union of direct + group responsibilities).
+    // Caller must hold no full-task-access role/permission.
+    Task<List<TaskWithWorkflowDto>> GetTasksForUserNarrowed(long userId, int[] effectiveResponsibilityIds);
     Task<TaskWithWorkflowDto?> GetTaskById(long taskId);
     Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef);
     Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId);
@@ -77,7 +78,7 @@ internal interface IWorkflowRepository
         IReadOnlyCollection<int>? observableDepartmentIds = null);
     Task ApplyPersonLifecycleProjection(Guid workflowUid, long? actorUserId = null);
     Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null);
-    Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey);
+    Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetWorkflowDefinitionKey);
     Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions();
     Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request);
     Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request);
@@ -90,9 +91,7 @@ internal interface IWorkflowRepository
     Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(
         long versionId,
         ReplaceWorkflowDefinitionVersionRequest request);
-    Task<List<AdminProcessTypeDto>> GetAdminProcessTypes();
-    Task<AdminProcessTypeDto?> UpdateProcessType(int processTypeId, AdminProcessTypeUpdateRequest request);
-    Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int processTypeId);
+    Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId);
     Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request);
     Task<AdminTaskTemplateDto?> UpdateAdminTaskTemplate(int templateId, AdminTaskTemplateUpsertRequest request);
     Task<bool> DeleteAdminTaskTemplate(int templateId);
@@ -102,11 +101,11 @@ internal interface IWorkflowRepository
     Task<List<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId);
     Task<AdminTaskTemplateDependencyDto> CreateAdminTaskTemplateDependency(int templateId, AdminTaskTemplateDependencyCreateRequest request);
     Task<bool> DeleteAdminTaskTemplateDependency(int templateId, long dependencyId);
-    Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int processTypeId);
+    Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId);
     Task<AdminAnswerDefinitionDto> CreateAdminAnswerDefinition(AdminAnswerDefinitionUpsertRequest request);
     Task<AdminAnswerDefinitionDto?> UpdateAdminAnswerDefinition(int definitionId, AdminAnswerDefinitionUpsertRequest request);
     Task<bool> DeleteAdminAnswerDefinition(int definitionId);
-    Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int processTypeId);
+    Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId);
     Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request);
-    Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int processTypeId);
+    Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId);
 }

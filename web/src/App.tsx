@@ -1,9 +1,10 @@
 // Zentrale App-Huelle fuer Auth-Status, Layout und geschuetzte Routen.
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth/useAuth";
 import { useCurrentUser } from "./auth/useCurrentUser";
 import { isEntraMode } from "./auth/IdentityProvider";
+import { AppErrorBoundary } from "./components/feedback/AppErrorBoundary";
 import LoadingState from "./components/feedback/LoadingState";
 import AppLayout from "./components/layout/AppLayout";
 import RouteGuard from "./navigation/RouteGuard";
@@ -61,9 +62,17 @@ export default function App() {
     return isEntraMode() ? <EntraLoginPage /> : <SimulationLoginPage />;
   }
 
-  // Alle Fachseiten laufen innerhalb desselben Layouts und werden ueber Feature-Guards abgesichert.
   return (
     <AppLayout>
+      <RoutesWithErrorBoundary defaultRoute={defaultRoute} />
+    </AppLayout>
+  );
+}
+
+function RoutesWithErrorBoundary({ defaultRoute }: { defaultRoute: string }) {
+  const location = useLocation();
+  return (
+    <AppErrorBoundary scope={location.pathname} resetKey={location.pathname}>
       <Routes>
         <Route
           path="/"
@@ -217,6 +226,6 @@ export default function App() {
         <Route path="/login" element={<Navigate to={defaultRoute} replace />} />
         <Route path="*" element={<Navigate to={defaultRoute} replace />} />
       </Routes>
-    </AppLayout>
+    </AppErrorBoundary>
   );
 }

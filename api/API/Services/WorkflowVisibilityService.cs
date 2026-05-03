@@ -74,7 +74,6 @@ internal sealed class WorkflowVisibilityService(
                     WorkflowId = 0,
                     WorkflowUid = workflow.Uid,
                     WorkflowStatus = workflow.WorkflowStatus,
-                    WorkflowLegacyStatus = WorkflowStatusRules.ToLegacyStatus(workflow.WorkflowStatus),
                     WorkflowCreatedAt = workflow.CreatedAt,
                     FirstName = workflow.FirstName,
                     LastName = workflow.LastName,

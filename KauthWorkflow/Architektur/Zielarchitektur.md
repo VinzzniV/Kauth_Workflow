@@ -77,12 +77,14 @@ Minimale Node-Typen:
 | `start` | Einstiegspunkt |
 | `form` | Anforderungserfassung |
 | `approval` | Fachlicher Gatekeeper |
-| `setup` | Sammelblock für bedingte Legacy-Tasks |
+| `measure_provision` / `measure_deprovision` / `measure_change` / `measure_rename` | Fachliche Maßnahmen-Blöcke (ersetzen den alten `setup`-Sammelblock) |
 | `task` | Explizite Aufgabe |
 | `decision` | Verzweigung |
 | `parallel_split` / `parallel_join` | Parallelarbeit |
 | `automation` | Technische Aktion |
 | `end` | Abschlusspunkt |
+
+`setup` existiert im Code noch als Legacy-Alias für bestehende Definitionen, ist aber kein Bestandteil des Soll-Sets mehr. Siehe [[Legacy-Abbau-Plan]] Schritt 2.
 
 Später erweiterbar um `wait`, `notification`, `subworkflow`.
 
@@ -127,12 +129,12 @@ Zunächst als Guided Builder:
 Standard-Flow für `onboarding`, `offboarding`, `department_change`:
 
 ```
-start → form (Anforderungen) → [optional: approval] → setup (Fachaufgaben) → end
+start → form (Anforderungen) → [optional: approval] → maßnahmen-block (Fachaufgaben) → end
 ```
 
 - `form` erfasst Anforderungen (Gatekeeper-Schritt)
 - `approval` ist optionaler Freigabeschritt durch Abteilungsleitung
-- `setup` fasst parallele Fachaufgaben zusammen
+- der Maßnahmen-Block ist je nach Prozessart `measure_provision` / `measure_deprovision` / `measure_change` / `measure_rename` und fasst die parallelen Fachaufgaben zusammen
 - `end` erst nach Abschluss aller Pflichtaufgaben
 
 ---

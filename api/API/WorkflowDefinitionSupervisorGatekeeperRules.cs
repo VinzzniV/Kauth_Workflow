@@ -2,10 +2,13 @@ namespace API;
 
 internal static class WorkflowDefinitionSupervisorGatekeeperRules
 {
+    // Der workflowDefinitionKey steuert, gegen welchen Wert der Gatekeeper-Node-Config
+    // (`legacyProcessTypeKey`) gematcht werden muss. Solange definition_key == legacy
+    // process_type_key (siehe Slice 6.2-Inventur), bleibt der Vergleich semantisch identisch.
     public static WorkflowDefinitionSupervisorGatekeeperEvaluation Evaluate(
         IReadOnlyList<WorkflowDefinitionSupervisorGatekeeperNode> nodes,
         IReadOnlyList<WorkflowDefinitionSupervisorGatekeeperEdge> edges,
-        string? primaryLegacyProcessTypeKey,
+        string? workflowDefinitionKey,
         bool requiresSupervisorStep)
     {
         if (!requiresSupervisorStep)
@@ -13,14 +16,15 @@ internal static class WorkflowDefinitionSupervisorGatekeeperRules
             return WorkflowDefinitionSupervisorGatekeeperEvaluation.Satisfied();
         }
 
-        if (string.IsNullOrWhiteSpace(primaryLegacyProcessTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
+            // FailureCode-String bleibt aus Audit-Log-Kompatibilität "primary_process_type" — interne Bedeutung ist jetzt definitionKey.
             return WorkflowDefinitionSupervisorGatekeeperEvaluation.Failed(
                 "missing_supervisor_gatekeeper_primary_process_type",
-                "Supervisor-pflichtige Workflow-Definitionen benötigen einen primären Legacy-Prozesstyp, bevor der Gatekeeper geprüft werden kann.");
+                "Supervisor-pflichtige Workflow-Definitionen benötigen einen Definition-Key, bevor der Gatekeeper geprüft werden kann.");
         }
 
-        var normalizedPrimaryProcessTypeKey = primaryLegacyProcessTypeKey.Trim().ToLowerInvariant();
+        var normalizedDefinitionKey = workflowDefinitionKey.Trim().ToLowerInvariant();
         var nodeByKey = nodes.ToDictionary(node => node.NodeKey, StringComparer.OrdinalIgnoreCase);
         var startNodes = nodes
             .Where(node => string.Equals(node.NodeType, "start", StringComparison.OrdinalIgnoreCase))
@@ -75,12 +79,12 @@ internal static class WorkflowDefinitionSupervisorGatekeeperRules
 
         if (!string.Equals(
                 gatekeeperNode.LegacyProcessTypeKey,
-                normalizedPrimaryProcessTypeKey,
+                normalizedDefinitionKey,
                 StringComparison.OrdinalIgnoreCase))
         {
             return WorkflowDefinitionSupervisorGatekeeperEvaluation.Failed(
                 "supervisor_gatekeeper_process_type_mismatch",
-                $"Supervisor-Gatekeeper-Node '{gatekeeperNode.NodeKey}' muss legacyProcessTypeKey '{normalizedPrimaryProcessTypeKey}' verwenden.");
+                $"Supervisor-Gatekeeper-Node '{gatekeeperNode.NodeKey}' muss legacyProcessTypeKey '{normalizedDefinitionKey}' verwenden.");
         }
 
         return WorkflowDefinitionSupervisorGatekeeperEvaluation.Satisfied(gatekeeperNode.NodeKey);

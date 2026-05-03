@@ -186,7 +186,7 @@ internal static class WorkflowLinkEndpoints
 
         app.MapGet("/workflows/derive-answers", async (
             [FromQuery] string sourceUid,
-            [FromQuery] string targetProcessTypeKey,
+            [FromQuery] string targetWorkflowDefinitionKey,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -205,12 +205,12 @@ internal static class WorkflowLinkEndpoints
                 return Results.BadRequest(new { message = "Invalid sourceUid." });
             }
 
-            if (string.IsNullOrWhiteSpace(targetProcessTypeKey))
+            if (string.IsNullOrWhiteSpace(targetWorkflowDefinitionKey))
             {
-                return Results.BadRequest(new { message = "targetProcessTypeKey is required." });
+                return Results.BadRequest(new { message = "targetWorkflowDefinitionKey is required." });
             }
 
-            var derived = await repository.GetDerivedAnswers(sourceGuid, targetProcessTypeKey.Trim());
+            var derived = await repository.GetDerivedAnswers(sourceGuid, targetWorkflowDefinitionKey.Trim());
             return Results.Ok(derived);
         }).Produces<List<DerivedAnswerDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest);

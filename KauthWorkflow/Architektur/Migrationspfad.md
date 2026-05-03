@@ -89,12 +89,22 @@ Noch ausstehend: `WorkflowRuntimeRepository`, `AutomationRepository`, `AuditRepo
 
 Beide existieren bewusst nebeneinander, bis Parität erreicht ist:
 
-| Legacy | Neu |
-|--------|-----|
-| `process_types` | `workflow_definitions` |
-| `processTypeKey` | `workflowDefinitionKey` |
-| In-Memory Task-Filter (Rotation) | SQL-seitiger Task-Filter ✓ |
-| Monolith-Repository | Rotation-Repository herausgeschnitten ✓; weitere Schnitte offen |
+| Legacy | Neu | Status |
+|--------|-----|--------|
+| `process_types`-Tabelle + `/process-types`-Endpunkt | `workflow_definitions` + `/workflow-definitions/startable` | aktiv parallel — beide Pfade haben Konsumenten |
+| `processTypeKey` in `WorkflowCreateRequest` | `workflowDefinitionKey` | beide werden parallel gesendet/akzeptiert |
+| `PrimaryLegacyProcessTypeKey` in Definition-DTOs | direkter Definition-Key | aktiv für Mapping bei Publish |
+| `setup`-Node-Type | `measure_provision` / `_deprovision` / `_change` / `_rename` | aktiv defensiv für Production-Daten; kein neuer `setup` mehr im Seed |
+| `WorkflowLegacyStatus`-String-Feld | typsicheres `WorkflowStatus` | beide werden geliefert; Frontend konvertiert weg vom Legacy |
+| `workflows.create.onboarding` etc. (process-type-Permissions) | `workflows.create.<definition_key>` | ✓ Code-Umstellung (Schritt 5, 2026-04-30) — Suffix kommt jetzt aus `workflow_definitions.key`; Permission-Strings unverändert, weil definition_key == legacy process_type_key. Legacy-Lookup gegen `PrimaryLegacyProcessTypeKey` bleibt als Brücke bis Schritt 6 |
+| `/workflows/completed-onboardings`, `/rotation/completed-onboardings`, `CompletedOnboardingSearchResultDto`, `CompletedOnboardingSearchResult` | `/workflow-target-person-sources`, `/people/rotation-eligible`, `WorkflowTargetPersonSourceDto`, `RotationEligiblePerson` | ✓ Code-Umstellung (Schritt 7A, 2026-05-01) |
+| Responsibility `hr_onboarding` | `hr_workflow_initiator` | ✓ Code-Umstellung (Schritt 7B, 2026-05-01). Seeds + Backend-Fallback in `NotificationOperations.cs` umgestellt |
+| Hardcoded `WorkflowCreatePermissions[]`-Array | dynamisch via `WorkflowCreate(definitionKey)` | ✓ Code-Cleanup (Schritt 7C, 2026-05-01). Permission-Schema ist seit 6.3d-iv vollstaendig definitionsgetrieben — Array war ungenutzt |
+| `task_templates` + `legacyTemplateKey`-Konfig pro Node | `workflow_node_task_specs` + Sub-Tabellen pro Maßnahmen-/task/approval-Node | ✓ LA5 (2026-05-03). Specs haengen am `workflow_node_id` der published Version. Generator + Runtime-Resolver + Admin-CRUD lesen/schreiben aus den neuen Tabellen. Alte Tabellen + `legacyTemplateKey`-Validation droppt. Detail in [[LA5-TaskSpezifikation-Skizze]]. |
+| In-Memory Task-Filter (Rotation) | SQL-seitiger Task-Filter | ✓ erledigt |
+| Monolith-Repository | Slice-Repositories (`PostgresRotationRepository` + Helpers) | Rotation ✓ erledigt; Runtime/Automation/Audit/Notification offen |
+
+Konkrete Roadmap zum Abbau: siehe [[Legacy-Abbau-Plan]].
 
 ---
 

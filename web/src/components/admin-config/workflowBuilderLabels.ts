@@ -18,8 +18,6 @@ export function getWorkflowBuilderNodeTypeLabel(
       return "Änderung";
     case "measure_rename":
       return "Umbenennung";
-    case "setup":
-      return "Setup (Legacy)";
     case "task":
       return "Aufgabe";
     case "decision":

@@ -1,14 +1,11 @@
-import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import EmptyState from "../components/feedback/EmptyState";
 import SkeletonCard from "../components/feedback/SkeletonCard";
 import PageHeader from "../components/layout/PageHeader";
 import TaskSlaPill from "../components/workflows/TaskSlaPill";
 import TaskStatusPill from "../components/workflows/TaskStatusPill";
-import { useCurrentUser } from "../auth/useCurrentUser";
 import { useTaskInteraction } from "../hooks/useTaskInteraction";
-import { useMyTasks } from "../services/queries/workflowQueries";
-import type { TaskWithWorkflow } from "../types/workflow";
+import { useRotationOperationsView } from "../hooks/useRotationOperationsView";
 import { formatDate, formatDateTime } from "../utils/dateFormat";
 import {
   getResponsibleResponsibilityLabel,
@@ -21,233 +18,20 @@ import {
   type VisibleTaskStatus,
 } from "../utils/taskStatus";
 
-type RotationTaskRow = TaskWithWorkflow & {
-  taskFamily: "rotation";
-  rotation: NonNullable<TaskWithWorkflow["rotation"]>;
-};
-
-type UpcomingChangeSummary = {
-  key: string;
-  rotationPlanId: number;
-  personName: string;
-  departmentName: string;
-  triggerType: "enter" | "exit" | null;
-  anchorDate: string | null;
-  taskCount: number;
-  taskRefs: string[];
-};
-
-function isOperationallyOpen(row: RotationTaskRow): boolean {
-  return row.task.status === "open" || row.task.status === "in_progress";
-}
-
-function isUpcomingAnchorDate(anchorDate: string | null, maxDays: number): boolean {
-  if (!anchorDate) {
-    return false;
-  }
-
-  const today = new Date();
-  const midnightToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const anchor = new Date(anchorDate).getTime();
-  if (Number.isNaN(anchor)) {
-    return false;
-  }
-
-  const daysUntil = Math.floor((anchor - midnightToday) / (24 * 60 * 60 * 1000));
-  return daysUntil >= 0 && daysUntil <= maxDays;
-}
-
 export default function RotationOperationsPage() {
-  const { currentUser } = useCurrentUser();
-  const myTasksQuery = useMyTasks();
   const { savingTaskIds, handleStatusChange } = useTaskInteraction();
-  const [search, setSearch] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | VisibleTaskStatus>("all");
-  const [changeWindowDays, setChangeWindowDays] = useState("14");
-  const [onlyOpen, setOnlyOpen] = useState(true);
-  const [onlyItTasks, setOnlyItTasks] = useState(false);
-  const [onlyOwnDepartment, setOnlyOwnDepartment] = useState(false);
-
-  const rotationRows = useMemo<RotationTaskRow[]>(
-    () =>
-      (myTasksQuery.data ?? []).filter(
-        (row): row is RotationTaskRow => row.taskFamily === "rotation" && row.rotation !== null
-      ),
-    [myTasksQuery.data]
-  );
-
-  const departmentOptions = useMemo(
-    () =>
-      Array.from(
-        new Map(rotationRows.map((row) => [row.rotation.departmentId, row.rotation.departmentName] as const)).entries()
-      ).sort((left, right) => left[1].localeCompare(right[1], "de")),
-    [rotationRows]
-  );
-
-  const inferredOwnDepartmentId = useMemo(() => {
-    const scopedDepartmentId = currentUser?.permissionScopes.find(
-      (scope) => typeof scope.scopeDepartmentId === "number"
-    )?.scopeDepartmentId;
-    return scopedDepartmentId ?? null;
-  }, [currentUser]);
-
-  const filteredRows = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return rotationRows
-      .filter((row) => {
-        const visibleStatus = getVisibleTaskStatus(row.task.status);
-        const matchesDepartment =
-          departmentFilter === "all" || String(row.rotation.departmentId) === departmentFilter;
-        const matchesStatus = statusFilter === "all" || visibleStatus === statusFilter;
-        const matchesOpen = !onlyOpen || isOperationallyOpen(row);
-        const matchesIt =
-          !onlyItTasks || getResponsibleResponsibilityLabel(row.task).toLowerCase().includes("it");
-        const matchesOwnDepartment =
-          !onlyOwnDepartment
-          || inferredOwnDepartmentId === null
-          || row.rotation.departmentId === inferredOwnDepartmentId;
-        const matchesSearch =
-          !normalizedSearch
-          || row.rotation.displayName.toLowerCase().includes(normalizedSearch)
-          || row.rotation.planTitle.toLowerCase().includes(normalizedSearch)
-          || row.task.title.toLowerCase().includes(normalizedSearch)
-          || row.taskRef.toLowerCase().includes(normalizedSearch)
-          || row.rotation.departmentName.toLowerCase().includes(normalizedSearch);
-
-        return (
-          matchesDepartment
-          && matchesStatus
-          && matchesOpen
-          && matchesIt
-          && matchesOwnDepartment
-          && matchesSearch
-        );
-      })
-      .sort((left, right) => {
-        const leftAnchor = left.rotation.anchorDate ? new Date(left.rotation.anchorDate).getTime() : Number.MAX_SAFE_INTEGER;
-        const rightAnchor = right.rotation.anchorDate ? new Date(right.rotation.anchorDate).getTime() : Number.MAX_SAFE_INTEGER;
-        if (leftAnchor !== rightAnchor) {
-          return leftAnchor - rightAnchor;
-        }
-
-        return left.rotation.displayName.localeCompare(right.rotation.displayName, "de");
-      });
-  }, [
-    departmentFilter,
-    inferredOwnDepartmentId,
-    onlyItTasks,
-    onlyOpen,
-    onlyOwnDepartment,
+  const {
+    myTasksQuery,
     rotationRows,
-    search,
-    statusFilter,
-  ]);
-
-  const upcomingChanges = useMemo<UpcomingChangeSummary[]>(() => {
-    const grouped = new Map<string, UpcomingChangeSummary>();
-    const daysWindow = Math.max(Number(changeWindowDays), 0);
-
-    for (const row of filteredRows) {
-      if (!isOperationallyOpen(row) || !isUpcomingAnchorDate(row.rotation.anchorDate, daysWindow)) {
-        continue;
-      }
-
-      const key = `${row.rotation.rotationPlanId}:${row.rotation.anchorDate ?? "none"}:${row.rotation.triggerType ?? "none"}`;
-      const existing = grouped.get(key);
-      if (existing) {
-        existing.taskCount += 1;
-        existing.taskRefs.push(row.taskRef);
-        continue;
-      }
-
-      grouped.set(key, {
-        key,
-        rotationPlanId: row.rotation.rotationPlanId,
-        personName: row.rotation.displayName,
-        departmentName: row.rotation.departmentName,
-        triggerType: row.rotation.triggerType,
-        anchorDate: row.rotation.anchorDate,
-        taskCount: 1,
-        taskRefs: [row.taskRef],
-      });
-    }
-
-    return Array.from(grouped.values()).sort((left, right) => {
-      const leftAnchor = left.anchorDate ? new Date(left.anchorDate).getTime() : Number.MAX_SAFE_INTEGER;
-      const rightAnchor = right.anchorDate ? new Date(right.anchorDate).getTime() : Number.MAX_SAFE_INTEGER;
-      return leftAnchor - rightAnchor;
-    });
-  }, [changeWindowDays, filteredRows]);
-
-  const departmentSummaries = useMemo(() => {
-    const grouped = new Map<string, { departmentName: string; count: number; openCount: number }>();
-    for (const row of filteredRows) {
-      const key = `${row.rotation.departmentId}`;
-      const existing = grouped.get(key) ?? {
-        departmentName: row.rotation.departmentName,
-        count: 0,
-        openCount: 0,
-      };
-      existing.count += 1;
-      if (isOperationallyOpen(row)) {
-        existing.openCount += 1;
-      }
-      grouped.set(key, existing);
-    }
-
-    return Array.from(grouped.values()).sort((left, right) => left.departmentName.localeCompare(right.departmentName, "de"));
-  }, [filteredRows]);
-
-  const personSummaries = useMemo(() => {
-    const grouped = new Map<
-      string,
-      {
-        planId: number;
-        personName: string;
-        departmentName: string;
-        planTitle: string;
-        taskCount: number;
-        openCount: number;
-        nextAnchorDate: string | null;
-        firstTaskRef: string;
-      }
-    >();
-
-    for (const row of filteredRows) {
-      const key = `${row.rotation.rotationPlanId}`;
-      const existing = grouped.get(key) ?? {
-        planId: row.rotation.rotationPlanId,
-        personName: row.rotation.displayName,
-        departmentName: row.rotation.departmentName,
-        planTitle: row.rotation.planTitle,
-        taskCount: 0,
-        openCount: 0,
-        nextAnchorDate: row.rotation.anchorDate,
-        firstTaskRef: row.taskRef,
-      };
-      existing.taskCount += 1;
-      if (isOperationallyOpen(row)) {
-        existing.openCount += 1;
-      }
-      if (
-        row.rotation.anchorDate
-        && (!existing.nextAnchorDate || new Date(row.rotation.anchorDate).getTime() < new Date(existing.nextAnchorDate).getTime())
-      ) {
-        existing.nextAnchorDate = row.rotation.anchorDate;
-      }
-      grouped.set(key, existing);
-    }
-
-    return Array.from(grouped.values()).sort((left, right) => {
-      if (left.openCount !== right.openCount) {
-        return right.openCount - left.openCount;
-      }
-
-      return left.personName.localeCompare(right.personName, "de");
-    });
-  }, [filteredRows]);
+    departmentOptions,
+    inferredOwnDepartmentId,
+    filteredRows,
+    upcomingChanges,
+    departmentSummaries,
+    personSummaries,
+    filters,
+    setters,
+  } = useRotationOperationsView();
 
   return (
     <main className="app-shell">
@@ -267,15 +51,18 @@ export default function RotationOperationsPage() {
               <span>Suche</span>
               <input
                 type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={filters.search}
+                onChange={(event) => setters.setSearch(event.target.value)}
                 placeholder="Person, Plan, Aufgabe oder TaskRef"
               />
             </label>
 
             <label className="field compact">
               <span>Ziel-Abteilung</span>
-              <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+              <select
+                value={filters.departmentFilter}
+                onChange={(event) => setters.setDepartmentFilter(event.target.value)}
+              >
                 <option value="all">Alle</option>
                 {departmentOptions.map(([departmentId, departmentName]) => (
                   <option key={departmentId} value={departmentId}>
@@ -287,7 +74,12 @@ export default function RotationOperationsPage() {
 
             <label className="field compact">
               <span>Status</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "all" | VisibleTaskStatus)}>
+              <select
+                value={filters.statusFilter}
+                onChange={(event) =>
+                  setters.setStatusFilter(event.target.value as "all" | VisibleTaskStatus)
+                }
+              >
                 <option value="all">Alle</option>
                 <option value="open">Offen</option>
                 <option value="in_progress">In Bearbeitung</option>
@@ -299,7 +91,10 @@ export default function RotationOperationsPage() {
 
             <label className="field compact">
               <span>Kommende Wechsel in</span>
-              <select value={changeWindowDays} onChange={(event) => setChangeWindowDays(event.target.value)}>
+              <select
+                value={filters.changeWindowDays}
+                onChange={(event) => setters.setChangeWindowDays(event.target.value)}
+              >
                 <option value="7">7 Tagen</option>
                 <option value="14">14 Tagen</option>
                 <option value="30">30 Tagen</option>
@@ -310,18 +105,26 @@ export default function RotationOperationsPage() {
 
           <div className="toolbar-row toolbar-row-filters">
             <label className="checkbox-row">
-              <input type="checkbox" checked={onlyOpen} onChange={(event) => setOnlyOpen(event.target.checked)} />
+              <input
+                type="checkbox"
+                checked={filters.onlyOpen}
+                onChange={(event) => setters.setOnlyOpen(event.target.checked)}
+              />
               <span>Nur offene Aufgaben</span>
             </label>
             <label className="checkbox-row">
-              <input type="checkbox" checked={onlyItTasks} onChange={(event) => setOnlyItTasks(event.target.checked)} />
+              <input
+                type="checkbox"
+                checked={filters.onlyItTasks}
+                onChange={(event) => setters.setOnlyItTasks(event.target.checked)}
+              />
               <span>Nur IT-Aufgaben</span>
             </label>
             <label className="checkbox-row">
               <input
                 type="checkbox"
-                checked={onlyOwnDepartment}
-                onChange={(event) => setOnlyOwnDepartment(event.target.checked)}
+                checked={filters.onlyOwnDepartment}
+                onChange={(event) => setters.setOnlyOwnDepartment(event.target.checked)}
                 disabled={inferredOwnDepartmentId === null}
               />
               <span>Nur eigene Abteilung</span>

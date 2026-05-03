@@ -21,12 +21,26 @@ internal sealed class TaskApplicationService(
         }
         else
         {
-            // Rotation tasks are pre-filtered in SQL by responsibility/direct assignment.
-            // Workflow tasks are still filtered in-memory below (phase-based logic).
-            var responsibilityIds = currentUser.EffectiveResponsibilities
+            var effectiveResponsibilityIds = currentUser.EffectiveResponsibilities
                 .Select(r => r.ResponsibilityId)
                 .ToArray();
-            tasks = await repository.GetTasksForUser(currentUser.UserId, responsibilityIds);
+
+            // Users without override see only tasks they could possibly act on:
+            // primary assignment matches user/responsibility AND workflow not terminal.
+            // Mirrors MatchesTaskAssignment in SQL so a 10k-task table doesn't have
+            // to round-trip in full just to be filtered down to a handful in-memory.
+            // Override users (rare, non-admin with TasksAssignOverride) keep the
+            // full list because they can act on any task.
+            var hasAssignmentOverride = authorizationPolicyService.HasPermission(
+                currentUser,
+                AuthorizationPermissions.TasksAssignOverride);
+
+            tasks = hasAssignmentOverride
+                ? await repository.GetTasksForUser(currentUser.UserId, effectiveResponsibilityIds)
+                : await repository.GetTasksForUserNarrowed(currentUser.UserId, effectiveResponsibilityIds);
+
+            // In-memory filter still required: SQL narrowing is a superset
+            // (it cannot enforce phase-aware role checks like CanRegularlyEditWorkflow).
             tasks = tasks
                 .Where(task =>
                     authorizationPolicyService.CanUpdateTaskStatus(currentUser, task)

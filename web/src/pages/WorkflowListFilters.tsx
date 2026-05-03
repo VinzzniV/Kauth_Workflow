@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
-import type { ProcessType, WorkflowResponsibilityOption, WorkflowRuntimeStatus } from "../types/workflow";
+import type { StartableWorkflowDefinition, WorkflowResponsibilityOption, WorkflowRuntimeStatus } from "../types/workflow";
 
 type WorkflowListFiltersProps = {
   search: string;
   statusFilter: "all" | WorkflowRuntimeStatus;
   departmentFilter: string;
-  processTypeFilter: string;
+  workflowDefinitionFilter: string;
   responsibilityFilter: string;
-  processTypeOptions: ProcessType[];
+  workflowDefinitionOptions: StartableWorkflowDefinition[];
   departmentOptions: Array<[number, string]>;
   responsibilityOptions: WorkflowResponsibilityOption[];
   hasAdvancedFilters: boolean;
@@ -19,7 +19,7 @@ type WorkflowListFiltersProps = {
   onSearchChange: (value: string) => void;
   onStatusChange: (value: "all" | WorkflowRuntimeStatus) => void;
   onDepartmentChange: (value: string) => void;
-  onProcessTypeChange: (value: string) => void;
+  onWorkflowDefinitionChange: (value: string) => void;
   onResponsibilityChange: (value: string) => void;
   onRefresh: () => void;
   onPreviousPage: () => void;
@@ -30,9 +30,9 @@ export function WorkflowListFilters({
   search,
   statusFilter,
   departmentFilter,
-  processTypeFilter,
+  workflowDefinitionFilter,
   responsibilityFilter,
-  processTypeOptions,
+  workflowDefinitionOptions,
   departmentOptions,
   responsibilityOptions,
   hasAdvancedFilters,
@@ -44,7 +44,7 @@ export function WorkflowListFilters({
   onSearchChange,
   onStatusChange,
   onDepartmentChange,
-  onProcessTypeChange,
+  onWorkflowDefinitionChange,
   onResponsibilityChange,
   onRefresh,
   onPreviousPage,
@@ -94,11 +94,11 @@ export function WorkflowListFilters({
         <div className="toolbar-row toolbar-row-filters workflow-filter-bar workflow-filter-bar--details">
           <label className="field compact">
             <span>Prozesstyp</span>
-            <select value={processTypeFilter} onChange={(event) => onProcessTypeChange(event.target.value)}>
+            <select value={workflowDefinitionFilter} onChange={(event) => onWorkflowDefinitionChange(event.target.value)}>
               <option value="all">Alle</option>
-              {processTypeOptions.map((processType) => (
-                <option key={processType.key} value={processType.key}>
-                  {processType.name}
+              {workflowDefinitionOptions.map((definition) => (
+                <option key={definition.definitionKey} value={definition.definitionKey}>
+                  {definition.name}
                 </option>
               ))}
             </select>

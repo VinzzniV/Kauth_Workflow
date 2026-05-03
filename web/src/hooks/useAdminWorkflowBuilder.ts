@@ -2,12 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createAdminWorkflowDefinition,
   deleteAdminWorkflowDefinition,
-  getAdminAnswerDefinitions,
+  getAdminAutomationPropertyCatalog,
   getAdminWorkflowActionDefinitions,
-  getAdminProcessTypes,
-  getAdminTaskTemplateConditions,
-  getAdminTaskTemplateDependencies,
-  getAdminTaskTemplates,
+  type AdminAutomationPropertyCatalog,
   getAdminWorkflowDefinitionVersion,
   getOrCreateAdminWorkflowDefinitionWorkingDraft,
   getAdminWorkflowDefinitions,
@@ -17,18 +14,13 @@ import {
 } from "../services/adminConfigApi";
 import { getAdminResponsibilityOwners } from "../services/adminApi";
 import type {
-  AdminAnswerDefinition,
   AdminWorkflowActionDefinition,
-  AdminProcessType,
   AdminResponsibilityOwner,
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
   AdminWorkflowDefinitionSummary,
   AdminWorkflowDefinitionVersionDetail,
 } from "../types/auth";
+import { useAdminWorkflowVersionReferenceData } from "./useAdminWorkflowVersionReferenceData";
 import {
-  autoLayoutVersionDraft,
   buildVersionReplacePayload,
   createEmptyActionDraft,
   createEmptyDefinitionDraft,
@@ -38,28 +30,11 @@ import {
   findVersionSummary,
   isDefinitionMetadataChanged,
   toVersionDraft,
+  type WorkflowBuilderLocalIssue,
   type WorkflowBuilderNodeDraft,
   type WorkflowBuilderVersionDraft,
   validateWorkflowBuilderDraft,
 } from "./adminWorkflowBuilderModel";
-
-export type BuilderInspectorFocusMode =
-  | "none"
-  | "process_type"
-  | "answer_definition"
-  | "task_template"
-  | "task_template_conditions"
-  | "task_template_dependencies";
-
-export type BuilderInspectorFocusSection = "details" | "conditions" | "dependencies" | null;
-
-export type BuilderInspectorFocusTarget = {
-  mode: BuilderInspectorFocusMode;
-  processTypeId: number | null;
-  answerDefinitionId: number | null;
-  templateId: number | null;
-  templateSection: BuilderInspectorFocusSection;
-};
 
 type UseAdminWorkflowBuilderOptions = {
   onNotice: (message: string | null) => void;
@@ -67,36 +42,30 @@ type UseAdminWorkflowBuilderOptions = {
   canManageAdvanced: boolean;
 };
 
-function createEmptyInspectorFocus(): BuilderInspectorFocusTarget {
-  return {
-    mode: "none",
-    processTypeId: null,
-    answerDefinitionId: null,
-    templateId: null,
-    templateSection: null,
-  };
+function dedupeIssues(issues: WorkflowBuilderLocalIssue[]): WorkflowBuilderLocalIssue[] {
+  const seen = new Set<string>();
+  const result: WorkflowBuilderLocalIssue[] = [];
+  for (const issue of issues) {
+    const key = `${issue.scope}|${issue.referenceKey ?? ""}|${issue.message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(issue);
+  }
+  return result;
 }
 
 export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }: UseAdminWorkflowBuilderOptions) {
   const [definitions, setDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
   const [actionDefinitions, setActionDefinitions] = useState<AdminWorkflowActionDefinition[]>([]);
-  const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
+  const [automationPropertyCatalog, setAutomationPropertyCatalog] = useState<AdminAutomationPropertyCatalog | null>(null);
   const [responsibilityOwners, setResponsibilityOwners] = useState<AdminResponsibilityOwner[]>([]);
-  const [taskTemplates, setTaskTemplates] = useState<AdminTaskTemplate[]>([]);
-  const [answerDefinitions, setAnswerDefinitions] = useState<AdminAnswerDefinition[]>([]);
-  const [taskTemplateConditions, setTaskTemplateConditions] = useState<AdminTaskTemplateCondition[]>([]);
-  const [taskTemplateDependencies, setTaskTemplateDependencies] = useState<AdminTaskTemplateDependency[]>([]);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [versionDetail, setVersionDetail] = useState<AdminWorkflowDefinitionVersionDetail | null>(null);
   const [definitionDraft, setDefinitionDraft] = useState(createEmptyDefinitionDraft);
   const [newDefinitionDraft, setNewDefinitionDraft] = useState(createEmptyDefinitionDraft);
   const [versionDraft, setVersionDraft] = useState<WorkflowBuilderVersionDraft>(createEmptyVersionDraft);
-  const [localValidationIssues, setLocalValidationIssues] = useState<string[]>([]);
-  const [inspectorFocus, setInspectorFocus] = useState<BuilderInspectorFocusTarget>(createEmptyInspectorFocus);
-  const [referenceReloadTick, setReferenceReloadTick] = useState(0);
+  const [localValidationIssues, setLocalValidationIssues] = useState<WorkflowBuilderLocalIssue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingVersion, setIsLoadingVersion] = useState(false);
   const [isDeletingDefinition, setIsDeletingDefinition] = useState(false);
@@ -113,14 +82,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     () => findVersionSummary(definitions, selectedVersionId),
     [definitions, selectedVersionId]
   );
-  const selectedNode = useMemo(
-    () => versionDraft.nodes.find((node) => node.id === selectedNodeId) ?? null,
-    [selectedNodeId, versionDraft.nodes]
-  );
-  const selectedEdge = useMemo(
-    () => versionDraft.edges.find((edge) => edge.id === selectedEdgeId) ?? null,
-    [selectedEdgeId, versionDraft.edges]
-  );
   const hasDefinitionMetadataChanges = useMemo(
     () => isDefinitionMetadataChanged(selectedDefinition, definitionDraft.name, definitionDraft.description),
     [definitionDraft.description, definitionDraft.name, selectedDefinition]
@@ -132,6 +93,16 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     );
   }, [actionDefinitions]);
 
+  // Aufgaben-/Antwort-/Conditions-/Dependencies-Referenzdaten kommen aus einem
+  // dedizierten Hook (HQ2-Z3): er beobachtet versionDraft + definitions und
+  // re-laedt automatisch, wenn legacyProcessTypeKey-Referenzen sich aendern.
+  const {
+    taskTemplates,
+    answerDefinitions,
+    taskTemplateConditions,
+    taskTemplateDependencies,
+  } = useAdminWorkflowVersionReferenceData(versionDraft, definitions);
+
   const loadDefinitions = useCallback(async (options?: {
     selectedDefinitionId?: number | null;
     selectedVersionId?: number | null;
@@ -139,9 +110,10 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   }) => {
     const loadedDefinitions = await getAdminWorkflowDefinitions();
     let loadedActionDefinitions: AdminWorkflowActionDefinition[] = [];
-    let loadedProcessTypes: AdminProcessType[] = [];
     let loadedResponsibilityOwners: AdminResponsibilityOwner[] = [];
     let actionCatalogError: string | null = null;
+
+    let loadedAutomationPropertyCatalog: AdminAutomationPropertyCatalog | null = null;
 
     if (canManageAdvanced) {
       try {
@@ -151,12 +123,14 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
           ? err.message
           : "Der Aktionskatalog konnte nicht geladen werden.";
       }
-    }
 
-    try {
-      loadedProcessTypes = await getAdminProcessTypes();
-    } catch {
-      loadedProcessTypes = [];
+      try {
+        loadedAutomationPropertyCatalog = await getAdminAutomationPropertyCatalog();
+      } catch {
+        // Property-Katalog ist optional fuer den Editor — er hat statische
+        // Fallback-Listen. Fehler hier nicht eskalieren.
+        loadedAutomationPropertyCatalog = null;
+      }
     }
 
     try {
@@ -167,7 +141,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
     setDefinitions(loadedDefinitions);
     setActionDefinitions(loadedActionDefinitions);
-    setProcessTypes(loadedProcessTypes);
+    setAutomationPropertyCatalog(loadedAutomationPropertyCatalog);
     setResponsibilityOwners(loadedResponsibilityOwners);
     if (actionCatalogError) {
       onError(`Der Ablauf-Editor wurde geladen, aber der Aktionskatalog ist derzeit nicht verfuegbar. ${actionCatalogError}`);
@@ -199,43 +173,25 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setSelectedVersionId(nextVersionId);
   }, [canManageAdvanced, onError]);
 
-  const closeInspectorFocus = useCallback(() => {
-    setInspectorFocus(createEmptyInspectorFocus());
-  }, []);
-
-  const openInspectorFocus = useCallback((focus: BuilderInspectorFocusTarget) => {
-    setInspectorFocus(focus);
-  }, []);
-
   const resetLoadedVersion = useCallback(() => {
     setVersionDetail(null);
     setVersionDraft(createEmptyVersionDraft());
-    setTaskTemplates([]);
-    setAnswerDefinitions([]);
-    setTaskTemplateConditions([]);
-    setTaskTemplateDependencies([]);
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
+    // taskTemplates / answerDefinitions / taskTemplateConditions / taskTemplateDependencies
+    // werden vom useAdminWorkflowVersionReferenceData-Hook geliefert und resetten
+    // sich automatisch, sobald der versionDraft keine referenzierten Process-Keys
+    // mehr enthaelt.
     setLocalValidationIssues([]);
     setIsDirty(false);
     setSelectedVersionId(null);
-    setInspectorFocus(createEmptyInspectorFocus());
   }, []);
 
   const applyLoadedVersionDetail = useCallback((detail: AdminWorkflowDefinitionVersionDetail) => {
     const nextDraft = toVersionDraft(detail);
     setVersionDetail(detail);
     setVersionDraft(nextDraft);
-    setTaskTemplates([]);
-    setAnswerDefinitions([]);
-    setTaskTemplateConditions([]);
-    setTaskTemplateDependencies([]);
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
     setLocalValidationIssues([]);
     setIsDirty(false);
     setSelectedVersionId(detail.id);
-    setInspectorFocus(createEmptyInspectorFocus());
   }, []);
 
   const loadVersionDetail = useCallback(async (versionId: number | null) => {
@@ -314,121 +270,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     });
   }, [onError, resetLoadedVersion, resolveWorkingDraft, selectedDefinitionId]);
 
-  useEffect(() => {
-    const processTypeIdsToLoad = new Set<number>();
-    const referencedProcessKeys = new Set<string>();
-
-    if (versionDraft.primaryLegacyProcessTypeKey.trim()) {
-      referencedProcessKeys.add(versionDraft.primaryLegacyProcessTypeKey.trim().toLowerCase());
-    }
-
-    for (const node of versionDraft.nodes) {
-      try {
-        const parsed = node.configText.trim() ? JSON.parse(node.configText) as Record<string, unknown> : null;
-        const legacyProcessTypeKey = typeof parsed?.legacyProcessTypeKey === "string"
-          ? parsed.legacyProcessTypeKey.trim().toLowerCase()
-          : "";
-        if (legacyProcessTypeKey) {
-          referencedProcessKeys.add(legacyProcessTypeKey);
-        }
-      } catch {
-        continue;
-      }
-    }
-
-    for (const processType of processTypes) {
-      if (referencedProcessKeys.has(processType.key.trim().toLowerCase())) {
-        processTypeIdsToLoad.add(processType.id);
-      }
-    }
-
-    if (processTypeIdsToLoad.size === 0) {
-      setTaskTemplates([]);
-      setAnswerDefinitions([]);
-      setTaskTemplateConditions([]);
-      setTaskTemplateDependencies([]);
-      return;
-    }
-
-    let cancelled = false;
-    void Promise.all(
-      [...processTypeIdsToLoad].map(async (processTypeId) =>
-        Promise.all([
-          getAdminTaskTemplates(processTypeId),
-          getAdminAnswerDefinitions(processTypeId),
-        ])
-      )
-    )
-      .then(async (loadedGroups) => {
-        if (cancelled) {
-          return;
-        }
-
-        const templatesByKey = new Map<string, AdminTaskTemplate>();
-        const answerDefinitionsByCompositeKey = new Map<string, AdminAnswerDefinition>();
-        for (const [loadedTemplates, loadedAnswerDefinitions] of loadedGroups) {
-          for (const template of loadedTemplates) {
-            const normalizedKey = template.templateKey.trim().toLowerCase();
-            if (normalizedKey && !templatesByKey.has(normalizedKey)) {
-              templatesByKey.set(normalizedKey, template);
-            }
-          }
-
-          for (const definition of loadedAnswerDefinitions) {
-            const compositeKey = `${definition.processTypeId}:${definition.answerKey.trim().toLowerCase()}`;
-            if (definition.answerKey.trim() && !answerDefinitionsByCompositeKey.has(compositeKey)) {
-              answerDefinitionsByCompositeKey.set(compositeKey, definition);
-            }
-          }
-        }
-
-        const dedupedTemplates = [...templatesByKey.values()];
-        const templatesWithConditions = dedupedTemplates.filter((template) => template.conditionCount > 0);
-        const templatesWithDependencies = dedupedTemplates.filter((template) => template.dependencyCount > 0);
-
-        const [loadedConditions, loadedDependencies] = await Promise.all([
-          Promise.all(templatesWithConditions.map((template) => getAdminTaskTemplateConditions(template.id))),
-          Promise.all(templatesWithDependencies.map((template) => getAdminTaskTemplateDependencies(template.id))),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-
-        setTaskTemplates(dedupedTemplates);
-        setAnswerDefinitions([...answerDefinitionsByCompositeKey.values()]);
-        setTaskTemplateConditions(loadedConditions.flat());
-        setTaskTemplateDependencies(loadedDependencies.flat());
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTaskTemplates([]);
-          setAnswerDefinitions([]);
-          setTaskTemplateConditions([]);
-          setTaskTemplateDependencies([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [processTypes, referenceReloadTick, versionDraft.nodes, versionDraft.primaryLegacyProcessTypeKey]);
-
-  const refreshReferenceData = useCallback(async () => {
-    onError(null);
-
-    try {
-      const [loadedProcessTypes, loadedResponsibilityOwners] = await Promise.all([
-        getAdminProcessTypes().catch(() => [] as AdminProcessType[]),
-        getAdminResponsibilityOwners().catch(() => [] as AdminResponsibilityOwner[]),
-      ]);
-      setProcessTypes(loadedProcessTypes);
-      setResponsibilityOwners(loadedResponsibilityOwners);
-      setReferenceReloadTick((current) => current + 1);
-    } catch (err) {
-      onError(err instanceof Error ? err.message : "Die Builder-Referenzdaten konnten nicht aktualisiert werden.");
-    }
-  }, [onError]);
 
   const confirmSelectionChange = useCallback(() => {
     if (!hasUnsavedChanges) {
@@ -454,20 +295,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
     setSelectedVersionId(versionId);
   }, [confirmSelectionChange]);
-
-  const selectNode = useCallback((nodeId: string | null) => {
-    setSelectedNodeId(nodeId);
-    setSelectedEdgeId(null);
-    setInspectorFocus(createEmptyInspectorFocus());
-  }, []);
-
-  const selectEdge = useCallback((edgeId: string | null) => {
-    setSelectedEdgeId(edgeId);
-    if (edgeId) {
-      setSelectedNodeId(null);
-    }
-    setInspectorFocus(createEmptyInspectorFocus());
-  }, []);
 
   const updateDefinitionDraft = useCallback((key: "name" | "description", value: string) => {
     setDefinitionDraft((current) => ({ ...current, [key]: value }));
@@ -520,21 +347,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     onError(null);
   }, [canManageAdvanced, onError, versionDraft.nodes]);
 
-  const updateNodePosition = useCallback((nodeId: string, position: { x: number; y: number }) => {
-    setVersionDraft((current) => ({
-      ...current,
-      nodes: current.nodes.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              positionX: Math.round(position.x),
-              positionY: Math.round(position.y),
-            }
-          : node),
-    }));
-    setIsDirty(true);
-  }, []);
-
   const addNode = useCallback((nodeType: WorkflowBuilderNodeDraft["nodeType"] = "task") => {
     const nextNode = {
       ...createEmptyNodeDraft(nodeType, versionDraft.nodes.length + 1),
@@ -542,10 +354,32 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       positionY: null,
     };
     setVersionDraft((current) => ({ ...current, nodes: [...current.nodes, nextNode] }));
-    setSelectedNodeId(nextNode.id);
-    setSelectedEdgeId(null);
     setIsDirty(true);
   }, [versionDraft.nodes]);
+
+  const moveNode = useCallback((nodeId: string, direction: "up" | "down") => {
+    setVersionDraft((current) => {
+      const index = current.nodes.findIndex((node) => node.id === nodeId);
+      if (index < 0) {
+        return current;
+      }
+
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= current.nodes.length) {
+        return current;
+      }
+
+      const nextNodes = [...current.nodes];
+      const [moved] = nextNodes.splice(index, 1);
+      nextNodes.splice(targetIndex, 0, moved!);
+
+      return {
+        ...current,
+        nodes: nextNodes.map((node, idx) => ({ ...node, sortOrder: String(idx + 1) })),
+      };
+    });
+    setIsDirty(true);
+  }, []);
 
   const removeNode = useCallback((nodeId: string) => {
     const nodeToRemove = versionDraft.nodes.find((node) => node.id === nodeId) ?? null;
@@ -554,24 +388,10 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    let shouldClearSelectedEdge = false;
     setVersionDraft((current) => {
       const removedNode = current.nodes.find((node) => node.id === nodeId);
       const removedNodeKey = removedNode?.nodeKey.trim();
       const nextNodes = current.nodes.filter((node) => node.id !== nodeId);
-      const removedEdgeIds = new Set(
-        current.edges
-          .filter((edge) => edge.sourceNodeKey === removedNodeKey || edge.targetNodeKey === removedNodeKey)
-          .map((edge) => edge.id)
-      );
-
-      if (selectedNodeId === nodeId) {
-        setSelectedNodeId(null);
-      }
-
-      if (selectedEdgeId && removedEdgeIds.has(selectedEdgeId)) {
-        shouldClearSelectedEdge = true;
-      }
 
       return {
         ...current,
@@ -579,27 +399,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
         edges: current.edges.filter((edge) => edge.sourceNodeKey !== removedNodeKey && edge.targetNodeKey !== removedNodeKey),
       };
     });
-    if (shouldClearSelectedEdge) {
-      setSelectedEdgeId(null);
-    }
     setIsDirty(true);
     onError(null);
-  }, [canManageAdvanced, onError, selectedEdgeId, selectedNodeId, versionDraft.nodes]);
-
-  const removeSelectedNode = useCallback(() => {
-    if (!selectedNode) {
-      onError("Bitte zuerst einen Schritt im Canvas auswaehlen.");
-      return;
-    }
-
-    removeNode(selectedNode.id);
-    onError(null);
-  }, [onError, removeNode, selectedNode]);
-
-  const autoLayoutNodes = useCallback(() => {
-    setVersionDraft((current) => autoLayoutVersionDraft(current));
-    setIsDirty(true);
-  }, []);
+  }, [canManageAdvanced, onError, versionDraft.nodes]);
 
   const addActionFromDefinition = useCallback((nodeId: string, actionKey: string) => {
     if (!canManageAdvanced) {
@@ -703,81 +505,8 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       ...current,
       edges: current.edges.filter((edge) => edge.id !== edgeId),
     }));
-    if (selectedEdgeId === edgeId) {
-      setSelectedEdgeId(null);
-    }
     setIsDirty(true);
-  }, [selectedEdgeId]);
-
-  const removeSelectedEdge = useCallback(() => {
-    if (!selectedEdgeId) {
-      return;
-    }
-
-    removeEdge(selectedEdgeId);
-  }, [removeEdge, selectedEdgeId]);
-
-  const connectNodes = useCallback((sourceNodeId: string | null, targetNodeId: string | null) => {
-    if (!sourceNodeId || !targetNodeId) {
-      return;
-    }
-
-    let createdEdgeId: string | null = null;
-    let errorMessage: string | null = null;
-    setVersionDraft((current) => {
-      const sourceNode = current.nodes.find((node) => node.id === sourceNodeId);
-      const targetNode = current.nodes.find((node) => node.id === targetNodeId);
-      const sourceNodeKey = sourceNode?.nodeKey.trim() ?? "";
-      const targetNodeKey = targetNode?.nodeKey.trim() ?? "";
-
-      if (!sourceNodeKey || !targetNodeKey) {
-        errorMessage = "Verbindungen brauchen gueltige Quelle und gueltiges Ziel mit Schritt-Key.";
-        return current;
-      }
-
-      if (sourceNodeKey.toLowerCase() === targetNodeKey.toLowerCase()) {
-        errorMessage = "Verbindungen duerfen nicht auf denselben Schritt zurueckzeigen.";
-        return current;
-      }
-
-      const usedPriorities = new Set(
-        current.edges
-          .filter((edge) => edge.sourceNodeKey.trim().toLowerCase() === sourceNodeKey.toLowerCase())
-          .map((edge) => Number(edge.priority))
-          .filter((priority) => Number.isInteger(priority) && priority > 0)
-      );
-
-      let nextPriority = 1;
-      while (usedPriorities.has(nextPriority)) {
-        nextPriority += 1;
-      }
-
-      const nextEdge = {
-        ...createEmptyEdgeDraft(),
-        sourceNodeKey,
-        targetNodeKey,
-        priority: String(nextPriority),
-      };
-      createdEdgeId = nextEdge.id;
-
-      return {
-        ...current,
-        edges: [...current.edges, nextEdge],
-      };
-    });
-
-    if (errorMessage) {
-      onError(errorMessage);
-      return;
-    }
-
-    if (createdEdgeId) {
-      setSelectedNodeId(null);
-      setSelectedEdgeId(createdEdgeId);
-      setIsDirty(true);
-      onError(null);
-    }
-  }, [onError]);
+  }, []);
 
   const createDefinition = useCallback(async () => {
     if (!canManageAdvanced) {
@@ -846,11 +575,11 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     }
   }, [canManageAdvanced, loadDefinitions, onError, onNotice, resetLoadedVersion, selectedDefinition]);
 
-  const collectValidationMessages = useCallback((draft: WorkflowBuilderVersionDraft) => {
-    const messages = validateWorkflowBuilderDraft(draft).map((issue) => issue.message);
+  const collectValidationIssues = useCallback((draft: WorkflowBuilderVersionDraft): WorkflowBuilderLocalIssue[] => {
+    const issues: WorkflowBuilderLocalIssue[] = [...validateWorkflowBuilderDraft(draft)];
 
     if (actionDefinitions.length === 0) {
-      return messages;
+      return dedupeIssues(issues);
     }
 
     for (const node of draft.nodes) {
@@ -867,17 +596,17 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
         const definition = activeActionDefinitionsByKey.get(actionKey.toLowerCase());
         if (!definition) {
-          messages.push(`Node '${nodeKey}' referenziert unbekannte Action '${actionKey}'.`);
+          issues.push({ scope: "action", message: `Node '${nodeKey}' referenziert unbekannte Action '${actionKey}'.`, referenceKey: nodeKey });
           continue;
         }
 
         if (!definition.isActive) {
-          messages.push(`Node '${nodeKey}' referenziert inaktive Action '${actionKey}'.`);
+          issues.push({ scope: "action", message: `Node '${nodeKey}' referenziert inaktive Action '${actionKey}'.`, referenceKey: nodeKey });
         }
       }
     }
 
-    return Array.from(new Set(messages));
+    return dedupeIssues(issues);
   }, [actionDefinitions.length, activeActionDefinitionsByKey]);
 
   const saveVersion = useCallback(async () => {
@@ -886,11 +615,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    const normalizedDraft = autoLayoutVersionDraft(versionDraft);
-
-    const localValidationMessages = collectValidationMessages(normalizedDraft);
-    setLocalValidationIssues(localValidationMessages);
-    if (localValidationMessages.length > 0) {
+    const localIssues = collectValidationIssues(versionDraft);
+    setLocalValidationIssues(localIssues);
+    if (localIssues.length > 0) {
       onError("Der aktuelle Stand enthaelt lokale Fehler.");
       return;
     }
@@ -912,7 +639,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
         });
       }
 
-      const saved = await replaceAdminWorkflowDefinitionVersion(selectedVersionId, buildVersionReplacePayload(normalizedDraft));
+      const saved = await replaceAdminWorkflowDefinitionVersion(selectedVersionId, buildVersionReplacePayload(versionDraft));
       await loadDefinitions({
         keepSelection: true,
         selectedDefinitionId: selectedDefinition.id,
@@ -921,8 +648,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       const nextDraft = toVersionDraft(saved);
       setVersionDetail(saved);
       setVersionDraft(nextDraft);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
       setLocalValidationIssues([]);
       setIsDirty(false);
       onNotice(`Stand ${saved.versionNumber} wurde gespeichert.`);
@@ -931,7 +656,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     } finally {
       setIsSaving(false);
     }
-  }, [canManageAdvanced, collectValidationMessages, definitionDraft.description, definitionDraft.name, hasDefinitionMetadataChanges, loadDefinitions, onError, onNotice, selectedDefinition, selectedVersionId, versionDraft]);
+  }, [canManageAdvanced, collectValidationIssues, definitionDraft.description, definitionDraft.name, hasDefinitionMetadataChanges, loadDefinitions, onError, onNotice, selectedDefinition, selectedVersionId, versionDraft]);
 
   const publishVersion = useCallback(async () => {
     if (!canManageAdvanced) {
@@ -975,12 +700,10 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    const normalizedDraft = autoLayoutVersionDraft(versionDraft);
+    const localIssues = collectValidationIssues(versionDraft);
+    setLocalValidationIssues(localIssues);
 
-    const localValidationMessages = collectValidationMessages(normalizedDraft);
-    setLocalValidationIssues(localValidationMessages);
-
-    if (localValidationMessages.length > 0) {
+    if (localIssues.length > 0) {
       onError("Der aktuelle Stand enthaelt lokale Fehler.");
       onNotice(null);
       return;
@@ -988,12 +711,12 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
     onError(null);
     onNotice("Lokale Pruefung erfolgreich.");
-  }, [collectValidationMessages, onError, onNotice, selectedVersionSummary, versionDraft]);
+  }, [collectValidationIssues, onError, onNotice, selectedVersionSummary, versionDraft]);
 
   return {
     definitions,
     actionDefinitions,
-    processTypes,
+    automationPropertyCatalog,
     responsibilityOwners,
     taskTemplates,
     answerDefinitions,
@@ -1001,8 +724,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     taskTemplateDependencies,
     selectedDefinition,
     selectedVersionSummary,
-    selectedNode,
-    selectedEdge,
     versionDetail,
     definitionDraft,
     newDefinitionDraft,
@@ -1018,33 +739,23 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     hasUnsavedChanges,
     selectDefinition,
     selectVersion,
-    selectNode,
-    selectEdge,
     updateDefinitionDraft,
     updateNewDefinitionDraft,
     updateVersionDraftField,
     addNode,
+    moveNode,
     updateNode,
-    updateNodePosition,
     removeNode,
-    removeSelectedNode,
-    autoLayoutNodes,
     addActionFromDefinition,
     updateAction,
     removeAction,
     addEdge,
     updateEdge,
     removeEdge,
-    removeSelectedEdge,
-    connectNodes,
     createDefinition,
     deleteDefinition,
     saveVersion,
     validateDraft,
     publishVersion,
-    inspectorFocus,
-    openInspectorFocus,
-    closeInspectorFocus,
-    refreshReferenceData,
   };
 }

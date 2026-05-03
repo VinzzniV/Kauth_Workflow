@@ -6,9 +6,9 @@ import PageHeader from "../components/layout/PageHeader";
 import WorkflowCard from "../components/workflows/WorkflowCard";
 import type { WorkflowQueryOptions } from "../services/workflowApi";
 import { useDepartments } from "../services/queries/roleQueries";
-import { useProcessTypes } from "../services/queries/processTypeQueries";
+import { useStartableWorkflowDefinitions } from "../services/queries/workflowDefinitionQueries";
 import { useWorkflowList } from "../services/queries/workflowQueries";
-import type { Department, ProcessType, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
+import type { Department, StartableWorkflowDefinition, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
 
 const SEARCH_DEBOUNCE_MS = 400;
 const SEARCH_PAGE_SIZE = 1000;
@@ -31,12 +31,12 @@ export default function WorkflowSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get("q") ?? "";
   const initialDepartmentFilter = searchParams.get("dept") ?? "all";
-  const initialProcessTypeFilter = searchParams.get("type") ?? "all";
+  const initialWorkflowDefinitionFilter = searchParams.get("type") ?? "all";
   const initialStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
   const [search, setSearch] = useState<string>(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch);
   const [departmentFilter, setDepartmentFilter] = useState<string>(initialDepartmentFilter);
-  const [processTypeFilter, setProcessTypeFilter] = useState<string>(initialProcessTypeFilter);
+  const [workflowDefinitionFilter, setWorkflowDefinitionFilter] = useState<string>(initialWorkflowDefinitionFilter);
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(initialStatusFilter);
 
   // Debounce search input to avoid a request on every keystroke.
@@ -46,34 +46,34 @@ export default function WorkflowSearchPage() {
   }, [search]);
 
   const hasActiveFilters =
-    search.trim().length > 0 || departmentFilter !== "all" || processTypeFilter !== "all" || statusFilter !== "all";
+    search.trim().length > 0 || departmentFilter !== "all" || workflowDefinitionFilter !== "all" || statusFilter !== "all";
   const searchQueryOptions = useMemo<WorkflowQueryOptions>(() => ({
     status: statusFilter === "all" ? null : statusFilter,
     departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
-    processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
+    workflowDefinitionKey: workflowDefinitionFilter === "all" ? null : workflowDefinitionFilter,
     search: debouncedSearch,
-  }), [departmentFilter, debouncedSearch, processTypeFilter, statusFilter]);
-  const processTypesQuery = useProcessTypes();
+  }), [departmentFilter, debouncedSearch, workflowDefinitionFilter, statusFilter]);
+  const workflowDefinitionsQuery = useStartableWorkflowDefinitions();
   const departmentsQuery = useDepartments();
   const workflowSearchQuery = useWorkflowList(searchQueryOptions, 0, SEARCH_PAGE_SIZE, hasActiveFilters);
-  const processTypeOptions: ProcessType[] = processTypesQuery.data ?? [];
+  const workflowDefinitionOptions: StartableWorkflowDefinition[] = workflowDefinitionsQuery.data ?? [];
   const departmentOptions: Department[] = departmentsQuery.data ?? [];
   const rows: WorkflowSummary[] = workflowSearchQuery.data?.items ?? [];
   const isLoading = workflowSearchQuery.isLoading;
   const isRefreshing =
-    workflowSearchQuery.isFetching || processTypesQuery.isFetching || departmentsQuery.isFetching;
+    workflowSearchQuery.isFetching || workflowDefinitionsQuery.isFetching || departmentsQuery.isFetching;
   const error =
     workflowSearchQuery.error instanceof Error
       ? workflowSearchQuery.error.message
-      : processTypesQuery.error instanceof Error
-        ? processTypesQuery.error.message
+      : workflowDefinitionsQuery.error instanceof Error
+        ? workflowDefinitionsQuery.error.message
         : departmentsQuery.error instanceof Error
           ? departmentsQuery.error.message
-          : workflowSearchQuery.error || processTypesQuery.error || departmentsQuery.error
+          : workflowSearchQuery.error || workflowDefinitionsQuery.error || departmentsQuery.error
             ? "Vorgangssuche konnte nicht geladen werden."
             : null;
-  const hasAdvancedFilters = departmentFilter !== "all" || processTypeFilter !== "all" || statusFilter !== "all";
-  const advancedFilterCount = [departmentFilter, processTypeFilter, statusFilter].filter((value) => value !== "all").length;
+  const hasAdvancedFilters = departmentFilter !== "all" || workflowDefinitionFilter !== "all" || statusFilter !== "all";
+  const advancedFilterCount = [departmentFilter, workflowDefinitionFilter, statusFilter].filter((value) => value !== "all").length;
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -86,8 +86,8 @@ export default function WorkflowSearchPage() {
       nextParams.set("dept", departmentFilter);
     }
 
-    if (processTypeFilter !== "all") {
-      nextParams.set("type", processTypeFilter);
+    if (workflowDefinitionFilter !== "all") {
+      nextParams.set("type", workflowDefinitionFilter);
     }
 
     if (statusFilter !== "all") {
@@ -97,7 +97,7 @@ export default function WorkflowSearchPage() {
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [departmentFilter, processTypeFilter, search, searchParams, setSearchParams, statusFilter]);
+  }, [departmentFilter, workflowDefinitionFilter, search, searchParams, setSearchParams, statusFilter]);
 
   return (
     <main className="app-shell">
@@ -135,7 +135,7 @@ export default function WorkflowSearchPage() {
               onClick={() => {
                 void Promise.all([
                   workflowSearchQuery.refetch(),
-                  processTypesQuery.refetch(),
+                  workflowDefinitionsQuery.refetch(),
                   departmentsQuery.refetch(),
                 ]);
               }}
@@ -152,11 +152,11 @@ export default function WorkflowSearchPage() {
             <div className="toolbar-row toolbar-row-filters workflow-filter-bar workflow-filter-bar--details">
               <label className="field compact">
                 <span>Prozesstyp</span>
-                <select value={processTypeFilter} onChange={(event) => setProcessTypeFilter(event.target.value)}>
+                <select value={workflowDefinitionFilter} onChange={(event) => setWorkflowDefinitionFilter(event.target.value)}>
                   <option value="all">Alle</option>
-                  {processTypeOptions.map((processType) => (
-                    <option key={processType.key} value={processType.key}>
-                      {processType.name}
+                  {workflowDefinitionOptions.map((definition) => (
+                    <option key={definition.definitionKey} value={definition.definitionKey}>
+                      {definition.name}
                     </option>
                   ))}
                 </select>
@@ -201,7 +201,7 @@ export default function WorkflowSearchPage() {
             onAction={() => {
               void Promise.all([
                 workflowSearchQuery.refetch(),
-                processTypesQuery.refetch(),
+                workflowDefinitionsQuery.refetch(),
                 departmentsQuery.refetch(),
               ]);
             }}

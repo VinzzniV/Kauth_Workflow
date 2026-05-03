@@ -17,7 +17,6 @@ public sealed class WorkflowStartableDefinitionDto
     public required string Name { get; init; }
     public string? Description { get; init; }
     public required bool RequiresTargetPerson { get; init; }
-    public required string PrimaryLegacyProcessTypeKey { get; init; }
     public required int LatestPublishedVersionNumber { get; init; }
 }
 
@@ -29,7 +28,6 @@ public sealed class WorkflowDefinitionVersionSummaryDto
     public required string Status { get; init; }
     public string? Name { get; init; }
     public string? Description { get; init; }
-    public string? PrimaryLegacyProcessTypeKey { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
     public DateTime? PublishedAt { get; init; }
@@ -48,7 +46,6 @@ public sealed class WorkflowDefinitionVersionDetailDto
     public required string Status { get; init; }
     public string? Name { get; init; }
     public string? Description { get; init; }
-    public string? PrimaryLegacyProcessTypeKey { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
     public DateTime? PublishedAt { get; init; }
@@ -118,7 +115,6 @@ public sealed class ReplaceWorkflowDefinitionVersionRequest
 {
     public string? Name { get; init; }
     public string? Description { get; init; }
-    public string? PrimaryLegacyProcessTypeKey { get; init; }
     public List<WorkflowDefinitionNodeDto> Nodes { get; init; } = new();
     public List<WorkflowDefinitionEdgeDto> Edges { get; init; } = new();
 }

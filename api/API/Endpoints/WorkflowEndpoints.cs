@@ -85,7 +85,7 @@ internal static class WorkflowEndpoints
         app.MapGet("/workflows", async (
             [FromQuery] string? status,
             [FromQuery] int? department,
-            [FromQuery] string? processTypeKey,
+            [FromQuery] string? workflowDefinitionKey,
             [FromQuery] string? search,
             [FromQuery] string? responsibility,
             [FromQuery] int? limit,
@@ -108,7 +108,7 @@ internal static class WorkflowEndpoints
                 var result = await workflowRuntimeService.GetWorkflowsAsync(
                     status,
                     department,
-                    processTypeKey,
+                    workflowDefinitionKey,
                     search,
                     responsibility,
                     limit,

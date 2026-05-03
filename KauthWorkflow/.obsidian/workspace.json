@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "b8fb18a9341ebd8d",
+        "id": "42a6862354f269dc",
         "type": "tabs",
         "children": [
           {
-            "id": "d64677a84f18447a",
+            "id": "f8db3c7f6adbefa9",
             "type": "leaf",
             "state": {
               "type": "empty",
@@ -179,19 +179,19 @@
       "bases:Neue Base erstellen": false
     }
   },
-  "active": "d64677a84f18447a",
+  "active": "092cca2f180dca56",
   "lastOpenFiles": [
+    "Stand/Code-Review-Status.md",
+    "Willkommen.md",
+    "00 Start.md",
     "Arbeit/Engineering-Regeln.md",
     "Architektur/Zielarchitektur.md.tmp.19628.1777014708492",
     "Architektur/Entscheidungen.md.tmp.19628.1777014700661",
     "Architektur/Migrationspfad.md.tmp.19628.1777014695377",
-    "00 Start.md",
     "Architektur/Migrationspfad.md.tmp.19628.1777014690061",
     "Architektur/Migrationspfad.md.tmp.19628.1777014677073",
     "Architektur/Migrationspfad.md.tmp.19628.1777014670556",
     "Stand/Onboarding-Entkopplung.md",
-    "Stand/Code-Review-Status.md",
-    "Willkommen.md",
     "Architektur/Zielarchitektur.md",
     "Stand/Code-Review-Status.md.tmp.19628.1777014650934",
     "Architektur/Migrationspfad.md",

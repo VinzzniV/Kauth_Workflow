@@ -49,7 +49,6 @@ public sealed class WorkflowVisibilityServiceTests
             },
             RoleId = 1,
             RoleName = "Mitarbeiter",
-            Status = WorkflowStatusRules.OpenLegacy,
             WorkflowStatus = WorkflowStatusRules.Completed,
             CreatedAt = DateTime.UtcNow,
             Requirements = [],

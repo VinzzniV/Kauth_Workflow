@@ -15,7 +15,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
     {
         var created = await repository.CreateWorkflowDefinitionInstance(request, currentUser.UserId);
         await workflowNotificationDispatchService.DispatchReadyTaskNotificationsAsync(created.WorkflowUid, cancellationToken);
-        if (string.Equals(created.LegacyWorkflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(created.CurrentRuntimeStatus, "completed", StringComparison.OrdinalIgnoreCase))
         {
             await personLifecycleProjectionService.ApplyCompletedWorkflowProjectionAsync(
                 created.WorkflowUid,
@@ -94,7 +94,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
             await workflowNotificationDispatchService.DispatchTaskStatusChangeNotificationsAsync(
                 updated.WorkflowUid,
                 cancellationToken);
-            if (string.Equals(updated.LegacyWorkflowStatus, "completed", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(updated.CurrentRuntimeStatus, "completed", StringComparison.OrdinalIgnoreCase))
             {
                 await personLifecycleProjectionService.ApplyCompletedWorkflowProjectionAsync(
                     updated.WorkflowUid,

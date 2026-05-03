@@ -1,23 +1,9 @@
-import type { WorkflowRuntimeStatus, WorkflowStatus } from "../types/workflow";
+import type { WorkflowRuntimeStatus } from "../types/workflow";
 
 export type WorkflowRuntimeStatusLabelVariant = "compact" | "action";
 
 function normalizeWorkflowStatus(status: string): string {
   return status.trim().toLowerCase();
-}
-
-function normalizeWorkflowLegacyStatus(status: string): WorkflowStatus | null {
-  const normalized = normalizeWorkflowStatus(status);
-
-  if (normalized === "open" || normalized === "completed") {
-    return normalized;
-  }
-
-  return null;
-}
-
-export function toWorkflowLegacyStatus(status: string): WorkflowStatus {
-  return normalizeWorkflowLegacyStatus(status) ?? "open";
 }
 
 export function isWorkflowTerminalStatus(status: string): boolean {

@@ -385,7 +385,7 @@ public sealed class RotationPlanningServiceTests
         public Task<List<TaskWithWorkflowDto>> GetAllRotationTaskEnvelopes()
             => Task.FromResult(new List<TaskWithWorkflowDto>());
 
-        public Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] responsibilityIds)
+        public Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] effectiveResponsibilityIds)
             => Task.FromResult(new List<TaskWithWorkflowDto>());
 
         public Task<TaskWithWorkflowDto?> GetRotationTaskEnvelope(long taskId)

@@ -164,7 +164,6 @@ export function isWorkflowCreationContextComplete({
 
 type WorkflowCreationPayloadArgs = {
   selectedWorkflowDefinitionKey: string;
-  selectedLegacyProcessTypeKey: string;
   requiresTargetPerson: boolean;
   targetPersonId: number;
   employee: EmployeeFormData;
@@ -174,7 +173,6 @@ type WorkflowCreationPayloadArgs = {
 
 export function buildWorkflowCreationPayload({
   selectedWorkflowDefinitionKey,
-  selectedLegacyProcessTypeKey,
   requiresTargetPerson,
   targetPersonId,
   employee,
@@ -184,7 +182,6 @@ export function buildWorkflowCreationPayload({
   if (requiresTargetPerson) {
     return {
       workflowDefinitionKey: selectedWorkflowDefinitionKey,
-      processTypeKey: selectedLegacyProcessTypeKey,
       targetPersonId,
       deadlineDate: employee.deadlineDate.trim() || null,
     };
@@ -192,7 +189,6 @@ export function buildWorkflowCreationPayload({
 
   return {
     workflowDefinitionKey: selectedWorkflowDefinitionKey,
-    processTypeKey: selectedLegacyProcessTypeKey,
     targetPersonId,
     firstName: employee.firstName.trim(),
     lastName: employee.lastName.trim(),

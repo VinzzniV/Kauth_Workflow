@@ -9,15 +9,15 @@ import {
 import {
   getAdminAnswerDefinitions,
   getAdminDependencyGraph,
-  getAdminProcessTypes,
   getAdminTaskTemplateConditions,
   getAdminTaskTemplateDependencies,
   getAdminTaskTemplates,
+  getAdminWorkflowDefinitions,
 } from "../services/adminConfigApi";
 import type {
   AdminAnswerDefinition,
   AdminDependencyGraph,
-  AdminProcessType,
+  AdminWorkflowDefinitionSummary,
   AdminTaskTemplate,
   AdminTaskTemplateCondition,
   AdminTaskTemplateDependency,
@@ -40,8 +40,8 @@ type UseAdminTaskTemplateDataOptions = {
 };
 
 export type AdminTaskTemplateDataController = {
-  processTypes: AdminProcessType[];
-  selectedProcessTypeId: number | null;
+  workflowDefinitions: AdminWorkflowDefinitionSummary[];
+  selectedWorkflowDefinitionId: number | null;
   templates: AdminTaskTemplate[];
   dependencyGraph: AdminDependencyGraph;
   selectedTemplate: AdminTaskTemplate | null;
@@ -63,7 +63,7 @@ export type AdminTaskTemplateDataController = {
   setConditionDraft: Dispatch<SetStateAction<ConditionDraft>>;
   setDependencyDraft: Dispatch<SetStateAction<DependencyDraft>>;
   setIsCreatingNew: Dispatch<SetStateAction<boolean>>;
-  selectProcessType: (nextValue: string) => void;
+  selectWorkflowDefinition: (nextValue: string) => void;
   selectTemplate: (template: AdminTaskTemplate) => void;
   startCreatingTemplate: () => void;
   updateDraft: <K extends keyof TemplateDraft>(key: K, value: TemplateDraft[K]) => void;
@@ -75,8 +75,8 @@ export function useAdminTaskTemplateData({
   onError,
   updateOperationState,
 }: UseAdminTaskTemplateDataOptions): AdminTaskTemplateDataController {
-  const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
-  const [selectedProcessTypeId, setSelectedProcessTypeId] = useState<number | null>(null);
+  const [workflowDefinitions, setWorkflowDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
+  const [selectedWorkflowDefinitionId, setSelectedWorkflowDefinitionId] = useState<number | null>(null);
   const [templates, setTemplates] = useState<AdminTaskTemplate[]>([]);
   const [dependencyGraph, setDependencyGraph] = useState<AdminDependencyGraph>({ nodes: [], edges: [] });
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
@@ -139,11 +139,11 @@ export function useAdminTaskTemplateData({
     }
   }, [updateOperationState]);
 
-  const loadDependencyGraph = useCallback(async (processTypeId: number) => {
+  const loadDependencyGraph = useCallback(async (workflowDefinitionId: number) => {
     updateOperationState({ isLoadingDependencyGraph: true });
 
     try {
-      const loadedGraph = await getAdminDependencyGraph(processTypeId);
+      const loadedGraph = await getAdminDependencyGraph(workflowDefinitionId);
       setDependencyGraph(loadedGraph);
       return loadedGraph;
     } catch (err) {
@@ -154,14 +154,14 @@ export function useAdminTaskTemplateData({
     }
   }, [updateOperationState]);
 
-  const loadTemplates = useCallback(async (processTypeId: number, templateIdToSelect?: number | null) => {
+  const loadTemplates = useCallback(async (workflowDefinitionId: number, templateIdToSelect?: number | null) => {
     updateOperationState({ isLoadingTemplates: true });
 
     try {
       const [loadedTemplates, loadedAnswerDefinitions, loadedGraph] = await Promise.all([
-        getAdminTaskTemplates(processTypeId),
-        getAdminAnswerDefinitions(processTypeId),
-        loadDependencyGraph(processTypeId),
+        getAdminTaskTemplates(workflowDefinitionId),
+        getAdminAnswerDefinitions(workflowDefinitionId),
+        loadDependencyGraph(workflowDefinitionId),
       ]);
       setTemplates(loadedTemplates);
       setAnswerDefinitions(loadedAnswerDefinitions);
@@ -198,20 +198,20 @@ export function useAdminTaskTemplateData({
 
   useEffect(() => {
     updateOperationState({ isLoadingProcessTypes: true });
-    getAdminProcessTypes()
-      .then((loadedProcessTypes) => {
-        setProcessTypes(loadedProcessTypes);
-        setSelectedProcessTypeId((current) => current ?? loadedProcessTypes[0]?.id ?? null);
+    getAdminWorkflowDefinitions()
+      .then((loadedDefinitions) => {
+        setWorkflowDefinitions(loadedDefinitions);
+        setSelectedWorkflowDefinitionId((current) => current ?? loadedDefinitions[0]?.id ?? null);
       })
       .catch(() => {
-        setProcessTypes([]);
-        setSelectedProcessTypeId(null);
+        setWorkflowDefinitions([]);
+        setSelectedWorkflowDefinitionId(null);
       })
       .finally(() => updateOperationState({ isLoadingProcessTypes: false }));
   }, [updateOperationState]);
 
   useEffect(() => {
-    if (!selectedProcessTypeId) {
+    if (!selectedWorkflowDefinitionId) {
       setTemplates([]);
       setDependencyGraph({ nodes: [], edges: [] });
       setAnswerDefinitions([]);
@@ -220,15 +220,15 @@ export function useAdminTaskTemplateData({
     }
 
     onError(null);
-    void loadTemplates(selectedProcessTypeId).catch((err) => {
+    void loadTemplates(selectedWorkflowDefinitionId).catch((err) => {
       const message = err instanceof Error ? err.message : "Task-Templates konnten nicht geladen werden.";
       onError(message);
     });
-  }, [loadTemplates, onError, resetTemplateEditor, selectedProcessTypeId]);
+  }, [loadTemplates, onError, resetTemplateEditor, selectedWorkflowDefinitionId]);
 
-  const selectProcessType = useCallback((nextValue: string) => {
+  const selectWorkflowDefinition = useCallback((nextValue: string) => {
     const parsed = Number(nextValue);
-    setSelectedProcessTypeId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+    setSelectedWorkflowDefinitionId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
   }, []);
 
   const selectTemplate = useCallback((template: AdminTaskTemplate) => {
@@ -264,8 +264,8 @@ export function useAdminTaskTemplateData({
   }, []);
 
   return {
-    processTypes,
-    selectedProcessTypeId,
+    workflowDefinitions,
+    selectedWorkflowDefinitionId,
     templates,
     dependencyGraph,
     selectedTemplate,
@@ -287,7 +287,7 @@ export function useAdminTaskTemplateData({
     setConditionDraft,
     setDependencyDraft,
     setIsCreatingNew,
-    selectProcessType,
+    selectWorkflowDefinition,
     selectTemplate,
     startCreatingTemplate,
     updateDraft,

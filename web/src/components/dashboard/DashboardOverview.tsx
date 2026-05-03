@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
-import { useProcessTypes } from "../../services/queries/processTypeQueries";
+import { useStartableWorkflowDefinitions } from "../../services/queries/workflowDefinitionQueries";
 import {
   getWorkflowRuntimeStatusLabel,
   getWorkflowRuntimeStatusPillClass,
@@ -19,25 +19,25 @@ export default function DashboardOverview() {
     dashboardPersona === "hr" ||
     dashboardPersona === "manager" ||
     dashboardPersona === "reader";
-  const [selectedProcessTypeKey, setSelectedProcessTypeKey] = useState<string>("all");
-  const processTypesQuery = useProcessTypes();
-  const processTypes = useMemo(
-    () => (supportsProcessTypeFilter ? processTypesQuery.data ?? [] : []),
-    [processTypesQuery.data, supportsProcessTypeFilter]
+  const [selectedDefinitionKey, setSelectedDefinitionKey] = useState<string>("all");
+  const workflowDefinitionsQuery = useStartableWorkflowDefinitions();
+  const workflowDefinitions = useMemo(
+    () => (supportsProcessTypeFilter ? workflowDefinitionsQuery.data ?? [] : []),
+    [workflowDefinitionsQuery.data, supportsProcessTypeFilter]
   );
-  const isProcessTypeLoading = supportsProcessTypeFilter ? processTypesQuery.isLoading : false;
-  const effectiveProcessTypeKey =
+  const isDefinitionsLoading = supportsProcessTypeFilter ? workflowDefinitionsQuery.isLoading : false;
+  const effectiveDefinitionKey =
     supportsProcessTypeFilter &&
-    (selectedProcessTypeKey === "all" ||
-      processTypes.some((processType) => processType.key === selectedProcessTypeKey))
-      ? selectedProcessTypeKey
+    (selectedDefinitionKey === "all" ||
+      workflowDefinitions.some((definition) => definition.definitionKey === selectedDefinitionKey))
+      ? selectedDefinitionKey
       : "all";
-  const processTypeKey = effectiveProcessTypeKey === "all" ? null : effectiveProcessTypeKey;
-  const selectedProcessType = processTypes.find((processType) => processType.key === processTypeKey) ?? null;
+  const workflowDefinitionKey = effectiveDefinitionKey === "all" ? null : effectiveDefinitionKey;
+  const selectedWorkflowDefinition = workflowDefinitions.find((d) => d.definitionKey === workflowDefinitionKey) ?? null;
   const { insights, insightsError, isInsightsLoading, reloadInsights } = useDashboardInsights(
     dashboardPersona,
-    processTypeKey,
-    selectedProcessType
+    workflowDefinitionKey,
+    selectedWorkflowDefinition
   );
   const priorityItem = insights?.queueItems[0] ?? null;
   const secondaryQueueItems = insights?.queueItems.slice(1) ?? [];
@@ -58,9 +58,9 @@ export default function DashboardOverview() {
 
   return (
     <div className="content-stack">
-      {isInsightsLoading || isProcessTypeLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
+      {isInsightsLoading || isDefinitionsLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
 
-      {!isInsightsLoading && !isProcessTypeLoading && insightsError ? (
+      {!isInsightsLoading && !isDefinitionsLoading && insightsError ? (
         <EmptyState
           title="Übersichtsdaten konnten nicht geladen werden."
           description={insightsError}
@@ -71,25 +71,25 @@ export default function DashboardOverview() {
         />
       ) : null}
 
-      {!isInsightsLoading && !isProcessTypeLoading && !insightsError && insights ? (
+      {!isInsightsLoading && !isDefinitionsLoading && !insightsError && insights ? (
         <>
           {/* ─── Zone 1: Focus — nächster Schritt + Filter + Aktualisieren ─── */}
           <section className="panel dashboard-focus">
             <div className="dashboard-focus__head">
               <h2>{dashboardContext.title}</h2>
               <div className="dashboard-focus__controls">
-                {supportsProcessTypeFilter && processTypes.length > 1 ? (
+                {supportsProcessTypeFilter && workflowDefinitions.length > 1 ? (
                   <label className="field compact">
                     <span>Prozesstyp</span>
                     <select
-                      value={effectiveProcessTypeKey}
-                      onChange={(event) => setSelectedProcessTypeKey(event.target.value)}
-                      disabled={isInsightsLoading || isProcessTypeLoading}
+                      value={effectiveDefinitionKey}
+                      onChange={(event) => setSelectedDefinitionKey(event.target.value)}
+                      disabled={isInsightsLoading || isDefinitionsLoading}
                     >
                       <option value="all">Alle</option>
-                      {processTypes.map((processType) => (
-                        <option key={processType.key} value={processType.key}>
-                          {processType.name}
+                      {workflowDefinitions.map((definition) => (
+                        <option key={definition.definitionKey} value={definition.definitionKey}>
+                          {definition.name}
                         </option>
                       ))}
                     </select>
@@ -99,7 +99,7 @@ export default function DashboardOverview() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => void reloadInsights()}
-                  disabled={isInsightsLoading || isProcessTypeLoading}
+                  disabled={isInsightsLoading || isDefinitionsLoading}
                 >
                   {isInsightsLoading ? "Aktualisiere..." : "Aktualisieren"}
                 </button>

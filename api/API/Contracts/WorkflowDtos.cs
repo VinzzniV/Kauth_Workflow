@@ -121,7 +121,6 @@ public sealed class RequirementSelectionInputDto
 public sealed class CreateWorkflowRequest
 {
     public string? WorkflowDefinitionKey { get; init; }
-    public string? ProcessTypeKey { get; init; }
     public int? DepartmentId { get; init; }
     public int? RoleId { get; init; }
     public long? TargetPersonId { get; init; }
@@ -216,7 +215,6 @@ public sealed class WorkflowListItemDto
     public required WorkflowProcessTypeDto ProcessType { get; init; }
     public required int RoleId { get; init; }
     public required string RoleName { get; init; }
-    public required string Status { get; init; }
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
@@ -396,7 +394,6 @@ public sealed class TaskWorkflowContextDto
     public required long WorkflowId { get; init; }
     public required Guid WorkflowUid { get; init; }
     public required string WorkflowStatus { get; init; }
-    public required string WorkflowLegacyStatus { get; init; }
     public required DateTime WorkflowCreatedAt { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
@@ -471,7 +468,6 @@ public sealed class WorkflowDetailDto
     public required WorkflowProcessTypeDto ProcessType { get; init; }
     public required int RoleId { get; init; }
     public required string RoleName { get; init; }
-    public required string Status { get; init; }
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
     public DateOnly? DeadlineDate { get; init; }
@@ -489,7 +485,7 @@ public sealed class WorkflowNotificationDispatchTarget
 {
     public required long NotificationId { get; init; }
     public required string NotificationType { get; init; }
-    public required string ProcessTypeKey { get; init; }
+    public required string LegacyProcessTypeKey { get; init; }
     public required string ProcessTypeName { get; init; }
     public long? WorkflowTaskId { get; init; }
     public long? RecipientUserId { get; init; }
@@ -604,23 +600,6 @@ public sealed class WorkflowTargetPersonSourceDto
     public DateTime? ArchivedAt { get; init; }
 }
 
-public sealed class CompletedOnboardingSearchResultDto
-{
-    public required Guid WorkflowUid { get; init; }
-    public required long PersonId { get; init; }
-    public required string DisplayName { get; init; }
-    public required string FirstName { get; init; }
-    public required string LastName { get; init; }
-    public required int EmployeeNumber { get; init; }
-    public required int BadgeNumber { get; init; }
-    public int? DepartmentId { get; init; }
-    public string? DepartmentName { get; init; }
-    public int? RoleId { get; init; }
-    public string? RoleName { get; init; }
-    public required DateTime CompletedAt { get; init; }
-    public DateTime? ArchivedAt { get; init; }
-}
-
 public sealed class DerivedAnswerDto
 {
     public required string TargetAnswerKey { get; init; }
@@ -654,7 +633,7 @@ public sealed class AdminProcessTypeDto
 public sealed class AdminTaskTemplateDto
 {
     public required int Id { get; init; }
-    public required int ProcessTypeId { get; init; }
+    public required int WorkflowDefinitionId { get; init; }
     public required string TemplateKey { get; init; }
     public required string Title { get; init; }
     public required string Category { get; init; }
@@ -676,7 +655,7 @@ public sealed class AdminTaskTemplateDto
 public sealed class AdminAnswerDefinitionDto
 {
     public required int Id { get; init; }
-    public required int ProcessTypeId { get; init; }
+    public required int WorkflowDefinitionId { get; init; }
     public required string AnswerKey { get; init; }
     public required string Title { get; init; }
     public required string Category { get; init; }
@@ -711,7 +690,7 @@ public sealed class AdminTaskTemplateDependencyDto
 
 public sealed class AdminRoleAnswerDefaultDto
 {
-    public required int ProcessTypeId { get; init; }
+    public required int WorkflowDefinitionId { get; init; }
     public required int AppRoleId { get; init; }
     public required string AnswerKey { get; init; }
     public string? DefaultValueText { get; init; }
@@ -750,7 +729,7 @@ public sealed class AdminProcessTypeUpdateRequest
 
 public sealed class AdminTaskTemplateUpsertRequest
 {
-    public required int ProcessTypeId { get; init; }
+    public required int WorkflowDefinitionId { get; init; }
     public string? TemplateKey { get; init; }
     public string? Title { get; init; }
     public string? Category { get; init; }
@@ -784,7 +763,7 @@ public sealed class AdminTaskTemplateDependencyCreateRequest
 
 public sealed class AdminAnswerDefinitionUpsertRequest
 {
-    public required int ProcessTypeId { get; init; }
+    public required int WorkflowDefinitionId { get; init; }
     public string? AnswerKey { get; init; }
     public string? Title { get; init; }
     public string? Category { get; init; }
@@ -806,7 +785,7 @@ public sealed class AdminRoleAnswerDefaultUpsertItemRequest
 
 public sealed class AdminRoleAnswerDefaultsBulkUpsertRequest
 {
-    public required int ProcessTypeId { get; init; }
+    public required int WorkflowDefinitionId { get; init; }
     public required List<AdminRoleAnswerDefaultUpsertItemRequest> Items { get; init; }
 }
 
@@ -819,7 +798,6 @@ public sealed class PersonWorkflowSummaryDto
     public required string LastName { get; init; }
     public required string RoleName { get; init; }
     public required string DepartmentName { get; init; }
-    public required string Status { get; init; }
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
     public DateTime? CompletedAt { get; init; }

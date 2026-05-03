@@ -73,6 +73,8 @@ internal static class LifecycleApplicationExtensions
 
         app.UseCors("vite");
 
+        app.UseRateLimiter();
+
         if (runtimeSettings.EntraAuthEnabled)
         {
             app.UseAuthentication();

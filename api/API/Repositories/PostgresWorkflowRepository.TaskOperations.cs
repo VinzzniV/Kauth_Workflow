@@ -79,12 +79,12 @@ internal sealed partial class PostgresWorkflowRepository
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        if (!await TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
+        if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
         {
             return null;
         }
 
-        var taskRecord = await LoadTaskStateForUpdate(connection, transaction, taskId);
+        var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, taskId);
         if (!taskRecord.HasValue)
         {
             return null;
@@ -106,13 +106,13 @@ internal sealed partial class PostgresWorkflowRepository
         }
 
         if (TaskStatusRules.RequiresSatisfiedDependencies(normalizedStatus)
-            && !await AreTaskDependenciesSatisfied(connection, transaction, taskId))
+            && !await _statusCalculation.AreTaskDependenciesSatisfied(connection, transaction, taskId))
         {
             throw new InvalidOperationException("Task dependencies are not satisfied for the requested status.");
         }
 
-        await PersistTaskStatus(connection, transaction, taskId, normalizedStatus);
-        await InsertAuditEntry(
+        await _statusCalculation.PersistTaskStatus(connection, transaction, taskId, normalizedStatus);
+        await _auditWrite.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -121,14 +121,14 @@ internal sealed partial class PostgresWorkflowRepository
             "task_status_changed",
             currentStatus,
             normalizedStatus,
-            BuildTaskStatusAuditDetail(taskTitle));
-        await SyncPrimaryAssignmentCompletion(connection, transaction, taskId, normalizedStatus);
+            PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskTitle));
+        await _statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, taskId, normalizedStatus);
 
         if (isRuntimeNodeTask)
         {
             if (nodeInstanceId.HasValue && TaskStatusRules.TerminalTaskStatuses.Contains(normalizedStatus))
             {
-                await CompleteRuntimeTaskNodeFromTaskStatusUpdate(
+                await PostgresWorkflowRuntimeRepository.CompleteRuntimeTaskNodeFromTaskStatusUpdate(
                     connection,
                     transaction,
                     workflowId,
@@ -140,9 +140,9 @@ internal sealed partial class PostgresWorkflowRepository
         }
         else
         {
-            await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
-            await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
-            await TryAdvanceRuntimeSetupFromTaskStatusUpdate(
+            await _statusCalculation.RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
+            await _statusCalculation.RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+            await PostgresWorkflowRuntimeRepository.TryAdvanceRuntimeSetupFromTaskStatusUpdate(
                 connection,
                 transaction,
                 workflowId,
@@ -162,12 +162,12 @@ internal sealed partial class PostgresWorkflowRepository
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        if (!await TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
+        if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
         {
             return null;
         }
 
-        var taskRecord = await LoadTaskStateForUpdate(connection, transaction, taskId);
+        var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, taskId);
         if (!taskRecord.HasValue)
         {
             return null;
@@ -194,8 +194,8 @@ internal sealed partial class PostgresWorkflowRepository
             ? null
             : NormalizeTaskComment(request.CommentText);
 
-        await PersistTaskStatus(connection, transaction, taskId, "done");
-        await InsertAuditEntry(
+        await _statusCalculation.PersistTaskStatus(connection, transaction, taskId, "done");
+        await _auditWrite.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -204,15 +204,15 @@ internal sealed partial class PostgresWorkflowRepository
             "task_status_changed",
             currentStatus,
             "done",
-            BuildTaskStatusAuditDetail(taskTitle));
-        await SyncPrimaryAssignmentCompletion(connection, transaction, taskId, "done");
+            PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskTitle));
+        await _statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, taskId, "done");
 
         if (normalizedComment is not null)
         {
             await InsertTaskComment(connection, transaction, taskId, workflowId, normalizedComment, actorUserId);
         }
 
-        await ApplyRuntimeApprovalDecisionFromWorkflowTask(
+        await PostgresWorkflowRuntimeRepository.ApplyRuntimeApprovalDecisionFromWorkflowTask(
             connection,
             transaction,
             workflowId,
@@ -247,7 +247,7 @@ internal sealed partial class PostgresWorkflowRepository
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        var taskRecord = await LoadTaskStateForUpdate(connection, transaction, taskId);
+        var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, taskId);
         if (!taskRecord.HasValue)
         {
             return null;
@@ -259,7 +259,7 @@ internal sealed partial class PostgresWorkflowRepository
             throw new InvalidOperationException("Assignment changes are not allowed for terminal task states.");
         }
 
-        var oldAssigneeLabel = await LoadPrimaryTaskAssignmentAuditLabel(connection, transaction, taskId);
+        var oldAssigneeLabel = await PostgresRepositorySharedHelpers.LoadPrimaryTaskAssignmentAuditLabel(connection, transaction, taskId);
 
         if (request.AssigneeResponsibilityId.HasValue)
         {
@@ -334,7 +334,7 @@ VALUES (
             await insertAssignmentCommand.ExecuteNonQueryAsync();
         }
 
-        await InsertAuditEntry(
+        await _auditWrite.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -343,7 +343,7 @@ VALUES (
             "task_assigned",
             oldAssigneeLabel,
             newAssigneeLabel,
-            BuildTaskStatusAuditDetail(taskTitle));
+            PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskTitle));
 
         await transaction.CommitAsync();
         return await GetTaskById(taskId);
@@ -357,12 +357,12 @@ VALUES (
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        if (!await TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
+        if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
         {
             return null;
         }
 
-        var taskRecord = await LoadTaskStateForUpdate(connection, transaction, taskId);
+        var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, taskId);
         if (!taskRecord.HasValue)
         {
             return null;
@@ -435,7 +435,7 @@ VALUES (
             await command.ExecuteNonQueryAsync();
         }
 
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -447,7 +447,7 @@ VALUES (
             normalizedComment);
     }
 
-    private static async Task<string?> LoadWorkflowStatusForUpdate(
+    internal static async Task<string?> LoadWorkflowStatusForUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId)

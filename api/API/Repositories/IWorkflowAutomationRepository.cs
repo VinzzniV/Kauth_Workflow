@@ -2,8 +2,6 @@ namespace API;
 
 internal interface IWorkflowAutomationRepository
 {
-    Task<IReadOnlyList<ActionDefinitionDto>> GetAdminActionDefinitions(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<AutomationJobDetailDto>> GetAutomationJobs(Guid workflowUid, CancellationToken cancellationToken = default);
     Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default);
     Task CompleteAutomationJobSuccess(
         ClaimedAutomationJobRecord job,

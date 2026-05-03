@@ -64,7 +64,7 @@ INSERT INTO public.app_responsibilities OVERRIDING SYSTEM VALUE VALUES
 	(1, NULL, 'qmb_consense', 'consense', 'Consense', 'application', 'Verantwortung fuer Consense im QMB.', true, '2026-04-27 07:05:51.230709+00'),
 	(2, NULL, 'leadership_qmb', NULL, 'Abteilungsleitung QMB', 'department_lead', 'Fuehrungsverantwortung fuer Onboardings des QMB.', true, '2026-04-27 07:05:51.230709+00'),
 	(14, NULL, 'leadership_hr', NULL, 'Abteilungsleitung HR', 'department_lead', 'Fuehrungsverantwortung fuer Onboardings der HR.', true, '2026-04-27 07:05:51.230709+00'),
-	(15, NULL, 'hr_onboarding', NULL, 'HR-Onboarding', 'process', 'Verantwortung fuer Start, Abstimmung und Begleitung des Onboardings.', true, '2026-04-27 07:05:51.230709+00'),
+	(15, NULL, 'hr_workflow_initiator', NULL, 'HR-Workflow-Initiierung', 'process', 'Verantwortung fuer Start, Abstimmung und Begleitung von Workflows.', true, '2026-04-27 07:05:51.230709+00'),
 	(3, NULL, 'av_provis', 'provis', 'Provis', 'application', 'Verantwortung fuer Provis in der AV.', true, '2026-04-27 07:05:51.230709+00'),
 	(4, NULL, 'av_gewatec', 'gewatec', 'Gewatec', 'application', 'Verantwortung fuer Gewatec in der AV.', true, '2026-04-27 07:05:51.230709+00'),
 	(5, NULL, 'leadership_av', NULL, 'Abteilungsleitung AV', 'department_lead', 'Fuehrungsverantwortung fuer Onboardings der AV.', true, '2026-04-27 07:05:51.230709+00'),
@@ -121,19 +121,6 @@ INSERT INTO public.app_permissions OVERRIDING SYSTEM VALUE VALUES
 
 
 --
--- Data for Name: process_types; Type: TABLE DATA; Schema: public; Owner: -
---
-
-INSERT INTO public.process_types OVERRIDING SYSTEM VALUE VALUES
-	(1, 'onboarding', 'Onboarding', 'Start eines neuen Mitarbeiters mit Aufgaben fuer HR, Fuehrungskraft und Fachbereiche.', true, 'supervisor_fills_document', false, 'identitat', false, true, 10, '2026-04-27 07:05:51.224854+00'),
-	(3, 'offboarding', 'Offboarding', 'Geordneter Abschluss eines Mitarbeiterverhältnisses mit Rückgabe aller Zugänge und Ausstattung.', false, NULL, true, 'identitat', false, true, 20, '2026-04-27 07:05:51.458591+00'),
-	(4, 'department_change', 'Abteilungswechsel', 'Koordinierter Wechsel eines Mitarbeiters in eine andere Abteilung mit Anpassung aller Zugänge und Ausstattung.', false, NULL, true, 'identitat', true, true, 30, '2026-04-27 07:05:51.478815+00'),
-	(5, 'name_change', 'Namensaenderung', 'Koordinierte Aktualisierung eines Mitarbeiternamens in Stammdaten, Verzeichnisdiensten und Kommunikationssystemen.', false, NULL, true, 'identitat', true, true, 40, '2026-04-27 07:05:51.494337+00'),
-	(6, 'position_change', 'Positionswechsel', 'Koordinierter Wechsel eines Mitarbeiters in eine neue Position mit Anpassung von Berechtigungen, Systemzugaengen und Schulungen.', false, NULL, true, 'identitat', true, true, 50, '2026-04-27 07:05:51.565471+00'),
-	(7, 'role_change', 'Rollenwechsel', 'Koordinierte Anpassung einer Mitarbeiterrolle mit gezielter Aktualisierung von Rollen- und Berechtigungszuweisungen.', false, NULL, true, 'identitat', true, true, 60, '2026-04-27 07:05:51.581978+00');
-
-
---
 -- Data for Name: workflow_answer_definitions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -163,61 +150,61 @@ INSERT INTO public.workflow_answer_definitions OVERRIDING SYSTEM VALUE VALUES
 	(25, 1, 'internal_drive_access_requested', 'Zugangsrechte internes Laufwerk', 'Zugangsrechte', 'Sollen Zugangsrechte für ein internes Laufwerk vergeben werden?', 'berechtigungen', 'boolean', false, 21, true),
 	(26, 1, 'internal_drive_access_roles', 'Funktion für Laufwerksrechte', 'Zugangsrechte', 'Welche Funktion soll für die Laufwerksrechte berücksichtigt werden?', 'berechtigungen', 'multi_select', false, 22, true),
 	(27, 1, 'special_notes', 'Besondere Hinweise', 'Dokumentation', 'Freitext für wichtige Hinweise im Onboarding.', 'identitat', 'text', false, 92, false),
-	(28, 3, 'ob_has_ad_account', 'AD-Konto vorhanden?', 'Zugänge', 'Hat die Person ein aktives AD-Konto, das deaktiviert werden muss?', 'ad_user', 'boolean', true, 1, true),
-	(29, 3, 'ob_has_mailbox', 'Mailbox vorhanden?', 'Zugänge', 'Hat die Person eine Mailbox, die deaktiviert werden muss?', 'mailbox', 'boolean', false, 2, true),
-	(30, 3, 'ob_has_hardware', 'Hardware zurückzugeben?', 'Ausstattung', 'Hat die Person Hardware (Laptop, Workstation, etc.), die eingezogen werden muss?', 'pc', 'boolean', true, 3, true),
-	(31, 3, 'ob_has_phone', 'Telefon zurückzugeben?', 'Ausstattung', 'Hat die Person ein tragbares Telefon, das eingezogen werden muss?', 'phone', 'boolean', false, 4, true),
-	(32, 3, 'ob_has_habel', 'Habel-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Habel-User?', 'habel', 'boolean', false, 5, true),
-	(33, 3, 'ob_has_ln', 'InforLN-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven InforLN-User?', 'inforln', 'boolean', false, 6, true),
-	(34, 3, 'ob_has_babtec', 'Babtec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Babtec-User?', 'babtec', 'boolean', false, 7, true),
-	(35, 3, 'ob_has_gewatec', 'Gewatec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Gewatec-User?', 'gewatec', 'boolean', false, 8, true),
-	(36, 3, 'ob_has_provis', 'Provis-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Provis-User?', 'berechtigungen', 'boolean', false, 9, true),
-	(38, 3, 'ob_exit_interview', 'Austrittsgespräch führen?', 'Abschluss', 'Soll ein Austrittsgespräch mit der ausscheidenden Person geführt werden?', 'identitat', 'boolean', true, 11, true),
-	(39, 3, 'ob_knowledge_transfer', 'Wissenstransfer notwendig?', 'Abschluss', 'Muss vor dem Austritt ein strukturierter Wissenstransfer stattfinden?', 'identitat', 'boolean', false, 12, true),
-	(40, 4, 'dc_new_department', 'Neue Abteilung', 'Wechseldetails', 'Name der Zielabteilung, in die der Mitarbeiter wechselt.', 'identitat', 'text', true, 1, true),
-	(41, 4, 'dc_change_date', 'Wechseldatum', 'Wechseldetails', 'Geplanter Termin des Abteilungswechsels (z. B. 2025-07-01).', 'identitat', 'text', true, 2, true),
-	(42, 4, 'dc_ad_group_change', 'AD-Gruppen anpassen?', 'Zugänge', 'Müssen AD-Gruppen und Berechtigungen an die neue Abteilung angepasst werden?', 'ad_user', 'boolean', true, 3, true),
-	(43, 4, 'dc_drive_access_change', 'Laufwerk-Zugänge anpassen?', 'Zugänge', 'Müssen Netzlaufwerk-Zugriffsrechte für die neue Abteilung geändert werden?', 'pc', 'boolean', true, 4, true),
-	(44, 4, 'dc_email_alias_change', 'E-Mail Alias anpassen?', 'Zugänge', 'Muss der E-Mail Alias wegen Abteilungsbezug im Mailnamen geändert werden?', 'mailbox', 'boolean', false, 5, true),
-	(45, 4, 'dc_hardware_change', 'Hardware-Tausch notwendig?', 'Ausstattung', 'Muss die Hardware (z. B. stationär ↔ mobil) aufgrund der neuen Abteilung getauscht werden?', 'pc', 'boolean', false, 6, true),
-	(37, 3, 'ob_has_consense', 'Consense-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Consense-User?', 'consense', 'boolean', false, 10, true),
+	(28, 2, 'ob_has_ad_account', 'AD-Konto vorhanden?', 'Zugänge', 'Hat die Person ein aktives AD-Konto, das deaktiviert werden muss?', 'ad_user', 'boolean', true, 1, true),
+	(29, 2, 'ob_has_mailbox', 'Mailbox vorhanden?', 'Zugänge', 'Hat die Person eine Mailbox, die deaktiviert werden muss?', 'mailbox', 'boolean', false, 2, true),
+	(30, 2, 'ob_has_hardware', 'Hardware zurückzugeben?', 'Ausstattung', 'Hat die Person Hardware (Laptop, Workstation, etc.), die eingezogen werden muss?', 'pc', 'boolean', true, 3, true),
+	(31, 2, 'ob_has_phone', 'Telefon zurückzugeben?', 'Ausstattung', 'Hat die Person ein tragbares Telefon, das eingezogen werden muss?', 'phone', 'boolean', false, 4, true),
+	(32, 2, 'ob_has_habel', 'Habel-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Habel-User?', 'habel', 'boolean', false, 5, true),
+	(33, 2, 'ob_has_ln', 'InforLN-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven InforLN-User?', 'inforln', 'boolean', false, 6, true),
+	(34, 2, 'ob_has_babtec', 'Babtec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Babtec-User?', 'babtec', 'boolean', false, 7, true),
+	(35, 2, 'ob_has_gewatec', 'Gewatec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Gewatec-User?', 'gewatec', 'boolean', false, 8, true),
+	(36, 2, 'ob_has_provis', 'Provis-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Provis-User?', 'berechtigungen', 'boolean', false, 9, true),
+	(38, 2, 'ob_exit_interview', 'Austrittsgespräch führen?', 'Abschluss', 'Soll ein Austrittsgespräch mit der ausscheidenden Person geführt werden?', 'identitat', 'boolean', true, 11, true),
+	(39, 2, 'ob_knowledge_transfer', 'Wissenstransfer notwendig?', 'Abschluss', 'Muss vor dem Austritt ein strukturierter Wissenstransfer stattfinden?', 'identitat', 'boolean', false, 12, true),
+	(40, 3, 'dc_new_department', 'Neue Abteilung', 'Wechseldetails', 'Name der Zielabteilung, in die der Mitarbeiter wechselt.', 'identitat', 'text', true, 1, true),
+	(41, 3, 'dc_change_date', 'Wechseldatum', 'Wechseldetails', 'Geplanter Termin des Abteilungswechsels (z. B. 2025-07-01).', 'identitat', 'text', true, 2, true),
+	(42, 3, 'dc_ad_group_change', 'AD-Gruppen anpassen?', 'Zugänge', 'Müssen AD-Gruppen und Berechtigungen an die neue Abteilung angepasst werden?', 'ad_user', 'boolean', true, 3, true),
+	(43, 3, 'dc_drive_access_change', 'Laufwerk-Zugänge anpassen?', 'Zugänge', 'Müssen Netzlaufwerk-Zugriffsrechte für die neue Abteilung geändert werden?', 'pc', 'boolean', true, 4, true),
+	(44, 3, 'dc_email_alias_change', 'E-Mail Alias anpassen?', 'Zugänge', 'Muss der E-Mail Alias wegen Abteilungsbezug im Mailnamen geändert werden?', 'mailbox', 'boolean', false, 5, true),
+	(45, 3, 'dc_hardware_change', 'Hardware-Tausch notwendig?', 'Ausstattung', 'Muss die Hardware (z. B. stationär ↔ mobil) aufgrund der neuen Abteilung getauscht werden?', 'pc', 'boolean', false, 6, true),
+	(37, 2, 'ob_has_consense', 'Consense-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Consense-User?', 'consense', 'boolean', false, 10, true),
 	(11, 1, 'hardware_takeover_details', 'Zu übernehmende Hardware', 'Ausstattung', 'Welche vorhandene Hardware wird übernommen? Bitte z. B. Rechnernummer, Asset-ID oder kurzen Hinweis angeben.', 'pc', 'text', false, 10, true),
-	(46, 4, 'dc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muss der Habel-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'habel', 'boolean', false, 7, true),
-	(47, 4, 'dc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muss der InforLN-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'inforln', 'boolean', false, 8, true),
-	(48, 4, 'dc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Babtec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'babtec', 'boolean', false, 9, true),
-	(49, 4, 'dc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Gewatec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'gewatec', 'boolean', false, 10, true),
-	(50, 4, 'dc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muss der Provis-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'berechtigungen', 'boolean', false, 11, true),
-	(52, 5, 'nc_new_first_name', 'Neuer Vorname', 'Namensaenderung', 'Neuer gueltiger Vorname der betroffenen Person.', 'identitat', 'text', true, 1, true);
+	(46, 3, 'dc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muss der Habel-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'habel', 'boolean', false, 7, true),
+	(47, 3, 'dc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muss der InforLN-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'inforln', 'boolean', false, 8, true),
+	(48, 3, 'dc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Babtec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'babtec', 'boolean', false, 9, true),
+	(49, 3, 'dc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Gewatec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'gewatec', 'boolean', false, 10, true),
+	(50, 3, 'dc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muss der Provis-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'berechtigungen', 'boolean', false, 11, true),
+	(52, 7, 'nc_new_first_name', 'Neuer Vorname', 'Namensaenderung', 'Neuer gueltiger Vorname der betroffenen Person.', 'identitat', 'text', true, 1, true);
 INSERT INTO public.workflow_answer_definitions OVERRIDING SYSTEM VALUE VALUES
-	(53, 5, 'nc_new_last_name', 'Neuer Nachname', 'Namensaenderung', 'Neuer gueltiger Nachname der betroffenen Person.', 'identitat', 'text', true, 2, true),
-	(54, 5, 'nc_effective_date', 'Wirksamkeitsdatum', 'Namensaenderung', 'Datum, ab dem der neue Name in allen Systemen gelten soll.', 'identitat', 'text', true, 3, true),
-	(55, 6, 'pc_new_position', 'Neue Position / Rolle', 'Wechseldetails', 'Neue Position oder Rolle, die die Person kuenftig ausueben soll.', 'identitat', 'text', true, 1, true),
-	(56, 6, 'pc_change_date', 'Wechseldatum', 'Wechseldetails', 'Datum, ab dem die neue Position wirksam wird.', 'identitat', 'text', true, 2, true),
-	(57, 6, 'pc_permission_change', 'Berechtigungen anpassen?', 'Berechtigungen', 'Muessen allgemeine Berechtigungen und Zugriffsprofile wegen der neuen Position angepasst werden?', 'ad_user', 'boolean', true, 3, true),
-	(58, 6, 'pc_training_required', 'Neue Schulungen erforderlich?', 'Qualifizierung', 'Sind fuer die neue Position neue Schulungen oder Einweisungen notwendig?', 'identitat', 'boolean', false, 4, true),
-	(59, 6, 'pc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Rollen fuer die neue Position geaendert werden?', 'ad_user', 'boolean', false, 5, true),
-	(60, 6, 'pc_drive_access_change', 'Laufwerk-Zugaenge anpassen?', 'Zugaenge', 'Muessen Laufwerks- und Datei-Zugriffe an die neue Position angepasst werden?', 'pc', 'boolean', false, 6, true),
-	(61, 6, 'pc_mail_alias_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen Mailbox-bezogene Sichtbarkeit oder Aliasdaten geaendert werden?', 'mailbox', 'boolean', false, 7, true),
-	(62, 6, 'pc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Berechtigungen wegen der neuen Position angepasst werden?', 'habel', 'boolean', false, 8, true),
-	(63, 6, 'pc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Berechtigungen wegen der neuen Position angepasst werden?', 'inforln', 'boolean', false, 9, true),
-	(64, 6, 'pc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Berechtigungen wegen der neuen Position angepasst werden?', 'babtec', 'boolean', false, 10, true),
-	(65, 6, 'pc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Berechtigungen wegen der neuen Position angepasst werden?', 'gewatec', 'boolean', false, 11, true),
-	(66, 6, 'pc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Berechtigungen wegen der neuen Position angepasst werden?', 'berechtigungen', 'boolean', false, 12, true),
-	(68, 7, 'rc_new_role', 'Neue Rolle', 'Rollendetails', 'Neue Rolle oder Berechtigungsfunktion, die die Person kuenftig erhalten soll.', 'identitat', 'text', true, 1, true),
-	(69, 7, 'rc_effective_date', 'Wirksamkeitsdatum', 'Rollendetails', 'Datum, ab dem die neue Rolle wirksam wird.', 'identitat', 'text', true, 2, true),
-	(70, 7, 'rc_role_assignment_change', 'Rollen-Zuweisung anpassen?', 'Berechtigungen', 'Muessen fachliche oder technische Rollen explizit neu zugewiesen oder entzogen werden?', 'ad_user', 'boolean', true, 3, true),
-	(71, 7, 'rc_permission_change', 'Weitere Berechtigungen anpassen?', 'Berechtigungen', 'Muessen zusaetzliche Berechtigungen oder Profile an die neue Rolle angepasst werden?', 'berechtigungen', 'boolean', false, 4, true),
-	(72, 7, 'rc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Verzeichnisrollen an die neue Rolle angepasst werden?', 'ad_user', 'boolean', false, 5, true),
-	(73, 7, 'rc_mailbox_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen mailboxbezogene Sichtbarkeit oder Aliasrechte geaendert werden?', 'mailbox', 'boolean', false, 6, true),
-	(74, 7, 'rc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'habel', 'boolean', false, 7, true),
-	(75, 7, 'rc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'inforln', 'boolean', false, 8, true),
-	(76, 7, 'rc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'babtec', 'boolean', false, 9, true),
-	(77, 7, 'rc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'gewatec', 'boolean', false, 10, true),
-	(78, 7, 'rc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'berechtigungen', 'boolean', false, 11, true),
+	(53, 7, 'nc_new_last_name', 'Neuer Nachname', 'Namensaenderung', 'Neuer gueltiger Nachname der betroffenen Person.', 'identitat', 'text', true, 2, true),
+	(54, 7, 'nc_effective_date', 'Wirksamkeitsdatum', 'Namensaenderung', 'Datum, ab dem der neue Name in allen Systemen gelten soll.', 'identitat', 'text', true, 3, true),
+	(55, 8, 'pc_new_position', 'Neue Position / Rolle', 'Wechseldetails', 'Neue Position oder Rolle, die die Person kuenftig ausueben soll.', 'identitat', 'text', true, 1, true),
+	(56, 8, 'pc_change_date', 'Wechseldatum', 'Wechseldetails', 'Datum, ab dem die neue Position wirksam wird.', 'identitat', 'text', true, 2, true),
+	(57, 8, 'pc_permission_change', 'Berechtigungen anpassen?', 'Berechtigungen', 'Muessen allgemeine Berechtigungen und Zugriffsprofile wegen der neuen Position angepasst werden?', 'ad_user', 'boolean', true, 3, true),
+	(58, 8, 'pc_training_required', 'Neue Schulungen erforderlich?', 'Qualifizierung', 'Sind fuer die neue Position neue Schulungen oder Einweisungen notwendig?', 'identitat', 'boolean', false, 4, true),
+	(59, 8, 'pc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Rollen fuer die neue Position geaendert werden?', 'ad_user', 'boolean', false, 5, true),
+	(60, 8, 'pc_drive_access_change', 'Laufwerk-Zugaenge anpassen?', 'Zugaenge', 'Muessen Laufwerks- und Datei-Zugriffe an die neue Position angepasst werden?', 'pc', 'boolean', false, 6, true),
+	(61, 8, 'pc_mail_alias_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen Mailbox-bezogene Sichtbarkeit oder Aliasdaten geaendert werden?', 'mailbox', 'boolean', false, 7, true),
+	(62, 8, 'pc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Berechtigungen wegen der neuen Position angepasst werden?', 'habel', 'boolean', false, 8, true),
+	(63, 8, 'pc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Berechtigungen wegen der neuen Position angepasst werden?', 'inforln', 'boolean', false, 9, true),
+	(64, 8, 'pc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Berechtigungen wegen der neuen Position angepasst werden?', 'babtec', 'boolean', false, 10, true),
+	(65, 8, 'pc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Berechtigungen wegen der neuen Position angepasst werden?', 'gewatec', 'boolean', false, 11, true),
+	(66, 8, 'pc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Berechtigungen wegen der neuen Position angepasst werden?', 'berechtigungen', 'boolean', false, 12, true),
+	(68, 9, 'rc_new_role', 'Neue Rolle', 'Rollendetails', 'Neue Rolle oder Berechtigungsfunktion, die die Person kuenftig erhalten soll.', 'identitat', 'text', true, 1, true),
+	(69, 9, 'rc_effective_date', 'Wirksamkeitsdatum', 'Rollendetails', 'Datum, ab dem die neue Rolle wirksam wird.', 'identitat', 'text', true, 2, true),
+	(70, 9, 'rc_role_assignment_change', 'Rollen-Zuweisung anpassen?', 'Berechtigungen', 'Muessen fachliche oder technische Rollen explizit neu zugewiesen oder entzogen werden?', 'ad_user', 'boolean', true, 3, true),
+	(71, 9, 'rc_permission_change', 'Weitere Berechtigungen anpassen?', 'Berechtigungen', 'Muessen zusaetzliche Berechtigungen oder Profile an die neue Rolle angepasst werden?', 'berechtigungen', 'boolean', false, 4, true),
+	(72, 9, 'rc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Verzeichnisrollen an die neue Rolle angepasst werden?', 'ad_user', 'boolean', false, 5, true),
+	(73, 9, 'rc_mailbox_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen mailboxbezogene Sichtbarkeit oder Aliasrechte geaendert werden?', 'mailbox', 'boolean', false, 6, true),
+	(74, 9, 'rc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'habel', 'boolean', false, 7, true),
+	(75, 9, 'rc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'inforln', 'boolean', false, 8, true),
+	(76, 9, 'rc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'babtec', 'boolean', false, 9, true),
+	(77, 9, 'rc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'gewatec', 'boolean', false, 10, true),
+	(78, 9, 'rc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'berechtigungen', 'boolean', false, 11, true),
 	(24, 1, 'consense_requested', 'Consense-User anlegen?', 'Programme und Systeme', 'Soll fuer die neue Person ein Consense-User angelegt werden?', 'consense', 'boolean', false, 20, true),
-	(51, 4, 'dc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muss der Consense-Zugang fuer die neue Abteilung angepasst oder neu eingerichtet werden?', 'consense', 'boolean', false, 12, true),
-	(67, 6, 'pc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Berechtigungen wegen der neuen Position angepasst werden?', 'consense', 'boolean', false, 13, true),
-	(79, 7, 'rc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'consense', 'boolean', false, 12, true);
+	(51, 3, 'dc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muss der Consense-Zugang fuer die neue Abteilung angepasst oder neu eingerichtet werden?', 'consense', 'boolean', false, 12, true),
+	(67, 8, 'pc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Berechtigungen wegen der neuen Position angepasst werden?', 'consense', 'boolean', false, 13, true),
+	(79, 9, 'rc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'consense', 'boolean', false, 12, true);
 
 
 --
@@ -341,12 +328,12 @@ INSERT INTO public.app_role_permissions VALUES
 --
 
 INSERT INTO public.workflow_definitions OVERRIDING SYSTEM VALUE VALUES
-	(2, 'offboarding', 'Offboarding', 'Business-phase workflow definition mapped to the legacy offboarding task generator.', '2026-04-27 07:05:51.979078+00', '2026-04-27 07:05:52.0201+00'),
-	(3, 'department_change', 'Abteilungswechsel', 'Business-phase workflow definition mapped to the legacy department change task generator.', '2026-04-27 07:05:51.982966+00', '2026-04-27 07:05:52.023922+00'),
-	(7, 'name_change', 'Namensaenderung', 'Business-phase workflow definition mapped to the legacy name change task generator.', '2026-04-27 07:05:52.03267+00', '2026-04-27 07:05:52.03267+00'),
-	(8, 'position_change', 'Positionswechsel', 'Business-phase workflow definition mapped to the legacy position change task generator.', '2026-04-27 07:05:52.036601+00', '2026-04-27 07:05:52.036601+00'),
-	(9, 'role_change', 'Rollenwechsel', 'Business-phase workflow definition mapped to the legacy role change task generator.', '2026-04-27 07:05:52.039432+00', '2026-04-27 07:05:52.039432+00'),
-	(1, 'onboarding', 'Onboarding', 'Business-phase workflow definition mapped to the legacy onboarding task generator.', '2026-04-27 07:05:51.965724+00', '2026-04-27 07:05:52.043926+00');
+	(2, 'offboarding', 'Offboarding', 'Business-phase workflow definition mapped to the legacy offboarding task generator.', false, false, true, NULL, '2026-04-27 07:05:51.979078+00', '2026-04-27 07:05:52.0201+00'),
+	(3, 'department_change', 'Abteilungswechsel', 'Business-phase workflow definition mapped to the legacy department change task generator.', true, false, true, NULL, '2026-04-27 07:05:51.982966+00', '2026-04-27 07:05:52.023922+00'),
+	(7, 'name_change', 'Namensaenderung', 'Business-phase workflow definition mapped to the legacy name change task generator.', true, false, true, NULL, '2026-04-27 07:05:52.03267+00', '2026-04-27 07:05:52.03267+00'),
+	(8, 'position_change', 'Positionswechsel', 'Business-phase workflow definition mapped to the legacy position change task generator.', true, false, true, NULL, '2026-04-27 07:05:52.036601+00', '2026-04-27 07:05:52.036601+00'),
+	(9, 'role_change', 'Rollenwechsel', 'Business-phase workflow definition mapped to the legacy role change task generator.', true, false, true, NULL, '2026-04-27 07:05:52.039432+00', '2026-04-27 07:05:52.039432+00'),
+	(1, 'onboarding', 'Onboarding', 'Business-phase workflow definition mapped to the legacy onboarding task generator.', false, true, false, 'supervisor_fills_document', '2026-04-27 07:05:51.965724+00', '2026-04-27 07:05:52.043926+00');
 
 
 --
@@ -354,12 +341,12 @@ INSERT INTO public.workflow_definitions OVERRIDING SYSTEM VALUE VALUES
 --
 
 INSERT INTO public.workflow_definition_versions OVERRIDING SYSTEM VALUE VALUES
-	(2, 2, 1, 'published', 'Offboarding Standard', 'Published offboarding mapping with a deprovision measure block and internal task generation.', 3, '2026-04-27 07:05:51.979078+00', '2026-04-27 07:05:52.0201+00', '2026-04-27 07:05:51.979078+00'),
-	(3, 3, 1, 'published', 'Abteilungswechsel Standard', 'Published department change mapping with a change measure block and internal task generation.', 4, '2026-04-27 07:05:51.982966+00', '2026-04-27 07:05:52.023922+00', '2026-04-27 07:05:51.982966+00'),
-	(4, 7, 1, 'published', 'Namensaenderung Standard', 'Published name change mapping with a rename measure block and internal task generation.', 5, '2026-04-27 07:05:52.03267+00', '2026-04-27 07:05:52.03267+00', '2026-04-27 07:05:52.03267+00'),
-	(5, 8, 1, 'published', 'Positionswechsel Standard', 'Published position change mapping with a change measure block and internal task generation.', 6, '2026-04-27 07:05:52.036601+00', '2026-04-27 07:05:52.036601+00', '2026-04-27 07:05:52.036601+00'),
-	(6, 9, 1, 'published', 'Rollenwechsel Standard', 'Published role change mapping with a change measure block and internal task generation.', 7, '2026-04-27 07:05:52.039432+00', '2026-04-27 07:05:52.039432+00', '2026-04-27 07:05:52.039432+00'),
-	(1, 1, 1, 'published', 'Onboarding Standard', 'Published onboarding mapping with a provision measure block and internal task generation.', 1, '2026-04-27 07:05:51.965724+00', '2026-04-27 07:05:52.043926+00', '2026-04-27 07:05:51.965724+00');
+	(2, 2, 1, 'published', 'Offboarding Standard', 'Published offboarding mapping with a deprovision measure block and internal task generation.', '2026-04-27 07:05:51.979078+00', '2026-04-27 07:05:52.0201+00', '2026-04-27 07:05:51.979078+00'),
+	(3, 3, 1, 'published', 'Abteilungswechsel Standard', 'Published department change mapping with a change measure block and internal task generation.', '2026-04-27 07:05:51.982966+00', '2026-04-27 07:05:52.023922+00', '2026-04-27 07:05:51.982966+00'),
+	(4, 7, 1, 'published', 'Namensaenderung Standard', 'Published name change mapping with a rename measure block and internal task generation.', '2026-04-27 07:05:52.03267+00', '2026-04-27 07:05:52.03267+00', '2026-04-27 07:05:52.03267+00'),
+	(5, 8, 1, 'published', 'Positionswechsel Standard', 'Published position change mapping with a change measure block and internal task generation.', '2026-04-27 07:05:52.036601+00', '2026-04-27 07:05:52.036601+00', '2026-04-27 07:05:52.036601+00'),
+	(6, 9, 1, 'published', 'Rollenwechsel Standard', 'Published role change mapping with a change measure block and internal task generation.', '2026-04-27 07:05:52.039432+00', '2026-04-27 07:05:52.039432+00', '2026-04-27 07:05:52.039432+00'),
+	(1, 1, 1, 'published', 'Onboarding Standard', 'Published onboarding mapping with a provision measure block and internal task generation.', '2026-04-27 07:05:51.965724+00', '2026-04-27 07:05:52.043926+00', '2026-04-27 07:05:51.965724+00');
 
 
 --
@@ -577,88 +564,86 @@ Bitte öffnen Sie die Anwendung über den folgenden Link.', false, '2026-04-27 0
 
 
 --
--- Data for Name: task_templates; Type: TABLE DATA; Schema: public; Owner: -
+-- LA5-F: workflow_node_task_specs replaces task_templates. spec_key + workflow_node_id
+-- (measure-Node der published Version) sind die kanonische Identitaet.
 --
 
-INSERT INTO public.task_templates OVERRIDING SYSTEM VALUE VALUES
-	(1, 1, 'supervisor_fills_document', 'Anforderungen auswählen und bestätigen', 'Führungskraft', 'Die Abteilungsleitung wählt die benötigten Anforderungen aus und bestätigt diese.', 'identitat', NULL, NULL, 'Abteilungsleitung', false, true, 2, 40, true, '2026-04-27 07:05:51.259997+00'),
-	(3, 1, 'gewatec_user_create', 'Gewatec-User anlegen', 'Fachanwendungen', 'Gewatec-User für die neue Person anlegen.', 'berechtigungen', NULL, 4, 'AV', true, true, 3, 210, true, '2026-04-27 07:05:51.259997+00'),
-	(4, 1, 'provis_user_create', 'Provis-User anlegen', 'Fachanwendungen', 'Provis-User für die neue Person anlegen.', 'berechtigungen', NULL, 3, 'AV', true, true, 3, 220, true, '2026-04-27 07:05:51.259997+00'),
-	(41, 4, 'dc_habel_access_update', 'Habel-Zugang anpassen', 'Fachanwendungen', 'Habel-Berechtigungen auf die neue Abteilung umstellen.', 'habel', NULL, 10, 'IT', true, true, 3, 130, true, '2026-04-27 07:05:51.483999+00'),
-	(5, 1, 'ad_user_create', 'AD-User anlegen', 'Zugänge', 'AD-User für die neue Person anlegen.', 'ad_user', NULL, 12, 'IT', true, true, 3, 100, true, '2026-04-27 07:05:51.259997+00'),
-	(6, 1, 'permissions_from_reference_user', 'AD-Berechtigungen anhand Vergleichsuser übernehmen', 'Zugänge', 'AD-Berechtigungen anhand einer Vergleichsperson übernehmen.', 'berechtigungen', NULL, 12, 'IT', true, true, 3, 110, true, '2026-04-27 07:05:51.259997+00'),
-	(7, 1, 'internet_access_enable', 'Internetzugang einrichten', 'Zugänge', 'Internetzugang für die neue Person freischalten.', 'internetzugang', NULL, 12, 'IT', true, true, 3, 145, true, '2026-04-27 07:05:51.259997+00'),
-	(8, 1, 'internal_drive_access_grant', 'Laufwerksrechte vergeben', 'Zugänge', 'Zugriffsrechte für das interne Laufwerk der neuen Person einrichten.', 'berechtigungen', NULL, 12, 'IT', true, true, 3, 147, true, '2026-04-27 07:05:51.259997+00'),
-	(9, 1, 'exchange_create', 'Mailbox anlegen', 'Zugänge', 'Mailbox für die neue Person anlegen.', 'mailbox', NULL, 11, 'IT', true, true, 3, 120, true, '2026-04-27 07:05:51.259997+00'),
-	(10, 1, 'habel_user_create', 'Habel-User anlegen', 'Fachanwendungen', 'Habel-User für die neue Person anlegen.', 'habel', NULL, 10, 'IT', true, true, 3, 130, true, '2026-04-27 07:05:51.259997+00'),
-	(11, 1, 'ln_user_create', 'LN-User anlegen', 'Fachanwendungen', 'LN-User für die neue Person anlegen.', 'react', NULL, 9, 'IT', true, true, 3, 140, true, '2026-04-27 07:05:51.259997+00'),
-	(12, 1, 'office_install', 'Microsoft Office bereitstellen', 'Fachanwendungen', 'Microsoft Office für die neue Person bereitstellen und konfigurieren.', 'microsoft_office', NULL, 8, 'IT', true, true, 3, 148, true, '2026-04-27 07:05:51.259997+00'),
-	(13, 1, 'hardware_procure', 'Hardware beschaffen', 'Ausstattung', 'Hardware-Bedarf prüfen und bei Bedarf passende Hardware beschaffen.', 'pc', NULL, 8, 'IT', true, true, 5, 150, true, '2026-04-27 07:05:51.259997+00'),
-	(14, 1, 'hardware_setup', 'Hardware einrichten', 'Ausstattung', 'Hardware installieren und für den Einsatz vorbereiten.', 'pc', NULL, 8, 'IT', true, true, 3, 160, true, '2026-04-27 07:05:51.259997+00'),
-	(15, 1, 'hardware_handover', 'Hardware bereitstellen', 'Ausstattung', 'Eingerichtete Hardware für die neue Person bereitstellen.', 'pc', NULL, 8, 'IT', true, true, 1, 170, true, '2026-04-27 07:05:51.259997+00'),
-	(16, 1, 'phone_prepare', 'Tragbares Telefon bereitstellen', 'Ausstattung', 'Tragbares Telefon für die neue Person bereitstellen.', 'phone', NULL, 8, 'IT', true, true, 3, 175, true, '2026-04-27 07:05:51.259997+00'),
-	(17, 1, 'catia_install', 'Catia bereitstellen', 'Fachanwendungen', 'Catia für die neue Person installieren und bereitstellen.', 'catia', NULL, 8, 'IT', true, true, 3, 180, true, '2026-04-27 07:05:51.259997+00'),
-	(18, 1, 'datev_install', 'DATEV bereitstellen', 'Fachanwendungen', 'DATEV für die neue Person installieren und bereitstellen.', 'datev', NULL, 8, 'IT', true, true, 3, 185, true, '2026-04-27 07:05:51.259997+00'),
-	(19, 1, 'tisoware_install', 'Tisoware bereitstellen', 'Fachanwendungen', 'Tisoware für die neue Person installieren und bereitstellen.', 'tiso', NULL, 8, 'IT', true, true, 3, 190, true, '2026-04-27 07:05:51.259997+00'),
-	(20, 1, 'babtec_user_create', 'Babtec-User anlegen', 'Fachanwendungen', 'User in Babtec für die neue Person anlegen.', 'babtec', NULL, 16, 'QS', true, true, 3, 200, true, '2026-04-27 07:05:51.259997+00'),
-	(22, 3, 'ob_gewatec_user_disable', 'Gewatec-User deaktivieren', 'Fachanwendungen', 'Gewatec-Zugang der ausscheidenden Person deaktivieren.', 'gewatec', NULL, 4, 'AV', true, true, 2, 210, true, '2026-04-27 07:05:51.468581+00'),
-	(23, 3, 'ob_provis_user_disable', 'Provis-User deaktivieren', 'Fachanwendungen', 'Provis-Zugang der ausscheidenden Person deaktivieren.', 'berechtigungen', NULL, 3, 'AV', true, true, 2, 220, true, '2026-04-27 07:05:51.468581+00'),
-	(24, 3, 'ob_ad_account_disable', 'AD-Konto deaktivieren', 'Zugänge', 'AD-Konto der ausscheidenden Person deaktivieren und Berechtigungen entziehen.', 'ad_user', NULL, 12, 'IT', true, true, 1, 100, true, '2026-04-27 07:05:51.468581+00'),
-	(25, 3, 'ob_mailbox_disable', 'Mailbox deaktivieren', 'Zugänge', 'Mailbox der ausscheidenden Person deaktivieren.', 'mailbox', NULL, 11, 'IT', true, true, 1, 110, true, '2026-04-27 07:05:51.468581+00'),
-	(26, 3, 'ob_habel_user_disable', 'Habel-User deaktivieren', 'Fachanwendungen', 'Habel-Zugang der ausscheidenden Person sperren.', 'habel', NULL, 10, 'IT', true, true, 2, 120, true, '2026-04-27 07:05:51.468581+00'),
-	(27, 3, 'ob_ln_user_disable', 'LN-User deaktivieren', 'Fachanwendungen', 'InforLN-Zugang der ausscheidenden Person sperren.', 'react', NULL, 9, 'IT', true, true, 2, 130, true, '2026-04-27 07:05:51.468581+00'),
-	(28, 3, 'ob_hardware_return', 'Hardware einziehen', 'Ausstattung', 'Hardware (Laptop, Workstation, Zubehör) der ausscheidenden Person einziehen und auf Vollständigkeit prüfen.', 'pc', NULL, 8, 'IT', true, true, 1, 140, true, '2026-04-27 07:05:51.468581+00'),
-	(29, 3, 'ob_phone_return', 'Telefon einziehen', 'Ausstattung', 'Tragbares Telefon der ausscheidenden Person einziehen.', 'phone', NULL, 8, 'IT', true, true, 1, 150, true, '2026-04-27 07:05:51.468581+00'),
-	(30, 3, 'ob_last_day_confirmed', 'Letzten Arbeitstag bestätigen', 'HR', 'Letzten Arbeitstag der ausscheidenden Person im System bestätigen. Schaltet alle Zugangs-Entzug-Aufgaben frei.', 'identitat', NULL, 15, 'HR', true, true, 1, 10, true, '2026-04-27 07:05:51.468581+00'),
-	(31, 3, 'ob_exit_interview', 'Austrittsgespräch führen', 'HR', 'Strukturiertes Abschlussgespräch mit der ausscheidenden Person führen und dokumentieren.', 'identitat', NULL, 15, 'HR', true, true, 5, 20, true, '2026-04-27 07:05:51.468581+00'),
-	(32, 3, 'ob_knowledge_transfer', 'Wissenstransfer organisieren', 'HR', 'Sicherstellen, dass kritisches Wissen und laufende Aufgaben an Nachfolger oder Team übergeben werden.', 'identitat', NULL, 15, 'HR', true, true, 5, 30, true, '2026-04-27 07:05:51.468581+00'),
-	(33, 3, 'ob_badge_key_return', 'Schlüssel und Badge zurückgeben', 'HR', 'Ausweis, Schlüssel und sonstige Zugangsmittel von der ausscheidenden Person einziehen.', 'identitat', NULL, 15, 'HR', true, true, 1, 40, true, '2026-04-27 07:05:51.468581+00'),
-	(34, 3, 'ob_babtec_user_disable', 'Babtec-User deaktivieren', 'Fachanwendungen', 'Babtec-Zugang der ausscheidenden Person deaktivieren.', 'babtec', NULL, 16, 'QS', true, true, 2, 200, true, '2026-04-27 07:05:51.468581+00'),
-	(36, 4, 'dc_gewatec_access_update', 'Gewatec-Zugang anpassen', 'Fachanwendungen', 'Gewatec-Berechtigungen auf die neue Abteilung umstellen.', 'gewatec', NULL, 4, 'AV', true, true, 3, 210, true, '2026-04-27 07:05:51.483999+00'),
-	(37, 4, 'dc_provis_access_update', 'Provis-Zugang anpassen', 'Fachanwendungen', 'Provis-Berechtigungen auf die neue Abteilung umstellen.', 'berechtigungen', NULL, 3, 'AV', true, true, 3, 220, true, '2026-04-27 07:05:51.483999+00'),
-	(38, 4, 'dc_ad_group_update', 'AD-Gruppen aktualisieren', 'Zugänge', 'AD-Gruppen und Berechtigungen auf die neue Abteilung umstellen, alte abteilungsspezifische Gruppen entfernen.', 'ad_user', NULL, 12, 'IT', true, true, 2, 100, true, '2026-04-27 07:05:51.483999+00'),
-	(2, 1, 'consense_setup', 'Consense User anlegen', 'Fachanwendungen', 'Consense-User fuer die neue Person anlegen.', 'consense', NULL, 1, 'QMB', true, true, 3, 230, true, '2026-04-27 07:05:51.259997+00'),
-	(21, 3, 'ob_consense_user_disable', 'Consense-User deaktivieren', 'Fachanwendungen', 'Consense-Zugang der ausscheidenden Person deaktivieren.', 'consense', NULL, 1, 'QMB', true, true, 2, 230, true, '2026-04-27 07:05:51.468581+00'),
-	(35, 4, 'dc_consense_access_update', 'Consense-Zugang anpassen', 'Fachanwendungen', 'Consense-Berechtigungen auf die neue Abteilung umstellen.', 'consense', NULL, 1, 'QMB', true, true, 3, 230, true, '2026-04-27 07:05:51.483999+00'),
-	(39, 4, 'dc_drive_access_update', 'Laufwerk-Zugänge anpassen', 'Zugänge', 'Netzlaufwerk-Zugriffsrechte anpassen: Zugriff auf neue Abteilungs-Laufwerke gewähren, alte entziehen.', 'pc', NULL, 12, 'IT', true, true, 2, 110, true, '2026-04-27 07:05:51.483999+00'),
-	(76, 7, 'rc_babtec_access_update', 'Babtec-Zugang anpassen', 'Fachanwendungen', 'Babtec-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'babtec', NULL, 16, 'QS', true, true, 3, 220, true, '2026-04-27 07:05:51.58713+00'),
-	(40, 4, 'dc_email_alias_update', 'E-Mail Alias anpassen', 'Zugänge', 'E-Mail Alias des Mitarbeiters aktualisieren, falls die neue Abteilung einen anderen Kürzel erfordert.', 'mailbox', NULL, 11, 'IT', true, true, 3, 120, true, '2026-04-27 07:05:51.483999+00'),
-	(42, 4, 'dc_ln_access_update', 'InforLN-Zugang anpassen', 'Fachanwendungen', 'InforLN-Berechtigungen auf die neue Abteilung umstellen.', 'react', NULL, 9, 'IT', true, true, 3, 140, true, '2026-04-27 07:05:51.483999+00'),
-	(43, 4, 'dc_hardware_swap', 'Hardware tauschen', 'Ausstattung', 'Hardware der neuen Arbeitsanforderungen entsprechend tauschen (z. B. stationär durch Laptop ersetzen).', 'pc', NULL, 8, 'IT', true, true, 2, 150, true, '2026-04-27 07:05:51.483999+00'),
-	(44, 4, 'dc_change_date_confirmed', 'Wechseldatum bestätigen', 'HR', 'Bestätigen, dass das Wechseldatum eingetroffen ist. Schaltet alle Zugangs- und Ausstattungsaufgaben frei.', 'identitat', NULL, 15, 'HR', true, true, 1, 10, true, '2026-04-27 07:05:51.483999+00'),
-	(45, 4, 'dc_hr_system_update', 'Abteilung im HR-System aktualisieren', 'HR', 'Abteilung des Mitarbeiters in der Personalakte und im HR-System auf die neue Abteilung umstellen.', 'identitat', NULL, 15, 'HR', true, true, 3, 20, true, '2026-04-27 07:05:51.483999+00'),
-	(46, 4, 'dc_babtec_access_update', 'Babtec-Zugang anpassen', 'Fachanwendungen', 'Babtec-Berechtigungen auf die neue Abteilung umstellen.', 'babtec', NULL, 16, 'QS', true, true, 3, 200, true, '2026-04-27 07:05:51.483999+00'),
-	(47, 5, 'nc_ad_username_update', 'AD-Benutzername aktualisieren', 'Zugaenge', 'AD-Benutzername, Anzeigename und verzeichnisbezogene Namensfelder auf den neuen Namen umstellen.', 'ad_user', NULL, 12, 'IT', true, true, 2, 100, true, '2026-04-27 07:05:51.498356+00'),
-	(48, 5, 'nc_system_display_name_update', 'Anzeigenamen in Systemen aktualisieren', 'Systeme', 'Anzeigenamen in angeschlossenen Systemen und Verzeichnissen auf den neuen Namen angleichen.', 'berechtigungen', NULL, 12, 'IT', true, true, 3, 120, true, '2026-04-27 07:05:51.498356+00'),
-	(49, 5, 'nc_mailbox_update', 'Mailbox und Alias aktualisieren', 'Zugaenge', 'Mailbox, primäre Adresse und Alias auf den neuen Namen umstellen.', 'mailbox', NULL, 11, 'IT', true, true, 2, 110, true, '2026-04-27 07:05:51.498356+00');
-INSERT INTO public.task_templates OVERRIDING SYSTEM VALUE VALUES
-	(50, 5, 'nc_effective_date_confirmed', 'Wirksamkeitsdatum bestaetigen', 'HR', 'Bestaetigen, dass das Wirksamkeitsdatum erreicht ist. Schaltet die technischen Umstellungsaufgaben frei.', 'identitat', NULL, 15, 'HR', true, true, 1, 10, true, '2026-04-27 07:05:51.498356+00'),
-	(51, 5, 'nc_hr_master_data_update', 'HR-Stammdaten aktualisieren', 'HR', 'Neuen Namen in Personalakte und HR-Stammdaten pflegen.', 'identitat', NULL, 15, 'HR', true, true, 2, 20, true, '2026-04-27 07:05:51.498356+00'),
-	(53, 6, 'pc_gewatec_access_update', 'Gewatec-Zugang anpassen', 'Fachanwendungen', 'Gewatec-Berechtigungen auf die neue Position umstellen.', 'gewatec', NULL, 4, 'AV', true, true, 3, 230, true, '2026-04-27 07:05:51.571037+00'),
-	(54, 6, 'pc_provis_access_update', 'Provis-Zugang anpassen', 'Fachanwendungen', 'Provis-Berechtigungen auf die neue Position umstellen.', 'berechtigungen', NULL, 3, 'AV', true, true, 3, 240, true, '2026-04-27 07:05:51.571037+00'),
-	(55, 6, 'pc_permission_profile_update', 'Berechtigungsprofil aktualisieren', 'Berechtigungen', 'Allgemeine Berechtigungsprofile und Freigaben an die neue Position anpassen.', 'ad_user', NULL, 12, 'IT', true, true, 2, 100, true, '2026-04-27 07:05:51.571037+00'),
-	(56, 6, 'pc_ad_groups_update', 'AD-Gruppen aktualisieren', 'Zugaenge', 'AD-Gruppen und Rollen entsprechend der neuen Position anpassen.', 'ad_user', NULL, 12, 'IT', true, true, 2, 120, true, '2026-04-27 07:05:51.571037+00'),
-	(57, 6, 'pc_drive_access_update', 'Laufwerk-Zugaenge anpassen', 'Zugaenge', 'Datei- und Laufwerksberechtigungen auf die Anforderungen der neuen Position umstellen.', 'pc', NULL, 12, 'IT', true, true, 2, 130, true, '2026-04-27 07:05:51.571037+00'),
-	(58, 6, 'pc_mailbox_update', 'Mailbox und Alias anpassen', 'Zugaenge', 'Mailbox-bezogene Sichtbarkeit oder Aliasdaten an die neue Position anpassen.', 'mailbox', NULL, 11, 'IT', true, true, 3, 140, true, '2026-04-27 07:05:51.571037+00'),
-	(59, 6, 'pc_habel_access_update', 'Habel-Zugang anpassen', 'Fachanwendungen', 'Habel-Berechtigungen auf die neue Position umstellen.', 'habel', NULL, 10, 'IT', true, true, 3, 200, true, '2026-04-27 07:05:51.571037+00'),
-	(60, 6, 'pc_ln_access_update', 'InforLN-Zugang anpassen', 'Fachanwendungen', 'InforLN-Berechtigungen auf die neue Position umstellen.', 'react', NULL, 9, 'IT', true, true, 3, 210, true, '2026-04-27 07:05:51.571037+00'),
-	(61, 6, 'pc_change_date_confirmed', 'Wechseldatum bestaetigen', 'HR', 'Bestaetigen, dass das Wechseldatum fuer die neue Position erreicht ist. Schaltet Folgeaufgaben frei.', 'identitat', NULL, 15, 'HR', true, true, 1, 10, true, '2026-04-27 07:05:51.571037+00'),
-	(62, 6, 'pc_hr_master_data_update', 'Position in HR-Stammdaten aktualisieren', 'HR', 'Neue Position in Personalakte und HR-Stammdaten nachfuehren.', 'identitat', NULL, 15, 'HR', true, true, 2, 20, true, '2026-04-27 07:05:51.571037+00'),
-	(63, 6, 'pc_training_assign', 'Schulungen einplanen', 'Qualifizierung', 'Noetige Schulungen und Einweisungen fuer die neue Position planen und dokumentieren.', 'identitat', NULL, 15, 'HR', true, true, 5, 110, true, '2026-04-27 07:05:51.571037+00'),
-	(64, 6, 'pc_babtec_access_update', 'Babtec-Zugang anpassen', 'Fachanwendungen', 'Babtec-Berechtigungen auf die neue Position umstellen.', 'babtec', NULL, 16, 'QS', true, true, 3, 220, true, '2026-04-27 07:05:51.571037+00'),
-	(66, 7, 'rc_gewatec_access_update', 'Gewatec-Zugang anpassen', 'Fachanwendungen', 'Gewatec-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'gewatec', NULL, 4, 'AV', true, true, 3, 230, true, '2026-04-27 07:05:51.58713+00'),
-	(67, 7, 'rc_provis_access_update', 'Provis-Zugang anpassen', 'Fachanwendungen', 'Provis-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'berechtigungen', NULL, 3, 'AV', true, true, 3, 240, true, '2026-04-27 07:05:51.58713+00'),
-	(68, 7, 'rc_role_assignment_update', 'Rollen-Zuweisung aktualisieren', 'Berechtigungen', 'Fachliche und technische Rollen der betroffenen Person auf die neue Rolle umstellen.', 'ad_user', NULL, 12, 'IT', true, true, 2, 100, true, '2026-04-27 07:05:51.58713+00'),
-	(69, 7, 'rc_permission_profile_update', 'Berechtigungsprofil aktualisieren', 'Berechtigungen', 'Weitere Berechtigungsprofile und Freigaben an die neue Rolle anpassen.', 'berechtigungen', NULL, 12, 'IT', true, true, 2, 110, true, '2026-04-27 07:05:51.58713+00'),
-	(70, 7, 'rc_ad_groups_update', 'AD-Gruppen aktualisieren', 'Zugaenge', 'AD-Gruppen und Verzeichnisrollen an die neue Rolle anpassen.', 'ad_user', NULL, 12, 'IT', true, true, 2, 120, true, '2026-04-27 07:05:51.58713+00'),
-	(71, 7, 'rc_mailbox_update', 'Mailbox und Alias anpassen', 'Zugaenge', 'Mailboxbezogene Sichtbarkeit oder Aliasrechte an die neue Rolle anpassen.', 'mailbox', NULL, 11, 'IT', true, true, 3, 130, true, '2026-04-27 07:05:51.58713+00'),
-	(72, 7, 'rc_habel_access_update', 'Habel-Zugang anpassen', 'Fachanwendungen', 'Habel-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'habel', NULL, 10, 'IT', true, true, 3, 200, true, '2026-04-27 07:05:51.58713+00'),
-	(73, 7, 'rc_ln_access_update', 'InforLN-Zugang anpassen', 'Fachanwendungen', 'InforLN-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'react', NULL, 9, 'IT', true, true, 3, 210, true, '2026-04-27 07:05:51.58713+00'),
-	(74, 7, 'rc_effective_date_confirmed', 'Wirksamkeitsdatum bestaetigen', 'HR', 'Bestaetigen, dass das Wirksamkeitsdatum fuer den Rollenwechsel erreicht ist. Schaltet Folgeaufgaben frei.', 'identitat', NULL, 15, 'HR', true, true, 1, 10, true, '2026-04-27 07:05:51.58713+00'),
-	(75, 7, 'rc_hr_master_data_update', 'Rolle in HR-Stammdaten aktualisieren', 'HR', 'Neue Rolle in Personalakte und HR-Stammdaten nachfuehren.', 'identitat', NULL, 15, 'HR', true, true, 2, 20, true, '2026-04-27 07:05:51.58713+00'),
-	(65, 7, 'rc_consense_access_update', 'Consense-Zugang anpassen', 'Fachanwendungen', 'Consense-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'consense', NULL, 1, 'QMB', true, true, 3, 250, true, '2026-04-27 07:05:51.58713+00'),
-	(52, 6, 'pc_consense_access_update', 'Consense-Zugang anpassen', 'Fachanwendungen', 'Consense-Berechtigungen auf die neue Position umstellen.', 'consense', NULL, 1, 'QMB', true, true, 3, 250, true, '2026-04-27 07:05:51.571037+00');
-
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (1, 21, 'ob_gewatec_user_disable', 'Gewatec-User deaktivieren', 'Gewatec-Zugang der ausscheidenden Person deaktivieren.', 'Fachanwendungen', 'gewatec', 4, 'AV', true, true, 2, 210, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (2, 21, 'ob_provis_user_disable', 'Provis-User deaktivieren', 'Provis-Zugang der ausscheidenden Person deaktivieren.', 'Fachanwendungen', 'berechtigungen', 3, 'AV', true, true, 2, 220, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (3, 21, 'ob_ad_account_disable', 'AD-Konto deaktivieren', 'AD-Konto der ausscheidenden Person deaktivieren und Berechtigungen entziehen.', 'Zugänge', 'ad_user', 12, 'IT', true, true, 1, 100, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (4, 21, 'ob_mailbox_disable', 'Mailbox deaktivieren', 'Mailbox der ausscheidenden Person deaktivieren.', 'Zugänge', 'mailbox', 11, 'IT', true, true, 1, 110, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (5, 21, 'ob_habel_user_disable', 'Habel-User deaktivieren', 'Habel-Zugang der ausscheidenden Person sperren.', 'Fachanwendungen', 'habel', 10, 'IT', true, true, 2, 120, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (6, 21, 'ob_ln_user_disable', 'LN-User deaktivieren', 'InforLN-Zugang der ausscheidenden Person sperren.', 'Fachanwendungen', 'react', 9, 'IT', true, true, 2, 130, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (7, 21, 'ob_hardware_return', 'Hardware einziehen', 'Hardware (Laptop, Workstation, Zubehör) der ausscheidenden Person einziehen und auf Vollständigkeit prüfen.', 'Ausstattung', 'pc', 8, 'IT', true, true, 1, 140, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (8, 21, 'ob_phone_return', 'Telefon einziehen', 'Tragbares Telefon der ausscheidenden Person einziehen.', 'Ausstattung', 'phone', 8, 'IT', true, true, 1, 150, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (9, 21, 'ob_last_day_confirmed', 'Letzten Arbeitstag bestätigen', 'Letzten Arbeitstag der ausscheidenden Person im System bestätigen. Schaltet alle Zugangs-Entzug-Aufgaben frei.', 'HR', 'identitat', 15, 'HR', true, true, 1, 10, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (10, 21, 'ob_exit_interview', 'Austrittsgespräch führen', 'Strukturiertes Abschlussgespräch mit der ausscheidenden Person führen und dokumentieren.', 'HR', 'identitat', 15, 'HR', true, true, 5, 20, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (11, 21, 'ob_knowledge_transfer', 'Wissenstransfer organisieren', 'Sicherstellen, dass kritisches Wissen und laufende Aufgaben an Nachfolger oder Team übergeben werden.', 'HR', 'identitat', 15, 'HR', true, true, 5, 30, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (12, 21, 'ob_badge_key_return', 'Schlüssel und Badge zurückgeben', 'Ausweis, Schlüssel und sonstige Zugangsmittel von der ausscheidenden Person einziehen.', 'HR', 'identitat', 15, 'HR', true, true, 1, 40, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (13, 21, 'ob_babtec_user_disable', 'Babtec-User deaktivieren', 'Babtec-Zugang der ausscheidenden Person deaktivieren.', 'Fachanwendungen', 'babtec', 16, 'QS', true, true, 2, 200, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (14, 21, 'ob_consense_user_disable', 'Consense-User deaktivieren', 'Consense-Zugang der ausscheidenden Person deaktivieren.', 'Fachanwendungen', 'consense', 1, 'QMB', true, true, 2, 230, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (15, 25, 'dc_habel_access_update', 'Habel-Zugang anpassen', 'Habel-Berechtigungen auf die neue Abteilung umstellen.', 'Fachanwendungen', 'habel', 10, 'IT', true, true, 3, 130, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (16, 25, 'dc_gewatec_access_update', 'Gewatec-Zugang anpassen', 'Gewatec-Berechtigungen auf die neue Abteilung umstellen.', 'Fachanwendungen', 'gewatec', 4, 'AV', true, true, 3, 210, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (17, 25, 'dc_provis_access_update', 'Provis-Zugang anpassen', 'Provis-Berechtigungen auf die neue Abteilung umstellen.', 'Fachanwendungen', 'berechtigungen', 3, 'AV', true, true, 3, 220, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (18, 25, 'dc_ad_group_update', 'AD-Gruppen aktualisieren', 'AD-Gruppen und Berechtigungen auf die neue Abteilung umstellen, alte abteilungsspezifische Gruppen entfernen.', 'Zugänge', 'ad_user', 12, 'IT', true, true, 2, 100, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (19, 25, 'dc_consense_access_update', 'Consense-Zugang anpassen', 'Consense-Berechtigungen auf die neue Abteilung umstellen.', 'Fachanwendungen', 'consense', 1, 'QMB', true, true, 3, 230, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (20, 25, 'dc_drive_access_update', 'Laufwerk-Zugänge anpassen', 'Netzlaufwerk-Zugriffsrechte anpassen: Zugriff auf neue Abteilungs-Laufwerke gewähren, alte entziehen.', 'Zugänge', 'pc', 12, 'IT', true, true, 2, 110, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (21, 25, 'dc_email_alias_update', 'E-Mail Alias anpassen', 'E-Mail Alias des Mitarbeiters aktualisieren, falls die neue Abteilung einen anderen Kürzel erfordert.', 'Zugänge', 'mailbox', 11, 'IT', true, true, 3, 120, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (22, 25, 'dc_ln_access_update', 'InforLN-Zugang anpassen', 'InforLN-Berechtigungen auf die neue Abteilung umstellen.', 'Fachanwendungen', 'react', 9, 'IT', true, true, 3, 140, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (23, 25, 'dc_hardware_swap', 'Hardware tauschen', 'Hardware der neuen Arbeitsanforderungen entsprechend tauschen (z. B. stationär durch Laptop ersetzen).', 'Ausstattung', 'pc', 8, 'IT', true, true, 2, 150, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (24, 25, 'dc_change_date_confirmed', 'Wechseldatum bestätigen', 'Bestätigen, dass das Wechseldatum eingetroffen ist. Schaltet alle Zugangs- und Ausstattungsaufgaben frei.', 'HR', 'identitat', 15, 'HR', true, true, 1, 10, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (25, 25, 'dc_hr_system_update', 'Abteilung im HR-System aktualisieren', 'Abteilung des Mitarbeiters in der Personalakte und im HR-System auf die neue Abteilung umstellen.', 'HR', 'identitat', 15, 'HR', true, true, 3, 20, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (26, 25, 'dc_babtec_access_update', 'Babtec-Zugang anpassen', 'Babtec-Berechtigungen auf die neue Abteilung umstellen.', 'Fachanwendungen', 'babtec', 16, 'QS', true, true, 3, 200, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (27, 29, 'nc_ad_username_update', 'AD-Benutzername aktualisieren', 'AD-Benutzername, Anzeigename und verzeichnisbezogene Namensfelder auf den neuen Namen umstellen.', 'Zugaenge', 'ad_user', 12, 'IT', true, true, 2, 100, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (28, 29, 'nc_system_display_name_update', 'Anzeigenamen in Systemen aktualisieren', 'Anzeigenamen in angeschlossenen Systemen und Verzeichnissen auf den neuen Namen angleichen.', 'Systeme', 'berechtigungen', 12, 'IT', true, true, 3, 120, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (29, 29, 'nc_mailbox_update', 'Mailbox und Alias aktualisieren', 'Mailbox, primäre Adresse und Alias auf den neuen Namen umstellen.', 'Zugaenge', 'mailbox', 11, 'IT', true, true, 2, 110, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (30, 29, 'nc_effective_date_confirmed', 'Wirksamkeitsdatum bestaetigen', 'Bestaetigen, dass das Wirksamkeitsdatum erreicht ist. Schaltet die technischen Umstellungsaufgaben frei.', 'HR', 'identitat', 15, 'HR', true, true, 1, 10, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (31, 29, 'nc_hr_master_data_update', 'HR-Stammdaten aktualisieren', 'Neuen Namen in Personalakte und HR-Stammdaten pflegen.', 'HR', 'identitat', 15, 'HR', true, true, 2, 20, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (32, 33, 'pc_gewatec_access_update', 'Gewatec-Zugang anpassen', 'Gewatec-Berechtigungen auf die neue Position umstellen.', 'Fachanwendungen', 'gewatec', 4, 'AV', true, true, 3, 230, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (33, 33, 'pc_provis_access_update', 'Provis-Zugang anpassen', 'Provis-Berechtigungen auf die neue Position umstellen.', 'Fachanwendungen', 'berechtigungen', 3, 'AV', true, true, 3, 240, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (34, 33, 'pc_permission_profile_update', 'Berechtigungsprofil aktualisieren', 'Allgemeine Berechtigungsprofile und Freigaben an die neue Position anpassen.', 'Berechtigungen', 'ad_user', 12, 'IT', true, true, 2, 100, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (35, 33, 'pc_ad_groups_update', 'AD-Gruppen aktualisieren', 'AD-Gruppen und Rollen entsprechend der neuen Position anpassen.', 'Zugaenge', 'ad_user', 12, 'IT', true, true, 2, 120, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (36, 33, 'pc_drive_access_update', 'Laufwerk-Zugaenge anpassen', 'Datei- und Laufwerksberechtigungen auf die Anforderungen der neuen Position umstellen.', 'Zugaenge', 'pc', 12, 'IT', true, true, 2, 130, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (37, 33, 'pc_mailbox_update', 'Mailbox und Alias anpassen', 'Mailbox-bezogene Sichtbarkeit oder Aliasdaten an die neue Position anpassen.', 'Zugaenge', 'mailbox', 11, 'IT', true, true, 3, 140, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (38, 33, 'pc_habel_access_update', 'Habel-Zugang anpassen', 'Habel-Berechtigungen auf die neue Position umstellen.', 'Fachanwendungen', 'habel', 10, 'IT', true, true, 3, 200, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (39, 33, 'pc_ln_access_update', 'InforLN-Zugang anpassen', 'InforLN-Berechtigungen auf die neue Position umstellen.', 'Fachanwendungen', 'react', 9, 'IT', true, true, 3, 210, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (40, 33, 'pc_change_date_confirmed', 'Wechseldatum bestaetigen', 'Bestaetigen, dass das Wechseldatum fuer die neue Position erreicht ist. Schaltet Folgeaufgaben frei.', 'HR', 'identitat', 15, 'HR', true, true, 1, 10, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (41, 33, 'pc_hr_master_data_update', 'Position in HR-Stammdaten aktualisieren', 'Neue Position in Personalakte und HR-Stammdaten nachfuehren.', 'HR', 'identitat', 15, 'HR', true, true, 2, 20, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (42, 33, 'pc_training_assign', 'Schulungen einplanen', 'Noetige Schulungen und Einweisungen fuer die neue Position planen und dokumentieren.', 'Qualifizierung', 'identitat', 15, 'HR', true, true, 5, 110, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (43, 33, 'pc_babtec_access_update', 'Babtec-Zugang anpassen', 'Babtec-Berechtigungen auf die neue Position umstellen.', 'Fachanwendungen', 'babtec', 16, 'QS', true, true, 3, 220, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (44, 33, 'pc_consense_access_update', 'Consense-Zugang anpassen', 'Consense-Berechtigungen auf die neue Position umstellen.', 'Fachanwendungen', 'consense', 1, 'QMB', true, true, 3, 250, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (45, 37, 'rc_babtec_access_update', 'Babtec-Zugang anpassen', 'Babtec-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'Fachanwendungen', 'babtec', 16, 'QS', true, true, 3, 220, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (46, 37, 'rc_gewatec_access_update', 'Gewatec-Zugang anpassen', 'Gewatec-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'Fachanwendungen', 'gewatec', 4, 'AV', true, true, 3, 230, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (47, 37, 'rc_provis_access_update', 'Provis-Zugang anpassen', 'Provis-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'Fachanwendungen', 'berechtigungen', 3, 'AV', true, true, 3, 240, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (48, 37, 'rc_role_assignment_update', 'Rollen-Zuweisung aktualisieren', 'Fachliche und technische Rollen der betroffenen Person auf die neue Rolle umstellen.', 'Berechtigungen', 'ad_user', 12, 'IT', true, true, 2, 100, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (49, 37, 'rc_permission_profile_update', 'Berechtigungsprofil aktualisieren', 'Weitere Berechtigungsprofile und Freigaben an die neue Rolle anpassen.', 'Berechtigungen', 'berechtigungen', 12, 'IT', true, true, 2, 110, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (50, 37, 'rc_ad_groups_update', 'AD-Gruppen aktualisieren', 'AD-Gruppen und Verzeichnisrollen an die neue Rolle anpassen.', 'Zugaenge', 'ad_user', 12, 'IT', true, true, 2, 120, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (51, 37, 'rc_mailbox_update', 'Mailbox und Alias anpassen', 'Mailboxbezogene Sichtbarkeit oder Aliasrechte an die neue Rolle anpassen.', 'Zugaenge', 'mailbox', 11, 'IT', true, true, 3, 130, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (52, 37, 'rc_habel_access_update', 'Habel-Zugang anpassen', 'Habel-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'Fachanwendungen', 'habel', 10, 'IT', true, true, 3, 200, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (53, 37, 'rc_ln_access_update', 'InforLN-Zugang anpassen', 'InforLN-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'Fachanwendungen', 'react', 9, 'IT', true, true, 3, 210, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (54, 37, 'rc_effective_date_confirmed', 'Wirksamkeitsdatum bestaetigen', 'Bestaetigen, dass das Wirksamkeitsdatum fuer den Rollenwechsel erreicht ist. Schaltet Folgeaufgaben frei.', 'HR', 'identitat', 15, 'HR', true, true, 1, 10, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (55, 37, 'rc_hr_master_data_update', 'Rolle in HR-Stammdaten aktualisieren', 'Neue Rolle in Personalakte und HR-Stammdaten nachfuehren.', 'HR', 'identitat', 15, 'HR', true, true, 2, 20, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (56, 37, 'rc_consense_access_update', 'Consense-Zugang anpassen', 'Consense-Rollen oder Berechtigungen an die neue Rolle anpassen.', 'Fachanwendungen', 'consense', 1, 'QMB', true, true, 3, 250, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (57, 41, 'supervisor_fills_document', 'Anforderungen auswählen und bestätigen', 'Die Abteilungsleitung wählt die benötigten Anforderungen aus und bestätigt diese.', 'Führungskraft', 'identitat', NULL, 'Abteilungsleitung', false, true, 2, 40, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (58, 41, 'gewatec_user_create', 'Gewatec-User anlegen', 'Gewatec-User für die neue Person anlegen.', 'Fachanwendungen', 'berechtigungen', 4, 'AV', true, true, 3, 210, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (59, 41, 'provis_user_create', 'Provis-User anlegen', 'Provis-User für die neue Person anlegen.', 'Fachanwendungen', 'berechtigungen', 3, 'AV', true, true, 3, 220, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (60, 41, 'ad_user_create', 'AD-User anlegen', 'AD-User für die neue Person anlegen.', 'Zugänge', 'ad_user', 12, 'IT', true, true, 3, 100, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (61, 41, 'permissions_from_reference_user', 'AD-Berechtigungen anhand Vergleichsuser übernehmen', 'AD-Berechtigungen anhand einer Vergleichsperson übernehmen.', 'Zugänge', 'berechtigungen', 12, 'IT', true, true, 3, 110, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (62, 41, 'internet_access_enable', 'Internetzugang einrichten', 'Internetzugang für die neue Person freischalten.', 'Zugänge', 'internetzugang', 12, 'IT', true, true, 3, 145, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (63, 41, 'internal_drive_access_grant', 'Laufwerksrechte vergeben', 'Zugriffsrechte für das interne Laufwerk der neuen Person einrichten.', 'Zugänge', 'berechtigungen', 12, 'IT', true, true, 3, 147, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (64, 41, 'exchange_create', 'Mailbox anlegen', 'Mailbox für die neue Person anlegen.', 'Zugänge', 'mailbox', 11, 'IT', true, true, 3, 120, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (65, 41, 'habel_user_create', 'Habel-User anlegen', 'Habel-User für die neue Person anlegen.', 'Fachanwendungen', 'habel', 10, 'IT', true, true, 3, 130, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (66, 41, 'ln_user_create', 'LN-User anlegen', 'LN-User für die neue Person anlegen.', 'Fachanwendungen', 'react', 9, 'IT', true, true, 3, 140, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (67, 41, 'office_install', 'Microsoft Office bereitstellen', 'Microsoft Office für die neue Person bereitstellen und konfigurieren.', 'Fachanwendungen', 'microsoft_office', 8, 'IT', true, true, 3, 148, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (68, 41, 'hardware_procure', 'Hardware beschaffen', 'Hardware-Bedarf prüfen und bei Bedarf passende Hardware beschaffen.', 'Ausstattung', 'pc', 8, 'IT', true, true, 5, 150, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (69, 41, 'hardware_setup', 'Hardware einrichten', 'Hardware installieren und für den Einsatz vorbereiten.', 'Ausstattung', 'pc', 8, 'IT', true, true, 3, 160, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (70, 41, 'hardware_handover', 'Hardware bereitstellen', 'Eingerichtete Hardware für die neue Person bereitstellen.', 'Ausstattung', 'pc', 8, 'IT', true, true, 1, 170, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (71, 41, 'phone_prepare', 'Tragbares Telefon bereitstellen', 'Tragbares Telefon für die neue Person bereitstellen.', 'Ausstattung', 'phone', 8, 'IT', true, true, 3, 175, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (72, 41, 'catia_install', 'Catia bereitstellen', 'Catia für die neue Person installieren und bereitstellen.', 'Fachanwendungen', 'catia', 8, 'IT', true, true, 3, 180, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (73, 41, 'datev_install', 'DATEV bereitstellen', 'DATEV für die neue Person installieren und bereitstellen.', 'Fachanwendungen', 'datev', 8, 'IT', true, true, 3, 185, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (74, 41, 'tisoware_install', 'Tisoware bereitstellen', 'Tisoware für die neue Person installieren und bereitstellen.', 'Fachanwendungen', 'tiso', 8, 'IT', true, true, 3, 190, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (75, 41, 'babtec_user_create', 'Babtec-User anlegen', 'User in Babtec für die neue Person anlegen.', 'Fachanwendungen', 'babtec', 16, 'QS', true, true, 3, 200, '2026-05-03 12:13:23.134512+00');
+INSERT INTO public.workflow_node_task_specs OVERRIDING SYSTEM VALUE VALUES (76, 41, 'consense_setup', 'Consense User anlegen', 'Consense-User fuer die neue Person anlegen.', 'Fachanwendungen', 'consense', 1, 'QMB', true, true, 3, 230, '2026-05-03 12:13:23.134512+00');
 
 --
 -- Data for Name: workflow_tasks; Type: TABLE DATA; Schema: public; Owner: -
@@ -673,173 +658,170 @@ INSERT INTO public.task_templates OVERRIDING SYSTEM VALUE VALUES
 
 
 --
--- Data for Name: task_template_conditions; Type: TABLE DATA; Schema: public; Owner: -
+-- LA5-F: workflow_node_task_spec_conditions replaces task_template_conditions.
+-- condition_group entfaellt (immer 1 in real data).
 --
 
-INSERT INTO public.task_template_conditions OVERRIDING SYSTEM VALUE VALUES
-	(1, 2, 1, 'consense_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(2, 3, 1, 'gewatec_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(3, 4, 1, 'provis_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(4, 5, 1, 'ad_user_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(5, 6, 1, 'comparison_user_available', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(6, 6, 1, 'ad_user_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(7, 7, 1, 'internet_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(8, 8, 1, 'internal_drive_access_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(9, 9, 1, 'mailbox_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(10, 10, 1, 'habel_user_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(11, 11, 1, 'ln_user_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(12, 12, 1, 'microsoft_office_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(13, 13, 1, 'hardware_available', 'is_false', NULL, false, NULL, '2026-04-27 07:05:51.264725+00'),
-	(14, 13, 1, 'hardware_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(15, 14, 1, 'hardware_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(16, 15, 1, 'hardware_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(17, 16, 1, 'phone_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(18, 17, 1, 'catia_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(19, 18, 1, 'datev_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(20, 19, 1, 'tiso_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(21, 20, 1, 'babtec_requested', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.264725+00'),
-	(22, 21, 1, 'ob_has_consense', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(23, 22, 1, 'ob_has_gewatec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(24, 23, 1, 'ob_has_provis', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(25, 24, 1, 'ob_has_ad_account', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(26, 25, 1, 'ob_has_mailbox', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(27, 26, 1, 'ob_has_habel', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(28, 27, 1, 'ob_has_ln', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(29, 28, 1, 'ob_has_hardware', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(30, 29, 1, 'ob_has_phone', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(31, 31, 1, 'ob_exit_interview', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(32, 32, 1, 'ob_knowledge_transfer', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(33, 34, 1, 'ob_has_babtec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.471889+00'),
-	(34, 35, 1, 'dc_has_consense', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(35, 36, 1, 'dc_has_gewatec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(36, 37, 1, 'dc_has_provis', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(37, 38, 1, 'dc_ad_group_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(38, 39, 1, 'dc_drive_access_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(39, 40, 1, 'dc_email_alias_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(40, 41, 1, 'dc_has_habel', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(41, 42, 1, 'dc_has_ln', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(42, 43, 1, 'dc_hardware_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(43, 46, 1, 'dc_has_babtec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.48756+00'),
-	(44, 52, 1, 'pc_has_consense', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(45, 53, 1, 'pc_has_gewatec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(46, 54, 1, 'pc_has_provis', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(47, 55, 1, 'pc_permission_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(48, 56, 1, 'pc_ad_groups_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(49, 57, 1, 'pc_drive_access_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(50, 58, 1, 'pc_mail_alias_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00');
-INSERT INTO public.task_template_conditions OVERRIDING SYSTEM VALUE VALUES
-	(51, 59, 1, 'pc_has_habel', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(52, 60, 1, 'pc_has_ln', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(53, 63, 1, 'pc_training_required', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(54, 64, 1, 'pc_has_babtec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.575034+00'),
-	(55, 65, 1, 'rc_has_consense', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(56, 66, 1, 'rc_has_gewatec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(57, 67, 1, 'rc_has_provis', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(58, 68, 1, 'rc_role_assignment_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(59, 69, 1, 'rc_permission_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(60, 70, 1, 'rc_ad_groups_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(61, 71, 1, 'rc_mailbox_change', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(62, 72, 1, 'rc_has_habel', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(63, 73, 1, 'rc_has_ln', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00'),
-	(64, 76, 1, 'rc_has_babtec', 'is_true', NULL, true, NULL, '2026-04-27 07:05:51.590644+00');
-
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (1, 76, 'consense_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (2, 58, 'gewatec_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (3, 59, 'provis_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (4, 60, 'ad_user_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (5, 61, 'comparison_user_available', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (6, 61, 'ad_user_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (7, 62, 'internet_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (8, 63, 'internal_drive_access_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (9, 64, 'mailbox_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (10, 65, 'habel_user_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (11, 66, 'ln_user_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (12, 67, 'microsoft_office_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (13, 68, 'hardware_available', 'is_false', NULL, false, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (14, 68, 'hardware_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (15, 69, 'hardware_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (16, 70, 'hardware_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (17, 71, 'phone_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (18, 72, 'catia_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (19, 73, 'datev_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (20, 74, 'tiso_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (21, 75, 'babtec_requested', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (22, 14, 'ob_has_consense', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (23, 1, 'ob_has_gewatec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (24, 2, 'ob_has_provis', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (25, 3, 'ob_has_ad_account', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (26, 4, 'ob_has_mailbox', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (27, 5, 'ob_has_habel', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (28, 6, 'ob_has_ln', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (29, 7, 'ob_has_hardware', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (30, 8, 'ob_has_phone', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (31, 10, 'ob_exit_interview', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (32, 11, 'ob_knowledge_transfer', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (33, 13, 'ob_has_babtec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (34, 19, 'dc_has_consense', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (35, 16, 'dc_has_gewatec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (36, 17, 'dc_has_provis', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (37, 18, 'dc_ad_group_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (38, 20, 'dc_drive_access_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (39, 21, 'dc_email_alias_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (40, 15, 'dc_has_habel', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (41, 22, 'dc_has_ln', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (42, 23, 'dc_hardware_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (43, 26, 'dc_has_babtec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (44, 44, 'pc_has_consense', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (45, 32, 'pc_has_gewatec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (46, 33, 'pc_has_provis', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (47, 34, 'pc_permission_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (48, 35, 'pc_ad_groups_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (49, 36, 'pc_drive_access_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (50, 37, 'pc_mail_alias_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (51, 38, 'pc_has_habel', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (52, 39, 'pc_has_ln', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (53, 42, 'pc_training_required', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (54, 43, 'pc_has_babtec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (55, 56, 'rc_has_consense', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (56, 46, 'rc_has_gewatec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (57, 47, 'rc_has_provis', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (58, 48, 'rc_role_assignment_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (59, 49, 'rc_permission_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (60, 50, 'rc_ad_groups_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (61, 51, 'rc_mailbox_change', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (62, 52, 'rc_has_habel', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (63, 53, 'rc_has_ln', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
+INSERT INTO public.workflow_node_task_spec_conditions OVERRIDING SYSTEM VALUE VALUES (64, 45, 'rc_has_babtec', 'is_true', NULL, true, NULL, '2026-05-03 12:13:23.141756+00');
 
 --
--- Data for Name: task_template_dependencies; Type: TABLE DATA; Schema: public; Owner: -
+-- LA5-F: workflow_node_task_spec_dependencies replaces task_template_dependencies.
+-- required_status entfaellt (immer 'done' in real data); workflow_node_id
+-- erzwingt via composite-FK Same-Node-Constraint.
 --
 
-INSERT INTO public.task_template_dependencies OVERRIDING SYSTEM VALUE VALUES
-	(1, 20, 1, 'done'),
-	(2, 19, 1, 'done'),
-	(3, 18, 1, 'done'),
-	(4, 17, 1, 'done'),
-	(5, 16, 1, 'done'),
-	(6, 14, 1, 'done'),
-	(7, 13, 1, 'done'),
-	(8, 12, 1, 'done'),
-	(9, 11, 1, 'done'),
-	(10, 10, 1, 'done'),
-	(11, 8, 1, 'done'),
-	(12, 7, 1, 'done'),
-	(13, 5, 1, 'done'),
-	(14, 4, 1, 'done'),
-	(15, 3, 1, 'done'),
-	(16, 2, 1, 'done'),
-	(17, 9, 5, 'done'),
-	(18, 6, 5, 'done'),
-	(19, 14, 13, 'done'),
-	(20, 15, 14, 'done'),
-	(21, 25, 24, 'done'),
-	(22, 34, 30, 'done'),
-	(23, 33, 30, 'done'),
-	(24, 29, 30, 'done'),
-	(25, 28, 30, 'done'),
-	(26, 27, 30, 'done'),
-	(27, 26, 30, 'done'),
-	(28, 24, 30, 'done'),
-	(29, 23, 30, 'done'),
-	(30, 22, 30, 'done'),
-	(31, 21, 30, 'done'),
-	(32, 46, 44, 'done'),
-	(33, 43, 44, 'done'),
-	(34, 42, 44, 'done'),
-	(35, 41, 44, 'done'),
-	(36, 40, 44, 'done'),
-	(37, 39, 44, 'done'),
-	(38, 38, 44, 'done'),
-	(39, 37, 44, 'done'),
-	(40, 36, 44, 'done'),
-	(41, 35, 44, 'done'),
-	(42, 48, 47, 'done'),
-	(43, 49, 50, 'done'),
-	(44, 47, 50, 'done'),
-	(45, 64, 61, 'done'),
-	(46, 63, 61, 'done'),
-	(47, 60, 61, 'done'),
-	(48, 59, 61, 'done'),
-	(49, 58, 61, 'done'),
-	(50, 57, 61, 'done');
-INSERT INTO public.task_template_dependencies OVERRIDING SYSTEM VALUE VALUES
-	(51, 56, 61, 'done'),
-	(52, 55, 61, 'done'),
-	(53, 54, 61, 'done'),
-	(54, 53, 61, 'done'),
-	(55, 52, 61, 'done'),
-	(56, 76, 74, 'done'),
-	(57, 73, 74, 'done'),
-	(58, 72, 74, 'done'),
-	(59, 71, 74, 'done'),
-	(60, 70, 74, 'done'),
-	(61, 69, 74, 'done'),
-	(62, 68, 74, 'done'),
-	(63, 67, 74, 'done'),
-	(64, 66, 74, 'done'),
-	(65, 65, 74, 'done');
-
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (1, 75, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (2, 74, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (3, 73, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (4, 72, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (5, 71, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (6, 69, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (7, 68, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (8, 67, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (9, 66, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (10, 65, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (11, 63, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (12, 62, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (13, 60, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (14, 59, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (15, 58, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (16, 76, 57, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (17, 64, 60, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (18, 61, 60, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (19, 69, 68, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (20, 70, 69, 41);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (21, 4, 3, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (22, 13, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (23, 12, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (24, 8, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (25, 7, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (26, 6, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (27, 5, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (28, 3, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (29, 2, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (30, 1, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (31, 14, 9, 21);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (32, 26, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (33, 23, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (34, 22, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (35, 15, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (36, 21, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (37, 20, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (38, 18, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (39, 17, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (40, 16, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (41, 19, 24, 25);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (42, 28, 27, 29);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (43, 29, 30, 29);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (44, 27, 30, 29);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (45, 43, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (46, 42, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (47, 39, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (48, 38, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (49, 37, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (50, 36, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (51, 35, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (52, 34, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (53, 33, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (54, 32, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (55, 44, 40, 33);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (56, 45, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (57, 53, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (58, 52, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (59, 51, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (60, 50, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (61, 49, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (62, 48, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (63, 47, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (64, 46, 54, 37);
+INSERT INTO public.workflow_node_task_spec_dependencies OVERRIDING SYSTEM VALUE VALUES (65, 56, 54, 37);
 
 --
 -- Data for Name: workflow_answer_derivation_rules; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 INSERT INTO public.workflow_answer_derivation_rules OVERRIDING SYSTEM VALUE VALUES
-	(1, 1, 3, 'has_ad_account', 'ob_has_ad_account', 'copy_boolean', true, 1, '2026-04-27 07:05:51.556788+00'),
-	(2, 1, 3, 'has_babtec', 'ob_has_babtec', 'copy_boolean', true, 2, '2026-04-27 07:05:51.556788+00'),
-	(3, 1, 3, 'has_consense', 'ob_has_consense', 'copy_boolean', true, 3, '2026-04-27 07:05:51.556788+00'),
-	(4, 1, 3, 'has_gewatec', 'ob_has_gewatec', 'copy_boolean', true, 4, '2026-04-27 07:05:51.556788+00'),
-	(5, 1, 3, 'has_habel', 'ob_has_habel', 'copy_boolean', true, 5, '2026-04-27 07:05:51.556788+00'),
-	(6, 1, 3, 'has_hardware', 'ob_has_hardware', 'copy_boolean', true, 6, '2026-04-27 07:05:51.556788+00'),
-	(7, 1, 3, 'has_ln', 'ob_has_ln', 'copy_boolean', true, 7, '2026-04-27 07:05:51.556788+00'),
-	(8, 1, 3, 'has_mailbox', 'ob_has_mailbox', 'copy_boolean', true, 8, '2026-04-27 07:05:51.556788+00'),
-	(9, 1, 3, 'has_phone', 'ob_has_phone', 'copy_boolean', true, 9, '2026-04-27 07:05:51.556788+00'),
-	(10, 1, 3, 'has_provis', 'ob_has_provis', 'copy_boolean', true, 10, '2026-04-27 07:05:51.556788+00'),
-	(11, 1, 4, 'has_ad_account', 'dc_ad_group_change', 'copy_boolean', true, 1, '2026-04-27 07:05:51.561498+00'),
-	(12, 1, 4, 'has_babtec', 'dc_has_babtec', 'copy_boolean', true, 2, '2026-04-27 07:05:51.561498+00'),
-	(13, 1, 4, 'has_consense', 'dc_has_consense', 'copy_boolean', true, 3, '2026-04-27 07:05:51.561498+00'),
-	(14, 1, 4, 'has_gewatec', 'dc_has_gewatec', 'copy_boolean', true, 4, '2026-04-27 07:05:51.561498+00'),
-	(15, 1, 4, 'has_habel', 'dc_has_habel', 'copy_boolean', true, 5, '2026-04-27 07:05:51.561498+00'),
-	(16, 1, 4, 'has_hardware', 'dc_hardware_change', 'copy_boolean', true, 6, '2026-04-27 07:05:51.561498+00'),
-	(17, 1, 4, 'has_ln', 'dc_has_ln', 'copy_boolean', true, 7, '2026-04-27 07:05:51.561498+00'),
-	(18, 1, 4, 'has_provis', 'dc_has_provis', 'copy_boolean', true, 8, '2026-04-27 07:05:51.561498+00');
+	(1, 1, 2, 'has_ad_account', 'ob_has_ad_account', 'copy_boolean', true, 1, '2026-04-27 07:05:51.556788+00'),
+	(2, 1, 2, 'has_babtec', 'ob_has_babtec', 'copy_boolean', true, 2, '2026-04-27 07:05:51.556788+00'),
+	(3, 1, 2, 'has_consense', 'ob_has_consense', 'copy_boolean', true, 3, '2026-04-27 07:05:51.556788+00'),
+	(4, 1, 2, 'has_gewatec', 'ob_has_gewatec', 'copy_boolean', true, 4, '2026-04-27 07:05:51.556788+00'),
+	(5, 1, 2, 'has_habel', 'ob_has_habel', 'copy_boolean', true, 5, '2026-04-27 07:05:51.556788+00'),
+	(6, 1, 2, 'has_hardware', 'ob_has_hardware', 'copy_boolean', true, 6, '2026-04-27 07:05:51.556788+00'),
+	(7, 1, 2, 'has_ln', 'ob_has_ln', 'copy_boolean', true, 7, '2026-04-27 07:05:51.556788+00'),
+	(8, 1, 2, 'has_mailbox', 'ob_has_mailbox', 'copy_boolean', true, 8, '2026-04-27 07:05:51.556788+00'),
+	(9, 1, 2, 'has_phone', 'ob_has_phone', 'copy_boolean', true, 9, '2026-04-27 07:05:51.556788+00'),
+	(10, 1, 2, 'has_provis', 'ob_has_provis', 'copy_boolean', true, 10, '2026-04-27 07:05:51.556788+00'),
+	(11, 1, 3, 'has_ad_account', 'dc_ad_group_change', 'copy_boolean', true, 1, '2026-04-27 07:05:51.561498+00'),
+	(12, 1, 3, 'has_babtec', 'dc_has_babtec', 'copy_boolean', true, 2, '2026-04-27 07:05:51.561498+00'),
+	(13, 1, 3, 'has_consense', 'dc_has_consense', 'copy_boolean', true, 3, '2026-04-27 07:05:51.561498+00'),
+	(14, 1, 3, 'has_gewatec', 'dc_has_gewatec', 'copy_boolean', true, 4, '2026-04-27 07:05:51.561498+00'),
+	(15, 1, 3, 'has_habel', 'dc_has_habel', 'copy_boolean', true, 5, '2026-04-27 07:05:51.561498+00'),
+	(16, 1, 3, 'has_hardware', 'dc_hardware_change', 'copy_boolean', true, 6, '2026-04-27 07:05:51.561498+00'),
+	(17, 1, 3, 'has_ln', 'dc_has_ln', 'copy_boolean', true, 7, '2026-04-27 07:05:51.561498+00'),
+	(18, 1, 3, 'has_provis', 'dc_has_provis', 'copy_boolean', true, 8, '2026-04-27 07:05:51.561498+00');
 
 
 --
@@ -985,6 +967,8 @@ INSERT INTO public.workflow_node_configs OVERRIDING SYSTEM VALUE VALUES
 
 
 
+
+
 --
 -- Name: action_definitions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
@@ -1119,13 +1103,6 @@ SELECT pg_catalog.setval('public.people_id_seq', 1, false);
 
 
 --
--- Name: process_types_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
---
-
-SELECT pg_catalog.setval('public.process_types_id_seq', 7, true);
-
-
---
 -- Name: rotation_audit_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
@@ -1196,24 +1173,24 @@ SELECT pg_catalog.setval('public.task_assignments_id_seq', 1, false);
 
 
 --
--- Name: task_template_conditions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+-- Name: workflow_node_task_spec_conditions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.task_template_conditions_id_seq', 64, true);
-
-
---
--- Name: task_template_dependencies_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
---
-
-SELECT pg_catalog.setval('public.task_template_dependencies_id_seq', 65, true);
+SELECT pg_catalog.setval('public.workflow_node_task_spec_conditions_id_seq', 64, true);
 
 
 --
--- Name: task_templates_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+-- Name: workflow_node_task_spec_dependencies_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.task_templates_id_seq', 76, true);
+SELECT pg_catalog.setval('public.workflow_node_task_spec_dependencies_id_seq', 65, true);
+
+
+--
+-- Name: workflow_node_task_specs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.workflow_node_task_specs_id_seq', 76, true);
 
 
 --

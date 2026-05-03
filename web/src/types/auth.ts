@@ -5,6 +5,7 @@ export type SimulationLoginUserOption = {
   displayName: string;
   email: string;
   departmentName: string | null;
+  roleKeys: string[];
 };
 
 export type Me = {
@@ -390,27 +391,9 @@ export type ClientLogEventRequest = {
   details?: unknown | null;
 };
 
-export type AdminProcessType = {
-  id: number;
-  key: string;
-  name: string;
-  description: string | null;
-  requiresSupervisorStep: boolean;
-  approvalTaskTemplateKey: string | null;
-  requiresTargetPerson: boolean;
-  iconKey: string | null;
-  isActive: boolean;
-  sortOrder: number;
-  workflowCount: number;
-  answerDefinitionCount: number;
-  taskTemplateCount: number;
-  canActivate: boolean;
-  activationBlockedReason: string | null;
-};
-
 export type AdminTaskTemplate = {
   id: number;
-  processTypeId: number;
+  workflowDefinitionId: number;
   templateKey: string;
   title: string;
   category: string;
@@ -468,7 +451,7 @@ export type AdminDependencyGraph = {
 
 export type AdminAnswerDefinition = {
   id: number;
-  processTypeId: number;
+  workflowDefinitionId: number;
   answerKey: string;
   title: string;
   category: string;
@@ -481,7 +464,7 @@ export type AdminAnswerDefinition = {
 };
 
 export type AdminRoleAnswerDefault = {
-  processTypeId: number;
+  workflowDefinitionId: number;
   appRoleId: number;
   answerKey: string;
   defaultValueText: string | null;
@@ -498,7 +481,7 @@ export type AdminWorkflowValidationIssue = {
 
 export type AdminWorkflowNodeAction = {
   actionKey: string | null;
-  inputMapping: unknown | null;
+  inputMapping: Record<string, unknown> | null;
   executionOrder: number;
   onErrorBehavior: string | null;
 };
@@ -510,7 +493,7 @@ export type AdminWorkflowDefinitionNode = {
   sortOrder: number;
   positionX: number | null;
   positionY: number | null;
-  config: unknown | null;
+  config: Record<string, unknown> | null;
   actions: AdminWorkflowNodeAction[];
 };
 
@@ -528,7 +511,6 @@ export type AdminWorkflowDefinitionVersionSummary = {
   status: string;
   name: string | null;
   description: string | null;
-  primaryLegacyProcessTypeKey: string | null;
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
@@ -554,7 +536,6 @@ export type AdminWorkflowDefinitionVersionDetail = {
   status: string;
   name: string | null;
   description: string | null;
-  primaryLegacyProcessTypeKey: string | null;
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
@@ -573,5 +554,5 @@ export type AdminWorkflowActionDefinition = {
   isIdempotent: boolean;
   isActive: boolean;
   requiresApproval: boolean;
-  inputSchema: unknown | null;
+  inputSchema: Record<string, unknown> | null;
 };

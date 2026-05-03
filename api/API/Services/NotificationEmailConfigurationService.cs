@@ -79,7 +79,7 @@ internal sealed class NotificationEmailConfigurationService : INotificationEmail
         };
 
         var enableValidation = NotificationEmailConfigurationValidator.ValidateForSending(runtimeCandidate);
-        if (request.Enabled && !enableValidation.CanSend)
+        if (request.Enabled && !enableValidation.IsReady)
         {
             throw new InvalidOperationException(
                 $"Mailversand kann nicht aktiviert werden: {enableValidation.Message}");

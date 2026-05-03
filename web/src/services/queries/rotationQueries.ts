@@ -6,14 +6,14 @@ import {
   getRotationNotifications,
   getRotationPlan,
   getRotationPlans,
-  searchCompletedRotationOnboardings,
+  searchRotationEligiblePeople,
 } from "../rotationApi";
 import { queryKeys } from "../queryKeys";
 
-export function useRotationCompletedOnboardings(search: string, enabled = true) {
+export function useRotationEligiblePeople(search: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.people.rotationEligible(search),
-    queryFn: () => searchCompletedRotationOnboardings(search),
+    queryFn: () => searchRotationEligiblePeople(search),
     enabled,
     staleTime: 30 * 1000,
     placeholderData: keepPreviousData,

@@ -4,28 +4,28 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    public async Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int processTypeId)
+    public async Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId)
     {
-        if (processTypeId <= 0)
+        if (workflowDefinitionId <= 0)
         {
-            throw new InvalidOperationException("processTypeId must be greater than zero.");
+            throw new InvalidOperationException("workflowDefinitionId must be greater than zero.");
         }
 
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        await EnsureProcessTypeExists(connection, null, processTypeId);
+        var processTypeId = await EnsureProcessTypeExists(connection, null, workflowDefinitionId);
 
         const string sql = @"
 SELECT
-    ard.process_type_id,
+    ard.workflow_definition_id,
     ard.app_role_id,
     d.answer_key,
     ard.default_value_text,
     ard.default_value_boolean
 FROM app_role_answer_defaults ard
 JOIN workflow_answer_definitions d ON d.id = ard.answer_definition_id
-WHERE ard.process_type_id = @processTypeId
+WHERE ard.workflow_definition_id = @processTypeId
 ORDER BY ard.app_role_id, d.answer_key;";
 
         await using var command = new NpgsqlCommand(sql, connection);
@@ -37,7 +37,7 @@ ORDER BY ard.app_role_id, d.answer_key;";
         {
             defaults.Add(new AdminRoleAnswerDefaultDto
             {
-                ProcessTypeId = reader.GetInt32(0),
+                WorkflowDefinitionId = reader.GetInt32(0),
                 AppRoleId = reader.GetInt32(1),
                 AnswerKey = reader.GetString(2),
                 DefaultValueText = reader.IsDBNull(3) ? null : reader.GetString(3),
@@ -56,7 +56,7 @@ ORDER BY ard.app_role_id, d.answer_key;";
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        await EnsureProcessTypeExists(connection, transaction, request.ProcessTypeId);
+        var normalizedProcessTypeId = await EnsureProcessTypeExists(connection, transaction, request.WorkflowDefinitionId);
 
         var normalizedItems = request.Items
             .Select(item => new
@@ -77,12 +77,12 @@ ORDER BY ard.app_role_id, d.answer_key;";
         var answerKeyToDefinitionId = await ResolveAnswerDefinitionIdsByKey(
             connection,
             transaction,
-            request.ProcessTypeId,
+            normalizedProcessTypeId,
             normalizedItems.Select(item => item.AnswerKey).Distinct().ToList());
 
         const string sql = @"
 INSERT INTO app_role_answer_defaults (
-    process_type_id,
+    workflow_definition_id,
     app_role_id,
     answer_definition_id,
     is_recommended,
@@ -103,14 +103,14 @@ VALUES (
 )
 ON CONFLICT (app_role_id, answer_definition_id)
 DO UPDATE SET
-    process_type_id = EXCLUDED.process_type_id,
+    workflow_definition_id = EXCLUDED.workflow_definition_id,
     default_value_boolean = EXCLUDED.default_value_boolean,
     default_value_text = EXCLUDED.default_value_text;";
 
         foreach (var item in normalizedItems)
         {
             await using var command = new NpgsqlCommand(sql, connection, transaction);
-            command.Parameters.AddWithValue("processTypeId", request.ProcessTypeId);
+            command.Parameters.AddWithValue("processTypeId", normalizedProcessTypeId);
             command.Parameters.AddWithValue("appRoleId", item.AppRoleId);
             command.Parameters.AddWithValue("answerDefinitionId", answerKeyToDefinitionId[item.AnswerKey]);
             command.Parameters.AddWithValue("defaultValueBoolean", (object?)item.DefaultValueBoolean ?? DBNull.Value);
@@ -119,12 +119,12 @@ DO UPDATE SET
         }
 
         await transaction.CommitAsync();
-        return await GetAdminRoleAnswerDefaults(request.ProcessTypeId);
+        return await GetAdminRoleAnswerDefaults(normalizedProcessTypeId);
     }
 
     private static void ValidateAdminRoleAnswerDefaultsBulkUpsertRequest(AdminRoleAnswerDefaultsBulkUpsertRequest request)
     {
-        if (request.ProcessTypeId <= 0)
+        if (request.WorkflowDefinitionId <= 0)
         {
             throw new InvalidOperationException("processTypeId must be greater than zero.");
         }
@@ -188,7 +188,7 @@ WHERE id = ANY(@appRoleIds);";
         const string sql = @"
 SELECT answer_key, id
 FROM workflow_answer_definitions
-WHERE process_type_id = @processTypeId
+WHERE workflow_definition_id = @processTypeId
   AND answer_key = ANY(@answerKeys);";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);

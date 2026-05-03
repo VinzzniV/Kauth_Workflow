@@ -7,7 +7,6 @@ internal static class WorkflowStatusRules
     public const string WaitingForDepartment = "waiting_for_department";
     public const string InProgress = "in_progress";
     public const string Completed = "completed";
-    public const string OpenLegacy = "open";
 
     public static string Normalize(string workflowStatus)
     {
@@ -29,15 +28,6 @@ internal static class WorkflowStatusRules
     {
         var normalized = Normalize(workflowStatus);
         return normalized is WaitingForDepartment or InProgress;
-    }
-
-    public static string ToLegacyStatus(string workflowStatus)
-    {
-        return Normalize(workflowStatus) switch
-        {
-            Completed => Completed,
-            _ => OpenLegacy,
-        };
     }
 
     public static string? EnsureApprovalTaskConfiguration(

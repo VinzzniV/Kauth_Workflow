@@ -10,7 +10,7 @@ internal static class AdminRuntimeConfigEndpoints
     public static IEndpointRouteBuilder MapAdminRuntimeConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/workflow", async (
-            [FromQuery] string? processTypeKey,
+            [FromQuery] string? workflowDefinitionKey,
             [FromServices] IWorkflowRepository repository,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
@@ -24,12 +24,12 @@ internal static class AdminRuntimeConfigEndpoints
                 return access.Error;
             }
 
-            if (string.IsNullOrWhiteSpace(processTypeKey))
+            if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
             {
-                return Results.BadRequest(new { message = "processTypeKey is required." });
+                return Results.BadRequest(new { message = "workflowDefinitionKey is required." });
             }
 
-            var workflowConfig = await repository.GetWorkflowConfig(null, processTypeKey);
+            var workflowConfig = await repository.GetWorkflowConfig(null, workflowDefinitionKey);
             return Results.Ok(workflowConfig);
         }).Produces<WorkflowConfigDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
@@ -78,6 +78,7 @@ internal static class AdminRuntimeConfigEndpoints
             [FromBody] AdminNotificationEmailConfigurationUpdateRequest request,
             [FromServices] INotificationEmailConfigurationService notificationEmailConfigurationService,
             [FromServices] IWorkflowRepository repository,
+            [FromServices] IWorkflowNotificationReadRepository notificationReadRepository,
             [FromServices] IWorkflowEmailNotificationSender emailNotificationSender,
             [FromServices] ISystemEventLogService systemEventLogService,
             [FromServices] IUserContext userContext,
@@ -106,6 +107,7 @@ internal static class AdminRuntimeConfigEndpoints
                         await ReplayDisabledNotifications(
                             "task_ready",
                             repository,
+                            notificationReadRepository,
                             emailNotificationSender,
                             repository.CreateReadyTaskNotifications);
                     }
@@ -117,6 +119,7 @@ internal static class AdminRuntimeConfigEndpoints
                         await ReplayDisabledNotifications(
                             "workflow_completed",
                             repository,
+                            notificationReadRepository,
                             emailNotificationSender,
                             repository.CreateWorkflowCompletionNotifications);
                     }
@@ -225,10 +228,11 @@ internal static class AdminRuntimeConfigEndpoints
     private static async Task ReplayDisabledNotifications(
         string notificationType,
         IWorkflowRepository repository,
+        IWorkflowNotificationReadRepository notificationReadRepository,
         IWorkflowEmailNotificationSender emailNotificationSender,
         Func<Guid, Task<List<WorkflowNotificationDispatchTarget>>> createNotifications)
     {
-        var workflowUids = await repository.GetWorkflowUidsWithDisabledNotifications(notificationType);
+        var workflowUids = await notificationReadRepository.GetWorkflowUidsWithDisabledNotifications(notificationType);
         foreach (var workflowUid in workflowUids)
         {
             var notificationTargets = await createNotifications(workflowUid);

@@ -9,7 +9,7 @@ vi.mock("../src/services/lookupApi", async () => {
   const actual = await vi.importActual<typeof import("../src/services/lookupApi")>("../src/services/lookupApi");
   return {
     ...actual,
-    getProcessTypes: vi.fn(),
+    getStartableWorkflowDefinitions: vi.fn(),
   };
 });
 
@@ -21,7 +21,7 @@ vi.mock("../src/services/workflowApi", async () => {
   };
 });
 
-const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
+const mockedGetStartableWorkflowDefinitions = vi.mocked(lookupApi.getStartableWorkflowDefinitions);
 const mockedGetWorkflowPage = vi.mocked(workflowApi.getWorkflowPage);
 
 function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof workflowApi.getWorkflowPage>>> = {}) {
@@ -38,11 +38,11 @@ function createWorkflowPageResponse(overrides: Partial<Awaited<ReturnType<typeof
 
 describe("WorkflowListPage", () => {
   beforeEach(() => {
-    mockedGetProcessTypes.mockReset();
+    mockedGetStartableWorkflowDefinitions.mockReset();
     mockedGetWorkflowPage.mockReset();
-    mockedGetProcessTypes.mockResolvedValue([
-      { key: "onboarding", name: "Onboarding" },
-      { key: "offboarding", name: "Offboarding" },
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
+      { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, primaryLegacyProcessTypeKey: "onboarding", latestPublishedVersionNumber: 1 },
+      { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
     ]);
   });
 
@@ -91,7 +91,7 @@ describe("WorkflowListPage", () => {
     expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
       20,
       0,
-      expect.objectContaining({ processTypeKey: "offboarding" })
+      expect.objectContaining({ workflowDefinitionKey: "offboarding" })
     );
   });
 
@@ -122,7 +122,7 @@ describe("WorkflowListPage", () => {
     expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
       20,
       20,
-      expect.objectContaining({ status: "completed", processTypeKey: "offboarding" })
+      expect.objectContaining({ status: "completed", workflowDefinitionKey: "offboarding" })
     );
   });
 

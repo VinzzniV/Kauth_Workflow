@@ -9,7 +9,7 @@ internal interface IAuthorizationPolicyService
     bool CanReadWorkflow(CurrentUser user, string workflowStatus);
     bool CanRegularlyEditWorkflow(CurrentUser user, string workflowStatus);
     bool CanCreateWorkflow(CurrentUser user);
-    bool CanCreateWorkflowForProcessType(CurrentUser user, string processTypeKey, bool managerCreatableProcessType);
+    bool CanCreateWorkflowForDefinition(CurrentUser user, string workflowDefinitionKey, bool managerCreatableDefinition);
     bool CanCreateOrStartWorkflow(CurrentUser user);
     bool CanEditSupervisorRequirements(CurrentUser user);
     bool CanAccessSupervisorStep(CurrentUser user);

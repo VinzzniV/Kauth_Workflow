@@ -7,7 +7,6 @@ import type {
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncResult,
   AdminDirectorySyncStatus,
-  AdminProcessType,
   AdminRoleAnswerDefault,
   AdminTaskTemplate,
   AdminTaskTemplateCondition,
@@ -17,8 +16,7 @@ import type {
   AdminWorkflowDefinitionVersionDetail,
   AdminWorkflowDefinitionVersionSummary,
 } from "../types/auth";
-import { requestJson } from "./api/client";
-import { getCachedRequest, invalidateCachedRequest } from "./cache";
+import { encodeId, requestJson } from "./api/client";
 import type {
   BackendAdminAnswerDefinitionDto,
   BackendAdminDependencyGraphDto,
@@ -28,7 +26,6 @@ import type {
   BackendAdminDirectoryMappingAuditEntryDto,
   BackendAdminDirectorySyncResultDto,
   BackendAdminDirectorySyncStatusDto,
-  BackendAdminProcessTypeDto,
   BackendAdminRoleAnswerDefaultDto,
   BackendAdminTaskTemplateConditionDto,
   BackendAdminTaskTemplateDependencyDto,
@@ -86,52 +83,24 @@ export async function createAdminDirectoryGroupRoleMapping(payload: {
 }
 
 export async function deleteAdminDirectoryGroupRoleMapping(mappingId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/directory/group-mappings/${encodeURIComponent(String(mappingId))}`, {
+  await requestJson<void>(`/admin/directory/group-mappings/${encodeId(mappingId)}`, {
     method: "DELETE",
   });
 }
 
-export function getAdminProcessTypes(): Promise<AdminProcessType[]> {
-  return getCachedRequest("admin-process-types", () =>
-    requestJson<BackendAdminProcessTypeDto[]>("/admin/config/process-types")
-  );
-}
-
-export async function updateAdminProcessType(
-  processTypeId: number,
-  payload: {
-    name?: string;
-    description?: string | null;
-    iconKey?: string | null;
-    isActive?: boolean;
-    sortOrder?: number;
-  }
-): Promise<AdminProcessType> {
-  const result = await requestJson<BackendAdminProcessTypeDto>(
-    `/admin/config/process-types/${encodeURIComponent(String(processTypeId))}`,
-    {
-      method: "PATCH",
-      body: payload,
-    }
-  );
-  // Invalidate both caches so the next fetch reflects the updated process type.
-  invalidateCachedRequest("admin-process-types");
-  return result;
-}
-
-export async function getAdminTaskTemplates(processTypeId: number): Promise<AdminTaskTemplate[]> {
-  const params = new URLSearchParams({ processTypeId: String(processTypeId) });
+export async function getAdminTaskTemplates(workflowDefinitionId: number): Promise<AdminTaskTemplate[]> {
+  const params = new URLSearchParams({ workflowDefinitionId: String(workflowDefinitionId) });
   return requestJson<BackendAdminTaskTemplateDto[]>(`/admin/config/task-templates?${params.toString()}`);
 }
 
-export async function getAdminDependencyGraph(processTypeId: number): Promise<AdminDependencyGraph> {
+export async function getAdminDependencyGraph(workflowDefinitionId: number): Promise<AdminDependencyGraph> {
   return requestJson<BackendAdminDependencyGraphDto>(
-    `/admin/config/process-types/${encodeURIComponent(String(processTypeId))}/dependency-graph`
+    `/admin/config/workflow-definitions/${encodeId(workflowDefinitionId)}/dependency-graph`
   );
 }
 
 export async function createAdminTaskTemplate(payload: {
-  processTypeId: number;
+  workflowDefinitionId: number;
   templateKey: string;
   title: string;
   category: string;
@@ -155,7 +124,7 @@ export async function createAdminTaskTemplate(payload: {
 export async function updateAdminTaskTemplate(
   templateId: number,
   payload: {
-    processTypeId: number;
+    workflowDefinitionId: number;
     templateKey: string;
     title: string;
     category: string;
@@ -172,7 +141,7 @@ export async function updateAdminTaskTemplate(
   }
 ): Promise<AdminTaskTemplate> {
   return requestJson<BackendAdminTaskTemplateDto>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}`,
+    `/admin/config/task-templates/${encodeId(templateId)}`,
     {
       method: "PATCH",
       body: payload,
@@ -181,14 +150,14 @@ export async function updateAdminTaskTemplate(
 }
 
 export async function deleteAdminTaskTemplate(templateId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/config/task-templates/${encodeURIComponent(String(templateId))}`, {
+  await requestJson<void>(`/admin/config/task-templates/${encodeId(templateId)}`, {
     method: "DELETE",
   });
 }
 
 export async function getAdminTaskTemplateConditions(templateId: number): Promise<AdminTaskTemplateCondition[]> {
   return requestJson<BackendAdminTaskTemplateConditionDto[]>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/conditions`
+    `/admin/config/task-templates/${encodeId(templateId)}/conditions`
   );
 }
 
@@ -204,7 +173,7 @@ export async function createAdminTaskTemplateCondition(
   }
 ): Promise<AdminTaskTemplateCondition> {
   return requestJson<BackendAdminTaskTemplateConditionDto>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/conditions`,
+    `/admin/config/task-templates/${encodeId(templateId)}/conditions`,
     {
       method: "POST",
       body: payload,
@@ -213,8 +182,8 @@ export async function createAdminTaskTemplateCondition(
 }
 
 export async function deleteAdminTaskTemplateCondition(templateId: number, conditionId: number): Promise<void> {
-  await requestJson<unknown>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/conditions/${encodeURIComponent(String(conditionId))}`,
+  await requestJson<void>(
+    `/admin/config/task-templates/${encodeId(templateId)}/conditions/${encodeId(conditionId)}`,
     {
       method: "DELETE",
     }
@@ -223,7 +192,7 @@ export async function deleteAdminTaskTemplateCondition(templateId: number, condi
 
 export async function getAdminTaskTemplateDependencies(templateId: number): Promise<AdminTaskTemplateDependency[]> {
   return requestJson<BackendAdminTaskTemplateDependencyDto[]>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/dependencies`
+    `/admin/config/task-templates/${encodeId(templateId)}/dependencies`
   );
 }
 
@@ -235,7 +204,7 @@ export async function createAdminTaskTemplateDependency(
   }
 ): Promise<AdminTaskTemplateDependency> {
   return requestJson<BackendAdminTaskTemplateDependencyDto>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/dependencies`,
+    `/admin/config/task-templates/${encodeId(templateId)}/dependencies`,
     {
       method: "POST",
       body: payload,
@@ -244,21 +213,21 @@ export async function createAdminTaskTemplateDependency(
 }
 
 export async function deleteAdminTaskTemplateDependency(templateId: number, dependencyId: number): Promise<void> {
-  await requestJson<unknown>(
-    `/admin/config/task-templates/${encodeURIComponent(String(templateId))}/dependencies/${encodeURIComponent(String(dependencyId))}`,
+  await requestJson<void>(
+    `/admin/config/task-templates/${encodeId(templateId)}/dependencies/${encodeId(dependencyId)}`,
     {
       method: "DELETE",
     }
   );
 }
 
-export async function getAdminAnswerDefinitions(processTypeId: number): Promise<AdminAnswerDefinition[]> {
-  const params = new URLSearchParams({ processTypeId: String(processTypeId) });
+export async function getAdminAnswerDefinitions(workflowDefinitionId: number): Promise<AdminAnswerDefinition[]> {
+  const params = new URLSearchParams({ workflowDefinitionId: String(workflowDefinitionId) });
   return requestJson<BackendAdminAnswerDefinitionDto[]>(`/admin/config/answer-definitions?${params.toString()}`);
 }
 
 export async function createAdminAnswerDefinition(payload: {
-  processTypeId: number;
+  workflowDefinitionId: number;
   answerKey: string;
   title: string;
   category: string;
@@ -278,7 +247,7 @@ export async function createAdminAnswerDefinition(payload: {
 export async function updateAdminAnswerDefinition(
   definitionId: number,
   payload: {
-    processTypeId: number;
+    workflowDefinitionId: number;
     answerKey: string;
     title: string;
     category: string;
@@ -291,7 +260,7 @@ export async function updateAdminAnswerDefinition(
   }
 ): Promise<AdminAnswerDefinition> {
   return requestJson<BackendAdminAnswerDefinitionDto>(
-    `/admin/config/answer-definitions/${encodeURIComponent(String(definitionId))}`,
+    `/admin/config/answer-definitions/${encodeId(definitionId)}`,
     {
       method: "PATCH",
       body: payload,
@@ -300,18 +269,18 @@ export async function updateAdminAnswerDefinition(
 }
 
 export async function deleteAdminAnswerDefinition(definitionId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/config/answer-definitions/${encodeURIComponent(String(definitionId))}`, {
+  await requestJson<void>(`/admin/config/answer-definitions/${encodeId(definitionId)}`, {
     method: "DELETE",
   });
 }
 
-export async function getAdminRoleAnswerDefaults(processTypeId: number): Promise<AdminRoleAnswerDefault[]> {
-  const params = new URLSearchParams({ processTypeId: String(processTypeId) });
+export async function getAdminRoleAnswerDefaults(workflowDefinitionId: number): Promise<AdminRoleAnswerDefault[]> {
+  const params = new URLSearchParams({ workflowDefinitionId: String(workflowDefinitionId) });
   return requestJson<BackendAdminRoleAnswerDefaultDto[]>(`/admin/config/role-answer-defaults?${params.toString()}`);
 }
 
 export async function updateAdminRoleAnswerDefaults(payload: {
-  processTypeId: number;
+  workflowDefinitionId: number;
   items: Array<{
     appRoleId: number;
     answerKey: string;
@@ -341,8 +310,8 @@ export async function createAdminWorkflowDefinition(payload: {
 }
 
 export async function deleteAdminWorkflowDefinition(definitionId: number): Promise<void> {
-  await requestJson<unknown>(
-    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}`,
+  await requestJson<void>(
+    `/admin/config/workflow-definitions/${encodeId(definitionId)}`,
     {
       method: "DELETE",
     }
@@ -357,7 +326,7 @@ export async function updateAdminWorkflowDefinition(
   }
 ): Promise<AdminWorkflowDefinitionSummary> {
   return requestJson<BackendAdminWorkflowDefinitionSummaryDto>(
-    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}`,
+    `/admin/config/workflow-definitions/${encodeId(definitionId)}`,
     {
       method: "PATCH",
       body: payload,
@@ -373,7 +342,7 @@ export async function createAdminWorkflowDefinitionVersion(
   }
 ): Promise<AdminWorkflowDefinitionVersionSummary> {
   return requestJson<BackendAdminWorkflowDefinitionVersionSummaryDto>(
-    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}/versions`,
+    `/admin/config/workflow-definitions/${encodeId(definitionId)}/versions`,
     {
       method: "POST",
       body: payload,
@@ -385,7 +354,7 @@ export async function getOrCreateAdminWorkflowDefinitionWorkingDraft(
   definitionId: number
 ): Promise<AdminWorkflowDefinitionVersionDetail> {
   return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
-    `/admin/config/workflow-definitions/${encodeURIComponent(String(definitionId))}/working-draft`,
+    `/admin/config/workflow-definitions/${encodeId(definitionId)}/working-draft`,
     {
       method: "POST",
       body: {},
@@ -397,7 +366,7 @@ export async function getAdminWorkflowDefinitionVersion(
   versionId: number
 ): Promise<AdminWorkflowDefinitionVersionDetail> {
   return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
-    `/admin/config/workflow-definition-versions/${encodeURIComponent(String(versionId))}`
+    `/admin/config/workflow-definition-versions/${encodeId(versionId)}`
   );
 }
 
@@ -406,7 +375,6 @@ export async function replaceAdminWorkflowDefinitionVersion(
   payload: {
     name: string | null;
     description: string | null;
-    primaryLegacyProcessTypeKey: string | null;
     nodes: Array<{
       nodeKey: string | null;
       nodeType: string | null;
@@ -414,10 +382,10 @@ export async function replaceAdminWorkflowDefinitionVersion(
       sortOrder: number;
       positionX: number | null;
       positionY: number | null;
-      config: unknown | null;
+      config: Record<string, unknown> | null;
       actions: Array<{
         actionKey: string | null;
-        inputMapping: unknown | null;
+        inputMapping: Record<string, unknown> | null;
         executionOrder: number;
         onErrorBehavior: string | null;
       }>;
@@ -431,7 +399,7 @@ export async function replaceAdminWorkflowDefinitionVersion(
   }
 ): Promise<AdminWorkflowDefinitionVersionDetail> {
   return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
-    `/admin/config/workflow-definition-versions/${encodeURIComponent(String(versionId))}`,
+    `/admin/config/workflow-definition-versions/${encodeId(versionId)}`,
     {
       method: "PUT",
       body: payload,
@@ -443,7 +411,7 @@ export async function publishAdminWorkflowDefinitionVersion(
   versionId: number
 ): Promise<AdminWorkflowDefinitionVersionDetail> {
   return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
-    `/admin/config/workflow-definition-versions/${encodeURIComponent(String(versionId))}/publish`,
+    `/admin/config/workflow-definition-versions/${encodeId(versionId)}/publish`,
     {
       method: "POST",
       body: {},
@@ -464,4 +432,18 @@ export async function getAdminWorkflowActionDefinitions(): Promise<AdminWorkflow
     requiresApproval: definition.requiresApproval,
     inputSchema: definition.parameterSchema,
   }));
+}
+
+export type AdminAutomationPropertyCatalogSource = {
+  source: string;
+  label: string;
+  properties: string[];
+};
+
+export type AdminAutomationPropertyCatalog = {
+  sources: AdminAutomationPropertyCatalogSource[];
+};
+
+export async function getAdminAutomationPropertyCatalog(): Promise<AdminAutomationPropertyCatalog> {
+  return requestJson<AdminAutomationPropertyCatalog>("/admin/config/automation-property-catalog");
 }

@@ -4,6 +4,10 @@ import { reportClientLogEvent } from "../systemLogReporter";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export function encodeId(id: number | string): string {
+  return encodeURIComponent(String(id));
+}
+
 export type RequestOptions = {
   method?: HttpMethod;
   body?: unknown;
@@ -135,7 +139,34 @@ async function requestJsonInternal<T>(
 
   const contentType = response.headers.get("content-type") ?? "";
   const isJson = contentType.includes("application/json");
-  const payload = isJson ? await response.json().catch(() => null) : await response.text().catch(() => "");
+  let payload: unknown;
+  if (isJson) {
+    try {
+      payload = await response.json();
+    } catch (parseError) {
+      void reportClientLogEvent({
+        severity: "warning",
+        source: "api",
+        category: "http",
+        eventKey: "response_parse_failed",
+        message: `${method} ${path} lieferte ungültiges JSON (HTTP ${response.status}).`,
+        clientFunction: "requestJson",
+        httpMethod: method,
+        httpPath: path,
+        httpStatus: response.status,
+        details: {
+          cause: parseError instanceof Error ? parseError.message : String(parseError),
+        },
+      });
+      payload = null;
+    }
+  } else {
+    try {
+      payload = await response.text();
+    } catch {
+      payload = "";
+    }
+  }
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {

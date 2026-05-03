@@ -1,5 +1,8 @@
 using System.Net;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Identity.Web;
@@ -58,9 +61,31 @@ internal static class LifecycleServiceCollectionExtensions
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Employee Lifecycle API", Version = "v1" });
         });
+        services.AddRateLimiter(options =>
+        {
+            // Schuetzt /client/log-events vor Log-Floods (z.B. fehlerhafter Frontend-Loop, der fortlaufend Fehler postet).
+            // 60 Requests/Minute pro Remote-IP — generos genug fuer normales UI-Reporting, hart genug fuer Schleifen.
+            options.AddPolicy("client-log-events", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    }));
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        });
+        services.AddScoped<IWorkflowAuditWriteOperations, PostgresWorkflowAuditWriteOperations>();
+        services.AddScoped<IWorkflowAuditReadRepository, PostgresWorkflowAuditReadRepository>();
+        services.AddScoped<IWorkflowTaskGenerationService, PostgresWorkflowTaskGenerationService>();
+        services.AddScoped<IWorkflowStatusCalculationService, PostgresWorkflowStatusCalculationService>();
+        services.AddScoped<IWorkflowNotificationDispatchOperations, PostgresWorkflowNotificationDispatchOperations>();
+        services.AddScoped<IWorkflowAutomationOperations, PostgresWorkflowAutomationOperations>();
+        services.AddScoped<IWorkflowAutomationReadRepository, PostgresWorkflowAutomationReadRepository>();
         services.AddScoped<IWorkflowRepository, PostgresWorkflowRepository>();
         services.AddScoped<IRotationRepository, PostgresRotationRepository>();
-        services.AddScoped<IWorkflowDefinitionRuntimeRepository, PostgresWorkflowRepository>();
+        services.AddScoped<IWorkflowDefinitionRuntimeRepository, PostgresWorkflowRuntimeRepository>();
         services.AddScoped<IWorkflowAutomationRepository, PostgresWorkflowRepository>();
         services.AddScoped<IWorkflowDefinitionValidationService, WorkflowDefinitionValidationService>();
         services.AddHttpContextAccessor();
@@ -123,6 +148,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IRotationNotificationService, RotationNotificationService>();
         services.AddScoped<IWorkflowRuntimeService, WorkflowRuntimeService>();
         services.AddScoped<IWorkflowDefinitionRuntimeService, WorkflowDefinitionRuntimeService>();
+        services.AddSingleton(BuildAutomationRetrySettings(configuration));
         services.AddScoped<IWorkflowAutomationService, WorkflowAutomationService>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateAdUserAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateMailboxAutomationHandler>();
@@ -136,8 +162,9 @@ internal static class LifecycleServiceCollectionExtensions
             configuration.GetSection(NotificationEmailOptions.SectionName));
         services.AddScoped<IGraphApplicationConfigurationService, GraphApplicationConfigurationService>();
         services.AddScoped<INotificationEmailConfigurationService, NotificationEmailConfigurationService>();
-        services.AddScoped<INotificationTemplatePreviewRepository>(sp =>
-            (INotificationTemplatePreviewRepository)sp.GetRequiredService<IWorkflowRepository>());
+        services.AddScoped<PostgresWorkflowNotificationReadRepository>();
+        services.AddScoped<INotificationTemplatePreviewRepository>(sp => sp.GetRequiredService<PostgresWorkflowNotificationReadRepository>());
+        services.AddScoped<IWorkflowNotificationReadRepository>(sp => sp.GetRequiredService<PostgresWorkflowNotificationReadRepository>());
         services.AddScoped<IRotationNotificationPreviewRepository>(sp =>
             (IRotationNotificationPreviewRepository)sp.GetRequiredService<IRotationRepository>());
         services.AddScoped<INotificationTemplateService, NotificationTemplateService>();
@@ -232,5 +259,31 @@ internal static class LifecycleServiceCollectionExtensions
                && (bytes[0] == 10
                    || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
                    || (bytes[0] == 192 && bytes[1] == 168));
+    }
+
+    // Liest Automation-Retry-Defaults aus Env-Vars (analog zu LifecycleRuntimeSettings).
+    // Defaults erhalten das bisherige Verhalten (3 Versuche, 1min/5min Backoff).
+    private static WorkflowAutomationRetrySettings BuildAutomationRetrySettings(IConfiguration configuration)
+    {
+        var maxAttempts = ParsePositiveInt(configuration["WORKFLOW_AUTOMATION_MAX_ATTEMPTS"], defaultValue: 3);
+        var firstDelaySeconds = ParsePositiveInt(configuration["WORKFLOW_AUTOMATION_FIRST_RETRY_DELAY_SECONDS"], defaultValue: 60);
+        var subsequentDelaySeconds = ParsePositiveInt(configuration["WORKFLOW_AUTOMATION_SUBSEQUENT_RETRY_DELAY_SECONDS"], defaultValue: 300);
+
+        return new WorkflowAutomationRetrySettings
+        {
+            MaxAttempts = maxAttempts,
+            FirstRetryDelay = TimeSpan.FromSeconds(firstDelaySeconds),
+            SubsequentRetryDelay = TimeSpan.FromSeconds(subsequentDelaySeconds)
+        };
+    }
+
+    private static int ParsePositiveInt(string? value, int defaultValue)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        return int.TryParse(value, out var parsed) && parsed > 0 ? parsed : defaultValue;
     }
 }

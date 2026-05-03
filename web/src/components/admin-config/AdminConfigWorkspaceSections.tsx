@@ -11,7 +11,7 @@ import { AdminSystemConfigurationSection } from "./AdminSystemConfigurationSecti
 import { AdminSystemWorkspaceSection } from "./AdminSystemWorkspaceSection";
 import { AdminTaskTemplateSection } from "./AdminTaskTemplateSection";
 import { AdminTechnicalAccessSection } from "./AdminTechnicalAccessSection";
-import { AdminWorkflowBuilderSection } from "./AdminWorkflowBuilderSection";
+import { AdminWorkflowBuilderFormSection } from "./AdminWorkflowBuilderFormSection";
 import { AdminWorkspaceIntro } from "./AdminWorkspaceIntro";
 import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceContentTypes";
 import {
@@ -290,7 +290,7 @@ export function renderTemplateWorkspace(props: AdminConfigWorkspaceContentProps)
 export function renderBuilderWorkspace(props: AdminConfigWorkspaceContentProps) {
   return renderWorkspaceWithIntro(
     "builder",
-    <AdminWorkflowBuilderSection
+    <AdminWorkflowBuilderFormSection
       onNotice={props.onNotice}
       onError={props.onError}
     />

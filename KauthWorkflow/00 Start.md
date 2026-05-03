@@ -29,6 +29,7 @@ Zielzustand: generische, versionierte Workflow-Engine mit kontrollierten Automat
 
 ### Stand & Arbeit
 - [[Code-Review-Status]] — Offene Punkte, was erledigt ist, was noch aussteht
+- [[Legacy-Abbau-Plan]] — Roadmap zum vollstaendigen Rueckbau der Legacy-Codepfade
 - [[KI-Workflow]] — Wie Claude und Codex mit Vault und Repo arbeiten
 
 ---

@@ -4,15 +4,14 @@ namespace API;
 
 internal static class NotificationEmailConfigurationValidator
 {
-    public static NotificationEmailConfigurationValidationResult ValidateForSending(
+    public static ConfigurationValidationResult ValidateForSending(
         NotificationEmailRuntimeConfiguration configuration)
     {
         if (!configuration.Enabled)
         {
-            return new NotificationEmailConfigurationValidationResult
+            return new ConfigurationValidationResult
             {
-                Status = "disabled",
-                CanSend = false,
+                Status = ConfigurationValidationStatus.Disabled,
                 Message = "Mailversand ist deaktiviert."
             };
         }
@@ -47,10 +46,9 @@ internal static class NotificationEmailConfigurationValidator
             return Incomplete("Frontend-Basis-URL muss eine absolute URL sein.");
         }
 
-        return new NotificationEmailConfigurationValidationResult
+        return new ConfigurationValidationResult
         {
-            Status = "ready",
-            CanSend = true,
+            Status = ConfigurationValidationStatus.Ready,
             Message = null
         };
     }
@@ -73,12 +71,11 @@ internal static class NotificationEmailConfigurationValidator
         }
     }
 
-    private static NotificationEmailConfigurationValidationResult Incomplete(string message)
+    private static ConfigurationValidationResult Incomplete(string message)
     {
-        return new NotificationEmailConfigurationValidationResult
+        return new ConfigurationValidationResult
         {
-            Status = "incomplete",
-            CanSend = false,
+            Status = ConfigurationValidationStatus.Incomplete,
             Message = message
         };
     }

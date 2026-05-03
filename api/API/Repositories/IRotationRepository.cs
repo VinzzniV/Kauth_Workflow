@@ -35,7 +35,7 @@ internal interface IRotationRepository
     Task<DepartmentActionTemplateDto?> UpdateDepartmentActionTemplate(int templateId, DepartmentActionTemplateUpsertRequest request);
     Task<bool> DeleteDepartmentActionTemplate(int templateId);
     Task<List<TaskWithWorkflowDto>> GetAllRotationTaskEnvelopes();
-    Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] responsibilityIds);
+    Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] effectiveResponsibilityIds);
     Task<TaskWithWorkflowDto?> GetRotationTaskEnvelope(long taskId);
     Task<TaskWithWorkflowDto?> GetRotationTaskEnvelopeByRef(string taskRef);
     Task<TaskWithWorkflowDto?> UpdateRotationTaskStatusByRef(string taskRef, string status, long actorUserId);

@@ -4,54 +4,54 @@ using NpgsqlTypes;
 
 namespace API;
 
+internal sealed class RotationDesiredTaskRecord
+{
+    public required long RotationPlanId { get; init; }
+    public required long RotationStationId { get; init; }
+    public required long PersonId { get; init; }
+    public required int DepartmentId { get; init; }
+    public required string DepartmentName { get; init; }
+    public required int OrderIndex { get; init; }
+    public required int TemplateId { get; init; }
+    public required string TemplateTitle { get; init; }
+    public required string TriggerType { get; init; }
+    public required DateOnly AnchorDate { get; init; }
+    public required string Title { get; init; }
+    public string? Description { get; init; }
+    public required string TaskType { get; init; }
+    public int? ResponsibilityId { get; init; }
+    public string? ResponsibilityName { get; init; }
+    public DateOnly? DueDate { get; init; }
+}
+
+internal sealed class RotationGeneratedTaskRecord
+{
+    public required long Id { get; init; }
+    public required long RotationPlanId { get; init; }
+    public long? RotationStationId { get; init; }
+    public required long PersonId { get; init; }
+    public required int DepartmentId { get; init; }
+    public string? DepartmentName { get; init; }
+    public int? TemplateId { get; init; }
+    public string? TemplateTitle { get; init; }
+    public required string TriggerType { get; init; }
+    public required DateOnly AnchorDate { get; init; }
+    public required string Title { get; init; }
+    public string? Description { get; init; }
+    public required string TaskType { get; init; }
+    public int? ResponsibilityId { get; init; }
+    public string? ResponsibilityName { get; init; }
+    public DateOnly? DueDate { get; init; }
+    public required string Status { get; init; }
+    public string? CompletionNote { get; init; }
+    public DateTime? StartedAt { get; init; }
+    public DateTime? CompletedAt { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required DateTime UpdatedAt { get; init; }
+}
+
 internal sealed partial class PostgresRotationRepository
 {
-    private sealed class RotationDesiredTaskRecord
-    {
-        public required long RotationPlanId { get; init; }
-        public required long RotationStationId { get; init; }
-        public required long PersonId { get; init; }
-        public required int DepartmentId { get; init; }
-        public required string DepartmentName { get; init; }
-        public required int OrderIndex { get; init; }
-        public required int TemplateId { get; init; }
-        public required string TemplateTitle { get; init; }
-        public required string TriggerType { get; init; }
-        public required DateOnly AnchorDate { get; init; }
-        public required string Title { get; init; }
-        public string? Description { get; init; }
-        public required string TaskType { get; init; }
-        public int? ResponsibilityId { get; init; }
-        public string? ResponsibilityName { get; init; }
-        public DateOnly? DueDate { get; init; }
-    }
-
-    private sealed class RotationGeneratedTaskRecord
-    {
-        public required long Id { get; init; }
-        public required long RotationPlanId { get; init; }
-        public long? RotationStationId { get; init; }
-        public required long PersonId { get; init; }
-        public required int DepartmentId { get; init; }
-        public string? DepartmentName { get; init; }
-        public int? TemplateId { get; init; }
-        public string? TemplateTitle { get; init; }
-        public required string TriggerType { get; init; }
-        public required DateOnly AnchorDate { get; init; }
-        public required string Title { get; init; }
-        public string? Description { get; init; }
-        public required string TaskType { get; init; }
-        public int? ResponsibilityId { get; init; }
-        public string? ResponsibilityName { get; init; }
-        public DateOnly? DueDate { get; init; }
-        public required string Status { get; init; }
-        public string? CompletionNote { get; init; }
-        public DateTime? StartedAt { get; init; }
-        public DateTime? CompletedAt { get; init; }
-        public required DateTime CreatedAt { get; init; }
-        public required DateTime UpdatedAt { get; init; }
-    }
-
     private sealed class RotationPlanEnvelopeRecord
     {
         public required long RotationPlanId { get; init; }
@@ -78,11 +78,11 @@ internal sealed partial class PostgresRotationRepository
         return await LoadRotationTaskEnvelopes(connection, null, null, null);
     }
 
-    public async Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] responsibilityIds)
+    public async Task<List<TaskWithWorkflowDto>> GetRotationTaskEnvelopesForUser(long userId, int[] effectiveResponsibilityIds)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
-        return await LoadRotationTaskEnvelopesForUser(connection, userId, responsibilityIds);
+        return await LoadRotationTaskEnvelopesForUser(connection, userId, effectiveResponsibilityIds);
     }
 
     public async Task<RotationGeneratedTaskDto?> GetRotationGeneratedTask(long taskId)
@@ -145,92 +145,53 @@ ORDER BY rs.rotation_plan_id;";
 
             var desiredTasks = await LoadDesiredRotationTasks(connection, transaction, planId);
             var existingTasks = await LoadRotationGeneratedTaskRecords(connection, transaction, planId, null);
-            var existingByKey = existingTasks
-                .Where(task => task.RotationStationId.HasValue && task.TemplateId.HasValue)
-                .ToDictionary(
-                    task => BuildRotationTaskMatchKey(task.RotationStationId!.Value, task.TemplateId!.Value),
-                    task => task);
 
-            var created = 0;
-            var updated = 0;
-            var cancelled = 0;
-            var unchanged = 0;
-            var matchedTaskIds = new HashSet<long>();
+            var plan = RotationTaskRegenerationEngine.Plan(existingTasks, desiredTasks);
 
-            foreach (var desiredTask in desiredTasks)
+            foreach (var desiredTask in plan.ToCreate)
             {
-                var key = BuildRotationTaskMatchKey(desiredTask.RotationStationId, desiredTask.TemplateId);
-                if (!existingByKey.TryGetValue(key, out var existingTask))
-                {
-                    var createdTaskId = await InsertRotationGeneratedTask(connection, transaction, desiredTask);
-                    await UpsertRotationPrimaryAssignment(
-                        connection,
-                        transaction,
-                        createdTaskId,
-                        desiredTask.ResponsibilityId);
-                    await InsertRotationAuditEntry(
-                        connection,
-                        transaction,
-                        desiredTask.RotationPlanId,
-                        desiredTask.RotationStationId,
-                        createdTaskId,
-                        actorUserId,
-                        "rotation_task_generated",
-                        null,
-                        CreateRotationGeneratedTaskAuditSnapshot(desiredTask),
-                        reason);
-                    created++;
-                    matchedTaskIds.Add(createdTaskId);
-                    continue;
-                }
-
-                matchedTaskIds.Add(existingTask.Id);
-                if (RotationTaskStatusRules.TerminalTaskStatuses.Contains(existingTask.Status))
-                {
-                    unchanged++;
-                    continue;
-                }
-
-                if (RotationTaskNeedsUpdate(existingTask, desiredTask))
-                {
-                    await UpdateRotationGeneratedTask(connection, transaction, existingTask.Id, desiredTask);
-                    await UpsertRotationPrimaryAssignment(
-                        connection,
-                        transaction,
-                        existingTask.Id,
-                        desiredTask.ResponsibilityId);
-                    await InsertRotationAuditEntry(
-                        connection,
-                        transaction,
-                        desiredTask.RotationPlanId,
-                        desiredTask.RotationStationId,
-                        existingTask.Id,
-                        actorUserId,
-                        "rotation_task_updated",
-                        CreateRotationGeneratedTaskAuditSnapshot(existingTask),
-                        CreateRotationGeneratedTaskAuditSnapshot(desiredTask),
-                        reason);
-                    updated++;
-                }
-                else
-                {
-                    unchanged++;
-                }
+                var createdTaskId = await InsertRotationGeneratedTask(connection, transaction, desiredTask);
+                await UpsertRotationPrimaryAssignment(
+                    connection,
+                    transaction,
+                    createdTaskId,
+                    desiredTask.ResponsibilityId);
+                await InsertRotationAuditEntry(
+                    connection,
+                    transaction,
+                    desiredTask.RotationPlanId,
+                    desiredTask.RotationStationId,
+                    createdTaskId,
+                    actorUserId,
+                    "rotation_task_generated",
+                    null,
+                    CreateRotationGeneratedTaskAuditSnapshot(desiredTask),
+                    reason);
             }
 
-            foreach (var existingTask in existingTasks)
+            foreach (var update in plan.ToUpdate)
             {
-                if (matchedTaskIds.Contains(existingTask.Id))
-                {
-                    continue;
-                }
+                await UpdateRotationGeneratedTask(connection, transaction, update.Existing.Id, update.Desired);
+                await UpsertRotationPrimaryAssignment(
+                    connection,
+                    transaction,
+                    update.Existing.Id,
+                    update.Desired.ResponsibilityId);
+                await InsertRotationAuditEntry(
+                    connection,
+                    transaction,
+                    update.Desired.RotationPlanId,
+                    update.Desired.RotationStationId,
+                    update.Existing.Id,
+                    actorUserId,
+                    "rotation_task_updated",
+                    CreateRotationGeneratedTaskAuditSnapshot(update.Existing),
+                    CreateRotationGeneratedTaskAuditSnapshot(update.Desired),
+                    reason);
+            }
 
-                if (!string.Equals(existingTask.Status, RotationTaskStatuses.Open, StringComparison.OrdinalIgnoreCase))
-                {
-                    unchanged++;
-                    continue;
-                }
-
+            foreach (var existingTask in plan.ToCancel)
+            {
                 await CancelRotationGeneratedTask(connection, transaction, existingTask.Id);
                 await InsertRotationAuditEntry(
                     connection,
@@ -243,15 +204,14 @@ ORDER BY rs.rotation_plan_id;";
                     CreateRotationGeneratedTaskAuditSnapshot(existingTask),
                     new { status = RotationTaskStatuses.Cancelled },
                     reason);
-                cancelled++;
             }
 
             var result = new RotationTaskRegenerationResultDto
             {
-                Created = created,
-                Updated = updated,
-                Cancelled = cancelled,
-                Unchanged = unchanged
+                Created = plan.ToCreate.Count,
+                Updated = plan.ToUpdate.Count,
+                Cancelled = plan.ToCancel.Count,
+                Unchanged = plan.UnchangedCount
             };
 
             await InsertRotationAuditEntry(
@@ -664,20 +624,6 @@ RETURNING id;";
             : throw new InvalidOperationException("Rotation generated task could not be created.");
     }
 
-    private static bool RotationTaskNeedsUpdate(RotationGeneratedTaskRecord existingTask, RotationDesiredTaskRecord desiredTask)
-    {
-        return existingTask.RotationStationId != desiredTask.RotationStationId
-               || existingTask.DepartmentId != desiredTask.DepartmentId
-               || existingTask.TemplateId != desiredTask.TemplateId
-               || !string.Equals(existingTask.TriggerType, desiredTask.TriggerType, StringComparison.OrdinalIgnoreCase)
-               || existingTask.AnchorDate != desiredTask.AnchorDate
-               || !string.Equals(existingTask.Title, desiredTask.Title, StringComparison.Ordinal)
-               || !string.Equals(existingTask.Description ?? string.Empty, desiredTask.Description ?? string.Empty, StringComparison.Ordinal)
-               || !string.Equals(existingTask.TaskType, desiredTask.TaskType, StringComparison.OrdinalIgnoreCase)
-               || existingTask.ResponsibilityId != desiredTask.ResponsibilityId
-               || existingTask.DueDate != desiredTask.DueDate;
-    }
-
     private static async Task UpdateRotationGeneratedTask(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -1075,8 +1021,8 @@ ORDER BY rgt.created_at DESC, rgt.id DESC;";
     private static Task<List<TaskWithWorkflowDto>> LoadRotationTaskEnvelopesForUser(
         NpgsqlConnection connection,
         long userId,
-        int[] responsibilityIds)
-        => LoadRotationTaskEnvelopes(connection, null, null, null, userId, responsibilityIds);
+        int[] effectiveResponsibilityIds)
+        => LoadRotationTaskEnvelopes(connection, null, null, null, userId, effectiveResponsibilityIds);
 
     private static async Task<List<TaskWithWorkflowDto>> LoadRotationTaskEnvelopes(
         NpgsqlConnection connection,
@@ -1566,11 +1512,6 @@ VALUES (
         }
 
         return normalized;
-    }
-
-    private static string BuildRotationTaskMatchKey(long stationId, int templateId)
-    {
-        return $"{stationId}:{templateId}";
     }
 
     private static string ResolveRotationTaskIconKey(string taskType)

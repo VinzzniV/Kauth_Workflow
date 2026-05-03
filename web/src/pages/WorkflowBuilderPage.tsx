@@ -1,13 +1,11 @@
 import { useCallback, useState } from "react";
-import { useCurrentUser } from "../auth/useCurrentUser";
-import { AdminWorkflowBuilderSection } from "../components/admin-config/AdminWorkflowBuilderSection";
+import { AdminWorkflowBuilderFormSection } from "../components/admin-config/AdminWorkflowBuilderFormSection";
 import { reportUserVisibleError } from "../services/systemLogReporter";
 
 export default function WorkflowBuilderPage() {
-  const { capabilities } = useCurrentUser();
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const canManageAdvanced = capabilities.canManageAdminConfiguration;
+
   const handleError = useCallback((message: string | null) => {
     setError(message);
 
@@ -38,10 +36,9 @@ export default function WorkflowBuilderPage() {
           </section>
         ) : null}
 
-        <AdminWorkflowBuilderSection
+        <AdminWorkflowBuilderFormSection
           onNotice={setNotice}
           onError={handleError}
-          pageModeLabel={canManageAdvanced ? "Admin-Modus" : "Bearbeitungsmodus"}
         />
       </div>
     </main>

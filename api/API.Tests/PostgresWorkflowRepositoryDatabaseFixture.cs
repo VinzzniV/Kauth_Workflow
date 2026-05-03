@@ -1,4 +1,5 @@
 using Npgsql;
+using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace API.Tests;
@@ -6,6 +7,9 @@ namespace API.Tests;
 public sealed class PostgresWorkflowRepositoryDatabaseFixture : IAsyncLifetime
 {
     private const string DefaultTestConnectionString = "Host=localhost;Port=26432;Database=appdb;Username=app;Password=app_pw";
+    private const string EnvVarName = "ONBOARDING_TEST_CONNECTION_STRING";
+
+    private PostgreSqlContainer? _container;
 
     private static readonly string[] InitializationScriptPaths =
     [
@@ -84,8 +88,25 @@ public sealed class PostgresWorkflowRepositoryDatabaseFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ONBOARDING_TEST_CONNECTION_STRING")
-                               ?? DefaultTestConnectionString;
+        var connectionString = Environment.GetEnvironmentVariable(EnvVarName);
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            // Kein externer Connection-String konfiguriert → Testcontainers-Postgres
+            // hochfahren. Der Container wird auf einem zufaelligen Host-Port
+            // gemappt; wir setzen die Env-Var damit existierende Tests den Wert
+            // ueber `GetTestConnectionString()` abgreifen.
+            _container = new PostgreSqlBuilder()
+                .WithImage("postgres:16-alpine")
+                .WithDatabase("appdb")
+                .WithUsername("app")
+                .WithPassword("app_pw")
+                .Build();
+
+            await _container.StartAsync();
+            connectionString = _container.GetConnectionString();
+            Environment.SetEnvironmentVariable(EnvVarName, connectionString);
+        }
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -119,7 +140,15 @@ public sealed class PostgresWorkflowRepositoryDatabaseFixture : IAsyncLifetime
         }
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+        {
+            await _container.DisposeAsync();
+            Environment.SetEnvironmentVariable(EnvVarName, null);
+            _container = null;
+        }
+    }
 
     private static string FindRepositoryFile(string relativePath)
     {

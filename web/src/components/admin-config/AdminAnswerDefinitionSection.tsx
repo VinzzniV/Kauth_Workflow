@@ -19,8 +19,8 @@ export function AdminAnswerDefinitionSection({
   onError,
 }: AdminAnswerDefinitionSectionProps) {
   const {
-    processTypes,
-    selectedProcessTypeId,
+    workflowDefinitions,
+    selectedWorkflowDefinitionId,
     definitions,
     selectedDefinition,
     draft,
@@ -29,7 +29,7 @@ export function AdminAnswerDefinitionSection({
     isLoadingDefinitions,
     isSaving,
     isDeleting,
-    selectProcessType,
+    selectWorkflowDefinition,
     selectDefinition,
     startCreatingDefinition,
     updateDraft,
@@ -55,16 +55,16 @@ export function AdminAnswerDefinitionSection({
 
           <div className="toolbar-row admin-detail-toolbar">
             <label className="field admin-detail-process-field">
-              <span>Prozesstyp</span>
+              <span>Workflow-Definition</span>
               <select
-                value={selectedProcessTypeId ?? ""}
-                onChange={(event) => selectProcessType(event.target.value)}
+                value={selectedWorkflowDefinitionId ?? ""}
+                onChange={(event) => selectWorkflowDefinition(event.target.value)}
                 disabled={isLoadingProcessTypes || isSaving || isDeleting}
               >
-                <option value="">Prozesstyp wählen</option>
-                {processTypes.map((processType) => (
-                  <option key={processType.id} value={processType.id}>
-                    {processType.name}
+                <option value="">Workflow-Definition wählen</option>
+                {workflowDefinitions.map((definition) => (
+                  <option key={definition.id} value={definition.id}>
+                    {definition.name}
                   </option>
                 ))}
               </select>
@@ -73,18 +73,18 @@ export function AdminAnswerDefinitionSection({
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!selectedProcessTypeId || isLoadingDefinitions || isSaving || isDeleting}
+              disabled={!selectedWorkflowDefinitionId || isLoadingDefinitions || isSaving || isDeleting}
               onClick={startCreatingDefinition}
             >
               Neues Feld
             </button>
           </div>
 
-          {!selectedProcessTypeId ? <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p> : null}
+          {!selectedWorkflowDefinitionId ? <p className="panel-note">Bitte zuerst eine Workflow-Definition auswählen.</p> : null}
           {isLoadingDefinitions ? <p className="panel-note">Felder werden geladen...</p> : null}
 
-          {!isLoadingDefinitions && selectedProcessTypeId && definitions.length === 0 ? (
-            <p className="panel-note">Für diesen Prozesstyp sind noch keine Felder vorhanden.</p>
+          {!isLoadingDefinitions && selectedWorkflowDefinitionId && definitions.length === 0 ? (
+            <p className="panel-note">Für diese Workflow-Definition sind noch keine Felder vorhanden.</p>
           ) : null}
 
           {!isLoadingDefinitions && definitions.length > 0 ? (
@@ -111,8 +111,8 @@ export function AdminAnswerDefinitionSection({
           <section className="panel">
             <SectionHeader title={panelTitle} />
 
-            {!selectedProcessTypeId ? (
-              <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p>
+            {!selectedWorkflowDefinitionId ? (
+              <p className="panel-note">Bitte zuerst eine Workflow-Definition auswählen.</p>
             ) : !isCreatingNew && !selectedDefinition ? (
               <p className="panel-note">Bitte links ein Feld auswählen oder ein neues anlegen.</p>
             ) : (

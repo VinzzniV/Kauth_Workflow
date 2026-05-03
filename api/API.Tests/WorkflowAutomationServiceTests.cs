@@ -11,8 +11,10 @@ public sealed class WorkflowAutomationServiceTests
         var repository = new StubWorkflowAutomationRepository();
         var service = new WorkflowAutomationService(
             repository,
+            repository,
             new StubWorkflowAutomationHandlerRegistry(_ => throw new InvalidOperationException("no handler")),
             new StubSystemEventLogService(),
+            new WorkflowAutomationRetrySettings(),
             NullLogger<WorkflowAutomationService>.Instance);
 
         var processed = await service.TryProcessNextPendingJobAsync();
@@ -49,8 +51,10 @@ public sealed class WorkflowAutomationServiceTests
 
         var service = new WorkflowAutomationService(
             repository,
+            repository,
             new StubWorkflowAutomationHandlerRegistry(_ => new ThrowingAutomationHandler("CreateAdUser")),
             new StubSystemEventLogService(),
+            new WorkflowAutomationRetrySettings(),
             NullLogger<WorkflowAutomationService>.Instance);
 
         var processed = await service.TryProcessNextPendingJobAsync();
@@ -89,8 +93,10 @@ public sealed class WorkflowAutomationServiceTests
 
         var service = new WorkflowAutomationService(
             repository,
+            repository,
             new StubWorkflowAutomationHandlerRegistry(_ => new ThrowingAutomationHandler("CreateErpEmployee")),
             new StubSystemEventLogService(),
+            new WorkflowAutomationRetrySettings(),
             NullLogger<WorkflowAutomationService>.Instance);
 
         await service.TryProcessNextPendingJobAsync();
@@ -99,7 +105,7 @@ public sealed class WorkflowAutomationServiceTests
         Assert.Null(repository.LastFailureRetryAvailableAt);
     }
 
-    private sealed class StubWorkflowAutomationRepository : IWorkflowAutomationRepository
+    private sealed class StubWorkflowAutomationRepository : IWorkflowAutomationRepository, IWorkflowAutomationReadRepository
     {
         public ClaimedAutomationJobRecord? ClaimedJob { get; set; }
         public bool LastFailureShouldRetry { get; private set; }

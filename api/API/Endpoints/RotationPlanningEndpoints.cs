@@ -9,29 +9,6 @@ internal static class RotationPlanningEndpoints
 {
     public static IEndpointRouteBuilder MapRotationPlanningEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/rotation/completed-onboardings", async (
-            [FromQuery] string? search,
-            [FromQuery] int? limit,
-            IWorkflowCatalogService workflowCatalogService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanCreateWorkflow,
-                "HR, Abteilungsleitung oder Admin role is required.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            var targetPersonSources = await workflowCatalogService.SearchWorkflowTargetPersonSourcesAsync(
-                search,
-                access.User!,
-                limit ?? 20);
-            return Results.Ok(targetPersonSources.Select(ToCompletedOnboardingSearchResult).ToList());
-        }).Produces<List<CompletedOnboardingSearchResultDto>>(StatusCodes.Status200OK);
-
         app.MapGet("/rotation/plans", async (
             [FromQuery] long? personId,
             IRotationPlanningService rotationPlanningService,
@@ -454,27 +431,6 @@ internal static class RotationPlanningEndpoints
           .Produces(StatusCodes.Status404NotFound);
 
         return app;
-    }
-
-    private static CompletedOnboardingSearchResultDto ToCompletedOnboardingSearchResult(
-        WorkflowTargetPersonSourceDto source)
-    {
-        return new CompletedOnboardingSearchResultDto
-        {
-            WorkflowUid = source.WorkflowUid,
-            PersonId = source.PersonId,
-            DisplayName = source.DisplayName,
-            FirstName = source.FirstName,
-            LastName = source.LastName,
-            EmployeeNumber = source.EmployeeNumber,
-            BadgeNumber = source.BadgeNumber,
-            DepartmentId = source.DepartmentId,
-            DepartmentName = source.DepartmentName,
-            RoleId = source.RoleId,
-            RoleName = source.RoleName,
-            CompletedAt = source.CompletedAt,
-            ArchivedAt = source.ArchivedAt
-        };
     }
 
     private static bool IsRotationStationConflict(InvalidOperationException exception)

@@ -9,9 +9,3 @@ internal sealed class GraphApplicationRuntimeConfiguration
     public DateTime? UpdatedAt { get; init; }
 }
 
-internal sealed class GraphApplicationConfigurationValidationResult
-{
-    public required string Status { get; init; }
-    public required bool IsConfigured { get; init; }
-    public string? Message { get; init; }
-}

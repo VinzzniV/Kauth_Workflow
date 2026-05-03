@@ -29,6 +29,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
         try
         {
             var repository = new PostgresWorkflowRepository();
+            var runtimeRepository = new PostgresWorkflowRuntimeRepository();
             var automationService = CreateAutomationService(repository);
             var createContext = await LoadOnboardingCreateContextAsync(connectionString);
 
@@ -55,7 +56,6 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 {
                     Name = "Draft",
                     Description = "Sequential automation draft",
-                    PrimaryLegacyProcessTypeKey = "offboarding",
                     Nodes =
                     [
                         CreateNode("start", "start"),
@@ -78,12 +78,12 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
 
             Assert.NotNull(updatedVersion);
 
-            var published = await repository.PublishWorkflowDefinitionVersion(version.Id);
+            var published = await runtimeRepository.PublishWorkflowDefinitionVersion(version.Id);
             Assert.NotNull(published);
             Assert.True(published!.CanPublish);
             targetPerson = await CreateTargetPersonAsync(repository, createContext, "Ada", "Lovelace", 123456, 654321);
 
-            runtime = await repository.CreateWorkflowDefinitionInstance(
+            runtime = await runtimeRepository.CreateWorkflowDefinitionInstance(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = definition.Key,
@@ -97,25 +97,25 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 },
                 createContext.ActorUserId);
 
-            var jobsAfterStart = await repository.GetAutomationJobs(runtime.WorkflowUid);
+            var jobsAfterStart = await new PostgresWorkflowAutomationReadRepository().GetAutomationJobs(runtime.WorkflowUid);
             Assert.Single(jobsAfterStart);
             Assert.Equal("pending", jobsAfterStart[0].Status);
             Assert.Equal(10, jobsAfterStart[0].ExecutionOrder);
 
             Assert.True(await automationService.TryProcessNextPendingJobAsync());
 
-            var jobsAfterFirstRun = await repository.GetAutomationJobs(runtime.WorkflowUid);
+            var jobsAfterFirstRun = await new PostgresWorkflowAutomationReadRepository().GetAutomationJobs(runtime.WorkflowUid);
             Assert.Equal(2, jobsAfterFirstRun.Count);
             Assert.Contains(jobsAfterFirstRun, job => job.ExecutionOrder == 10 && job.Status == "succeeded");
             Assert.Contains(jobsAfterFirstRun, job => job.ExecutionOrder == 20 && job.Status == "pending");
 
             Assert.True(await automationService.TryProcessNextPendingJobAsync());
 
-            var jobsAfterSecondRun = await repository.GetAutomationJobs(runtime.WorkflowUid);
+            var jobsAfterSecondRun = await new PostgresWorkflowAutomationReadRepository().GetAutomationJobs(runtime.WorkflowUid);
             Assert.Equal(2, jobsAfterSecondRun.Count);
             Assert.All(jobsAfterSecondRun, job => Assert.Equal("succeeded", job.Status));
 
-            var reloadedRuntime = await repository.GetWorkflowDefinitionRuntimeDetail(runtime.WorkflowUid);
+            var reloadedRuntime = await runtimeRepository.GetWorkflowDefinitionRuntimeDetail(runtime.WorkflowUid);
             Assert.NotNull(reloadedRuntime);
             Assert.Equal("completed", reloadedRuntime!.CurrentRuntimeStatus);
             Assert.Contains(reloadedRuntime.NodeInstances, node => node.NodeKey == "auto" && node.Status == "done");
@@ -162,6 +162,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
         try
         {
             var repository = new PostgresWorkflowRepository();
+            var runtimeRepository = new PostgresWorkflowRuntimeRepository();
             var automationService = CreateAutomationService(repository);
             var createContext = await LoadOnboardingCreateContextAsync(connectionString);
 
@@ -188,7 +189,6 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 {
                     Name = "Draft",
                     Description = "Failure automation draft",
-                    PrimaryLegacyProcessTypeKey = "offboarding",
                     Nodes =
                     [
                         CreateNode("start", "start"),
@@ -209,10 +209,10 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 });
 
             Assert.NotNull(updatedVersion);
-            Assert.NotNull(await repository.PublishWorkflowDefinitionVersion(version.Id));
+            Assert.NotNull(await runtimeRepository.PublishWorkflowDefinitionVersion(version.Id));
             targetPerson = await CreateTargetPersonAsync(repository, createContext, "Ada", "Lovelace", 223456, 754321);
 
-            runtime = await repository.CreateWorkflowDefinitionInstance(
+            runtime = await runtimeRepository.CreateWorkflowDefinitionInstance(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = definition.Key,
@@ -228,13 +228,13 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
 
             Assert.True(await automationService.TryProcessNextPendingJobAsync());
 
-            var jobs = await repository.GetAutomationJobs(runtime.WorkflowUid);
+            var jobs = await new PostgresWorkflowAutomationReadRepository().GetAutomationJobs(runtime.WorkflowUid);
             var job = Assert.Single(jobs);
             Assert.Equal("failed", job.Status);
             Assert.Single(job.Attempts);
             Assert.Equal("failed", job.Attempts[0].Status);
 
-            var reloadedRuntime = await repository.GetWorkflowDefinitionRuntimeDetail(runtime.WorkflowUid);
+            var reloadedRuntime = await runtimeRepository.GetWorkflowDefinitionRuntimeDetail(runtime.WorkflowUid);
             Assert.NotNull(reloadedRuntime);
             Assert.Equal("failed", reloadedRuntime!.CurrentRuntimeStatus);
             Assert.Contains(reloadedRuntime.NodeInstances, node => node.NodeKey == "auto" && node.Status == "failed");
@@ -285,6 +285,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
     {
         return new WorkflowAutomationService(
             repository,
+            new PostgresWorkflowAutomationReadRepository(),
             new WorkflowAutomationHandlerRegistry(
             [
                 new CreateAdUserAutomationHandler(),
@@ -294,6 +295,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 new SendWelcomeMailAutomationHandler()
             ]),
             new StubSystemEventLogService(),
+            new WorkflowAutomationRetrySettings(),
             NullLogger<WorkflowAutomationService>.Instance);
     }
 
@@ -364,10 +366,8 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                          SELECT d.id, r.id
                          FROM app_roles r
                          JOIN departments d ON d.id = r.department_id
-                         JOIN process_types pt ON pt.key = 'onboarding'
                          WHERE r.role_kind = 'position'
                            AND r.is_active = TRUE
-                           AND pt.is_active = TRUE
                          ORDER BY r.id
                          LIMIT 1;
                          """,

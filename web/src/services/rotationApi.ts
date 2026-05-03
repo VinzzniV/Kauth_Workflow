@@ -1,9 +1,9 @@
 import type {
-  CompletedOnboardingSearchResult,
   CreateRotationPlanPayload,
   DepartmentActionTemplate,
   DepartmentActionTemplateUpsertPayload,
   RotationAuditEntry,
+  RotationEligiblePerson,
   RotationGeneratedTask,
   RotationNotification,
   RotationPlanDetail,
@@ -12,7 +12,7 @@ import type {
   RotationStationUpsertPayload,
   RotationTaskRegenerationResult,
 } from "../types/rotation";
-import { requestJson } from "./api/client";
+import { encodeId, requestJson } from "./api/client";
 
 function buildSearchQuery(search?: string, limit = 20): string {
   const params = new URLSearchParams({ limit: String(limit) });
@@ -23,11 +23,11 @@ function buildSearchQuery(search?: string, limit = 20): string {
   return params.toString();
 }
 
-export async function searchCompletedRotationOnboardings(
+export async function searchRotationEligiblePeople(
   search?: string,
   limit = 20
-): Promise<CompletedOnboardingSearchResult[]> {
-  return requestJson<CompletedOnboardingSearchResult[]>(`/people/rotation-eligible?${buildSearchQuery(search, limit)}`);
+): Promise<RotationEligiblePerson[]> {
+  return requestJson<RotationEligiblePerson[]>(`/people/rotation-eligible?${buildSearchQuery(search, limit)}`);
 }
 
 export async function getRotationPlans(personId?: number | null): Promise<RotationPlanListItem[]> {
@@ -41,7 +41,7 @@ export async function getRotationPlans(personId?: number | null): Promise<Rotati
 }
 
 export async function getRotationPlan(planId: number): Promise<RotationPlanDetail> {
-  return requestJson<RotationPlanDetail>(`/rotation/plans/${encodeURIComponent(String(planId))}`);
+  return requestJson<RotationPlanDetail>(`/rotation/plans/${encodeId(planId)}`);
 }
 
 export async function createRotationPlan(payload: CreateRotationPlanPayload): Promise<RotationPlanDetail> {
@@ -55,7 +55,7 @@ export async function createRotationStation(
   planId: number,
   payload: RotationStationUpsertPayload
 ): Promise<RotationStation> {
-  return requestJson<RotationStation>(`/rotation/plans/${encodeURIComponent(String(planId))}/stations`, {
+  return requestJson<RotationStation>(`/rotation/plans/${encodeId(planId)}/stations`, {
     method: "POST",
     body: payload,
   });
@@ -65,21 +65,21 @@ export async function updateRotationStation(
   stationId: number,
   payload: RotationStationUpsertPayload
 ): Promise<RotationStation> {
-  return requestJson<RotationStation>(`/rotation/stations/${encodeURIComponent(String(stationId))}`, {
+  return requestJson<RotationStation>(`/rotation/stations/${encodeId(stationId)}`, {
     method: "PUT",
     body: payload,
   });
 }
 
 export async function deleteRotationStation(stationId: number): Promise<void> {
-  await requestJson<unknown>(`/rotation/stations/${encodeURIComponent(String(stationId))}`, {
+  await requestJson<void>(`/rotation/stations/${encodeId(stationId)}`, {
     method: "DELETE",
   });
 }
 
 export async function getRotationGeneratedTasks(planId: number): Promise<RotationGeneratedTask[]> {
   return requestJson<RotationGeneratedTask[]>(
-    `/rotation/plans/${encodeURIComponent(String(planId))}/generated-tasks`
+    `/rotation/plans/${encodeId(planId)}/generated-tasks`
   );
 }
 
@@ -93,7 +93,7 @@ export async function getRotationAuditLog(
     offset: String(offset),
   });
   return requestJson<RotationAuditEntry[]>(
-    `/rotation/plans/${encodeURIComponent(String(planId))}/audit?${params.toString()}`
+    `/rotation/plans/${encodeId(planId)}/audit?${params.toString()}`
   );
 }
 
@@ -107,7 +107,7 @@ export async function getRotationNotifications(
     offset: String(offset),
   });
   return requestJson<RotationNotification[]>(
-    `/rotation/plans/${encodeURIComponent(String(planId))}/notifications?${params.toString()}`
+    `/rotation/plans/${encodeId(planId)}/notifications?${params.toString()}`
   );
 }
 
@@ -115,7 +115,7 @@ export async function regenerateRotationGeneratedTasks(
   planId: number
 ): Promise<RotationTaskRegenerationResult> {
   return requestJson<RotationTaskRegenerationResult>(
-    `/rotation/plans/${encodeURIComponent(String(planId))}/generated-tasks/regenerate`,
+    `/rotation/plans/${encodeId(planId)}/generated-tasks/regenerate`,
     {
       method: "POST",
     }
@@ -141,7 +141,7 @@ export async function getAdminRotationTemplates(
 
 export async function getAdminRotationTemplate(templateId: number): Promise<DepartmentActionTemplate> {
   return requestJson<DepartmentActionTemplate>(
-    `/admin/rotation/action-templates/${encodeURIComponent(String(templateId))}`
+    `/admin/rotation/action-templates/${encodeId(templateId)}`
   );
 }
 
@@ -159,7 +159,7 @@ export async function updateAdminRotationTemplate(
   payload: DepartmentActionTemplateUpsertPayload
 ): Promise<DepartmentActionTemplate> {
   return requestJson<DepartmentActionTemplate>(
-    `/admin/rotation/action-templates/${encodeURIComponent(String(templateId))}`,
+    `/admin/rotation/action-templates/${encodeId(templateId)}`,
     {
       method: "PUT",
       body: payload,
@@ -168,8 +168,8 @@ export async function updateAdminRotationTemplate(
 }
 
 export async function deleteAdminRotationTemplate(templateId: number): Promise<void> {
-  await requestJson<unknown>(
-    `/admin/rotation/action-templates/${encodeURIComponent(String(templateId))}`,
+  await requestJson<void>(
+    `/admin/rotation/action-templates/${encodeId(templateId)}`,
     { method: "DELETE" }
   );
 }

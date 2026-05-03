@@ -275,7 +275,20 @@ SELECT DISTINCT ON (u.id)
     COALESCE(di.user_principal_name, u.external_key, u.email),
     u.display_name,
     u.email,
-    d.name
+    d.name,
+    (
+        SELECT COALESCE(array_agg(DISTINCT r.role_key ORDER BY r.role_key), '{}')
+        FROM (
+            SELECT app_role_id FROM app_user_roles WHERE app_user_id = u.id
+            UNION
+            SELECT dgrm.app_role_id
+            FROM directory_group_members dgm2
+            JOIN directory_group_role_mappings dgrm
+              ON dgrm.directory_group_id = dgm2.directory_group_id
+            WHERE dgm2.directory_identity_id = di.id
+        ) effective
+        JOIN app_roles r ON r.id = effective.app_role_id
+    ) AS role_keys
 FROM app_users u
 JOIN directory_identities di ON di.app_user_id = u.id
 JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
@@ -291,13 +304,18 @@ ORDER BY u.id, di.last_synced_at DESC NULLS LAST, di.id DESC;";
         var users = new List<SimulationLoginUserOptionDto>();
         while (await reader.ReadAsync(cancellationToken))
         {
+            var roleKeys = reader.IsDBNull(5)
+                ? Array.Empty<string>()
+                : reader.GetFieldValue<string[]>(5);
+
             users.Add(new SimulationLoginUserOptionDto
             {
                 UserId = reader.GetInt64(0),
                 Username = reader.GetString(1),
                 DisplayName = reader.GetString(2),
                 Email = reader.GetString(3),
-                DepartmentName = reader.IsDBNull(4) ? null : reader.GetString(4)
+                DepartmentName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                RoleKeys = roleKeys
             });
         }
 

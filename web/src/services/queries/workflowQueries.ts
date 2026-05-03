@@ -39,13 +39,13 @@ export function useWorkflowDetail(uid: string) {
 
 export function useWorkflowConfig(
   roleId: number | null,
-  processTypeKey: string | null,
+  workflowDefinitionKey: string | null,
   enabled = true
 ) {
   return useQuery({
-    queryKey: queryKeys.workflows.config(roleId, processTypeKey),
-    queryFn: () => getWorkflowConfig(roleId, processTypeKey),
-    enabled: enabled && Boolean(processTypeKey),
+    queryKey: queryKeys.workflows.config(roleId, workflowDefinitionKey),
+    queryFn: () => getWorkflowConfig(roleId, workflowDefinitionKey),
+    enabled: enabled && Boolean(workflowDefinitionKey),
     staleTime: 30 * 1000,
   });
 }

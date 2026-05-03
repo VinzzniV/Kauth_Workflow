@@ -1164,22 +1164,9 @@ SELECT EXISTS(
             "Department cannot be deleted while it is assigned as an owner for one or more systems.",
             cancellationToken);
 
-        const string taskTemplateSql = @"
-SELECT EXISTS(
-    SELECT 1
-    FROM task_templates
-    WHERE owning_department_id = @departmentId
-);";
-
-        await EnsureNoReferencedRows(
-            connection,
-            transaction,
-            taskTemplateSql,
-            "departmentId",
-            NpgsqlDbType.Integer,
-            departmentId,
-            "Department cannot be deleted while task templates still belong to it.",
-            cancellationToken);
+        // LA5: workflow_node_task_specs hat keine owning_department_id-Spalte mehr
+        // (Inventur: 0 Eintraege belegt, Spalte gestrichen). Department-Delete kollidiert
+        // also nicht mehr mit Task-Specs.
     }
 
     private static async Task<int?> LoadPositionDepartmentId(

@@ -34,8 +34,8 @@ export function useAdminTaskTemplateManagement({
   });
 
   return {
-    processTypes: data.processTypes,
-    selectedProcessTypeId: data.selectedProcessTypeId,
+    workflowDefinitions: data.workflowDefinitions,
+    selectedWorkflowDefinitionId: data.selectedWorkflowDefinitionId,
     templates: data.templates,
     dependencyGraph: data.dependencyGraph,
     selectedTemplate: data.selectedTemplate,
@@ -59,7 +59,7 @@ export function useAdminTaskTemplateManagement({
     isSavingDependency: operationState.isSavingDependency,
     deletingDependencyId: operationState.deletingDependencyId,
     availableDependencyTemplates: mutations.availableDependencyTemplates,
-    selectProcessType: data.selectProcessType,
+    selectWorkflowDefinition: data.selectWorkflowDefinition,
     selectTemplate: data.selectTemplate,
     startCreatingTemplate: data.startCreatingTemplate,
     updateDraft: data.updateDraft,

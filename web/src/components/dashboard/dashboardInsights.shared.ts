@@ -1,4 +1,4 @@
-import type { ProcessType, WorkflowSummary, WorkflowTask } from "../../types/workflow";
+import type { StartableWorkflowDefinition, WorkflowSummary, WorkflowTask } from "../../types/workflow";
 import { formatDate } from "../../utils/dateFormat";
 import { getWorkflowRuntimeStatusLabel, isWorkflowTerminalStatus } from "../../utils/workflowStatus";
 
@@ -45,8 +45,8 @@ export type DashboardInsights = {
 };
 
 export type DashboardInsightsOptions = {
-  processTypeKey?: string | null;
-  selectedProcessType?: ProcessType | null;
+  workflowDefinitionKey?: string | null;
+  selectedWorkflowDefinition?: StartableWorkflowDefinition | null;
 };
 
 export type WorkflowMetrics = {
@@ -101,8 +101,8 @@ export function summarizeWorkflows(workflows: WorkflowSummary[]): WorkflowMetric
   );
 }
 
-export function getProcessTypeContext(selectedProcessType: ProcessType | null) {
-  if (!selectedProcessType) {
+export function getWorkflowDefinitionContext(selectedWorkflowDefinition: StartableWorkflowDefinition | null) {
+  if (!selectedWorkflowDefinition) {
     return {
       scopedTitle: "Vorgänge",
       scopedEmptyQueueText: "Aktuell sind keine Vorgänge vorhanden.",
@@ -110,8 +110,8 @@ export function getProcessTypeContext(selectedProcessType: ProcessType | null) {
   }
 
   return {
-    scopedTitle: `Vorgänge (${selectedProcessType.name})`,
-    scopedEmptyQueueText: `Aktuell sind keine Vorgänge vom Typ ${selectedProcessType.name} vorhanden.`,
+    scopedTitle: `Vorgänge (${selectedWorkflowDefinition.name})`,
+    scopedEmptyQueueText: `Aktuell sind keine Vorgänge vom Typ ${selectedWorkflowDefinition.name} vorhanden.`,
   };
 }
 

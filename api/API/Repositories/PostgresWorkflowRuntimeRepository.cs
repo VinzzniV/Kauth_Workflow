@@ -4,8 +4,46 @@ using NpgsqlTypes;
 
 namespace API;
 
-internal sealed partial class PostgresWorkflowRepository
+// Eigenstaendiges Runtime-Repository fuer den Workflow-Definitions-Ausfuehrungspfad.
+// Bedient die HTTP-Endpunkte fuer Publish/Create/Complete (form|approval|task) sowie
+// die Cross-Partial-Aufrufe aus TaskOperations + LifecycleOperations (internal static Wrapper).
+internal sealed class PostgresWorkflowRuntimeRepository : IWorkflowDefinitionRuntimeRepository
 {
+    private readonly IWorkflowAuditWriteOperations _auditWrite;
+    private readonly IWorkflowStatusCalculationService _statusCalculation;
+    private readonly IWorkflowNotificationDispatchOperations _notificationDispatch;
+    private readonly IWorkflowAutomationOperations _automation;
+    private readonly IWorkflowDefinitionValidationService _workflowDefinitionValidationService;
+
+    public PostgresWorkflowRuntimeRepository()
+        : this(
+            new PostgresWorkflowAuditWriteOperations(),
+            new PostgresWorkflowStatusCalculationService(),
+            new PostgresWorkflowNotificationDispatchOperations(),
+            new PostgresWorkflowAutomationOperations(),
+            new WorkflowDefinitionValidationService())
+    {
+    }
+
+    internal PostgresWorkflowRuntimeRepository(
+        IWorkflowAuditWriteOperations auditWrite,
+        IWorkflowStatusCalculationService statusCalculation,
+        IWorkflowNotificationDispatchOperations notificationDispatch,
+        IWorkflowAutomationOperations automation,
+        IWorkflowDefinitionValidationService workflowDefinitionValidationService)
+    {
+        _auditWrite = auditWrite;
+        _statusCalculation = statusCalculation;
+        _notificationDispatch = notificationDispatch;
+        _automation = automation;
+        _workflowDefinitionValidationService = workflowDefinitionValidationService;
+    }
+
+    private static string GetConnectionString()
+    {
+        return LifecycleRuntimeSettingsResolver.GetRequiredConnectionString();
+    }
+
     private const string WorkflowDefinitionRetiredStatus = "retired";
     private const string RuntimeStatusRunning = "running";
     private const string RuntimeStatusWaitingOnNode = "waiting_on_node";
@@ -13,8 +51,8 @@ internal sealed partial class PostgresWorkflowRepository
     private const string RuntimeStatusFailed = "failed";
     private const string RuntimeStatusCancelled = "cancelled";
     private const string NodeInstanceStatusActive = "active";
-    private const string NodeInstanceStatusDone = "done";
-    private const string NodeInstanceStatusFailed = "failed";
+    internal const string NodeInstanceStatusDone = "done";
+    internal const string NodeInstanceStatusFailed = "failed";
     private const string NodeInstanceStatusCancelled = "cancelled";
 
     public async Task<WorkflowDefinitionVersionDetailDto?> PublishWorkflowDefinitionVersion(long versionId)
@@ -28,25 +66,25 @@ internal sealed partial class PostgresWorkflowRepository
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        var versionRecord = await GetWorkflowDefinitionVersionRecord(connection, transaction, versionId);
+        var versionRecord = await PostgresWorkflowRepository.GetWorkflowDefinitionVersionRecord(connection, transaction, versionId);
         if (versionRecord is null)
         {
             return null;
         }
 
-        var detail = await GetAdminWorkflowDefinitionVersionDetailById(connection, transaction, versionId);
+        var detail = await PostgresWorkflowRepository.GetAdminWorkflowDefinitionVersionDetailById(connection, transaction, versionId, _automation, _workflowDefinitionValidationService);
         if (detail is null)
         {
             return null;
         }
 
-        if (string.Equals(versionRecord.Status, WorkflowDefinitionPublishedStatus, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(versionRecord.Status, PostgresWorkflowRepository.WorkflowDefinitionPublishedStatus, StringComparison.OrdinalIgnoreCase))
         {
             await transaction.CommitAsync();
             return detail;
         }
 
-        if (!string.Equals(versionRecord.Status, WorkflowDefinitionDraftStatus, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(versionRecord.Status, PostgresWorkflowRepository.WorkflowDefinitionDraftStatus, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
                 $"Workflow definition version '{versionId}' is not publishable because it is in status '{versionRecord.Status}'.");
@@ -57,12 +95,6 @@ internal sealed partial class PostgresWorkflowRepository
             throw new InvalidOperationException(
                 string.Join(" ", detail.ValidationIssues.Select(issue => issue.Message)));
         }
-
-        var primaryLegacyProcessTypeId = await ResolveWorkflowDefinitionLegacyProcessTypeId(
-            connection,
-            transaction,
-            detail.PrimaryLegacyProcessTypeKey,
-            requireActive: true);
 
         const string retireExistingSql = """
 UPDATE workflow_definition_versions
@@ -78,7 +110,7 @@ WHERE workflow_definition_id = @workflowDefinitionId
         {
             retireCommand.Parameters.AddWithValue("workflowDefinitionId", versionRecord.WorkflowDefinitionId);
             retireCommand.Parameters.AddWithValue("versionId", versionId);
-            retireCommand.Parameters.AddWithValue("publishedStatus", WorkflowDefinitionPublishedStatus);
+            retireCommand.Parameters.AddWithValue("publishedStatus", PostgresWorkflowRepository.WorkflowDefinitionPublishedStatus);
             retireCommand.Parameters.AddWithValue("retiredStatus", WorkflowDefinitionRetiredStatus);
             await retireCommand.ExecuteNonQueryAsync();
         }
@@ -87,7 +119,6 @@ WHERE workflow_definition_id = @workflowDefinitionId
 UPDATE workflow_definition_versions
 SET
     status = @publishedStatus,
-    primary_legacy_process_type_id = @primaryLegacyProcessTypeId,
     published_at = NOW(),
     updated_at = NOW()
 WHERE id = @versionId;
@@ -96,13 +127,12 @@ WHERE id = @versionId;
         await using (var publishCommand = new NpgsqlCommand(publishSql, connection, transaction))
         {
             publishCommand.Parameters.AddWithValue("versionId", versionId);
-            publishCommand.Parameters.AddWithValue("publishedStatus", WorkflowDefinitionPublishedStatus);
-            publishCommand.Parameters.AddWithValue("primaryLegacyProcessTypeId", primaryLegacyProcessTypeId.Value);
+            publishCommand.Parameters.AddWithValue("publishedStatus", PostgresWorkflowRepository.WorkflowDefinitionPublishedStatus);
             await publishCommand.ExecuteNonQueryAsync();
         }
 
         await transaction.CommitAsync();
-        return await GetAdminWorkflowDefinitionVersionDetailById(connection, null, versionId);
+        return await PostgresWorkflowRepository.GetAdminWorkflowDefinitionVersionDetailById(connection, null, versionId, _automation, _workflowDefinitionValidationService);
     }
 
     public async Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowDefinitionInstance(
@@ -130,8 +160,8 @@ WHERE id = @versionId;
                 $"No published workflow definition exists for key '{request.WorkflowDefinitionKey.Trim().ToLowerInvariant()}'.");
         }
 
-        var processType = await LoadProcessTypeForCreate(connection, transaction, publishedVersion.PrimaryLegacyProcessTypeKey);
-        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
+        var processType = await PostgresWorkflowRepository.LoadProcessTypeForCreate(connection, transaction, publishedVersion.PrimaryLegacyProcessTypeKey);
+        var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
 
         var gatekeeperEvaluation = EvaluateSupervisorGatekeeper(
             graph,
@@ -155,7 +185,7 @@ WHERE id = @versionId;
                 $"Die publizierte Workflow-Definition '{publishedVersion.WorkflowDefinitionKey}' erfordert eine bestehende Zielperson.");
         }
 
-        var targetPerson = await LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
+        var targetPerson = await PostgresRepositorySharedHelpers.LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
 
         var effectiveDepartmentId = request.DepartmentId ?? targetPerson.DepartmentId;
         int? effectiveRoleId = request.RoleId ?? targetPerson.RoleId;
@@ -167,7 +197,7 @@ WHERE id = @versionId;
                 throw new InvalidOperationException("Die Abteilung ist erforderlich, wenn eine Zielrolle direkt angegeben wird.");
             }
 
-            await EnsureValidPositionRole(connection, transaction, request.RoleId.Value, effectiveDepartmentId.Value);
+            await PostgresRepositorySharedHelpers.EnsureValidPositionRole(connection, transaction, request.RoleId.Value, effectiveDepartmentId.Value);
         }
 
         if (!effectiveDepartmentId.HasValue)
@@ -184,7 +214,7 @@ WHERE id = @versionId;
         var roleId = effectiveRoleId.Value;
         if (request.RoleId.HasValue)
         {
-            await EnsureValidPositionRole(connection, transaction, roleId, departmentId);
+            await PostgresRepositorySharedHelpers.EnsureValidPositionRole(connection, transaction, roleId, departmentId);
         }
 
         var firstName = NormalizeRuntimeOptionalText(request.FirstName);
@@ -195,7 +225,7 @@ WHERE id = @versionId;
             var derivedLastName = targetPerson.LastName;
             if (string.IsNullOrWhiteSpace(derivedFirstName) || string.IsNullOrWhiteSpace(derivedLastName))
             {
-                (derivedFirstName, derivedLastName) = SplitDisplayName(targetPerson.DisplayName);
+                (derivedFirstName, derivedLastName) = PostgresWorkflowRepository.SplitDisplayName(targetPerson.DisplayName);
             }
 
             firstName ??= derivedFirstName;
@@ -226,7 +256,7 @@ WHERE id = @versionId;
 
         const string insertWorkflowSql = """
 INSERT INTO workflows (
-    process_type_id,
+    workflow_definition_id,
     workflow_definition_version_id,
     department_id,
     position_role_id,
@@ -289,7 +319,7 @@ RETURNING id, uid;
             workflowUid = reader.GetGuid(1);
         }
 
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -336,10 +366,10 @@ RETURNING id, uid;
             workflowId,
             graph,
             startNode,
-            await LoadStoredAnswersByKey(connection, transaction, workflowId),
+            await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, workflowId),
             createdByUserId);
 
-        await CreateWorkflowNotifications(
+        await _notificationDispatch.CreateWorkflowNotifications(
             connection,
             transaction,
             workflowId,
@@ -392,7 +422,7 @@ ORDER BY e.created_at, e.id;
                 Id = reader.GetInt64(0),
                 WorkflowNodeInstanceId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
                 EventType = reader.GetString(2),
-                Payload = reader.IsDBNull(3) ? null : ParseJsonElement(reader.GetString(3)),
+                Payload = reader.IsDBNull(3) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(3)),
                 CreatedAt = reader.GetDateTime(4)
             });
         }
@@ -418,7 +448,7 @@ ORDER BY e.created_at, e.id;
             return null;
         }
 
-        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
         var nodeExecution = await LoadNodeExecutionForUpdate(connection, transaction, workflow.WorkflowId, nodeInstanceId);
         EnsureActiveRuntimeNode(nodeExecution, "form");
         await CompleteRuntimeFormNodeInternal(
@@ -457,7 +487,7 @@ ORDER BY e.created_at, e.id;
         var linkedTaskId = await LoadWorkflowTaskIdByNodeInstanceId(connection, transaction, nodeInstanceId);
         if (linkedTaskId.HasValue)
         {
-            var taskRecord = await LoadTaskStateForUpdate(connection, transaction, linkedTaskId.Value);
+            var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, linkedTaskId.Value);
             if (!taskRecord.HasValue)
             {
                 throw new InvalidOperationException("Approval task could not be loaded.");
@@ -466,8 +496,8 @@ ORDER BY e.created_at, e.id;
             var (_, _, taskStatus, _, _, _, taskTitle, _, _) = taskRecord.Value;
             if (!TaskStatusRules.TerminalTaskStatuses.Contains(taskStatus))
             {
-                await PersistTaskStatus(connection, transaction, linkedTaskId.Value, "done");
-                await InsertAuditEntry(
+                await _statusCalculation.PersistTaskStatus(connection, transaction, linkedTaskId.Value, "done");
+                await _auditWrite.InsertAuditEntry(
                     connection,
                     transaction,
                     workflow.WorkflowId,
@@ -476,8 +506,8 @@ ORDER BY e.created_at, e.id;
                     "task_status_changed",
                     taskStatus,
                     "done",
-                    BuildTaskStatusAuditDetail(taskTitle));
-                await SyncPrimaryAssignmentCompletion(connection, transaction, linkedTaskId.Value, "done");
+                    PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskTitle));
+                await _statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, linkedTaskId.Value, "done");
             }
         }
 
@@ -517,7 +547,7 @@ ORDER BY e.created_at, e.id;
         var linkedTaskId = await LoadWorkflowTaskIdByNodeInstanceId(connection, transaction, nodeInstanceId);
         if (linkedTaskId.HasValue)
         {
-            var taskRecord = await LoadTaskStateForUpdate(connection, transaction, linkedTaskId.Value);
+            var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, linkedTaskId.Value);
             if (!taskRecord.HasValue)
             {
                 throw new InvalidOperationException("Runtime task could not be loaded.");
@@ -526,8 +556,8 @@ ORDER BY e.created_at, e.id;
             var (_, _, taskStatus, _, _, _, taskTitle, _, _) = taskRecord.Value;
             if (!TaskStatusRules.TerminalTaskStatuses.Contains(taskStatus))
             {
-                await PersistTaskStatus(connection, transaction, linkedTaskId.Value, "done");
-                await InsertAuditEntry(
+                await _statusCalculation.PersistTaskStatus(connection, transaction, linkedTaskId.Value, "done");
+                await _auditWrite.InsertAuditEntry(
                     connection,
                     transaction,
                     workflow.WorkflowId,
@@ -536,8 +566,8 @@ ORDER BY e.created_at, e.id;
                     "task_status_changed",
                     taskStatus,
                     "done",
-                    BuildTaskStatusAuditDetail(taskTitle));
-                await SyncPrimaryAssignmentCompletion(connection, transaction, linkedTaskId.Value, "done");
+                    PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskTitle));
+                await _statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, linkedTaskId.Value, "done");
             }
         }
 
@@ -554,7 +584,7 @@ ORDER BY e.created_at, e.id;
         return await GetWorkflowDefinitionRuntimeDetailInternal(connection, null, workflowUid);
     }
 
-    private async Task CompleteRuntimeSupervisorGatekeeperStep(
+    internal static async Task CompleteRuntimeSupervisorGatekeeperStep(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         Guid workflowUid,
@@ -563,7 +593,7 @@ ORDER BY e.created_at, e.id;
     {
         var workflow = await LoadRuntimeWorkflowHeader(connection, transaction, workflowUid)
             ?? throw new InvalidOperationException("Workflow runtime instance was not found.");
-        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
         var gatekeeperNodeExecution = await LoadActiveSupervisorGatekeeperNodeExecution(
             connection,
             transaction,
@@ -596,7 +626,7 @@ ORDER BY e.created_at, e.id;
         long actorUserId)
     {
         var legacyProcessTypeKey = GetRequiredNodeConfigString(activeNodeExecution.Node, "legacyProcessTypeKey");
-        var legacyProcessTypeId = await ResolveWorkflowDefinitionLegacyProcessTypeId(
+        var legacyProcessTypeId = await PostgresWorkflowRepository.ResolveWorkflowDefinitionLegacyProcessTypeId(
             connection,
             transaction,
             legacyProcessTypeKey,
@@ -609,9 +639,9 @@ ORDER BY e.created_at, e.id;
 
         await DeleteWorkflowAnswersForProcessType(connection, transaction, workflow.WorkflowId, legacyProcessTypeId.Value);
 
-        var answerDefinitions = await LoadAnswerDefinitionRecords(connection, transaction, legacyProcessTypeId.Value);
-        var roleDefaults = await LoadRoleDefaultRecords(connection, transaction, workflow.RoleId, legacyProcessTypeId.Value);
-        var persistedAnswers = await PersistWorkflowAnswers(
+        var answerDefinitions = await PostgresWorkflowRepository.LoadAnswerDefinitionRecords(connection, transaction, legacyProcessTypeId.Value);
+        var roleDefaults = await PostgresWorkflowRepository.LoadRoleDefaultRecords(connection, transaction, workflow.RoleId, legacyProcessTypeId.Value);
+        var persistedAnswers = await PostgresWorkflowRepository.PersistWorkflowAnswers(
             connection,
             transaction,
             workflow.WorkflowId,
@@ -621,7 +651,7 @@ ORDER BY e.created_at, e.id;
         var answersByKey = persistedAnswers
             .GroupBy(answer => answer.AnswerKey, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
-        ValidateSupervisorSelections(answerDefinitions, answersByKey);
+        PostgresWorkflowRepository.ValidateSupervisorSelections(answerDefinitions, answersByKey);
 
         await UpdateNodeInstanceStatus(
             connection,
@@ -646,7 +676,7 @@ ORDER BY e.created_at, e.id;
                 selectionCount = selections.Count
             }));
 
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflow.WorkflowId,
@@ -663,7 +693,7 @@ ORDER BY e.created_at, e.id;
             workflow.WorkflowId,
             graph,
             activeNodeExecution.Node,
-            await LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
+            await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
             actorUserId);
     }
 
@@ -681,9 +711,6 @@ SELECT
     v.id,
     v.version_number,
     COALESCE(w.current_runtime_status, @defaultRuntimeStatus),
-    w.status,
-    pt.key,
-    pt.name,
     w.department_id,
     w.position_role_id,
     w.first_name,
@@ -698,7 +725,6 @@ SELECT
 FROM workflows w
 JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
 JOIN workflow_definitions d ON d.id = v.workflow_definition_id
-JOIN process_types pt ON pt.id = w.process_type_id
 WHERE w.uid = @workflowUid
   AND w.workflow_definition_version_id IS NOT NULL
 LIMIT 1;
@@ -725,20 +751,17 @@ LIMIT 1;
                 WorkflowDefinitionVersionId = reader.GetInt64(4),
                 WorkflowDefinitionVersionNumber = reader.GetInt32(5),
                 CurrentRuntimeStatus = reader.GetString(6),
-                LegacyWorkflowStatus = reader.GetString(7),
-                PrimaryLegacyProcessTypeKey = reader.GetString(8),
-                PrimaryLegacyProcessTypeName = reader.GetString(9),
-                DepartmentId = reader.GetInt32(10),
-                RoleId = reader.GetInt32(11),
-                FirstName = reader.IsDBNull(12) ? null : reader.GetString(12),
-                LastName = reader.IsDBNull(13) ? null : reader.GetString(13),
-                EmployeeNumber = reader.IsDBNull(14) ? null : reader.GetInt32(14),
-                BadgeNumber = reader.IsDBNull(15) ? null : reader.GetInt32(15),
-                TargetPersonId = reader.IsDBNull(16) ? null : reader.GetInt64(16),
-                DeadlineDate = reader.IsDBNull(17) ? null : reader.GetFieldValue<DateOnly>(17),
-                CreatedAt = reader.GetDateTime(18),
-                StartedAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19),
-                CompletedAt = reader.IsDBNull(20) ? null : reader.GetDateTime(20),
+                DepartmentId = reader.GetInt32(7),
+                RoleId = reader.GetInt32(8),
+                FirstName = reader.IsDBNull(9) ? null : reader.GetString(9),
+                LastName = reader.IsDBNull(10) ? null : reader.GetString(10),
+                EmployeeNumber = reader.IsDBNull(11) ? null : reader.GetInt32(11),
+                BadgeNumber = reader.IsDBNull(12) ? null : reader.GetInt32(12),
+                TargetPersonId = reader.IsDBNull(13) ? null : reader.GetInt64(13),
+                DeadlineDate = reader.IsDBNull(14) ? null : reader.GetFieldValue<DateOnly>(14),
+                CreatedAt = reader.GetDateTime(15),
+                StartedAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
+                CompletedAt = reader.IsDBNull(17) ? null : reader.GetDateTime(17),
                 NodeInstances = new List<WorkflowNodeInstanceDto>()
             };
         }
@@ -777,7 +800,7 @@ ORDER BY n.sort_order, n.node_key, ni.id;
                     Status = reader.GetString(4),
                     StartedAt = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
                     CompletedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-                    Result = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+                    Result = reader.IsDBNull(7) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(7))
                 });
             }
         }
@@ -797,21 +820,19 @@ SELECT
     d.name,
     v.id,
     v.version_number,
-    v.primary_legacy_process_type_id,
-    pt.key
+    d.id,
+    d.definition_key
 FROM workflow_definitions d
 JOIN workflow_definition_versions v ON v.workflow_definition_id = d.id
-JOIN process_types pt ON pt.id = v.primary_legacy_process_type_id
 WHERE d.definition_key = @definitionKey
   AND v.status = @publishedStatus
-  AND pt.is_active = TRUE
 ORDER BY v.version_number DESC, v.id DESC
 LIMIT 1;
 """;
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("definitionKey", workflowDefinitionKey.Trim().ToLowerInvariant());
-        command.Parameters.AddWithValue("publishedStatus", WorkflowDefinitionPublishedStatus);
+        command.Parameters.AddWithValue("publishedStatus", PostgresWorkflowRepository.WorkflowDefinitionPublishedStatus);
         await using var reader = await command.ExecuteReaderAsync();
 
         if (!await reader.ReadAsync())
@@ -828,137 +849,6 @@ LIMIT 1;
             VersionNumber = reader.GetInt32(4),
             PrimaryLegacyProcessTypeId = reader.GetInt32(5),
             PrimaryLegacyProcessTypeKey = reader.GetString(6)
-        };
-    }
-
-    private static async Task<WorkflowDefinitionGraphRecord> LoadWorkflowDefinitionGraph(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        long versionId)
-    {
-        const string nodeSql = """
-SELECT
-    n.id,
-    n.node_key,
-    n.node_type,
-    n.title,
-    n.sort_order,
-    nc.config_json::text
-FROM workflow_nodes n
-LEFT JOIN workflow_node_configs nc ON nc.workflow_node_id = n.id
-WHERE n.workflow_definition_version_id = @versionId
-ORDER BY n.sort_order, n.node_key, n.id;
-""";
-
-        var nodes = new List<WorkflowDefinitionNodeRecord>();
-        await using (var nodeCommand = new NpgsqlCommand(nodeSql, connection, transaction))
-        {
-            nodeCommand.Parameters.AddWithValue("versionId", versionId);
-            await using var reader = await nodeCommand.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                nodes.Add(new WorkflowDefinitionNodeRecord
-                {
-                    NodeId = reader.GetInt64(0),
-                    NodeKey = reader.GetString(1),
-                    NodeType = reader.GetString(2),
-                    Title = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    SortOrder = reader.GetInt32(4),
-                    Config = reader.IsDBNull(5) ? null : ParseJsonElement(reader.GetString(5))
-                });
-            }
-        }
-
-        const string edgeSql = """
-SELECT
-    e.id,
-    e.source_workflow_node_id,
-    e.target_workflow_node_id,
-    e.priority,
-    e.condition_expression
-FROM workflow_edges e
-WHERE e.workflow_definition_version_id = @versionId
-ORDER BY e.source_workflow_node_id, e.priority, e.id;
-""";
-
-        var edges = new List<WorkflowDefinitionEdgeRecord>();
-        await using (var edgeCommand = new NpgsqlCommand(edgeSql, connection, transaction))
-        {
-            edgeCommand.Parameters.AddWithValue("versionId", versionId);
-            await using var reader = await edgeCommand.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                edges.Add(new WorkflowDefinitionEdgeRecord
-                {
-                    EdgeId = reader.GetInt64(0),
-                    SourceNodeId = reader.GetInt64(1),
-                    TargetNodeId = reader.GetInt64(2),
-                    Priority = reader.GetInt32(3),
-                    ConditionExpression = reader.IsDBNull(4) ? null : reader.GetString(4)
-                });
-            }
-        }
-
-        const string actionSql = """
-SELECT
-    wna.workflow_node_id,
-    wna.id,
-    wna.action_definition_id,
-    wna.execution_order,
-    wna.on_error_behavior,
-    wna.input_mapping_json::text,
-    ad.action_key,
-    ad.name,
-    ad.handler_type,
-    ad.is_idempotent
-FROM workflow_node_actions wna
-INNER JOIN action_definitions ad ON ad.id = wna.action_definition_id
-INNER JOIN workflow_nodes n ON n.id = wna.workflow_node_id
-WHERE n.workflow_definition_version_id = @versionId
-ORDER BY wna.workflow_node_id, wna.execution_order, wna.id;
-""";
-
-        var nodeActionsByNodeId = new Dictionary<long, List<WorkflowNodeActionRecord>>();
-        await using (var actionCommand = new NpgsqlCommand(actionSql, connection, transaction))
-        {
-            actionCommand.Parameters.AddWithValue("versionId", versionId);
-            await using var reader = await actionCommand.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var workflowNodeId = reader.GetInt64(0);
-                if (!nodeActionsByNodeId.TryGetValue(workflowNodeId, out var actions))
-                {
-                    actions = new List<WorkflowNodeActionRecord>();
-                    nodeActionsByNodeId.Add(workflowNodeId, actions);
-                }
-
-                actions.Add(new WorkflowNodeActionRecord
-                {
-                    Id = reader.GetInt64(1),
-                    ActionDefinitionId = reader.GetInt64(2),
-                    ExecutionOrder = reader.GetInt32(3),
-                    OnErrorBehavior = reader.GetString(4),
-                    InputMapping = reader.IsDBNull(5) ? null : ParseJsonElement(reader.GetString(5)),
-                    ActionKey = reader.GetString(6),
-                    ActionName = reader.GetString(7),
-                    HandlerType = reader.GetString(8),
-                    IsIdempotent = reader.GetBoolean(9)
-                });
-            }
-        }
-
-        return new WorkflowDefinitionGraphRecord
-        {
-            Nodes = nodes,
-            Edges = edges,
-            NodeById = nodes.ToDictionary(node => node.NodeId),
-            NodeActionsByNodeId = nodeActionsByNodeId,
-            IncomingEdgesByTargetNodeId = edges
-                .GroupBy(edge => edge.TargetNodeId)
-                .ToDictionary(group => group.Key, group => group.OrderBy(edge => edge.Priority).ThenBy(edge => edge.EdgeId).ToList()),
-            OutgoingEdgesBySourceNodeId = edges
-                .GroupBy(edge => edge.SourceNodeId)
-                .ToDictionary(group => group.Key, group => group.OrderBy(edge => edge.Priority).ThenBy(edge => edge.EdgeId).ToList())
         };
     }
 
@@ -1034,7 +924,7 @@ RETURNING id;
         return nodeInstanceId;
     }
 
-    private static async Task UpdateNodeInstanceStatus(
+    internal static async Task UpdateNodeInstanceStatus(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long nodeInstanceId,
@@ -1069,7 +959,7 @@ WHERE id = @nodeInstanceId;
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<long> InsertWorkflowRuntimeEvent(
+    internal static async Task<long> InsertWorkflowRuntimeEvent(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -1110,7 +1000,7 @@ RETURNING id;
             : throw new InvalidOperationException($"Runtime event '{eventType}' could not be created.");
     }
 
-    private static async Task AdvanceRuntimeUntilWaitOrTerminal(
+    internal static async Task AdvanceRuntimeUntilWaitOrTerminal(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -1188,7 +1078,7 @@ RETURNING id;
                             reason = "supervisor_gatekeeper_form_already_completed"
                         }));
 
-                    await InsertAuditEntry(
+                    await PostgresRepositorySharedHelpers.InsertAuditEntry(
                         connection,
                         transaction,
                         workflowId,
@@ -1273,7 +1163,6 @@ RETURNING id;
 
                         break;
                     }
-                    case "setup":
                     case "measure_provision":
                     case "measure_deprovision":
                     case "measure_change":
@@ -1303,7 +1192,7 @@ RETURNING id;
                             answersByKey,
                             actorUserId);
 
-                        await InsertAuditEntry(
+                        await PostgresRepositorySharedHelpers.InsertAuditEntry(
                             connection,
                             transaction,
                             workflowId,
@@ -1374,14 +1263,14 @@ RETURNING id;
                                 .ThenBy(action => action.Id)
                                 .First();
 
-                            var payload = await BuildAutomationJobPayload(
+                            var payload = await PostgresWorkflowAutomationOperations.BuildAutomationJobPayloadAsync(
                                 connection,
                                 transaction,
                                 workflowId,
                                 firstAction.InputMapping,
                                 answersByKey,
                                 CancellationToken.None);
-                            await CreateAutomationJob(
+                            await PostgresWorkflowAutomationOperations.CreateAutomationJobAsync(
                                 connection,
                                 transaction,
                                 workflowId,
@@ -1392,7 +1281,7 @@ RETURNING id;
                                 CancellationToken.None);
                         }
 
-                        await InsertAuditEntry(
+                        await PostgresRepositorySharedHelpers.InsertAuditEntry(
                             connection,
                             transaction,
                             workflowId,
@@ -1422,8 +1311,8 @@ RETURNING id;
             var legacyStatus = default(string);
             if (activeNodes.Any(node => IsMeasureGenerationNodeType(node.NodeType)))
             {
-                await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
-                legacyStatus = await LoadWorkflowStatusForUpdate(connection, transaction, workflowId) ?? "in_progress";
+                await PostgresWorkflowStatusCalculationService.RecalculateAndPersistWorkflowStatusAsync(connection, transaction, workflowId, actorUserId);
+                legacyStatus = await PostgresWorkflowRepository.LoadWorkflowStatusForUpdate(connection, transaction, workflowId) ?? "in_progress";
             }
             else
             {
@@ -1630,10 +1519,10 @@ WHERE ni.workflow_id = @workflowId
     {
         const string sql = """
 SELECT
-    pt.key,
+    pt.definition_key,
     pt.requires_supervisor_step
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 WHERE w.id = @workflowId
 LIMIT 1;
 """;
@@ -1743,7 +1632,7 @@ FOR UPDATE OF ni;
                 NodeType = reader.GetString(4),
                 Title = reader.IsDBNull(5) ? null : reader.GetString(5),
                 SortOrder = reader.GetInt32(6),
-                Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+                Config = reader.IsDBNull(7) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(7))
             }
         };
     }
@@ -1772,22 +1661,22 @@ LIMIT 1;
             }
         }
 
-        var legacyTemplateKey = GetRequiredNodeConfigString(node, "legacyTemplateKey");
-        var template = await LoadActiveTaskTemplateByKey(connection, transaction, legacyTemplateKey);
+        // LA5: Per-Node-Spec wird ueber die node.NodeId aufgeloest — kein String-Bridge mehr.
+        var template = await LoadTaskSpecForNode(connection, transaction, node.NodeId);
         if (template is null)
         {
             throw new InvalidOperationException(
-                $"Node '{node.NodeKey}' references unknown or inactive legacyTemplateKey '{legacyTemplateKey}'.");
+                $"Node '{node.NodeKey}' has no workflow_node_task_specs entry. Definition publishing should ensure one spec per task/approval node.");
         }
 
         var workflowContext = await LoadWorkflowRuntimeTaskContext(connection, transaction, workflowId);
-        var workflowDueAt = await LoadWorkflowDueAt(connection, transaction, workflowId);
+        var workflowDueAt = await PostgresWorkflowTaskGenerationService.LoadWorkflowDueAtAsync(connection, transaction, workflowId);
 
         const string insertTaskSql = """
 INSERT INTO workflow_tasks (
     workflow_id,
     node_instance_id,
-    task_template_id,
+    workflow_node_task_spec_id,
     task_key,
     title,
     category,
@@ -1805,7 +1694,7 @@ INSERT INTO workflow_tasks (
 VALUES (
     @workflowId,
     @nodeInstanceId,
-    @taskTemplateId,
+    @workflowNodeTaskSpecId,
     @taskKey,
     @title,
     @category,
@@ -1834,7 +1723,7 @@ RETURNING id;
         {
             insertTaskCommand.Parameters.AddWithValue("workflowId", workflowId);
             insertTaskCommand.Parameters.AddWithValue("nodeInstanceId", nodeInstanceId);
-            insertTaskCommand.Parameters.AddWithValue("taskTemplateId", template.Id);
+            insertTaskCommand.Parameters.AddWithValue("workflowNodeTaskSpecId", (long)template.Id);
             insertTaskCommand.Parameters.AddWithValue("taskKey", template.TemplateKey);
             insertTaskCommand.Parameters.AddWithValue("title", template.Title);
             insertTaskCommand.Parameters.AddWithValue("category", template.Category);
@@ -1863,7 +1752,7 @@ RETURNING id;
         int? assigneeResponsibilityId;
         if (string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
         {
-            var supervisorAssignment = await ResolveDepartmentRequirementSelectionAssignment(
+            var supervisorAssignment = await PostgresRepositorySharedHelpers.ResolveDepartmentRequirementSelectionAssignment(
                 connection,
                 transaction,
                 workflowContext.DepartmentId);
@@ -1937,7 +1826,7 @@ VALUES (
             return false;
         }
 
-        var workflowContext = await LoadWorkflowTaskGenerationContext(connection, transaction, workflowId);
+        var workflowContext = await PostgresWorkflowTaskGenerationService.LoadWorkflowTaskGenerationContextAsync(connection, transaction, workflowId);
         if (!workflowContext.RequiresSupervisorStep
             || string.IsNullOrWhiteSpace(workflowContext.ApprovalTaskTemplateKey))
         {
@@ -1954,11 +1843,13 @@ VALUES (
             return false;
         }
 
-        var approvalTemplateKey = TryGetNodeConfigString(candidateNode, "legacyTemplateKey");
-        return string.Equals(
-            approvalTemplateKey,
-            workflowContext.ApprovalTaskTemplateKey,
-            StringComparison.OrdinalIgnoreCase);
+        // LA5: Approval-Spec wird ueber NodeId aufgeloest, nicht mehr per legacyTemplateKey-Config.
+        var approvalSpec = await LoadTaskSpecForNode(connection, transaction, candidateNode.NodeId);
+        return approvalSpec is not null
+            && string.Equals(
+                approvalSpec.TemplateKey,
+                workflowContext.ApprovalTaskTemplateKey,
+                StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task EnsureRuntimeSetupTasksGenerated(
@@ -1975,7 +1866,7 @@ VALUES (
         }
 
         var workflowContext = await LoadWorkflowRuntimeTaskContext(connection, transaction, workflowId);
-        var generatedTaskCount = await GenerateWorkflowTasks(
+        var generatedTaskCount = await PostgresWorkflowTaskGenerationService.GenerateWorkflowTasksAsync(
             connection,
             transaction,
             workflowId,
@@ -1997,7 +1888,7 @@ VALUES (
                     generatedTaskCount
                 }));
 
-            await InsertAuditEntry(
+            await PostgresRepositorySharedHelpers.InsertAuditEntry(
                 connection,
                 transaction,
                 workflowId,
@@ -2009,8 +1900,8 @@ VALUES (
                 $"{generatedTaskCount} Aufgabe(n) in Setup-Phase erstellt");
         }
 
-        await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
-        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+        await PostgresWorkflowStatusCalculationService.RecalculateWorkflowTaskAvailabilityAsync(connection, transaction, workflowId);
+        await PostgresWorkflowStatusCalculationService.RecalculateAndPersistWorkflowStatusAsync(connection, transaction, workflowId, actorUserId);
     }
 
     private static async Task<bool> WorkflowHasGeneratedSetupTasks(
@@ -2061,7 +1952,7 @@ SELECT EXISTS(
             "setup_completed",
             CreateJsonbPayload(new { nodeKey = activeNodeExecution.Node.NodeKey }));
 
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -2174,7 +2065,7 @@ FOR UPDATE OF ni;
                 NodeType = reader.GetString(4),
                 Title = reader.IsDBNull(5) ? null : reader.GetString(5),
                 SortOrder = reader.GetInt32(6),
-                Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+                Config = reader.IsDBNull(7) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(7))
             }
         };
     }
@@ -2226,12 +2117,12 @@ FOR UPDATE OF ni;
                 NodeType = reader.GetString(4),
                 Title = reader.IsDBNull(5) ? null : reader.GetString(5),
                 SortOrder = reader.GetInt32(6),
-                Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+                Config = reader.IsDBNull(7) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(7))
             }
         };
     }
 
-    private static async Task TryAdvanceRuntimeSetupFromTaskStatusUpdate(
+    internal static async Task TryAdvanceRuntimeSetupFromTaskStatusUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -2253,20 +2144,19 @@ FOR UPDATE OF ni;
             return;
         }
 
-        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
         await TryCompleteRuntimeSetupNodeIfReady(
             connection,
             transaction,
             workflowId,
             graph,
             activeSetupNode,
-            await LoadStoredAnswersByKey(connection, transaction, workflowId),
+            await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, workflowId),
             actorUserId);
     }
 
     private static readonly string[] MeasureGenerationNodeTypes =
     [
-        "setup",
         "measure_provision",
         "measure_deprovision",
         "measure_change",
@@ -2301,7 +2191,19 @@ FOR UPDATE OF ni;
                 continue;
             }
 
-            var condition = ParseDecisionCondition(edge.ConditionExpression);
+            TaskTemplateConditionRecord condition;
+            try
+            {
+                condition = ParseDecisionCondition(edge.ConditionExpression);
+            }
+            catch (InvalidOperationException ex)
+            {
+                var sourceKey = graph.NodeById.TryGetValue(edge.SourceNodeId, out var src) ? src.NodeKey : edge.SourceNodeId.ToString();
+                var targetKey = graph.NodeById.TryGetValue(edge.TargetNodeId, out var tgt) ? tgt.NodeKey : edge.TargetNodeId.ToString();
+                throw new InvalidOperationException(
+                    $"Decision condition on edge '{sourceKey}' → '{targetKey}' is invalid: {ex.Message}", ex);
+            }
+
             if (TaskConditionEvaluator.EvaluateCondition(condition, answersByKey))
             {
                 selectedEdge = edge;
@@ -2370,7 +2272,7 @@ FOR UPDATE OF ni;
         }
     }
 
-    private static async Task<RuntimeWorkflowHeaderRecord?> LoadRuntimeWorkflowHeader(
+    internal static async Task<RuntimeWorkflowHeaderRecord?> LoadRuntimeWorkflowHeader(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         Guid workflowUid)
@@ -2381,11 +2283,11 @@ SELECT
     w.uid,
     w.workflow_definition_version_id,
     w.position_role_id,
-    pt.key,
+    pt.definition_key,
     pt.requires_supervisor_step,
     COALESCE(w.current_runtime_status, @defaultRuntimeStatus)
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 WHERE w.uid = @workflowUid
   AND w.workflow_definition_version_id IS NOT NULL
 LIMIT 1
@@ -2425,11 +2327,11 @@ SELECT
     w.uid,
     w.workflow_definition_version_id,
     w.position_role_id,
-    pt.key,
+    pt.definition_key,
     pt.requires_supervisor_step,
     COALESCE(w.current_runtime_status, @defaultRuntimeStatus)
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 WHERE w.id = @workflowId
   AND w.workflow_definition_version_id IS NOT NULL
 LIMIT 1
@@ -2477,7 +2379,7 @@ FOR UPDATE;
         return scalar is long taskId ? taskId : null;
     }
 
-    private static async Task CompleteRuntimeTaskNodeFromTaskStatusUpdate(
+    internal static async Task CompleteRuntimeTaskNodeFromTaskStatusUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -2488,7 +2390,7 @@ FOR UPDATE;
     {
         var workflow = await LoadRuntimeWorkflowHeader(connection, transaction, workflowUid)
             ?? throw new InvalidOperationException("Workflow runtime instance was not found.");
-        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
         var nodeExecution = await LoadNodeExecutionForUpdate(connection, transaction, workflowId, nodeInstanceId);
         EnsureActiveRuntimeNode(nodeExecution, "task");
         var activeNodeExecution = nodeExecution!;
@@ -2512,7 +2414,7 @@ FOR UPDATE;
                 comment = NormalizeRuntimeOptionalText(comment)
             }));
 
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflow.WorkflowId,
@@ -2529,11 +2431,11 @@ FOR UPDATE;
             workflow.WorkflowId,
             graph,
             activeNodeExecution.Node,
-            await LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
+            await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
             actorUserId);
     }
 
-    private static async Task ApplyRuntimeApprovalDecisionFromWorkflowTask(
+    internal static async Task ApplyRuntimeApprovalDecisionFromWorkflowTask(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -2544,7 +2446,7 @@ FOR UPDATE;
     {
         var workflow = await LoadRuntimeWorkflowHeader(connection, transaction, workflowUid)
             ?? throw new InvalidOperationException("Workflow runtime instance was not found.");
-        var graph = await LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
         var nodeExecution = await LoadNodeExecutionForUpdate(connection, transaction, workflowId, nodeInstanceId);
         EnsureActiveRuntimeNode(nodeExecution, "approval");
         var activeNodeExecution = nodeExecution!;
@@ -2574,7 +2476,7 @@ FOR UPDATE;
                 "completed",
                 completedAt: DateTime.UtcNow);
 
-            await InsertAuditEntry(
+            await PostgresRepositorySharedHelpers.InsertAuditEntry(
                 connection,
                 transaction,
                 workflow.WorkflowId,
@@ -2602,7 +2504,7 @@ FOR UPDATE;
             "approval_completed",
             CreateJsonbPayload(new { nodeKey = activeNodeExecution.Node.NodeKey, approved = true }));
 
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflow.WorkflowId,
@@ -2619,19 +2521,20 @@ FOR UPDATE;
             workflow.WorkflowId,
             graph,
             activeNodeExecution.Node,
-            await LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
+            await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, workflow.WorkflowId),
             actorUserId);
     }
 
-    private static async Task<TaskTemplateRecord?> LoadActiveTaskTemplateByKey(
+    private static async Task<TaskTemplateRecord?> LoadTaskSpecForNode(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        string legacyTemplateKey)
+        long workflowNodeId)
     {
+        // LA5: Per-Node Task-Spezifikation. Fuer task/approval-Nodes existiert maximal 1 Spec.
         const string sql = """
 SELECT
     id,
-    template_key,
+    spec_key,
     title,
     description,
     category,
@@ -2642,14 +2545,14 @@ SELECT
     is_required,
     due_in_days,
     sort_order
-FROM task_templates
-WHERE template_key = @templateKey
-  AND is_active = TRUE
+FROM workflow_node_task_specs
+WHERE workflow_node_id = @workflowNodeId
+ORDER BY sort_order, id
 LIMIT 1;
 """;
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("templateKey", legacyTemplateKey.Trim());
+        command.Parameters.AddWithValue("workflowNodeId", workflowNodeId);
         await using var reader = await command.ExecuteReaderAsync();
         if (!await reader.ReadAsync())
         {
@@ -2658,12 +2561,12 @@ LIMIT 1;
 
         return new TaskTemplateRecord
         {
-            Id = reader.GetInt32(0),
+            Id = checked((int)reader.GetInt64(0)),
             TemplateKey = reader.GetString(1),
             Title = reader.GetString(2),
             Description = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
             Category = reader.GetString(4),
-            IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
+            IconKey = PostgresRepositorySharedHelpers.NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
             DefaultResponsibilityId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
             ProcessAreaLabel = reader.IsDBNull(7) ? null : reader.GetString(7),
             IsDepartmentPhaseTask = reader.GetBoolean(8),
@@ -2745,7 +2648,7 @@ FOR UPDATE OF ni;
                 NodeType = reader.GetString(4),
                 Title = reader.IsDBNull(5) ? null : reader.GetString(5),
                 SortOrder = reader.GetInt32(6),
-                Config = reader.IsDBNull(7) ? null : ParseJsonElement(reader.GetString(7))
+                Config = reader.IsDBNull(7) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(7))
             }
         };
     }
@@ -2817,7 +2720,7 @@ WHERE workflow_id = @workflowId
   AND answer_definition_id IN (
       SELECT id
       FROM workflow_answer_definitions
-      WHERE process_type_id = @processTypeId
+      WHERE workflow_definition_id = @processTypeId
   );
 """;
 
@@ -2869,7 +2772,7 @@ WHERE id = @workflowId;
             null,
             eventType,
             CreateJsonbPayload(new { runtimeStatus }));
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -2880,7 +2783,7 @@ WHERE id = @workflowId;
             runtimeStatus);
     }
 
-    private static async Task FailRuntimeWorkflow(
+    internal static async Task FailRuntimeWorkflow(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -2895,7 +2798,7 @@ WHERE id = @workflowId;
             null,
             "workflow_failed",
             CreateJsonbPayload(new { reason }));
-        await InsertAuditEntry(
+        await PostgresRepositorySharedHelpers.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -2936,7 +2839,7 @@ WHERE id = @workflowId;
         return "in_progress";
     }
 
-    private static string? CreateJsonbPayload(object? value)
+    internal static string? CreateJsonbPayload(object? value)
     {
         return value is null ? null : JsonSerializer.Serialize(value);
     }
@@ -2957,36 +2860,7 @@ WHERE id = @workflowId;
         public required string PrimaryLegacyProcessTypeKey { get; init; }
     }
 
-    private sealed class WorkflowDefinitionGraphRecord
-    {
-        public required List<WorkflowDefinitionNodeRecord> Nodes { get; init; }
-        public required List<WorkflowDefinitionEdgeRecord> Edges { get; init; }
-        public required Dictionary<long, WorkflowDefinitionNodeRecord> NodeById { get; init; }
-        public required Dictionary<long, List<WorkflowNodeActionRecord>> NodeActionsByNodeId { get; init; }
-        public required Dictionary<long, List<WorkflowDefinitionEdgeRecord>> IncomingEdgesByTargetNodeId { get; init; }
-        public required Dictionary<long, List<WorkflowDefinitionEdgeRecord>> OutgoingEdgesBySourceNodeId { get; init; }
-    }
-
-    private sealed class WorkflowDefinitionNodeRecord
-    {
-        public required long NodeId { get; init; }
-        public required string NodeKey { get; init; }
-        public required string NodeType { get; init; }
-        public string? Title { get; init; }
-        public required int SortOrder { get; init; }
-        public JsonElement? Config { get; init; }
-    }
-
-    private sealed class WorkflowDefinitionEdgeRecord
-    {
-        public required long EdgeId { get; init; }
-        public required long SourceNodeId { get; init; }
-        public required long TargetNodeId { get; init; }
-        public required int Priority { get; init; }
-        public string? ConditionExpression { get; init; }
-    }
-
-    private sealed class RuntimeWorkflowHeaderRecord
+    internal sealed class RuntimeWorkflowHeaderRecord
     {
         public required long WorkflowId { get; init; }
         public required Guid WorkflowUid { get; init; }

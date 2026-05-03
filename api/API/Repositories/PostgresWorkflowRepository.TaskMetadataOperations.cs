@@ -23,7 +23,7 @@ internal sealed partial class PostgresWorkflowRepository
             .ToList();
     }
 
-    public async Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds)
+    public async Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] effectiveResponsibilityIds)
     {
         List<TaskWithWorkflowDto> workflowTasks;
         await using (var connection = new NpgsqlConnection(GetConnectionString()))
@@ -32,7 +32,27 @@ internal sealed partial class PostgresWorkflowRepository
             workflowTasks = await LoadTasks(connection, null, null);
         }
 
-        var rotationTasks = await _rotationRepository.GetRotationTaskEnvelopesForUser(userId, responsibilityIds);
+        var rotationTasks = await _rotationRepository.GetRotationTaskEnvelopesForUser(userId, effectiveResponsibilityIds);
+        return workflowTasks
+            .Concat(rotationTasks)
+            .OrderByDescending(task => task.Task.CreatedAt)
+            .ThenBy(task => task.Task.SortOrder)
+            .ThenBy(task => task.Task.Id)
+            .ToList();
+    }
+
+    public async Task<List<TaskWithWorkflowDto>> GetTasksForUserNarrowed(long userId, int[] effectiveResponsibilityIds)
+    {
+        var narrowing = new WorkflowTaskListNarrowingFilter(userId, effectiveResponsibilityIds);
+
+        List<TaskWithWorkflowDto> workflowTasks;
+        await using (var connection = new NpgsqlConnection(GetConnectionString()))
+        {
+            await connection.OpenAsync();
+            workflowTasks = await LoadTasks(connection, null, null, narrowing);
+        }
+
+        var rotationTasks = await _rotationRepository.GetRotationTaskEnvelopesForUser(userId, effectiveResponsibilityIds);
         return workflowTasks
             .Concat(rotationTasks)
             .OrderByDescending(task => task.Task.CreatedAt)

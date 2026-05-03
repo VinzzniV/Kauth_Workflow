@@ -24,8 +24,9 @@ Verwende sie nur fuer:
 ## Active Risks / Watchouts
 
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
-- Mehrere sichtbare Legacy-Vertraege bleiben bewusst bestehen, vor allem `completed-onboardings`, `CompletedOnboardingSearchResultDto`, `workflows.create.onboarding` und `hr_onboarding`.
+- Permission-Schema ist seit Slice 6.3d-iv vollstaendig definitionsgetrieben (`workflows.create.<definition_key>`). Responsibility `hr_onboarding` wurde 2026-05-01 zu `hr_workflow_initiator` umbenannt (Slice 7B).
 - DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432`.
+- LA5 done (2026-05-03): Task-Specs liegen jetzt am `workflow_node_id` der published Version. AdminTaskTemplate-DTO behaelt Form (Frontend-Rename auf `Spec*` ist Watch-Item, ~22 Files). `workflow_definitions.approval_task_template_key` heisst nominell noch `_template_key` — Naming-Cleanup defer. Wenn echte Versions-Wechsel ueber den Builder passieren: Spec-Carry-Over zwischen Versionen ist noch nicht implementiert (siehe Legacy-Abbau-Plan LA5 Watch-Items).
 
 ## Temporary Notes
 

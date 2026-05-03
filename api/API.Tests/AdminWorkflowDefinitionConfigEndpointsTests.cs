@@ -210,7 +210,6 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
                 Status = "draft",
                 Name = "Canvas Draft",
                 Description = "Roundtrip positions",
-                PrimaryLegacyProcessTypeKey = "onboarding",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 PublishedAt = null,
@@ -321,7 +320,6 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             Status = "published",
             Name = "Published",
             Description = "Go live",
-            PrimaryLegacyProcessTypeKey = "onboarding",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             PublishedAt = DateTime.UtcNow,
@@ -370,7 +368,6 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
                 Status = "draft",
                 Name = "Broken Draft",
                 Description = null,
-                PrimaryLegacyProcessTypeKey = null,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 PublishedAt = null,
@@ -648,7 +645,6 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             Status = "draft",
             Name = "Draft",
             Description = "Draft detail",
-            PrimaryLegacyProcessTypeKey = "onboarding",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             CanPublish = false,
@@ -694,7 +690,6 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             Status = "draft",
             Name = "Draft",
             Description = "Draft detail",
-            PrimaryLegacyProcessTypeKey = "onboarding",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             CanPublish = false,
@@ -912,26 +907,23 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
 
         public Task<List<DepartmentDto>> GetDepartments() => throw new NotSupportedException();
         public Task<List<RoleDto>> GetRoles() => throw new NotSupportedException();
-        public Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false) => throw new NotSupportedException();
         public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions() => throw new NotSupportedException();
-        public Task<List<RequirementDto>> GetRequirements(string processTypeKey) => throw new NotSupportedException();
-        public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey) => throw new NotSupportedException();
-        public Task<bool> IsManagerCreatableProcessType(string processTypeKey) => throw new NotSupportedException();
+        public Task<List<RequirementDto>> GetRequirements(string workflowDefinitionKey) => throw new NotSupportedException();
+        public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string workflowDefinitionKey) => throw new NotSupportedException();
+        public Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey) => throw new NotSupportedException();
         public Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId) => throw new NotSupportedException();
         public Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId) => throw new NotSupportedException();
-        public Task<List<WorkflowNotificationDispatchTarget>> GetWorkflowCreatedNotificationDispatchTargets(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<WorkflowNotificationDispatchTarget>> CreateReadyTaskNotifications(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<WorkflowNotificationDispatchTarget>> CreateWorkflowCompletionNotifications(Guid workflowUid) => throw new NotSupportedException();
-        public Task<List<Guid>> GetWorkflowUidsWithDisabledNotifications(string notificationType) => throw new NotSupportedException();
         public Task ApplyNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results) => throw new NotSupportedException();
         public Task<List<WorkflowListItemDto>> GetWorkflows() => throw new NotSupportedException();
         public Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query) => throw new NotSupportedException();
         public Task<WorkflowDetailDto?> GetWorkflowByUid(Guid workflowUid) => throw new NotSupportedException();
-        public Task<List<WorkflowAuditEntryDto>> GetWorkflowAuditLog(Guid workflowUid, int limit = 200, int offset = 0) => throw new NotSupportedException();
         public Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId) => throw new NotSupportedException();
         public Task<List<TaskWithWorkflowDto>> GetTasks() => throw new NotSupportedException();
-        public Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds) => throw new NotSupportedException();
+        public Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] effectiveResponsibilityIds) => throw new NotSupportedException();
+        public Task<List<TaskWithWorkflowDto>> GetTasksForUserNarrowed(long userId, int[] effectiveResponsibilityIds) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskById(long taskId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId) => throw new NotSupportedException();
@@ -954,7 +946,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<WorkflowTargetPersonDto>> SearchRotationEligiblePeople(string? query, int limit = 20, IReadOnlyCollection<int>? observableDepartmentIds = null) => throw new NotSupportedException();
         public Task ApplyPersonLifecycleProjection(Guid workflowUid, long? actorUserId = null) => throw new NotSupportedException();
         public Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null) => throw new NotSupportedException();
-        public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey) => throw new NotSupportedException();
+        public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetWorkflowDefinitionKey) => throw new NotSupportedException();
         public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions()
         {
             GetAdminWorkflowDefinitionsCallCount += 1;
@@ -1052,9 +1044,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             CompleteRuntimeTaskNodeRequest request,
             long actorUserId) => throw new NotSupportedException();
 
-        public Task<List<AdminProcessTypeDto>> GetAdminProcessTypes() => throw new NotSupportedException();
-        public Task<AdminProcessTypeDto?> UpdateProcessType(int processTypeId, AdminProcessTypeUpdateRequest request) => throw new NotSupportedException();
-        public Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int processTypeId) => throw new NotSupportedException();
+        public Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDto?> UpdateAdminTaskTemplate(int templateId, AdminTaskTemplateUpsertRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminTaskTemplate(int templateId) => throw new NotSupportedException();
@@ -1064,12 +1054,12 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDependencyDto> CreateAdminTaskTemplateDependency(int templateId, AdminTaskTemplateDependencyCreateRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminTaskTemplateDependency(int templateId, long dependencyId) => throw new NotSupportedException();
-        public Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int processTypeId) => throw new NotSupportedException();
+        public Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<AdminAnswerDefinitionDto> CreateAdminAnswerDefinition(AdminAnswerDefinitionUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminAnswerDefinitionDto?> UpdateAdminAnswerDefinition(int definitionId, AdminAnswerDefinitionUpsertRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminAnswerDefinition(int definitionId) => throw new NotSupportedException();
-        public Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int processTypeId) => throw new NotSupportedException();
+        public Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request) => throw new NotSupportedException();
-        public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int processTypeId) => throw new NotSupportedException();
+        public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId) => throw new NotSupportedException();
     }
 }

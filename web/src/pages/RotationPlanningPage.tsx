@@ -7,9 +7,9 @@ import { useToast } from "../components/feedback/useToast";
 import PageHeader from "../components/layout/PageHeader";
 import { createRotationPlan } from "../services/rotationApi";
 import { queryKeys } from "../services/queryKeys";
-import { useRotationCompletedOnboardings, useRotationPlans } from "../services/queries/rotationQueries";
+import { useRotationEligiblePeople, useRotationPlans } from "../services/queries/rotationQueries";
 import type {
-  CompletedOnboardingSearchResult,
+  RotationEligiblePerson,
   RotationPlanStatus,
 } from "../types/rotation";
 import { formatDateTime } from "../utils/dateFormat";
@@ -62,12 +62,12 @@ export default function RotationPlanningPage() {
   const isCreateMode = searchParams.get("mode") === "create";
   const [search, setSearch] = useState("");
   const [planSearch, setPlanSearch] = useState("");
-  const [selectedPerson, setSelectedPerson] = useState<CompletedOnboardingSearchResult | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<RotationEligiblePerson | null>(null);
   const [planTitle, setPlanTitle] = useState("");
   const [planStatus, setPlanStatus] = useState<RotationPlanStatus>("draft");
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
 
-  const eligiblePeopleQuery = useRotationCompletedOnboardings(search, isCreateMode);
+  const eligiblePeopleQuery = useRotationEligiblePeople(search, isCreateMode);
   const rotationPlansQuery = useRotationPlans(
     isCreateMode ? selectedPerson?.personId ?? null : null,
     !isCreateMode || selectedPerson?.personId !== undefined

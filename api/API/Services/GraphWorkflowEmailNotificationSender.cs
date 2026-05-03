@@ -37,12 +37,12 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
 
         var configuration = await configurationService.GetRuntimeConfiguration(cancellationToken);
         var validation = NotificationEmailConfigurationValidator.ValidateForSending(configuration);
-        if (string.Equals(validation.Status, "disabled", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(validation.Status, ConfigurationValidationStatus.Disabled, StringComparison.OrdinalIgnoreCase))
         {
             return CreateDispatchResults(targets, "disabled", success: false, attempted: false, errorMessage: null);
         }
 
-        if (!validation.CanSend)
+        if (!validation.IsReady)
         {
             logger.LogWarning("Notification email sending is enabled but not configured correctly: {Error}", validation.Message);
             await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
@@ -187,12 +187,12 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
 
         var configuration = await configurationService.GetRuntimeConfiguration(cancellationToken);
         var validation = NotificationEmailConfigurationValidator.ValidateForSending(configuration);
-        if (string.Equals(validation.Status, "disabled", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(validation.Status, ConfigurationValidationStatus.Disabled, StringComparison.OrdinalIgnoreCase))
         {
             return CreateRotationDispatchResults(targets, "disabled", success: false, attempted: false, errorMessage: null);
         }
 
-        if (!validation.CanSend)
+        if (!validation.IsReady)
         {
             logger.LogWarning("Notification email sending is enabled but not configured correctly: {Error}", validation.Message);
             await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
@@ -327,7 +327,7 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
     {
         var configuration = await configurationService.GetRuntimeConfiguration(cancellationToken);
         var validation = NotificationEmailConfigurationValidator.ValidateForSending(configuration);
-        if (string.Equals(validation.Status, "disabled", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(validation.Status, ConfigurationValidationStatus.Disabled, StringComparison.OrdinalIgnoreCase))
         {
             return new NotificationEmailTestSendResult
             {
@@ -339,7 +339,7 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
             };
         }
 
-        if (!validation.CanSend)
+        if (!validation.IsReady)
         {
             logger.LogWarning("Notification email test failed because configuration is incomplete: {Error}", validation.Message);
             await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
@@ -495,7 +495,7 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                 TemplateKey = batch.NotificationType,
                 RecipientName = recipientName,
                 WorkflowUrl = workflowUrl,
-                ProcessTypeKey = batch.PrimaryTarget.ProcessTypeKey,
+                LegacyProcessTypeKey = batch.PrimaryTarget.LegacyProcessTypeKey,
                 ProcessTypeName = batch.PrimaryTarget.ProcessTypeName,
                 TaskTitles = batch.TaskTitles
             },

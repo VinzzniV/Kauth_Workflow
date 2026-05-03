@@ -174,34 +174,34 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.False(_sut.CanCreateWorkflow(user));
     }
 
-    // --- CanCreateWorkflowForProcessType ---
+    // --- CanCreateWorkflowForDefinition ---
 
     [Theory]
     [InlineData(AuthorizationRoles.Hr)]
     [InlineData(AuthorizationRoles.Admin)]
-    public void CanCreateWorkflowForProcessType_ReturnsTrue_ForHrAndAdmin_RegardlessOfProcessFlag(string role)
+    public void CanCreateWorkflowForDefinition_ReturnsTrue_ForHrAndAdmin_RegardlessOfManagerFlag(string role)
     {
         var user = CreateUser(role);
-        Assert.True(_sut.CanCreateWorkflowForProcessType(user, "offboarding", managerCreatableProcessType: false));
-        Assert.True(_sut.CanCreateWorkflowForProcessType(user, "onboarding", managerCreatableProcessType: true));
+        Assert.True(_sut.CanCreateWorkflowForDefinition(user, "offboarding", managerCreatableDefinition: false));
+        Assert.True(_sut.CanCreateWorkflowForDefinition(user, "onboarding", managerCreatableDefinition: true));
     }
 
     [Fact]
-    public void CanCreateWorkflowForProcessType_ManagerDependsOnProcessFlag()
+    public void CanCreateWorkflowForDefinition_ManagerDependsOnManagerFlag()
     {
         var user = CreateUser(AuthorizationRoles.Manager);
-        Assert.False(_sut.CanCreateWorkflowForProcessType(user, "offboarding", managerCreatableProcessType: false));
-        Assert.True(_sut.CanCreateWorkflowForProcessType(user, "department_change", managerCreatableProcessType: true));
+        Assert.False(_sut.CanCreateWorkflowForDefinition(user, "offboarding", managerCreatableDefinition: false));
+        Assert.True(_sut.CanCreateWorkflowForDefinition(user, "department_change", managerCreatableDefinition: true));
     }
 
     [Theory]
     [InlineData(AuthorizationRoles.Worker)]
     [InlineData(AuthorizationRoles.Reader)]
-    public void CanCreateWorkflowForProcessType_ReturnsFalse_ForRolesWithoutCreatePermission(string role)
+    public void CanCreateWorkflowForDefinition_ReturnsFalse_ForRolesWithoutCreatePermission(string role)
     {
         var user = CreateUser(role);
-        Assert.False(_sut.CanCreateWorkflowForProcessType(user, "offboarding", managerCreatableProcessType: false));
-        Assert.False(_sut.CanCreateWorkflowForProcessType(user, "department_change", managerCreatableProcessType: true));
+        Assert.False(_sut.CanCreateWorkflowForDefinition(user, "offboarding", managerCreatableDefinition: false));
+        Assert.False(_sut.CanCreateWorkflowForDefinition(user, "department_change", managerCreatableDefinition: true));
     }
 
     // --- CanCreateOrStartWorkflow ---
@@ -862,7 +862,6 @@ public sealed class AuthorizationPolicyServiceTests
             WorkflowId = 1,
             WorkflowUid = Guid.NewGuid(),
             WorkflowStatus = workflowStatus,
-            WorkflowLegacyStatus = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
             WorkflowCreatedAt = DateTime.UtcNow,
             FirstName = "Max",
             LastName = "Mustermann",

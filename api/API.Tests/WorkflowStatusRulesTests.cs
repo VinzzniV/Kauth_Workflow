@@ -76,17 +76,4 @@ public sealed class WorkflowStatusRulesTests
         Assert.Equal(expected, WorkflowStatusRules.Normalize(input));
     }
 
-    // --- ToLegacyStatus ---
-
-    [Theory]
-    [InlineData(WorkflowStatusRules.Completed, WorkflowStatusRules.Completed)]
-    [InlineData(WorkflowStatusRules.Draft, WorkflowStatusRules.OpenLegacy)]
-    [InlineData(WorkflowStatusRules.WaitingForSupervisor, WorkflowStatusRules.OpenLegacy)]
-    [InlineData(WorkflowStatusRules.WaitingForDepartment, WorkflowStatusRules.OpenLegacy)]
-    [InlineData(WorkflowStatusRules.InProgress, WorkflowStatusRules.OpenLegacy)]
-    [InlineData("cancelled", WorkflowStatusRules.OpenLegacy)]
-    public void ToLegacyStatus_MapsTerminalDirectlyAndActiveToOpen(string status, string expectedLegacy)
-    {
-        Assert.Equal(expectedLegacy, WorkflowStatusRules.ToLegacyStatus(status));
-    }
 }

@@ -5,7 +5,7 @@ import * as rotationApi from "../src/services/rotationApi";
 import * as rotationQueries from "../src/services/queries/rotationQueries";
 import { renderWithApp } from "./testUtils";
 import type {
-  CompletedOnboardingSearchResult,
+  RotationEligiblePerson,
   RotationPlanListItem,
 } from "../src/types/rotation";
 
@@ -25,18 +25,18 @@ vi.mock("../src/services/queries/rotationQueries", async () => {
   );
   return {
     ...actual,
-    useRotationCompletedOnboardings: vi.fn(),
+    useRotationEligiblePeople: vi.fn(),
     useRotationPlans: vi.fn(),
   };
 });
 
 const mockedCreateRotationPlan = vi.mocked(rotationApi.createRotationPlan);
-const mockedUseRotationCompletedOnboardings = vi.mocked(rotationQueries.useRotationCompletedOnboardings);
+const mockedUseRotationEligiblePeople = vi.mocked(rotationQueries.useRotationEligiblePeople);
 const mockedUseRotationPlans = vi.mocked(rotationQueries.useRotationPlans);
 
-function createCompletedOnboarding(
-  overrides: Partial<CompletedOnboardingSearchResult> = {}
-): CompletedOnboardingSearchResult {
+function createRotationEligiblePerson(
+  overrides: Partial<RotationEligiblePerson> = {}
+): RotationEligiblePerson {
   return {
     personId: 11,
     displayName: "Anika Sattler",
@@ -85,11 +85,11 @@ function createRotationPlan(overrides: Partial<RotationPlanListItem> = {}): Rota
 describe("RotationPlanningPage", () => {
   beforeEach(() => {
     mockedCreateRotationPlan.mockReset();
-    mockedUseRotationCompletedOnboardings.mockReset();
+    mockedUseRotationEligiblePeople.mockReset();
     mockedUseRotationPlans.mockReset();
 
-    mockedUseRotationCompletedOnboardings.mockReturnValue({
-      data: [createCompletedOnboarding()],
+    mockedUseRotationEligiblePeople.mockReturnValue({
+      data: [createRotationEligiblePerson()],
       isLoading: false,
       isFetching: false,
       error: null,

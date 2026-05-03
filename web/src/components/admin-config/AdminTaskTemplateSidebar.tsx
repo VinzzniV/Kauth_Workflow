@@ -1,10 +1,10 @@
-import type { AdminProcessType, AdminTaskTemplate } from "../../types/auth";
+import type { AdminTaskTemplate, AdminWorkflowDefinitionSummary } from "../../types/auth";
 import SectionHeader from "../ui/SectionHeader";
 import SelectionListItem from "../ui/SelectionListItem";
 
 type AdminTaskTemplateSidebarProps = {
-  processTypes: AdminProcessType[];
-  selectedProcessTypeId: number | null;
+  workflowDefinitions: AdminWorkflowDefinitionSummary[];
+  selectedWorkflowDefinitionId: number | null;
   templates: AdminTaskTemplate[];
   selectedTemplateId: number | null;
   isCreatingNew: boolean;
@@ -12,14 +12,14 @@ type AdminTaskTemplateSidebarProps = {
   isLoadingTemplates: boolean;
   isSaving: boolean;
   isDeleting: boolean;
-  onSelectProcessType: (value: string) => void;
+  onSelectWorkflowDefinition: (value: string) => void;
   onStartCreatingTemplate: () => void;
   onSelectTemplate: (template: AdminTaskTemplate) => void;
 };
 
 export function AdminTaskTemplateSidebar({
-  processTypes,
-  selectedProcessTypeId,
+  workflowDefinitions,
+  selectedWorkflowDefinitionId,
   templates,
   selectedTemplateId,
   isCreatingNew,
@@ -27,7 +27,7 @@ export function AdminTaskTemplateSidebar({
   isLoadingTemplates,
   isSaving,
   isDeleting,
-  onSelectProcessType,
+  onSelectWorkflowDefinition,
   onStartCreatingTemplate,
   onSelectTemplate,
 }: AdminTaskTemplateSidebarProps) {
@@ -37,16 +37,16 @@ export function AdminTaskTemplateSidebar({
 
       <div className="toolbar-row admin-detail-toolbar">
         <label className="field admin-detail-process-field">
-          <span>Prozesstyp</span>
+          <span>Workflow-Definition</span>
           <select
-            value={selectedProcessTypeId ?? ""}
-            onChange={(event) => onSelectProcessType(event.target.value)}
+            value={selectedWorkflowDefinitionId ?? ""}
+            onChange={(event) => onSelectWorkflowDefinition(event.target.value)}
             disabled={isLoadingProcessTypes || isSaving || isDeleting}
           >
-            <option value="">Prozesstyp wählen</option>
-            {processTypes.map((processType) => (
-              <option key={processType.id} value={processType.id}>
-                {processType.name}
+            <option value="">Workflow-Definition wählen</option>
+            {workflowDefinitions.map((definition) => (
+              <option key={definition.id} value={definition.id}>
+                {definition.name}
               </option>
             ))}
           </select>
@@ -55,18 +55,18 @@ export function AdminTaskTemplateSidebar({
         <button
           type="button"
           className="btn btn-primary"
-          disabled={!selectedProcessTypeId || isLoadingTemplates || isSaving || isDeleting}
+          disabled={!selectedWorkflowDefinitionId || isLoadingTemplates || isSaving || isDeleting}
           onClick={onStartCreatingTemplate}
         >
           Neue Aufgabenvorlage
         </button>
       </div>
 
-      {!selectedProcessTypeId ? <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p> : null}
+      {!selectedWorkflowDefinitionId ? <p className="panel-note">Bitte zuerst eine Workflow-Definition auswählen.</p> : null}
       {isLoadingTemplates ? <p className="panel-note">Aufgabenvorlagen werden geladen...</p> : null}
 
-      {!isLoadingTemplates && selectedProcessTypeId && templates.length === 0 ? (
-        <p className="panel-note">Für diesen Prozesstyp sind noch keine Aufgabenvorlagen vorhanden.</p>
+      {!isLoadingTemplates && selectedWorkflowDefinitionId && templates.length === 0 ? (
+        <p className="panel-note">Für diese Workflow-Definition sind noch keine Aufgabenvorlagen vorhanden.</p>
       ) : null}
 
       {!isLoadingTemplates && templates.length > 0 ? (

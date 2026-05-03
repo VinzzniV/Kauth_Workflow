@@ -29,9 +29,9 @@ export default function WorkflowListPage() {
           search={view.search}
           statusFilter={view.statusFilter}
           departmentFilter={view.departmentFilter}
-          processTypeFilter={view.processTypeFilter}
+          workflowDefinitionFilter={view.workflowDefinitionFilter}
           responsibilityFilter={view.responsibilityFilter}
-          processTypeOptions={view.processTypeOptions}
+          workflowDefinitionOptions={view.workflowDefinitionOptions}
           departmentOptions={view.departmentOptions}
           responsibilityOptions={view.responsibilityOptions}
           hasAdvancedFilters={view.hasAdvancedFilters}
@@ -43,7 +43,7 @@ export default function WorkflowListPage() {
           onSearchChange={view.setSearch}
           onStatusChange={view.setStatusFilter}
           onDepartmentChange={view.setDepartmentFilter}
-          onProcessTypeChange={view.setProcessTypeFilter}
+          onWorkflowDefinitionChange={view.setWorkflowDefinitionFilter}
           onResponsibilityChange={view.setResponsibilityFilter}
           onRefresh={() => void view.refresh()}
           onPreviousPage={view.goToPreviousPage}

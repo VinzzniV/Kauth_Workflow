@@ -27,11 +27,12 @@ Primärquelle im Repo war: `ONBOARDING_COUPLING_INVENTORY.md` (in Vault migriert
 | API Extensions | `OnboardingApplicationExtensions.cs` | B | Alt-Dateiname verankert Onboarding im Bootstrap | Neutral umbenennen | — |
 | API Extensions | `OnboardingServiceCollectionExtensions.cs` | B | Alt-Dateiname verankert Onboarding im Bootstrap | Neutral umbenennen | — |
 | API Master Data | `ResolveProcessTypeId(... default onboarding)` | C | `requirements` und `workflow-config` fallen implizit auf `onboarding` zurück | Bewusst stabil lassen | Auf explizite Definition-/Workflow-Auswahl umstellen |
-| API Target Person | `/workflows/completed-onboardings` | C | Zielpersonen-Auswahl basiert auf Onboarding als Quellworkflow | Bewusst stabil lassen | Generischen Zielpersonen-Pfad einführen |
-| DTO/Service | `CompletedOnboardingSearchResultDto` | C | Öffentliche Vertragsnamen onboarding-spezifisch | Bewusst stabil lassen | Generische Aliase einführen |
-| Frontend | `CompletedOnboardingSearchResult`, `completed-onboardings` Query Keys | C | Kompletter Zielpersonenpfad spricht von Onboarding | Bewusst stabil lassen | UI + API gemeinsam umstellen |
-| Authorization | `workflows.create.onboarding` Permission | C | Sichtbarer Berechtigungsschlüssel für Legacy-Prozessarten | Bewusst stabil lassen | Permission-Modell an Definitionen ausrichten |
-| Responsibilities | `hr_onboarding` in Seeds | C | Responsibility-Key fachlich verankert | Bewusst stabil lassen | Prüfen und ggf. neutralisieren |
+| API Target Person | `/workflows/completed-onboardings` | abgeschlossen 2026-05-01 | Endpoint gelöscht — `/workflow-target-person-sources` ist jetzt der einzige Pfad | — | — |
+| API Target Person | `/rotation/completed-onboardings` | abgeschlossen 2026-05-01 | Endpoint gelöscht — Frontend nutzt `/people/rotation-eligible` | — | — |
+| DTO/Service | `CompletedOnboardingSearchResultDto` | abgeschlossen 2026-05-01 | DTO gelöscht — Endpoints geben direkt `WorkflowTargetPersonSourceDto` zurück | — | — |
+| Frontend | `CompletedOnboardingSearchResult`, `completed-onboardings` Query Keys | abgeschlossen 2026-05-01 | Type-Aliases entfernt, `RotationEligiblePerson` als Alias auf `WorkflowTargetPerson`, Query-Keys auf `target-person-sources` und `rotation-eligible` umgestellt | — | — |
+| Authorization | `workflows.create.onboarding` Permission | abgeschlossen 2026-05-01 | Permission-Schema ist seit 6.3d-iv vollstaendig definitionsgetrieben (`workflows.create.<definition_key>`); Slice 7C entfernte ungenutztes hardcoded `WorkflowCreatePermissions`-Array | — | — |
+| Responsibilities | `hr_onboarding` in Seeds | abgeschlossen 2026-05-01 | Slice 7B: Responsibility-Key umbenannt zu `hr_workflow_initiator`, Label "HR-Workflow-Initiierung", Backend-Fallback in `NotificationOperations` umgestellt | — | — |
 | Mail-Texte | `NotificationEmailTemplateBuilder` Switch für `onboarding` | C | Sichtbare Mail-Labels mit Onboarding-Fachbegriffen | Bewusst stabil lassen | Mit UX-Entscheidung angleichen |
 | Runtime/DB | `process_types`, task-getriebene Generierung | A | Lifecycle-Begriffe spiegeln Legacy-Architektur | Nur dokumentieren | Im Definition Layer ablösen |
 | Branding/UI | `compose.yml`-Name, `web/index.html`, Theme-Key | A | Sichtbare Altbenennung, kein Kernverhalten | Nur dokumentieren | In Branding-Schnitt ändern |

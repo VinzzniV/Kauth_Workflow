@@ -4,20 +4,22 @@ namespace API;
 
 internal sealed class WorkflowAutomationService(
     IWorkflowAutomationRepository repository,
+    IWorkflowAutomationReadRepository readRepository,
     IWorkflowAutomationHandlerRegistry handlerRegistry,
     ISystemEventLogService systemEventLogService,
+    WorkflowAutomationRetrySettings retrySettings,
     ILogger<WorkflowAutomationService> logger) : IWorkflowAutomationService
 {
     public Task<IReadOnlyList<ActionDefinitionDto>> GetActionDefinitionsAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetAdminActionDefinitions(cancellationToken);
+        return readRepository.GetAdminActionDefinitions(cancellationToken);
     }
 
     public Task<IReadOnlyList<AutomationJobDetailDto>> GetWorkflowAutomationJobsAsync(
         Guid workflowUid,
         CancellationToken cancellationToken = default)
     {
-        return repository.GetAutomationJobs(workflowUid, cancellationToken);
+        return readRepository.GetAutomationJobs(workflowUid, cancellationToken);
     }
 
     public async Task<bool> TryProcessNextPendingJobAsync(CancellationToken cancellationToken = default)
@@ -67,14 +69,9 @@ internal sealed class WorkflowAutomationService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var shouldRetry = job.IsIdempotent && job.AttemptNumber < 3;
+            var shouldRetry = job.IsIdempotent && job.AttemptNumber < retrySettings.MaxAttempts;
             DateTime? retryAvailableAt = shouldRetry
-                ? DateTime.UtcNow + (job.AttemptNumber switch
-                {
-                    1 => TimeSpan.FromMinutes(1),
-                    2 => TimeSpan.FromMinutes(5),
-                    _ => TimeSpan.FromMinutes(5)
-                })
+                ? DateTime.UtcNow + retrySettings.ResolveRetryDelay(job.AttemptNumber)
                 : null;
 
             await repository.CompleteAutomationJobFailure(

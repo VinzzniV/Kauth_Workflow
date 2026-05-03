@@ -16,7 +16,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             [
                 CreateNode("Start", "start", positionX: 60, positionY: 40),
                 CreateNode("Form_A", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}""", positionX: 320, positionY: 40),
-                CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Task_A", "task"),
                 CreateNode("End", "end")
             ],
             Edges =
@@ -40,7 +40,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Approval", "approval", configJson: """{"legacyTemplateKey":"manager_approval"}"""),
+                CreateNode("Approval", "approval"),
                 CreateNode("Decision", "decision"),
                 CreateNode("Done", "end"),
                 CreateNode("Rejected", "end")
@@ -96,8 +96,8 @@ public sealed class WorkflowDefinitionValidationServiceTests
             [
                 CreateNode("Start", "start"),
                 CreateNode("Split", "parallel_split"),
-                CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
-                CreateNode("Task_B", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Task_A", "task"),
+                CreateNode("Task_B", "task"),
                 CreateNode("Join", "parallel_join"),
                 CreateNode("End", "end")
             ],
@@ -155,6 +155,8 @@ public sealed class WorkflowDefinitionValidationServiceTests
     [InlineData("unsupported_type")]
     [InlineData("invalid_decision_json")]
     [InlineData("unsupported_decision_operator")]
+    [InlineData("missing_decision_expected_value_eq")]
+    [InlineData("missing_decision_expected_value_neq")]
     [InlineData("missing_automation_actions")]
     [InlineData("duplicate_action_order")]
     [InlineData("invalid_parallel_split")]
@@ -177,7 +179,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             },
             "missing_end" => new ReplaceWorkflowDefinitionVersionRequest
             {
-                Nodes = [CreateNode("Start", "start"), CreateNode("Task", "task", configJson: """{"legacyTemplateKey":"t"}""")],
+                Nodes = [CreateNode("Start", "start"), CreateNode("Task", "task")],
                 Edges = [CreateEdge("Start", "Task", 0)]
             },
             "missing_config" => new ReplaceWorkflowDefinitionVersionRequest
@@ -197,7 +199,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             },
             "self_loop" => new ReplaceWorkflowDefinitionVersionRequest
             {
-                Nodes = [CreateNode("Start", "start"), CreateNode("Task", "task", configJson: """{"legacyTemplateKey":"t"}"""), CreateNode("End", "end")],
+                Nodes = [CreateNode("Start", "start"), CreateNode("Task", "task"), CreateNode("End", "end")],
                 Edges = [CreateEdge("Start", "Task", 0), CreateEdge("Task", "Task", 0), CreateEdge("Task", "End", 1)]
             },
             "missing_node_reference" => new ReplaceWorkflowDefinitionVersionRequest
@@ -207,12 +209,12 @@ public sealed class WorkflowDefinitionValidationServiceTests
             },
             "start_with_incoming" => new ReplaceWorkflowDefinitionVersionRequest
             {
-                Nodes = [CreateNode("Start", "start"), CreateNode("Task", "task", configJson: """{"legacyTemplateKey":"t"}"""), CreateNode("End", "end")],
+                Nodes = [CreateNode("Start", "start"), CreateNode("Task", "task"), CreateNode("End", "end")],
                 Edges = [CreateEdge("Start", "Task", 0), CreateEdge("Task", "Start", 1), CreateEdge("Task", "End", 2)]
             },
             "end_with_outgoing" => new ReplaceWorkflowDefinitionVersionRequest
             {
-                Nodes = [CreateNode("Start", "start"), CreateNode("End", "end"), CreateNode("Task", "task", configJson: """{"legacyTemplateKey":"t"}""")],
+                Nodes = [CreateNode("Start", "start"), CreateNode("End", "end"), CreateNode("Task", "task")],
                 Edges = [CreateEdge("Start", "End", 0), CreateEdge("End", "Task", 0), CreateEdge("Task", "End", 1)]
             },
             "duplicate_priority" => new ReplaceWorkflowDefinitionVersionRequest
@@ -234,6 +236,16 @@ public sealed class WorkflowDefinitionValidationServiceTests
             {
                 Nodes = [CreateNode("Start", "start"), CreateNode("Decision", "decision"), CreateNode("End", "end")],
                 Edges = [CreateEdge("Start", "Decision", 0), CreateEdge("Decision", "End", 0, """{"answerKey":"mailbox_requested","operator":"gt"}""")]
+            },
+            "missing_decision_expected_value_eq" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes = [CreateNode("Start", "start"), CreateNode("Decision", "decision"), CreateNode("End", "end")],
+                Edges = [CreateEdge("Start", "Decision", 0), CreateEdge("Decision", "End", 0, """{"answerKey":"mailbox_requested","operator":"eq"}""")]
+            },
+            "missing_decision_expected_value_neq" => new ReplaceWorkflowDefinitionVersionRequest
+            {
+                Nodes = [CreateNode("Start", "start"), CreateNode("Decision", "decision"), CreateNode("End", "end")],
+                Edges = [CreateEdge("Start", "Decision", 0), CreateEdge("Decision", "End", 0, """{"answerKey":"mailbox_requested","operator":"neq"}""")]
             },
             "missing_automation_actions" => new ReplaceWorkflowDefinitionVersionRequest
             {
@@ -274,7 +286,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 Nodes =
                 [
                     CreateNode("Start", "start"),
-                    CreateNode("Task", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                    CreateNode("Task", "task"),
                     CreateNode("End_A", "end"),
                     CreateNode("End_B", "end")
                 ],
@@ -290,8 +302,8 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 Nodes =
                 [
                     CreateNode("Start", "start"),
-                    CreateNode("Main", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
-                    CreateNode("Orphan", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                    CreateNode("Main", "task"),
+                    CreateNode("Orphan", "task"),
                     CreateNode("End", "end")
                 ],
                 Edges =
@@ -317,8 +329,8 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Main", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
-                CreateNode("Orphan", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Main", "task"),
+                CreateNode("Orphan", "task"),
                 CreateNode("End", "end")
             ],
             Edges =
@@ -349,7 +361,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("TaskA", "task", configJson: """{"legacyTemplateKey":"missing_template"}"""),
+                CreateNode("TaskA", "task"),
                 CreateNode("End", "end")
             ],
             Edges =
@@ -382,7 +394,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Task_A", "task"),
                 CreateNode("End", "end")
             ],
             Edges =
@@ -390,7 +402,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Start", "Task_A", 0),
                 CreateEdge("Task_A", "End", 0)
             ],
-            PrimaryLegacyProcessTypeKey = "onboarding",
+            WorkflowDefinitionKey ="onboarding",
             RequiresSupervisorStep = true
         });
 
@@ -414,7 +426,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Start", "Gatekeeper", 0),
                 CreateEdge("Gatekeeper", "End", 0)
             ],
-            PrimaryLegacyProcessTypeKey = "onboarding",
+            WorkflowDefinitionKey ="onboarding",
             RequiresSupervisorStep = true
         });
 
@@ -431,7 +443,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             [
                 CreateNode("Start", "start"),
                 CreateNode("Gatekeeper", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
-                CreateNode("Task_A", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("Task_A", "task"),
                 CreateNode("End", "end")
             ],
             Edges =
@@ -440,7 +452,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Gatekeeper", "Task_A", 0),
                 CreateEdge("Task_A", "End", 0)
             ],
-            PrimaryLegacyProcessTypeKey = "onboarding",
+            WorkflowDefinitionKey ="onboarding",
             RequiresSupervisorStep = true
         });
 
@@ -458,7 +470,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateNode("Start", "start"),
                 CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
                 CreateNode("Setup", "measure_deprovision"),
-                CreateNode("HiddenTask", "task", configJson: """{"legacyTemplateKey":"collect_equipment"}"""),
+                CreateNode("HiddenTask", "task"),
                 CreateNode("End", "end")
             ],
             Edges =
@@ -468,7 +480,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Setup", "End", 0),
                 CreateEdge("HiddenTask", "End", 1)
             ],
-            PrimaryLegacyProcessTypeKey = "offboarding",
+            WorkflowDefinitionKey ="offboarding",
             RequiresSupervisorStep = false
         });
 
@@ -494,7 +506,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Requirements", "Setup", 0),
                 CreateEdge("Setup", "End", 0)
             ],
-            PrimaryLegacyProcessTypeKey = "onboarding",
+            WorkflowDefinitionKey ="onboarding",
             RequiresSupervisorStep = true
         });
 
@@ -511,7 +523,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             [
                 CreateNode("Start", "start"),
                 CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
-                CreateNode("Approval", "approval", configJson: """{"legacyTemplateKey":"manager_approval"}"""),
+                CreateNode("Approval", "approval"),
                 CreateNode("Setup", "measure_deprovision"),
                 CreateNode("End", "end")
             ],
@@ -522,38 +534,12 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Approval", "Setup", 0),
                 CreateEdge("Setup", "End", 0)
             ],
-            PrimaryLegacyProcessTypeKey = "offboarding",
+            WorkflowDefinitionKey ="offboarding",
             RequiresSupervisorStep = false
         });
 
         Assert.False(snapshot.CanPublish);
         Assert.Contains(snapshot.Issues, issue => issue.Code == "measure_flow_unexpected_approval");
-    }
-
-    [Fact]
-    public void ValidateSnapshot_AllowsLegacySetupAliasForMigratedProcess()
-    {
-        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
-        {
-            Nodes =
-            [
-                CreateNode("Start", "start"),
-                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
-                CreateNode("Setup", "setup"),
-                CreateNode("End", "end")
-            ],
-            Edges =
-            [
-                CreateEdge("Start", "Requirements", 0),
-                CreateEdge("Requirements", "Setup", 0),
-                CreateEdge("Setup", "End", 0)
-            ],
-            PrimaryLegacyProcessTypeKey = "offboarding",
-            RequiresSupervisorStep = false
-        });
-
-        Assert.True(snapshot.CanPublish);
-        Assert.DoesNotContain(snapshot.Issues, issue => issue.Code == "measure_flow_process_type_mismatch");
     }
 
     [Theory]
@@ -577,7 +563,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Requirements", "Setup", 0),
                 CreateEdge("Setup", "End", 0)
             ],
-            PrimaryLegacyProcessTypeKey = processTypeKey,
+            WorkflowDefinitionKey =processTypeKey,
             RequiresSupervisorStep = false
         });
 
@@ -603,7 +589,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
                 CreateEdge("Requirements", "Setup", 0),
                 CreateEdge("Setup", "End", 0)
             ],
-            PrimaryLegacyProcessTypeKey = "role_change",
+            WorkflowDefinitionKey ="role_change",
             RequiresSupervisorStep = false
         });
 

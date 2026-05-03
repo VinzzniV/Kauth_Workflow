@@ -161,8 +161,8 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
 
             CREATE TABLE IF NOT EXISTS workflow_answer_derivation_rules (
                 id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                source_process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE CASCADE,
-                target_process_type_id INTEGER NOT NULL REFERENCES process_types(id) ON DELETE CASCADE,
+                source_workflow_definition_id INTEGER NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
+                target_workflow_definition_id INTEGER NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
                 source_answer_key VARCHAR(120) NOT NULL REFERENCES workflow_answer_definitions(answer_key) ON UPDATE CASCADE ON DELETE CASCADE,
                 target_answer_key VARCHAR(120) NOT NULL REFERENCES workflow_answer_definitions(answer_key) ON UPDATE CASCADE ON DELETE CASCADE,
                 derivation_kind VARCHAR(40) NOT NULL CHECK (derivation_kind IN ('copy_boolean', 'copy_text', 'copy_number', 'copy_selected_option')),
@@ -170,13 +170,13 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                 sort_order INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 UNIQUE (source_answer_key, target_answer_key),
-                CHECK (source_process_type_id <> target_process_type_id)
+                CHECK (source_workflow_definition_id <> target_workflow_definition_id)
             );
 
-            CREATE INDEX IF NOT EXISTS idx_derivation_rules_source_process
-                ON workflow_answer_derivation_rules(source_process_type_id);
-            CREATE INDEX IF NOT EXISTS idx_derivation_rules_target_process
-                ON workflow_answer_derivation_rules(target_process_type_id);
+            CREATE INDEX IF NOT EXISTS idx_derivation_rules_source_definition
+                ON workflow_answer_derivation_rules(source_workflow_definition_id);
+            CREATE INDEX IF NOT EXISTS idx_derivation_rules_target_definition
+                ON workflow_answer_derivation_rules(target_workflow_definition_id);
             """,
             connection);
         await command.ExecuteNonQueryAsync();
@@ -225,15 +225,14 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(
             """
-            INSERT INTO process_types (
-                key,
+            INSERT INTO workflow_definitions (
+                definition_key,
                 name,
                 description,
                 requires_supervisor_step,
                 approval_task_template_key,
                 requires_target_person,
-                is_active,
-                sort_order
+                allows_manager_creation
             )
             VALUES (
                 @key,
@@ -242,8 +241,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                 FALSE,
                 NULL,
                 FALSE,
-                TRUE,
-                9999
+                FALSE
             )
             RETURNING id;
             """,
@@ -276,7 +274,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await using (var definitionCommand = new NpgsqlCommand(
                          """
                          INSERT INTO workflow_answer_definitions (
-                             process_type_id,
+                             workflow_definition_id,
                              answer_key,
                              title,
                              category,
@@ -365,7 +363,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await using var command = new NpgsqlCommand(
             """
             INSERT INTO workflows (
-                process_type_id,
+                workflow_definition_id,
                 department_id,
                 position_role_id,
                 first_name,
@@ -375,7 +373,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                 status
             )
             VALUES (
-                (SELECT id FROM process_types WHERE key = @processTypeKey),
+                (SELECT id FROM workflow_definitions WHERE definition_key = @processTypeKey),
                 @departmentId,
                 @roleId,
                 'Integration',
@@ -454,8 +452,8 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await using var command = new NpgsqlCommand(
             """
             INSERT INTO workflow_answer_derivation_rules (
-                source_process_type_id,
-                target_process_type_id,
+                source_workflow_definition_id,
+                target_workflow_definition_id,
                 source_answer_key,
                 target_answer_key,
                 derivation_kind,
@@ -598,22 +596,22 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await using var command = new NpgsqlCommand(
             """
             DELETE FROM workflow_answer_derivation_rules
-            WHERE source_process_type_id = @processTypeId
-               OR target_process_type_id = @processTypeId;
+            WHERE source_workflow_definition_id = @processTypeId
+               OR target_workflow_definition_id = @processTypeId;
 
             DELETE FROM workflow_answer_options
             WHERE answer_definition_id IN (
                 SELECT id
                 FROM workflow_answer_definitions
-                WHERE process_type_id = @processTypeId
+                WHERE workflow_definition_id = @processTypeId
             );
 
             DELETE FROM workflow_answer_definitions
-            WHERE process_type_id = @processTypeId;
+            WHERE workflow_definition_id = @processTypeId;
 
-            DELETE FROM process_types
+            DELETE FROM workflow_definitions
             WHERE id = @processTypeId
-              AND key = @processTypeKey;
+              AND definition_key = @processTypeKey;
             """,
             connection);
         command.Parameters.AddWithValue("processTypeId", processType.ProcessTypeId);

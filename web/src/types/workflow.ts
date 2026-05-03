@@ -11,7 +11,6 @@ export type StartableWorkflowDefinition = {
   name: string;
   description?: string | null;
   requiresTargetPerson: boolean;
-  primaryLegacyProcessTypeKey: string;
   latestPublishedVersionNumber: number;
 };
 
@@ -155,7 +154,6 @@ export type CreatePersonPayload = {
 
 export type WorkflowCreationPayload = {
   workflowDefinitionKey?: string | null;
-  processTypeKey?: string | null;
   departmentId?: number | null;
   roleId?: number | null;
   targetPersonId?: number | null;
@@ -184,8 +182,6 @@ export type WorkflowCreationResponse = {
   failedNotifications: number;
   summary: WorkflowCreationSummary;
 };
-
-export type WorkflowStatus = "open" | "completed";
 
 export type WorkflowRuntimeStatus =
   | "draft"
@@ -256,8 +252,6 @@ export type WorkflowSummary = {
   departmentName: string;
   roleId: number;
   roleName: string;
-  // Legacy backend field. Prefer workflowStatus for UI filters and labels.
-  status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
   completedAt: string | null;
@@ -292,8 +286,6 @@ export type WorkflowDetail = {
   departmentName: string;
   roleId: number;
   roleName: string;
-  // Legacy backend field. Prefer workflowStatus for UI filters and labels.
-  status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
   deadlineDate: string | null;
@@ -561,8 +553,6 @@ export type WorkflowTargetPersonSource = {
   archivedAt: string | null;
 };
 
-export type CompletedOnboardingSearchResult = WorkflowTargetPersonSource;
-
 export type DerivedAnswer = {
   targetAnswerKey: string;
   sourceAnswerKey: string;
@@ -580,7 +570,6 @@ export type PersonWorkflowSummary = {
   lastName: string;
   roleName: string;
   departmentName: string;
-  status: WorkflowStatus;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
   completedAt: string | null;

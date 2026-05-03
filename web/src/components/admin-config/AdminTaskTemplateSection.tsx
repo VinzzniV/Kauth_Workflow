@@ -33,8 +33,8 @@ export function AdminTaskTemplateSection({
     <div className="content-stack">
       <div className="master-detail-layout">
         <AdminTaskTemplateSidebar
-          processTypes={management.processTypes}
-          selectedProcessTypeId={management.selectedProcessTypeId}
+          workflowDefinitions={management.workflowDefinitions}
+          selectedWorkflowDefinitionId={management.selectedWorkflowDefinitionId}
           templates={management.templates}
           selectedTemplateId={management.selectedTemplate?.id ?? null}
           isCreatingNew={management.isCreatingNew}
@@ -42,7 +42,7 @@ export function AdminTaskTemplateSection({
           isLoadingTemplates={management.isLoadingTemplates}
           isSaving={management.isSaving}
           isDeleting={management.isDeleting}
-          onSelectProcessType={management.selectProcessType}
+          onSelectWorkflowDefinition={management.selectWorkflowDefinition}
           onStartCreatingTemplate={management.startCreatingTemplate}
           onSelectTemplate={management.selectTemplate}
         />
@@ -50,7 +50,7 @@ export function AdminTaskTemplateSection({
         <div className="content-stack admin-detail-main master-detail-main">
           <AdminTaskTemplateEditor
             panelTitle={panelTitle}
-            selectedProcessTypeId={management.selectedProcessTypeId}
+            selectedWorkflowDefinitionId={management.selectedWorkflowDefinitionId}
             selectedTemplate={management.selectedTemplate}
             isCreatingNew={management.isCreatingNew}
             draft={management.draft}

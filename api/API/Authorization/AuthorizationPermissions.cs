@@ -14,21 +14,13 @@ internal static class AuthorizationPermissions
     public const string AdminDirectoryManage = "admin.directory.manage";
     public const string AdminPermissionsManage = "admin.permissions.manage";
 
-    public static readonly string[] WorkflowCreatePermissions =
+    // Suffix kommt aus dem Workflow-Definition-Key — Permission-Schema ist seit
+    // Slice 6.3d-iv vollstaendig definitionsgetrieben.
+    public static string WorkflowCreate(string workflowDefinitionKey)
     {
-        "workflows.create.onboarding",
-        "workflows.create.offboarding",
-        "workflows.create.department_change",
-        "workflows.create.position_change",
-        "workflows.create.role_change",
-        "workflows.create.name_change"
-    };
-
-    public static string WorkflowCreate(string processTypeKey)
-    {
-        var normalized = string.IsNullOrWhiteSpace(processTypeKey)
+        var normalized = string.IsNullOrWhiteSpace(workflowDefinitionKey)
             ? string.Empty
-            : processTypeKey.Trim().ToLowerInvariant();
+            : workflowDefinitionKey.Trim().ToLowerInvariant();
 
         return $"{WorkflowCreatePrefix}{normalized}";
     }

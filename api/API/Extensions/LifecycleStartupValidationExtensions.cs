@@ -89,7 +89,7 @@ internal static class LifecycleStartupValidationExtensions
             if (!processType.ApprovalTaskTemplateExists)
             {
                 throw new InvalidOperationException(
-                    $"Configured approval task template '{processType.ApprovalTaskTemplateKey}' for process type '{processType.ProcessTypeKey}' is missing in task_templates or inactive. Startup aborted.");
+                    $"Configured approval task template '{processType.ApprovalTaskTemplateKey}' for process type '{processType.ProcessTypeKey}' is missing in workflow_node_task_specs. Startup aborted.");
             }
         }
 
@@ -110,7 +110,7 @@ internal static class LifecycleStartupValidationExtensions
                 Nodes = definition.Nodes,
                 Edges = definition.Edges,
                 ReferenceIssues = definition.ReferenceIssues,
-                PrimaryLegacyProcessTypeKey = definition.PrimaryLegacyProcessTypeKey,
+                WorkflowDefinitionKey = definition.DefinitionKey,
                 RequiresSupervisorStep = definition.RequiresSupervisorStep
             });
 
@@ -309,22 +309,25 @@ internal static class LifecycleStartupValidationExtensions
 
     private static async Task ValidateSupervisorConfigurationAsync(NpgsqlConnection connection, ILogger logger)
     {
+        // LA5: Approval-Task-Spec haengt am measure-Node der published Version.
         const string sql = @"
 SELECT
-    pt.key,
+    pt.definition_key,
     pt.requires_supervisor_step,
     pt.approval_task_template_key,
     EXISTS(
         SELECT 1
-        FROM task_templates tt
-        WHERE tt.process_type_id = pt.id
-          AND tt.template_key = pt.approval_task_template_key
-          AND tt.is_active = TRUE
+        FROM workflow_node_task_specs s
+        JOIN workflow_nodes n ON n.id = s.workflow_node_id
+        JOIN workflow_definition_versions v ON v.id = n.workflow_definition_version_id
+        WHERE v.workflow_definition_id = pt.id
+          AND v.published_at IS NOT NULL
+          AND n.node_type LIKE 'measure_%'
+          AND s.spec_key = pt.approval_task_template_key
     ) AS approval_task_exists
-FROM process_types pt
-WHERE pt.is_active = TRUE
-  AND pt.requires_supervisor_step = TRUE
-ORDER BY pt.sort_order, pt.name, pt.key;";
+FROM workflow_definitions pt
+WHERE pt.requires_supervisor_step = TRUE
+ORDER BY pt.name, pt.definition_key;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         var processTypes = new List<SupervisorProcessValidationRecord>();
@@ -350,8 +353,8 @@ ORDER BY pt.sort_order, pt.name, pt.key;";
 SELECT
     d.definition_key,
     v.version_number,
-    pt.key AS primary_legacy_process_type_key,
-    COALESCE(pt.requires_supervisor_step, FALSE) AS requires_supervisor_step,
+    d.definition_key AS primary_legacy_process_type_key,
+    d.requires_supervisor_step,
     n.node_key,
     n.node_type,
     n.title,
@@ -364,8 +367,6 @@ SELECT
 FROM workflow_definition_versions v
 INNER JOIN workflow_definitions d
     ON d.id = v.workflow_definition_id
-LEFT JOIN process_types pt
-    ON pt.id = v.primary_legacy_process_type_id
 LEFT JOIN workflow_nodes n
     ON n.workflow_definition_version_id = v.id
 LEFT JOIN workflow_node_configs nc
@@ -536,21 +537,8 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, wna.execu
                     });
                 }
 
-                var templateKey = TryGetNodeConfigValue(node, "legacyTemplateKey");
-                if ((string.Equals(node.NodeType, "task", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
-                    && !string.IsNullOrWhiteSpace(templateKey)
-                    && !await LegacyTaskTemplateExists(connection, templateKey, requireActive: true))
-                {
-                    definition.ReferenceIssues.Add(new WorkflowDefinitionValidationIssue
-                    {
-                        Code = "unknown_legacy_template",
-                        Severity = "error",
-                        Scope = "workflow_node",
-                        Message = $"Node '{node.NodeKey}' references unknown or inactive legacyTemplateKey '{templateKey}'.",
-                        ReferenceKey = node.NodeKey
-                    });
-                }
+                // LA5: task/approval-Nodes binden ueber workflow_node_task_specs.workflow_node_id
+                // an ihre Spec; Drift-Check beim Startup entfaellt — Runtime-Resolver wirft, falls Spec fehlt.
 
                 if (string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
                 {
@@ -608,38 +596,19 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, wna.execu
         string processTypeKey,
         bool requireActive)
     {
+        _ = requireActive;
         const string sql = """
 SELECT 1
-FROM process_types
-WHERE key = @key
-  AND (@requireActive = FALSE OR is_active = TRUE)
+FROM workflow_definitions
+WHERE definition_key = @key
 LIMIT 1;
 """;
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("key", processTypeKey.Trim().ToLowerInvariant());
-        command.Parameters.AddWithValue("requireActive", requireActive);
         return await command.ExecuteScalarAsync() is not null;
     }
 
-    private static async Task<bool> LegacyTaskTemplateExists(
-        NpgsqlConnection connection,
-        string templateKey,
-        bool requireActive)
-    {
-        const string sql = """
-SELECT 1
-FROM task_templates
-WHERE template_key = @templateKey
-  AND (@requireActive = FALSE OR is_active = TRUE)
-LIMIT 1;
-""";
-
-        await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("templateKey", templateKey.Trim().ToLowerInvariant());
-        command.Parameters.AddWithValue("requireActive", requireActive);
-        return await command.ExecuteScalarAsync() is not null;
-    }
 
     private static async Task<bool> ActionDefinitionExists(
         NpgsqlConnection connection,

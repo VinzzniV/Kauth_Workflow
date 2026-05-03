@@ -1,19 +1,8 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReactNode } from "react";
 import WorkflowBuilderPage from "../src/pages/WorkflowBuilderPage";
 import * as adminConfigApi from "../src/services/adminConfigApi";
 import { renderWithApp } from "./testUtils";
-
-vi.mock("@xyflow/react", () => ({
-  Background: () => null,
-  Controls: () => null,
-  MiniMap: () => null,
-  Handle: () => null,
-  Position: { Left: "left", Right: "right" },
-  MarkerType: { ArrowClosed: "arrowclosed" },
-  ReactFlow: ({ children }: { children?: ReactNode }) => <div data-testid="mock-react-flow-page">{children}</div>,
-}));
 
 vi.mock("../src/services/adminConfigApi", () => ({
   createAdminWorkflowDefinition: vi.fn(),
@@ -33,101 +22,81 @@ const mockedGetAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.getAdmi
 const mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft = vi.mocked(adminConfigApi.getOrCreateAdminWorkflowDefinitionWorkingDraft);
 const mockedGetAdminWorkflowDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowDefinitions);
 
-describe("WorkflowBuilderPage", () => {
+const sampleDefinition = {
+  id: 1,
+  key: "onboarding",
+  name: "Onboarding",
+  description: "Definition",
+  versions: [
+    {
+      id: 10,
+      workflowDefinitionId: 1,
+      versionNumber: 1,
+      status: "draft",
+      name: "Draft 1",
+      description: "Initial draft",
+      primaryLegacyProcessTypeKey: "onboarding",
+      createdAt: "2026-04-08T10:00:00Z",
+      updatedAt: "2026-04-08T10:00:00Z",
+      publishedAt: null,
+      canPublish: true,
+      validationIssues: [],
+    },
+  ],
+};
+
+const sampleVersionDetail = {
+  id: 10,
+  workflowDefinitionId: 1,
+  definitionKey: "onboarding",
+  definitionName: "Onboarding",
+  definitionDescription: "Definition",
+  versionNumber: 1,
+  status: "draft",
+  name: "Draft 1",
+  description: "Initial draft",
+  primaryLegacyProcessTypeKey: "onboarding",
+  createdAt: "2026-04-08T10:00:00Z",
+  updatedAt: "2026-04-08T10:00:00Z",
+  publishedAt: null,
+  canPublish: true,
+  validationIssues: [],
+  nodes: [
+    { nodeKey: "start", nodeType: "start", title: "Start", sortOrder: 1, positionX: null, positionY: null, config: null, actions: [] },
+    { nodeKey: "end", nodeType: "end", title: "Ende", sortOrder: 2, positionX: null, positionY: null, config: null, actions: [] },
+  ],
+  edges: [{ sourceNodeKey: "start", targetNodeKey: "end", priority: 1, conditionExpression: null }],
+};
+
+describe("WorkflowBuilderPage (Form-Editor)", () => {
   beforeEach(() => {
     mockedGetAdminWorkflowActionDefinitions.mockReset();
     mockedGetAdminWorkflowDefinitionVersion.mockReset();
     mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockReset();
     mockedGetAdminWorkflowDefinitions.mockReset();
 
-    mockedGetAdminWorkflowDefinitions.mockResolvedValue([
-      {
-        id: 1,
-        key: "onboarding",
-        name: "Onboarding",
-        description: "Definition",
-        versions: [
-          {
-            id: 10,
-            workflowDefinitionId: 1,
-            versionNumber: 1,
-            status: "draft",
-            name: "Draft 1",
-            description: "Initial draft",
-            primaryLegacyProcessTypeKey: "onboarding",
-            createdAt: "2026-04-08T10:00:00Z",
-            updatedAt: "2026-04-08T10:00:00Z",
-            publishedAt: null,
-            canPublish: true,
-            validationIssues: [],
-          },
-        ],
-      },
-    ]);
+    mockedGetAdminWorkflowDefinitions.mockResolvedValue([sampleDefinition]);
     mockedGetAdminWorkflowActionDefinitions.mockResolvedValue([]);
-    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValue({
-      id: 10,
-      workflowDefinitionId: 1,
-      definitionKey: "onboarding",
-      definitionName: "Onboarding",
-      definitionDescription: "Definition",
-      versionNumber: 1,
-      status: "draft",
-      name: "Draft 1",
-      description: "Initial draft",
-      primaryLegacyProcessTypeKey: "onboarding",
-      createdAt: "2026-04-08T10:00:00Z",
-      updatedAt: "2026-04-08T10:00:00Z",
-      publishedAt: null,
-      canPublish: true,
-      validationIssues: [],
-      nodes: [
-        { nodeKey: "start", nodeType: "start", title: "Start", sortOrder: 1, positionX: 80, positionY: 60, config: null, actions: [] },
-        { nodeKey: "end", nodeType: "end", title: "Ende", sortOrder: 2, positionX: 420, positionY: 60, config: null, actions: [] },
-      ],
-      edges: [{ sourceNodeKey: "start", targetNodeKey: "end", priority: 1, conditionExpression: null }],
-    });
-    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValue({
-      id: 10,
-      workflowDefinitionId: 1,
-      definitionKey: "onboarding",
-      definitionName: "Onboarding",
-      definitionDescription: "Definition",
-      versionNumber: 1,
-      status: "draft",
-      name: "Draft 1",
-      description: "Initial draft",
-      primaryLegacyProcessTypeKey: "onboarding",
-      createdAt: "2026-04-08T10:00:00Z",
-      updatedAt: "2026-04-08T10:00:00Z",
-      publishedAt: null,
-      canPublish: true,
-      validationIssues: [],
-      nodes: [
-        { nodeKey: "start", nodeType: "start", title: "Start", sortOrder: 1, positionX: 80, positionY: 60, config: null, actions: [] },
-        { nodeKey: "end", nodeType: "end", title: "Ende", sortOrder: 2, positionX: 420, positionY: 60, config: null, actions: [] },
-      ],
-      edges: [{ sourceNodeKey: "start", targetNodeKey: "end", priority: 1, conditionExpression: null }],
-    });
+    mockedGetAdminWorkflowDefinitionVersion.mockResolvedValue(sampleVersionDetail);
+    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValue(sampleVersionDetail);
   });
 
-  it("renders the standalone builder page in admin mode", async () => {
+  it("renders the form-editor sections in admin mode", async () => {
     renderWithApp(<WorkflowBuilderPage />, { roleKeys: ["auth_admin"] });
 
-    expect((await screen.findAllByRole("heading", { name: "Ablauf-Editor" })).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Admin-Modus").length).toBeGreaterThan(0);
-    expect(await screen.findByText("Verwaltung")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /Stammdaten/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Schritte/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Übergänge/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Validierung/i })).toBeTruthy();
+    // Admin-only actions
+    expect(screen.getByRole("button", { name: /\+ Neuer Workflow/ })).toBeTruthy();
   });
 
-  it("renders the standalone builder page in limited builder mode", async () => {
+  it("hides admin-only actions in limited builder mode", async () => {
     renderWithApp(<WorkflowBuilderPage />, { roleKeys: ["auth_manager"] });
 
-    expect((await screen.findAllByRole("heading", { name: "Ablauf-Editor" })).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Bearbeitungsmodus").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Automatisierung gesperrt").length).toBeGreaterThan(0);
-    await waitFor(() => {
-      expect(mockedGetAdminWorkflowActionDefinitions).not.toHaveBeenCalled();
-    });
-    expect(screen.queryByRole("button", { name: "Ablauf anlegen" })).toBeNull();
+    expect(await screen.findByRole("heading", { name: /Stammdaten/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /\+ Neuer Workflow/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Workflow löschen/ })).toBeNull();
   });
 });

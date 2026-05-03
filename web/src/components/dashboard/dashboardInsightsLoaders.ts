@@ -10,7 +10,7 @@ import {
   getManagerWorkflowAction,
   getManagerWorkflowContextText,
   getManagerWorkflowPriority,
-  getProcessTypeContext,
+  getWorkflowDefinitionContext,
   isOpenTask,
   isRecentlyCompletedWorkflow,
   RECENT_COMPLETION_WINDOW_DAYS,
@@ -19,9 +19,9 @@ import {
 } from "./dashboardInsights.shared";
 
 export async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const selectedProcessType = options.selectedProcessType ?? null;
-  const processTypeContext = getProcessTypeContext(selectedProcessType);
-  const workflows = await getWorkflows({ processTypeKey: options.processTypeKey ?? null });
+  const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;
+  const workflowDefinitionContext = getWorkflowDefinitionContext(selectedWorkflowDefinition);
+  const workflows = await getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null });
   const metrics = summarizeWorkflows(workflows);
   const departmentInProgress = metrics.waitingDepartment + metrics.inProgress;
   const activeWorkflows = workflows
@@ -47,8 +47,8 @@ export async function loadHrInsights(options: DashboardInsightsOptions = {}): Pr
 
   return {
     heading: "HR auf einen Blick",
-    nextStep: selectedProcessType
-      ? `${selectedProcessType.name}-Fälle in Startphase und Rücklauf prüfen.`
+    nextStep: selectedWorkflowDefinition
+      ? `${selectedWorkflowDefinition.name}-Fälle in Startphase und Rücklauf prüfen.`
       : "Startphase und Rückläufe prüfen.",
     stats: [
       { label: "Offene Vorgänge", value: metrics.open, note: "laufend", statusLabel: "Offen", tone: "neutral" },
@@ -68,7 +68,7 @@ export async function loadHrInsights(options: DashboardInsightsOptions = {}): Pr
       },
       { label: "Abgeschlossen", value: metrics.completed, note: "fertig", statusLabel: "abgeschlossen", tone: "success" },
     ],
-    queueTitle: processTypeContext.scopedTitle,
+    queueTitle: workflowDefinitionContext.scopedTitle,
     queueItems: activeWorkflows.map((workflow) => ({
       key: workflow.uid,
       title: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
@@ -76,19 +76,19 @@ export async function loadHrInsights(options: DashboardInsightsOptions = {}): Pr
       to: `/workflows/${workflow.uid}`,
       actionLabel: "Öffnen",
     })),
-    emptyQueueText: processTypeContext.scopedEmptyQueueText,
+    emptyQueueText: workflowDefinitionContext.scopedEmptyQueueText,
   };
 }
 
 export async function loadManagerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const selectedProcessType = options.selectedProcessType ?? null;
+  const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;
   const nowEpoch = Date.now();
   const [supervisorWorkflows, visibleWorkflows] = await Promise.all([
     getSupervisorStepWorkflows(),
-    getWorkflows({ processTypeKey: options.processTypeKey ?? null }),
+    getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null }),
   ]);
-  const filteredSupervisorWorkflows = options.processTypeKey
-    ? supervisorWorkflows.filter((workflow) => workflow.processType.key === options.processTypeKey)
+  const filteredSupervisorWorkflows = options.workflowDefinitionKey
+    ? supervisorWorkflows.filter((workflow) => workflow.processType.key === options.workflowDefinitionKey)
     : supervisorWorkflows;
   const relevantWorkflows = visibleWorkflows.filter(
     (workflow) => !isWorkflowTerminalStatus(workflow.workflowStatus) || isRecentlyCompletedWorkflow(workflow, nowEpoch)
@@ -150,8 +150,8 @@ export async function loadManagerInsights(options: DashboardInsightsOptions = {}
         {
           key: "manager-supervisor-summary",
           title: compactSummaryText,
-          detail: selectedProcessType
-            ? `Öffnen Sie die offenen ${selectedProcessType.name}-Fälle im Leitungs-Schritt.`
+          detail: selectedWorkflowDefinition
+            ? `Öffnen Sie die offenen ${selectedWorkflowDefinition.name}-Fälle im Leitungs-Schritt.`
             : "Öffnen Sie die offenen Fälle im Leitungs-Schritt.",
           to: "/supervisor",
           actionLabel: "Freigaben öffnen",
@@ -174,7 +174,7 @@ export async function loadManagerInsights(options: DashboardInsightsOptions = {}
       {
         label: "Aktive Vorgänge",
         value: activeWorkflows.length,
-        note: selectedProcessType ? `${selectedProcessType.name}-Fälle` : "in Ihren Abteilungen",
+        note: selectedWorkflowDefinition ? `${selectedWorkflowDefinition.name}-Fälle` : "in Ihren Abteilungen",
         tone: "progress",
       },
       {
@@ -184,10 +184,10 @@ export async function loadManagerInsights(options: DashboardInsightsOptions = {}
         tone: "success",
       },
     ],
-    queueTitle: selectedProcessType ? `Mitarbeitende (${selectedProcessType.name})` : "Mitarbeitende",
+    queueTitle: selectedWorkflowDefinition ? `Mitarbeitende (${selectedWorkflowDefinition.name})` : "Mitarbeitende",
     queueItems,
     emptyQueueText: compactSummaryText,
-    employeeListTitle: selectedProcessType ? `Mitarbeitende (${selectedProcessType.name})` : "Mitarbeitende",
+    employeeListTitle: selectedWorkflowDefinition ? `Mitarbeitende (${selectedWorkflowDefinition.name})` : "Mitarbeitende",
     employeeListDescription: "Aktive und kürzlich abgeschlossene Vorgänge Ihrer sichtbaren Abteilungen.",
     employeeItems,
   };
@@ -281,9 +281,9 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
     getAdminUsers(),
     getAdminRoles(),
     getAdminGroups(),
-    getWorkflows({ processTypeKey: options.processTypeKey ?? null }),
+    getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null }),
   ]);
-  const selectedProcessType = options.selectedProcessType ?? null;
+  const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;
   const activeUsers = users.filter((user) => user.isActive).length;
   const inactiveUsers = users.length - activeUsers;
   const groupsWithoutRoles = groups.filter((group) => group.roles.length === 0).length;
@@ -330,8 +330,8 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
 
   return {
     heading: "Verwaltung",
-    nextStep: selectedProcessType
-      ? `Stammdaten, Rechte und Engpässe für ${selectedProcessType.name} prüfen.`
+    nextStep: selectedWorkflowDefinition
+      ? `Stammdaten, Rechte und Engpässe für ${selectedWorkflowDefinition.name} prüfen.`
       : "Stammdaten, Rechte und Engpässe prüfen.",
     stats: [
       { label: "Benutzer", value: users.length, note: `${activeUsers} aktiv, ${inactiveUsers} inaktiv` },
@@ -346,9 +346,9 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
 }
 
 export async function loadViewerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const selectedProcessType = options.selectedProcessType ?? null;
-  const processTypeContext = getProcessTypeContext(selectedProcessType);
-  const workflows = await getWorkflows({ processTypeKey: options.processTypeKey ?? null });
+  const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;
+  const workflowDefinitionContext = getWorkflowDefinitionContext(selectedWorkflowDefinition);
+  const workflows = await getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null });
   const metrics = summarizeWorkflows(workflows);
   const queueItems = workflows
     .slice()
@@ -370,9 +370,9 @@ export async function loadViewerInsights(options: DashboardInsightsOptions = {})
       { label: "Offen", value: metrics.open, note: "noch offen" },
       { label: "Abgeschlossen", value: metrics.completed, note: "fertig" },
     ],
-    queueTitle: processTypeContext.scopedTitle,
+    queueTitle: workflowDefinitionContext.scopedTitle,
     queueItems,
-    emptyQueueText: processTypeContext.scopedEmptyQueueText,
+    emptyQueueText: workflowDefinitionContext.scopedEmptyQueueText,
   };
 }
 

@@ -9,7 +9,7 @@ vi.mock("../src/services/lookupApi", async () => {
   const actual = await vi.importActual<typeof import("../src/services/lookupApi")>("../src/services/lookupApi");
   return {
     ...actual,
-    getProcessTypes: vi.fn(),
+    getStartableWorkflowDefinitions: vi.fn(),
     getDepartments: vi.fn(),
   };
 });
@@ -22,7 +22,7 @@ vi.mock("../src/services/workflowApi", async () => {
   };
 });
 
-const mockedGetProcessTypes = vi.mocked(lookupApi.getProcessTypes);
+const mockedGetStartableWorkflowDefinitions = vi.mocked(lookupApi.getStartableWorkflowDefinitions);
 const mockedGetDepartments = vi.mocked(lookupApi.getDepartments);
 const mockedGetWorkflowPage = vi.mocked(workflowApi.getWorkflowPage);
 
@@ -54,12 +54,12 @@ function createWorkflowPageResponse(
 
 describe("WorkflowSearchPage", () => {
   beforeEach(() => {
-    mockedGetProcessTypes.mockReset();
+    mockedGetStartableWorkflowDefinitions.mockReset();
     mockedGetDepartments.mockReset();
     mockedGetWorkflowPage.mockReset();
-    mockedGetProcessTypes.mockResolvedValue([
-      { key: "onboarding", name: "Onboarding" },
-      { key: "offboarding", name: "Offboarding" },
+    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
+      { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, primaryLegacyProcessTypeKey: "onboarding", latestPublishedVersionNumber: 1 },
+      { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
     ]);
     mockedGetDepartments.mockResolvedValue([
       { id: 10, name: "IT" },
@@ -147,7 +147,7 @@ describe("WorkflowSearchPage", () => {
     expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
       1000,
       0,
-      expect.objectContaining({ processTypeKey: "offboarding" })
+      expect.objectContaining({ workflowDefinitionKey: "offboarding" })
     );
   });
 

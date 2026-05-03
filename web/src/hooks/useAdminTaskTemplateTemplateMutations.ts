@@ -31,7 +31,7 @@ export function useAdminTaskTemplateTemplateMutations({
   data,
 }: UseAdminTaskTemplateTemplateMutationsOptions) {
   const buildPayload = useCallback(() => {
-    if (!data.selectedProcessTypeId) {
+    if (!data.selectedWorkflowDefinitionId) {
       throw new Error("Bitte zuerst einen Prozesstyp auswählen.");
     }
 
@@ -55,7 +55,7 @@ export function useAdminTaskTemplateTemplateMutations({
     }
 
     return {
-      processTypeId: data.selectedProcessTypeId,
+      workflowDefinitionId: data.selectedWorkflowDefinitionId,
       templateKey: data.draft.templateKey.trim(),
       title: data.draft.title.trim(),
       category: data.draft.category.trim() || "general",

@@ -25,9 +25,6 @@ public sealed class WorkflowDefinitionRuntimeDetailDto
     public required long WorkflowDefinitionVersionId { get; init; }
     public required int WorkflowDefinitionVersionNumber { get; init; }
     public required string CurrentRuntimeStatus { get; init; }
-    public required string LegacyWorkflowStatus { get; init; }
-    public required string PrimaryLegacyProcessTypeKey { get; init; }
-    public required string PrimaryLegacyProcessTypeName { get; init; }
     public required int DepartmentId { get; init; }
     public required int RoleId { get; init; }
     public string? FirstName { get; init; }

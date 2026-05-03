@@ -7,30 +7,9 @@ vi.mock("../src/services/api/client", () => ({
 }));
 
 import { requestJson } from "../src/services/api/client";
-import { getProcessTypes, getStartableWorkflowDefinitions } from "../src/services/lookupApi";
+import { getStartableWorkflowDefinitions } from "../src/services/lookupApi";
 
 const mockedRequestJson = vi.mocked(requestJson);
-
-describe("lookupApi.getProcessTypes", () => {
-  beforeEach(() => {
-    mockedRequestJson.mockReset();
-  });
-
-  it("loads process types fresh on every call instead of reusing a shared cache", async () => {
-    mockedRequestJson
-      .mockResolvedValueOnce([{ key: "onboarding", name: "Onboarding", requiresTargetPerson: false }])
-      .mockResolvedValueOnce([{ key: "department_change", name: "Abteilungswechsel", requiresTargetPerson: true }]);
-
-    const first = await getProcessTypes();
-    const second = await getProcessTypes();
-
-    expect(first).toEqual([{ key: "onboarding", name: "Onboarding", requiresTargetPerson: false }]);
-    expect(second).toEqual([{ key: "department_change", name: "Abteilungswechsel", requiresTargetPerson: true }]);
-    expect(mockedRequestJson).toHaveBeenCalledTimes(2);
-    expect(mockedRequestJson).toHaveBeenNthCalledWith(1, "/process-types");
-    expect(mockedRequestJson).toHaveBeenNthCalledWith(2, "/process-types");
-  });
-});
 
 describe("lookupApi.getStartableWorkflowDefinitions", () => {
   beforeEach(() => {

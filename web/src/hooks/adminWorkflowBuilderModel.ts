@@ -6,7 +6,6 @@ import type {
   AdminWorkflowDefinitionVersionSummary,
   AdminWorkflowNodeAction,
 } from "../types/auth";
-import { buildWorkflowBuilderStructuredLayout } from "../components/admin-config/workflowBuilderStructuredLayout";
 
 export type WorkflowBuilderNodeDraft = {
   id: string;
@@ -20,7 +19,6 @@ export type WorkflowBuilderNodeDraft = {
     | "measure_deprovision"
     | "measure_change"
     | "measure_rename"
-    | "setup"
     | "task"
     | "decision"
     | "automation"
@@ -65,7 +63,6 @@ export type WorkflowBuilderLocalIssue = {
 };
 
 const MEASURE_GENERATION_NODE_TYPES = [
-  "setup",
   "measure_provision",
   "measure_deprovision",
   "measure_change",
@@ -81,20 +78,13 @@ const PROCESS_MEASURE_NODE_TYPES = {
   name_change: "measure_rename",
 } as const satisfies Partial<Record<string, WorkflowBuilderNodeDraft["nodeType"]>>;
 
-const LEGACY_SETUP_TITLES = new Set([
-  "setup",
-  "it/fachbereichs-setup",
-  "legacy setup",
-  "legacy-setup",
-]);
-
 export function createLocalId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function isMeasureGenerationNodeType(
   nodeType: string | null | undefined
-): nodeType is Extract<WorkflowBuilderNodeDraft["nodeType"], "setup" | "measure_provision" | "measure_deprovision" | "measure_change" | "measure_rename"> {
+): nodeType is Extract<WorkflowBuilderNodeDraft["nodeType"], "measure_provision" | "measure_deprovision" | "measure_change" | "measure_rename"> {
   return typeof nodeType === "string"
     && MEASURE_GENERATION_NODE_TYPES.includes(nodeType as (typeof MEASURE_GENERATION_NODE_TYPES)[number]);
 }
@@ -186,66 +176,31 @@ export function createEmptyEdgeDraft(): WorkflowBuilderEdgeDraft {
 }
 
 export function toVersionDraft(detail: AdminWorkflowDefinitionVersionDetail): WorkflowBuilderVersionDraft {
-  const draft = {
+  // Builder-internes Feld primaryLegacyProcessTypeKey kommt jetzt direkt aus dem
+  // definitionKey — beide sind seit Slice 6.2/6.3b semantisch identisch.
+  return {
     name: detail.name ?? "",
     description: detail.description ?? "",
-    primaryLegacyProcessTypeKey: detail.primaryLegacyProcessTypeKey ?? "",
-    nodes: detail.nodes.map((node) => toNodeDraft(node, detail.primaryLegacyProcessTypeKey ?? null)),
+    primaryLegacyProcessTypeKey: detail.definitionKey,
+    nodes: detail.nodes.map(toNodeDraft),
     edges: detail.edges.map(toEdgeDraft),
   };
-
-  return autoLayoutVersionDraft(draft);
 }
 
 function toNodeDraft(
-  node: AdminWorkflowDefinitionNode,
-  primaryLegacyProcessTypeKey: string | null
+  node: AdminWorkflowDefinitionNode
 ): WorkflowBuilderNodeDraft {
-  const normalizedSourceNodeType = normalizeNodeType(node.nodeType);
-  const nodeType = normalizeLifecycleMeasureNodeType(
-    normalizedSourceNodeType,
-    primaryLegacyProcessTypeKey
-  );
   return {
     id: createLocalId("node"),
     nodeKey: node.nodeKey ?? "",
-    nodeType,
-    title: normalizeLifecycleMeasureNodeTitle(node.title, normalizedSourceNodeType, nodeType),
+    nodeType: normalizeNodeType(node.nodeType ?? ""),
+    title: node.title ?? "",
     sortOrder: String(node.sortOrder),
     positionX: node.positionX ?? null,
     positionY: node.positionY ?? null,
     configText: toJsonText(node.config),
     actions: node.actions.map(toActionDraft),
   };
-}
-
-function normalizeLifecycleMeasureNodeType(
-  nodeType: WorkflowBuilderNodeDraft["nodeType"],
-  primaryLegacyProcessTypeKey: string | null
-): WorkflowBuilderNodeDraft["nodeType"] {
-  if (nodeType !== "setup") {
-    return nodeType;
-  }
-
-  return getExpectedMeasureNodeTypeForProcessKey(primaryLegacyProcessTypeKey) ?? nodeType;
-}
-
-function normalizeLifecycleMeasureNodeTitle(
-  title: string | null,
-  sourceNodeType: WorkflowBuilderNodeDraft["nodeType"],
-  normalizedNodeType: WorkflowBuilderNodeDraft["nodeType"]
-): string {
-  const normalizedTitle = title ?? "";
-  if (sourceNodeType !== "setup" || normalizedNodeType === "setup") {
-    return normalizedTitle;
-  }
-
-  const compactTitle = normalizedTitle.trim().toLowerCase();
-  if (!compactTitle || LEGACY_SETUP_TITLES.has(compactTitle)) {
-    return getDefaultWorkflowBuilderNodeTitle(normalizedNodeType);
-  }
-
-  return normalizedTitle;
 }
 
 function toActionDraft(action: AdminWorkflowNodeAction): WorkflowBuilderActionDraft {
@@ -278,7 +233,6 @@ function normalizeNodeType(value: string | null): WorkflowBuilderNodeDraft["node
     case "measure_deprovision":
     case "measure_change":
     case "measure_rename":
-    case "setup":
     case "decision":
     case "automation":
     case "parallel_split":
@@ -287,6 +241,82 @@ function normalizeNodeType(value: string | null): WorkflowBuilderNodeDraft["node
     default:
       return "task";
   }
+}
+
+/**
+ * Topologische Sortierung der Knoten anhand der Edges (Kahn).
+ * Tie-Breaker: ursprüngliche Array-Position (= manuelle Reihenfolge via moveNode + sortOrder).
+ * Knoten ohne nodeKey oder Knoten in Zyklen werden ans Ende angehängt in Array-Reihenfolge.
+ */
+export function topologicallyOrderNodes(
+  nodes: WorkflowBuilderNodeDraft[],
+  edges: WorkflowBuilderEdgeDraft[]
+): WorkflowBuilderNodeDraft[] {
+  const indexById = new Map(nodes.map((node, idx) => [node.id, idx] as const));
+  const nodesByNormalizedKey = new Map<string, WorkflowBuilderNodeDraft>();
+  for (const node of nodes) {
+    const key = node.nodeKey.trim().toLowerCase();
+    if (key && !nodesByNormalizedKey.has(key)) {
+      nodesByNormalizedKey.set(key, node);
+    }
+  }
+
+  const inDegree = new Map<string, number>();
+  const adjacency = new Map<string, string[]>();
+  for (const node of nodes) {
+    inDegree.set(node.id, 0);
+    adjacency.set(node.id, []);
+  }
+
+  for (const edge of edges) {
+    const source = nodesByNormalizedKey.get(edge.sourceNodeKey.trim().toLowerCase());
+    const target = nodesByNormalizedKey.get(edge.targetNodeKey.trim().toLowerCase());
+    if (!source || !target || source.id === target.id) continue;
+    adjacency.get(source.id)!.push(target.id);
+    inDegree.set(target.id, (inDegree.get(target.id) ?? 0) + 1);
+  }
+
+  const ready: string[] = [];
+  for (const node of nodes) {
+    if ((inDegree.get(node.id) ?? 0) === 0) {
+      ready.push(node.id);
+    }
+  }
+  // Stabile Sortierung nach Array-Index — sorgt für deterministische Reihenfolge bei
+  // mehreren Wurzeln und Tie-Break bei parallelen Pfaden.
+  ready.sort((a, b) => (indexById.get(a) ?? 0) - (indexById.get(b) ?? 0));
+
+  const visited = new Set<string>();
+  const result: WorkflowBuilderNodeDraft[] = [];
+  while (ready.length > 0) {
+    const nextId = ready.shift()!;
+    if (visited.has(nextId)) continue;
+    visited.add(nextId);
+    const node = nodes.find((n) => n.id === nextId);
+    if (node) result.push(node);
+    const successors = adjacency.get(nextId) ?? [];
+    const newlyReady: string[] = [];
+    for (const succId of successors) {
+      const next = (inDegree.get(succId) ?? 0) - 1;
+      inDegree.set(succId, next);
+      if (next === 0 && !visited.has(succId)) {
+        newlyReady.push(succId);
+      }
+    }
+    if (newlyReady.length > 0) {
+      ready.push(...newlyReady);
+      ready.sort((a, b) => (indexById.get(a) ?? 0) - (indexById.get(b) ?? 0));
+    }
+  }
+
+  // Knoten in Zyklen oder ohne erreichbare Wurzel: an Array-Reihenfolge anhängen.
+  for (const node of nodes) {
+    if (!visited.has(node.id)) {
+      result.push(node);
+    }
+  }
+
+  return result;
 }
 
 export function toJsonText(value: unknown | null): string {
@@ -301,7 +331,6 @@ export function buildVersionReplacePayload(draft: WorkflowBuilderVersionDraft) {
   return {
     name: toNullableText(draft.name),
     description: toNullableText(draft.description),
-    primaryLegacyProcessTypeKey: toNullableText(draft.primaryLegacyProcessTypeKey),
     nodes: draft.nodes.map((node, index) => ({
       nodeKey: toNullableText(node.nodeKey),
       nodeType: node.nodeType,
@@ -328,50 +357,6 @@ export function buildVersionReplacePayload(draft: WorkflowBuilderVersionDraft) {
   };
 }
 
-export function autoLayoutVersionDraft(draft: WorkflowBuilderVersionDraft): WorkflowBuilderVersionDraft {
-  return {
-    ...draft,
-    nodes: forceAutoLayoutNodePositions(draft.nodes, draft.edges),
-  };
-}
-
-export function withFallbackNodePositions(
-  nodes: WorkflowBuilderNodeDraft[],
-  edges: WorkflowBuilderEdgeDraft[]
-): WorkflowBuilderNodeDraft[] {
-  const fallback = buildStructuredPositions(nodes, edges);
-  return nodes.map((node) => {
-    const position = fallback.get(node.id);
-    return {
-      ...node,
-      positionX: node.positionX ?? position?.x ?? null,
-      positionY: node.positionY ?? position?.y ?? null,
-    };
-  });
-}
-
-function forceAutoLayoutNodePositions(
-  nodes: WorkflowBuilderNodeDraft[],
-  edges: WorkflowBuilderEdgeDraft[]
-): WorkflowBuilderNodeDraft[] {
-  const fallback = buildStructuredPositions(nodes, edges);
-  return nodes.map((node) => {
-    const position = fallback.get(node.id);
-    return {
-      ...node,
-      positionX: position?.x ?? 0,
-      positionY: position?.y ?? 0,
-    };
-  });
-}
-
-function buildStructuredPositions(
-  nodes: WorkflowBuilderNodeDraft[],
-  edges: WorkflowBuilderEdgeDraft[]
-): Map<string, { x: number; y: number }> {
-  const layout = buildWorkflowBuilderStructuredLayout({ nodes, edges });
-  return layout.positionsBySourceNodeId;
-}
 
 function normalizeNodeKey(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -636,7 +621,7 @@ function validateMeasurePhaseProcessCompatibility(
   }
 
   const measureNode = measureNodes[0]!;
-  if (measureNode.nodeType === "setup" || measureNode.nodeType === expectedMeasureNodeType) {
+  if (measureNode.nodeType === expectedMeasureNodeType) {
     return;
   }
 
@@ -661,13 +646,16 @@ function toNullableInteger(value: number | null): number | null {
   return Number.isInteger(value) ? value : null;
 }
 
-function parseOptionalJsonObject(value: string): unknown | null {
+function parseOptionalJsonObject(value: string): Record<string, unknown> | null {
   if (!value.trim()) {
     return null;
   }
 
-  const parsed = JSON.parse(value);
-  return parsed;
+  const parsed: unknown = JSON.parse(value);
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Erwartet wurde ein JSON-Objekt.");
+  }
+  return parsed as Record<string, unknown>;
 }
 
 export function isDefinitionMetadataChanged(

@@ -2,7 +2,7 @@
 
 #stand #review
 
-Aktueller Stand der Code Review vom 2026-04-23. Was erledigt ist, was noch aussteht.
+Aktueller Stand der Code Review. Was erledigt ist, was noch aussteht.
 
 Primärquelle im Repo: `CODE_REVIEW.md`
 
@@ -10,72 +10,95 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 
 ---
 
-## Gesamtbewertung (April 2026)
+## Gesamtbewertung (Stand 2026-05-02 — Zyklus 4)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
-| Backend-Architektur | B- | Gute Service-Trennung, aber monolithisches Repository |
+| Backend-Architektur | A- | Repository-Monolith in 8 Subsystem-Klassen + TaskTemplate 3-fach + GraphMapping ausgelagert |
 | Datenbankdesign | A- | Solides Schema, gute Constraints |
-| Auth & Berechtigungen | B | Durchdacht, Kantenfälle (gelöschte User, leere Zuständigkeiten) jetzt behandelt |
-| Rotation-Feature | B- | Funktioniert, Kernlogik im falschen Layer |
-| Frontend-Architektur | C+ | Seiten zu groß, fehlende Error-Boundaries |
-| Testbarkeit | D | Monolithisches Repository verhindert Unit-Tests |
-| Skalierbarkeit | C | In-Memory-Filter strukturell problematisch (Rotation behoben) |
-| Sicherheit | B | Auth konsistent; `/client/log-events` ohne Rate-Limiting |
+| Auth & Berechtigungen | B+ | Permission-Audit hat Reason-Feld; Person-Matching-Audit live; HQ2-Z4 Naming-Verbesserung empfohlen |
+| Rotation-Feature | B+ | Engine als Domain-Service + HQ5-Hooks mit Test-Coverage; Sweep-Timeout (LQ1-Z3) |
+| Frontend-Architektur | B+ | WorkflowBuilder Form-Editor + Rotation-Pages refactored; `useAdminWorkflowBuilder` 865→761 nach HQ2-Z3 |
+| Testbarkeit | B | Testcontainers + Integration-Tests + HQ5-Hooks-Tests (172 Frontend, 384 Backend) |
+| Skalierbarkeit | B- | Workflow-Task-Filter SQL-pre-narrowed (HQ2) |
+| Sicherheit | B+ | `/client/log-events` rate-limited; dev-sim-Guard verifiziert |
+| **Lesbarkeit (Z4)** | **B+** | Konventionen durchgaengig; HQ1-Z4 + HQ2-Z4 als gezielte Naming-Verbesserungen empfohlen |
 
 ---
 
-## Kritische Punkte
+## Zyklus 1 (Code-Review 2026-04-23) — abgeschlossen
+
+CRITICAL- und HIGH-Punkte (C1–C4, H1–H7) komplett erledigt. Folgepunkte H6, L1, L3, L5, L6 ebenfalls. L2 deferred.
 
 | ID | Problem | Status |
 |----|---------|--------|
 | C1 | Transaktionsgrenzen Rotation-Regenerierung | ✓ erledigt (COD-1, 2026-04-23) |
-| C2 | Template ohne Zuständigkeit → Aufgaben unsichtbar | ✓ erledigt (2026-04-24) — Pflichtfeld + SQL-Spaltenbug gefixt |
+| C2 | Template ohne Zuständigkeit → Aufgaben unsichtbar | ✓ erledigt (2026-04-24) |
 | C3 | Entra-gelöschte User nicht deaktiviert | ✓ erledigt (CLA-2, 2026-04-23) |
 | C4 | Task-Filter in-memory statt SQL (Rotation) | ✓ erledigt (CLA-1, 2026-04-23) |
+| H1 | Monolithisches Repository (23.758 Zeilen) | ✓ erledigt (Phase 8, 2026-05-02) |
+| H2–H7 | Diverse | ✓ alle erledigt |
+| L1, L3, L5, L6 | Hardening | ✓ alle erledigt |
+| L2 | Datenbereinigung Drafts | deferred — wartet auf Produkt-Entscheidung |
+| L7 | WorkflowBuilder Canvas-UX | ✓ erledigt (eigener Zyklus, 2026-05-02 — Form-Editor live) |
 
 ---
 
-## Hohe Priorität
+## Zyklus 2 (Hardening + Testbarkeit, 2026-05-02) — abgeschlossen
 
 | ID | Problem | Status |
 |----|---------|--------|
-| H1 | Monolithisches Repository (23.758 Zeilen) | ✓ teilweise erledigt (CLA-3, 2026-04-23) — Rotation-Slice herausgeschnitten |
-| H2 | Stations-Überschneidungsprüfung fehlte | ✓ erledigt (COD-2, 2026-04-23) |
-| H3 | automation_key nicht validiert beim Speichern | ✓ erledigt (COD-3, 2026-04-23) |
-| H4 | Notification-Platzhalter nicht validiert | ✓ erledigt (COD-4, 2026-04-23) |
-| H5 | Keine DAG-Vollständigkeitsprüfung vor Publish | ✓ erledigt (CLA-4, 2026-04-24) |
-| H6 | RotationTaskRegenerationEngine noch im Repository | **offen** — Folgearbeit zu CLA-3 |
-| H7 | Positionale Reader-Indizes im SQL (GetString(0)) | ✓ erledigt (COD-6, Rotation-Slice) |
+| HQ1 | Decision-Condition-Migration + Save-Validation | ✓ done (2026-05-02) |
+| HQ2 | In-Memory-Task-Filter nach SQL ziehen | ✓ done (2026-05-02) |
+| HQ3 | Personen-Matching-Audit-Trail | ✓ done (2026-05-02) — Tabelle `person_match_audit_log` |
+| HQ4 | Test-DB-Setup via Testcontainers | ✓ done (2026-05-02) |
+| HQ5 | Frontend-Page-Refactor (Rotation-Pages) | ✓ done (2026-05-02) — 35–49% kleiner |
+| LQ1 | Mapping-Property-Catalog-Endpoint | ✓ done (2026-05-02) |
+| LQ2 | Mapping-Editor flat-only — als Architektur-Entscheidung dokumentiert | ✓ done (2026-05-02) |
+| LQ3 | Sim-Login-Untertitel mit Rollen | ✓ done (2026-05-02) |
+| LQ4 | Notification-Templates-Linter | ✓ war bereits implementiert |
+| LQ5 | Frontend-Error-Boundaries | ✓ done (2026-05-02) |
+| LQ6 | WorkflowBuilder-Tests (Roundtrips) | ✓ done (2026-05-02) — 32 neue Tests |
+| LQ7 | Hook-Tot-Code-Cleanup | ✓ done (2026-05-02) |
 
 ---
 
-## Niedrige Priorität (offen)
+## Zyklus 3 (Test-Coverage + Wartbarkeits-Split, 2026-05-02) — abgeschlossen
 
-| ID | Problem |
-|----|---------|
-| L1 | Retry-Delays hardcodiert |
-| L2 | Keine Datenbereinigung für Drafts/abgebrochene Pläne |
-| L3 | `/client/log-events` ohne Rate-Limiting |
-| L6 | AUTH_MODE=dev-sim kein Guard gegen Prod-Aktivierung |
+| ID | Problem | Prio | Status |
+|----|---------|------|--------|
+| LQ3-Z3 | Doku-Drift `Code-Review-Status.md` aktualisieren | LOW | ✓ done |
+| HQ1-Z3 | Tests fuer `useRotationOperationsView` + `useRotationStationForm` | HIGH | ✓ done — +32 Tests, gesamt 172 |
+| LQ1-Z3 | `RotationNotificationHostedService` Sweep-Timeout-Wrapper | LOW | ✓ done — 2-h CancelAfter + Catch |
+| HQ3-Z3 | Repository-Partials splitten | HIGH | ✓ done partial — TaskTemplate 3-fach (1017→391+251+391); WorkflowDefinition GraphMapping ausgelagert (1430→1103+350); Versions-Split deferred (Tx-Kopplung) |
+| HQ2-Z3 | `useAdminWorkflowBuilder` Sub-Hook-Zerlegung | HIGH | ✓ done partial — Reference-Data ausgelagert (140 Z.), Main-Hook 865→761; 3 weitere Splits deferred (State-Verzahnung) |
+| LQ2-Z3 | `EntraDirectorySyncService` (2222) Split | LOW | deferred |
+| LQ4-Z3 | `AdminConfigPage.tsx` (423) Watch | LOW | watch |
+
+## Zyklus 4 (Naming + kleine Haertungen, 2026-05-02) — abgeschlossen
+
+Frischer Sweep mit explizitem Naming-/Lesbarkeits-Audit. CRITICAL-Liste leer. Konventionen durchgaengig — Lesbarkeit insgesamt B+.
+
+| ID | Problem | Prio | Status |
+|----|---------|------|--------|
+| HQ1-Z4 | `ProcessTypeKey` → `LegacyProcessTypeKey` (DTO + 4 Endpoints + Frontend + Compat-Doku) | HIGH | ✓ done (2026-05-02) |
+| HQ2-Z4 | `responsibilityIds` → `effectiveResponsibilityIds` (Methoden-Signaturen + Struct-Field) | HIGH | ✓ done (2026-05-02) |
+| LQ1-Z4 | `ParseDecisionCondition`-Exception mit Workflow-/Edge-Kontext anreichern | LOW | ✓ done (2026-05-02) |
+| LQ2-Z4 | Sub-Section-Error-Boundaries in `AdminConfigPage` + `WorkflowDetailPage` | LOW | ✓ done (2026-05-02) |
+| LQ3-Z4 | `GetOrCreate…WorkingDraft` → `Ensure…WorkingDraft` (.NET-Konvention) | LOW | defer |
+| LQ4-Z4 | `MatchesTaskAssignment` Predicate-Rename | LOW | defer |
+
+**Drei Agent-Falsch-Positive verworfen** (siehe `CODE_REVIEW.md` Zyklus 4): `tt`/`pt`/`wta` sind SQL-Aliase (kein C#); `GetAdminWorkflowDefinitionVersionDetailById` ist read-only (nur der Wrapper mutiert); `NormalizeNullableText` ist im Vokabular etabliert.
 
 ---
 
-## Offene Folgearbeit
+## Zyklusuebergreifend offen
 
-| ID | Aufgabe | Prio |
-|----|---------|------|
-| H6 | `RotationTaskRegenerationEngine` als Domain-Service extrahieren (Unit-Tests ohne DB) | HIGH |
-
----
-
-## Bekanntes Dauerproblem: Test-Fixture
-
-`dotnet test` schlägt in der DB-Fixture fehl mit:
-```
-Duplicate-Key auf uq_workflow_answer_visibility_rules
-```
-→ Test-Isolation-Problem in der DB-Fixture, unabhängig von den Codex-Änderungen.
+| ID | Aufgabe | Status |
+|----|---------|--------|
+| R8 | Browser-Verifikation Form-Editor | offen — Nutzer-Aufgabe |
+| R10 | Mobile-Layout Form-Editor | backlog |
+| L2 | Datenbereinigung Drafts | deferred — Produkt-Entscheidung |
 
 ---
 

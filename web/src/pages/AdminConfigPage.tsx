@@ -8,6 +8,7 @@ import {
   normalizeAdminWorkspaceSection,
   parseAdminWorkspaceId,
 } from "../components/admin-config/adminWorkspaceModel";
+import { AppErrorBoundary } from "../components/feedback/AppErrorBoundary";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
@@ -385,12 +386,14 @@ export default function AdminConfigPage() {
         />
 
         <div className="admin-settings-shell">
-          <aside className="admin-settings-sidebar">
-            <AdminWorkspaceNavigation
-              section={section}
-              onSelectSection={handleSelectSection}
-            />
-          </aside>
+          <AppErrorBoundary scope="AdminConfigPage/sidebar" inline>
+            <aside className="admin-settings-sidebar">
+              <AdminWorkspaceNavigation
+                section={section}
+                onSelectSection={handleSelectSection}
+              />
+            </aside>
+          </AppErrorBoundary>
 
           <section className="admin-settings-main" aria-label="Admin-Arbeitsbereich">
             {!isLoading && notice ? (
@@ -411,9 +414,11 @@ export default function AdminConfigPage() {
             ) : null}
 
             {!isLoading && (!error || hasAnyData) ? (
-              <section className="content-stack">
-                <AdminConfigWorkspaceContent {...workspaceContentProps} />
-              </section>
+              <AppErrorBoundary scope="AdminConfigPage/workspace" inline>
+                <section className="content-stack">
+                  <AdminConfigWorkspaceContent {...workspaceContentProps} />
+                </section>
+              </AppErrorBoundary>
             ) : null}
           </section>
         </div>

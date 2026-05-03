@@ -11,7 +11,7 @@ internal sealed partial class PostgresWorkflowRepository
         public required long WorkflowId { get; init; }
         public required Guid WorkflowUid { get; init; }
         public required int ProcessTypeId { get; init; }
-        public required string ProcessTypeKey { get; init; }
+        public required string LegacyProcessTypeKey { get; init; }
         public required bool RequiresSupervisorStep { get; init; }
         public required int DepartmentId { get; init; }
         public required int RoleId { get; init; }
@@ -40,7 +40,7 @@ SELECT
     linked_w.last_name,
     linked_w.status      AS linked_status,
     linked_w.created_at  AS linked_created_at,
-    pt.key               AS linked_pt_key,
+    pt.definition_key    AS linked_pt_key,
     pt.name              AS linked_pt_name,
     pt.requires_target_person
 FROM workflow_links wl
@@ -51,7 +51,7 @@ JOIN workflows linked_w ON linked_w.id = CASE
     WHEN source_w.uid = @uid THEN target_w.id
     ELSE source_w.id
 END
-JOIN process_types pt ON pt.id = linked_w.process_type_id
+JOIN workflow_definitions pt ON pt.id = linked_w.workflow_definition_id
 LEFT JOIN app_users u ON u.id = wl.created_by_user_id
 WHERE source_w.uid = @uid OR target_w.uid = @uid
 ORDER BY wl.created_at DESC;";
@@ -110,7 +110,7 @@ SELECT
     related.status,
     related.created_at,
     related.department_id,
-    pt.key,
+    pt.definition_key,
     pt.name,
     pt.requires_target_person
 FROM base_workflow base
@@ -124,7 +124,7 @@ JOIN workflows related
             AND (base.target_person_id IS NULL OR related.target_person_id IS NULL)
         )
    )
-JOIN process_types pt ON pt.id = related.process_type_id
+JOIN workflow_definitions pt ON pt.id = related.workflow_definition_id
 ORDER BY related.created_at DESC;";
 
         await using var command = new NpgsqlCommand(sql, connection);
@@ -180,7 +180,7 @@ ORDER BY related.created_at DESC;";
             return null;
         }
 
-        await InsertAuditEntry(
+        await _auditWrite.InsertAuditEntry(
             connection,
             transaction,
             targetWorkflow.WorkflowId,
@@ -258,12 +258,12 @@ SELECT
     d.name AS department_name,
     w.status,
     w.created_at,
-    pt.key  AS pt_key,
+    pt.definition_key  AS pt_key,
     pt.name AS pt_name,
     pt.requires_target_person
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 WHERE w.employee_number = @employeeNumber
   AND w.workflow_definition_version_id IS NULL
   AND (@excludeUid IS NULL OR w.uid <> @excludeUid)
@@ -308,13 +308,13 @@ ORDER BY w.created_at DESC;";
 SELECT
     w.id,
     w.uid,
-    w.process_type_id,
-    pt.key,
-    pt.requires_supervisor_step,
+    wd.id AS workflow_definition_id,
+    wd.definition_key,
+    wd.requires_supervisor_step,
     w.department_id,
     w.position_role_id
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions wd ON wd.id = w.workflow_definition_id
 WHERE w.uid = @uid
   AND w.workflow_definition_version_id IS NULL
 LIMIT 1;";
@@ -333,7 +333,7 @@ LIMIT 1;";
             WorkflowId = reader.GetInt64(0),
             WorkflowUid = reader.GetGuid(1),
             ProcessTypeId = reader.GetInt32(2),
-            ProcessTypeKey = reader.GetString(3),
+            LegacyProcessTypeKey = reader.GetString(3),
             RequiresSupervisorStep = reader.GetBoolean(4),
             DepartmentId = reader.GetInt32(5),
             RoleId = reader.GetInt32(6)
@@ -377,14 +377,14 @@ RETURNING id;";
         var hasExistingAnswers = await WorkflowHasExistingAnswers(connection, transaction, targetWorkflow.WorkflowId);
         if (hasExistingAnswers)
         {
-            return await LoadStoredAnswersByKey(connection, transaction, targetWorkflow.WorkflowId);
+            return await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, targetWorkflow.WorkflowId);
         }
 
         var derivedAnswers = await GetDerivedAnswersInternal(
             connection,
             transaction,
             sourceWorkflow.WorkflowUid,
-            targetWorkflow.ProcessTypeKey);
+            targetWorkflow.LegacyProcessTypeKey);
         if (derivedAnswers.Count == 0)
         {
             return new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase);
@@ -414,7 +414,7 @@ RETURNING id;";
         {
             await DeleteWorkflowTasksForRegeneration(connection, transaction, targetWorkflow.WorkflowId);
 
-            var generatedTaskCount = await GenerateWorkflowTasks(
+            var generatedTaskCount = await _taskGeneration.GenerateWorkflowTasks(
                 connection,
                 transaction,
                 targetWorkflow.WorkflowId,
@@ -424,7 +424,7 @@ RETURNING id;";
 
             if (generatedTaskCount > 0)
             {
-                await InsertAuditEntry(
+                await _auditWrite.InsertAuditEntry(
                     connection,
                     transaction,
                     targetWorkflow.WorkflowId,
@@ -436,11 +436,11 @@ RETURNING id;";
                     $"{generatedTaskCount} Aufgabe(n) aus abgeleiteten Antworten erstellt");
             }
 
-            await RecalculateWorkflowTaskAvailability(connection, transaction, targetWorkflow.WorkflowId);
-            await RecalculateAndPersistWorkflowStatus(connection, transaction, targetWorkflow.WorkflowId, actorUserId);
+            await _statusCalculation.RecalculateWorkflowTaskAvailability(connection, transaction, targetWorkflow.WorkflowId);
+            await _statusCalculation.RecalculateAndPersistWorkflowStatus(connection, transaction, targetWorkflow.WorkflowId, actorUserId);
         }
 
-        await InsertAuditEntry(
+        await _auditWrite.InsertAuditEntry(
             connection,
             transaction,
             targetWorkflow.WorkflowId,
@@ -532,83 +532,6 @@ WHERE workflow_id = @workflowId;";
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<Dictionary<string, StoredWorkflowAnswerRecord>> LoadStoredAnswersByKey(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        long workflowId)
-    {
-        const string sql = @"
-SELECT
-    a.id,
-    a.answer_definition_id,
-    a.answer_key,
-    a.input_type,
-    a.value_boolean,
-    a.value_text,
-    a.value_number,
-    a.selected_option_id,
-    selected_option.option_value
-FROM workflow_answers a
-LEFT JOIN workflow_answer_options selected_option ON selected_option.id = a.selected_option_id
-WHERE a.workflow_id = @workflowId
-ORDER BY a.answer_definition_id, a.id;";
-
-        var answers = new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase);
-        await using (var command = new NpgsqlCommand(sql, connection, transaction))
-        {
-            command.Parameters.AddWithValue("workflowId", workflowId);
-            await using var reader = await command.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
-            {
-                var answerKey = reader.GetString(2);
-                answers[answerKey] = new StoredWorkflowAnswerRecord
-                {
-                    WorkflowAnswerId = reader.GetInt64(0),
-                    AnswerDefinitionId = reader.GetInt32(1),
-                    AnswerKey = answerKey,
-                    InputType = reader.GetString(3),
-                    ValueBoolean = reader.IsDBNull(4) ? null : reader.GetBoolean(4),
-                    ValueText = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    ValueNumber = reader.IsDBNull(6) ? null : reader.GetDecimal(6),
-                    SelectedOptionId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-                    SelectedOptionValue = reader.IsDBNull(8) ? null : reader.GetString(8),
-                    SelectedOptionIds = new List<int>(),
-                    SelectedOptionValues = new List<string>()
-                };
-            }
-        }
-
-        const string multiSelectSql = @"
-SELECT
-    a.answer_key,
-    o.id,
-    o.option_value
-FROM workflow_answers a
-JOIN workflow_answer_selected_options aso ON aso.workflow_answer_id = a.id
-JOIN workflow_answer_options o ON o.id = aso.answer_option_id
-WHERE a.workflow_id = @workflowId
-ORDER BY a.answer_definition_id, a.id, o.sort_order, o.id;";
-
-        await using var multiSelectCommand = new NpgsqlCommand(multiSelectSql, connection, transaction);
-        multiSelectCommand.Parameters.AddWithValue("workflowId", workflowId);
-        await using var multiSelectReader = await multiSelectCommand.ExecuteReaderAsync();
-
-        while (await multiSelectReader.ReadAsync())
-        {
-            var answerKey = multiSelectReader.GetString(0);
-            if (!answers.TryGetValue(answerKey, out var answer))
-            {
-                continue;
-            }
-
-            answer.SelectedOptionIds.Add(multiSelectReader.GetInt32(1));
-            answer.SelectedOptionValues.Add(multiSelectReader.GetString(2));
-        }
-
-        return answers;
-    }
-
     private static async Task<List<DerivedAnswerDto>> GetDerivedAnswersInternal(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
@@ -625,9 +548,8 @@ SELECT
     wa.value_number,
     selected_option.option_value
 FROM workflow_answer_derivation_rules dr
-JOIN process_types tpt ON tpt.id = dr.target_process_type_id AND tpt.key = @targetProcessTypeKey
-JOIN workflows w ON w.uid = @sourceUid
-JOIN process_types spt ON spt.id = w.process_type_id AND spt.id = dr.source_process_type_id
+JOIN workflow_definitions twd ON twd.id = dr.target_workflow_definition_id AND twd.definition_key = @targetProcessTypeKey
+JOIN workflows w ON w.uid = @sourceUid AND w.workflow_definition_id = dr.source_workflow_definition_id
 JOIN workflow_answers wa ON wa.workflow_id = w.id AND wa.answer_key = dr.source_answer_key
 LEFT JOIN workflow_answer_options selected_option ON selected_option.id = wa.selected_option_id
 WHERE dr.is_active = TRUE
@@ -656,11 +578,11 @@ ORDER BY dr.sort_order;";
         return derived;
     }
 
-    public async Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey)
+    public async Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetWorkflowDefinitionKey)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
-        return await GetDerivedAnswersInternal(connection, null!, sourceWorkflowUid, targetProcessTypeKey);
+        return await GetDerivedAnswersInternal(connection, null!, sourceWorkflowUid, targetWorkflowDefinitionKey);
     }
 
     private async Task<WorkflowLinkDto?> GetWorkflowLinkById(NpgsqlConnection connection, long linkId, Guid perspectiveUid)
@@ -680,7 +602,7 @@ SELECT
     linked_w.last_name,
     linked_w.status,
     linked_w.created_at  AS linked_created_at,
-    pt.key               AS linked_pt_key,
+    pt.definition_key    AS linked_pt_key,
     pt.name              AS linked_pt_name,
     pt.requires_target_person
 FROM workflow_links wl
@@ -690,7 +612,7 @@ JOIN workflows linked_w ON linked_w.id = CASE
     WHEN source_w.uid = @perspectiveUid THEN target_w.id
     ELSE source_w.id
 END
-JOIN process_types pt ON pt.id = linked_w.process_type_id
+JOIN workflow_definitions pt ON pt.id = linked_w.workflow_definition_id
 LEFT JOIN app_users u ON u.id = wl.created_by_user_id
 WHERE wl.id = @linkId;";
 

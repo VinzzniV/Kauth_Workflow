@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getAdminAnswerDefinitions,
-  getAdminProcessTypes,
+  getAdminWorkflowDefinitions,
   getAdminRoleAnswerDefaults,
   updateAdminRoleAnswerDefaults,
 } from "../services/adminConfigApi";
 import { getAdminRoles } from "../services/adminApi";
 import type {
   AdminAnswerDefinition,
-  AdminProcessType,
+  AdminWorkflowDefinitionSummary,
   AdminRole,
   AdminRoleAnswerDefault,
 } from "../types/auth";
@@ -44,8 +44,8 @@ export function useAdminRoleAnswerDefaults({
   onNotice,
   onError,
 }: UseAdminRoleAnswerDefaultsOptions) {
-  const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
-  const [selectedProcessTypeId, setSelectedProcessTypeId] = useState<number | null>(null);
+  const [workflowDefinitions, setWorkflowDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
+  const [selectedWorkflowDefinitionId, setSelectedWorkflowDefinitionId] = useState<number | null>(null);
   const [roles, setRoles] = useState<AdminRole[]>([]);
   const [definitions, setDefinitions] = useState<AdminAnswerDefinition[]>([]);
   const [defaults, setDefaults] = useState<AdminRoleAnswerDefault[]>([]);
@@ -78,14 +78,14 @@ export function useAdminRoleAnswerDefaults({
     [definitions]
   );
 
-  const loadMatrixData = useCallback(async (processTypeId: number) => {
+  const loadMatrixData = useCallback(async (workflowDefinitionId: number) => {
     updateOperationState({ isLoadingMatrix: true });
 
     try {
       const [loadedRoles, loadedDefinitions, loadedDefaults] = await Promise.all([
         getAdminRoles(),
-        getAdminAnswerDefinitions(processTypeId),
-        getAdminRoleAnswerDefaults(processTypeId),
+        getAdminAnswerDefinitions(workflowDefinitionId),
+        getAdminRoleAnswerDefaults(workflowDefinitionId),
       ]);
 
       setRoles(loadedRoles);
@@ -115,20 +115,21 @@ export function useAdminRoleAnswerDefaults({
 
   useEffect(() => {
     updateOperationState({ isLoadingProcessTypes: true });
-    getAdminProcessTypes()
-      .then((loadedProcessTypes) => {
-        setProcessTypes(loadedProcessTypes);
-        setSelectedProcessTypeId((current) => current ?? loadedProcessTypes[0]?.id ?? null);
+    getAdminWorkflowDefinitions()
+      .then((loadedDefinitions) => {
+        setWorkflowDefinitions(loadedDefinitions);
+        setSelectedWorkflowDefinitionId((current) => current ?? loadedDefinitions[0]?.id ?? null);
       })
-      .catch(() => {
-        setProcessTypes([]);
-        setSelectedProcessTypeId(null);
+      .catch((err) => {
+        setWorkflowDefinitions([]);
+        setSelectedWorkflowDefinitionId(null);
+        onError(err instanceof Error ? err.message : "Workflow-Definitionen konnten nicht geladen werden.");
       })
       .finally(() => updateOperationState({ isLoadingProcessTypes: false }));
-  }, [updateOperationState]);
+  }, [onError, updateOperationState]);
 
   useEffect(() => {
-    if (!selectedProcessTypeId) {
+    if (!selectedWorkflowDefinitionId) {
       setRoles([]);
       setDefinitions([]);
       setDefaults([]);
@@ -137,15 +138,15 @@ export function useAdminRoleAnswerDefaults({
     }
 
     onError(null);
-    void loadMatrixData(selectedProcessTypeId).catch((err) => {
+    void loadMatrixData(selectedWorkflowDefinitionId).catch((err) => {
       const message = err instanceof Error ? err.message : "Role Answer Defaults konnten nicht geladen werden.";
       onError(message);
     });
-  }, [loadMatrixData, onError, selectedProcessTypeId]);
+  }, [loadMatrixData, onError, selectedWorkflowDefinitionId]);
 
-  const selectProcessType = useCallback((nextValue: string) => {
+  const selectWorkflowDefinition = useCallback((nextValue: string) => {
     const parsed = Number(nextValue);
-    setSelectedProcessTypeId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+    setSelectedWorkflowDefinitionId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
   }, []);
 
   const getCellDraft = useCallback((appRoleId: number, answerKey: string): DefaultDraftValue => {
@@ -197,7 +198,7 @@ export function useAdminRoleAnswerDefaults({
   }, [defaults, definitions, drafts, roles]);
 
   const saveDefaults = useCallback(async () => {
-    if (!selectedProcessTypeId) {
+    if (!selectedWorkflowDefinitionId) {
       onNotice(null);
       onError("Bitte zuerst einen Prozesstyp auswählen.");
       return;
@@ -221,7 +222,7 @@ export function useAdminRoleAnswerDefaults({
       );
 
       const updatedDefaults = await updateAdminRoleAnswerDefaults({
-        processTypeId: selectedProcessTypeId,
+        workflowDefinitionId: selectedWorkflowDefinitionId,
         items,
       });
 
@@ -244,18 +245,18 @@ export function useAdminRoleAnswerDefaults({
     } finally {
       updateOperationState({ isSaving: false });
     }
-  }, [definitions, drafts, onError, onNotice, roles, selectedProcessTypeId, updateOperationState]);
+  }, [definitions, drafts, onError, onNotice, roles, selectedWorkflowDefinitionId, updateOperationState]);
 
   return {
-    processTypes,
-    selectedProcessTypeId,
+    workflowDefinitions,
+    selectedWorkflowDefinitionId,
     sortedRoles,
     sortedDefinitions,
     isLoadingProcessTypes: operationState.isLoadingProcessTypes,
     isLoadingMatrix: operationState.isLoadingMatrix,
     isSaving: operationState.isSaving,
     hasChanges,
-    selectProcessType,
+    selectWorkflowDefinition,
     getCellDraft,
     updateTextDraft,
     updateBooleanDraft,

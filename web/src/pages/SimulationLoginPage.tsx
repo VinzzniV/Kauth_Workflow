@@ -100,6 +100,7 @@ export default function SimulationLoginPage() {
                       {simulationUsers.map((user) => (
                         <option key={user.userId} value={user.userId}>
                           {user.displayName} ({user.username})
+                          {user.roleKeys.length > 0 ? ` – ${user.roleKeys.join(", ")}` : " – keine Rolle"}
                         </option>
                       ))}
                     </select>
@@ -114,6 +115,9 @@ export default function SimulationLoginPage() {
                   <p className="panel-note">
                     E-Mail: {selectedUser.email}
                     {selectedUser.departmentName ? ` | Abteilung: ${selectedUser.departmentName}` : ""}
+                    {selectedUser.roleKeys.length > 0
+                      ? ` | Rollen: ${selectedUser.roleKeys.join(", ")}`
+                      : " | Rollen: –"}
                   </p>
                 ) : null}
 

@@ -5,16 +5,39 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
+    // Narrowing applied at SQL level for non-admin, non-override users:
+    // limits the result set to tasks where (a) the workflow is not in a terminal status
+    // and (b) the user has at least one primary assignment matching either the user id
+    // or one of their effective responsibilities. Mirrors the in-memory predicate
+    // MatchesTaskAssignment in AuthorizationPolicyService.
+    internal readonly record struct WorkflowTaskListNarrowingFilter(long UserId, int[] EffectiveResponsibilityIds);
+
     private static async Task<List<TaskWithWorkflowDto>> LoadTasks(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
-        long? taskId)
+        long? taskId,
+        WorkflowTaskListNarrowingFilter? narrowing = null)
     {
-        const string sql = @"
+        var narrowingClause = narrowing.HasValue
+            ? @"
+  AND w.status <> 'completed'
+  AND EXISTS (
+      SELECT 1
+      FROM task_assignments wta
+      WHERE wta.workflow_task_id = t.id
+        AND wta.is_primary = TRUE
+        AND (
+            (wta.assignment_type = 'user' AND wta.assignee_user_id = @narrowUserId)
+            OR (wta.assignment_type = 'responsibility' AND wta.assignee_responsibility_id = ANY(@narrowResponsibilityIds))
+        )
+  )"
+            : string.Empty;
+
+        var sql = @"
 SELECT
     t.id,
     t.node_instance_id,
-    t.task_template_id,
+    t.workflow_node_task_spec_id,
     t.task_key,
     CASE
         WHEN t.node_instance_id IS NOT NULL THEN COALESCE(runtime_node.node_type = 'approval', FALSE)
@@ -50,7 +73,7 @@ SELECT
     r.name,
     COALESCE(t.process_area_label, tt.process_area_label),
     CASE
-        WHEN t.task_template_id IS NULL AND tt.id IS NOT NULL THEN tt.is_department_phase_task
+        WHEN t.workflow_node_task_spec_id IS NULL AND tt.id IS NOT NULL THEN tt.is_department_phase_task
         ELSE t.is_department_phase_task
     END,
     template_department.name,
@@ -59,17 +82,17 @@ SELECT
     template_responsibility.name
 FROM workflow_tasks t
 JOIN workflows w ON w.id = t.workflow_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 JOIN departments d ON d.id = w.department_id
 JOIN app_roles r ON r.id = w.position_role_id
-LEFT JOIN task_templates tt
-    ON tt.id = t.task_template_id
-    OR (t.task_template_id IS NULL AND tt.template_key = t.task_key)
+LEFT JOIN workflow_node_task_specs tt
+    ON tt.id = t.workflow_node_task_spec_id
+    OR (t.workflow_node_task_spec_id IS NULL AND tt.spec_key = t.task_key)
 LEFT JOIN workflow_node_instances runtime_node_instance ON runtime_node_instance.id = t.node_instance_id
 LEFT JOIN workflow_nodes runtime_node ON runtime_node.id = runtime_node_instance.workflow_node_id
 LEFT JOIN app_responsibilities template_responsibility ON template_responsibility.id = tt.default_responsibility_id
 LEFT JOIN departments template_department ON template_department.id = template_responsibility.department_id
-WHERE (@taskId IS NULL OR t.id = @taskId)
+WHERE (@taskId IS NULL OR t.id = @taskId)" + narrowingClause + @"
 ORDER BY w.created_at DESC, t.sort_order, t.id;";
 
         var tasks = new List<TaskWithWorkflowDto>();
@@ -78,6 +101,12 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
         await using (var command = new NpgsqlCommand(sql, connection, transaction))
         {
             command.Parameters.Add("taskId", NpgsqlDbType.Bigint).Value = (object?)taskId ?? DBNull.Value;
+            if (narrowing.HasValue)
+            {
+                command.Parameters.AddWithValue("narrowUserId", narrowing.Value.UserId);
+                command.Parameters.Add("narrowResponsibilityIds", NpgsqlDbType.Array | NpgsqlDbType.Integer).Value =
+                    narrowing.Value.EffectiveResponsibilityIds.Length == 0 ? Array.Empty<int>() : narrowing.Value.EffectiveResponsibilityIds;
+            }
             await using var reader = await command.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
@@ -86,14 +115,14 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                 {
                     Id = reader.GetInt64(0),
                     NodeInstanceId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
-                    TaskTemplateId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                    TaskTemplateId = reader.IsDBNull(2) ? null : checked((int)reader.GetInt64(2)),
                     TaskKey = reader.GetString(3),
                     IsApprovalTask = reader.GetBoolean(4),
                     IsRuntimeNodeTask = reader.GetBoolean(5),
                     Title = reader.GetString(6),
                     Description = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
                     Category = reader.GetString(8),
-                    IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(9) ? null : reader.GetString(9)),
+                    IconKey = PostgresRepositorySharedHelpers.NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(9) ? null : reader.GetString(9)),
                     Status = reader.GetString(10),
                     IsRequired = reader.GetBoolean(11),
                     DueInDays = reader.IsDBNull(12) ? null : reader.GetInt32(12),
@@ -137,7 +166,6 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                         WorkflowId = reader.GetInt64(19),
                         WorkflowUid = reader.GetGuid(20),
                         WorkflowStatus = workflowStatus,
-                        WorkflowLegacyStatus = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                         WorkflowCreatedAt = reader.GetDateTime(23),
                         FirstName = reader.GetString(24),
                         LastName = reader.GetString(25),
@@ -333,7 +361,7 @@ ORDER BY c.workflow_task_id, c.created_at DESC, c.id DESC;";
 SELECT
     wt.id,
     wt.node_instance_id,
-    wt.task_template_id,
+    wt.workflow_node_task_spec_id,
     wt.task_key,
     CASE
         WHEN wt.node_instance_id IS NOT NULL THEN COALESCE(runtime_node.node_type = 'approval', FALSE)
@@ -357,7 +385,7 @@ SELECT
     w.deadline_date,
     COALESCE(wt.process_area_label, tt.process_area_label),
     CASE
-        WHEN wt.task_template_id IS NULL AND tt.id IS NOT NULL THEN tt.is_department_phase_task
+        WHEN wt.workflow_node_task_spec_id IS NULL AND tt.id IS NOT NULL THEN tt.is_department_phase_task
         ELSE wt.is_department_phase_task
     END,
     template_department.name,
@@ -366,10 +394,10 @@ SELECT
     template_responsibility.name
 FROM workflow_tasks wt
 JOIN workflows w ON w.id = wt.workflow_id
-JOIN process_types pt ON pt.id = w.process_type_id
-LEFT JOIN task_templates tt
-    ON tt.id = wt.task_template_id
-    OR (wt.task_template_id IS NULL AND tt.template_key = wt.task_key)
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
+LEFT JOIN workflow_node_task_specs tt
+    ON tt.id = wt.workflow_node_task_spec_id
+    OR (wt.workflow_node_task_spec_id IS NULL AND tt.spec_key = wt.task_key)
 LEFT JOIN workflow_node_instances runtime_node_instance ON runtime_node_instance.id = wt.node_instance_id
 LEFT JOIN workflow_nodes runtime_node ON runtime_node.id = runtime_node_instance.workflow_node_id
 LEFT JOIN app_responsibilities template_responsibility ON template_responsibility.id = tt.default_responsibility_id
@@ -390,14 +418,14 @@ ORDER BY wt.sort_order, wt.id;";
                 {
                     Id = reader.GetInt64(0),
                     NodeInstanceId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
-                    TaskTemplateId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                    TaskTemplateId = reader.IsDBNull(2) ? null : checked((int)reader.GetInt64(2)),
                     TaskKey = reader.GetString(3),
                     IsApprovalTask = reader.GetBoolean(4),
                     IsRuntimeNodeTask = reader.GetBoolean(5),
                     Title = reader.GetString(6),
                     Description = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
                     Category = reader.GetString(8),
-                    IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(9) ? null : reader.GetString(9)),
+                    IconKey = PostgresRepositorySharedHelpers.NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(9) ? null : reader.GetString(9)),
                     Status = reader.GetString(10),
                     IsRequired = reader.GetBoolean(11),
                     DueInDays = reader.IsDBNull(12) ? null : reader.GetInt32(12),
@@ -553,12 +581,12 @@ latest_completed_onboarding AS (
             COALESCE(w.completed_at, w.created_at) AS completed_at,
             w.id
         FROM workflows w
-        JOIN process_types pt ON pt.id = w.process_type_id
+        JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
         LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-        LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+        LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
         WHERE w.target_person_id IS NOT NULL
-          AND pt.key = 'onboarding'
-          AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+          AND pt.definition_key = 'onboarding'
+          AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
           AND w.status = 'completed'
 
         UNION ALL
@@ -570,11 +598,11 @@ latest_completed_onboarding AS (
             w.id
         FROM people p
         JOIN workflows w ON p.employee_number IS NOT NULL AND w.employee_number = p.employee_number
-        JOIN process_types pt ON pt.id = w.process_type_id
+        JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
         LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-        LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
-        WHERE pt.key = 'onboarding'
-          AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+        LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
+        WHERE pt.definition_key = 'onboarding'
+          AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
           AND w.status = 'completed'
     ) resolved
     ORDER BY resolved.person_id, resolved.completed_at DESC, resolved.id DESC
@@ -619,7 +647,7 @@ SELECT
     latest_completed_onboarding.workflow_uid AS latest_completed_onboarding_workflow_uid,
     latest_completed_onboarding.completed_at AS latest_completed_onboarding_at,
     w.uid,
-    pt.key,
+    pt.definition_key,
     pt.name,
     pt.requires_target_person,
     w.first_name,
@@ -645,10 +673,10 @@ LEFT JOIN workflows w
         w.target_person_id = p.id
         OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
    )
-LEFT JOIN process_types pt ON pt.id = w.process_type_id
+LEFT JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
 LEFT JOIN workflow_definitions wd ON wd.id = v.workflow_definition_id
-LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
 LEFT JOIN app_roles r ON r.id = w.position_role_id
 LEFT JOIN departments w_dept ON w_dept.id = w.department_id
 WHERE p.id = @personId
@@ -714,7 +742,6 @@ ORDER BY w.created_at DESC NULLS LAST;";
                 LastName = reader.GetString(27),
                 RoleName = reader.IsDBNull(28) ? string.Empty : reader.GetString(28),
                 DepartmentName = reader.IsDBNull(29) ? string.Empty : reader.GetString(29),
-                Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                 WorkflowStatus = workflowStatus,
                 CreatedAt = reader.GetDateTime(31),
                 CompletedAt = reader.IsDBNull(32) ? null : reader.GetDateTime(32),

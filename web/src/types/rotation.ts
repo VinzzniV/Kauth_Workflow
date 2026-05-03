@@ -10,28 +10,9 @@ export type RotationTriggerType = "enter" | "exit";
 export type RotationTaskType = "manual" | "technical" | "approval" | "information";
 export type RotationNotificationStatus = "pending" | "sent" | "failed" | "disabled";
 
-export type CompletedOnboardingSearchResult = {
-  personId: number;
-  displayName: string;
-  firstName: string | null;
-  lastName: string | null;
-  employeeNumber: number | null;
-  badgeNumber: number | null;
-  departmentId: number | null;
-  departmentName: string | null;
-  roleId: number | null;
-  roleName: string | null;
-  employmentStatus: string | null;
-  appUserId: number | null;
-  directoryIdentityId: number | null;
-  directoryLinkStatus: string | null;
-  directoryDisplayName: string | null;
-  directoryUserPrincipalName: string | null;
-  directoryMail: string | null;
-  directoryEmployeeNumber: number | null;
-  latestCompletedOnboardingWorkflowUid: string | null;
-  latestCompletedOnboardingAt: string | null;
-};
+import type { WorkflowTargetPerson } from "./workflow";
+
+export type RotationEligiblePerson = WorkflowTargetPerson;
 
 export type RotationPlanListItem = {
   id: number;

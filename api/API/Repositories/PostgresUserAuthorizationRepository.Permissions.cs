@@ -498,6 +498,7 @@ SELECT
     audit.detail,
     audit.old_value::text,
     audit.new_value::text,
+    audit.reason,
     audit.created_at
 FROM auth_permission_audit_log audit
 LEFT JOIN app_users actor ON actor.id = audit.actor_user_id
@@ -522,7 +523,8 @@ LIMIT @limit;";
                     Detail = reader.IsDBNull(5) ? null : reader.GetString(5),
                     OldValue = reader.IsDBNull(6) ? null : reader.GetString(6),
                     NewValue = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    CreatedAt = reader.GetDateTime(8)
+                    Reason = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    CreatedAt = reader.GetDateTime(9)
                 });
             }
 
@@ -611,11 +613,12 @@ LIMIT 1;";
         string detail,
         object? oldValue,
         object? newValue,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? reason = null)
     {
         const string sql = @"
-INSERT INTO auth_permission_audit_log (actor_user_id, event_type, entity_type, detail, old_value, new_value, created_at)
-VALUES (@actorUserId, @eventType, @entityType, @detail, CAST(@oldValue AS jsonb), CAST(@newValue AS jsonb), NOW());";
+INSERT INTO auth_permission_audit_log (actor_user_id, event_type, entity_type, detail, old_value, new_value, reason, created_at)
+VALUES (@actorUserId, @eventType, @entityType, @detail, CAST(@oldValue AS jsonb), CAST(@newValue AS jsonb), @reason, NOW());";
 
         try
         {
@@ -627,11 +630,12 @@ VALUES (@actorUserId, @eventType, @entityType, @detail, CAST(@oldValue AS jsonb)
             command.Parameters.AddWithValue("detail", detail);
             command.Parameters.AddWithValue("oldValue", (object?)SerializeAuditJson(oldValue) ?? DBNull.Value);
             command.Parameters.AddWithValue("newValue", (object?)SerializeAuditJson(newValue) ?? DBNull.Value);
+            command.Parameters.AddWithValue("reason", (object?)reason ?? DBNull.Value);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
-        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        catch (PostgresException ex) when (ex.SqlState == "42P01" || ex.SqlState == "42703")
         {
-            // Migration not applied yet.
+            // Migration not applied yet (table missing OR reason column missing).
         }
     }
 

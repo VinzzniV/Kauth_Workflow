@@ -48,6 +48,24 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapGet("/admin/config/automation-property-catalog", async (
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageWorkflowBuilderAdvanced,
+                "Advanced Workflow Builder access is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(AutomationPropertyCatalog.BuildDto());
+        }).Produces<AutomationPropertyCatalogDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPost("/admin/config/workflow-definitions", async (
             [FromBody] CreateWorkflowDefinitionRequest request,
             [FromServices] IWorkflowRepository repository,
@@ -334,6 +352,34 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
         }).Produces<WorkflowDefinitionVersionDetailDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapGet("/admin/config/workflow-definitions/{workflowDefinitionId:int}/dependency-graph", async (
+            int workflowDefinitionId,
+            [FromServices] IWorkflowRepository repository,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                return Results.Ok(await repository.GetAdminDependencyGraph(workflowDefinitionId));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<AdminDependencyGraphDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

@@ -9,7 +9,7 @@ import SectionHeader from "../ui/SectionHeader";
 
 type AdminTaskTemplateEditorProps = {
   panelTitle: string;
-  selectedProcessTypeId: number | null;
+  selectedWorkflowDefinitionId: number | null;
   selectedTemplate: AdminTaskTemplate | null;
   isCreatingNew: boolean;
   draft: TemplateDraft;
@@ -25,7 +25,7 @@ type AdminTaskTemplateEditorProps = {
 
 export function AdminTaskTemplateEditor({
   panelTitle,
-  selectedProcessTypeId,
+  selectedWorkflowDefinitionId,
   selectedTemplate,
   isCreatingNew,
   draft,
@@ -42,8 +42,8 @@ export function AdminTaskTemplateEditor({
     <section className="panel">
       <SectionHeader title={panelTitle} />
 
-      {!selectedProcessTypeId ? (
-        <p className="panel-note">Bitte zuerst einen Prozesstyp auswählen.</p>
+      {!selectedWorkflowDefinitionId ? (
+        <p className="panel-note">Bitte zuerst eine Workflow-Definition auswählen.</p>
       ) : !isCreatingNew && !selectedTemplate ? (
         <p className="panel-note">Bitte links eine Aufgabenvorlage auswählen oder eine neue anlegen.</p>
       ) : (

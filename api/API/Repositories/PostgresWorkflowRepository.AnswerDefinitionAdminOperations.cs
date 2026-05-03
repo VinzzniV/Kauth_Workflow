@@ -13,22 +13,22 @@ internal sealed partial class PostgresWorkflowRepository
         "multi_select"
     };
 
-    public async Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int processTypeId)
+    public async Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId)
     {
-        if (processTypeId <= 0)
+        if (workflowDefinitionId <= 0)
         {
-            throw new InvalidOperationException("processTypeId must be greater than zero.");
+            throw new InvalidOperationException("workflowDefinitionId must be greater than zero.");
         }
 
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        await EnsureProcessTypeExists(connection, null, processTypeId);
+        var processTypeId = await EnsureProcessTypeExists(connection, null, workflowDefinitionId);
 
         const string sql = @"
 SELECT
     d.id,
-    d.process_type_id,
+    d.workflow_definition_id,
     d.answer_key,
     d.title,
     d.category,
@@ -39,7 +39,7 @@ SELECT
     d.sort_order,
     d.is_active
 FROM workflow_answer_definitions d
-WHERE d.process_type_id = @processTypeId
+WHERE d.workflow_definition_id = @processTypeId
 ORDER BY d.sort_order, d.title, d.id;";
 
         await using var command = new NpgsqlCommand(sql, connection);
@@ -61,12 +61,12 @@ ORDER BY d.sort_order, d.title, d.id;";
         await connection.OpenAsync();
 
         ValidateAdminAnswerDefinitionRequest(request);
-        await EnsureProcessTypeExists(connection, null, request.ProcessTypeId);
+        var normalizedProcessTypeId = await EnsureProcessTypeExists(connection, null, request.WorkflowDefinitionId);
         await EnsureAnswerKeyAvailable(connection, null, request.AnswerKey!, null);
 
         const string sql = @"
 INSERT INTO workflow_answer_definitions (
-    process_type_id,
+    workflow_definition_id,
     answer_key,
     title,
     category,
@@ -92,7 +92,7 @@ VALUES (
 RETURNING id;";
 
         await using var command = new NpgsqlCommand(sql, connection);
-        BindAdminAnswerDefinitionParameters(command, request);
+        BindAdminAnswerDefinitionParameters(command, request, normalizedProcessTypeId);
 
         var createdId = await command.ExecuteScalarAsync();
         if (createdId is not int definitionId)
@@ -117,13 +117,13 @@ RETURNING id;";
         await connection.OpenAsync();
 
         ValidateAdminAnswerDefinitionRequest(request);
-        await EnsureProcessTypeExists(connection, null, request.ProcessTypeId);
+        var normalizedProcessTypeId = await EnsureProcessTypeExists(connection, null, request.WorkflowDefinitionId);
         await EnsureAnswerKeyAvailable(connection, null, request.AnswerKey!, definitionId);
 
         const string sql = @"
 UPDATE workflow_answer_definitions
 SET
-    process_type_id = @processTypeId,
+    workflow_definition_id = @processTypeId,
     answer_key = @answerKey,
     title = @title,
     category = @category,
@@ -137,7 +137,7 @@ WHERE id = @definitionId
 RETURNING id;";
 
         await using var command = new NpgsqlCommand(sql, connection);
-        BindAdminAnswerDefinitionParameters(command, request);
+        BindAdminAnswerDefinitionParameters(command, request, normalizedProcessTypeId);
         command.Parameters.AddWithValue("definitionId", definitionId);
 
         var updatedId = await command.ExecuteScalarAsync();
@@ -191,7 +191,7 @@ WHERE id = @definitionId;";
         return new AdminAnswerDefinitionDto
         {
             Id = reader.GetInt32(0),
-            ProcessTypeId = reader.GetInt32(1),
+            WorkflowDefinitionId = reader.GetInt32(1),
             AnswerKey = reader.GetString(2),
             Title = reader.GetString(3),
             Category = reader.GetString(4),
@@ -206,7 +206,7 @@ WHERE id = @definitionId;";
 
     private static void ValidateAdminAnswerDefinitionRequest(AdminAnswerDefinitionUpsertRequest request)
     {
-        if (request.ProcessTypeId <= 0)
+        if (request.WorkflowDefinitionId <= 0)
         {
             throw new InvalidOperationException("processTypeId must be greater than zero.");
         }
@@ -230,9 +230,10 @@ WHERE id = @definitionId;";
 
     private static void BindAdminAnswerDefinitionParameters(
         NpgsqlCommand command,
-        AdminAnswerDefinitionUpsertRequest request)
+        AdminAnswerDefinitionUpsertRequest request,
+        int normalizedProcessTypeId)
     {
-        command.Parameters.AddWithValue("processTypeId", request.ProcessTypeId);
+        command.Parameters.AddWithValue("processTypeId", normalizedProcessTypeId);
         command.Parameters.AddWithValue("answerKey", request.AnswerKey!.Trim());
         command.Parameters.AddWithValue("title", request.Title!.Trim());
         command.Parameters.AddWithValue("category", string.IsNullOrWhiteSpace(request.Category) ? "general" : request.Category.Trim());
@@ -281,7 +282,7 @@ LIMIT 1;";
         const string sql = @"
 SELECT EXISTS(
     SELECT 1
-    FROM task_template_conditions
+    FROM workflow_node_task_spec_conditions
     WHERE answer_key = @answerKey
 );";
 
@@ -318,7 +319,7 @@ SELECT EXISTS(
         const string sql = @"
 SELECT
     d.id,
-    d.process_type_id,
+    d.workflow_definition_id,
     d.answer_key,
     d.title,
     d.category,

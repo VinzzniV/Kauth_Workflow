@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { WorkflowQueryOptions } from "../services/workflowApi";
-import { useProcessTypes } from "../services/queries/processTypeQueries";
+import { useStartableWorkflowDefinitions } from "../services/queries/workflowDefinitionQueries";
 import { useWorkflowList } from "../services/queries/workflowQueries";
-import type { ProcessType, WorkflowResponsibilityOption, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
+import type { StartableWorkflowDefinition, WorkflowResponsibilityOption, WorkflowRuntimeStatus, WorkflowSummary } from "../types/workflow";
 
 const SEARCH_DEBOUNCE_MS = 400;
 const PAGE_SIZE = 20;
@@ -36,7 +36,7 @@ export function useWorkflowListPageView() {
   const initialSearch = searchParams.get("q") ?? "";
   const initialStatusFilter = parseWorkflowStatusFilter(searchParams.get("status"));
   const initialDepartmentFilter = searchParams.get("dept") ?? "all";
-  const initialProcessTypeFilter = searchParams.get("type") ?? "all";
+  const initialWorkflowDefinitionFilter = searchParams.get("type") ?? "all";
   const initialResponsibilityFilter = searchParams.get("resp") ?? "all";
   const initialPageIndex = parsePageIndex(searchParams.get("page"));
 
@@ -45,7 +45,7 @@ export function useWorkflowListPageView() {
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch);
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowRuntimeStatus>(initialStatusFilter);
   const [departmentFilter, setDepartmentFilter] = useState<string>(initialDepartmentFilter);
-  const [processTypeFilter, setProcessTypeFilter] = useState<string>(initialProcessTypeFilter);
+  const [workflowDefinitionFilter, setWorkflowDefinitionFilter] = useState<string>(initialWorkflowDefinitionFilter);
   const [responsibilityFilter, setResponsibilityFilter] = useState<string>(initialResponsibilityFilter);
 
   useEffect(() => {
@@ -68,8 +68,8 @@ export function useWorkflowListPageView() {
       nextParams.set("dept", departmentFilter);
     }
 
-    if (processTypeFilter !== "all") {
-      nextParams.set("type", processTypeFilter);
+    if (workflowDefinitionFilter !== "all") {
+      nextParams.set("type", workflowDefinitionFilter);
     }
 
     if (responsibilityFilter !== "all") {
@@ -86,7 +86,7 @@ export function useWorkflowListPageView() {
   }, [
     departmentFilter,
     pageIndex,
-    processTypeFilter,
+    workflowDefinitionFilter,
     responsibilityFilter,
     search,
     searchParams,
@@ -98,15 +98,15 @@ export function useWorkflowListPageView() {
     () => ({
       status: statusFilter === "all" ? null : statusFilter,
       departmentId: departmentFilter === "all" ? null : Number(departmentFilter),
-      processTypeKey: processTypeFilter === "all" ? null : processTypeFilter,
+      workflowDefinitionKey: workflowDefinitionFilter === "all" ? null : workflowDefinitionFilter,
       search: debouncedSearch,
       responsibilityValue: responsibilityFilter === "all" ? null : responsibilityFilter,
     }),
-    [departmentFilter, debouncedSearch, processTypeFilter, responsibilityFilter, statusFilter]
+    [departmentFilter, debouncedSearch, workflowDefinitionFilter, responsibilityFilter, statusFilter]
   );
-  const processTypesQuery = useProcessTypes();
+  const workflowDefinitionsQuery = useStartableWorkflowDefinitions();
   const workflowListQuery = useWorkflowList(pageQuery, pageIndex, PAGE_SIZE);
-  const processTypeOptions: ProcessType[] = processTypesQuery.data ?? [];
+  const workflowDefinitionOptions: StartableWorkflowDefinition[] = workflowDefinitionsQuery.data ?? [];
   const rows: WorkflowSummary[] = workflowListQuery.data?.items ?? [];
   const totalCount = workflowListQuery.data?.count ?? 0;
   const departmentOptions: Array<[number, string]> =
@@ -114,13 +114,13 @@ export function useWorkflowListPageView() {
   const responsibilityOptions: WorkflowResponsibilityOption[] =
     workflowListQuery.data?.responsibilityOptions ?? [];
   const isLoading = workflowListQuery.isLoading;
-  const isRefreshing = workflowListQuery.isFetching || processTypesQuery.isFetching;
+  const isRefreshing = workflowListQuery.isFetching || workflowDefinitionsQuery.isFetching;
   const error =
     workflowListQuery.error instanceof Error
       ? workflowListQuery.error.message
-      : processTypesQuery.error instanceof Error
-        ? processTypesQuery.error.message
-        : workflowListQuery.error || processTypesQuery.error
+      : workflowDefinitionsQuery.error instanceof Error
+        ? workflowDefinitionsQuery.error.message
+        : workflowListQuery.error || workflowDefinitionsQuery.error
           ? "Vorgänge konnten nicht geladen werden."
           : null;
 
@@ -137,28 +137,28 @@ export function useWorkflowListPageView() {
       search.trim().length > 0 ||
       statusFilter !== "all" ||
       departmentFilter !== "all" ||
-      processTypeFilter !== "all" ||
+      workflowDefinitionFilter !== "all" ||
       responsibilityFilter !== "all",
-    [departmentFilter, processTypeFilter, responsibilityFilter, search, statusFilter]
+    [departmentFilter, workflowDefinitionFilter, responsibilityFilter, search, statusFilter]
   );
   const hasAdvancedFilters =
-    departmentFilter !== "all" || processTypeFilter !== "all" || responsibilityFilter !== "all";
-  const advancedFilterCount = [departmentFilter, processTypeFilter, responsibilityFilter].filter(
+    departmentFilter !== "all" || workflowDefinitionFilter !== "all" || responsibilityFilter !== "all";
+  const advancedFilterCount = [departmentFilter, workflowDefinitionFilter, responsibilityFilter].filter(
     (value) => value !== "all"
   ).length;
 
   const refresh = async () => {
-    await Promise.all([workflowListQuery.refetch(), processTypesQuery.refetch()]);
+    await Promise.all([workflowListQuery.refetch(), workflowDefinitionsQuery.refetch()]);
   };
 
   return {
     search,
     statusFilter,
     departmentFilter,
-    processTypeFilter,
+    workflowDefinitionFilter,
     responsibilityFilter,
     pageIndex,
-    processTypeOptions,
+    workflowDefinitionOptions,
     departmentOptions,
     responsibilityOptions,
     rows,
@@ -182,8 +182,8 @@ export function useWorkflowListPageView() {
       setDepartmentFilter(value);
       setPageIndex(0);
     },
-    setProcessTypeFilter: (value: string) => {
-      setProcessTypeFilter(value);
+    setWorkflowDefinitionFilter: (value: string) => {
+      setWorkflowDefinitionFilter(value);
       setPageIndex(0);
     },
     setResponsibilityFilter: (value: string) => {

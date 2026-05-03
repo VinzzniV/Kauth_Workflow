@@ -125,6 +125,38 @@ Zielbild, Migration und Begriffe müssen im Repo nachvollziehbar sein. Architekt
 
 Keine großen unstrukturierten Refactors nebenbei. Bei Kernumbauten zuerst Zielmodell und Migrationsschnitt klären.
 
+### Action-Mapping-Editor bleibt flach (LQ2, 2026-05-02)
+
+Der `WorkflowBuilderActionMappingEditor` rendert das Eingabe-Mapping einer Automation-Action ausschließlich als flache Liste `paramName → {source, value}`. Das Backend kann mehr: `ResolveAutomationMappingValue` läuft rekursiv über JSON-Objekte und Arrays, sodass eine Action-Definition theoretisch verschachtelte Strukturen erwartet (z. B. `nested.user.firstName`). Der Form-Editor unterstützt das **bewusst nicht**:
+
+- Aktuell hat keine produktive Action ein verschachteltes Input-Schema.
+- Der Form-Builder würde mit einer Tree-Eingabe deutlich komplexer und schwerer testbar.
+- Wenn eine Action mit nested-Schema benötigt wird, kann der Power-Modus (raw JSON) genutzt werden — der Builder fällt automatisch in diesen Modus zurück, wenn das geparste Mapping ungültig ist oder Top-Level-Keys nicht ins Schema passen.
+
+Falls in Zukunft mehrere Actions mit nested-Schemas auftauchen, ist das ein Anlass den Editor zu erweitern (z. B. eine kollabierbare Sub-Liste pro nested object) — aber **nicht** vorab spekulativ bauen.
+
+---
+
+## API-Kompatibilität & Naming
+
+### `LegacyProcessTypeKey` ist der kanonische Name (2026-05-02, HQ1-Z4)
+
+Der bisherige Begriff `ProcessTypeKey` wurde in allen öffentlichen API-Parametern, DTOs und internen Service-Signaturen zu `LegacyProcessTypeKey` umbenannt. Der "Legacy"-Prefix macht klar, dass dieser Key aus dem alten prozesstyp-basierten Modell stammt und langfristig durch `WorkflowDefinitionKey` abgelöst wird.
+
+**Betroffene Endpoints (Parametername geändert):**
+
+| Endpoint | Alter Param | Neuer Param |
+|----------|------------|-------------|
+| `GET /workflows` | `processTypeKey` | `legacyProcessTypeKey` |
+| `GET /workflow-config` | `processTypeKey` | `legacyProcessTypeKey` |
+| `GET /requirements` | `processTypeKey` | `legacyProcessTypeKey` |
+| `GET /admin/config/workflow` | `processTypeKey` | `legacyProcessTypeKey` |
+| `GET /workflows/derive-answers` | `targetProcessTypeKey` | `targetLegacyProcessTypeKey` |
+
+**DTOs:** `CreateWorkflowRequest.LegacyProcessTypeKey`, `WorkflowNotificationDispatchTarget.LegacyProcessTypeKey`
+
+**Deprecation-Ziel:** Wenn alle Workflows über `WorkflowDefinitionKey` gestartet werden können, entfällt `LegacyProcessTypeKey` vollständig. Kein konkreter Termin — erst nach Migrations-Parität.
+
 ---
 
 ## Verwandte Notizen

@@ -1,10 +1,10 @@
 import type { CreatePersonPayload, PersonWorkflowHistory, WorkflowTargetPerson } from "../types/workflow";
-import { requestJson } from "./api/client";
+import { encodeId, requestJson } from "./api/client";
 import type { BackendPersonWorkflowHistoryDto, BackendWorkflowTargetPersonDto } from "./api/backendDtos";
 import { mapPersonWorkflowHistory } from "./api/mappers";
 
 export async function getPersonWorkflowHistory(personId: number): Promise<PersonWorkflowHistory> {
-  const data = await requestJson<BackendPersonWorkflowHistoryDto>(`/people/${encodeURIComponent(String(personId))}/workflows`);
+  const data = await requestJson<BackendPersonWorkflowHistoryDto>(`/people/${encodeId(personId)}/workflows`);
   return mapPersonWorkflowHistory(data);
 }
 

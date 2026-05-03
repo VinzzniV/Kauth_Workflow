@@ -359,7 +359,6 @@ describe("CreateWorkflowPage", () => {
     await waitFor(() => {
       expect(mockedCreateWorkflow).toHaveBeenCalledWith({
         workflowDefinitionKey: "onboarding",
-        processTypeKey: "onboarding",
         targetPersonId: 77,
         firstName: "Ada",
         lastName: "Lovelace",
@@ -395,7 +394,6 @@ describe("CreateWorkflowPage", () => {
       expect(mockedCreatePerson).not.toHaveBeenCalled();
       expect(mockedCreateWorkflow).toHaveBeenCalledWith({
         workflowDefinitionKey: "department_change",
-        processTypeKey: "department_change",
         targetPersonId: 22,
         deadlineDate: null,
       });

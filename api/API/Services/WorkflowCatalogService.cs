@@ -31,7 +31,7 @@ internal sealed class WorkflowCatalogService(
                 continue;
             }
 
-            var managerCreatable = await repository.IsManagerCreatableProcessType(definition.PrimaryLegacyProcessTypeKey);
+            var managerCreatable = await repository.IsManagerCreatableDefinition(definition.DefinitionKey);
             if (managerCreatable && authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Manager))
             {
                 result.Add(definition);
@@ -49,14 +49,6 @@ internal sealed class WorkflowCatalogService(
     public async Task<IReadOnlyList<RoleDto>> GetRolesAsync(CurrentUser currentUser, CancellationToken cancellationToken = default)
     {
         return await repository.GetRoles();
-    }
-
-    public async Task<IReadOnlyList<WorkflowProcessTypeDto>> GetProcessTypesAsync(CurrentUser currentUser, CancellationToken cancellationToken = default)
-    {
-        var managerOnly = authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Manager)
-            && !authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Hr, AuthorizationRoles.Admin);
-
-        return await repository.GetActiveProcessTypes(managerOnly);
     }
 
     public async Task<IReadOnlyList<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSourcesAsync(
@@ -89,23 +81,23 @@ internal sealed class WorkflowCatalogService(
         return await repository.SearchRotationEligiblePeople(search, limit, observableDepartmentIds);
     }
 
-    public async Task<IReadOnlyList<RequirementDto>> GetRequirementsAsync(string? processTypeKey, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<RequirementDto>> GetRequirementsAsync(string? workflowDefinitionKey, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(processTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
-            throw new InvalidOperationException("processTypeKey is required.");
+            throw new InvalidOperationException("workflowDefinitionKey is required.");
         }
 
-        return await repository.GetRequirements(processTypeKey);
+        return await repository.GetRequirements(workflowDefinitionKey);
     }
 
-    public async Task<WorkflowConfigDto?> GetWorkflowConfigAsync(int? roleId, string? processTypeKey, CancellationToken cancellationToken = default)
+    public async Task<WorkflowConfigDto?> GetWorkflowConfigAsync(int? roleId, string? workflowDefinitionKey, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(processTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
-            throw new InvalidOperationException("processTypeKey is required.");
+            throw new InvalidOperationException("workflowDefinitionKey is required.");
         }
 
-        return await repository.GetWorkflowConfig(roleId, processTypeKey);
+        return await repository.GetWorkflowConfig(roleId, workflowDefinitionKey);
     }
 }

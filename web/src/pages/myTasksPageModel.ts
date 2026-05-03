@@ -76,7 +76,6 @@ export function useMyTasksPageView() {
     return entries.sort((left, right) => left[1].localeCompare(right[1], "de"));
   }, [workflowRows]);
 
-  // Alle Tasks nach Workflow-UID gruppiert
   const tasksByWorkflow = useMemo(() => {
     const byUid = new Map<string, TaskWithWorkflow[]>();
     for (const row of workflowRows) {

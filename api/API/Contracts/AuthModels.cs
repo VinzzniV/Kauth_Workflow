@@ -190,6 +190,9 @@ public sealed class SimulationLoginUserOptionDto
     public required string DisplayName { get; init; }
     public required string Email { get; init; }
     public string? DepartmentName { get; init; }
+    // Effektive Rollen-Keys (Vereinigung aus app_user_roles + group-mapped roles),
+    // damit der Sim-Login-Untertitel klarmacht, welche Rechte ein Test-Account hat.
+    public IReadOnlyList<string> RoleKeys { get; init; } = Array.Empty<string>();
 }
 
 public sealed class SimulationLoginRequest
@@ -387,6 +390,7 @@ public sealed class AdminPermissionAuditEntryDto
     public string? Detail { get; init; }
     public string? OldValue { get; init; }
     public string? NewValue { get; init; }
+    public string? Reason { get; init; }
     public required DateTime CreatedAt { get; init; }
 }
 

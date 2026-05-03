@@ -35,7 +35,6 @@ import type {
   AdminDependencyGraphEdge,
   AdminDependencyGraphNode,
   AdminRoleAnswerDefault,
-  AdminProcessType,
   AdminTaskTemplateCondition,
   AdminTaskTemplateDependency,
   AdminTaskTemplate,
@@ -148,7 +147,6 @@ export type BackendWorkflowSummaryDto = {
   departmentName: string;
   roleId: number;
   roleName: string;
-  status: string;
   workflowStatus: string;
   createdAt: string;
   completedAt: string | null;
@@ -352,7 +350,6 @@ export type BackendWorkflowDetailDto = {
   departmentName: string;
   roleId: number;
   roleName: string;
-  status: string;
   workflowStatus: string;
   createdAt: string;
   deadlineDate: string | null;
@@ -370,8 +367,6 @@ export type BackendTaskWorkflowContextDto = {
   workflowId: number;
   workflowUid: string;
   workflowStatus: string;
-  // Legacy backend field. Frontend UI uses workflowStatus instead.
-  workflowLegacyStatus: string;
   workflowCreatedAt: string;
   firstName: string;
   lastName: string;
@@ -436,10 +431,8 @@ export type BackendLinkableWorkflowDto = LinkableWorkflow;
 export type BackendRelatedWorkflowSummaryDto = RelatedWorkflowSummary;
 export type BackendWorkflowTargetPersonDto = WorkflowTargetPerson;
 export type BackendWorkflowTargetPersonSourceDto = WorkflowTargetPersonSource;
-export type BackendCompletedOnboardingSearchResultDto = WorkflowTargetPersonSource;
 export type BackendWorkflowStartableDefinitionDto = import("../../types/workflow").StartableWorkflowDefinition;
 export type BackendDerivedAnswerDto = DerivedAnswer;
-export type BackendAdminProcessTypeDto = AdminProcessType;
 export type BackendAdminTaskTemplateDto = AdminTaskTemplate;
 export type BackendAdminTaskTemplateConditionDto = AdminTaskTemplateCondition;
 export type BackendAdminTaskTemplateDependencyDto = AdminTaskTemplateDependency;
@@ -461,7 +454,7 @@ export type BackendAdminWorkflowActionDefinitionDto = {
   name: string;
   description: string | null;
   handlerType: string;
-  parameterSchema: unknown | null;
+  parameterSchema: Record<string, unknown> | null;
   isActive: boolean;
   requiresApproval: boolean;
   isIdempotent: boolean;

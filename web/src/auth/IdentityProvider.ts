@@ -69,4 +69,15 @@ function createIdentityProvider(): IIdentityProvider {
   return new DevSimulationIdentityProvider();
 }
 
-export const identityProvider: IIdentityProvider = createIdentityProvider();
+let cachedIdentityProvider: IIdentityProvider | null = null;
+
+// Lazy-Proxy: bricht den Modul-Init-Cycle zu EntraIdentityProvider/client.ts.
+// Der konkrete Provider wird erst beim ersten Property-Zugriff erstellt,
+// wenn alle Module komplett geladen sind.
+export const identityProvider: IIdentityProvider = new Proxy({} as IIdentityProvider, {
+  get(_target, prop) {
+    cachedIdentityProvider ??= createIdentityProvider();
+    const value = Reflect.get(cachedIdentityProvider, prop);
+    return typeof value === "function" ? value.bind(cachedIdentityProvider) : value;
+  },
+});

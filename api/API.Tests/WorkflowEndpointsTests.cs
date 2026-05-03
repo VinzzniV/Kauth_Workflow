@@ -340,7 +340,7 @@ public sealed class WorkflowEndpointsTests
             app.Services,
             endpoint,
             "/workflows/derive-answers",
-            "?sourceUid=not-a-guid&targetProcessTypeKey=offboarding");
+            "?sourceUid=not-a-guid&targetWorkflowDefinitionKey=offboarding");
 
         await endpoint.RequestDelegate!(context);
 
@@ -363,14 +363,14 @@ public sealed class WorkflowEndpointsTests
             app.Services,
             endpoint,
             "/workflows/derive-answers",
-            $"?sourceUid={sourceUid}&targetProcessTypeKey=%20offboarding%20");
+            $"?sourceUid={sourceUid}&targetWorkflowDefinitionKey=%20offboarding%20");
 
         await endpoint.RequestDelegate!(context);
 
         Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         Assert.Equal(1, repository.GetDerivedAnswersCallCount);
         Assert.Equal(sourceUid, repository.LastGetDerivedAnswersSourceWorkflowUid);
-        Assert.Equal("offboarding", repository.LastGetDerivedAnswersTargetProcessTypeKey);
+        Assert.Equal("offboarding", repository.LastGetDerivedAnswersTargetDefinitionKey);
     }
 
     [Fact]
@@ -450,71 +450,6 @@ public sealed class WorkflowEndpointsTests
         Assert.Equal(0, repository.GetWorkflowLinksCallCount);
     }
 
-    [Theory]
-    [InlineData(AuthorizationRoles.Admin, false)]
-    [InlineData(AuthorizationRoles.Manager, true)]
-    [InlineData(AuthorizationRoles.Reader, false)]
-    public async Task ProcessTypesEndpoint_FiltersManagerOnlyView_WhenRequired(string roleKey, bool expectedManagerOnly)
-    {
-        var repository = new StubWorkflowRepository
-        {
-            ActiveProcessTypes =
-            [
-                new WorkflowProcessTypeDto
-                {
-                    Key = "onboarding",
-                    Name = "Onboarding",
-                    RequiresTargetPerson = false
-                }
-            ]
-        };
-
-        var app = CreateApp(repository, CreateUser(roleKey));
-        var endpoint = GetWorkflowEndpoint(app, "/process-types", HttpMethods.Get);
-        var context = CreateGetRequestContext(
-            app.Services,
-            endpoint,
-            "/process-types",
-            "");
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.GetActiveProcessTypesCallCount);
-        Assert.Equal(expectedManagerOnly, repository.LastGetActiveProcessTypesManagerOnly);
-    }
-
-    [Fact]
-    public async Task ProcessTypesEndpoint_DoesNotFilterManagerOnly_WhenHrAndManagerAreCombined()
-    {
-        var repository = new StubWorkflowRepository
-        {
-            ActiveProcessTypes =
-            [
-                new WorkflowProcessTypeDto
-                {
-                    Key = "department_change",
-                    Name = "Abteilungswechsel",
-                    RequiresTargetPerson = true
-                }
-            ]
-        };
-
-        var app = CreateApp(repository, CreateUser(AuthorizationRoles.Hr, AuthorizationRoles.Manager));
-        var endpoint = GetWorkflowEndpoint(app, "/process-types", HttpMethods.Get);
-        var context = CreateGetRequestContext(
-            app.Services,
-            endpoint,
-            "/process-types",
-            "");
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.GetActiveProcessTypesCallCount);
-        Assert.False(repository.LastGetActiveProcessTypesManagerOnly);
-    }
-
     [Fact]
     public async Task StartableWorkflowDefinitionsEndpoint_ReturnsDefinitionFirstCatalog()
     {
@@ -528,7 +463,6 @@ public sealed class WorkflowEndpointsTests
                     Name = "Onboarding",
                     Description = "Neue Person anlegen",
                     RequiresTargetPerson = false,
-                    PrimaryLegacyProcessTypeKey = "onboarding",
                     LatestPublishedVersionNumber = 3
                 }
             ]
@@ -562,7 +496,6 @@ public sealed class WorkflowEndpointsTests
                     Name = "Onboarding",
                     Description = "Neue Person anlegen",
                     RequiresTargetPerson = false,
-                    PrimaryLegacyProcessTypeKey = "onboarding",
                     LatestPublishedVersionNumber = 1
                 }
             ],
@@ -575,9 +508,6 @@ public sealed class WorkflowEndpointsTests
                 WorkflowDefinitionVersionId = 7,
                 WorkflowDefinitionVersionNumber = 1,
                 CurrentRuntimeStatus = "waiting",
-                LegacyWorkflowStatus = "draft",
-                PrimaryLegacyProcessTypeKey = "onboarding",
-                PrimaryLegacyProcessTypeName = "Onboarding",
                 DepartmentId = 1,
                 RoleId = 2,
                 CreatedAt = DateTime.UtcNow,
@@ -683,7 +613,17 @@ public sealed class WorkflowEndpointsTests
     {
         var repository = new StubWorkflowRepository
         {
-            IsManagerCreatableProcessTypeResult = false
+            IsManagerCreatableDefinitionResult = false,
+            StartableWorkflowDefinitions =
+            [
+                new WorkflowStartableDefinitionDto
+                {
+                    DefinitionKey = "onboarding",
+                    Name = "Onboarding",
+                    RequiresTargetPerson = false,
+                    LatestPublishedVersionNumber = 1
+                }
+            ]
         };
 
         var app = CreateApp(repository, CreateUser(AuthorizationRoles.Manager));
@@ -695,7 +635,7 @@ public sealed class WorkflowEndpointsTests
             "/workflows",
             new CreateWorkflowRequest
             {
-                ProcessTypeKey = "onboarding",
+                WorkflowDefinitionKey = "onboarding",
                 DepartmentId = 1,
                 RoleId = 2,
                 FirstName = "Ada",
@@ -707,9 +647,8 @@ public sealed class WorkflowEndpointsTests
         await endpoint.RequestDelegate!(context);
 
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
-        Assert.Equal(1, repository.IsManagerCreatableProcessTypeCallCount);
-        Assert.Equal("onboarding", repository.LastIsManagerCreatableProcessTypeKey);
-        Assert.Equal(0, repository.CreateWorkflowCallCount);
+        Assert.Equal(1, repository.IsManagerCreatableDefinitionCallCount);
+        Assert.Equal("onboarding", repository.LastIsManagerCreatableDefinitionKey);
     }
 
     [Fact]
@@ -717,16 +656,7 @@ public sealed class WorkflowEndpointsTests
     {
         var repository = new StubWorkflowRepository
         {
-            IsManagerCreatableProcessTypeResult = true,
-            ActiveProcessTypes =
-            [
-                new WorkflowProcessTypeDto
-                {
-                    Key = "department_change",
-                    Name = "Abteilungswechsel",
-                    RequiresTargetPerson = true
-                }
-            ],
+            IsManagerCreatableDefinitionResult = true,
             RequirementSelectionDepartmentIdsResult = new HashSet<int> { 7 },
             PersonWorkflowHistory = new PersonWorkflowHistoryDto
             {
@@ -751,7 +681,7 @@ public sealed class WorkflowEndpointsTests
             "/workflows",
             new CreateWorkflowRequest
             {
-                ProcessTypeKey = "department_change",
+                WorkflowDefinitionKey = "department_change",
                 TargetPersonId = 55,
                 SourceWorkflowUid = Guid.NewGuid(),
                 FirstName = "Ada",
@@ -772,14 +702,15 @@ public sealed class WorkflowEndpointsTests
     {
         var repository = new StubWorkflowRepository
         {
-            IsManagerCreatableProcessTypeResult = true,
-            ActiveProcessTypes =
+            IsManagerCreatableDefinitionResult = true,
+            StartableWorkflowDefinitions =
             [
-                new WorkflowProcessTypeDto
+                new WorkflowStartableDefinitionDto
                 {
-                    Key = "department_change",
+                    DefinitionKey = "department_change",
                     Name = "Abteilungswechsel",
-                    RequiresTargetPerson = true
+                    RequiresTargetPerson = true,
+                    LatestPublishedVersionNumber = 1
                 }
             ],
             RequirementSelectionDepartmentIdsResult = new HashSet<int> { 7 },
@@ -807,7 +738,7 @@ public sealed class WorkflowEndpointsTests
             "/workflows",
             new CreateWorkflowRequest
             {
-                ProcessTypeKey = "department_change",
+                WorkflowDefinitionKey = "department_change",
                 TargetPersonId = 55,
                 SourceWorkflowUid = Guid.NewGuid(),
                 FirstName = "Ada",
@@ -819,7 +750,6 @@ public sealed class WorkflowEndpointsTests
         await endpoint.RequestDelegate!(context);
 
         Assert.Equal(StatusCodes.Status201Created, context.Response.StatusCode);
-        Assert.Equal(1, repository.CreateWorkflowCallCount);
         Assert.Equal(1, repository.GetPersonWorkflowHistoryCallCount);
     }
 
@@ -828,13 +758,14 @@ public sealed class WorkflowEndpointsTests
     {
         var repository = new StubWorkflowRepository
         {
-            ActiveProcessTypes =
+            StartableWorkflowDefinitions =
             [
-                new WorkflowProcessTypeDto
+                new WorkflowStartableDefinitionDto
                 {
-                    Key = "department_change",
+                    DefinitionKey = "department_change",
                     Name = "Abteilungswechsel",
-                    RequiresTargetPerson = true
+                    RequiresTargetPerson = true,
+                    LatestPublishedVersionNumber = 1
                 }
             ]
         };
@@ -848,7 +779,7 @@ public sealed class WorkflowEndpointsTests
             "/workflows",
             new CreateWorkflowRequest
             {
-                ProcessTypeKey = "department_change",
+                WorkflowDefinitionKey = "department_change",
                 DepartmentId = 1,
                 RoleId = 2,
                 FirstName = "Ada",
@@ -860,9 +791,7 @@ public sealed class WorkflowEndpointsTests
         await endpoint.RequestDelegate!(context);
 
         Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
-        Assert.Equal(1, repository.IsManagerCreatableProcessTypeCallCount);
-        Assert.Equal(1, repository.GetActiveProcessTypesCallCount);
-        Assert.Equal(0, repository.CreateWorkflowCallCount);
+        Assert.Equal(1, repository.IsManagerCreatableDefinitionCallCount);
     }
 
     [Fact]
@@ -870,13 +799,14 @@ public sealed class WorkflowEndpointsTests
     {
         var repository = new StubWorkflowRepository
         {
-            ActiveProcessTypes =
+            StartableWorkflowDefinitions =
             [
-                new WorkflowProcessTypeDto
+                new WorkflowStartableDefinitionDto
                 {
-                    Key = "onboarding",
+                    DefinitionKey = "onboarding",
                     Name = "Onboarding",
-                    RequiresTargetPerson = false
+                    RequiresTargetPerson = false,
+                    LatestPublishedVersionNumber = 1
                 }
             ],
             Workflow = CreateWorkflowDetail(Guid.Parse("11111111-1111-1111-1111-111111111111"))
@@ -891,7 +821,7 @@ public sealed class WorkflowEndpointsTests
             "/workflows",
             new CreateWorkflowRequest
             {
-                ProcessTypeKey = "onboarding",
+                WorkflowDefinitionKey = "onboarding",
                 DepartmentId = 1,
                 RoleId = 2,
                 TargetPersonId = 77,
@@ -904,50 +834,7 @@ public sealed class WorkflowEndpointsTests
         await endpoint.RequestDelegate!(context);
 
         Assert.Equal(StatusCodes.Status201Created, context.Response.StatusCode);
-        Assert.Equal(1, repository.IsManagerCreatableProcessTypeCallCount);
-        Assert.Equal(1, repository.GetActiveProcessTypesCallCount);
-        Assert.Equal(1, repository.CreateWorkflowCallCount);
-    }
-
-    [Fact]
-    public async Task WorkflowTargetPersonSourcesAlias_PassesSearchAndLimitToRepository()
-    {
-        var repository = new StubWorkflowRepository
-        {
-            WorkflowTargetPersonSources =
-            [
-                new WorkflowTargetPersonSourceDto
-                {
-                    WorkflowUid = Guid.NewGuid(),
-                    PersonId = 5,
-                    DisplayName = "Ada Lovelace",
-                    FirstName = "Ada",
-                    LastName = "Lovelace",
-                    EmployeeNumber = 1001,
-                    BadgeNumber = 2002,
-                    DepartmentId = 1,
-                    DepartmentName = "IT",
-                    RoleId = 2,
-                    RoleName = "Entwicklerin",
-                    CompletedAt = DateTime.UtcNow
-                }
-            ]
-        };
-
-        var app = CreateApp(repository, CreateUser(AuthorizationRoles.Manager));
-        var endpoint = GetWorkflowEndpoint(app, "/workflows/completed-onboardings", HttpMethods.Get);
-        var context = CreateGetRequestContext(
-            app.Services,
-            endpoint,
-            "/workflows/completed-onboardings",
-            "?search=Ada&limit=15");
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.SearchWorkflowTargetPersonSourcesCallCount);
-        Assert.Equal("Ada", repository.LastSearchWorkflowTargetPersonSourcesSearch);
-        Assert.Equal(15, repository.LastSearchWorkflowTargetPersonSourcesLimit);
+        Assert.Equal(1, repository.IsManagerCreatableDefinitionCallCount);
     }
 
     [Fact]
@@ -974,60 +861,6 @@ public sealed class WorkflowEndpointsTests
         await endpoint.RequestDelegate!(context);
 
         Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetAdminProcessTypesEndpoint_ReturnsRepositoryData()
-    {
-        var repository = new StubWorkflowRepository
-        {
-            AdminProcessTypes = new List<AdminProcessTypeDto>
-            {
-                CreateAdminProcessTypeDto(1, "offboarding", false, false, "Keine aktiven Anforderungen konfiguriert.")
-            }
-        };
-
-        var app = CreateApp(repository);
-        var endpoint = GetWorkflowEndpoint(app, "/admin/config/process-types", HttpMethods.Get);
-        var context = CreateGetRequestContext(
-            app.Services,
-            endpoint,
-            "/admin/config/process-types",
-            "");
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.GetAdminProcessTypesCallCount);
-    }
-
-    [Fact]
-    public async Task UpdateProcessTypeEndpoint_ReturnsBadRequestForDomainErrors()
-    {
-        var repository = new StubWorkflowRepository
-        {
-            UpdateProcessTypeException = new InvalidOperationException("Aktivierung blockiert.")
-        };
-
-        var app = CreateApp(repository);
-        var endpoint = GetWorkflowEndpoint(app, "/admin/config/process-types/{processTypeId:int}", HttpMethods.Patch);
-        var context = CreateJsonRequestContext(
-            app.Services,
-            endpoint,
-            HttpMethods.Patch,
-            "/admin/config/process-types/5",
-            new AdminProcessTypeUpdateRequest
-            {
-                IsActive = true
-            },
-            ("processTypeId", 5));
-
-        await endpoint.RequestDelegate!(context);
-
-        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
-        Assert.Equal(1, repository.UpdateProcessTypeCallCount);
-        Assert.Equal(5, repository.LastUpdateProcessTypeId);
-        Assert.True(repository.LastUpdateProcessTypeRequest!.IsActive);
     }
 
     [Fact]
@@ -1073,6 +906,8 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddRouting();
         builder.Services.AddSingleton<IWorkflowRepository>(repository);
         builder.Services.AddSingleton<IWorkflowDefinitionRuntimeRepository>(repository);
+        builder.Services.AddSingleton<IWorkflowAuditReadRepository>(repository);
+        builder.Services.AddSingleton<IWorkflowNotificationReadRepository>(repository);
         builder.Services.AddSingleton<IUserAuthorizationRepository, StubUserAuthorizationRepository>();
         builder.Services.AddSingleton<IUserContext>(new StubUserContext(user ?? CreateAdminHrUser()));
         builder.Services.AddSingleton<IAuthorizationPolicyService, AuthorizationPolicyService>();
@@ -1225,7 +1060,6 @@ public sealed class WorkflowEndpointsTests
             },
             RoleId = 1,
             RoleName = "Developer",
-            Status = "open",
             WorkflowStatus = "draft",
             CreatedAt = DateTime.UtcNow,
             DeadlineDate = null,
@@ -1464,7 +1298,7 @@ public sealed class WorkflowEndpointsTests
         }
     }
 
-    private sealed class StubWorkflowRepository : IWorkflowRepository, IWorkflowDefinitionRuntimeRepository
+    private sealed class StubWorkflowRepository : IWorkflowRepository, IWorkflowDefinitionRuntimeRepository, IWorkflowAuditReadRepository, IWorkflowNotificationReadRepository
     {
         public WorkflowDetailDto? Workflow { get; set; }
         public List<WorkflowAuditEntryDto> AuditEntries { get; set; } = new();
@@ -1474,13 +1308,10 @@ public sealed class WorkflowEndpointsTests
         public List<RelatedWorkflowSummaryDto> RelatedWorkflows { get; set; } = new();
         public List<LinkableWorkflowDto> LinkableWorkflows { get; set; } = new();
         public List<DerivedAnswerDto> DerivedAnswers { get; set; } = new();
-        public List<AdminProcessTypeDto> AdminProcessTypes { get; set; } = new();
         public List<WorkflowStartableDefinitionDto> StartableWorkflowDefinitions { get; set; } = new();
         public WorkflowTargetPersonDto? CreatedPerson { get; set; }
         public List<WorkflowTargetPersonDto> WorkflowTargetPeople { get; set; } = new();
         public List<WorkflowTargetPersonDto> RotationEligiblePeople { get; set; } = new();
-        public AdminProcessTypeDto? UpdatedProcessType { get; set; }
-        public Exception? UpdateProcessTypeException { get; set; }
         public WorkflowDefinitionRuntimeDetailDto RuntimeWorkflowCreationResult { get; set; } = new()
         {
             WorkflowId = 1,
@@ -1490,9 +1321,6 @@ public sealed class WorkflowEndpointsTests
             WorkflowDefinitionVersionId = 1,
             WorkflowDefinitionVersionNumber = 1,
             CurrentRuntimeStatus = "waiting",
-            LegacyWorkflowStatus = "draft",
-            PrimaryLegacyProcessTypeKey = "onboarding",
-            PrimaryLegacyProcessTypeName = "Onboarding",
             DepartmentId = 1,
             RoleId = 2,
             CreatedAt = DateTime.UtcNow,
@@ -1506,7 +1334,6 @@ public sealed class WorkflowEndpointsTests
         public HashSet<int> RequirementSelectionDepartmentIdsResult { get; set; } = new();
         public PersonWorkflowHistoryDto? PersonWorkflowHistory { get; set; }
         public bool DeleteWorkflowLinkResult { get; set; }
-        public List<WorkflowProcessTypeDto> ActiveProcessTypes { get; set; } = new();
         public int GetWorkflowByUidCallCount { get; private set; }
         public int GetWorkflowAuditLogCallCount { get; private set; }
         public int GetRolesCallCount { get; private set; }
@@ -1516,23 +1343,19 @@ public sealed class WorkflowEndpointsTests
         public int FindLinkableWorkflowsCallCount { get; private set; }
         public int GetDerivedAnswersCallCount { get; private set; }
         public int DeleteWorkflowLinkCallCount { get; private set; }
-        public int GetAdminProcessTypesCallCount { get; private set; }
-        public int UpdateProcessTypeCallCount { get; private set; }
-        public int GetActiveProcessTypesCallCount { get; private set; }
         public int GetStartableWorkflowDefinitionsCallCount { get; private set; }
         public int SearchWorkflowTargetPersonSourcesCallCount { get; private set; }
         public int SearchWorkflowTargetPeopleCallCount { get; private set; }
         public int SearchRotationEligiblePeopleCallCount { get; private set; }
         public int CreateWorkflowCallCount { get; private set; }
         public int CreatePersonCallCount { get; private set; }
-        public int IsManagerCreatableProcessTypeCallCount { get; private set; }
+        public int IsManagerCreatableDefinitionCallCount { get; private set; }
         public int GetWorkflowCreatedNotificationDispatchTargetsCallCount { get; private set; }
         public int ApplyNotificationDispatchResultsCallCount { get; private set; }
         public int ApplyPersonLifecycleProjectionCallCount { get; private set; }
         public int GetPersonWorkflowHistoryCallCount { get; private set; }
         public int GetRequirementSelectionDepartmentIdsCallCount { get; private set; }
         public int GetFilteredWorkflowsCallCount { get; private set; }
-        public bool LastGetActiveProcessTypesManagerOnly { get; private set; }
         public string? LastSearchWorkflowTargetPersonSourcesSearch { get; private set; }
         public int? LastSearchWorkflowTargetPersonSourcesLimit { get; private set; }
         public IReadOnlyCollection<int>? LastSearchWorkflowTargetPersonSourcesDepartmentIds { get; private set; }
@@ -1544,7 +1367,7 @@ public sealed class WorkflowEndpointsTests
         public IReadOnlyCollection<int>? LastSearchRotationEligiblePeopleDepartmentIds { get; private set; }
         public int? LastAuditLogLimit { get; private set; }
         public int? LastAuditLogOffset { get; private set; }
-        public string? LastIsManagerCreatableProcessTypeKey { get; private set; }
+        public string? LastIsManagerCreatableDefinitionKey { get; private set; }
         public Guid? LastCreateWorkflowLinkTargetWorkflowUid { get; private set; }
         public CreateWorkflowLinkRequest? LastCreateWorkflowLinkRequest { get; private set; }
         public long? LastCreateWorkflowLinkActorUserId { get; private set; }
@@ -1552,12 +1375,10 @@ public sealed class WorkflowEndpointsTests
         public int? LastFindLinkableWorkflowsEmployeeNumber { get; private set; }
         public Guid? LastFindLinkableWorkflowsExcludeUid { get; private set; }
         public Guid? LastGetDerivedAnswersSourceWorkflowUid { get; private set; }
-        public string? LastGetDerivedAnswersTargetProcessTypeKey { get; private set; }
+        public string? LastGetDerivedAnswersTargetDefinitionKey { get; private set; }
         public Guid? LastDeleteWorkflowLinkWorkflowUid { get; private set; }
         public long? LastDeleteWorkflowLinkId { get; private set; }
         public long? LastDeleteWorkflowLinkActorUserId { get; private set; }
-        public int? LastUpdateProcessTypeId { get; private set; }
-        public AdminProcessTypeUpdateRequest? LastUpdateProcessTypeRequest { get; private set; }
         public CreateWorkflowRequest? LastCreateWorkflowRequest { get; private set; }
         public long? LastCreateWorkflowUserId { get; private set; }
         public CreatePersonRequest? LastCreatePersonRequest { get; private set; }
@@ -1565,7 +1386,7 @@ public sealed class WorkflowEndpointsTests
         public Guid? LastApplyPersonLifecycleProjectionWorkflowUid { get; private set; }
         public long? LastApplyPersonLifecycleProjectionActorUserId { get; private set; }
         public WorkflowListQuery? LastWorkflowListQuery { get; private set; }
-        public bool IsManagerCreatableProcessTypeResult { get; set; } = true;
+        public bool IsManagerCreatableDefinitionResult { get; set; } = true;
         public List<WorkflowTargetPersonSourceDto> WorkflowTargetPersonSources { get; set; } = new();
         public WorkflowCreationResult WorkflowCreationResult { get; set; } = new()
         {
@@ -1581,24 +1402,18 @@ public sealed class WorkflowEndpointsTests
             GetRolesCallCount += 1;
             return Task.FromResult(Roles);
         }
-        public Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false)
-        {
-            GetActiveProcessTypesCallCount += 1;
-            LastGetActiveProcessTypesManagerOnly = managerOnly;
-            return Task.FromResult(ActiveProcessTypes);
-        }
         public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions()
         {
             GetStartableWorkflowDefinitionsCallCount += 1;
             return Task.FromResult(StartableWorkflowDefinitions);
         }
-        public Task<List<RequirementDto>> GetRequirements(string processTypeKey) => throw new NotSupportedException();
-        public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey) => throw new NotSupportedException();
-        public Task<bool> IsManagerCreatableProcessType(string processTypeKey)
+        public Task<List<RequirementDto>> GetRequirements(string workflowDefinitionKey) => throw new NotSupportedException();
+        public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string workflowDefinitionKey) => throw new NotSupportedException();
+        public Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey)
         {
-            IsManagerCreatableProcessTypeCallCount += 1;
-            LastIsManagerCreatableProcessTypeKey = processTypeKey;
-            return Task.FromResult(IsManagerCreatableProcessTypeResult);
+            IsManagerCreatableDefinitionCallCount += 1;
+            LastIsManagerCreatableDefinitionKey = workflowDefinitionKey;
+            return Task.FromResult(IsManagerCreatableDefinitionResult);
         }
         public Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId)
         {
@@ -1663,7 +1478,8 @@ public sealed class WorkflowEndpointsTests
             return Task.FromResult(RequirementSelectionDepartmentIdsResult);
         }
         public Task<List<TaskWithWorkflowDto>> GetTasks() => throw new NotSupportedException();
-        public Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] responsibilityIds) => throw new NotSupportedException();
+        public Task<List<TaskWithWorkflowDto>> GetTasksForUser(long userId, int[] effectiveResponsibilityIds) => throw new NotSupportedException();
+        public Task<List<TaskWithWorkflowDto>> GetTasksForUserNarrowed(long userId, int[] effectiveResponsibilityIds) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskById(long taskId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId) => throw new NotSupportedException();
@@ -1761,11 +1577,11 @@ public sealed class WorkflowEndpointsTests
             return Task.FromResult(LinkableWorkflows);
         }
 
-        public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetProcessTypeKey)
+        public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetWorkflowDefinitionKey)
         {
             GetDerivedAnswersCallCount += 1;
             LastGetDerivedAnswersSourceWorkflowUid = sourceWorkflowUid;
-            LastGetDerivedAnswersTargetProcessTypeKey = targetProcessTypeKey;
+            LastGetDerivedAnswersTargetDefinitionKey = targetWorkflowDefinitionKey;
             return Task.FromResult(DerivedAnswers);
         }
 
@@ -1778,27 +1594,7 @@ public sealed class WorkflowEndpointsTests
         public Task<WorkflowDefinitionVersionDetailDto?> GetAdminWorkflowDefinitionVersion(long versionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(long versionId, ReplaceWorkflowDefinitionVersionRequest request) => throw new NotSupportedException();
 
-        public Task<List<AdminProcessTypeDto>> GetAdminProcessTypes()
-        {
-            GetAdminProcessTypesCallCount += 1;
-            return Task.FromResult(AdminProcessTypes);
-        }
-
-        public Task<AdminProcessTypeDto?> UpdateProcessType(int processTypeId, AdminProcessTypeUpdateRequest request)
-        {
-            UpdateProcessTypeCallCount += 1;
-            LastUpdateProcessTypeId = processTypeId;
-            LastUpdateProcessTypeRequest = request;
-
-            if (UpdateProcessTypeException is not null)
-            {
-                throw UpdateProcessTypeException;
-            }
-
-            return Task.FromResult<AdminProcessTypeDto?>(UpdatedProcessType);
-        }
-
-        public Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int processTypeId) => throw new NotSupportedException();
+        public Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDto?> UpdateAdminTaskTemplate(int templateId, AdminTaskTemplateUpsertRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminTaskTemplate(int templateId) => throw new NotSupportedException();
@@ -1808,13 +1604,13 @@ public sealed class WorkflowEndpointsTests
         public Task<List<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDependencyDto> CreateAdminTaskTemplateDependency(int templateId, AdminTaskTemplateDependencyCreateRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminTaskTemplateDependency(int templateId, long dependencyId) => throw new NotSupportedException();
-        public Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int processTypeId) => throw new NotSupportedException();
+        public Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<AdminAnswerDefinitionDto> CreateAdminAnswerDefinition(AdminAnswerDefinitionUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminAnswerDefinitionDto?> UpdateAdminAnswerDefinition(int definitionId, AdminAnswerDefinitionUpsertRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminAnswerDefinition(int definitionId) => throw new NotSupportedException();
-        public Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int processTypeId) => throw new NotSupportedException();
+        public Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request) => throw new NotSupportedException();
-        public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int processTypeId) => throw new NotSupportedException();
+        public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> PublishWorkflowDefinitionVersion(long versionId) => throw new NotSupportedException();
 
         public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowDefinitionInstance(

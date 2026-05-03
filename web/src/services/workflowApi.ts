@@ -17,7 +17,7 @@ import type {
   WorkflowTargetPersonSource,
   WorkflowTask,
 } from "../types/workflow";
-import { requestJson } from "./api/client";
+import { encodeId, requestJson } from "./api/client";
 import type {
   BackendDerivedAnswerDto,
   BackendLinkableWorkflowDto,
@@ -46,7 +46,7 @@ import {
 export type WorkflowQueryOptions = {
   status?: WorkflowRuntimeStatus | null;
   departmentId?: number | null;
-  processTypeKey?: string | null;
+  workflowDefinitionKey?: string | null;
   search?: string | null;
   responsibilityValue?: string | null;
 };
@@ -62,8 +62,8 @@ function buildWorkflowQuery(options: WorkflowQueryOptions & { limit?: number | n
     params.set("department", String(options.departmentId));
   }
 
-  if (options.processTypeKey && options.processTypeKey.trim()) {
-    params.set("processTypeKey", options.processTypeKey.trim());
+  if (options.workflowDefinitionKey && options.workflowDefinitionKey.trim()) {
+    params.set("workflowDefinitionKey", options.workflowDefinitionKey.trim());
   }
 
   if (options.search && options.search.trim()) {
@@ -86,13 +86,13 @@ function buildWorkflowQuery(options: WorkflowQueryOptions & { limit?: number | n
   return query ? `?${query}` : "";
 }
 
-export async function getWorkflowConfig(roleId?: number | null, processTypeKey?: string | null): Promise<WorkflowConfig> {
+export async function getWorkflowConfig(roleId?: number | null, workflowDefinitionKey?: string | null): Promise<WorkflowConfig> {
   const params = new URLSearchParams();
   if (typeof roleId === "number") {
     params.set("roleId", String(roleId));
   }
-  if (processTypeKey && processTypeKey.trim()) {
-    params.set("processTypeKey", processTypeKey.trim());
+  if (workflowDefinitionKey && workflowDefinitionKey.trim()) {
+    params.set("workflowDefinitionKey", workflowDefinitionKey.trim());
   }
   const query = params.toString();
   const data = await requestJson<BackendWorkflowConfigDto>(`/workflow-config${query ? `?${query}` : ""}`);
@@ -104,11 +104,11 @@ export async function createWorkflow(payload: WorkflowCreationPayload): Promise<
 }
 
 export async function archiveWorkflow(uid: string): Promise<void> {
-  await requestJson<unknown>(`/workflows/${encodeURIComponent(uid)}/archive`, { method: "POST" });
+  await requestJson<void>(`/workflows/${encodeURIComponent(uid)}/archive`, { method: "POST" });
 }
 
 export async function deleteWorkflow(uid: string): Promise<void> {
-  await requestJson<unknown>(`/workflows/${encodeURIComponent(uid)}`, { method: "DELETE" });
+  await requestJson<void>(`/workflows/${encodeURIComponent(uid)}`, { method: "DELETE" });
 }
 
 export async function getWorkflowByUid(uid: string): Promise<WorkflowDetail> {
@@ -194,7 +194,7 @@ export async function createWorkflowLink(
 }
 
 export async function deleteWorkflowLink(uid: string, linkId: number): Promise<void> {
-  await requestJson<unknown>(`/workflows/${encodeURIComponent(uid)}/links/${encodeURIComponent(String(linkId))}`, {
+  await requestJson<void>(`/workflows/${encodeURIComponent(uid)}/links/${encodeId(linkId)}`, {
     method: "DELETE",
   });
 }
@@ -221,13 +221,6 @@ export async function searchWorkflowTargetPeople(
   return requestJson<BackendWorkflowTargetPersonDto[]>(`/workflow-target-people?${params.toString()}`);
 }
 
-export async function searchCompletedOnboardings(
-  search?: string,
-  limit = 20
-): Promise<WorkflowTargetPersonSource[]> {
-  return searchWorkflowTargetPersonSources(search, limit);
-}
-
 export async function searchWorkflowTargetPersonSources(
   search?: string,
   limit = 20
@@ -244,11 +237,11 @@ export async function searchWorkflowTargetPersonSources(
 
 export async function getDerivedAnswers(
   sourceUid: string,
-  targetProcessTypeKey: string
+  targetWorkflowDefinitionKey: string
 ): Promise<DerivedAnswer[]> {
   const params = new URLSearchParams({
     sourceUid,
-    targetProcessTypeKey,
+    targetWorkflowDefinitionKey,
   });
   return requestJson<BackendDerivedAnswerDto[]>(`/workflows/derive-answers?${params.toString()}`);
 }

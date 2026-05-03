@@ -43,8 +43,10 @@ internal static class ClientSystemLogEndpoints
             });
 
             return Results.Accepted();
-        }).Produces(StatusCodes.Status202Accepted)
-          .Produces(StatusCodes.Status401Unauthorized);
+        }).RequireRateLimiting("client-log-events")
+          .Produces(StatusCodes.Status202Accepted)
+          .Produces(StatusCodes.Status401Unauthorized)
+          .Produces(StatusCodes.Status429TooManyRequests);
 
         return app;
     }

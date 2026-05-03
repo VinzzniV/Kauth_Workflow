@@ -42,7 +42,7 @@ SELECT
     w.badge_number,
     d.id,
     d.name,
-    pt.key,
+    pt.definition_key,
     pt.name,
     pt.requires_target_person,
     r.id,
@@ -55,11 +55,11 @@ SELECT
     COUNT(n.id) FILTER (WHERE n.status = 'failed') AS failed_notifications
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 JOIN app_roles r ON r.id = w.position_role_id
 LEFT JOIN workflow_notifications n ON n.workflow_id = w.id
 WHERE w.archived_at IS NULL
-GROUP BY w.id, d.id, d.name, pt.key, pt.name, pt.requires_target_person, r.id, r.name, w.deadline_date
+GROUP BY w.id, d.id, d.name, pt.definition_key, pt.name, pt.requires_target_person, r.id, r.name, w.deadline_date
 ORDER BY w.created_at DESC;";
 
         var workflowRows = new List<(
@@ -71,7 +71,7 @@ ORDER BY w.created_at DESC;";
             int BadgeNumber,
             int DepartmentId,
             string DepartmentName,
-            string ProcessTypeKey,
+            string LegacyProcessTypeKey,
             string ProcessTypeName,
             bool ProcessTypeRequiresTargetPerson,
             int RoleId,
@@ -135,13 +135,12 @@ ORDER BY w.created_at DESC;";
                     DepartmentName = row.DepartmentName,
                     ProcessType = new WorkflowProcessTypeDto
                     {
-                        Key = row.ProcessTypeKey,
+                        Key = row.LegacyProcessTypeKey,
                         Name = row.ProcessTypeName,
                         RequiresTargetPerson = row.ProcessTypeRequiresTargetPerson
                     },
                     RoleId = row.RoleId,
                     RoleName = row.RoleName,
-                    Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                     WorkflowStatus = workflowStatus,
                     CompletedAt = row.CompletedAt,
                     DeadlineDate = row.DeadlineDate,
@@ -191,13 +190,12 @@ ORDER BY w.created_at DESC;";
                 DepartmentName = row.DepartmentName,
                 ProcessType = new WorkflowProcessTypeDto
                 {
-                    Key = row.ProcessTypeKey,
+                    Key = row.LegacyProcessTypeKey,
                     Name = row.ProcessTypeName,
                     RequiresTargetPerson = row.ProcessTypeRequiresTargetPerson
                 },
                 RoleId = row.RoleId,
                 RoleName = row.RoleName,
-                Status = WorkflowStatusRules.ToLegacyStatus(row.WorkflowStatus),
                 WorkflowStatus = row.WorkflowStatus,
                 CompletedAt = row.CompletedAt,
                 DeadlineDate = row.DeadlineDate,
@@ -234,7 +232,7 @@ ORDER BY w.created_at DESC;";
     private sealed record FilteredWorkflowRow(
         long WorkflowId, Guid Uid, string FirstName, string LastName,
         int EmployeeNumber, int BadgeNumber, int DepartmentId, string DepartmentName,
-        string ProcessTypeKey, string ProcessTypeName, bool ProcessTypeRequiresTargetPerson,
+        string LegacyProcessTypeKey, string ProcessTypeName, bool ProcessTypeRequiresTargetPerson,
         int RoleId, string RoleName, string WorkflowStatus, DateTime? CompletedAt, DateOnly? DeadlineDate,
         DateTime CreatedAt, int PendingNotifications, int FailedNotifications, int TotalCount);
 
@@ -254,7 +252,7 @@ ORDER BY w.created_at DESC;";
 SELECT
     w.id, w.uid, w.first_name, w.last_name, w.employee_number, w.badge_number,
     d.id, d.name,
-    pt.key, pt.name, pt.requires_target_person,
+    pt.definition_key, pt.name, pt.requires_target_person,
     r.id, r.name,
     w.status, w.completed_at, w.deadline_date, w.created_at,
     COUNT(n.id) FILTER (WHERE n.status = 'pending') AS pending_notifications,
@@ -262,11 +260,11 @@ SELECT
     COUNT(*) OVER() AS total_count
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 JOIN app_roles r ON r.id = w.position_role_id
 LEFT JOIN workflow_notifications n ON n.workflow_id = w.id
 {whereClause}
-GROUP BY w.id, d.id, d.name, pt.key, pt.name, pt.requires_target_person, r.id, r.name, w.deadline_date
+GROUP BY w.id, d.id, d.name, pt.definition_key, pt.name, pt.requires_target_person, r.id, r.name, w.deadline_date
 ORDER BY w.created_at DESC{limitClause}{offsetClause};";
 
         var rows = new List<FilteredWorkflowRow>();
@@ -301,7 +299,7 @@ ORDER BY w.created_at DESC{limitClause}{offsetClause};";
 SELECT DISTINCT d.id, d.name
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 JOIN app_roles r ON r.id = w.position_role_id
 {whereClause}
 ORDER BY d.name;";
@@ -333,7 +331,7 @@ SELECT DISTINCT
     ar.name
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 JOIN app_roles r ON r.id = w.position_role_id
 JOIN workflow_tasks wt ON wt.workflow_id = w.id
 LEFT JOIN LATERAL (
@@ -395,10 +393,15 @@ LEFT JOIN app_responsibilities ar ON ar.id = sa.assignee_responsibility_id
             command.Parameters.AddWithValue("status", query.Status);
         }
 
-        if (query.ProcessTypeKey is not null)
+        if (query.WorkflowDefinitionKey is not null)
         {
-            conditions.Add("LOWER(pt.key) = @processTypeKey");
-            command.Parameters.AddWithValue("processTypeKey", query.ProcessTypeKey);
+            conditions.Add(@"EXISTS (
+                SELECT 1 FROM workflow_definition_versions wdv
+                JOIN workflow_definitions wd ON wd.id = wdv.workflow_definition_id
+                WHERE wdv.id = w.workflow_definition_version_id
+                AND LOWER(wd.key) = @workflowDefinitionKey
+            )");
+            command.Parameters.AddWithValue("workflowDefinitionKey", query.WorkflowDefinitionKey);
         }
 
         if (query.Search is not null)
@@ -458,14 +461,14 @@ LEFT JOIN app_responsibilities ar ON ar.id = sa.assignee_responsibility_id
 SELECT
     w.id,
     w.uid,
-    w.process_type_id,
+    w.workflow_definition_id,
     w.first_name,
     w.last_name,
     w.employee_number,
     w.badge_number,
     d.id,
     d.name,
-    pt.key,
+    pt.definition_key,
     pt.name,
     pt.requires_target_person,
     r.id,
@@ -477,13 +480,13 @@ SELECT
     w.target_person_id
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 JOIN app_roles r ON r.id = w.position_role_id
 WHERE w.uid = @uid
 LIMIT 1;";
 
         long workflowId;
-        int processTypeId;
+        int workflowDefinitionId;
         WorkflowDetailDto workflow;
 
         await using (var workflowCommand = new NpgsqlCommand(workflowSql, connection))
@@ -497,7 +500,7 @@ LIMIT 1;";
             }
 
             workflowId = reader.GetInt64(0);
-            processTypeId = reader.GetInt32(2);
+            workflowDefinitionId = reader.GetInt32(2);
             var workflowStatus = reader.GetString(14);
 
             workflow = new WorkflowDetailDto
@@ -517,7 +520,6 @@ LIMIT 1;";
                 },
                 RoleId = reader.GetInt32(12),
                 RoleName = reader.GetString(13),
-                Status = WorkflowStatusRules.ToLegacyStatus(workflowStatus),
                 WorkflowStatus = workflowStatus,
                 DeadlineDate = reader.IsDBNull(15) ? null : reader.GetFieldValue<DateOnly>(15),
                 CreatedAt = reader.GetDateTime(16),
@@ -532,7 +534,7 @@ LIMIT 1;";
             };
         }
 
-        await LoadWorkflowRequirements(connection, workflowId, processTypeId, workflow.Requirements);
+        await LoadWorkflowRequirements(connection, workflowId, workflowDefinitionId, workflow.Requirements);
         await LoadWorkflowTasks(connection, workflowId, workflow.Tasks);
         await LoadWorkflowNotifications(connection, workflowId, workflow.Notifications);
         workflow.RequirementSummary = WorkflowSummaryBuilder.BuildRequirementSummary(workflow.Requirements);

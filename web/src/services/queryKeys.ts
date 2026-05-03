@@ -2,7 +2,6 @@ import type { DashboardPersona } from "../auth/roleModel";
 import type { WorkflowQueryOptions } from "./workflowApi";
 
 export const queryKeys = {
-  processTypes: () => ["process-types"] as const,
   workflowDefinitions: {
     startable: () => ["workflow-definitions", "startable"] as const,
   },
@@ -19,10 +18,9 @@ export const queryKeys = {
     list: (options: WorkflowQueryOptions, page: number, pageSize: number) =>
       ["workflows", "list", options, page, pageSize] as const,
     detail: (uid: string) => ["workflows", uid] as const,
-    config: (roleId: number | null, processTypeKey: string | null) =>
-      ["workflows", "config", roleId ?? null, processTypeKey ?? null] as const,
+    config: (roleId: number | null, workflowDefinitionKey: string | null) =>
+      ["workflows", "config", roleId ?? null, workflowDefinitionKey ?? null] as const,
     targetPersonSources: (search: string) => ["workflows", "target-person-sources", search] as const,
-    completedOnboardings: (search: string) => ["workflows", "completed-onboardings", search] as const,
     tasks: (uid: string) => ["workflows", uid, "tasks"] as const,
     related: (uid: string) => ["workflows", uid, "related"] as const,
     auditLog: (uid: string, limit: number, offset: number) =>
@@ -37,7 +35,6 @@ export const queryKeys = {
   },
 
   rotation: {
-    completedOnboardings: (search: string) => ["rotation", "completed-onboardings", search] as const,
     plans: (personId: number | null) => ["rotation", "plans", personId ?? null] as const,
     planDetail: (planId: number | null) => ["rotation", "plans", "detail", planId ?? null] as const,
     generatedTasks: (planId: number | null) => ["rotation", "plans", planId ?? null, "generated-tasks"] as const,
@@ -51,8 +48,8 @@ export const queryKeys = {
 
   dashboard: {
     all: () => ["dashboard"] as const,
-    insights: (dashboardPersona: DashboardPersona, processTypeKey: string | null | undefined) =>
-      ["dashboard", "insights", dashboardPersona, processTypeKey ?? null] as const,
+    insights: (dashboardPersona: DashboardPersona, workflowDefinitionKey: string | null | undefined) =>
+      ["dashboard", "insights", dashboardPersona, workflowDefinitionKey ?? null] as const,
   },
 
   admin: {

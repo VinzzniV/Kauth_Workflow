@@ -28,7 +28,7 @@ export async function simulationLogin(userId: number): Promise<SimulationLoginRe
 }
 
 export async function simulationLogout(): Promise<void> {
-  await requestJson<unknown>("/auth/sim-logout", { method: "POST" });
+  await requestJson<void>("/auth/sim-logout", { method: "POST" });
 }
 
 export async function getMe(): Promise<Me> {

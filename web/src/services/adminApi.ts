@@ -17,7 +17,7 @@ import type {
   AdminUser,
 } from "../types/auth";
 import type { WorkflowConfig } from "../types/workflow";
-import { requestJson } from "./api/client";
+import { encodeId, requestJson } from "./api/client";
 import type {
   BackendAdminDepartmentAssignmentDto,
   BackendAdminGraphApplicationConfigurationDto,
@@ -254,7 +254,7 @@ export async function createAdminDepartment(departmentName: string): Promise<Adm
 }
 
 export async function deleteAdminDepartment(departmentId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/master-data/departments/${encodeURIComponent(String(departmentId))}`, {
+  await requestJson<void>(`/admin/master-data/departments/${encodeId(departmentId)}`, {
     method: "DELETE",
   });
 }
@@ -264,7 +264,7 @@ export async function createAdminDepartmentPosition(
   positionName: string
 ): Promise<AdminRole> {
   return requestJson<BackendAdminRoleDto>(
-    `/admin/master-data/departments/${encodeURIComponent(String(departmentId))}/positions`,
+    `/admin/master-data/departments/${encodeId(departmentId)}/positions`,
     {
       method: "POST",
       body: { positionName },
@@ -277,14 +277,14 @@ export async function updateAdminDepartmentPosition(
   positionName: string,
   isActive: boolean
 ): Promise<AdminRole> {
-  return requestJson<BackendAdminRoleDto>(`/admin/master-data/positions/${encodeURIComponent(String(positionId))}`, {
+  return requestJson<BackendAdminRoleDto>(`/admin/master-data/positions/${encodeId(positionId)}`, {
     method: "PATCH",
     body: { positionName, isActive },
   });
 }
 
 export async function deleteAdminDepartmentPosition(positionId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/master-data/positions/${encodeURIComponent(String(positionId))}`, {
+  await requestJson<void>(`/admin/master-data/positions/${encodeId(positionId)}`, {
     method: "DELETE",
   });
 }
@@ -300,7 +300,7 @@ export async function createAdminResponsibility(
 }
 
 export async function deleteAdminResponsibility(responsibilityId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/master-data/responsibilities/${encodeURIComponent(String(responsibilityId))}`, {
+  await requestJson<void>(`/admin/master-data/responsibilities/${encodeId(responsibilityId)}`, {
     method: "DELETE",
   });
 }
@@ -320,7 +320,7 @@ export async function createAdminUser(payload: {
 }
 
 export async function deleteAdminUser(userId: number): Promise<void> {
-  await requestJson<unknown>(`/admin/master-data/users/${encodeURIComponent(String(userId))}`, {
+  await requestJson<void>(`/admin/master-data/users/${encodeId(userId)}`, {
     method: "DELETE",
   });
 }
@@ -334,35 +334,35 @@ export async function updateAdminUserMasterData(
   departmentId: number | null,
   isActive: boolean
 ): Promise<AdminUser> {
-  return requestJson<BackendAdminUserDto>(`/admin/master-data/users/${encodeURIComponent(String(userId))}`, {
+  return requestJson<BackendAdminUserDto>(`/admin/master-data/users/${encodeId(userId)}`, {
     method: "PATCH",
     body: { externalKey, displayName, email, notificationEmail, departmentId, isActive },
   });
 }
 
 export async function updateAdminUserRoles(userId: number, roleIds: number[]): Promise<AdminUser> {
-  return requestJson<BackendAdminUserDto>(`/admin/auth/users/${encodeURIComponent(String(userId))}/roles`, {
+  return requestJson<BackendAdminUserDto>(`/admin/auth/users/${encodeId(userId)}/roles`, {
     method: "PATCH",
     body: { roleIds },
   });
 }
 
 export async function updateAdminUserGroups(userId: number, groupIds: number[]): Promise<AdminUser> {
-  return requestJson<BackendAdminUserDto>(`/admin/auth/users/${encodeURIComponent(String(userId))}/groups`, {
+  return requestJson<BackendAdminUserDto>(`/admin/auth/users/${encodeId(userId)}/groups`, {
     method: "PATCH",
     body: { groupIds },
   });
 }
 
 export async function updateAdminGroupRoles(groupId: number, roleIds: number[]): Promise<AdminGroup> {
-  return requestJson<BackendAdminGroupDto>(`/admin/auth/groups/${encodeURIComponent(String(groupId))}/roles`, {
+  return requestJson<BackendAdminGroupDto>(`/admin/auth/groups/${encodeId(groupId)}/roles`, {
     method: "PATCH",
     body: { roleIds },
   });
 }
 
 export async function updateAdminRolePermissions(roleId: number, permissionIds: number[]): Promise<AdminRole> {
-  return requestJson<BackendAdminRoleDto>(`/admin/auth/roles/${encodeURIComponent(String(roleId))}/permissions`, {
+  return requestJson<BackendAdminRoleDto>(`/admin/auth/roles/${encodeId(roleId)}/permissions`, {
     method: "PATCH",
     body: { permissionIds },
   });
@@ -378,7 +378,7 @@ export async function updateAdminUserPermissionOverrides(
   }>
 ): Promise<AdminUser> {
   return requestJson<BackendAdminUserDto>(
-    `/admin/auth/users/${encodeURIComponent(String(userId))}/permission-overrides`,
+    `/admin/auth/users/${encodeId(userId)}/permission-overrides`,
     {
       method: "PATCH",
       body: { overrides },
@@ -392,7 +392,7 @@ export async function updateAdminDepartmentAssignment(
   requirementOwnerUserId: number | null
 ): Promise<AdminDepartmentAssignment> {
   return requestJson<BackendAdminDepartmentAssignmentDto>(
-    `/admin/master-data/departments/${encodeURIComponent(String(departmentId))}`,
+    `/admin/master-data/departments/${encodeId(departmentId)}`,
     {
       method: "PATCH",
       body: { departmentLeadUserId, requirementOwnerUserId },
@@ -406,7 +406,7 @@ export async function updateAdminResponsibilityOwner(
   departmentId: number | null
 ): Promise<AdminResponsibilityOwner> {
   return requestJson<BackendAdminResponsibilityOwnerDto>(
-    `/admin/master-data/responsibilities/${encodeURIComponent(String(responsibilityId))}`,
+    `/admin/master-data/responsibilities/${encodeId(responsibilityId)}`,
     {
       method: "PATCH",
       body: { appUserId, departmentId },

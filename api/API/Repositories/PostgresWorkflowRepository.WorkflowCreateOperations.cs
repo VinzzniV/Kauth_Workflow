@@ -8,7 +8,7 @@ internal sealed partial class PostgresWorkflowRepository
     // Erstellt den Workflow, initialisiert Benachrichtigungen und liefert anschliessend die neue UID zurueck.
     public async Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId)
     {
-        var processTypeKey = request.ProcessTypeKey;
+        var processTypeKey = request.WorkflowDefinitionKey;
         if (string.IsNullOrWhiteSpace(processTypeKey))
         {
             throw new InvalidOperationException("processTypeKey ist erforderlich.");
@@ -26,7 +26,7 @@ internal sealed partial class PostgresWorkflowRepository
             throw new InvalidOperationException($"Der Prozesstyp '{processType.Name}' erfordert eine Zielperson.");
         }
 
-        var targetPerson = await LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
+        var targetPerson = await PostgresRepositorySharedHelpers.LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
 
         var effectiveDepartmentId = request.DepartmentId ?? targetPerson.DepartmentId;
         int? effectiveRoleId = request.RoleId ?? targetPerson.RoleId;
@@ -38,7 +38,7 @@ internal sealed partial class PostgresWorkflowRepository
                 throw new InvalidOperationException("Die Abteilung ist erforderlich, wenn eine Zielrolle direkt angegeben wird.");
             }
 
-            await EnsureValidPositionRole(connection, transaction, request.RoleId.Value, effectiveDepartmentId.Value);
+            await PostgresRepositorySharedHelpers.EnsureValidPositionRole(connection, transaction, request.RoleId.Value, effectiveDepartmentId.Value);
         }
 
         if (!effectiveDepartmentId.HasValue)
@@ -56,7 +56,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (request.RoleId.HasValue)
         {
-            await EnsureValidPositionRole(connection, transaction, roleId, departmentId);
+            await PostgresRepositorySharedHelpers.EnsureValidPositionRole(connection, transaction, roleId, departmentId);
         }
 
         var firstName = request.FirstName?.Trim();
@@ -100,7 +100,7 @@ internal sealed partial class PostgresWorkflowRepository
 
         const string workflowInsertSql = @"
 INSERT INTO workflows (
-    process_type_id,
+    workflow_definition_id,
     department_id,
     position_role_id,
     created_by_user_id,
@@ -170,7 +170,7 @@ RETURNING id, uid;";
                 WorkflowId = workflowId,
                 WorkflowUid = workflowUid,
                 ProcessTypeId = processType.Id,
-                ProcessTypeKey = processType.Key,
+                LegacyProcessTypeKey = processType.Key,
                 RequiresSupervisorStep = processType.RequiresSupervisorStep,
                 DepartmentId = departmentId,
                 RoleId = roleId
@@ -189,7 +189,7 @@ RETURNING id, uid;";
                 throw new InvalidOperationException("Die automatische Workflow-Verknüpfung konnte nicht erstellt werden.");
             }
 
-            await InsertAuditEntry(
+            await _auditWrite.InsertAuditEntry(
                 connection,
                 transaction,
                 workflowId,
@@ -213,7 +213,7 @@ RETURNING id, uid;";
             answersByKey = new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var generatedTaskCount = await GenerateWorkflowTasks(
+        var generatedTaskCount = await _taskGeneration.GenerateWorkflowTasks(
             connection,
             transaction,
             workflowId,
@@ -223,7 +223,7 @@ RETURNING id, uid;";
 
         if (generatedTaskCount > 0)
         {
-            await InsertAuditEntry(
+            await _auditWrite.InsertAuditEntry(
                 connection,
                 transaction,
                 workflowId,
@@ -235,9 +235,9 @@ RETURNING id, uid;";
                 $"{generatedTaskCount} Aufgabe(n) initial erstellt");
         }
 
-        await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
-        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, createdByUserId);
-        await InsertAuditEntry(
+        await _statusCalculation.RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
+        await _statusCalculation.RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, createdByUserId);
+        await _auditWrite.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -248,7 +248,7 @@ RETURNING id, uid;";
             null,
             $"{firstName} {lastName}");
 
-        var notificationTargets = await CreateWorkflowNotifications(
+        var notificationTargets = await _notificationDispatch.CreateWorkflowNotifications(
             connection,
             transaction,
             workflowId,
@@ -267,7 +267,7 @@ RETURNING id, uid;";
         };
     }
 
-    private static async Task<ProcessTypeCreateRecord> LoadProcessTypeForCreate(
+    internal static async Task<ProcessTypeCreateRecord> LoadProcessTypeForCreate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         string processTypeKey)
@@ -278,9 +278,9 @@ RETURNING id, uid;";
         }
 
         const string sql = @"
-SELECT id, key, name, requires_supervisor_step, approval_task_template_key, requires_target_person, is_active
-FROM process_types
-WHERE key = @processTypeKey
+SELECT id, definition_key, name, requires_supervisor_step, approval_task_template_key, requires_target_person
+FROM workflow_definitions
+WHERE definition_key = @processTypeKey
 LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -299,115 +299,14 @@ LIMIT 1;";
             Name = reader.GetString(2),
             RequiresSupervisorStep = reader.GetBoolean(3),
             ApprovalTaskTemplateKey = reader.IsDBNull(4) ? null : reader.GetString(4).Trim(),
-            RequiresTargetPerson = reader.GetBoolean(5),
-            IsActive = reader.GetBoolean(6)
+            RequiresTargetPerson = reader.GetBoolean(5)
         };
-
-        if (!record.IsActive)
-        {
-            throw new InvalidOperationException($"Der Prozesstyp '{record.Name}' ist deaktiviert.");
-        }
 
         WorkflowStatusRules.EnsureApprovalTaskConfiguration(record.Name, record.RequiresSupervisorStep, record.ApprovalTaskTemplateKey);
         return record;
     }
 
-    private static async Task<bool> HasProcessTypeManagerCreationColumn(
-        NpgsqlConnection connection,
-        NpgsqlTransaction? transaction)
-    {
-        const string sql = @"
-SELECT EXISTS(
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'process_types'
-      AND column_name = 'allows_manager_creation'
-);";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        return (bool)(await command.ExecuteScalarAsync() ?? false);
-    }
-
-    private static async Task<TargetPersonRecord> LoadTargetPerson(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        long targetPersonId)
-    {
-        const string sql = @"
-SELECT
-    p.id,
-    COALESCE(
-        NULLIF(BTRIM(CONCAT_WS(' ', COALESCE(p.first_name, latest.first_name), COALESCE(p.last_name, latest.last_name))), ''),
-        u.display_name,
-        linked_directory.display_name,
-        'Person #' || p.id::text
-    ) AS display_name,
-    COALESCE(p.department_id, latest.department_id, u.department_id) AS department_id,
-    d.name AS department_name,
-    COALESCE(p.current_position_role_id, latest.position_role_id) AS role_id,
-    r.name AS role_name,
-    COALESCE(p.employee_number, latest.employee_number, linked_directory.employee_number) AS employee_number,
-    COALESCE(p.badge_number, latest.badge_number) AS badge_number,
-    COALESCE(p.first_name, latest.first_name) AS first_name,
-    COALESCE(p.last_name, latest.last_name) AS last_name
-FROM people p
-LEFT JOIN app_users u ON u.id = p.app_user_id
-LEFT JOIN directory_identities linked_directory ON linked_directory.id = p.directory_identity_id
-LEFT JOIN LATERAL (
-    SELECT
-        w.department_id,
-        w.position_role_id,
-        w.employee_number,
-        w.badge_number,
-        w.first_name,
-        w.last_name,
-        w.created_at
-    FROM workflows w
-    WHERE w.target_person_id = p.id
-       OR (p.employee_number IS NOT NULL AND w.employee_number = p.employee_number)
-       OR (
-            w.employee_number > 0
-            AND TRIM(COALESCE(w.first_name, '') || ' ' || COALESCE(w.last_name, '')) =
-                COALESCE(
-                    NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
-                    u.display_name,
-                    'Person #' || p.id::text
-                )
-       )
-    ORDER BY w.created_at DESC
-    LIMIT 1
-) latest ON TRUE
-LEFT JOIN departments d ON d.id = COALESCE(p.department_id, latest.department_id, u.department_id)
-LEFT JOIN app_roles r ON r.id = COALESCE(p.current_position_role_id, latest.position_role_id)
-WHERE p.id = @targetPersonId
-LIMIT 1;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("targetPersonId", targetPersonId);
-        await using var reader = await command.ExecuteReaderAsync();
-
-        if (!await reader.ReadAsync())
-        {
-            throw new InvalidOperationException("Die angegebene Zielperson wurde nicht gefunden.");
-        }
-
-        return new TargetPersonRecord
-        {
-            PersonId = reader.GetInt64(0),
-            DisplayName = reader.GetString(1),
-            DepartmentId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
-            DepartmentName = reader.IsDBNull(3) ? null : reader.GetString(3),
-            RoleId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-            RoleName = reader.IsDBNull(5) ? null : reader.GetString(5),
-            EmployeeNumber = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-            BadgeNumber = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-            FirstName = reader.IsDBNull(8) ? null : reader.GetString(8),
-            LastName = reader.IsDBNull(9) ? null : reader.GetString(9)
-        };
-    }
-
-    private static (string FirstName, string LastName) SplitDisplayName(string displayName)
+    internal static (string FirstName, string LastName) SplitDisplayName(string displayName)
     {
         var normalizedName = displayName.Trim();
         if (string.IsNullOrWhiteSpace(normalizedName))

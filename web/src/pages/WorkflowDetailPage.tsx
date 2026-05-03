@@ -24,6 +24,7 @@ import {
   toTaskDisplayTitle,
   type ProcessAreaName,
 } from "../components/workflow-detail/workflowDetailModel";
+import { AppErrorBoundary } from "../components/feedback/AppErrorBoundary";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
@@ -297,47 +298,51 @@ export default function WorkflowDetailPage() {
               onSave={handleRequirementSave}
             />
 
-            <WorkflowTaskAreasSection
-              tasksByArea={tasksByArea}
-              savingTaskIds={savingTaskIds}
-              savingApprovalTaskIds={savingApprovalTaskIds}
-              commentDrafts={commentDrafts}
-              savingCommentTaskIds={savingCommentTaskIds}
-              usesAdminOverride={usesAdminOverride}
-              canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
-              isReaderOnlyView={isReaderOnlyView}
-              onTaskStatusChange={(taskId, status, currentStatus) =>
-                handleStatusChange({ taskId, workflowUid: uid, status, currentStatus })
-              }
-              onTaskApprovalDecision={(taskId, approved) =>
-                handleApprovalDecision({ taskId, workflowUid: uid, approved })
-              }
-              onCommentDraftChange={handleCommentDraftChange}
-              onTaskCommentSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid: uid })}
-              emptyStateDescription={taskAreasEmptyStateDescription}
-            />
-
-            <section className="workflow-detail-secondary-stack">
-              <WorkflowLinksPanel uid={uid} />
-
-              <WorkflowManagementPanel
-                uid={uid}
-                workflow={workflow}
-                capabilities={capabilities}
+            <AppErrorBoundary scope="WorkflowDetailPage/tasks" inline>
+              <WorkflowTaskAreasSection
+                tasksByArea={tasksByArea}
+                savingTaskIds={savingTaskIds}
+                savingApprovalTaskIds={savingApprovalTaskIds}
+                commentDrafts={commentDrafts}
+                savingCommentTaskIds={savingCommentTaskIds}
+                usesAdminOverride={usesAdminOverride}
+                canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
+                isReaderOnlyView={isReaderOnlyView}
+                onTaskStatusChange={(taskId, status, currentStatus) =>
+                  handleStatusChange({ taskId, workflowUid: uid, status, currentStatus })
+                }
+                onTaskApprovalDecision={(taskId, approved) =>
+                  handleApprovalDecision({ taskId, workflowUid: uid, approved })
+                }
+                onCommentDraftChange={handleCommentDraftChange}
+                onTaskCommentSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid: uid })}
+                emptyStateDescription={taskAreasEmptyStateDescription}
               />
+            </AppErrorBoundary>
 
-              {capabilities.canManageAdminConfiguration ? (
-                <WorkflowNotificationsPanel notifications={workflow.notifications} />
-              ) : null}
+            <AppErrorBoundary scope="WorkflowDetailPage/secondary" inline>
+              <section className="workflow-detail-secondary-stack">
+                <WorkflowLinksPanel uid={uid} />
 
-              {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (
-                <WorkflowAuditLog
-                  entries={auditEntries}
-                  isLoading={isLoadingAuditLog}
-                  error={auditLogError}
+                <WorkflowManagementPanel
+                  uid={uid}
+                  workflow={workflow}
+                  capabilities={capabilities}
                 />
-              ) : null}
-            </section>
+
+                {capabilities.canManageAdminConfiguration ? (
+                  <WorkflowNotificationsPanel notifications={workflow.notifications} />
+                ) : null}
+
+                {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (
+                  <WorkflowAuditLog
+                    entries={auditEntries}
+                    isLoading={isLoadingAuditLog}
+                    error={auditLogError}
+                  />
+                ) : null}
+              </section>
+            </AppErrorBoundary>
           </>
         ) : null}
       </div>

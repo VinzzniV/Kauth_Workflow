@@ -45,7 +45,7 @@ internal sealed partial class PostgresWorkflowRepository
             throw new InvalidOperationException("Die angegebene Stamm-Abteilung wurde nicht gefunden.");
         }
 
-        await EnsureValidPositionRole(connection, transaction, request.RoleId.Value, request.DepartmentId.Value);
+        await PostgresRepositorySharedHelpers.EnsureValidPositionRole(connection, transaction, request.RoleId.Value, request.DepartmentId.Value);
 
         const string insertSql = """
 INSERT INTO people (
@@ -122,7 +122,7 @@ RETURNING id;
         const string workflowSql = """
 SELECT
     w.target_person_id,
-    COALESCE(vpt.key, pt.key) AS process_type_key,
+    COALESCE(vpt.definition_key, pt.definition_key) AS process_type_key,
     w.department_id,
     w.position_role_id,
     w.first_name,
@@ -132,9 +132,9 @@ SELECT
     w.status,
     COALESCE(w.completed_at, w.created_at) AS effective_completed_at
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
 WHERE w.uid = @workflowUid
 LIMIT 1
 FOR UPDATE OF w;
@@ -370,12 +370,12 @@ WITH latest_completed_onboarding AS (
             COALESCE(w.completed_at, w.created_at) AS completed_at,
             w.id
         FROM workflows w
-        JOIN process_types pt ON pt.id = w.process_type_id
+        JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
         LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-        LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+        LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
         WHERE w.target_person_id IS NOT NULL
-          AND pt.key = 'onboarding'
-          AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+          AND pt.definition_key = 'onboarding'
+          AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
           AND w.status = 'completed'
     ) resolved
     ORDER BY resolved.person_id, resolved.completed_at DESC, resolved.id DESC

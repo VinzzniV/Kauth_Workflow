@@ -10,7 +10,7 @@ internal static class AdminAnswerConfigEndpoints
     public static IEndpointRouteBuilder MapAdminAnswerConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/answer-definitions", async (
-            [FromQuery] int processTypeId,
+            [FromQuery] int workflowDefinitionId,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -26,7 +26,7 @@ internal static class AdminAnswerConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminAnswerDefinitions(processTypeId));
+                return Results.Ok(await repository.GetAdminAnswerDefinitions(workflowDefinitionId));
             }
             catch (InvalidOperationException ex)
             {
@@ -129,7 +129,7 @@ internal static class AdminAnswerConfigEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/config/role-answer-defaults", async (
-            [FromQuery] int processTypeId,
+            [FromQuery] int workflowDefinitionId,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -145,7 +145,7 @@ internal static class AdminAnswerConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminRoleAnswerDefaults(processTypeId));
+                return Results.Ok(await repository.GetAdminRoleAnswerDefaults(workflowDefinitionId));
             }
             catch (InvalidOperationException ex)
             {

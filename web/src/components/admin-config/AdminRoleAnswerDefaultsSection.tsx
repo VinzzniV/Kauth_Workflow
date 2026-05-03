@@ -10,15 +10,15 @@ export function AdminRoleAnswerDefaultsSection({
   onError,
 }: AdminRoleAnswerDefaultsSectionProps) {
   const {
-    processTypes,
-    selectedProcessTypeId,
+    workflowDefinitions,
+    selectedWorkflowDefinitionId,
     sortedRoles,
     sortedDefinitions,
     isLoadingProcessTypes,
     isLoadingMatrix,
     isSaving,
     hasChanges,
-    selectProcessType,
+    selectWorkflowDefinition,
     getCellDraft,
     updateTextDraft,
     updateBooleanDraft,
@@ -37,17 +37,17 @@ export function AdminRoleAnswerDefaultsSection({
       <div className="panel-body">
         <div style={{ display: "flex", gap: "1rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1rem" }}>
           <label style={{ minWidth: "18rem" }}>
-            <span className="form-label">Prozesstyp</span>
+            <span className="form-label">Workflow-Definition</span>
             <select
               className="form-select"
-              value={selectedProcessTypeId ?? ""}
-              onChange={(event) => selectProcessType(event.target.value)}
+              value={selectedWorkflowDefinitionId ?? ""}
+              onChange={(event) => selectWorkflowDefinition(event.target.value)}
               disabled={isLoadingProcessTypes || isSaving}
             >
-              <option value="">-- Prozesstyp wählen --</option>
-              {processTypes.map((processType) => (
-                <option key={processType.id} value={processType.id}>
-                  {processType.name}
+              <option value="">-- Workflow-Definition wählen --</option>
+              {workflowDefinitions.map((definition) => (
+                <option key={definition.id} value={definition.id}>
+                  {definition.name}
                 </option>
               ))}
             </select>
@@ -56,7 +56,7 @@ export function AdminRoleAnswerDefaultsSection({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!selectedProcessTypeId || !hasChanges || isSaving}
+            disabled={!selectedWorkflowDefinitionId || !hasChanges || isSaving}
             onClick={() => void saveDefaults()}
           >
             {isSaving ? "Wird gespeichert..." : "Vorgaben speichern"}
@@ -65,15 +65,15 @@ export function AdminRoleAnswerDefaultsSection({
 
         {isLoadingMatrix ? <p className="panel-note">Vorgaben werden geladen...</p> : null}
 
-        {!isLoadingMatrix && selectedProcessTypeId && sortedDefinitions.length === 0 ? (
-          <p className="panel-note">Für diesen Prozesstyp sind noch keine Felder vorhanden.</p>
+        {!isLoadingMatrix && selectedWorkflowDefinitionId && sortedDefinitions.length === 0 ? (
+          <p className="panel-note">Für diese Workflow-Definition sind noch keine Felder vorhanden.</p>
         ) : null}
 
-        {!isLoadingMatrix && selectedProcessTypeId && sortedRoles.length === 0 ? (
+        {!isLoadingMatrix && selectedWorkflowDefinitionId && sortedRoles.length === 0 ? (
           <p className="panel-note">Es sind keine Admin-Rollen vorhanden.</p>
         ) : null}
 
-        {!isLoadingMatrix && selectedProcessTypeId && sortedDefinitions.length > 0 && sortedRoles.length > 0 ? (
+        {!isLoadingMatrix && selectedWorkflowDefinitionId && sortedDefinitions.length > 0 && sortedRoles.length > 0 ? (
           <div style={{ overflowX: "auto" }}>
             <table className="table">
               <thead>

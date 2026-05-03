@@ -30,9 +30,9 @@ SELECT
     COALESCE(w.completed_at, w.created_at) AS completed_at,
     w.archived_at
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
 JOIN LATERAL (
     SELECT
         p.id AS person_id,
@@ -56,8 +56,8 @@ JOIN LATERAL (
 LEFT JOIN departments d ON d.id = COALESCE(w.department_id, matched_person.department_id, matched_person.user_department_id)
 LEFT JOIN app_roles r ON r.id = w.position_role_id
 WHERE w.uid = @workflowUid
-  AND pt.key = 'onboarding'
-  AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+  AND pt.definition_key = 'onboarding'
+  AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
   AND w.status = 'completed'
 LIMIT 1;";
 
@@ -236,12 +236,12 @@ LIMIT 1;";
 WITH source_workflow AS (
     SELECT w.id
     FROM workflows w
-    JOIN process_types pt ON pt.id = w.process_type_id
+    JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
     LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-    LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+    LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
     WHERE w.uid = @sourceWorkflowUid
-      AND pt.key = 'onboarding'
-      AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+      AND pt.definition_key = 'onboarding'
+      AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
       AND w.status = 'completed'
       AND (
             w.target_person_id = @personId

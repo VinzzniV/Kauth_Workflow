@@ -1,20 +1,19 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
-import { useToast } from "../components/feedback/useToast";
 import PageHeader from "../components/layout/PageHeader";
 import RotationAuditLog from "../components/rotation/RotationAuditLog";
 import RotationCalendarView from "../components/rotation/RotationCalendarView";
 import RotationNotificationsPanel from "../components/rotation/RotationNotificationsPanel";
+import RotationStationFormCard from "../components/rotation/RotationStationFormCard";
 import {
-  createRotationStation,
-  deleteRotationStation,
-  regenerateRotationGeneratedTasks,
-  updateRotationStation,
-} from "../services/rotationApi";
-import { queryKeys } from "../services/queryKeys";
+  getGeneratedTaskStatusLabel,
+  getPlanStatusLabel,
+  getPlanStatusPillClass,
+  getStationStatusLabel,
+} from "../components/rotation/rotationLabels";
+import { useRotationStationForm } from "../hooks/useRotationStationForm";
 import {
   useRotationAuditLog,
   useRotationGeneratedTasks,
@@ -22,124 +21,18 @@ import {
   useRotationPlanDetail,
 } from "../services/queries/rotationQueries";
 import { useDepartments } from "../services/queries/roleQueries";
-import type {
-  RotationGeneratedTask,
-  RotationPlanStatus,
-  RotationStation,
-  RotationStationStatus,
-  RotationStationUpsertPayload,
-} from "../types/rotation";
 import { formatDate, formatDateTime } from "../utils/dateFormat";
-
-type StationFormState = {
-  departmentId: string;
-  startDate: string;
-  endDate: string;
-  orderIndex: string;
-  location: string;
-  notes: string;
-  status: RotationStationStatus;
-};
-
-function createEmptyStationForm(nextOrderIndex = 0): StationFormState {
-  return {
-    departmentId: "",
-    startDate: "",
-    endDate: "",
-    orderIndex: String(nextOrderIndex),
-    location: "",
-    notes: "",
-    status: "planned",
-  };
-}
-
-function buildStationForm(station: RotationStation): StationFormState {
-  return {
-    departmentId: String(station.departmentId),
-    startDate: station.startDate,
-    endDate: station.endDate,
-    orderIndex: String(station.orderIndex),
-    location: station.location ?? "",
-    notes: station.notes ?? "",
-    status: station.status,
-  };
-}
-
-function normalizeStationPayload(form: StationFormState): RotationStationUpsertPayload {
-  return {
-    departmentId: Number(form.departmentId),
-    startDate: form.startDate,
-    endDate: form.endDate,
-    orderIndex: Number(form.orderIndex),
-    location: form.location.trim() || undefined,
-    notes: form.notes.trim() || undefined,
-    status: form.status,
-  };
-}
-
-function getPlanStatusLabel(status: RotationPlanStatus): string {
-  switch (status) {
-    case "active":
-      return "Aktiv";
-    case "completed":
-      return "Abgeschlossen";
-    case "archived":
-      return "Archiviert";
-    default:
-      return "Entwurf";
-  }
-}
-
-function getPlanStatusPillClass(status: RotationPlanStatus): string {
-  switch (status) {
-    case "active":
-      return "running";
-    case "completed":
-    case "archived":
-      return "completed";
-    default:
-      return "open";
-  }
-}
-
-function getStationStatusLabel(status: RotationStationStatus): string {
-  switch (status) {
-    case "active":
-      return "Aktiv";
-    case "completed":
-      return "Abgeschlossen";
-    case "cancelled":
-      return "Abgebrochen";
-    default:
-      return "Geplant";
-  }
-}
-
-function getGeneratedTaskStatusLabel(task: RotationGeneratedTask): string {
-  switch (task.status) {
-    case "in_progress":
-      return "In Bearbeitung";
-    case "completed":
-      return "Erledigt";
-    case "failed":
-      return "Fehlgeschlagen";
-    case "cancelled":
-      return "Storniert";
-    default:
-      return "Offen";
-  }
-}
 
 export default function RotationPlanDetailPage() {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { showError, showSuccess } = useToast();
   const numericPlanId = Number(planId);
-  const planDetailQuery = useRotationPlanDetail(Number.isFinite(numericPlanId) ? numericPlanId : null, true);
-  const generatedTasksQuery = useRotationGeneratedTasks(Number.isFinite(numericPlanId) ? numericPlanId : null, true);
-  const auditLogQuery = useRotationAuditLog(Number.isFinite(numericPlanId) ? numericPlanId : null, 100, 0, true);
-  const notificationsQuery = useRotationNotifications(Number.isFinite(numericPlanId) ? numericPlanId : null, 100, 0, true);
+  const isValidPlanId = Number.isFinite(numericPlanId) && numericPlanId > 0;
+
+  const planDetailQuery = useRotationPlanDetail(isValidPlanId ? numericPlanId : null, true);
+  const generatedTasksQuery = useRotationGeneratedTasks(isValidPlanId ? numericPlanId : null, true);
+  const auditLogQuery = useRotationAuditLog(isValidPlanId ? numericPlanId : null, 100, 0, true);
+  const notificationsQuery = useRotationNotifications(isValidPlanId ? numericPlanId : null, 100, 0, true);
 
   const departmentsQuery = useDepartments();
   const departments = departmentsQuery.data ?? [];
@@ -150,13 +43,13 @@ export default function RotationPlanDetailPage() {
     [plan?.stations]
   );
 
-  const [editingStationId, setEditingStationId] = useState<number | null>(null);
-  const [stationForm, setStationForm] = useState<StationFormState>(createEmptyStationForm());
-  const [isSavingStation, setIsSavingStation] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const [deletingStationId, setDeletingStationId] = useState<number | null>(null);
+  const stationForm = useRotationStationForm({
+    numericPlanId: isValidPlanId ? numericPlanId : 0,
+    personId: plan?.personId ?? null,
+    orderedStationsCount: orderedStations.length,
+  });
 
-  if (!Number.isFinite(numericPlanId) || numericPlanId <= 0) {
+  if (!isValidPlanId) {
     return (
       <main className="app-shell">
         <div className="page-container">
@@ -169,99 +62,6 @@ export default function RotationPlanDetailPage() {
         </div>
       </main>
     );
-  }
-
-  async function reloadPlanData() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.planDetail(numericPlanId) }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.generatedTasks(numericPlanId) }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.auditLog(numericPlanId, 100, 0) }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.notifications(numericPlanId, 100, 0) }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.plans(null) }),
-      plan?.personId
-        ? queryClient.invalidateQueries({ queryKey: queryKeys.rotation.plans(plan.personId) })
-        : Promise.resolve(),
-    ]);
-  }
-
-  function openCreateStationForm() {
-    setEditingStationId(null);
-    setStationForm(createEmptyStationForm(orderedStations.length));
-  }
-
-  function openEditStationForm(station: RotationStation) {
-    setEditingStationId(station.id);
-    setStationForm(buildStationForm(station));
-  }
-
-  function resetStationForm() {
-    setEditingStationId(null);
-    setStationForm(createEmptyStationForm(orderedStations.length));
-  }
-
-  async function handleSaveStation() {
-    setIsSavingStation(true);
-    try {
-      const payload = normalizeStationPayload(stationForm);
-      if (
-        !Number.isFinite(payload.departmentId) ||
-        payload.departmentId <= 0 ||
-        !payload.startDate ||
-        !payload.endDate ||
-        !Number.isFinite(payload.orderIndex)
-      ) {
-        throw new Error("Bitte alle Pflichtfelder der Station korrekt ausfüllen.");
-      }
-
-      if (editingStationId) {
-        await updateRotationStation(editingStationId, payload);
-        showSuccess("Station wurde aktualisiert.");
-      } else {
-        await createRotationStation(numericPlanId, payload);
-        showSuccess("Station wurde angelegt.");
-      }
-
-      await reloadPlanData();
-      resetStationForm();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Station konnte nicht gespeichert werden.";
-      showError(message);
-    } finally {
-      setIsSavingStation(false);
-    }
-  }
-
-  async function handleDeleteStation(station: RotationStation) {
-    setDeletingStationId(station.id);
-    try {
-      await deleteRotationStation(station.id);
-      showSuccess("Station wurde gelöscht.");
-      await reloadPlanData();
-      if (editingStationId === station.id) {
-        resetStationForm();
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Station konnte nicht gelöscht werden.";
-      showError(message);
-    } finally {
-      setDeletingStationId(null);
-    }
-  }
-
-  async function handleRegenerateTasks() {
-    setIsRegenerating(true);
-    try {
-      const result = await regenerateRotationGeneratedTasks(numericPlanId);
-      await reloadPlanData();
-      showSuccess(
-        `Tasks synchronisiert: ${result.created} neu, ${result.updated} aktualisiert, ${result.cancelled} storniert.`
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Task-Synchronisierung ist fehlgeschlagen.";
-      showError(message);
-    } finally {
-      setIsRegenerating(false);
-    }
   }
 
   return (
@@ -300,10 +100,10 @@ export default function RotationPlanDetailPage() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => void handleRegenerateTasks()}
-                    disabled={isRegenerating}
+                    onClick={() => void stationForm.handleRegenerateTasks()}
+                    disabled={stationForm.isRegenerating}
                   >
-                    {isRegenerating ? "Synchronisiere..." : "Tasks neu synchronisieren"}
+                    {stationForm.isRegenerating ? "Synchronisiere..." : "Tasks neu synchronisieren"}
                   </button>
                 </div>
               }
@@ -341,116 +141,16 @@ export default function RotationPlanDetailPage() {
               </dl>
             </section>
 
-            <section className="panel panel-muted">
-              <div className="panel-head">
-                <h2>Stationsformular</h2>
-                <p>Listen-/Timeline-nahe Erfassung: Reihenfolge, Zeitraum und Status stehen im Vordergrund.</p>
-              </div>
-
-              <div className="workflow-grid" aria-label="Stationsformular">
-                <div className="dashboard-card card-primary rotation-form-card">
-                  <label className="field compact">
-                    <span>Abteilung</span>
-                    <select
-                      value={stationForm.departmentId}
-                      onChange={(event) =>
-                        setStationForm((current) => ({ ...current, departmentId: event.target.value }))
-                      }
-                      disabled={departmentsQuery.isLoading}
-                    >
-                      <option value="">Abteilung wählen...</option>
-                      {departments.map((dept) => (
-                        <option key={dept.id} value={String(dept.id)}>
-                          {dept.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field compact">
-                    <span>Startdatum</span>
-                    <input
-                      type="date"
-                      value={stationForm.startDate}
-                      onChange={(event) =>
-                        setStationForm((current) => ({ ...current, startDate: event.target.value }))
-                      }
-                    />
-                  </label>
-                  <label className="field compact">
-                    <span>Enddatum</span>
-                    <input
-                      type="date"
-                      value={stationForm.endDate}
-                      onChange={(event) =>
-                        setStationForm((current) => ({ ...current, endDate: event.target.value }))
-                      }
-                    />
-                  </label>
-                  <label className="field compact">
-                    <span>Status</span>
-                    <select
-                      value={stationForm.status}
-                      onChange={(event) =>
-                        setStationForm((current) => ({
-                          ...current,
-                          status: event.target.value as RotationStationStatus,
-                        }))
-                      }
-                    >
-                      <option value="planned">Geplant</option>
-                      <option value="active">Aktiv</option>
-                      <option value="completed">Abgeschlossen</option>
-                      <option value="cancelled">Abgebrochen</option>
-                    </select>
-                  </label>
-                  <label className="field compact">
-                    <span>Ort</span>
-                    <input
-                      type="text"
-                      value={stationForm.location}
-                      onChange={(event) =>
-                        setStationForm((current) => ({ ...current, location: event.target.value }))
-                      }
-                      placeholder="optional"
-                    />
-                  </label>
-                  <label className="field compact">
-                    <span>Notizen</span>
-                    <textarea
-                      value={stationForm.notes}
-                      onChange={(event) =>
-                        setStationForm((current) => ({ ...current, notes: event.target.value }))
-                      }
-                      rows={4}
-                      placeholder="Hinweise für HR oder den Fachbereich"
-                    />
-                  </label>
-
-                  <div className="action-row">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => void handleSaveStation()}
-                      disabled={isSavingStation}
-                    >
-                      {isSavingStation
-                        ? "Speichere..."
-                        : editingStationId
-                          ? "Station aktualisieren"
-                          : "Station anlegen"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={resetStationForm}
-                      disabled={isSavingStation}
-                    >
-                      Zurücksetzen
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <RotationStationFormCard
+              stationForm={stationForm.stationForm}
+              setStationForm={stationForm.setStationForm}
+              departments={departments}
+              isDepartmentsLoading={departmentsQuery.isLoading}
+              isSavingStation={stationForm.isSavingStation}
+              editingStationId={stationForm.editingStationId}
+              onSave={() => void stationForm.handleSaveStation()}
+              onReset={stationForm.resetStationForm}
+            />
 
             <section className="panel">
               <div className="panel-head">
@@ -463,7 +163,7 @@ export default function RotationPlanDetailPage() {
                   title="Noch keine Stationen vorhanden"
                   description="Legen Sie die erste Abteilungsphase über das Formular an."
                   actionLabel="Stationsformular öffnen"
-                  onAction={openCreateStationForm}
+                  onAction={stationForm.openCreateStationForm}
                 />
               ) : (
                 <div className="workflow-grid" aria-label="Stationsliste">
@@ -496,17 +196,17 @@ export default function RotationPlanDetailPage() {
                         <button
                           type="button"
                           className="btn btn-secondary"
-                          onClick={() => openEditStationForm(station)}
+                          onClick={() => stationForm.openEditStationForm(station)}
                         >
                           Bearbeiten
                         </button>
                         <button
                           type="button"
                           className="btn btn-secondary"
-                          onClick={() => void handleDeleteStation(station)}
-                          disabled={deletingStationId === station.id}
+                          onClick={() => void stationForm.handleDeleteStation(station)}
+                          disabled={stationForm.deletingStationId === station.id}
                         >
-                          {deletingStationId === station.id ? "Lösche..." : "Löschen"}
+                          {stationForm.deletingStationId === station.id ? "Lösche..." : "Löschen"}
                         </button>
                       </div>
                     </article>

@@ -64,53 +64,9 @@ ORDER BY d.name, r.name;";
         return roles;
     }
 
-    public async Task<List<WorkflowProcessTypeDto>> GetActiveProcessTypes(bool managerOnly = false)
+    public async Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey)
     {
-        await using var connection = new NpgsqlConnection(GetConnectionString());
-        await connection.OpenAsync();
-
-        const string sql = @"
-SELECT key, name, description, requires_target_person
-FROM process_types
-WHERE is_active = TRUE
-ORDER BY sort_order, name;";
-
-        const string managerOnlySql = @"
-SELECT key, name, description, requires_target_person
-FROM process_types
-WHERE is_active = TRUE
-  AND allows_manager_creation = TRUE
-ORDER BY sort_order, name;";
-
-        var useManagerCreationColumn = managerOnly && await HasProcessTypeManagerCreationColumn(connection, null);
-        await using var command = new NpgsqlCommand(useManagerCreationColumn ? managerOnlySql : sql, connection);
-        await using var reader = await command.ExecuteReaderAsync();
-
-        var processTypes = new List<WorkflowProcessTypeDto>();
-        while (await reader.ReadAsync())
-        {
-            processTypes.Add(new WorkflowProcessTypeDto
-            {
-                Key = reader.GetString(0),
-                Name = reader.GetString(1),
-                Description = reader.IsDBNull(2) ? null : reader.GetString(2),
-                RequiresTargetPerson = reader.GetBoolean(3)
-            });
-        }
-
-        if (!managerOnly || useManagerCreationColumn)
-        {
-            return processTypes;
-        }
-
-        return processTypes
-            .Where(processType => LegacyManagerCreatableProcessTypeKeys.Contains(processType.Key, StringComparer.OrdinalIgnoreCase))
-            .ToList();
-    }
-
-    public async Task<bool> IsManagerCreatableProcessType(string processTypeKey)
-    {
-        if (string.IsNullOrWhiteSpace(processTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
             return false;
         }
@@ -118,36 +74,14 @@ ORDER BY sort_order, name;";
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        var normalizedProcessTypeKey = processTypeKey.Trim().ToLowerInvariant();
-        if (!await HasProcessTypeManagerCreationColumn(connection, null))
-        {
-            if (!LegacyManagerCreatableProcessTypeKeys.Contains(normalizedProcessTypeKey, StringComparer.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            const string fallbackSql = @"
-SELECT EXISTS(
-    SELECT 1
-    FROM process_types
-    WHERE key = @processTypeKey
-      AND is_active = TRUE
-);";
-
-            await using var fallbackCommand = new NpgsqlCommand(fallbackSql, connection);
-            fallbackCommand.Parameters.AddWithValue("processTypeKey", normalizedProcessTypeKey);
-            return (bool)(await fallbackCommand.ExecuteScalarAsync() ?? false);
-        }
-
         const string sql = @"
 SELECT allows_manager_creation
-FROM process_types
-WHERE key = @processTypeKey
-  AND is_active = TRUE
+FROM workflow_definitions
+WHERE definition_key = @workflowDefinitionKey
 LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("processTypeKey", normalizedProcessTypeKey);
+        command.Parameters.AddWithValue("workflowDefinitionKey", workflowDefinitionKey.Trim().ToLowerInvariant());
 
         var scalar = await command.ExecuteScalarAsync();
         return scalar is bool allowsManagerCreation && allowsManagerCreation;
@@ -231,12 +165,12 @@ latest_completed_onboarding AS (
             COALESCE(w.completed_at, w.created_at) AS completed_at,
             w.id
         FROM workflows w
-        JOIN process_types pt ON pt.id = w.process_type_id
+        JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
         LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-        LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
+        LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
         WHERE w.target_person_id IS NOT NULL
-          AND pt.key = 'onboarding'
-          AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+          AND pt.definition_key = 'onboarding'
+          AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
           AND w.status = 'completed'
 
         UNION ALL
@@ -248,11 +182,11 @@ latest_completed_onboarding AS (
             w.id
         FROM people p
         JOIN workflows w ON p.employee_number IS NOT NULL AND w.employee_number = p.employee_number
-        JOIN process_types pt ON pt.id = w.process_type_id
+        JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
         LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-        LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
-        WHERE pt.key = 'onboarding'
-          AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+        LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
+        WHERE pt.definition_key = 'onboarding'
+          AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
           AND w.status = 'completed'
     ) resolved
     ORDER BY resolved.person_id, resolved.completed_at DESC, resolved.id DESC
@@ -387,11 +321,11 @@ FROM (
         COALESCE(w.completed_at, w.created_at) AS completed_at,
         w.archived_at
     FROM workflows w
-    JOIN process_types pt ON pt.id = w.process_type_id
+    JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
     LEFT JOIN workflow_definition_versions v ON v.id = w.workflow_definition_version_id
-    LEFT JOIN process_types vpt ON vpt.id = v.primary_legacy_process_type_id
-    WHERE pt.key = 'onboarding'
-      AND (w.workflow_definition_version_id IS NULL OR vpt.key = 'onboarding')
+    LEFT JOIN workflow_definitions vpt ON vpt.id = v.workflow_definition_id
+    WHERE pt.definition_key = 'onboarding'
+      AND (w.workflow_definition_version_id IS NULL OR vpt.definition_key = 'onboarding')
       AND w.status = 'completed'
 ) source_workflow
 JOIN LATERAL (
@@ -469,21 +403,21 @@ LIMIT @limit;";
     }
 
     // Anforderungen und Rollenempfehlungen bilden die Eingabemaske fuer neue Workflows.
-    public async Task<List<RequirementDto>> GetRequirements(string processTypeKey)
+    public async Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        var processTypeId = await ResolveProcessTypeId(connection, null, processTypeKey);
+        var processTypeId = await ResolveProcessTypeId(connection, null, legacyProcessTypeKey);
         return await LoadRequirements(connection, null, processTypeId);
     }
 
-    public async Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string processTypeKey)
+    public async Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        var processTypeId = await ResolveProcessTypeId(connection, null, processTypeKey);
+        var processTypeId = await ResolveProcessTypeId(connection, null, legacyProcessTypeKey);
         if (roleId.HasValue && !await RoleExists(connection, null, roleId.Value))
         {
             return null;
@@ -610,6 +544,11 @@ ORDER BY id;";
         };
     }
 
+    // Naming-Hinweis: Methode heißt aus Legacy-Gründen weiter ResolveProcessTypeId,
+    // liefert seit Slice 6.3d-ii aber die `workflow_definitions.id` zurück. Die
+    // Stammdaten-Tabellen (workflow_answer_definitions, task_templates,
+    // app_role_answer_defaults, workflow_answer_derivation_rules) verweisen seit
+    // 6.3d-ii via workflow_definition_id-FK auf workflow_definitions.
     private static async Task<int> ResolveProcessTypeId(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
@@ -617,9 +556,8 @@ ORDER BY id;";
     {
         const string sql = @"
 SELECT id
-FROM process_types
-WHERE key = @processTypeKey
-  AND is_active = TRUE
+FROM workflow_definitions
+WHERE definition_key = @processTypeKey
 LIMIT 1;";
 
         if (string.IsNullOrWhiteSpace(processTypeKey))
@@ -640,4 +578,5 @@ LIMIT 1;";
 
         throw new InvalidOperationException($"Unbekannter oder inaktiver Prozesstyp '{normalizedProcessTypeKey}'.");
     }
+
 }

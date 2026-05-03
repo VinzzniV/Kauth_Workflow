@@ -135,7 +135,7 @@ internal sealed class NotificationTemplateService(
         var definition = NotificationTemplateCatalog.GetDefinitionOrThrow(context.TemplateKey);
         var template = await GetEffectiveTemplate(definition, cancellationToken);
         var processTypeContext = NotificationEmailTemplateBuilder.ResolveProcessTypeEmailContext(
-            context.ProcessTypeKey,
+            context.LegacyProcessTypeKey,
             context.ProcessTypeName);
         var placeholders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -230,7 +230,7 @@ internal sealed class NotificationTemplateService(
                     TemplateKey = definition.TemplateKey,
                     RecipientName = batch.PrimaryTarget.TargetName,
                     WorkflowUrl = BuildWorkflowAccessUrl(frontendBaseUrl, workflowUid, batch),
-                    ProcessTypeKey = batch.PrimaryTarget.ProcessTypeKey,
+                    LegacyProcessTypeKey = batch.PrimaryTarget.LegacyProcessTypeKey,
                     ProcessTypeName = batch.PrimaryTarget.ProcessTypeName,
                     TaskTitles = batch.TaskTitles
                 },

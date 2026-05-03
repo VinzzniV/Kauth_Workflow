@@ -87,11 +87,11 @@ describe("dashboardInsights", () => {
     ]);
 
     const insights = await loadDashboardInsights("hr", {
-      processTypeKey: "onboarding",
-      selectedProcessType: { key: "onboarding", name: "Onboarding" },
+      workflowDefinitionKey: "onboarding",
+      selectedWorkflowDefinition: { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, primaryLegacyProcessTypeKey: "onboarding", latestPublishedVersionNumber: 1 },
     });
 
-    expect(mockedGetWorkflows).toHaveBeenCalledWith(expect.objectContaining({ processTypeKey: "onboarding" }));
+    expect(mockedGetWorkflows).toHaveBeenCalledWith(expect.objectContaining({ workflowDefinitionKey: "onboarding" }));
     expect(insights.stats[0]?.label).toBe("Offene Vorgänge");
     expect(insights.queueTitle).toBe("Vorgänge (Onboarding)");
     expect(insights.nextStep).toBe("Onboarding-Fälle in Startphase und Rücklauf prüfen.");
@@ -137,8 +137,8 @@ describe("dashboardInsights", () => {
     ]);
 
     const insights = await loadDashboardInsights("manager", {
-      processTypeKey: "offboarding",
-      selectedProcessType: { key: "offboarding", name: "Offboarding" },
+      workflowDefinitionKey: "offboarding",
+      selectedWorkflowDefinition: { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
     });
 
     expect(insights.stats[0]?.value).toBe(2);
@@ -146,7 +146,7 @@ describe("dashboardInsights", () => {
     expect(insights.queueItems).toHaveLength(1);
     expect(insights.queueTitle).toBe("Mitarbeitende (Offboarding)");
     expect(insights.employeeItems).toHaveLength(1);
-    expect(mockedGetWorkflows).toHaveBeenCalledWith(expect.objectContaining({ processTypeKey: "offboarding" }));
+    expect(mockedGetWorkflows).toHaveBeenCalledWith(expect.objectContaining({ workflowDefinitionKey: "offboarding" }));
     expect(mockedGetSupervisorStepWorkflows).toHaveBeenCalledTimes(1);
   });
 

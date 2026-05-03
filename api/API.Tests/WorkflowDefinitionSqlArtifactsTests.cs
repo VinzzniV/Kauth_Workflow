@@ -33,7 +33,6 @@ public sealed class WorkflowDefinitionSqlArtifactsTests
         Assert.Contains("workflow_definition_version_id", content);
         Assert.Contains("current_runtime_status", content);
         Assert.Contains("published_at", content);
-        Assert.Contains("primary_legacy_process_type_id", content);
         Assert.Contains("workflow_node_instances", content);
         Assert.Contains("workflow_runtime_events", content);
     }

@@ -7,7 +7,7 @@ internal interface IWorkflowRuntimeService
     Task<WorkflowListPageDto> GetWorkflowsAsync(
         string? status,
         int? department,
-        string? processTypeKey,
+        string? workflowDefinitionKey,
         string? search,
         string? responsibility,
         int? limit,

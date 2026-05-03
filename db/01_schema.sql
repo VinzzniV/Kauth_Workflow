@@ -108,29 +108,17 @@ $$;
 -- Name: upsert_linearized_workflow_definition(text, text, text, text, text, text, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.upsert_linearized_workflow_definition(p_definition_key text, p_definition_name text, p_definition_description text, p_version_name text, p_version_description text, p_primary_legacy_process_type_key text, p_nodes jsonb, p_edges jsonb) RETURNS void
+CREATE FUNCTION public.upsert_linearized_workflow_definition(p_definition_key text, p_definition_name text, p_definition_description text, p_version_name text, p_version_description text, p_nodes jsonb, p_edges jsonb) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
     definition_id INTEGER;
     definition_version_id BIGINT;
-    primary_process_type_id INTEGER;
     node_item RECORD;
     edge_item RECORD;
     created_node_id BIGINT;
     node_ids JSONB := '{}'::jsonb;
 BEGIN
-    SELECT id
-    INTO primary_process_type_id
-    FROM process_types
-    WHERE key = LOWER(TRIM(p_primary_legacy_process_type_key))
-      AND is_active = TRUE
-    LIMIT 1;
-
-    IF primary_process_type_id IS NULL THEN
-        RAISE EXCEPTION 'Active process_type "%" is required for workflow definition mapping.', p_primary_legacy_process_type_key;
-    END IF;
-
     INSERT INTO workflow_definitions (
         definition_key,
         name,
@@ -175,7 +163,6 @@ BEGIN
             status,
             name,
             description,
-            primary_legacy_process_type_id,
             updated_at,
             published_at
         )
@@ -185,7 +172,6 @@ BEGIN
             'published',
             p_version_name,
             p_version_description,
-            primary_process_type_id,
             NOW(),
             NOW()
         )
@@ -198,7 +184,6 @@ BEGIN
         status = CASE WHEN id = definition_version_id THEN 'published' ELSE 'retired' END,
         name = CASE WHEN id = definition_version_id THEN p_version_name ELSE name END,
         description = CASE WHEN id = definition_version_id THEN p_version_description ELSE description END,
-        primary_legacy_process_type_id = CASE WHEN id = definition_version_id THEN primary_process_type_id ELSE primary_legacy_process_type_id END,
         updated_at = NOW(),
         published_at = CASE WHEN id = definition_version_id THEN COALESCE(published_at, NOW()) ELSE published_at END
     WHERE workflow_definition_id = definition_id;
@@ -457,7 +442,7 @@ CREATE TABLE public.app_role_answer_default_options (
 --
 
 CREATE TABLE public.app_role_answer_defaults (
-    process_type_id integer NOT NULL,
+    workflow_definition_id integer NOT NULL,
     app_role_id integer NOT NULL,
     answer_definition_id integer NOT NULL,
     is_recommended boolean DEFAULT true NOT NULL,
@@ -623,6 +608,7 @@ CREATE TABLE public.auth_permission_audit_log (
     detail text,
     old_value jsonb,
     new_value jsonb,
+    reason text,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -639,6 +625,68 @@ ALTER TABLE public.auth_permission_audit_log ALTER COLUMN id ADD GENERATED ALWAY
     NO MAXVALUE
     CACHE 1
 );
+
+
+--
+-- Name: person_match_audit_log; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.person_match_audit_log (
+    id bigint NOT NULL,
+    matched_person_id bigint,
+    app_user_id bigint,
+    directory_identity_id bigint,
+    employee_number integer,
+    match_strategy character varying(40) NOT NULL,
+    match_score numeric(5, 2),
+    fallback_used boolean DEFAULT false NOT NULL,
+    source character varying(40) NOT NULL,
+    detail jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: person_match_audit_log_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.person_match_audit_log ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.person_match_audit_log_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: person_match_audit_log_matched_person_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX person_match_audit_log_matched_person_idx ON public.person_match_audit_log USING btree (matched_person_id) WHERE (matched_person_id IS NOT NULL);
+
+
+--
+-- Name: person_match_audit_log_created_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX person_match_audit_log_created_idx ON public.person_match_audit_log USING btree (created_at DESC);
+
+
+--
+-- Name: person_match_audit_log_strategy_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX person_match_audit_log_strategy_idx ON public.person_match_audit_log USING btree (match_strategy, created_at DESC);
+
+
+--
+-- Name: person_match_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.person_match_audit_log
+    ADD CONSTRAINT person_match_audit_log_pkey PRIMARY KEY (id);
 
 
 --
@@ -1054,41 +1102,6 @@ ALTER TABLE public.people ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 
 --
--- Name: process_types; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.process_types (
-    id integer NOT NULL,
-    key character varying(120) NOT NULL,
-    name character varying(180) NOT NULL,
-    description text,
-    requires_supervisor_step boolean DEFAULT false NOT NULL,
-    approval_task_template_key character varying(120),
-    requires_target_person boolean DEFAULT false NOT NULL,
-    icon_key character varying(80),
-    allows_manager_creation boolean DEFAULT false NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
-    sort_order integer DEFAULT 0 NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT process_types_supervisor_step_requires_approval_task CHECK (((NOT requires_supervisor_step) OR (approval_task_template_key IS NOT NULL)))
-);
-
-
---
--- Name: process_types_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-ALTER TABLE public.process_types ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.process_types_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
 -- Name: rotation_audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1435,101 +1448,7 @@ ALTER TABLE public.task_assignments ALTER COLUMN id ADD GENERATED ALWAYS AS IDEN
 );
 
 
---
--- Name: task_template_conditions; Type: TABLE; Schema: public; Owner: -
---
 
-CREATE TABLE public.task_template_conditions (
-    id bigint NOT NULL,
-    task_template_id integer NOT NULL,
-    condition_group integer DEFAULT 1 NOT NULL,
-    answer_key character varying(120) NOT NULL,
-    operator character varying(32) NOT NULL,
-    expected_value_text text,
-    expected_value_boolean boolean,
-    expected_value_number numeric(12,2),
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT task_template_conditions_operator_check CHECK (((operator)::text = ANY ((ARRAY['eq'::character varying, 'neq'::character varying, 'is_true'::character varying, 'is_false'::character varying, 'is_null'::character varying, 'is_not_null'::character varying])::text[])))
-);
-
-
---
--- Name: task_template_conditions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-ALTER TABLE public.task_template_conditions ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.task_template_conditions_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: task_template_dependencies; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.task_template_dependencies (
-    id bigint NOT NULL,
-    task_template_id integer NOT NULL,
-    depends_on_task_template_id integer NOT NULL,
-    required_status character varying(32) DEFAULT 'done'::character varying NOT NULL,
-    CONSTRAINT task_template_dependencies_required_status_check CHECK (((required_status)::text = ANY ((ARRAY['open'::character varying, 'ready'::character varying, 'in_progress'::character varying, 'blocked'::character varying, 'done'::character varying])::text[])))
-);
-
-
---
--- Name: task_template_dependencies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-ALTER TABLE public.task_template_dependencies ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.task_template_dependencies_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: task_templates; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.task_templates (
-    id integer NOT NULL,
-    process_type_id integer NOT NULL,
-    template_key character varying(120) NOT NULL,
-    title character varying(220) NOT NULL,
-    category character varying(80) DEFAULT 'general'::character varying NOT NULL,
-    description text NOT NULL,
-    icon_key character varying(80) DEFAULT 'berechtigungen'::character varying NOT NULL,
-    owning_department_id integer,
-    default_responsibility_id integer,
-    process_area_label character varying(80),
-    is_department_phase_task boolean DEFAULT true NOT NULL,
-    is_required boolean DEFAULT true NOT NULL,
-    due_in_days integer,
-    sort_order integer DEFAULT 0 NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: task_templates_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-ALTER TABLE public.task_templates ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.task_templates_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
 
 
 --
@@ -1538,7 +1457,7 @@ ALTER TABLE public.task_templates ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
 
 CREATE TABLE public.workflow_answer_definitions (
     id integer NOT NULL,
-    process_type_id integer NOT NULL,
+    workflow_definition_id integer NOT NULL,
     answer_key character varying(120) NOT NULL,
     title character varying(180) NOT NULL,
     category character varying(80) DEFAULT 'general'::character varying NOT NULL,
@@ -1572,15 +1491,15 @@ ALTER TABLE public.workflow_answer_definitions ALTER COLUMN id ADD GENERATED ALW
 
 CREATE TABLE public.workflow_answer_derivation_rules (
     id integer NOT NULL,
-    source_process_type_id integer NOT NULL,
-    target_process_type_id integer NOT NULL,
+    source_workflow_definition_id integer NOT NULL,
+    target_workflow_definition_id integer NOT NULL,
     source_answer_key character varying(120) NOT NULL,
     target_answer_key character varying(120) NOT NULL,
     derivation_kind character varying(40) NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT workflow_answer_derivation_rules_check CHECK ((source_process_type_id <> target_process_type_id)),
+    CONSTRAINT workflow_answer_derivation_rules_check CHECK ((source_workflow_definition_id <> target_workflow_definition_id)),
     CONSTRAINT workflow_answer_derivation_rules_derivation_kind_check CHECK (((derivation_kind)::text = ANY ((ARRAY['copy_boolean'::character varying, 'copy_text'::character varying, 'copy_number'::character varying, 'copy_selected_option'::character varying])::text[])))
 );
 
@@ -1836,7 +1755,6 @@ CREATE TABLE public.workflow_definition_versions (
     status character varying(32) DEFAULT 'draft'::character varying NOT NULL,
     name character varying(220),
     description text,
-    primary_legacy_process_type_id integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     published_at timestamp with time zone,
@@ -1867,8 +1785,13 @@ CREATE TABLE public.workflow_definitions (
     definition_key character varying(120) NOT NULL,
     name character varying(220) NOT NULL,
     description text,
+    allows_manager_creation boolean DEFAULT false NOT NULL,
+    requires_supervisor_step boolean DEFAULT false NOT NULL,
+    requires_target_person boolean DEFAULT false NOT NULL,
+    approval_task_template_key character varying(120),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT workflow_definitions_supervisor_step_requires_approval_task CHECK (((NOT requires_supervisor_step) OR (approval_task_template_key IS NOT NULL)))
 );
 
 
@@ -2047,7 +1970,7 @@ CREATE TABLE public.workflow_nodes (
     position_x integer,
     position_y integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT workflow_nodes_node_type_check CHECK (((node_type)::text = ANY ((ARRAY['start'::character varying, 'form'::character varying, 'approval'::character varying, 'task'::character varying, 'decision'::character varying, 'parallel_split'::character varying, 'parallel_join'::character varying, 'automation'::character varying, 'measure_provision'::character varying, 'measure_deprovision'::character varying, 'measure_change'::character varying, 'measure_rename'::character varying, 'setup'::character varying, 'end'::character varying])::text[])))
+    CONSTRAINT workflow_nodes_node_type_check CHECK (((node_type)::text = ANY ((ARRAY['start'::character varying, 'form'::character varying, 'approval'::character varying, 'task'::character varying, 'decision'::character varying, 'parallel_split'::character varying, 'parallel_join'::character varying, 'automation'::character varying, 'measure_provision'::character varying, 'measure_deprovision'::character varying, 'measure_change'::character varying, 'measure_rename'::character varying, 'end'::character varying])::text[])))
 );
 
 
@@ -2190,7 +2113,7 @@ ALTER TABLE public.workflow_task_dependencies ALTER COLUMN id ADD GENERATED ALWA
 CREATE TABLE public.workflow_tasks (
     id bigint NOT NULL,
     workflow_id bigint NOT NULL,
-    task_template_id integer,
+    workflow_node_task_spec_id bigint,
     task_key character varying(120) NOT NULL,
     title character varying(220) NOT NULL,
     category character varying(80) NOT NULL,
@@ -2233,7 +2156,7 @@ ALTER TABLE public.workflow_tasks ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
 CREATE TABLE public.workflows (
     id bigint NOT NULL,
     uid uuid DEFAULT gen_random_uuid() NOT NULL,
-    process_type_id integer NOT NULL,
+    workflow_definition_id integer NOT NULL,
     workflow_definition_version_id bigint,
     department_id integer NOT NULL,
     position_role_id integer NOT NULL,
@@ -2621,22 +2544,6 @@ ALTER TABLE ONLY public.people
 
 
 --
--- Name: process_types process_types_key_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.process_types
-    ADD CONSTRAINT process_types_key_key UNIQUE (key);
-
-
---
--- Name: process_types process_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.process_types
-    ADD CONSTRAINT process_types_pkey PRIMARY KEY (id);
-
-
---
 -- Name: rotation_audit_log rotation_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2740,60 +2647,23 @@ ALTER TABLE ONLY public.task_assignments
     ADD CONSTRAINT task_assignments_pkey PRIMARY KEY (id);
 
 
---
--- Name: task_template_conditions task_template_conditions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
 
-ALTER TABLE ONLY public.task_template_conditions
-    ADD CONSTRAINT task_template_conditions_pkey PRIMARY KEY (id);
 
 
 --
--- Name: task_template_dependencies task_template_dependencies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_template_dependencies
-    ADD CONSTRAINT task_template_dependencies_pkey PRIMARY KEY (id);
-
-
---
--- Name: task_template_dependencies task_template_dependencies_task_template_id_depends_on_task_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_template_dependencies
-    ADD CONSTRAINT task_template_dependencies_task_template_id_depends_on_task_key UNIQUE (task_template_id, depends_on_task_template_id);
-
-
---
--- Name: task_templates task_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_templates
-    ADD CONSTRAINT task_templates_pkey PRIMARY KEY (id);
-
-
---
--- Name: task_templates task_templates_template_key_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_templates
-    ADD CONSTRAINT task_templates_template_key_key UNIQUE (template_key);
-
-
---
--- Name: workflow_answer_definitions uq_workflow_answer_definitions_id_process_type; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: workflow_answer_definitions uq_workflow_answer_definitions_id_workflow_definition; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.workflow_answer_definitions
-    ADD CONSTRAINT uq_workflow_answer_definitions_id_process_type UNIQUE (id, process_type_id);
+    ADD CONSTRAINT uq_workflow_answer_definitions_id_workflow_definition UNIQUE (id, workflow_definition_id);
 
 
 --
--- Name: workflow_answer_definitions uq_workflow_answer_definitions_process_type_answer_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: workflow_answer_definitions uq_workflow_answer_definitions_workflow_definition_answer_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.workflow_answer_definitions
-    ADD CONSTRAINT uq_workflow_answer_definitions_process_type_answer_key UNIQUE (process_type_id, answer_key);
+    ADD CONSTRAINT uq_workflow_answer_definitions_workflow_definition_answer_key UNIQUE (workflow_definition_id, answer_key);
 
 
 --
@@ -3270,14 +3140,14 @@ CREATE INDEX idx_department_settings_requirement_approver ON public.department_s
 -- Name: idx_derivation_rules_source_process; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_derivation_rules_source_process ON public.workflow_answer_derivation_rules USING btree (source_process_type_id);
+CREATE INDEX idx_derivation_rules_source_definition ON public.workflow_answer_derivation_rules USING btree (source_workflow_definition_id);
 
 
 --
 -- Name: idx_derivation_rules_target_process; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_derivation_rules_target_process ON public.workflow_answer_derivation_rules USING btree (target_process_type_id);
+CREATE INDEX idx_derivation_rules_target_definition ON public.workflow_answer_derivation_rules USING btree (target_workflow_definition_id);
 
 
 --
@@ -3489,12 +3359,6 @@ CREATE INDEX idx_system_responsibilities_person ON public.system_responsibilitie
 
 CREATE INDEX idx_task_assignments_task_id ON public.task_assignments USING btree (workflow_task_id);
 
-
---
--- Name: idx_task_template_conditions_template_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_task_template_conditions_template_id ON public.task_template_conditions USING btree (task_template_id);
 
 
 --
@@ -3742,12 +3606,6 @@ CREATE UNIQUE INDEX uq_rotation_task_assignments_primary ON public.rotation_task
 CREATE UNIQUE INDEX uq_task_assignments_primary_per_task ON public.task_assignments USING btree (workflow_task_id) WHERE (is_primary = true);
 
 
---
--- Name: uq_task_template_conditions_rule; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX uq_task_template_conditions_rule ON public.task_template_conditions USING btree (task_template_id, condition_group, answer_key, operator, ((expected_value_text IS NULL)), COALESCE(expected_value_text, ''::text), ((expected_value_boolean IS NULL)), COALESCE((expected_value_boolean)::text, ''::text), ((expected_value_number IS NULL)), COALESCE((expected_value_number)::text, ''::text));
-
 
 --
 -- Name: uq_workflow_answer_reset_rules; Type: INDEX; Schema: public; Owner: -
@@ -3871,11 +3729,11 @@ ALTER TABLE ONLY public.app_role_answer_defaults
 
 
 --
--- Name: app_role_answer_defaults app_role_answer_defaults_process_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: app_role_answer_defaults app_role_answer_defaults_workflow_definition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.app_role_answer_defaults
-    ADD CONSTRAINT app_role_answer_defaults_process_type_id_fkey FOREIGN KEY (process_type_id) REFERENCES public.process_types(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT app_role_answer_defaults_workflow_definition_id_fkey FOREIGN KEY (workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE RESTRICT;
 
 
 --
@@ -4135,11 +3993,11 @@ ALTER TABLE ONLY public.directory_mapping_audit_log
 
 
 --
--- Name: app_role_answer_defaults fk_app_role_answer_defaults_definition_process_type; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: app_role_answer_defaults fk_app_role_answer_defaults_definition_workflow_definition; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.app_role_answer_defaults
-    ADD CONSTRAINT fk_app_role_answer_defaults_definition_process_type FOREIGN KEY (answer_definition_id, process_type_id) REFERENCES public.workflow_answer_definitions(id, process_type_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_app_role_answer_defaults_definition_workflow_definition FOREIGN KEY (answer_definition_id, workflow_definition_id) REFERENCES public.workflow_answer_definitions(id, workflow_definition_id) ON DELETE CASCADE;
 
 
 --
@@ -4438,76 +4296,34 @@ ALTER TABLE ONLY public.task_assignments
     ADD CONSTRAINT task_assignments_workflow_task_id_fkey FOREIGN KEY (workflow_task_id) REFERENCES public.workflow_tasks(id) ON DELETE CASCADE;
 
 
---
--- Name: task_template_conditions task_template_conditions_task_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
 
-ALTER TABLE ONLY public.task_template_conditions
-    ADD CONSTRAINT task_template_conditions_task_template_id_fkey FOREIGN KEY (task_template_id) REFERENCES public.task_templates(id) ON DELETE CASCADE;
+
+
+
 
 
 --
--- Name: task_template_dependencies task_template_dependencies_depends_on_task_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_template_dependencies
-    ADD CONSTRAINT task_template_dependencies_depends_on_task_template_id_fkey FOREIGN KEY (depends_on_task_template_id) REFERENCES public.task_templates(id) ON DELETE CASCADE;
-
-
---
--- Name: task_template_dependencies task_template_dependencies_task_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_template_dependencies
-    ADD CONSTRAINT task_template_dependencies_task_template_id_fkey FOREIGN KEY (task_template_id) REFERENCES public.task_templates(id) ON DELETE CASCADE;
-
-
---
--- Name: task_templates task_templates_default_responsibility_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_templates
-    ADD CONSTRAINT task_templates_default_responsibility_id_fkey FOREIGN KEY (default_responsibility_id) REFERENCES public.app_responsibilities(id) ON DELETE SET NULL;
-
-
---
--- Name: task_templates task_templates_owning_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_templates
-    ADD CONSTRAINT task_templates_owning_department_id_fkey FOREIGN KEY (owning_department_id) REFERENCES public.departments(id) ON DELETE SET NULL;
-
-
---
--- Name: task_templates task_templates_process_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.task_templates
-    ADD CONSTRAINT task_templates_process_type_id_fkey FOREIGN KEY (process_type_id) REFERENCES public.process_types(id) ON DELETE RESTRICT;
-
-
---
--- Name: workflow_answer_definitions workflow_answer_definitions_process_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: workflow_answer_definitions workflow_answer_definitions_workflow_definition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.workflow_answer_definitions
-    ADD CONSTRAINT workflow_answer_definitions_process_type_id_fkey FOREIGN KEY (process_type_id) REFERENCES public.process_types(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT workflow_answer_definitions_workflow_definition_id_fkey FOREIGN KEY (workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE RESTRICT;
 
 
 --
--- Name: workflow_answer_derivation_rules workflow_answer_derivation_rules_source_process_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_answer_derivation_rules
-    ADD CONSTRAINT workflow_answer_derivation_rules_source_process_type_id_fkey FOREIGN KEY (source_process_type_id) REFERENCES public.process_types(id) ON DELETE CASCADE;
-
-
---
--- Name: workflow_answer_derivation_rules workflow_answer_derivation_rules_target_process_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: workflow_answer_derivation_rules workflow_answer_derivation_rules_source_workflow_definition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.workflow_answer_derivation_rules
-    ADD CONSTRAINT workflow_answer_derivation_rules_target_process_type_id_fkey FOREIGN KEY (target_process_type_id) REFERENCES public.process_types(id) ON DELETE CASCADE;
+    ADD CONSTRAINT workflow_answer_derivation_rules_source_workflow_definition_id_fkey FOREIGN KEY (source_workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_answer_derivation_rules workflow_answer_derivation_rules_target_workflow_definition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_answer_derivation_rules
+    ADD CONSTRAINT workflow_answer_derivation_rules_target_workflow_definition_id_fkey FOREIGN KEY (target_workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE CASCADE;
 
 
 --
@@ -4620,14 +4436,6 @@ ALTER TABLE ONLY public.workflow_audit_log
 
 ALTER TABLE ONLY public.workflow_audit_log
     ADD CONSTRAINT workflow_audit_log_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.workflows(id) ON DELETE CASCADE;
-
-
---
--- Name: workflow_definition_versions workflow_definition_versions_primary_legacy_process_type_i_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_definition_versions
-    ADD CONSTRAINT workflow_definition_versions_primary_legacy_process_type_i_fkey FOREIGN KEY (primary_legacy_process_type_id) REFERENCES public.process_types(id) ON DELETE RESTRICT;
 
 
 --
@@ -4814,13 +4622,6 @@ ALTER TABLE ONLY public.workflow_tasks
     ADD CONSTRAINT workflow_tasks_node_instance_id_fkey FOREIGN KEY (node_instance_id) REFERENCES public.workflow_node_instances(id) ON DELETE SET NULL;
 
 
---
--- Name: workflow_tasks workflow_tasks_task_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.workflow_tasks
-    ADD CONSTRAINT workflow_tasks_task_template_id_fkey FOREIGN KEY (task_template_id) REFERENCES public.task_templates(id) ON DELETE SET NULL;
-
 
 --
 -- Name: workflow_tasks workflow_tasks_workflow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
@@ -4855,11 +4656,11 @@ ALTER TABLE ONLY public.workflows
 
 
 --
--- Name: workflows workflows_process_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: workflows workflows_workflow_definition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.workflows
-    ADD CONSTRAINT workflows_process_type_id_fkey FOREIGN KEY (process_type_id) REFERENCES public.process_types(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT workflows_workflow_definition_id_fkey FOREIGN KEY (workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE RESTRICT;
 
 
 --
@@ -4868,3 +4669,138 @@ ALTER TABLE ONLY public.workflows
 
 ALTER TABLE ONLY public.workflows
     ADD CONSTRAINT workflows_target_person_id_fkey FOREIGN KEY (target_person_id) REFERENCES public.people(id) ON DELETE RESTRICT;
+
+
+--
+-- LA5: Per-Node Task-Spezifikationen (siehe
+-- KauthWorkflow/Architektur/LA5-TaskSpezifikation-Skizze.md).
+--
+
+CREATE TABLE public.workflow_node_task_specs (
+    id bigint NOT NULL,
+    workflow_node_id bigint NOT NULL,
+    spec_key character varying(120) NOT NULL,
+    title character varying(220) NOT NULL,
+    description text NOT NULL,
+    category character varying(80) DEFAULT 'general'::character varying NOT NULL,
+    icon_key character varying(80) DEFAULT 'berechtigungen'::character varying NOT NULL,
+    default_responsibility_id integer,
+    process_area_label character varying(80),
+    is_department_phase_task boolean DEFAULT true NOT NULL,
+    is_required boolean DEFAULT true NOT NULL,
+    due_in_days integer,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.workflow_node_task_specs ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.workflow_node_task_specs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+ALTER TABLE ONLY public.workflow_node_task_specs
+    ADD CONSTRAINT workflow_node_task_specs_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.workflow_node_task_specs
+    ADD CONSTRAINT workflow_node_task_specs_node_spec_key UNIQUE (workflow_node_id, spec_key);
+
+-- Composite-UNIQUE als Ziel fuer dependencies-Composite-FK (Same-Node-Constraint)
+ALTER TABLE ONLY public.workflow_node_task_specs
+    ADD CONSTRAINT workflow_node_task_specs_id_node_uk UNIQUE (id, workflow_node_id);
+
+CREATE INDEX idx_workflow_node_task_specs_node
+    ON public.workflow_node_task_specs USING btree (workflow_node_id, sort_order, id);
+
+ALTER TABLE ONLY public.workflow_node_task_specs
+    ADD CONSTRAINT workflow_node_task_specs_workflow_node_id_fkey
+    FOREIGN KEY (workflow_node_id) REFERENCES public.workflow_nodes(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.workflow_node_task_specs
+    ADD CONSTRAINT workflow_node_task_specs_default_responsibility_id_fkey
+    FOREIGN KEY (default_responsibility_id) REFERENCES public.app_responsibilities(id) ON DELETE SET NULL;
+
+
+CREATE TABLE public.workflow_node_task_spec_conditions (
+    id bigint NOT NULL,
+    workflow_node_task_spec_id bigint NOT NULL,
+    answer_key character varying(120) NOT NULL,
+    operator character varying(32) NOT NULL,
+    expected_value_text text,
+    expected_value_boolean boolean,
+    expected_value_number numeric(12,2),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT workflow_node_task_spec_conditions_operator_check
+        CHECK (((operator)::text = ANY ((ARRAY['eq'::character varying, 'neq'::character varying, 'is_true'::character varying, 'is_false'::character varying, 'is_null'::character varying, 'is_not_null'::character varying])::text[])))
+);
+
+ALTER TABLE public.workflow_node_task_spec_conditions ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.workflow_node_task_spec_conditions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+ALTER TABLE ONLY public.workflow_node_task_spec_conditions
+    ADD CONSTRAINT workflow_node_task_spec_conditions_pkey PRIMARY KEY (id);
+
+CREATE INDEX idx_workflow_node_task_spec_conditions_spec
+    ON public.workflow_node_task_spec_conditions USING btree (workflow_node_task_spec_id);
+
+ALTER TABLE ONLY public.workflow_node_task_spec_conditions
+    ADD CONSTRAINT workflow_node_task_spec_conditions_spec_id_fkey
+    FOREIGN KEY (workflow_node_task_spec_id) REFERENCES public.workflow_node_task_specs(id) ON DELETE CASCADE;
+
+
+CREATE TABLE public.workflow_node_task_spec_dependencies (
+    id bigint NOT NULL,
+    workflow_node_task_spec_id bigint NOT NULL,
+    depends_on_workflow_node_task_spec_id bigint NOT NULL,
+    workflow_node_id bigint NOT NULL,
+    CONSTRAINT workflow_node_task_spec_deps_no_self_ref
+        CHECK (workflow_node_task_spec_id <> depends_on_workflow_node_task_spec_id)
+);
+
+ALTER TABLE public.workflow_node_task_spec_dependencies ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.workflow_node_task_spec_dependencies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+ALTER TABLE ONLY public.workflow_node_task_spec_dependencies
+    ADD CONSTRAINT workflow_node_task_spec_dependencies_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.workflow_node_task_spec_dependencies
+    ADD CONSTRAINT workflow_node_task_spec_deps_pair_unique
+    UNIQUE (workflow_node_task_spec_id, depends_on_workflow_node_task_spec_id);
+
+CREATE INDEX idx_workflow_node_task_spec_deps_dependent
+    ON public.workflow_node_task_spec_dependencies USING btree (workflow_node_task_spec_id);
+
+CREATE INDEX idx_workflow_node_task_spec_deps_depends_on
+    ON public.workflow_node_task_spec_dependencies USING btree (depends_on_workflow_node_task_spec_id);
+
+-- Composite-FKs erzwingen, dass Dependent + Depends-On am SELBEN Node liegen
+ALTER TABLE ONLY public.workflow_node_task_spec_dependencies
+    ADD CONSTRAINT workflow_node_task_spec_deps_dependent_fkey
+    FOREIGN KEY (workflow_node_task_spec_id, workflow_node_id)
+    REFERENCES public.workflow_node_task_specs(id, workflow_node_id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.workflow_node_task_spec_dependencies
+    ADD CONSTRAINT workflow_node_task_spec_deps_depends_on_fkey
+    FOREIGN KEY (depends_on_workflow_node_task_spec_id, workflow_node_id)
+    REFERENCES public.workflow_node_task_specs(id, workflow_node_id) ON DELETE CASCADE;
+
+
+-- workflow_tasks-Audit-Link auf Spec-Tabelle
+ALTER TABLE ONLY public.workflow_tasks
+    ADD CONSTRAINT workflow_tasks_workflow_node_task_spec_id_fkey
+    FOREIGN KEY (workflow_node_task_spec_id) REFERENCES public.workflow_node_task_specs(id) ON DELETE SET NULL;

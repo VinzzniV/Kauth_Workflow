@@ -54,13 +54,6 @@ internal sealed class NotificationEmailRuntimeConfiguration
     public DateTime? UpdatedAt { get; init; }
 }
 
-internal sealed class NotificationEmailConfigurationValidationResult
-{
-    public required string Status { get; init; }
-    public required bool CanSend { get; init; }
-    public string? Message { get; init; }
-}
-
 internal sealed class NotificationEmailTestSendResult
 {
     public required bool Success { get; init; }

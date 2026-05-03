@@ -1453,22 +1453,44 @@ WITH linkable_identities AS (
     FROM directory_identities di
     WHERE di.app_user_id IS NOT NULL
       AND di.employee_number IS NOT NULL
+),
+matched AS (
+    UPDATE people p
+    SET
+        app_user_id = COALESCE(p.app_user_id, linkable_identities.app_user_id),
+        directory_identity_id = linkable_identities.directory_identity_id,
+        updated_at = NOW()
+    FROM linkable_identities
+    WHERE p.employee_number = linkable_identities.employee_number
+      AND (
+          p.app_user_id IS NULL
+          OR p.app_user_id = linkable_identities.app_user_id
+      )
+      AND (
+          p.directory_identity_id IS NULL
+          OR p.directory_identity_id = linkable_identities.directory_identity_id
+      )
+    RETURNING
+        p.id AS matched_person_id,
+        linkable_identities.app_user_id,
+        linkable_identities.directory_identity_id,
+        linkable_identities.employee_number
 )
-UPDATE people p
-SET
-    app_user_id = COALESCE(p.app_user_id, linkable_identities.app_user_id),
-    directory_identity_id = linkable_identities.directory_identity_id,
-    updated_at = NOW()
-FROM linkable_identities
-WHERE p.employee_number = linkable_identities.employee_number
-  AND (
-      p.app_user_id IS NULL
-      OR p.app_user_id = linkable_identities.app_user_id
-  )
-  AND (
-      p.directory_identity_id IS NULL
-      OR p.directory_identity_id = linkable_identities.directory_identity_id
-  );";
+INSERT INTO person_match_audit_log (
+    matched_person_id, app_user_id, directory_identity_id, employee_number,
+    match_strategy, match_score, fallback_used, source, detail
+)
+SELECT
+    matched.matched_person_id,
+    matched.app_user_id,
+    matched.directory_identity_id,
+    matched.employee_number,
+    'employee_number',
+    1.00,
+    false,
+    'directory_sync_bulk',
+    NULL
+FROM matched;";
 
         await using (var linkPeopleCommand = new NpgsqlCommand(linkPeopleByEmployeeNumberSql, connection))
         {
@@ -1945,10 +1967,27 @@ matched AS (
           p.directory_identity_id IS NULL
           OR p.directory_identity_id = latest_identity.id
       )
-    RETURNING p.id
+    RETURNING p.id, latest_identity.id AS directory_identity_id, latest_identity.employee_number
+),
+audit AS (
+    INSERT INTO person_match_audit_log (
+        matched_person_id, app_user_id, directory_identity_id, employee_number,
+        match_strategy, match_score, fallback_used, source, detail
+    )
+    SELECT
+        matched.id,
+        @userId,
+        matched.directory_identity_id,
+        matched.employee_number,
+        'employee_number',
+        1.00,
+        false,
+        'directory_sync_per_user',
+        NULL
+    FROM matched
+    RETURNING 1
 )
-SELECT id
-FROM matched
+SELECT id FROM matched
 LIMIT 1;";
 
         await using (var matchCommand = new NpgsqlCommand(matchExistingSql, connection))
@@ -1967,27 +2006,56 @@ LIMIT 1;";
         }
 
         const string sql = @"
-INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
-SELECT
-    u.id,
-    u.department_id,
-    latest_identity.id,
-    NOW()
-FROM app_users u
-LEFT JOIN LATERAL (
-    SELECT di.id
+WITH inserted AS (
+    INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
+    SELECT
+        u.id,
+        u.department_id,
+        latest_identity.id,
+        NOW()
+    FROM app_users u
+    LEFT JOIN LATERAL (
+        SELECT di.id, di.employee_number
+        FROM directory_identities di
+        WHERE di.app_user_id = u.id
+        ORDER BY di.last_synced_at DESC NULLS LAST, di.id DESC
+        LIMIT 1
+    ) latest_identity ON TRUE
+    WHERE u.id = @userId
+    ON CONFLICT (app_user_id) DO UPDATE
+    SET
+        department_id = EXCLUDED.department_id,
+        directory_identity_id = COALESCE(EXCLUDED.directory_identity_id, people.directory_identity_id),
+        updated_at = NOW()
+    RETURNING id, app_user_id, directory_identity_id, (xmax = 0) AS was_inserted
+),
+latest_identity_for_audit AS (
+    SELECT di.id, di.employee_number
     FROM directory_identities di
-    WHERE di.app_user_id = u.id
+    WHERE di.app_user_id = @userId
     ORDER BY di.last_synced_at DESC NULLS LAST, di.id DESC
     LIMIT 1
-) latest_identity ON TRUE
-WHERE u.id = @userId
-ON CONFLICT (app_user_id) DO UPDATE
-SET
-    department_id = EXCLUDED.department_id,
-    directory_identity_id = COALESCE(EXCLUDED.directory_identity_id, people.directory_identity_id),
-    updated_at = NOW()
-RETURNING id;";
+),
+audit AS (
+    INSERT INTO person_match_audit_log (
+        matched_person_id, app_user_id, directory_identity_id, employee_number,
+        match_strategy, match_score, fallback_used, source, detail
+    )
+    SELECT
+        inserted.id,
+        inserted.app_user_id,
+        inserted.directory_identity_id,
+        latest_identity_for_audit.employee_number,
+        CASE WHEN inserted.was_inserted THEN 'created_new' ELSE 'app_user_upsert' END,
+        NULL,
+        true,
+        'directory_sync_per_user',
+        NULL
+    FROM inserted
+    LEFT JOIN latest_identity_for_audit ON TRUE
+    RETURNING 1
+)
+SELECT id FROM inserted;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("userId", userId);

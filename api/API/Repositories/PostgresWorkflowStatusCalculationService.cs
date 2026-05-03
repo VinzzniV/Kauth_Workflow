@@ -2,9 +2,54 @@ using Npgsql;
 
 namespace API;
 
-internal sealed partial class PostgresWorkflowRepository
+internal sealed class PostgresWorkflowStatusCalculationService : IWorkflowStatusCalculationService
 {
-    private static async Task<bool> TryLockWorkflowForTaskStatusUpdate(
+    public Task<bool> TryLockWorkflowForTaskStatusUpdate(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId)
+        => TryLockWorkflowForTaskStatusUpdateAsync(connection, transaction, taskId);
+
+    public Task<(long WorkflowId, Guid WorkflowUid, string CurrentStatus, bool IsRequired, string TaskKey, bool IsApprovalTask, string TaskTitle, long? NodeInstanceId, bool IsRuntimeNodeTask)?> LoadTaskStateForUpdate(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId)
+        => LoadTaskStateForUpdateAsync(connection, transaction, taskId);
+
+    public Task<bool> AreTaskDependenciesSatisfied(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId)
+        => AreTaskDependenciesSatisfiedAsync(connection, transaction, taskId);
+
+    public Task PersistTaskStatus(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId,
+        string nextStatus)
+        => PersistTaskStatusAsync(connection, transaction, taskId, nextStatus);
+
+    public Task SyncPrimaryAssignmentCompletion(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId,
+        string taskStatus)
+        => SyncPrimaryAssignmentCompletionAsync(connection, transaction, taskId, taskStatus);
+
+    public Task RecalculateWorkflowTaskAvailability(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId)
+        => RecalculateWorkflowTaskAvailabilityAsync(connection, transaction, workflowId);
+
+    public Task RecalculateAndPersistWorkflowStatus(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        long? actorUserId)
+        => RecalculateAndPersistWorkflowStatusAsync(connection, transaction, workflowId, actorUserId);
+
+    internal static async Task<bool> TryLockWorkflowForTaskStatusUpdateAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId)
@@ -22,7 +67,7 @@ FOR UPDATE OF w;";
         return await command.ExecuteScalarAsync() is not null;
     }
 
-    private static async Task<(long WorkflowId, Guid WorkflowUid, string CurrentStatus, bool IsRequired, string TaskKey, bool IsApprovalTask, string TaskTitle, long? NodeInstanceId, bool IsRuntimeNodeTask)?> LoadTaskStateForUpdate(
+    internal static async Task<(long WorkflowId, Guid WorkflowUid, string CurrentStatus, bool IsRequired, string TaskKey, bool IsApprovalTask, string TaskTitle, long? NodeInstanceId, bool IsRuntimeNodeTask)?> LoadTaskStateForUpdateAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId)
@@ -44,7 +89,7 @@ SELECT
     wt.node_instance_id IS NOT NULL
 FROM workflow_tasks wt
 JOIN workflows w ON w.id = wt.workflow_id
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 LEFT JOIN workflow_node_instances ni ON ni.id = wt.node_instance_id
 LEFT JOIN workflow_nodes n ON n.id = ni.workflow_node_id
 WHERE wt.id = @taskId
@@ -71,7 +116,7 @@ FOR UPDATE OF wt;";
             reader.GetBoolean(8));
     }
 
-    private static async Task<bool> AreTaskDependenciesSatisfied(
+    internal static async Task<bool> AreTaskDependenciesSatisfiedAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId)
@@ -98,7 +143,7 @@ WHERE d.workflow_task_id = @taskId;";
         return totalCount == satisfiedCount;
     }
 
-    private static async Task PersistTaskStatus(
+    internal static async Task PersistTaskStatusAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId,
@@ -147,7 +192,7 @@ WHERE id = @taskId;";
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task SyncPrimaryAssignmentCompletion(
+    internal static async Task SyncPrimaryAssignmentCompletionAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long taskId,
@@ -169,7 +214,7 @@ WHERE workflow_task_id = @taskId
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task RecalculateWorkflowTaskAvailability(
+    internal static async Task RecalculateWorkflowTaskAvailabilityAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId)
@@ -290,7 +335,7 @@ WHERE id = @taskId;";
         }
     }
 
-    private static async Task RecalculateAndPersistWorkflowStatus(
+    internal static async Task RecalculateAndPersistWorkflowStatusAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -303,7 +348,7 @@ SELECT
     pt.requires_supervisor_step,
     pt.approval_task_template_key
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 WHERE w.id = @workflowId
 FOR UPDATE OF w;";
 
@@ -383,7 +428,7 @@ WHERE id = @workflowId;";
 
         if (!string.Equals(currentWorkflowStatus, nextWorkflowStatus, StringComparison.OrdinalIgnoreCase))
         {
-            await InsertAuditEntry(
+            await PostgresRepositorySharedHelpers.InsertAuditEntry(
                 connection,
                 transaction,
                 workflowId,

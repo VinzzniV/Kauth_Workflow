@@ -74,14 +74,14 @@ SELECT
     w.id,
     w.workflow_definition_version_id,
     w.position_role_id,
-    w.process_type_id,
+    wd.id AS workflow_definition_id,
     w.department_id,
     w.status,
-    pt.name,
-    pt.requires_supervisor_step,
-    pt.approval_task_template_key
+    wd.name,
+    wd.requires_supervisor_step,
+    wd.approval_task_template_key
 FROM workflows w
-JOIN process_types pt ON pt.id = w.process_type_id
+JOIN workflow_definitions wd ON wd.id = w.workflow_definition_id
 WHERE w.uid = @workflowUid
 LIMIT 1
 FOR UPDATE OF w;";
@@ -89,10 +89,10 @@ FOR UPDATE OF w;";
         long workflowId;
         long? workflowDefinitionVersionId;
         int workflowRoleId;
-        int workflowProcessTypeId;
+        int workflowDefinitionId;
         int workflowDepartmentId;
         string workflowStatus;
-        string workflowProcessTypeName;
+        string workflowDefinitionName;
         bool requiresSupervisorStep;
         string? approvalTaskTemplateKey;
 
@@ -109,13 +109,13 @@ FOR UPDATE OF w;";
             workflowId = reader.GetInt64(0);
             workflowDefinitionVersionId = reader.IsDBNull(1) ? null : reader.GetInt64(1);
             workflowRoleId = reader.GetInt32(2);
-            workflowProcessTypeId = reader.GetInt32(3);
+            workflowDefinitionId = reader.GetInt32(3);
             workflowDepartmentId = reader.GetInt32(4);
             workflowStatus = reader.GetString(5);
-            workflowProcessTypeName = reader.GetString(6);
+            workflowDefinitionName = reader.GetString(6);
             requiresSupervisorStep = reader.GetBoolean(7);
             approvalTaskTemplateKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
-                workflowProcessTypeName,
+                workflowDefinitionName,
                 requiresSupervisorStep,
                 reader.IsDBNull(8) ? null : reader.GetString(8));
         }
@@ -132,7 +132,7 @@ FOR UPDATE OF w;";
 
         if (workflowDefinitionVersionId.HasValue)
         {
-            await CompleteRuntimeSupervisorGatekeeperStep(
+            await PostgresWorkflowRuntimeRepository.CompleteRuntimeSupervisorGatekeeperStep(
                 connection,
                 transaction,
                 workflowUid,
@@ -158,8 +158,8 @@ WHERE workflow_id = @workflowId;";
             await clearAnswersCommand.ExecuteNonQueryAsync();
         }
 
-        var answerDefinitions = await LoadAnswerDefinitionRecords(connection, transaction, workflowProcessTypeId);
-        var roleDefaults = await LoadRoleDefaultRecords(connection, transaction, workflowRoleId, workflowProcessTypeId);
+        var answerDefinitions = await LoadAnswerDefinitionRecords(connection, transaction, workflowDefinitionId);
+        var roleDefaults = await LoadRoleDefaultRecords(connection, transaction, workflowRoleId, workflowDefinitionId);
 
         var storedAnswers = await PersistWorkflowAnswers(
             connection,
@@ -194,7 +194,7 @@ WHERE workflow_id = @workflowId;";
                 actorUserId);
         }
 
-        var generatedTaskCount = await GenerateWorkflowTasks(
+        var generatedTaskCount = await _taskGeneration.GenerateWorkflowTasks(
             connection,
             transaction,
             workflowId,
@@ -204,7 +204,7 @@ WHERE workflow_id = @workflowId;";
 
         if (generatedTaskCount > 0)
         {
-            await InsertAuditEntry(
+            await _auditWrite.InsertAuditEntry(
                 connection,
                 transaction,
                 workflowId,
@@ -216,10 +216,10 @@ WHERE workflow_id = @workflowId;";
                 $"{generatedTaskCount} Aufgabe(n) nach Anforderungsauswahl erstellt");
         }
 
-        await RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
-        await RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
+        await _statusCalculation.RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
+        await _statusCalculation.RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
         var nextWorkflowStatus = await LoadWorkflowStatusForUpdate(connection, transaction, workflowId);
-        await InsertAuditEntry(
+        await _auditWrite.InsertAuditEntry(
             connection,
             transaction,
             workflowId,
@@ -253,28 +253,4 @@ SELECT EXISTS(
         return (bool)(await command.ExecuteScalarAsync() ?? false);
     }
 
-    private static async Task EnsureValidPositionRole(
-        NpgsqlConnection connection,
-        NpgsqlTransaction transaction,
-        int roleId,
-        int departmentId)
-    {
-        const string sql = @"
-SELECT r.id
-FROM app_roles r
-WHERE r.id = @roleId
-  AND r.department_id = @departmentId
-  AND r.role_kind = 'position'
-  AND r.is_active = TRUE;";
-
-        await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("roleId", roleId);
-        command.Parameters.AddWithValue("departmentId", departmentId);
-
-        var scalar = await command.ExecuteScalarAsync();
-        if (scalar is null)
-        {
-            throw new InvalidOperationException("Role is invalid for the selected department.");
-        }
-    }
 }

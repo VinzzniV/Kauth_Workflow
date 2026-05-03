@@ -1,5 +1,5 @@
 import type { TaskStatus, TaskWithWorkflow } from "../types/workflow";
-import { requestJson } from "./api/client";
+import { encodeId, requestJson } from "./api/client";
 import type { BackendTaskWithWorkflowDto } from "./api/backendDtos";
 import { mapTaskWithWorkflow } from "./api/mappers";
 
@@ -14,7 +14,7 @@ export async function getTaskByRef(taskRef: string): Promise<TaskWithWorkflow> {
 }
 
 export async function updateTaskStatus(taskId: number, status: TaskStatus): Promise<TaskWithWorkflow> {
-  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeURIComponent(String(taskId))}/status`, {
+  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeId(taskId)}/status`, {
     method: "PATCH",
     body: { status },
   });
@@ -33,7 +33,7 @@ export async function updateTaskStatusByRef(taskRef: string, status: TaskStatus)
 }
 
 export async function addTaskComment(taskId: number, commentText: string): Promise<TaskWithWorkflow> {
-  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeURIComponent(String(taskId))}/comments`, {
+  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeId(taskId)}/comments`, {
     method: "POST",
     body: { commentText },
   });
@@ -52,7 +52,7 @@ export async function addTaskCommentByRef(taskRef: string, commentText: string):
 }
 
 export async function decideTaskApproval(taskId: number, approved: boolean, commentText?: string): Promise<TaskWithWorkflow> {
-  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeURIComponent(String(taskId))}/approval-decision`, {
+  const data = await requestJson<BackendTaskWithWorkflowDto>(`/tasks/${encodeId(taskId)}/approval-decision`, {
     method: "POST",
     body: {
       approved,

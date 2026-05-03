@@ -2,7 +2,7 @@ namespace API;
 
 internal static class GraphApplicationConfigurationValidator
 {
-    public static GraphApplicationConfigurationValidationResult Validate(
+    public static ConfigurationValidationResult Validate(
         GraphApplicationRuntimeConfiguration configuration)
     {
         if (string.IsNullOrWhiteSpace(configuration.TenantId))
@@ -20,20 +20,18 @@ internal static class GraphApplicationConfigurationValidator
             return Incomplete("Client Secret ist erforderlich.");
         }
 
-        return new GraphApplicationConfigurationValidationResult
+        return new ConfigurationValidationResult
         {
-            Status = "ready",
-            IsConfigured = true,
+            Status = ConfigurationValidationStatus.Ready,
             Message = null
         };
     }
 
-    private static GraphApplicationConfigurationValidationResult Incomplete(string message)
+    private static ConfigurationValidationResult Incomplete(string message)
     {
-        return new GraphApplicationConfigurationValidationResult
+        return new ConfigurationValidationResult
         {
-            Status = "incomplete",
-            IsConfigured = false,
+            Status = ConfigurationValidationStatus.Incomplete,
             Message = message
         };
     }

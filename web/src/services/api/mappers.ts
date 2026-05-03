@@ -38,7 +38,6 @@ import type {
   PersonWorkflowSummary,
 } from "../../types/workflow";
 import { coerceIconKey } from "../../utils/iconRegistry";
-import { toWorkflowLegacyStatus } from "../../utils/workflowStatus";
 import type {
   BackendProcessTypeDto,
   BackendRequirementBehaviorDto,
@@ -327,7 +326,6 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
     departmentName: dto.departmentName,
     roleId: dto.roleId,
     roleName: dto.roleName,
-    status: toWorkflowLegacyStatus(dto.status),
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
     completedAt: dto.completedAt,
@@ -367,7 +365,6 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
     departmentName: dto.departmentName,
     roleId: dto.roleId,
     roleName: dto.roleName,
-    status: toWorkflowLegacyStatus(dto.status),
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
     deadlineDate: dto.deadlineDate,
@@ -451,7 +448,6 @@ function mapPersonWorkflowSummary(dto: BackendPersonWorkflowSummaryDto): PersonW
     lastName: dto.lastName,
     roleName: dto.roleName,
     departmentName: dto.departmentName,
-    status: toWorkflowLegacyStatus(dto.status),
     workflowStatus: toWorkflowRuntimeStatus(workflowStatus),
     createdAt: dto.createdAt,
     completedAt: dto.completedAt,

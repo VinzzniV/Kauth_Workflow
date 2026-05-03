@@ -43,7 +43,7 @@ internal sealed partial class PostgresWorkflowRepository
             .ToList();
     }
 
-    private static async Task<Dictionary<int, AnswerDefinitionRecord>> LoadAnswerDefinitionRecords(
+    internal static async Task<Dictionary<int, AnswerDefinitionRecord>> LoadAnswerDefinitionRecords(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         int? processTypeId)
@@ -67,7 +67,7 @@ SELECT
 FROM workflow_answer_definitions d
 LEFT JOIN workflow_answer_options o ON o.answer_definition_id = d.id
 WHERE d.is_active = TRUE
-  AND (@processTypeId IS NULL OR d.process_type_id = @processTypeId)
+  AND (@processTypeId IS NULL OR d.workflow_definition_id = @processTypeId)
 ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
 
         var definitions = new Dictionary<int, AnswerDefinitionRecord>();
@@ -89,7 +89,7 @@ ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
                         Title = reader.GetString(2),
                         Description = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                         Category = reader.GetString(4),
-                        IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
+                        IconKey = PostgresRepositorySharedHelpers.NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
                         InputType = reader.GetString(6),
                         IsRequired = reader.GetBoolean(7),
                         SortOrder = reader.GetInt32(8),
@@ -304,7 +304,7 @@ LEFT JOIN app_role_answer_default_options ardo
     AND ardo.answer_definition_id = ard.answer_definition_id
 LEFT JOIN workflow_answer_options o ON o.id = ardo.answer_option_id
 WHERE ard.app_role_id = @roleId
-  AND ard.process_type_id = @processTypeId
+  AND ard.workflow_definition_id = @processTypeId
 GROUP BY
     ard.answer_definition_id,
     ard.is_recommended,
@@ -373,7 +373,7 @@ ORDER BY ard.sort_order, ard.answer_definition_id;";
         };
     }
 
-    private static async Task<Dictionary<int, RoleDefaultRecord>> LoadRoleDefaultRecords(
+    internal static async Task<Dictionary<int, RoleDefaultRecord>> LoadRoleDefaultRecords(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         int roleId,
@@ -396,7 +396,7 @@ LEFT JOIN app_role_answer_default_options ardo
     AND ardo.answer_definition_id = ard.answer_definition_id
 LEFT JOIN workflow_answer_options o ON o.id = ardo.answer_option_id
 WHERE ard.app_role_id = @roleId
-  AND ard.process_type_id = @processTypeId
+  AND ard.workflow_definition_id = @processTypeId
 GROUP BY
     ard.answer_definition_id,
     ard.default_value_boolean,
@@ -431,7 +431,7 @@ ORDER BY ard.sort_order, ard.answer_definition_id;";
         return defaults;
     }
 
-    private static async Task<List<StoredWorkflowAnswerRecord>> PersistWorkflowAnswers(
+    internal static async Task<List<StoredWorkflowAnswerRecord>> PersistWorkflowAnswers(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -678,7 +678,7 @@ ON CONFLICT (workflow_answer_id, answer_option_id) DO NOTHING;";
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static void ValidateSupervisorSelections(
+    internal static void ValidateSupervisorSelections(
         IReadOnlyDictionary<int, AnswerDefinitionRecord> definitions,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
     {
@@ -789,7 +789,7 @@ LEFT JOIN workflow_answers a
     ON a.workflow_id = @workflowId
     AND a.answer_definition_id = d.id
 WHERE d.is_active = TRUE
-  AND d.process_type_id = @processTypeId
+  AND d.workflow_definition_id = @processTypeId
 ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
 
         var requirementById = new Dictionary<int, WorkflowRequirementSnapshotDto>();
@@ -816,7 +816,7 @@ ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
                         Title = reader.GetString(2),
                         Description = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                         Category = reader.GetString(4),
-                        IconKey = NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
+                        IconKey = PostgresRepositorySharedHelpers.NormalizeAdminTaskTemplateIconKey(reader.IsDBNull(5) ? null : reader.GetString(5)),
                         InputType = reader.GetString(6),
                         IsRequired = reader.GetBoolean(7),
                         IsVisible = true,

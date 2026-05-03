@@ -3,10 +3,10 @@ import {
   createAdminAnswerDefinition,
   deleteAdminAnswerDefinition,
   getAdminAnswerDefinitions,
-  getAdminProcessTypes,
+  getAdminWorkflowDefinitions,
   updateAdminAnswerDefinition,
 } from "../services/adminConfigApi";
-import type { AdminAnswerDefinition, AdminProcessType } from "../types/auth";
+import type { AdminAnswerDefinition, AdminWorkflowDefinitionSummary } from "../types/auth";
 import { toNullableText } from "../components/admin-config/adminConfigHelpers";
 import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 
@@ -72,8 +72,8 @@ export function useAdminAnswerDefinitionManagement({
   onError,
 }: UseAdminAnswerDefinitionManagementOptions) {
   const confirm = useConfirmationDialog();
-  const [processTypes, setProcessTypes] = useState<AdminProcessType[]>([]);
-  const [selectedProcessTypeId, setSelectedProcessTypeId] = useState<number | null>(null);
+  const [workflowDefinitions, setWorkflowDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
+  const [selectedWorkflowDefinitionId, setSelectedWorkflowDefinitionId] = useState<number | null>(null);
   const [definitions, setDefinitions] = useState<AdminAnswerDefinition[]>([]);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<number | null>(null);
   const [draft, setDraft] = useState<AnswerDefinitionDraft>(EMPTY_DRAFT);
@@ -89,11 +89,11 @@ export function useAdminAnswerDefinitionManagement({
     [definitions, selectedDefinitionId]
   );
 
-  const loadDefinitions = useCallback(async (processTypeId: number, definitionIdToSelect?: number | null) => {
+  const loadDefinitions = useCallback(async (workflowDefinitionId: number, definitionIdToSelect?: number | null) => {
     updateOperationState({ isLoadingDefinitions: true });
 
     try {
-      const loadedDefinitions = await getAdminAnswerDefinitions(processTypeId);
+      const loadedDefinitions = await getAdminAnswerDefinitions(workflowDefinitionId);
       setDefinitions(loadedDefinitions);
 
       if (typeof definitionIdToSelect === "number") {
@@ -121,20 +121,21 @@ export function useAdminAnswerDefinitionManagement({
 
   useEffect(() => {
     updateOperationState({ isLoadingProcessTypes: true });
-    getAdminProcessTypes()
-      .then((loadedProcessTypes) => {
-        setProcessTypes(loadedProcessTypes);
-        setSelectedProcessTypeId((current) => current ?? loadedProcessTypes[0]?.id ?? null);
+    getAdminWorkflowDefinitions()
+      .then((loadedDefinitions) => {
+        setWorkflowDefinitions(loadedDefinitions);
+        setSelectedWorkflowDefinitionId((current) => current ?? loadedDefinitions[0]?.id ?? null);
       })
-      .catch(() => {
-        setProcessTypes([]);
-        setSelectedProcessTypeId(null);
+      .catch((err) => {
+        setWorkflowDefinitions([]);
+        setSelectedWorkflowDefinitionId(null);
+        onError(err instanceof Error ? err.message : "Workflow-Definitionen konnten nicht geladen werden.");
       })
       .finally(() => updateOperationState({ isLoadingProcessTypes: false }));
-  }, [updateOperationState]);
+  }, [onError, updateOperationState]);
 
   useEffect(() => {
-    if (!selectedProcessTypeId) {
+    if (!selectedWorkflowDefinitionId) {
       setDefinitions([]);
       setSelectedDefinitionId(null);
       setIsCreatingNew(false);
@@ -143,15 +144,15 @@ export function useAdminAnswerDefinitionManagement({
     }
 
     onError(null);
-    void loadDefinitions(selectedProcessTypeId).catch((err) => {
+    void loadDefinitions(selectedWorkflowDefinitionId).catch((err) => {
       const message = err instanceof Error ? err.message : "Answer Definitions konnten nicht geladen werden.";
       onError(message);
     });
-  }, [loadDefinitions, onError, selectedProcessTypeId]);
+  }, [loadDefinitions, onError, selectedWorkflowDefinitionId]);
 
-  const selectProcessType = useCallback((nextValue: string) => {
+  const selectWorkflowDefinition = useCallback((nextValue: string) => {
     const parsed = Number(nextValue);
-    setSelectedProcessTypeId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+    setSelectedWorkflowDefinitionId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
   }, []);
 
   const selectDefinition = useCallback((definition: AdminAnswerDefinition) => {
@@ -175,7 +176,7 @@ export function useAdminAnswerDefinitionManagement({
   }, []);
 
   const buildPayload = useCallback(() => {
-    if (!selectedProcessTypeId) {
+    if (!selectedWorkflowDefinitionId) {
       throw new Error("Bitte zuerst einen Prozesstyp auswählen.");
     }
 
@@ -193,7 +194,7 @@ export function useAdminAnswerDefinitionManagement({
     }
 
     return {
-      processTypeId: selectedProcessTypeId,
+      workflowDefinitionId: selectedWorkflowDefinitionId,
       answerKey: draft.answerKey.trim(),
       title: draft.title.trim(),
       category: draft.category.trim() || "general",
@@ -204,7 +205,7 @@ export function useAdminAnswerDefinitionManagement({
       sortOrder,
       isActive: draft.isActive,
     };
-  }, [draft, selectedProcessTypeId]);
+  }, [draft, selectedWorkflowDefinitionId]);
 
   const sortDefinitions = useCallback((items: AdminAnswerDefinition[]) => {
     return items.slice().sort((left, right) =>
@@ -311,8 +312,8 @@ export function useAdminAnswerDefinitionManagement({
   }, [confirm, onError, onNotice, selectedDefinition, updateOperationState]);
 
   return {
-    processTypes,
-    selectedProcessTypeId,
+    workflowDefinitions,
+    selectedWorkflowDefinitionId,
     definitions,
     selectedDefinition,
     draft,
@@ -321,7 +322,7 @@ export function useAdminAnswerDefinitionManagement({
     isLoadingDefinitions: operationState.isLoadingDefinitions,
     isSaving: operationState.isSaving,
     isDeleting: operationState.isDeleting,
-    selectProcessType,
+    selectWorkflowDefinition,
     selectDefinition,
     startCreatingDefinition,
     updateDraft,

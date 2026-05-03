@@ -28,20 +28,18 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         "parallel_split",
         "parallel_join",
         "automation",
-        "setup",
         "end"
     };
 
     private static readonly HashSet<string> MeasureGenerationNodeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "setup",
         "measure_provision",
         "measure_deprovision",
         "measure_change",
         "measure_rename"
     };
 
-    private static readonly Dictionary<string, string> ExpectedMeasureNodeTypeByProcessTypeKey = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> ExpectedMeasureNodeTypeByDefinitionKey = new(StringComparer.OrdinalIgnoreCase)
     {
         ["onboarding"] = "measure_provision",
         ["offboarding"] = "measure_deprovision",
@@ -254,7 +252,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
         ValidateSupervisorGatekeeper(normalizedNodes, normalizedEdges, context, issues);
         ValidateMeasurePhaseProcessConsistency(
             normalizedNodes,
-            context.PrimaryLegacyProcessTypeKey,
+            context.WorkflowDefinitionKey,
             context.RequiresSupervisorStep,
             issues);
 
@@ -564,13 +562,17 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     break;
                 case "task":
                 case "approval":
-                    ValidateRequiredStringConfig(node, "legacyTemplateKey", errors);
+                    // LA5: Spec wird ueber workflow_node_task_specs.workflow_node_id aufgeloest;
+                    // kein Config-Pflichtfeld mehr.
+                    if (HasConfig(node.Config))
+                    {
+                        errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' must not define a config.");
+                    }
                     break;
                 case "measure_provision":
                 case "measure_deprovision":
                 case "measure_change":
                 case "measure_rename":
-                case "setup":
                     ValidateOptionalObjectConfig(node, errors);
                     break;
                 case "automation":
@@ -609,13 +611,21 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     break;
                 case "task":
                 case "approval":
-                    ValidateRequiredStringConfig(node, "legacyTemplateKey", issues);
+                    // LA5: Spec wird ueber workflow_node_task_specs.workflow_node_id aufgeloest;
+                    // kein Config-Pflichtfeld mehr.
+                    if (HasConfig(node.Config))
+                    {
+                        issues.Add(CreateIssue(
+                            "config_not_allowed",
+                            $"Node '{node.NodeKey}' of type '{node.NodeType}' must not define a config.",
+                            "workflow_node",
+                            node.NodeKey));
+                    }
                     break;
                 case "measure_provision":
                 case "measure_deprovision":
                 case "measure_change":
                 case "measure_rename":
-                case "setup":
                     ValidateOptionalObjectConfig(node, issues);
                     break;
                 case "automation":
@@ -901,12 +911,37 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 {
                     errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' uses unsupported operator '{@operator}'.");
                 }
+                else if ((@operator == "eq" || @operator == "neq") && !HasAnyExpectedValue(root))
+                {
+                    errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' uses operator '{@operator}' but is missing expectedValueText/Boolean/Number.");
+                }
             }
             catch (JsonException ex)
             {
                 errors.Add($"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' is not valid JSON: {ex.Message}");
             }
         }
+    }
+
+    private static bool HasAnyExpectedValue(JsonElement root)
+    {
+        if (root.TryGetProperty("expectedValueText", out var textProperty)
+            && textProperty.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(textProperty.GetString()))
+        {
+            return true;
+        }
+        if (root.TryGetProperty("expectedValueBoolean", out var boolProperty)
+            && boolProperty.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return true;
+        }
+        if (root.TryGetProperty("expectedValueNumber", out var numberProperty)
+            && numberProperty.ValueKind == JsonValueKind.Number)
+        {
+            return true;
+        }
+        return false;
     }
 
     private static void ValidateDecisionConditions(
@@ -971,6 +1006,14 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                     issues.Add(CreateIssue(
                         "unsupported_decision_operator",
                         $"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' uses unsupported operator '{@operator}'.",
+                        "workflow_edge",
+                        edge.SourceNodeKey));
+                }
+                else if ((@operator == "eq" || @operator == "neq") && !HasAnyExpectedValue(root))
+                {
+                    issues.Add(CreateIssue(
+                        "missing_decision_expected_value",
+                        $"Decision edge from '{edge.SourceNodeKey}' to '{edge.TargetNodeKey}' uses operator '{@operator}' but is missing expectedValueText/Boolean/Number.",
                         "workflow_edge",
                         edge.SourceNodeKey));
                 }
@@ -1090,7 +1133,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 TargetNodeKey = edge.TargetNodeKey,
                 Priority = edge.Priority
             }).ToList(),
-            context.PrimaryLegacyProcessTypeKey,
+            context.WorkflowDefinitionKey,
             context.RequiresSupervisorStep);
 
         if (!evaluation.IsSatisfied)
@@ -1457,7 +1500,7 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
 
     private static void ValidateMeasurePhaseProcessConsistency(
         IReadOnlyList<WorkflowDefinitionDraftNode> nodes,
-        string? primaryLegacyProcessTypeKey,
+        string? workflowDefinitionKey,
         bool requiresSupervisorStep,
         List<WorkflowDefinitionValidationIssue> issues)
     {
@@ -1478,22 +1521,22 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                 "workflow_definition"));
         }
 
-        var expectedMeasureNodeType = GetExpectedMeasureNodeTypeForProcessTypeKey(primaryLegacyProcessTypeKey);
+        var expectedMeasureNodeType = GetExpectedMeasureNodeTypeForDefinitionKey(workflowDefinitionKey);
         if (expectedMeasureNodeType is null || measureNodes.Count != 1)
         {
             return;
         }
 
         var measureNode = measureNodes[0];
-        if (string.Equals(measureNode.NodeType, "setup", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(measureNode.NodeType, expectedMeasureNodeType, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(measureNode.NodeType, expectedMeasureNodeType, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
+        // FailureCode-String bleibt aus Audit-Log-Kompatibilität "process_type_mismatch" — interne Bedeutung ist jetzt definitionKey.
         issues.Add(CreateIssue(
             "measure_flow_process_type_mismatch",
-            $"Workflow-Definitionen für '{primaryLegacyProcessTypeKey}' müssen den Maßnahmen-Typ '{expectedMeasureNodeType}' oder den Legacy-Alias 'setup' verwenden.",
+            $"Workflow-Definitionen für '{workflowDefinitionKey}' müssen den Maßnahmen-Typ '{expectedMeasureNodeType}' verwenden.",
             "workflow_node",
             measureNode.NodeKey));
     }
@@ -1504,14 +1547,16 @@ internal sealed class WorkflowDefinitionValidationService : IWorkflowDefinitionV
                && MeasureGenerationNodeTypes.Contains(nodeType.Trim());
     }
 
-    private static string? GetExpectedMeasureNodeTypeForProcessTypeKey(string? processTypeKey)
+    // Definition-Key bestimmt, welcher Maßnahmen-Node-Type fachlich erwartet wird
+    // (siehe Zielarchitektur — measure_provision für onboarding, measure_deprovision für offboarding etc.).
+    private static string? GetExpectedMeasureNodeTypeForDefinitionKey(string? workflowDefinitionKey)
     {
-        if (string.IsNullOrWhiteSpace(processTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
             return null;
         }
 
-        return ExpectedMeasureNodeTypeByProcessTypeKey.TryGetValue(processTypeKey.Trim(), out var nodeType)
+        return ExpectedMeasureNodeTypeByDefinitionKey.TryGetValue(workflowDefinitionKey.Trim(), out var nodeType)
             ? nodeType
             : null;
     }
@@ -1609,7 +1654,7 @@ internal sealed class WorkflowDefinitionValidationContext
 {
     public required IReadOnlyList<WorkflowDefinitionNodeDto> Nodes { get; init; }
     public required IReadOnlyList<WorkflowDefinitionEdgeDto> Edges { get; init; }
-    public string? PrimaryLegacyProcessTypeKey { get; init; }
+    public string? WorkflowDefinitionKey { get; init; }
     public bool RequiresSupervisorStep { get; init; }
     public IReadOnlyList<WorkflowDefinitionValidationIssue> ReferenceIssues { get; init; } = [];
 }

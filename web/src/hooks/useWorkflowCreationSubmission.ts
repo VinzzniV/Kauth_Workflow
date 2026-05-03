@@ -14,7 +14,6 @@ import {
 
 type UseWorkflowCreationSubmissionArgs = {
   selectedWorkflowDefinitionKey: string | null;
-  selectedLegacyProcessTypeKey: string | null;
   selectedWorkflowDefinition: StartableWorkflowDefinition | null;
   requiresTargetPerson: boolean;
   selectedDepartmentId: number | null;
@@ -34,7 +33,6 @@ type UseWorkflowCreationSubmissionResult = {
 
 export function useWorkflowCreationSubmission({
   selectedWorkflowDefinitionKey,
-  selectedLegacyProcessTypeKey,
   selectedWorkflowDefinition,
   requiresTargetPerson,
   selectedDepartmentId,
@@ -57,7 +55,7 @@ export function useWorkflowCreationSubmission({
   }, []);
 
   const submitWorkflow = useCallback(async () => {
-    if (!selectedWorkflowDefinitionKey || !selectedLegacyProcessTypeKey) {
+    if (!selectedWorkflowDefinitionKey) {
       setSubmitState("error");
       setSubmitError("Bitte zuerst einen Workflow wählen.");
       return;
@@ -105,7 +103,6 @@ export function useWorkflowCreationSubmission({
 
       const payload = buildWorkflowCreationPayload({
         selectedWorkflowDefinitionKey,
-        selectedLegacyProcessTypeKey,
         requiresTargetPerson,
         targetPersonId: targetPerson.personId,
         employee,
@@ -131,7 +128,6 @@ export function useWorkflowCreationSubmission({
   }, [
     employee,
     requiresTargetPerson,
-    selectedLegacyProcessTypeKey,
     selectedDepartmentId,
     selectedRoleId,
     selectedTargetPerson,

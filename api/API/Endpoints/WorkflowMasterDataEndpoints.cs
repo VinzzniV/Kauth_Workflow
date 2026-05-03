@@ -43,23 +43,6 @@ internal static class WorkflowMasterDataEndpoints
             return Results.Ok(await workflowCatalogService.GetRolesAsync(access.User!));
         }).Produces<List<RoleDto>>(StatusCodes.Status200OK);
 
-        app.MapGet("/process-types", async (
-            IWorkflowCatalogService workflowCatalogService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanAccessWorkflowOverview,
-                "Workflow overview access is required.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            return Results.Ok(await workflowCatalogService.GetProcessTypesAsync(access.User!));
-        }).Produces<List<WorkflowProcessTypeDto>>(StatusCodes.Status200OK);
-
         app.MapGet("/workflow-definitions/startable", async (
             IWorkflowCatalogService workflowCatalogService,
             IUserContext userContext,
@@ -76,29 +59,6 @@ internal static class WorkflowMasterDataEndpoints
 
             return Results.Ok(await workflowCatalogService.GetStartableWorkflowDefinitionsAsync(access.User!));
         }).Produces<List<WorkflowStartableDefinitionDto>>(StatusCodes.Status200OK);
-
-        app.MapGet("/workflows/completed-onboardings", async (
-            [FromQuery] string? search,
-            [FromQuery] int? limit,
-            IWorkflowCatalogService workflowCatalogService,
-            IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
-        {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanCreateWorkflow,
-                "HR, Abteilungsleitung oder Admin role is required.");
-            if (access.Error is not null)
-            {
-                return access.Error;
-            }
-
-            var targetPersonSources = await workflowCatalogService.SearchWorkflowTargetPersonSourcesAsync(
-                search,
-                access.User!,
-                limit ?? 20);
-            return Results.Ok(targetPersonSources.Select(ToCompletedOnboardingSearchResult).ToList());
-        }).Produces<List<CompletedOnboardingSearchResultDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/workflow-target-person-sources", async (
             [FromQuery] string? query,
@@ -193,7 +153,7 @@ internal static class WorkflowMasterDataEndpoints
         }).Produces<List<WorkflowTargetPersonDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/requirements", async (
-            [FromQuery] string? processTypeKey,
+            [FromQuery] string? workflowDefinitionKey,
             IWorkflowCatalogService workflowCatalogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -207,17 +167,17 @@ internal static class WorkflowMasterDataEndpoints
                 return access.Error;
             }
 
-            if (string.IsNullOrWhiteSpace(processTypeKey))
+            if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
             {
-                return Results.BadRequest(new { message = "processTypeKey is required." });
+                return Results.BadRequest(new { message = "workflowDefinitionKey is required." });
             }
 
-            return Results.Ok(await workflowCatalogService.GetRequirementsAsync(processTypeKey));
+            return Results.Ok(await workflowCatalogService.GetRequirementsAsync(workflowDefinitionKey));
         }).Produces<List<RequirementDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/workflow-config", async (
             [FromQuery] int? roleId,
-            [FromQuery] string? processTypeKey,
+            [FromQuery] string? workflowDefinitionKey,
             IWorkflowCatalogService workflowCatalogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -231,12 +191,12 @@ internal static class WorkflowMasterDataEndpoints
                 return access.Error;
             }
 
-            if (string.IsNullOrWhiteSpace(processTypeKey))
+            if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
             {
-                return Results.BadRequest(new { message = "processTypeKey is required." });
+                return Results.BadRequest(new { message = "workflowDefinitionKey is required." });
             }
 
-            var workflowConfig = await workflowCatalogService.GetWorkflowConfigAsync(roleId, processTypeKey);
+            var workflowConfig = await workflowCatalogService.GetWorkflowConfigAsync(roleId, workflowDefinitionKey);
             if (workflowConfig is null)
             {
                 return Results.NotFound(new { message = "Role not found." });
@@ -249,24 +209,4 @@ internal static class WorkflowMasterDataEndpoints
         return app;
     }
 
-    private static CompletedOnboardingSearchResultDto ToCompletedOnboardingSearchResult(
-        WorkflowTargetPersonSourceDto source)
-    {
-        return new CompletedOnboardingSearchResultDto
-        {
-            WorkflowUid = source.WorkflowUid,
-            PersonId = source.PersonId,
-            DisplayName = source.DisplayName,
-            FirstName = source.FirstName,
-            LastName = source.LastName,
-            EmployeeNumber = source.EmployeeNumber,
-            BadgeNumber = source.BadgeNumber,
-            DepartmentId = source.DepartmentId,
-            DepartmentName = source.DepartmentName,
-            RoleId = source.RoleId,
-            RoleName = source.RoleName,
-            CompletedAt = source.CompletedAt,
-            ArchivedAt = source.ArchivedAt
-        };
-    }
 }
