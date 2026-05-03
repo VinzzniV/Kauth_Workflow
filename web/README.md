@@ -102,6 +102,8 @@ HTTP-Client, DTO-Mapping oder Endpunktvertraege:
 Admin-Workspaces und Builder-nahe Pflege:
 `src/components/admin-config/`, `src/pages/AdminConfigPage.tsx` und `src/pages/WorkflowBuilderPage.tsx`
 
+`AdminConfigPage` komponiert 7 Domain-Hooks zu 7 Domain-Bundles (`meta`, `user`, `organization`, `access`, `directory`, `notification`, `system`) und reicht diese an `AdminConfigWorkspaceContent` durch. Jede `renderXWorkspace`-Funktion in `AdminConfigWorkspaceSections.tsx` extrahiert nur das eigene Bundle — kein flacher 100-Prop-Spread. Bundle-Typen liegen in `src/components/admin-config/adminConfigWorkspaceContentTypes.ts`.
+
 Wichtiger aktueller Admin-Slice:
 - `Administration > System` ist die zentrale Betriebs- und Log-Konsole mit `src/components/admin-config/AdminSystemLogSection.tsx`
 - `Administration > System > Mail-Vorlagen` nutzt `src/components/admin-config/AdminNotificationTemplateSection.tsx` und `src/hooks/useAdminNotificationTemplates.ts` fuer Betreff/Text, Trigger-Hinweise, echte Preview-Zielsuche und read-only Mail-Preview

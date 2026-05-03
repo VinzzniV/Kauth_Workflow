@@ -46,7 +46,7 @@ hier stehen sie strukturiert mit konkretem Aufwand + Modell-Empfehlung.
 
 | # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
 |---|---------|------|---------|------------------|--------|--------|
-| FE-1 | **`AdminConfigPage` zerlegen** (UI-2 / LQ4-Z3). 70+ Props an `workspaceContentProps`, 7 Custom-Hooks. Sub-Hook-Aufteilung (`useAdminConfigOrganization`, `useAdminConfigCoreData`, `useAdminConfigGraph` etc.) + Props-Buendelung in Domain-Bundles statt Flat-Spread. | HIGH | 1,5–2 d | high | opus | offen |
+| FE-1 | **`AdminConfigPage` zerlegen** (UI-2 / LQ4-Z3). 70+ Props an `workspaceContentProps`, 7 Custom-Hooks. Sub-Hook-Aufteilung (`useAdminConfigOrganization`, `useAdminConfigCoreData`, `useAdminConfigGraph` etc.) + Props-Buendelung in Domain-Bundles statt Flat-Spread. | HIGH | 1,5–2 d | high | opus | ✓ done (2026-05-03) |
 | FE-2 | **Frontend-Rename `AdminTaskTemplate` → `AdminTaskSpec`, `templateKey` → `specKey`** (LA5-Watch). ~22 Files mechanisch (Types, Hooks, Services, Komponenten, Tests). Sed-Skript moeglich, danach manuelle Pruefung. Backend-DTO-Form bleibt unveraendert (siehe Watch-Item in `Legacy-Abbau-Plan.md`). | LOW | 0,5 d | medium | sonnet | ✓ done (2026-05-03) |
 | FE-3 | **Builder-Komponenten-Tests ergaenzen** — 4 weitere sinnvolle Tests: (a) `parseCondition` mit nested-JSON Edge-Case, (b) `WorkflowBuilderActionEditor` Reorder-Lifecycle, (c) `WorkflowBuilderMeasurePreview` mit echten Conditions/Dependencies, (d) `topologicallyOrderNodes` Zyklen-Edge-Case. | LOW | 1 d | medium | sonnet | ✓ done (2026-05-03) |
 | FE-4 | **Pagination Inline-Select** (UI-9). `WorkflowListFilters.tsx:137–152` — separate Buttons → `<select>` fuer Seite + "Erste/Letzte"-Shortcut-Buttons. Kosmetisch, aber Tab-Reihenfolge wird besser. | LOW | 0,5 d | low | sonnet | ✓ done (2026-05-03) |
@@ -111,6 +111,7 @@ damit klar ist, dass die Stelle nicht erneut angefasst werden muss.
 | FE-DONE-3 | **Lucide-Icons-Migration** (UI-3 + UI-6). 6 Files: `WorkflowBuilderStepCard`, `AdminWorkflowBuilderFormSection`, `WorkflowBuilderActionEditor`, `WorkflowBuilderMeasurePreview`, `DependencyGraphEditor`, `WorkflowBuilderActionMappingEditor`. Symbole `↑↓✕▼►` durch `ChevronUp/Down/Right`, `X` ersetzt. + 1 fehlendes `aria-label` ergaenzt. | ✓ done |
 | FE-DONE-4 | **Builder-Komponenten-Tests** (UI-7 / LQ6). 4 neue Testdateien, **23 Tests**: `WorkflowBuilderConditionEditor` (6) · `WorkflowBuilderActionMappingEditor` (6) · `WorkflowBuilderStepConfigEditor` (6, inkl. LA5-Regression-Schutz) · `WorkflowBuilderStepCard` (5, inkl. Lucide-SVG-Render-Verifikation). | ✓ done |
 | FE-DONE-5 | **3 obsolete Tests entfernt** in `adminWorkflowBuilderModel.test.ts` (testeten LA2-removed `setup`→`measure_*`-Auto-Migration). | ✓ done |
+| FE-DONE-6 | **`AdminConfigPage` Bundle-Refactor** (FE-1 / LQ4-Z3). Flacher ~100-Prop-`workspaceContentProps`-Bag durch 7 Domain-Bundles (`meta`, `user`, `organization`, `access`, `directory`, `notification`, `system`) ersetzt. `useAdminConfigPageView` von 578 → 235 Zeilen reduziert (nur noch derived data + URL-Sync). Bundle-Typen in `adminConfigWorkspaceContentTypes.ts`. Jede `renderXWorkspace`-Funktion extrahiert nur ihr eigenes Bundle. Net: -290 Zeilen, klare Domain-Trennung. | ✓ done |
 
 ---
 

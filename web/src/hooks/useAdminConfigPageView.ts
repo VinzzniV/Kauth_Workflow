@@ -1,141 +1,73 @@
 import { useCallback, useEffect, useMemo } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import type { SetURLSearchParams } from "react-router-dom";
 import {
   buildAdminOverviewWarnings,
   type AdminOrganizationEntity,
   type AdminWorkspaceSection,
+  type AdminWorkspaceWarning,
 } from "../components/admin-config/adminWorkspaceModel";
-import type { AdminConfigWorkspaceContentProps } from "../components/admin-config/adminConfigWorkspaceContentTypes";
-import type { AdminGraphApplicationConfiguration, AdminUser } from "../types/auth";
-import type { useAdminNotificationEmailConfiguration } from "./useAdminNotificationEmailConfiguration";
-import type { useAdminNotificationTemplates } from "./useAdminNotificationTemplates";
+import type {
+  AdminDepartmentAssignment,
+  AdminDirectoryGroup,
+  AdminDirectoryIdentity,
+  AdminGroup,
+  AdminNotificationEmailConfiguration,
+  AdminPermission,
+  AdminResponsibilityOwner,
+  AdminRole,
+  AdminUser,
+} from "../types/auth";
 
+// Pure derived view data fuer die AdminConfigPage. Ersetzt die alte
+// "Mega-Hook"-Variante, die den kompletten flachen Prop-Bag zusammengebaut hat.
+//
+// Verantwortung:
+// - sortierte Listen (Memo)
+// - abgeleitete Filter (eligibleSupervisorUsers, ...)
+// - Overview-Warnungen
+// - URL-Search-Param-Navigation (Section + Organization-Entity)
+// - hasAnyData-Flag fuer den Render-Branch der Page
+// - Sync zwischen ?id=… in der URL und der internen User-Selection
+//
+// Bundle-Komposition (user/organization/access/directory/notification/system)
+// passiert direkt in der Page, nicht hier.
 type UseAdminConfigPageViewArgs = {
   searchParams: URLSearchParams;
   setSearchParams: SetURLSearchParams;
   section: AdminWorkspaceSection;
   organizationEntity: AdminOrganizationEntity;
   selectedEntityId: number | null;
-  users: AdminConfigWorkspaceContentProps["users"];
-  departmentPositions: AdminConfigWorkspaceContentProps["departmentPositions"];
-  roles: AdminConfigWorkspaceContentProps["sortedRoles"];
-  groups: AdminConfigWorkspaceContentProps["groups"];
-  permissions: AdminConfigWorkspaceContentProps["permissions"];
-  permissionAuditEntries: AdminConfigWorkspaceContentProps["permissionAuditEntries"];
-  directoryGroups: AdminConfigWorkspaceContentProps["directoryGroups"];
-  directoryIdentities: AdminConfigWorkspaceContentProps["directoryIdentities"];
-  directoryAuditEntries: AdminConfigWorkspaceContentProps["directoryAuditEntries"];
-  directoryStatus: AdminConfigWorkspaceContentProps["directoryStatus"];
-  departmentAssignments: AdminConfigWorkspaceContentProps["departmentAssignments"];
-  responsibilityOwners: AdminConfigWorkspaceContentProps["responsibilityOwners"];
-  hasLoadedTechnicalAccess: boolean;
-  isLoadingTechnicalAccess: boolean;
-  isLoadingDirectory: boolean;
-  isSyncingDirectory: boolean;
-  savingDirectoryGroupId: number | null;
-  deletingDirectoryMappingId: number | null;
-  graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
-  notificationConfig: ReturnType<typeof useAdminNotificationEmailConfiguration>;
-  notificationTemplateConfig: ReturnType<typeof useAdminNotificationTemplates>;
+  users: AdminUser[];
+  departmentPositions: AdminRole[];
+  roles: AdminRole[];
+  groups: AdminGroup[];
+  permissions: AdminPermission[];
+  directoryGroups: AdminDirectoryGroup[];
+  directoryIdentities: AdminDirectoryIdentity[];
+  departmentAssignments: AdminDepartmentAssignment[];
+  responsibilityOwners: AdminResponsibilityOwner[];
+  notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
+  selectedUser: AdminUser | null;
   selectedUserId: number | null;
-  selectedUser: AdminConfigWorkspaceContentProps["selectedUser"];
-  selectedGroupId: AdminConfigWorkspaceContentProps["selectedGroupId"];
-  selectedGroup: AdminConfigWorkspaceContentProps["selectedGroup"];
-  selectedUserRoleIds: AdminConfigWorkspaceContentProps["selectedUserRoleIds"];
-  selectedUserGroupIds: AdminConfigWorkspaceContentProps["selectedUserGroupIds"];
-  selectedGroupRoleIds: AdminConfigWorkspaceContentProps["selectedGroupRoleIds"];
-  selectedRoleId: AdminConfigWorkspaceContentProps["selectedRoleId"];
-  selectedRolePermissionIds: AdminConfigWorkspaceContentProps["selectedRolePermissionIds"];
-  userOverrideDrafts: AdminConfigWorkspaceContentProps["userOverrideDrafts"];
-  userFormError: string | null;
-  userFormNotice: string | null;
-  userExternalKeyDraft: string;
-  userDisplayNameDraft: string;
-  userEmailDraft: string;
-  userNotificationEmailDraft: string;
-  userDepartmentIdDraft: string;
-  userIsActiveDraft: boolean;
-  newUserExternalKeyDraft: string;
-  newUserDisplayNameDraft: string;
-  newUserEmailDraft: string;
-  newUserNotificationEmailDraft: string;
-  newUserDepartmentIdDraft: string;
-  newUserIsActiveDraft: boolean;
-  isSavingUserMasterData: boolean;
-  isSavingUserRoles: boolean;
-  isSavingUserGroups: boolean;
-  isSavingGroupRoles: boolean;
-  isCreatingUser: boolean;
-  deletingUserId: number | null;
-  newDepartmentNameDraft: string;
-  newPositionNameDraft: string;
-  newResponsibilityDraft: AdminConfigWorkspaceContentProps["newResponsibilityDraft"];
-  departmentDrafts: AdminConfigWorkspaceContentProps["departmentDrafts"];
-  positionDrafts: AdminConfigWorkspaceContentProps["positionDrafts"];
-  responsibilityDrafts: AdminConfigWorkspaceContentProps["responsibilityDrafts"];
-  isCreatingDepartment: boolean;
-  creatingPositionDepartmentId: number | null;
-  isCreatingResponsibility: boolean;
-  deletingDepartmentId: number | null;
-  deletingPositionId: number | null;
-  deletingResponsibilityId: number | null;
-  savingDepartmentId: number | null;
-  savingPositionId: number | null;
-  savingResponsibilityId: number | null;
-  isSavingRolePermissions: boolean;
-  isSavingUserOverrides: boolean;
   onSelectUser: (user: AdminUser) => void;
-  onSelectGroup: AdminConfigWorkspaceContentProps["onSelectGroup"];
-  onSelectRole: AdminConfigWorkspaceContentProps["onSelectRole"];
-  onToggleUserRole: AdminConfigWorkspaceContentProps["onToggleUserRole"];
-  onToggleUserGroup: AdminConfigWorkspaceContentProps["onToggleUserGroup"];
-  onToggleGroupRole: AdminConfigWorkspaceContentProps["onToggleGroupRole"];
-  onSaveUserMasterData: AdminConfigWorkspaceContentProps["onSaveUserMasterData"];
-  onCreateUser: AdminConfigWorkspaceContentProps["onCreateUser"];
-  onRemoveUser: AdminConfigWorkspaceContentProps["onRemoveUser"];
-  onSaveUserRoles: AdminConfigWorkspaceContentProps["onSaveUserRoles"];
-  onSaveUserGroups: AdminConfigWorkspaceContentProps["onSaveUserGroups"];
-  onSaveGroupRoles: AdminConfigWorkspaceContentProps["onSaveGroupRoles"];
-  onSetUserExternalKeyDraft: (value: string) => void;
-  onSetUserDisplayNameDraft: (value: string) => void;
-  onSetUserEmailDraft: (value: string) => void;
-  onSetUserNotificationEmailDraft: (value: string) => void;
-  onSetUserDepartmentIdDraft: (value: string) => void;
-  onSetUserIsActiveDraft: (value: boolean) => void;
-  onSetNewUserExternalKeyDraft: (value: string) => void;
-  onSetNewUserDisplayNameDraft: (value: string) => void;
-  onSetNewUserEmailDraft: (value: string) => void;
-  onSetNewUserNotificationEmailDraft: (value: string) => void;
-  onSetNewUserDepartmentIdDraft: (value: string) => void;
-  onSetNewUserIsActiveDraft: (value: boolean) => void;
-  onSetNewDepartmentNameDraft: (value: string) => void;
-  onSetNewPositionNameDraft: (value: string) => void;
-  onSetNewResponsibilityDraft: (draft: AdminConfigWorkspaceContentProps["newResponsibilityDraft"]) => void;
-  setDepartmentDrafts: Dispatch<SetStateAction<AdminConfigWorkspaceContentProps["departmentDrafts"]>>;
-  setPositionDrafts: Dispatch<SetStateAction<AdminConfigWorkspaceContentProps["positionDrafts"]>>;
-  setResponsibilityDrafts: Dispatch<SetStateAction<AdminConfigWorkspaceContentProps["responsibilityDrafts"]>>;
-  onCreateDepartment: AdminConfigWorkspaceContentProps["onCreateDepartment"];
-  onCreateDepartmentPosition: AdminConfigWorkspaceContentProps["onCreateDepartmentPosition"];
-  onCreateResponsibility: AdminConfigWorkspaceContentProps["onCreateResponsibility"];
-  onSaveDepartmentAssignment: AdminConfigWorkspaceContentProps["onSaveDepartmentAssignment"];
-  onRemoveDepartment: AdminConfigWorkspaceContentProps["onRemoveDepartment"];
-  onSaveDepartmentPosition: AdminConfigWorkspaceContentProps["onSaveDepartmentPosition"];
-  onRemoveDepartmentPosition: AdminConfigWorkspaceContentProps["onRemoveDepartmentPosition"];
-  onRemoveResponsibility: AdminConfigWorkspaceContentProps["onRemoveResponsibility"];
-  onSaveResponsibilityAssignment: AdminConfigWorkspaceContentProps["onSaveResponsibilityAssignment"];
-  onToggleRolePermission: AdminConfigWorkspaceContentProps["onToggleRolePermission"];
-  onSaveRolePermissions: AdminConfigWorkspaceContentProps["onSaveRolePermissions"];
-  onUserOverrideDraftsChange: (drafts: AdminConfigWorkspaceContentProps["userOverrideDrafts"]) => void;
-  onSaveUserOverrides: AdminConfigWorkspaceContentProps["onSaveUserOverrides"];
-  onSyncDirectory: AdminConfigWorkspaceContentProps["onSyncDirectory"];
-  onCreateDirectoryMapping: AdminConfigWorkspaceContentProps["onCreateDirectoryMapping"];
-  onDeleteDirectoryMapping: AdminConfigWorkspaceContentProps["onDeleteDirectoryMapping"];
-  onNotice: (message: string | null) => void;
-  onError: (message: string | null) => void;
 };
 
-export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
+export type AdminConfigPageView = {
+  sortedUsers: AdminUser[];
+  sortedDepartmentPositions: AdminRole[];
+  sortedDepartments: AdminDepartmentAssignment[];
+  sortedResponsibilities: AdminResponsibilityOwner[];
+  sortedRoles: AdminRole[];
+  eligibleSupervisorUsers: AdminUser[];
+  eligibleRequirementOwnerUsers: AdminUser[];
+  workspaceSelectedUser: AdminUser | null;
+  warnings: AdminWorkspaceWarning[];
+  hasAnyData: boolean;
+  handleSelectSection: (section: AdminWorkspaceSection) => void;
+  handleOpenOrganization: (entity: AdminOrganizationEntity, id?: number | null) => void;
+};
+
+export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs): AdminConfigPageView {
   const {
     searchParams,
     setSearchParams,
@@ -145,120 +77,18 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     users,
     departmentPositions,
     roles,
-    groups,
+    groups: _groups,
     permissions,
-    permissionAuditEntries,
     directoryGroups,
     directoryIdentities,
-    directoryAuditEntries,
-    directoryStatus,
     departmentAssignments,
     responsibilityOwners,
-    hasLoadedTechnicalAccess,
-    isLoadingTechnicalAccess,
-    isLoadingDirectory,
-    isSyncingDirectory,
-    savingDirectoryGroupId,
-    deletingDirectoryMappingId,
-    graphApplicationConfiguration,
-    notificationConfig,
-    notificationTemplateConfig,
-    selectedUserId,
+    notificationEmailConfiguration,
     selectedUser,
-    selectedGroupId,
-    selectedGroup,
-    selectedUserRoleIds,
-    selectedUserGroupIds,
-    selectedGroupRoleIds,
-    selectedRoleId,
-    selectedRolePermissionIds,
-    userOverrideDrafts,
-    userFormError,
-    userFormNotice,
-    userExternalKeyDraft,
-    userDisplayNameDraft,
-    userEmailDraft,
-    userNotificationEmailDraft,
-    userDepartmentIdDraft,
-    userIsActiveDraft,
-    newUserExternalKeyDraft,
-    newUserDisplayNameDraft,
-    newUserEmailDraft,
-    newUserNotificationEmailDraft,
-    newUserDepartmentIdDraft,
-    newUserIsActiveDraft,
-    isSavingUserMasterData,
-    isSavingUserRoles,
-    isSavingUserGroups,
-    isSavingGroupRoles,
-    isCreatingUser,
-    deletingUserId,
-    newDepartmentNameDraft,
-    newPositionNameDraft,
-    newResponsibilityDraft,
-    departmentDrafts,
-    positionDrafts,
-    responsibilityDrafts,
-    isCreatingDepartment,
-    creatingPositionDepartmentId,
-    isCreatingResponsibility,
-    deletingDepartmentId,
-    deletingPositionId,
-    deletingResponsibilityId,
-    savingDepartmentId,
-    savingPositionId,
-    savingResponsibilityId,
-    isSavingRolePermissions,
-    isSavingUserOverrides,
+    selectedUserId,
     onSelectUser,
-    onSelectGroup,
-    onSelectRole,
-    onToggleUserRole,
-    onToggleUserGroup,
-    onToggleGroupRole,
-    onSaveUserMasterData,
-    onCreateUser,
-    onRemoveUser,
-    onSaveUserRoles,
-    onSaveUserGroups,
-    onSaveGroupRoles,
-    onSetUserExternalKeyDraft,
-    onSetUserDisplayNameDraft,
-    onSetUserEmailDraft,
-    onSetUserNotificationEmailDraft,
-    onSetUserDepartmentIdDraft,
-    onSetUserIsActiveDraft,
-    onSetNewUserExternalKeyDraft,
-    onSetNewUserDisplayNameDraft,
-    onSetNewUserEmailDraft,
-    onSetNewUserNotificationEmailDraft,
-    onSetNewUserDepartmentIdDraft,
-    onSetNewUserIsActiveDraft,
-    setDepartmentDrafts,
-    setPositionDrafts,
-    setResponsibilityDrafts,
-    onSetNewDepartmentNameDraft,
-    onSetNewPositionNameDraft,
-    onSetNewResponsibilityDraft,
-    onCreateDepartment,
-    onCreateDepartmentPosition,
-    onCreateResponsibility,
-    onSaveDepartmentAssignment,
-    onRemoveDepartment,
-    onSaveDepartmentPosition,
-    onRemoveDepartmentPosition,
-    onRemoveResponsibility,
-    onSaveResponsibilityAssignment,
-    onToggleRolePermission,
-    onSaveRolePermissions,
-    onUserOverrideDraftsChange,
-    onSaveUserOverrides,
-    onSyncDirectory,
-    onCreateDirectoryMapping,
-    onDeleteDirectoryMapping,
-    onNotice,
-    onError,
   } = args;
+  void _groups;
 
   const sortedUsers = useMemo(
     () => users.slice().sort((left, right) => left.displayName.localeCompare(right.displayName, "de")),
@@ -320,12 +150,12 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
         responsibilities: sortedResponsibilities,
         eligibleSupervisorUsers,
         eligibleRequirementOwnerUsers,
-        notificationEmailConfiguration: notificationConfig.notificationEmailConfiguration,
+        notificationEmailConfiguration,
       }),
     [
       eligibleRequirementOwnerUsers,
       eligibleSupervisorUsers,
-      notificationConfig.notificationEmailConfiguration,
+      notificationEmailConfiguration,
       sortedDepartments,
       sortedResponsibilities,
     ]
@@ -388,191 +218,18 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs) {
     directoryGroups.length > 0 ||
     directoryIdentities.length > 0;
 
-  const workspaceContentProps: AdminConfigWorkspaceContentProps = {
-    section,
-    organizationEntity,
-    selectedEntityId,
-    users,
-    departmentPositions,
-    departmentAssignments,
-    responsibilityOwners,
+  return {
     sortedUsers,
     sortedDepartmentPositions,
     sortedDepartments,
     sortedResponsibilities,
+    sortedRoles,
     eligibleSupervisorUsers,
     eligibleRequirementOwnerUsers,
-    selectedUser,
     workspaceSelectedUser,
-    userDisplayNameDraft,
-    userEmailDraft,
-    userNotificationEmailDraft,
-    userExternalKeyDraft,
-    userDepartmentIdDraft,
-    userIsActiveDraft,
-    userFormError,
-    userFormNotice,
-    newUserDisplayNameDraft,
-    newUserEmailDraft,
-    newUserNotificationEmailDraft,
-    newUserExternalKeyDraft,
-    newUserDepartmentIdDraft,
-    newUserIsActiveDraft,
-    isCreatingUser,
-    isSavingUserMasterData,
-    deletingUserId,
-    newDepartmentNameDraft,
-    newPositionNameDraft,
-    newResponsibilityDraft,
-    departmentDrafts,
-    positionDrafts,
-    responsibilityDrafts,
-    isCreatingDepartment,
-    creatingPositionDepartmentId,
-    isCreatingResponsibility,
-    deletingDepartmentId,
-    deletingPositionId,
-    deletingResponsibilityId,
-    savingDepartmentId,
-    savingPositionId,
-    savingResponsibilityId,
-    hasLoadedTechnicalAccess,
-    isLoadingTechnicalAccess,
-    isLoadingDirectory,
-    isSyncingDirectory,
-    savingDirectoryGroupId,
-    deletingDirectoryMappingId,
-    selectedUserRoleIds,
-    selectedUserGroupIds,
-    selectedGroupId,
-    selectedGroup,
-    selectedGroupRoleIds,
-    sortedRoles,
-    permissions,
-    permissionAuditEntries,
-    selectedRoleId,
-    selectedRolePermissionIds,
-    userOverrideDrafts,
-    groups,
-    directoryGroups,
-    directoryIdentities,
-    directoryAuditEntries,
-    directoryStatus,
-    graphApplicationConfiguration,
-    notificationEmailConfiguration: notificationConfig.notificationEmailConfiguration,
-    notificationTemplates: notificationTemplateConfig.notificationTemplates,
-    selectedNotificationTemplate: notificationTemplateConfig.selectedTemplate,
-    selectedNotificationTemplateKey: notificationTemplateConfig.selectedTemplateKey,
-    selectedNotificationTemplateSubjectDraft: notificationTemplateConfig.selectedTemplateSubjectDraft,
-    selectedNotificationTemplateBodyDraft: notificationTemplateConfig.selectedTemplateBodyDraft,
-    hasSelectedNotificationTemplateChanges: notificationTemplateConfig.hasSelectedTemplateChanges,
-    workflowPreviewSearch: notificationTemplateConfig.workflowPreviewSearch,
-    rotationPlanPreviewSearch: notificationTemplateConfig.rotationPlanPreviewSearch,
-    workflowPreviewTargets: notificationTemplateConfig.workflowPreviewTargets,
-    rotationPlanPreviewTargets: notificationTemplateConfig.rotationPlanPreviewTargets,
-    selectedWorkflowPreviewUid: notificationTemplateConfig.selectedWorkflowPreviewUid,
-    selectedRotationPlanPreviewId: notificationTemplateConfig.selectedRotationPlanPreviewId,
-    notificationTemplatePreviewResponse: notificationTemplateConfig.previewResponse,
-    selectedNotificationTemplatePreviewVariantIndex: notificationTemplateConfig.selectedPreviewVariantIndex,
-    isLoadingNotificationTemplates: notificationTemplateConfig.isLoadingNotificationTemplates,
-    isSavingNotificationTemplate: notificationTemplateConfig.isSavingNotificationTemplate,
-    isLoadingNotificationTemplatePreviewTargets: notificationTemplateConfig.isLoadingPreviewTargets,
-    isLoadingNotificationTemplatePreview: notificationTemplateConfig.isLoadingPreview,
-    notificationEnabledDraft: notificationConfig.notificationEnabledDraft,
-    notificationSenderEmailDraft: notificationConfig.notificationSenderEmailDraft,
-    notificationFrontendBaseUrlDraft: notificationConfig.notificationFrontendBaseUrlDraft,
-    notificationTestRecipientDraft: notificationConfig.notificationTestRecipientDraft,
-    notificationSandboxRedirectDraft: notificationConfig.notificationSandboxRedirectDraft,
-    notificationNotifyOnWorkflowCreatedDraft: notificationConfig.notificationNotifyOnWorkflowCreatedDraft,
-    notificationNotifyOnTaskReadyDraft: notificationConfig.notificationNotifyOnTaskReadyDraft,
-    notificationNotifyOnWorkflowCompletedDraft: notificationConfig.notificationNotifyOnWorkflowCompletedDraft,
-    isSavingNotificationEmailConfiguration: notificationConfig.isSavingNotificationEmailConfiguration,
-    isSendingNotificationEmailTest: notificationConfig.isSendingNotificationEmailTest,
-    hasNotificationEmailDraftChanges: notificationConfig.hasNotificationEmailDraftChanges,
     warnings,
-    isSavingUserRoles,
-    isSavingUserGroups,
-    isSavingGroupRoles,
-    isSavingRolePermissions,
-    isSavingUserOverrides,
-    onOpenOrganization: handleOpenOrganization,
-    onSelectSection: handleSelectSection,
-    onSelectUser,
-    onSelectRole,
-    onNewUserDisplayNameChange: onSetNewUserDisplayNameDraft,
-    onNewUserEmailChange: onSetNewUserEmailDraft,
-    onNewUserNotificationEmailChange: onSetNewUserNotificationEmailDraft,
-    onNewUserExternalKeyChange: onSetNewUserExternalKeyDraft,
-    onNewUserDepartmentIdChange: onSetNewUserDepartmentIdDraft,
-    onNewUserIsActiveChange: onSetNewUserIsActiveDraft,
-    onUserDisplayNameChange: onSetUserDisplayNameDraft,
-    onUserEmailChange: onSetUserEmailDraft,
-    onUserNotificationEmailChange: onSetUserNotificationEmailDraft,
-    onUserExternalKeyChange: onSetUserExternalKeyDraft,
-    onUserDepartmentIdChange: onSetUserDepartmentIdDraft,
-    onUserIsActiveChange: onSetUserIsActiveDraft,
-    onCreateUser,
-    onSaveUserMasterData,
-    onRemoveUser,
-    onNewDepartmentNameChange: onSetNewDepartmentNameDraft,
-    onNewResponsibilityDraftChange: onSetNewResponsibilityDraft,
-    onDepartmentDraftChange: (departmentId, draft) =>
-      setDepartmentDrafts((current) => ({ ...current, [departmentId]: draft })),
-    onCreateDepartment,
-    onCreateResponsibility,
-    onSaveDepartmentAssignment,
-    onRemoveDepartment,
-    onNewPositionNameChange: onSetNewPositionNameDraft,
-    onCreateDepartmentPosition,
-    onPositionDraftChange: (positionId, draft) =>
-      setPositionDrafts((current) => ({ ...current, [positionId]: draft })),
-    onSaveDepartmentPosition,
-    onRemoveDepartmentPosition,
-    onResponsibilityDraftChange: (responsibilityId, draft) =>
-      setResponsibilityDrafts((current) => ({ ...current, [responsibilityId]: draft })),
-    onRemoveResponsibility,
-    onSaveResponsibilityAssignment,
-    onToggleUserRole,
-    onToggleUserGroup,
-    onSelectGroup,
-    onToggleGroupRole,
-    onSaveUserRoles,
-    onSaveUserGroups,
-    onSaveGroupRoles,
-    onToggleRolePermission,
-    onSaveRolePermissions,
-    onUserOverrideDraftsChange,
-    onSaveUserOverrides,
-    onSyncDirectory,
-    onCreateDirectoryMapping,
-    onDeleteDirectoryMapping,
-    onNotice,
-    onError,
-    onNotificationEnabledChange: notificationConfig.setNotificationEnabledDraft,
-    onSelectNotificationTemplate: notificationTemplateConfig.setSelectedTemplateKey,
-    onSelectedNotificationTemplateSubjectChange: notificationTemplateConfig.setSelectedTemplateSubjectDraft,
-    onSelectedNotificationTemplateBodyChange: notificationTemplateConfig.setSelectedTemplateBodyDraft,
-    onWorkflowPreviewSearchChange: notificationTemplateConfig.setWorkflowPreviewSearch,
-    onRotationPlanPreviewSearchChange: notificationTemplateConfig.setRotationPlanPreviewSearch,
-    onSelectWorkflowPreviewTarget: notificationTemplateConfig.setSelectedWorkflowPreviewUid,
-    onSelectRotationPlanPreviewTarget: notificationTemplateConfig.setSelectedRotationPlanPreviewId,
-    onSaveSelectedNotificationTemplate: notificationTemplateConfig.saveSelectedTemplate,
-    onRenderNotificationTemplatePreview: notificationTemplateConfig.renderPreview,
-    onSelectNotificationTemplatePreviewVariant: notificationTemplateConfig.setSelectedPreviewVariantIndex,
-    onNotificationSenderEmailChange: notificationConfig.setNotificationSenderEmailDraft,
-    onNotificationFrontendBaseUrlChange: notificationConfig.setNotificationFrontendBaseUrlDraft,
-    onNotificationTestRecipientChange: notificationConfig.setNotificationTestRecipientDraft,
-    onNotificationSandboxRedirectChange: notificationConfig.setNotificationSandboxRedirectDraft,
-    onNotificationNotifyOnWorkflowCreatedChange: notificationConfig.setNotificationNotifyOnWorkflowCreatedDraft,
-    onNotificationNotifyOnTaskReadyChange: notificationConfig.setNotificationNotifyOnTaskReadyDraft,
-    onNotificationNotifyOnWorkflowCompletedChange: notificationConfig.setNotificationNotifyOnWorkflowCompletedDraft,
-    onSaveNotificationEmailConfiguration: notificationConfig.saveNotificationEmailConfiguration,
-    onSendNotificationEmailTest: notificationConfig.sendNotificationEmailTest,
-  };
-
-  return {
     hasAnyData,
     handleSelectSection,
-    workspaceContentProps,
+    handleOpenOrganization,
   };
 }

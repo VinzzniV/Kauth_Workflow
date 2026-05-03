@@ -67,7 +67,7 @@ Detailanalyse in `KauthWorkflow/Stand/Legacy-Abbau-Plan.md`. Empfohlene Reihenfo
 
 **Watch-Items (unveraendert):**
 - **LQ2-Z3** `EntraDirectorySyncService` (2222 Z.) — defer ohne Trigger.
-- **LQ4-Z3** `AdminConfigPage` (423 Z., 7 Hooks) — beobachten; bei 8. Hook splitten.
+- ~~**LQ4-Z3** `AdminConfigPage` (423 Z., 7 Hooks) — beobachten; bei 8. Hook splitten.~~ — ✓ erledigt 2026-05-03 (Bundle-Refactor: flacher 100-Prop-Spread → 7 Domain-Bundles, `useAdminConfigPageView` von 578 → 235 Z.)
 - ~~**LQ3-Z4** `GetOrCreate…WorkingDraft` → `Ensure…`~~ — ✓ erledigt 2026-05-03
 - ~~**LQ4-Z4** `MatchesTaskAssignment`-Predicate-Rename~~  → `IsAssignedToTask` — ✓ erledigt 2026-05-03
 
@@ -102,7 +102,7 @@ Alle 5 Tasks done (2 davon partial mit dokumentiertem Defer-Grund). 1 Watch-Item
 | HQ3-Z3 | Repository-Partials splitten (TaskTemplate 3-fach, WorkflowDefinition GraphMapping ausgelagert) | ✓ done partial — Versions-Split deferred wegen Tx-Kopplung |
 | HQ2-Z3 | `useAdminWorkflowBuilder` Sub-Hook-Zerlegung (Reference-Data extrahiert, 865→761) | ✓ done partial — 3 weitere Sub-Hook-Splits deferred |
 | LQ2-Z3 | EntraSync 2222 Z. Split | deferred — kein Anlass |
-| LQ4-Z3 | AdminConfigPage Watch | watch |
+| LQ4-Z3 | AdminConfigPage Watch / Bundle-Refactor | ✓ done (2026-05-03) |
 
 ### Zyklus 2 (Hardening + Testbarkeit, 2026-05-02)
 

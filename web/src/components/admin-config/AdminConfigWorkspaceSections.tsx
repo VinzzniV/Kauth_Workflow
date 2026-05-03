@@ -32,87 +32,89 @@ function renderWorkspaceWithIntro(section: AdminWorkspaceSection, content: React
 }
 
 export function renderOverviewWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { meta, organization, access, notification } = props;
   return (
     <AdminOverviewWorkspaceSection
-      departmentCount={props.departmentAssignments.length}
-      warningCount={props.warnings.length}
-      hasLoadedTechnicalAccess={props.hasLoadedTechnicalAccess}
-      roleCount={props.sortedRoles.length}
-      groupCount={props.groups.length}
-      notificationEmailConfiguration={props.notificationEmailConfiguration}
-      warnings={props.warnings}
-      onOpenOrganization={props.onOpenOrganization}
-      onOpenSection={props.onSelectSection}
+      departmentCount={organization.departmentAssignments.length}
+      warningCount={meta.warnings.length}
+      hasLoadedTechnicalAccess={access.hasLoadedTechnicalAccess}
+      roleCount={access.sortedRoles.length}
+      groupCount={access.groups.length}
+      notificationEmailConfiguration={notification.notificationEmailConfiguration}
+      warnings={meta.warnings}
+      onOpenOrganization={meta.onOpenOrganization}
+      onOpenSection={meta.onSelectSection}
     />
   );
 }
 
 export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { meta, user, organization } = props;
   return renderWorkspaceWithIntro(
     "organization",
     <AdminOrganizationWorkspaceSection
-      organizationEntity={props.organizationEntity}
-      selectedEntityId={props.selectedEntityId}
-      sortedUsers={props.sortedUsers}
-      sortedDepartmentPositions={props.sortedDepartmentPositions}
-      sortedDepartments={props.sortedDepartments}
-      eligibleSupervisorUsers={props.eligibleSupervisorUsers}
-      eligibleRequirementOwnerUsers={props.eligibleRequirementOwnerUsers}
-      selectedUser={props.workspaceSelectedUser}
-      userDisplayNameDraft={props.userDisplayNameDraft}
-      userEmailDraft={props.userEmailDraft}
-      userNotificationEmailDraft={props.userNotificationEmailDraft}
-      userExternalKeyDraft={props.userExternalKeyDraft}
-      userDepartmentIdDraft={props.userDepartmentIdDraft}
-      userIsActiveDraft={props.userIsActiveDraft}
-      userFormError={props.userFormError}
-      userFormNotice={props.userFormNotice}
-      newUserDisplayNameDraft={props.newUserDisplayNameDraft}
-      newUserEmailDraft={props.newUserEmailDraft}
-      newUserNotificationEmailDraft={props.newUserNotificationEmailDraft}
-      newUserExternalKeyDraft={props.newUserExternalKeyDraft}
-      newUserDepartmentIdDraft={props.newUserDepartmentIdDraft}
-      newUserIsActiveDraft={props.newUserIsActiveDraft}
-      isCreatingUser={props.isCreatingUser}
-      isSavingUserMasterData={props.isSavingUserMasterData}
-      deletingUserId={props.deletingUserId}
-      newDepartmentNameDraft={props.newDepartmentNameDraft}
-      newPositionNameDraft={props.newPositionNameDraft}
-      departmentDrafts={props.departmentDrafts}
-      positionDrafts={props.positionDrafts}
-      isCreatingDepartment={props.isCreatingDepartment}
-      creatingPositionDepartmentId={props.creatingPositionDepartmentId}
-      deletingDepartmentId={props.deletingDepartmentId}
-      deletingPositionId={props.deletingPositionId}
-      savingDepartmentId={props.savingDepartmentId}
-      savingPositionId={props.savingPositionId}
-      onSelectOrganizationEntity={props.onOpenOrganization}
-      onSelectUser={props.onSelectUser}
-      onNewUserDisplayNameChange={props.onNewUserDisplayNameChange}
-      onNewUserEmailChange={props.onNewUserEmailChange}
-      onNewUserNotificationEmailChange={props.onNewUserNotificationEmailChange}
-      onNewUserExternalKeyChange={props.onNewUserExternalKeyChange}
-      onNewUserDepartmentIdChange={props.onNewUserDepartmentIdChange}
-      onNewUserIsActiveChange={props.onNewUserIsActiveChange}
-      onUserDisplayNameChange={props.onUserDisplayNameChange}
-      onUserEmailChange={props.onUserEmailChange}
-      onUserNotificationEmailChange={props.onUserNotificationEmailChange}
-      onUserExternalKeyChange={props.onUserExternalKeyChange}
-      onUserDepartmentIdChange={props.onUserDepartmentIdChange}
-      onUserIsActiveChange={props.onUserIsActiveChange}
-      onCreateUser={props.onCreateUser}
-      onSaveUserMasterData={props.onSaveUserMasterData}
-      onRemoveUser={props.onRemoveUser}
-      onNewDepartmentNameChange={props.onNewDepartmentNameChange}
-      onNewPositionNameChange={props.onNewPositionNameChange}
-      onDepartmentDraftChange={props.onDepartmentDraftChange}
-      onCreateDepartment={props.onCreateDepartment}
-      onCreateDepartmentPosition={props.onCreateDepartmentPosition}
-      onSaveDepartmentAssignment={props.onSaveDepartmentAssignment}
-      onRemoveDepartment={props.onRemoveDepartment}
-      onPositionDraftChange={props.onPositionDraftChange}
-      onSaveDepartmentPosition={props.onSaveDepartmentPosition}
-      onRemoveDepartmentPosition={props.onRemoveDepartmentPosition}
+      organizationEntity={meta.organizationEntity}
+      selectedEntityId={meta.selectedEntityId}
+      sortedUsers={user.sortedUsers}
+      sortedDepartmentPositions={organization.sortedDepartmentPositions}
+      sortedDepartments={organization.sortedDepartments}
+      eligibleSupervisorUsers={user.eligibleSupervisorUsers}
+      eligibleRequirementOwnerUsers={user.eligibleRequirementOwnerUsers}
+      selectedUser={user.workspaceSelectedUser}
+      userDisplayNameDraft={user.userDisplayNameDraft}
+      userEmailDraft={user.userEmailDraft}
+      userNotificationEmailDraft={user.userNotificationEmailDraft}
+      userExternalKeyDraft={user.userExternalKeyDraft}
+      userDepartmentIdDraft={user.userDepartmentIdDraft}
+      userIsActiveDraft={user.userIsActiveDraft}
+      userFormError={user.userFormError}
+      userFormNotice={user.userFormNotice}
+      newUserDisplayNameDraft={user.newUserDisplayNameDraft}
+      newUserEmailDraft={user.newUserEmailDraft}
+      newUserNotificationEmailDraft={user.newUserNotificationEmailDraft}
+      newUserExternalKeyDraft={user.newUserExternalKeyDraft}
+      newUserDepartmentIdDraft={user.newUserDepartmentIdDraft}
+      newUserIsActiveDraft={user.newUserIsActiveDraft}
+      isCreatingUser={user.isCreatingUser}
+      isSavingUserMasterData={user.isSavingUserMasterData}
+      deletingUserId={user.deletingUserId}
+      newDepartmentNameDraft={organization.newDepartmentNameDraft}
+      newPositionNameDraft={organization.newPositionNameDraft}
+      departmentDrafts={organization.departmentDrafts}
+      positionDrafts={organization.positionDrafts}
+      isCreatingDepartment={organization.isCreatingDepartment}
+      creatingPositionDepartmentId={organization.creatingPositionDepartmentId}
+      deletingDepartmentId={organization.deletingDepartmentId}
+      deletingPositionId={organization.deletingPositionId}
+      savingDepartmentId={organization.savingDepartmentId}
+      savingPositionId={organization.savingPositionId}
+      onSelectOrganizationEntity={meta.onOpenOrganization}
+      onSelectUser={user.onSelectUser}
+      onNewUserDisplayNameChange={user.onNewUserDisplayNameChange}
+      onNewUserEmailChange={user.onNewUserEmailChange}
+      onNewUserNotificationEmailChange={user.onNewUserNotificationEmailChange}
+      onNewUserExternalKeyChange={user.onNewUserExternalKeyChange}
+      onNewUserDepartmentIdChange={user.onNewUserDepartmentIdChange}
+      onNewUserIsActiveChange={user.onNewUserIsActiveChange}
+      onUserDisplayNameChange={user.onUserDisplayNameChange}
+      onUserEmailChange={user.onUserEmailChange}
+      onUserNotificationEmailChange={user.onUserNotificationEmailChange}
+      onUserExternalKeyChange={user.onUserExternalKeyChange}
+      onUserDepartmentIdChange={user.onUserDepartmentIdChange}
+      onUserIsActiveChange={user.onUserIsActiveChange}
+      onCreateUser={user.onCreateUser}
+      onSaveUserMasterData={user.onSaveUserMasterData}
+      onRemoveUser={user.onRemoveUser}
+      onNewDepartmentNameChange={organization.onNewDepartmentNameChange}
+      onNewPositionNameChange={organization.onNewPositionNameChange}
+      onDepartmentDraftChange={organization.onDepartmentDraftChange}
+      onCreateDepartment={organization.onCreateDepartment}
+      onCreateDepartmentPosition={organization.onCreateDepartmentPosition}
+      onSaveDepartmentAssignment={organization.onSaveDepartmentAssignment}
+      onRemoveDepartment={organization.onRemoveDepartment}
+      onPositionDraftChange={organization.onPositionDraftChange}
+      onSaveDepartmentPosition={organization.onSaveDepartmentPosition}
+      onRemoveDepartmentPosition={organization.onRemoveDepartmentPosition}
     />
   );
 }
@@ -125,199 +127,200 @@ export function renderRotationRequirementsWorkspace() {
 }
 
 export function renderAccessWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { user, access, organization } = props;
   return renderWorkspaceWithIntro(
     "access",
     <div className="content-stack">
       <AdminTechnicalAccessSection
         isTechnicalAccessOpen={true}
-        isLoadingTechnicalAccess={props.isLoadingTechnicalAccess}
-        sortedUsers={props.sortedUsers}
-        selectedUser={props.selectedUser}
-        selectedUserRoleIds={props.selectedUserRoleIds}
-        selectedUserGroupIds={props.selectedUserGroupIds}
-        selectedGroupId={props.selectedGroupId}
-        selectedGroup={props.selectedGroup}
-        selectedGroupRoleIds={props.selectedGroupRoleIds}
-        sortedRoles={props.sortedRoles}
-        groups={props.groups}
-        isSavingUserRoles={props.isSavingUserRoles}
-        isSavingUserGroups={props.isSavingUserGroups}
-        isSavingGroupRoles={props.isSavingGroupRoles}
-        onSelectUser={props.onSelectUser}
-        onToggleUserRole={props.onToggleUserRole}
-        onToggleUserGroup={props.onToggleUserGroup}
-        onSelectGroup={props.onSelectGroup}
-        onToggleGroupRole={props.onToggleGroupRole}
-        onSaveUserRoles={props.onSaveUserRoles}
-        onSaveUserGroups={props.onSaveUserGroups}
-        onSaveGroupRoles={props.onSaveGroupRoles}
+        isLoadingTechnicalAccess={access.isLoadingTechnicalAccess}
+        sortedUsers={user.sortedUsers}
+        selectedUser={user.selectedUser}
+        selectedUserRoleIds={access.selectedUserRoleIds}
+        selectedUserGroupIds={access.selectedUserGroupIds}
+        selectedGroupId={access.selectedGroupId}
+        selectedGroup={access.selectedGroup}
+        selectedGroupRoleIds={access.selectedGroupRoleIds}
+        sortedRoles={access.sortedRoles}
+        groups={access.groups}
+        isSavingUserRoles={access.isSavingUserRoles}
+        isSavingUserGroups={access.isSavingUserGroups}
+        isSavingGroupRoles={access.isSavingGroupRoles}
+        onSelectUser={user.onSelectUser}
+        onToggleUserRole={access.onToggleUserRole}
+        onToggleUserGroup={access.onToggleUserGroup}
+        onSelectGroup={access.onSelectGroup}
+        onToggleGroupRole={access.onToggleGroupRole}
+        onSaveUserRoles={access.onSaveUserRoles}
+        onSaveUserGroups={access.onSaveUserGroups}
+        onSaveGroupRoles={access.onSaveGroupRoles}
       />
       <AdminPermissionsSection
-        roles={props.sortedRoles}
-        permissions={props.permissions}
-        auditEntries={props.permissionAuditEntries}
-        departments={props.sortedDepartments}
-        selectedRoleId={props.selectedRoleId}
-        selectedRolePermissionIds={props.selectedRolePermissionIds}
-        selectedUser={props.selectedUser}
-        userOverrideDrafts={props.userOverrideDrafts}
-        isLoading={props.isLoadingTechnicalAccess}
-        isSavingRolePermissions={props.isSavingRolePermissions}
-        isSavingUserOverrides={props.isSavingUserOverrides}
-        onSelectRole={props.onSelectRole}
-        onToggleRolePermission={props.onToggleRolePermission}
-        onSaveRolePermissions={props.onSaveRolePermissions}
-        onUserOverrideDraftsChange={props.onUserOverrideDraftsChange}
-        onSaveUserOverrides={props.onSaveUserOverrides}
+        roles={access.sortedRoles}
+        permissions={access.permissions}
+        auditEntries={access.permissionAuditEntries}
+        departments={organization.sortedDepartments}
+        selectedRoleId={access.selectedRoleId}
+        selectedRolePermissionIds={access.selectedRolePermissionIds}
+        selectedUser={user.selectedUser}
+        userOverrideDrafts={access.userOverrideDrafts}
+        isLoading={access.isLoadingTechnicalAccess}
+        isSavingRolePermissions={access.isSavingRolePermissions}
+        isSavingUserOverrides={access.isSavingUserOverrides}
+        onSelectRole={access.onSelectRole}
+        onToggleRolePermission={access.onToggleRolePermission}
+        onSaveRolePermissions={access.onSaveRolePermissions}
+        onUserOverrideDraftsChange={access.onUserOverrideDraftsChange}
+        onSaveUserOverrides={access.onSaveUserOverrides}
       />
     </div>
   );
 }
 
 export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { access, directory, organization } = props;
   return renderWorkspaceWithIntro(
     "directory",
     <div className="content-stack">
       <AdminDirectorySyncSection
-        status={props.directoryStatus}
-        identities={props.directoryIdentities}
-        auditEntries={props.directoryAuditEntries}
-        isLoading={props.isLoadingDirectory}
-        isSyncing={props.isSyncingDirectory}
-        onSync={props.onSyncDirectory}
+        status={directory.directoryStatus}
+        identities={directory.directoryIdentities}
+        auditEntries={directory.directoryAuditEntries}
+        isLoading={directory.isLoadingDirectory}
+        isSyncing={directory.isSyncingDirectory}
+        onSync={directory.onSyncDirectory}
       />
       <AdminGroupMappingSection
-        groups={props.directoryGroups}
-        roles={props.sortedRoles}
-        departments={props.sortedDepartments}
-        isLoading={props.isLoadingDirectory}
-        savingGroupId={props.savingDirectoryGroupId}
-        deletingMappingId={props.deletingDirectoryMappingId}
-        onCreateMapping={props.onCreateDirectoryMapping}
-        onDeleteMapping={props.onDeleteDirectoryMapping}
+        groups={directory.directoryGroups}
+        roles={access.sortedRoles}
+        departments={organization.sortedDepartments}
+        isLoading={directory.isLoadingDirectory}
+        savingGroupId={directory.savingDirectoryGroupId}
+        deletingMappingId={directory.deletingDirectoryMappingId}
+        onCreateMapping={directory.onCreateDirectoryMapping}
+        onDeleteMapping={directory.onDeleteDirectoryMapping}
       />
     </div>
   );
 }
 
 export function renderSystemLogsWorkspace() {
-  return renderWorkspaceWithIntro(
-    "system_logs",
-    <AdminSystemWorkspaceSection />
-  );
+  return renderWorkspaceWithIntro("system_logs", <AdminSystemWorkspaceSection />);
 }
 
 export function renderSystemMailTemplatesWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { notification } = props;
   return renderWorkspaceWithIntro(
     "system_mail_templates",
     <AdminNotificationTemplateSection
-      notificationTemplates={props.notificationTemplates}
-      selectedTemplate={props.selectedNotificationTemplate}
-      selectedTemplateKey={props.selectedNotificationTemplateKey}
-      selectedTemplateSubjectDraft={props.selectedNotificationTemplateSubjectDraft}
-      selectedTemplateBodyDraft={props.selectedNotificationTemplateBodyDraft}
-      hasSelectedTemplateChanges={props.hasSelectedNotificationTemplateChanges}
-      workflowPreviewSearch={props.workflowPreviewSearch}
-      rotationPlanPreviewSearch={props.rotationPlanPreviewSearch}
-      workflowPreviewTargets={props.workflowPreviewTargets}
-      rotationPlanPreviewTargets={props.rotationPlanPreviewTargets}
-      selectedWorkflowPreviewUid={props.selectedWorkflowPreviewUid}
-      selectedRotationPlanPreviewId={props.selectedRotationPlanPreviewId}
-      previewResponse={props.notificationTemplatePreviewResponse}
-      selectedPreviewVariantIndex={props.selectedNotificationTemplatePreviewVariantIndex}
-      isLoadingNotificationTemplates={props.isLoadingNotificationTemplates}
-      isSavingNotificationTemplate={props.isSavingNotificationTemplate}
-      isLoadingPreviewTargets={props.isLoadingNotificationTemplatePreviewTargets}
-      isLoadingPreview={props.isLoadingNotificationTemplatePreview}
-      onSelectTemplate={props.onSelectNotificationTemplate}
-      onSelectedTemplateSubjectChange={props.onSelectedNotificationTemplateSubjectChange}
-      onSelectedTemplateBodyChange={props.onSelectedNotificationTemplateBodyChange}
-      onWorkflowPreviewSearchChange={props.onWorkflowPreviewSearchChange}
-      onRotationPlanPreviewSearchChange={props.onRotationPlanPreviewSearchChange}
-      onSelectWorkflowPreviewTarget={props.onSelectWorkflowPreviewTarget}
-      onSelectRotationPlanPreviewTarget={props.onSelectRotationPlanPreviewTarget}
-      onSaveSelectedTemplate={props.onSaveSelectedNotificationTemplate}
-      onRenderPreview={props.onRenderNotificationTemplatePreview}
-      onSelectPreviewVariant={props.onSelectNotificationTemplatePreviewVariant}
+      notificationTemplates={notification.notificationTemplates}
+      selectedTemplate={notification.selectedNotificationTemplate}
+      selectedTemplateKey={notification.selectedNotificationTemplateKey}
+      selectedTemplateSubjectDraft={notification.selectedNotificationTemplateSubjectDraft}
+      selectedTemplateBodyDraft={notification.selectedNotificationTemplateBodyDraft}
+      hasSelectedTemplateChanges={notification.hasSelectedNotificationTemplateChanges}
+      workflowPreviewSearch={notification.workflowPreviewSearch}
+      rotationPlanPreviewSearch={notification.rotationPlanPreviewSearch}
+      workflowPreviewTargets={notification.workflowPreviewTargets}
+      rotationPlanPreviewTargets={notification.rotationPlanPreviewTargets}
+      selectedWorkflowPreviewUid={notification.selectedWorkflowPreviewUid}
+      selectedRotationPlanPreviewId={notification.selectedRotationPlanPreviewId}
+      previewResponse={notification.notificationTemplatePreviewResponse}
+      selectedPreviewVariantIndex={notification.selectedNotificationTemplatePreviewVariantIndex}
+      isLoadingNotificationTemplates={notification.isLoadingNotificationTemplates}
+      isSavingNotificationTemplate={notification.isSavingNotificationTemplate}
+      isLoadingPreviewTargets={notification.isLoadingNotificationTemplatePreviewTargets}
+      isLoadingPreview={notification.isLoadingNotificationTemplatePreview}
+      onSelectTemplate={notification.onSelectNotificationTemplate}
+      onSelectedTemplateSubjectChange={notification.onSelectedNotificationTemplateSubjectChange}
+      onSelectedTemplateBodyChange={notification.onSelectedNotificationTemplateBodyChange}
+      onWorkflowPreviewSearchChange={notification.onWorkflowPreviewSearchChange}
+      onRotationPlanPreviewSearchChange={notification.onRotationPlanPreviewSearchChange}
+      onSelectWorkflowPreviewTarget={notification.onSelectWorkflowPreviewTarget}
+      onSelectRotationPlanPreviewTarget={notification.onSelectRotationPlanPreviewTarget}
+      onSaveSelectedTemplate={notification.onSaveSelectedNotificationTemplate}
+      onRenderPreview={notification.onRenderNotificationTemplatePreview}
+      onSelectPreviewVariant={notification.onSelectNotificationTemplatePreviewVariant}
     />
   );
 }
 
 export function renderSystemConfigurationWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { notification, system } = props;
   return renderWorkspaceWithIntro(
     "system_configuration",
     <AdminSystemConfigurationSection
-      graphApplicationConfiguration={props.graphApplicationConfiguration}
-      notificationEmailConfiguration={props.notificationEmailConfiguration}
-      notificationEnabledDraft={props.notificationEnabledDraft}
-      notificationSenderEmailDraft={props.notificationSenderEmailDraft}
-      notificationFrontendBaseUrlDraft={props.notificationFrontendBaseUrlDraft}
-      notificationTestRecipientDraft={props.notificationTestRecipientDraft}
-      notificationSandboxRedirectDraft={props.notificationSandboxRedirectDraft}
-      notificationNotifyOnWorkflowCreatedDraft={props.notificationNotifyOnWorkflowCreatedDraft}
-      notificationNotifyOnTaskReadyDraft={props.notificationNotifyOnTaskReadyDraft}
-      notificationNotifyOnWorkflowCompletedDraft={props.notificationNotifyOnWorkflowCompletedDraft}
-      isSavingNotificationEmailConfiguration={props.isSavingNotificationEmailConfiguration}
-      isSendingNotificationEmailTest={props.isSendingNotificationEmailTest}
+      graphApplicationConfiguration={system.graphApplicationConfiguration}
+      notificationEmailConfiguration={notification.notificationEmailConfiguration}
+      notificationEnabledDraft={notification.notificationEnabledDraft}
+      notificationSenderEmailDraft={notification.notificationSenderEmailDraft}
+      notificationFrontendBaseUrlDraft={notification.notificationFrontendBaseUrlDraft}
+      notificationTestRecipientDraft={notification.notificationTestRecipientDraft}
+      notificationSandboxRedirectDraft={notification.notificationSandboxRedirectDraft}
+      notificationNotifyOnWorkflowCreatedDraft={notification.notificationNotifyOnWorkflowCreatedDraft}
+      notificationNotifyOnTaskReadyDraft={notification.notificationNotifyOnTaskReadyDraft}
+      notificationNotifyOnWorkflowCompletedDraft={notification.notificationNotifyOnWorkflowCompletedDraft}
+      isSavingNotificationEmailConfiguration={notification.isSavingNotificationEmailConfiguration}
+      isSendingNotificationEmailTest={notification.isSendingNotificationEmailTest}
       isLoading={false}
-      hasNotificationEmailDraftChanges={props.hasNotificationEmailDraftChanges}
-      onNotificationEnabledChange={props.onNotificationEnabledChange}
-      onNotificationSenderEmailChange={props.onNotificationSenderEmailChange}
-      onNotificationFrontendBaseUrlChange={props.onNotificationFrontendBaseUrlChange}
-      onNotificationTestRecipientChange={props.onNotificationTestRecipientChange}
-      onNotificationSandboxRedirectChange={props.onNotificationSandboxRedirectChange}
-      onNotificationNotifyOnWorkflowCreatedChange={props.onNotificationNotifyOnWorkflowCreatedChange}
-      onNotificationNotifyOnTaskReadyChange={props.onNotificationNotifyOnTaskReadyChange}
-      onNotificationNotifyOnWorkflowCompletedChange={props.onNotificationNotifyOnWorkflowCompletedChange}
-      onSaveNotificationEmailConfiguration={props.onSaveNotificationEmailConfiguration}
-      onSendNotificationEmailTest={props.onSendNotificationEmailTest}
+      hasNotificationEmailDraftChanges={notification.hasNotificationEmailDraftChanges}
+      onNotificationEnabledChange={notification.onNotificationEnabledChange}
+      onNotificationSenderEmailChange={notification.onNotificationSenderEmailChange}
+      onNotificationFrontendBaseUrlChange={notification.onNotificationFrontendBaseUrlChange}
+      onNotificationTestRecipientChange={notification.onNotificationTestRecipientChange}
+      onNotificationSandboxRedirectChange={notification.onNotificationSandboxRedirectChange}
+      onNotificationNotifyOnWorkflowCreatedChange={notification.onNotificationNotifyOnWorkflowCreatedChange}
+      onNotificationNotifyOnTaskReadyChange={notification.onNotificationNotifyOnTaskReadyChange}
+      onNotificationNotifyOnWorkflowCompletedChange={notification.onNotificationNotifyOnWorkflowCompletedChange}
+      onSaveNotificationEmailConfiguration={notification.onSaveNotificationEmailConfiguration}
+      onSendNotificationEmailTest={notification.onSendNotificationEmailTest}
     />
   );
 }
 
 export function renderTemplateWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { meta, organization } = props;
   return renderWorkspaceWithIntro(
     "templates",
     <AdminTaskTemplateSection
-      departments={props.departmentAssignments}
-      responsibilities={props.responsibilityOwners}
-      onNotice={props.onNotice}
-      onError={props.onError}
+      departments={organization.departmentAssignments}
+      responsibilities={organization.responsibilityOwners}
+      onNotice={meta.onNotice}
+      onError={meta.onError}
     />
   );
 }
 
 export function renderBuilderWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { meta } = props;
   return renderWorkspaceWithIntro(
     "builder",
-    <AdminWorkflowBuilderFormSection
-      onNotice={props.onNotice}
-      onError={props.onError}
-    />
+    <AdminWorkflowBuilderFormSection onNotice={meta.onNotice} onError={meta.onError} />
   );
 }
 
 export function renderAnswerWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { meta } = props;
   return renderWorkspaceWithIntro(
     "answers",
     <AdminFieldConfigurationWorkspaceSection
       section="answers"
-      onSelectSection={props.onSelectSection}
-      onNotice={props.onNotice}
-      onError={props.onError}
+      onSelectSection={meta.onSelectSection}
+      onNotice={meta.onNotice}
+      onError={meta.onError}
     />
   );
 }
 
 export function renderDefaultWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { meta } = props;
   return renderWorkspaceWithIntro(
     "defaults",
     <AdminFieldConfigurationWorkspaceSection
       section="defaults"
-      onSelectSection={props.onSelectSection}
-      onNotice={props.onNotice}
-      onError={props.onError}
+      onSelectSection={meta.onSelectSection}
+      onNotice={meta.onNotice}
+      onError={meta.onError}
     />
   );
 }
-

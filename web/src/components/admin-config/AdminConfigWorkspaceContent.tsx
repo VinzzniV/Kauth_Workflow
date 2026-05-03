@@ -15,7 +15,7 @@ import {
 import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceContentTypes";
 
 export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentProps) {
-  switch (props.section) {
+  switch (props.meta.section) {
     case "overview":
       return renderOverviewWorkspace(props);
     case "organization":
