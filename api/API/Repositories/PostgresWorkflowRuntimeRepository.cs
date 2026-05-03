@@ -7,7 +7,7 @@ namespace API;
 // Eigenstaendiges Runtime-Repository fuer den Workflow-Definitions-Ausfuehrungspfad.
 // Bedient die HTTP-Endpunkte fuer Publish/Create/Complete (form|approval|task) sowie
 // die Cross-Partial-Aufrufe aus TaskOperations + LifecycleOperations (internal static Wrapper).
-internal sealed class PostgresWorkflowRuntimeRepository : IWorkflowDefinitionRuntimeRepository
+internal sealed partial class PostgresWorkflowRuntimeRepository : IWorkflowDefinitionRuntimeRepository
 {
     private readonly IWorkflowAuditWriteOperations _auditWrite;
     private readonly IWorkflowStatusCalculationService _statusCalculation;

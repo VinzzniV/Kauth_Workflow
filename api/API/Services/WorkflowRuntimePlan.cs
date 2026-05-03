@@ -112,12 +112,14 @@ internal sealed class WorkflowFailureOutcome : RuntimeWorkflowOutcome
 
 // ---- Apply-Result (Q6) -------------------------------------------------
 
-// Vom Apply-Pfad zurueckgegeben. Wenn `ImmediatelyCompletedMeasureNodeId`
-// gesetzt ist, hat der Apply nach MeasureNodeActivationStep festgestellt,
-// dass 0 Pflicht-Tasks generiert wurden — der Lifecycle-Service muss den
-// Snapshot neu laden und Engine.Plan(...) erneut aufrufen mit dieser
-// NodeId als completedNode (Apply-seitige Iteration, Q6 Option a).
+// Vom Apply-Pfad zurueckgegeben. Jede ID in `ImmediatelyCompletedMeasureNodeIds`
+// markiert ein measure_*-Node, dessen Setup-Tasks beim Apply sofort als done
+// erkannt wurden (z. B. 0 Pflicht-Tasks generiert oder alle Pflicht-Tasks
+// bereits done) — der Lifecycle-Service muss daraufhin pro ID einen Re-Plan
+// mit diesem Node als `completedNode` ausfuehren (Apply-seitige Iteration,
+// Q6 Option a). Bei parallelen Measure-Branches koennen mehrere zugleich
+// auflaufen.
 internal sealed class WorkflowRuntimeApplyResult
 {
-    public long? ImmediatelyCompletedMeasureNodeId { get; init; }
+    public required IReadOnlyList<long> ImmediatelyCompletedMeasureNodeIds { get; init; }
 }
