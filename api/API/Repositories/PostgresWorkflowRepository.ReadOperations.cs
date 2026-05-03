@@ -9,7 +9,7 @@ internal sealed partial class PostgresWorkflowRepository
     // limits the result set to tasks where (a) the workflow is not in a terminal status
     // and (b) the user has at least one primary assignment matching either the user id
     // or one of their effective responsibilities. Mirrors the in-memory predicate
-    // MatchesTaskAssignment in AuthorizationPolicyService.
+    // IsAssignedToTask in AuthorizationPolicyService.
     internal readonly record struct WorkflowTaskListNarrowingFilter(long UserId, int[] EffectiveResponsibilityIds);
 
     private static async Task<List<TaskWithWorkflowDto>> LoadTasks(

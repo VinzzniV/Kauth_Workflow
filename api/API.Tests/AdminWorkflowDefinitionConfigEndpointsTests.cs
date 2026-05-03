@@ -475,8 +475,8 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         await endpoint.RequestDelegate!(context);
 
         Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
-        Assert.Equal(1, repository.GetOrCreateAdminWorkflowDefinitionWorkingDraftCallCount);
-        Assert.Equal(7, repository.LastGetOrCreateAdminWorkflowDefinitionWorkingDraftDefinitionId);
+        Assert.Equal(1, repository.EnsureAdminWorkflowDefinitionWorkingDraftCallCount);
+        Assert.Equal(7, repository.LastEnsureAdminWorkflowDefinitionWorkingDraftDefinitionId);
     }
 
     [Fact]
@@ -891,7 +891,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public int CreateAdminWorkflowDefinitionCallCount { get; private set; }
         public int CreateAdminWorkflowDefinitionVersionCallCount { get; private set; }
         public int DeleteAdminWorkflowDefinitionCallCount { get; private set; }
-        public int GetOrCreateAdminWorkflowDefinitionWorkingDraftCallCount { get; private set; }
+        public int EnsureAdminWorkflowDefinitionWorkingDraftCallCount { get; private set; }
         public int UpdateAdminWorkflowDefinitionCallCount { get; private set; }
         public int ReplaceAdminWorkflowDefinitionVersionCallCount { get; private set; }
         public int PublishWorkflowDefinitionVersionCallCount { get; private set; }
@@ -900,7 +900,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public CreateWorkflowDefinitionRequest? LastCreateAdminWorkflowDefinitionRequest { get; private set; }
         public int? LastCreateAdminWorkflowDefinitionVersionDefinitionId { get; private set; }
         public int? LastDeleteAdminWorkflowDefinitionId { get; private set; }
-        public int? LastGetOrCreateAdminWorkflowDefinitionWorkingDraftDefinitionId { get; private set; }
+        public int? LastEnsureAdminWorkflowDefinitionWorkingDraftDefinitionId { get; private set; }
         public int? LastUpdateAdminWorkflowDefinitionId { get; private set; }
         public long? LastPublishWorkflowDefinitionVersionId { get; private set; }
         public ReplaceWorkflowDefinitionVersionRequest? LastReplaceAdminWorkflowDefinitionVersionRequest { get; private set; }
@@ -990,10 +990,10 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             GetAdminWorkflowDefinitionVersionCallCount += 1;
             return Task.FromResult(VersionDetailForGet);
         }
-        public Task<WorkflowDefinitionVersionDetailDto?> GetOrCreateAdminWorkflowDefinitionWorkingDraft(int definitionId)
+        public Task<WorkflowDefinitionVersionDetailDto?> EnsureAdminWorkflowDefinitionWorkingDraft(int definitionId)
         {
-            GetOrCreateAdminWorkflowDefinitionWorkingDraftCallCount += 1;
-            LastGetOrCreateAdminWorkflowDefinitionWorkingDraftDefinitionId = definitionId;
+            EnsureAdminWorkflowDefinitionWorkingDraftCallCount += 1;
+            LastEnsureAdminWorkflowDefinitionWorkingDraftDefinitionId = definitionId;
             return Task.FromResult(WorkingDraftForGet);
         }
 

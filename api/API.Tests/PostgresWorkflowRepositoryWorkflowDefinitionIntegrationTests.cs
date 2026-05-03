@@ -326,7 +326,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task GetOrCreateAdminWorkflowDefinitionWorkingDraft_ClonesLatestPublishedVersion()
+    public async Task EnsureAdminWorkflowDefinitionWorkingDraft_ClonesLatestPublishedVersion()
     {
         var connectionString = GetTestConnectionString();
         if (!await EnsureWorkflowDefinitionMappingsAsync(connectionString))
@@ -373,7 +373,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             var publishedVersion = await runtimeRepository.PublishWorkflowDefinitionVersion(initialVersionId);
             Assert.NotNull(publishedVersion);
 
-            var workingDraft = await repository.GetOrCreateAdminWorkflowDefinitionWorkingDraft(definition.Id);
+            var workingDraft = await repository.EnsureAdminWorkflowDefinitionWorkingDraft(definition.Id);
 
             Assert.NotNull(workingDraft);
             Assert.Equal("draft", workingDraft!.Status);

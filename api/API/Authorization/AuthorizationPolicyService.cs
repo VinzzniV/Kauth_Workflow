@@ -228,7 +228,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return false;
         }
 
-        return MatchesTaskAssignment(user, task);
+        return IsAssignedToTask(user, task);
     }
 
     public bool CanDecideTaskApproval(CurrentUser user, TaskWithWorkflowDto task)
@@ -265,7 +265,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return false;
         }
 
-        return MatchesTaskAssignment(user, task);
+        return IsAssignedToTask(user, task);
     }
 
     // Umverteilungen bleiben ein expliziter Admin-Eingriff und sind keine regulaere Fachbearbeitung.
@@ -300,7 +300,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
                 return true;
             }
 
-            return CanAccessTechnicalTasks(user) && MatchesTaskAssignment(user, task);
+            return CanAccessTechnicalTasks(user) && IsAssignedToTask(user, task);
         }
 
         var workflow = task.Workflow;
@@ -317,7 +317,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         }
 
         return CanRegularlyEditWorkflow(user, workflow.WorkflowStatus)
-            && MatchesTaskAssignment(user, task);
+            && IsAssignedToTask(user, task);
     }
 
     private bool CanUpdateRotationTaskStatus(CurrentUser user, TaskWithWorkflowDto task)
@@ -335,7 +335,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
             return true;
         }
 
-        return CanAccessTechnicalTasks(user) && MatchesTaskAssignment(user, task);
+        return CanAccessTechnicalTasks(user) && IsAssignedToTask(user, task);
     }
 
     private static bool IsTerminalRotationPlan(TaskWithWorkflowDto task)
@@ -343,7 +343,7 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         return task.Rotation?.PlanStatus is RotationPlanStatuses.Completed or RotationPlanStatuses.Archived;
     }
 
-    private static bool MatchesTaskAssignment(CurrentUser user, TaskWithWorkflowDto task)
+    private static bool IsAssignedToTask(CurrentUser user, TaskWithWorkflowDto task)
     {
         var effectiveResponsibilityIds = user.EffectiveResponsibilities
             .Select(responsibility => responsibility.ResponsibilityId)

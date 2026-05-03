@@ -47,15 +47,46 @@ hier stehen sie strukturiert mit konkretem Aufwand + Modell-Empfehlung.
 | # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
 |---|---------|------|---------|------------------|--------|--------|
 | FE-1 | **`AdminConfigPage` zerlegen** (UI-2 / LQ4-Z3). 70+ Props an `workspaceContentProps`, 7 Custom-Hooks. Sub-Hook-Aufteilung (`useAdminConfigOrganization`, `useAdminConfigCoreData`, `useAdminConfigGraph` etc.) + Props-Buendelung in Domain-Bundles statt Flat-Spread. | HIGH | 1,5–2 d | high | opus | offen |
-| FE-2 | **Frontend-Rename `AdminTaskTemplate` → `AdminTaskSpec`, `templateKey` → `specKey`** (LA5-Watch). ~22 Files mechanisch (Types, Hooks, Services, Komponenten, Tests). Sed-Skript moeglich, danach manuelle Pruefung. Backend-DTO-Form bleibt unveraendert (siehe Watch-Item in `Legacy-Abbau-Plan.md`). | LOW | 0,5 d | medium | sonnet | offen |
-| FE-3 | **Builder-Komponenten-Tests ergaenzen** — 4 weitere sinnvolle Tests: (a) `parseCondition` mit nested-JSON Edge-Case, (b) `WorkflowBuilderActionEditor` Reorder-Lifecycle, (c) `WorkflowBuilderMeasurePreview` mit echten Conditions/Dependencies, (d) `topologicallyOrderNodes` Zyklen-Edge-Case. | LOW | 1 d | medium | sonnet | offen |
-| FE-4 | **Pagination Inline-Select** (UI-9). `WorkflowListFilters.tsx:137–152` — separate Buttons → `<select>` fuer Seite + "Erste/Letzte"-Shortcut-Buttons. Kosmetisch, aber Tab-Reihenfolge wird besser. | LOW | 0,5 d | low | sonnet | offen |
-| FE-5 | **Form-Pattern explicit `htmlFor`/`id`** (UI-1). Implicit-Association ist WCAG-konform, aber `htmlFor`-Pattern ist robuster bei Screen-Reader-Span-Click. Konsistent ueber `WorkflowListFilters`, `EmployeeForm`, `RoleSelection` ziehen. | LOW | 0,5 d | low | sonnet | offen |
+| FE-2 | **Frontend-Rename `AdminTaskTemplate` → `AdminTaskSpec`, `templateKey` → `specKey`** (LA5-Watch). ~22 Files mechanisch (Types, Hooks, Services, Komponenten, Tests). Sed-Skript moeglich, danach manuelle Pruefung. Backend-DTO-Form bleibt unveraendert (siehe Watch-Item in `Legacy-Abbau-Plan.md`). | LOW | 0,5 d | medium | sonnet | ✓ done (2026-05-03) |
+| FE-3 | **Builder-Komponenten-Tests ergaenzen** — 4 weitere sinnvolle Tests: (a) `parseCondition` mit nested-JSON Edge-Case, (b) `WorkflowBuilderActionEditor` Reorder-Lifecycle, (c) `WorkflowBuilderMeasurePreview` mit echten Conditions/Dependencies, (d) `topologicallyOrderNodes` Zyklen-Edge-Case. | LOW | 1 d | medium | sonnet | ✓ done (2026-05-03) |
+| FE-4 | **Pagination Inline-Select** (UI-9). `WorkflowListFilters.tsx:137–152` — separate Buttons → `<select>` fuer Seite + "Erste/Letzte"-Shortcut-Buttons. Kosmetisch, aber Tab-Reihenfolge wird besser. | LOW | 0,5 d | low | sonnet | ✓ done (2026-05-03) |
+| FE-5 | **Form-Pattern explicit `htmlFor`/`id`** (UI-1). Implicit-Association ist WCAG-konform, aber `htmlFor`-Pattern ist robuster bei Screen-Reader-Span-Click. Konsistent ueber `WorkflowListFilters`, `EmployeeForm`, `RoleSelection` ziehen. | LOW | 0,5 d | low | sonnet | ✓ done (2026-05-03) |
 | FE-6 | **Mobile/Tablet-Layout dichte Listen** (UI-5 / R10). `RotationOperationsPage` Task-List + `WorkflowListResults` brauchen `<1024px`-Card-Variante. Aktuell Desktop-First, intern genutzt — kein konkreter Schmerz. | LOW | 1,5 d | medium | sonnet | defer — kein konkreter Bedarf |
-| FE-7 | **Dark-Mode Visual-Regression-Pass** (UI-10). 150+ Tokens im CSS-Variable-System. Sichtprueftest pro Page (Theme-Toggle + Screenshot). Storybook-Setup wuerde es automatisieren — separate Diskussion. | MEDIUM | 0,5 d sichtprueftest / 3 d Storybook | medium | sonnet | offen — manuell startbar |
+| FE-7 | **Dark-Mode Visual-Regression-Pass** (UI-10). 150+ Tokens im CSS-Variable-System. Sichtprueftest pro Page (Theme-Toggle + Screenshot). Storybook-Setup wuerde es automatisieren — separate Diskussion. | MEDIUM | 0,5 d sichtprueftest / 3 d Storybook | medium | sonnet | offen — Checkliste bereit (s.u.) |
 | FE-8 | **`approval_task_template_key` → `approval_spec_key`** (LA5-Watch). Spalte auf `workflow_definitions` heisst nominell noch `_template_key`, semantisch ist es Spec-Key. ~30 Files Backend+Frontend Rename. Cosmetic-Schuld, kein Funktionsproblem. | LOW | 1 d | medium | sonnet | defer ohne Trigger |
 | FE-9 | **Spec-Carry-Over zwischen Definition-Versionen** (LA5-Watch). Wenn Admin per Builder eine neue Definition-Version published, werden Specs aktuell **nicht automatisch** vom alten zum neuen Massnahmen-Node geklont. Pre-Prod ohne Versions-Wechsel-Praxis — wird relevant, sobald Builder echte Versionswechsel produziert. Braucht Architektur-Skizze (clone-on-publish vs. Spec-DTO im Draft). | HIGH | 2–3 d | high | opus | defer — erst bei Builder-Use-Cases |
 | FE-10 | **Browser-Verifikation Form-Editor** (R8). Alle 12 Schritt-Typen durchklicken (start, end, form, approval, task, decision, parallel_split/join, automation, measure_*). Manuelle Nutzer-Aufgabe — KI kann nicht pruefen. | MEDIUM | 0,5 d | — | — | offen — Nutzer-Aufgabe |
+
+---
+
+## FE-7: Dark-Mode Sichtpruef-Checkliste
+
+Jede Page im Browser oeffnen, Theme-Toggle aktivieren (`data-theme="dark"`), folgende Punkte pruefen:
+
+### Pro Page pruefen
+- [ ] Text-Kontrast ausreichend (keine grauen Texte auf dunklem Hintergrund)
+- [ ] Karten-/Panel-Hintergrnde sichtbar abgegrenzt (nicht flach)
+- [ ] Buttons (`btn-primary`, `btn-secondary`, `btn-ghost`) deutlich lesbar
+- [ ] Form-Inputs (`form-input`, `form-select`, `form-textarea`) sichtbarer Rahmen
+- [ ] Badges (`badge-*`) korrekte Farben
+- [ ] Focus-Rings sichtbar bei Tab-Navigation
+- [ ] Hover-States sichtbar
+
+### Pages in Reihenfolge
+- [ ] WorkflowListPage (Liste + Filter + Pagination)
+- [ ] WorkflowDetailPage / SupervisorStepPage (Task-Cards, Kommentare, Audit-Log)
+- [ ] CreateWorkflowPage (EmployeeForm, RoleSelection)
+- [ ] AdminConfigPage (Tabs: Prozesstypen, Templates, Conditions, Dependencies, Antworten, Rollen-Defaults, Verzeichnis)
+- [ ] WorkflowBuilderPage (StepCard, Condition-Editor, Action-Editor, MeasurePreview, Dependency-Graph)
+- [ ] RotationPlanningPage / RotationPlanDetailPage
+- [ ] RotationOperationsPage / RotationTaskDetailPage
+- [ ] MyTasksPage
+
+### Bekannte Risikostellen
+- `wf-measure-preview-body` Hintergrund-Token pruefwuerdig
+- `dep-status-badge--*` Farben fuer alle `requiredStatus`-Werte
+- `panel-note` in `DependencyGraphEditor` bei leerem Zustand
+- Alert/Error-Banner-Farben (`wf-step-card-hint--error`, `--warning`, `--info`)
 
 ---
 

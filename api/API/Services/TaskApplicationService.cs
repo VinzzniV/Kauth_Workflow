@@ -27,7 +27,7 @@ internal sealed class TaskApplicationService(
 
             // Users without override see only tasks they could possibly act on:
             // primary assignment matches user/responsibility AND workflow not terminal.
-            // Mirrors MatchesTaskAssignment in SQL so a 10k-task table doesn't have
+            // Mirrors IsAssignedToTask in SQL so a 10k-task table doesn't have
             // to round-trip in full just to be filtered down to a handful in-memory.
             // Override users (rare, non-admin with TasksAssignOverride) keep the
             // full list because they can act on any task.

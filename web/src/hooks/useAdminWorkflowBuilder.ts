@@ -6,7 +6,7 @@ import {
   getAdminWorkflowActionDefinitions,
   type AdminAutomationPropertyCatalog,
   getAdminWorkflowDefinitionVersion,
-  getOrCreateAdminWorkflowDefinitionWorkingDraft,
+  ensureAdminWorkflowDefinitionWorkingDraft,
   getAdminWorkflowDefinitions,
   publishAdminWorkflowDefinitionVersion,
   replaceAdminWorkflowDefinitionVersion,
@@ -220,7 +220,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
     setIsLoadingVersion(true);
     try {
-      const detail = await getOrCreateAdminWorkflowDefinitionWorkingDraft(definitionId);
+      const detail = await ensureAdminWorkflowDefinitionWorkingDraft(definitionId);
       applyLoadedVersionDetail(detail);
 
       if (options?.refreshDefinitions ?? true) {

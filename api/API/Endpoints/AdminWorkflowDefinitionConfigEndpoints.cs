@@ -209,7 +209,7 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
 
             try
             {
-                var version = await repository.GetOrCreateAdminWorkflowDefinitionWorkingDraft(definitionId);
+                var version = await repository.EnsureAdminWorkflowDefinitionWorkingDraft(definitionId);
                 return version is null
                     ? Results.NotFound(new { message = "Workflow definition not found." })
                     : Results.Ok(version);

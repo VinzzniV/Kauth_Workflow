@@ -291,7 +291,7 @@ WHERE id = @definitionId;
         return await GetAdminWorkflowDefinitionVersionSummaryById(connection, null, versionId);
     }
 
-    public async Task<WorkflowDefinitionVersionDetailDto?> GetOrCreateAdminWorkflowDefinitionWorkingDraft(int definitionId)
+    public async Task<WorkflowDefinitionVersionDetailDto?> EnsureAdminWorkflowDefinitionWorkingDraft(int definitionId)
     {
         if (definitionId <= 0)
         {
@@ -889,7 +889,7 @@ LIMIT 1;
 
     // ToDraftNode/ToDraftEdge/PersistWorkflowDefinitionVersionGraph/HasWorkflowNodePositionColumns
     // wurden in WorkflowDefinitionGraphMappingOperations.cs ausgelagert (HQ3-Z3, 2026-05-02).
-    // Sie werden weiterhin von dieser Datei (GetOrCreateAdminWorkflowDefinitionWorkingDraft,
+    // Sie werden weiterhin von dieser Datei (EnsureAdminWorkflowDefinitionWorkingDraft,
     // ReplaceAdminWorkflowDefinitionVersion, GetAdminWorkflowDefinitionVersionDetailById)
     // ueber die partial-class-Mitgliedschaft aufgerufen.
 

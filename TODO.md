@@ -68,8 +68,8 @@ Detailanalyse in `KauthWorkflow/Stand/Legacy-Abbau-Plan.md`. Empfohlene Reihenfo
 **Watch-Items (unveraendert):**
 - **LQ2-Z3** `EntraDirectorySyncService` (2222 Z.) — defer ohne Trigger.
 - **LQ4-Z3** `AdminConfigPage` (423 Z., 7 Hooks) — beobachten; bei 8. Hook splitten.
-- **LQ3-Z4** `GetOrCreate…WorkingDraft` → `Ensure…` — defer bis Beruehrungs-Anlass.
-- **LQ4-Z4** `MatchesTaskAssignment`-Predicate-Rename — defer bis Beruehrungs-Anlass.
+- ~~**LQ3-Z4** `GetOrCreate…WorkingDraft` → `Ensure…`~~ — ✓ erledigt 2026-05-03
+- ~~**LQ4-Z4** `MatchesTaskAssignment`-Predicate-Rename~~  → `IsAssignedToTask` — ✓ erledigt 2026-05-03
 
 ---
 
@@ -83,8 +83,8 @@ Detailanalyse in `KauthWorkflow/Stand/Legacy-Abbau-Plan.md`. Empfohlene Reihenfo
 | HQ2-Z4 | `responsibilityIds` → `effectiveResponsibilityIds` (Methoden-Signaturen + Struct-Field) | ✓ done |
 | LQ1-Z4 | `ParseDecisionCondition`-Exception mit Edge-Kontext anreichern | ✓ done |
 | LQ2-Z4 | Sub-Section-Error-Boundaries in `AdminConfigPage` + `WorkflowDetailPage` | ✓ done |
-| LQ3-Z4 | `GetOrCreate…WorkingDraft` → `Ensure…` | defer |
-| LQ4-Z4 | `MatchesTaskAssignment`-Predicate-Rename | defer |
+| LQ3-Z4 | `GetOrCreate…WorkingDraft` → `Ensure…` | ✓ done (2026-05-03) |
+| LQ4-Z4 | `MatchesTaskAssignment` → `IsAssignedToTask` | ✓ done (2026-05-03) |
 
 ---
 

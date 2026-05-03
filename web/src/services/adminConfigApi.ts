@@ -373,7 +373,7 @@ export async function createAdminWorkflowDefinitionVersion(
   );
 }
 
-export async function getOrCreateAdminWorkflowDefinitionWorkingDraft(
+export async function ensureAdminWorkflowDefinitionWorkingDraft(
   definitionId: number
 ): Promise<AdminWorkflowDefinitionVersionDetail> {
   return requestJson<BackendAdminWorkflowDefinitionVersionDetailDto>(
