@@ -28,6 +28,12 @@ internal sealed class WorkflowRuntimeSnapshot
 
     public required bool RequiresSupervisorStep { get; init; }
 
+    // Workflow-Level-TemplateKey fuer den Bridge-Skip-Vergleich. Kommt aus
+    // PostgresWorkflowTaskGenerationService.LoadWorkflowTaskGenerationContextAsync
+    // (Workflow-Definition-Spalte `approval_task_template_key`). Wenn null/empty
+    // ist Bridge-Skip ausgeschaltet.
+    public required string? ApprovalTaskTemplateKey { get; init; }
+
     // Approval-Spec-Hints pro `workflow_node_id` fuer den Supervisor-Approval-
     // Bridge-Pfad (Q5/Q6-Kompromiss): Engine bekommt nur den TemplateKey vorab,
     // nicht die volle Spec. Reicht fuer ShouldAutoCompleteSupervisorApprovalBridge.
