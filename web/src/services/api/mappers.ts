@@ -37,6 +37,13 @@ import type {
   PersonWorkflowHistory,
   PersonWorkflowSummary,
 } from "../../types/workflow";
+import type {
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
+  AdminDependencyGraph,
+  AdminDependencyGraphEdge,
+} from "../../types/auth";
 import { coerceIconKey } from "../../utils/iconRegistry";
 import type {
   BackendProcessTypeDto,
@@ -71,6 +78,11 @@ import type {
   BackendWorkflowTaskMetricsDto,
   BackendPersonWorkflowHistoryDto,
   BackendPersonWorkflowSummaryDto,
+  BackendAdminTaskTemplateDto,
+  BackendAdminTaskTemplateConditionDto,
+  BackendAdminTaskTemplateDependencyDto,
+  BackendAdminDependencyGraphDto,
+  BackendAdminDependencyGraphEdgeDto,
 } from "./backendDtos";
 
 export type * from "./backendDtos";
@@ -480,5 +492,69 @@ export function mapPersonWorkflowHistory(dto: BackendPersonWorkflowHistoryDto): 
     latestCompletedOnboardingWorkflowUid: dto.latestCompletedOnboardingWorkflowUid,
     latestCompletedOnboardingAt: dto.latestCompletedOnboardingAt,
     workflows: dto.workflows.map(mapPersonWorkflowSummary),
+  };
+}
+
+// ─── LA5: Backend ↔ Frontend Spec-Mapper ────────────────────────────────────
+
+export function mapAdminTaskSpec(dto: BackendAdminTaskTemplateDto): AdminTaskSpec {
+  return {
+    id: dto.id,
+    workflowDefinitionId: dto.workflowDefinitionId,
+    specKey: dto.templateKey,
+    title: dto.title,
+    category: dto.category,
+    description: dto.description,
+    iconKey: dto.iconKey,
+    owningDepartmentId: dto.owningDepartmentId,
+    defaultResponsibilityId: dto.defaultResponsibilityId,
+    processAreaLabel: dto.processAreaLabel,
+    isDepartmentPhaseTask: dto.isDepartmentPhaseTask,
+    isRequired: dto.isRequired,
+    dueInDays: dto.dueInDays,
+    sortOrder: dto.sortOrder,
+    isActive: dto.isActive,
+    createdAt: dto.createdAt,
+    conditionCount: dto.conditionCount,
+    dependencyCount: dto.dependencyCount,
+  };
+}
+
+export function mapAdminTaskSpecCondition(dto: BackendAdminTaskTemplateConditionDto): AdminTaskSpecCondition {
+  return {
+    id: dto.id,
+    taskSpecId: dto.taskTemplateId,
+    conditionGroup: dto.conditionGroup,
+    answerKey: dto.answerKey,
+    operator: dto.operator,
+    expectedValueText: dto.expectedValueText,
+    expectedValueBoolean: dto.expectedValueBoolean,
+    expectedValueNumber: dto.expectedValueNumber,
+  };
+}
+
+export function mapAdminTaskSpecDependency(dto: BackendAdminTaskTemplateDependencyDto): AdminTaskSpecDependency {
+  return {
+    id: dto.id,
+    taskSpecId: dto.taskTemplateId,
+    dependsOnTaskSpecId: dto.dependsOnTaskTemplateId,
+    dependsOnSpecTitle: dto.dependsOnTemplateTitle,
+    requiredStatus: dto.requiredStatus,
+  };
+}
+
+export function mapAdminDependencyGraphEdge(dto: BackendAdminDependencyGraphEdgeDto): AdminDependencyGraphEdge {
+  return {
+    id: dto.id,
+    sourceSpecId: dto.sourceTemplateId,
+    targetSpecId: dto.targetTemplateId,
+    requiredStatus: dto.requiredStatus,
+  };
+}
+
+export function mapAdminDependencyGraph(dto: BackendAdminDependencyGraphDto): AdminDependencyGraph {
+  return {
+    nodes: dto.nodes,
+    edges: dto.edges.map(mapAdminDependencyGraphEdge),
   };
 }

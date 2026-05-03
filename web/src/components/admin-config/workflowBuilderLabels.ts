@@ -41,7 +41,7 @@ export const WORKFLOW_BUILDER_TECHNICAL_LABELS = {
   priority: "Pfad-Reihenfolge",
   conditionExpression: "Bedingung",
   processTypeKey: "Prozessbezug",
-  templateKey: "Vorlage",
+  specKey: "Vorlage",
   nodeKey: "Technischer Schritt-Key",
   sortOrder: "Sortierung",
   configJson: "Technische Konfiguration",

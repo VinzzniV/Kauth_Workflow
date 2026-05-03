@@ -31,13 +31,8 @@ import type {
   AdminSystemLogSummary,
   AdminAnswerDefinition,
   ClientLogEventRequest,
-  AdminDependencyGraph,
-  AdminDependencyGraphEdge,
   AdminDependencyGraphNode,
   AdminRoleAnswerDefault,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
-  AdminTaskTemplate,
   AdminResponsibilityOwner,
   AdminRole,
   AdminUser,
@@ -433,12 +428,63 @@ export type BackendWorkflowTargetPersonDto = WorkflowTargetPerson;
 export type BackendWorkflowTargetPersonSourceDto = WorkflowTargetPersonSource;
 export type BackendWorkflowStartableDefinitionDto = import("../../types/workflow").StartableWorkflowDefinition;
 export type BackendDerivedAnswerDto = DerivedAnswer;
-export type BackendAdminTaskTemplateDto = AdminTaskTemplate;
-export type BackendAdminTaskTemplateConditionDto = AdminTaskTemplateCondition;
-export type BackendAdminTaskTemplateDependencyDto = AdminTaskTemplateDependency;
+// LA5: Wire-DTOs bewahren die alten Property-Namen (`templateKey`, `taskTemplateId`,
+// `dependsOnTaskTemplateId`, `dependsOnTemplateTitle`) fuer Backend-Kompatibilitaet.
+// Mapper in `mappers.ts` uebersetzen zu/von AdminTaskSpec mit `specKey`/`taskSpecId`.
+export type BackendAdminTaskTemplateDto = {
+  id: number;
+  workflowDefinitionId: number;
+  templateKey: string;
+  title: string;
+  category: string;
+  description: string;
+  iconKey: string | null;
+  owningDepartmentId: number | null;
+  defaultResponsibilityId: number | null;
+  processAreaLabel: string | null;
+  isDepartmentPhaseTask: boolean;
+  isRequired: boolean;
+  dueInDays: number | null;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  conditionCount: number;
+  dependencyCount: number;
+};
+
+export type BackendAdminTaskTemplateConditionDto = {
+  id: number;
+  taskTemplateId: number;
+  conditionGroup: number;
+  answerKey: string;
+  operator: "eq" | "neq" | "is_true" | "is_false" | "is_null" | "is_not_null";
+  expectedValueText: string | null;
+  expectedValueBoolean: boolean | null;
+  expectedValueNumber: number | null;
+};
+
+export type BackendAdminTaskTemplateDependencyDto = {
+  id: number;
+  taskTemplateId: number;
+  dependsOnTaskTemplateId: number;
+  dependsOnTemplateTitle: string;
+  requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
+};
 export type BackendAdminDependencyGraphNodeDto = AdminDependencyGraphNode;
-export type BackendAdminDependencyGraphEdgeDto = AdminDependencyGraphEdge;
-export type BackendAdminDependencyGraphDto = AdminDependencyGraph;
+
+// LA5: Wire-Edge bewahrt sourceTemplateId/targetTemplateId. Mapper konvertiert
+// zu sourceSpecId/targetSpecId fuer das Frontend.
+export type BackendAdminDependencyGraphEdgeDto = {
+  id: number;
+  sourceTemplateId: number;
+  targetTemplateId: number;
+  requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
+};
+
+export type BackendAdminDependencyGraphDto = {
+  nodes: BackendAdminDependencyGraphNodeDto[];
+  edges: BackendAdminDependencyGraphEdgeDto[];
+};
 export type BackendAdminAnswerDefinitionDto = AdminAnswerDefinition;
 export type BackendAdminRoleAnswerDefaultDto = AdminRoleAnswerDefault;
 export type BackendAdminWorkflowValidationIssueDto = AdminWorkflowValidationIssue;

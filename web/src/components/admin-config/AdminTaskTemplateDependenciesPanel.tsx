@@ -1,26 +1,26 @@
 import type {
   AdminDependencyGraph,
-  AdminTaskTemplate,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecDependency,
 } from "../../types/auth";
 import type { DependencyStatus } from "../../hooks/adminTaskTemplateManagementModel";
 import { DependencyGraphEditor } from "./DependencyGraphEditor";
 import SectionHeader from "../ui/SectionHeader";
 
 type AdminTaskTemplateDependenciesPanelProps = {
-  selectedTemplate: AdminTaskTemplate;
-  templates: AdminTaskTemplate[];
+  selectedTemplate: AdminTaskSpec;
+  templates: AdminTaskSpec[];
   dependencyGraph: AdminDependencyGraph;
-  dependencies: AdminTaskTemplateDependency[];
+  dependencies: AdminTaskSpecDependency[];
   isLoadingDependencyGraph: boolean;
   isLoadingTemplates: boolean;
   isLoadingDependencies: boolean;
   isSavingDependency: boolean;
   deletingDependencyId: number | null;
-  onSelectTemplate: (template: AdminTaskTemplate) => void;
+  onSelectTemplate: (template: AdminTaskSpec) => void;
   onCreateDependencyFromGraph: (
-    sourceTemplateId: number,
-    targetTemplateId: number,
+    sourceSpecId: number,
+    targetSpecId: number,
     requiredStatus: DependencyStatus
   ) => Promise<void>;
   onRemoveDependencyFromGraph: (dependencyId: number) => Promise<void>;
@@ -82,7 +82,7 @@ export function AdminTaskTemplateDependenciesPanel({
             <tbody>
               {dependencies.map((dependency) => (
                 <tr key={dependency.id}>
-                  <td>{dependency.dependsOnTemplateTitle}</td>
+                  <td>{dependency.dependsOnSpecTitle}</td>
                   <td>{dependency.requiredStatus}</td>
                   <td>
                     <button

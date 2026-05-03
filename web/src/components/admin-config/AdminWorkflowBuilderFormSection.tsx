@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useAdminWorkflowBuilder } from "../../hooks/useAdminWorkflowBuilder";
 import {
@@ -372,7 +373,10 @@ function Section1Stammdaten({
         onClick={() => setTechOpen((v) => !v)}
         aria-expanded={techOpen}
       >
-        {techOpen ? "▼" : "►"} Technische Details
+        {techOpen
+          ? <ChevronDown size={14} aria-hidden="true" />
+          : <ChevronRight size={14} aria-hidden="true" />}
+        <span>Technische Details</span>
       </button>
 
       {techOpen && (
@@ -444,8 +448,8 @@ function Section2Steps({
       <div className="wf-form-section-head">
         <h2 className="wf-form-section-title">2 — Schritte</h2>
         <p className="wf-form-section-subtitle">
-          Welche Schritte hat der Workflow? Reihenfolge folgt aus den Übergängen (Sektion 3) — die ↑/↓-Buttons
-          wirken nur als Tie-Breaker bei mehrdeutigen Pfaden.
+          Welche Schritte hat der Workflow? Reihenfolge folgt aus den Übergängen (Sektion 3) — die Pfeil-Buttons
+          (Hoch/Runter pro Schritt) wirken nur als Tie-Breaker bei mehrdeutigen Pfaden.
         </p>
       </div>
 
@@ -506,7 +510,8 @@ function Section2Steps({
             aria-haspopup="menu"
             disabled={!canManageAdvanced}
           >
-            + Schritt hinzufügen ▼
+            <span>+ Schritt hinzufügen</span>
+            <ChevronDown size={14} aria-hidden="true" />
           </button>
           {addOpen && (
             <div className="wf-step-add-menu" role="menu" style={{ maxHeight: "320px", overflowY: "auto" }}>
@@ -656,7 +661,7 @@ function Section3Edges({
                         className="wf-step-card-iconbtn wf-step-card-iconbtn--danger"
                         onClick={() => builder.removeEdge(edge.id)}
                         aria-label="Übergang entfernen"
-                      >✕</button>
+                      ><X size={16} aria-hidden="true" /></button>
                     </td>
                   </tr>
                 );

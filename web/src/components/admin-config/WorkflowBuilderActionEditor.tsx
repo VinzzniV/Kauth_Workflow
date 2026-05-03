@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import type {
   AdminAnswerDefinition,
   AdminWorkflowActionDefinition,
@@ -96,21 +97,21 @@ export function WorkflowBuilderActionEditor({
                       onClick={() => moveAction(action.id, "up")}
                       disabled={isFirst || !canManageAdvanced}
                       aria-label="Nach oben"
-                    >↑</button>
+                    ><ChevronUp size={16} aria-hidden="true" /></button>
                     <button
                       type="button"
                       className="wf-step-card-iconbtn"
                       onClick={() => moveAction(action.id, "down")}
                       disabled={isLast || !canManageAdvanced}
                       aria-label="Nach unten"
-                    >↓</button>
+                    ><ChevronDown size={16} aria-hidden="true" /></button>
                     <button
                       type="button"
                       className="wf-step-card-iconbtn wf-step-card-iconbtn--danger"
                       onClick={() => onRemoveAction(action.id)}
                       disabled={!canManageAdvanced}
                       aria-label="Aktion entfernen"
-                    >✕</button>
+                    ><X size={16} aria-hidden="true" /></button>
                   </div>
                 </div>
 
@@ -145,7 +146,8 @@ export function WorkflowBuilderActionEditor({
             aria-expanded={addOpen}
             disabled={!canManageAdvanced || actionDefinitions.length === 0}
           >
-            + Aktion hinzufügen ▼
+            <span>+ Aktion hinzufügen</span>
+            <ChevronDown size={14} aria-hidden="true" />
           </button>
           {addOpen && (
             <div className="wf-step-add-menu" role="menu" style={{ maxHeight: "280px", overflowY: "auto" }}>

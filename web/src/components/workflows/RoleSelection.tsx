@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import type { Department, Role } from "../../types/workflow";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
@@ -30,6 +30,10 @@ export default function RoleSelection({
   onRoleChange,
   onRetry,
 }: Props) {
+  // FE-5: explicit htmlFor/id paaren Label und Select.
+  const departmentId = useId();
+  const roleId = useId();
+
   const visibleRoles = useMemo(() => {
     if (selectedDepartmentId === null) {
       return [];
@@ -64,9 +68,10 @@ export default function RoleSelection({
       {!isLoading && !error ? (
         <>
           <div className="form-grid">
-            <label className={`field ${departmentError ? "field-invalid" : ""}`}>
-              <span>Abteilung *</span>
+            <div className={`field ${departmentError ? "field-invalid" : ""}`}>
+              <label htmlFor={departmentId}>Abteilung *</label>
               <select
+                id={departmentId}
                 value={selectedDepartmentId ?? ""}
                 onChange={(event) =>
                   onDepartmentChange(event.target.value ? Number(event.target.value) : null)
@@ -80,11 +85,12 @@ export default function RoleSelection({
                 ))}
               </select>
               {departmentError ? <small className="field-error">{departmentError}</small> : null}
-            </label>
+            </div>
 
-            <label className={`field ${roleError ? "field-invalid" : ""}`}>
-              <span>Stelle *</span>
+            <div className={`field ${roleError ? "field-invalid" : ""}`}>
+              <label htmlFor={roleId}>Stelle *</label>
               <select
+                id={roleId}
                 value={selectedRoleId ?? ""}
                 disabled={selectedDepartmentId === null}
                 onChange={(event) => onRoleChange(event.target.value ? Number(event.target.value) : null)}
@@ -97,7 +103,7 @@ export default function RoleSelection({
                 ))}
               </select>
               {roleError ? <small className="field-error">{roleError}</small> : null}
-            </label>
+            </div>
           </div>
         </>
       ) : null}

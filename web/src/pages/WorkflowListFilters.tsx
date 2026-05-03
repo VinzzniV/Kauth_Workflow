@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Link } from "react-router-dom";
 import type { StartableWorkflowDefinition, WorkflowResponsibilityOption, WorkflowRuntimeStatus } from "../types/workflow";
 
@@ -24,6 +25,7 @@ type WorkflowListFiltersProps = {
   onRefresh: () => void;
   onPreviousPage: () => void;
   onNextPage: () => void;
+  onPageIndexChange: (next: number) => void;
 };
 
 export function WorkflowListFilters({
@@ -49,7 +51,16 @@ export function WorkflowListFilters({
   onRefresh,
   onPreviousPage,
   onNextPage,
+  onPageIndexChange,
 }: WorkflowListFiltersProps) {
+  // FE-5: explicit htmlFor/id paaren Label und Input — robuster fuer Screen-Reader
+  // als die implicit-Association via verschachteltem <label>.
+  const searchId = useId();
+  const statusId = useId();
+  const definitionId = useId();
+  const departmentId = useId();
+  const responsibilityId = useId();
+  const pageSelectId = useId();
   return (
     <section className="panel">
       <div className="panel-head">
@@ -62,19 +73,24 @@ export function WorkflowListFilters({
       </div>
 
       <div className="toolbar-row toolbar-row-filters workflow-filter-bar">
-        <label className="field compact grow">
-          <span>Suche im Überblick</span>
+        <div className="field compact grow">
+          <label htmlFor={searchId}>Suche im Überblick</label>
           <input
+            id={searchId}
             type="text"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="z. B. Name, Stelle oder ID in den laufenden Vorgängen"
           />
-        </label>
+        </div>
 
-        <label className="field compact">
-          <span>Status</span>
-          <select value={statusFilter} onChange={(event) => onStatusChange(event.target.value as "all" | WorkflowRuntimeStatus)}>
+        <div className="field compact">
+          <label htmlFor={statusId}>Status</label>
+          <select
+            id={statusId}
+            value={statusFilter}
+            onChange={(event) => onStatusChange(event.target.value as "all" | WorkflowRuntimeStatus)}
+          >
             <option value="all">Alle</option>
             <option value="draft">HR startet</option>
             <option value="waiting_for_supervisor">Wartet auf Abteilungsleitung</option>
@@ -82,7 +98,7 @@ export function WorkflowListFilters({
             <option value="in_progress">Fachbereiche in Bearbeitung</option>
             <option value="completed">Abgeschlossen</option>
           </select>
-        </label>
+        </div>
 
         <button type="button" className="btn btn-secondary" onClick={onRefresh} disabled={isRefreshing}>
           {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
@@ -92,9 +108,13 @@ export function WorkflowListFilters({
       <details className="workflow-filter-details" open={hasAdvancedFilters}>
         <summary>Weitere Filter{advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}</summary>
         <div className="toolbar-row toolbar-row-filters workflow-filter-bar workflow-filter-bar--details">
-          <label className="field compact">
-            <span>Prozesstyp</span>
-            <select value={workflowDefinitionFilter} onChange={(event) => onWorkflowDefinitionChange(event.target.value)}>
+          <div className="field compact">
+            <label htmlFor={definitionId}>Prozesstyp</label>
+            <select
+              id={definitionId}
+              value={workflowDefinitionFilter}
+              onChange={(event) => onWorkflowDefinitionChange(event.target.value)}
+            >
               <option value="all">Alle</option>
               {workflowDefinitionOptions.map((definition) => (
                 <option key={definition.definitionKey} value={definition.definitionKey}>
@@ -102,11 +122,15 @@ export function WorkflowListFilters({
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="field compact">
-            <span>Abteilung</span>
-            <select value={departmentFilter} onChange={(event) => onDepartmentChange(event.target.value)}>
+          <div className="field compact">
+            <label htmlFor={departmentId}>Abteilung</label>
+            <select
+              id={departmentId}
+              value={departmentFilter}
+              onChange={(event) => onDepartmentChange(event.target.value)}
+            >
               <option value="all">Alle</option>
               {departmentOptions.map(([id, name]) => (
                 <option key={id} value={id}>
@@ -114,11 +138,15 @@ export function WorkflowListFilters({
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="field compact">
-            <span>Zuständiger Bereich</span>
-            <select value={responsibilityFilter} onChange={(event) => onResponsibilityChange(event.target.value)}>
+          <div className="field compact">
+            <label htmlFor={responsibilityId}>Zuständiger Bereich</label>
+            <select
+              id={responsibilityId}
+              value={responsibilityFilter}
+              onChange={(event) => onResponsibilityChange(event.target.value)}
+            >
               <option value="all">Alle</option>
               {responsibilityOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -126,29 +154,46 @@ export function WorkflowListFilters({
                 </option>
               ))}
             </select>
-          </label>
+          </div>
         </div>
       </details>
 
-      <div className="toolbar-row">
+      <div className="toolbar-row workflow-filter-pagination">
         <p className="panel-note">
-          Seite {pageIndex + 1} von {totalPages} · {totalCount} Einträge
+          {totalCount} Einträge insgesamt
         </p>
         <button
           type="button"
           className="btn btn-secondary"
           onClick={onPreviousPage}
           disabled={pageIndex === 0 || isRefreshing}
+          aria-label="Vorherige Seite"
         >
-          Vorherige Seite
+          ← Zurück
         </button>
+        <div className="field compact">
+          <label htmlFor={pageSelectId}>Seite</label>
+          <select
+            id={pageSelectId}
+            value={pageIndex}
+            onChange={(event) => onPageIndexChange(Number(event.target.value))}
+            disabled={isRefreshing || totalPages <= 1}
+          >
+            {Array.from({ length: Math.max(totalPages, 1) }, (_, idx) => (
+              <option key={idx} value={idx}>
+                {idx + 1} von {totalPages || 1}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="button"
           className="btn btn-secondary"
           onClick={onNextPage}
           disabled={isRefreshing || pageIndex + 1 >= totalPages}
+          aria-label="Nächste Seite"
         >
-          Nächste Seite
+          Weiter →
         </button>
       </div>
     </section>

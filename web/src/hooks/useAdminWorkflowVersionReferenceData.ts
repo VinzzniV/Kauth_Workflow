@@ -7,18 +7,18 @@ import {
 } from "../services/adminConfigApi";
 import type {
   AdminAnswerDefinition,
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
   AdminWorkflowDefinitionSummary,
 } from "../types/auth";
 import type { WorkflowBuilderVersionDraft } from "./adminWorkflowBuilderModel";
 
 export type AdminWorkflowVersionReferenceData = {
-  taskTemplates: AdminTaskTemplate[];
+  taskTemplates: AdminTaskSpec[];
   answerDefinitions: AdminAnswerDefinition[];
-  taskTemplateConditions: AdminTaskTemplateCondition[];
-  taskTemplateDependencies: AdminTaskTemplateDependency[];
+  taskTemplateConditions: AdminTaskSpecCondition[];
+  taskTemplateDependencies: AdminTaskSpecDependency[];
 };
 
 const EMPTY: AdminWorkflowVersionReferenceData = {
@@ -100,11 +100,11 @@ export function useAdminWorkflowVersionReferenceData(
           return;
         }
 
-        const templatesByKey = new Map<string, AdminTaskTemplate>();
+        const templatesByKey = new Map<string, AdminTaskSpec>();
         const answerDefinitionsByCompositeKey = new Map<string, AdminAnswerDefinition>();
         for (const [loadedTemplates, loadedAnswerDefinitions] of loadedGroups) {
           for (const template of loadedTemplates) {
-            const normalizedKey = template.templateKey.trim().toLowerCase();
+            const normalizedKey = template.specKey.trim().toLowerCase();
             if (normalizedKey && !templatesByKey.has(normalizedKey)) {
               templatesByKey.set(normalizedKey, template);
             }

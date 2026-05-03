@@ -35,7 +35,7 @@ export function useAdminTaskTemplateTemplateMutations({
       throw new Error("Bitte zuerst einen Prozesstyp auswählen.");
     }
 
-    if (!data.draft.templateKey.trim()) {
+    if (!data.draft.specKey.trim()) {
       throw new Error("Template Key ist erforderlich.");
     }
 
@@ -56,7 +56,7 @@ export function useAdminTaskTemplateTemplateMutations({
 
     return {
       workflowDefinitionId: data.selectedWorkflowDefinitionId,
-      templateKey: data.draft.templateKey.trim(),
+      specKey: data.draft.specKey.trim(),
       title: data.draft.title.trim(),
       category: data.draft.category.trim() || "general",
       description: data.draft.description,
@@ -186,7 +186,7 @@ export function useAdminTaskTemplateTemplateMutations({
       data.setDependencyGraph((current) => ({
         nodes: current.nodes.filter((node) => node.id !== selectedTemplate.id),
         edges: current.edges.filter(
-          (edge) => edge.sourceTemplateId !== selectedTemplate.id && edge.targetTemplateId !== selectedTemplate.id
+          (edge) => edge.sourceSpecId !== selectedTemplate.id && edge.targetSpecId !== selectedTemplate.id
         ),
       }));
       data.setConditions([]);

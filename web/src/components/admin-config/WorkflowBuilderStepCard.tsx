@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown, ChevronRight, ChevronUp, X } from "lucide-react";
 import type {
   WorkflowBuilderActionDraft,
   WorkflowBuilderNodeDraft,
@@ -8,9 +9,9 @@ import { isMeasureGenerationNodeType } from "../../hooks/adminWorkflowBuilderMod
 import type {
   AdminAnswerDefinition,
   AdminResponsibilityOwner,
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
   AdminWorkflowActionDefinition,
   AdminWorkflowDefinitionSummary,
 } from "../../types/auth";
@@ -31,10 +32,10 @@ export type WorkflowBuilderStepCardProps = {
   workflowDefinitions: AdminWorkflowDefinitionSummary[];
   actionDefinitions: AdminWorkflowActionDefinition[];
   automationPropertyCatalog: AdminAutomationPropertyCatalog | null;
-  taskTemplates: AdminTaskTemplate[];
+  taskTemplates: AdminTaskSpec[];
   answerDefinitions: AdminAnswerDefinition[];
-  taskTemplateConditions: AdminTaskTemplateCondition[];
-  taskTemplateDependencies: AdminTaskTemplateDependency[];
+  taskTemplateConditions: AdminTaskSpecCondition[];
+  taskTemplateDependencies: AdminTaskSpecDependency[];
   responsibilityOwners: AdminResponsibilityOwner[];
 
   onUpdate: (patch: Partial<WorkflowBuilderNodeDraft>) => void;
@@ -74,7 +75,7 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
             disabled={isFirst}
             title="Nach oben"
             aria-label="Nach oben verschieben"
-          >↑</button>
+          ><ChevronUp size={16} aria-hidden="true" /></button>
           <button
             type="button"
             className="wf-step-card-iconbtn"
@@ -82,14 +83,14 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
             disabled={isLast}
             title="Nach unten"
             aria-label="Nach unten verschieben"
-          >↓</button>
+          ><ChevronDown size={16} aria-hidden="true" /></button>
           <button
             type="button"
             className="wf-step-card-iconbtn wf-step-card-iconbtn--danger"
             onClick={onRemove}
             title="Schritt entfernen"
             aria-label="Schritt entfernen"
-          >✕</button>
+          ><X size={16} aria-hidden="true" /></button>
         </div>
       </div>
 
@@ -103,7 +104,10 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
         onClick={() => setTechOpen((v) => !v)}
         aria-expanded={techOpen}
       >
-        {techOpen ? "▼" : "►"} Technische Details
+        {techOpen
+          ? <ChevronDown size={14} aria-hidden="true" />
+          : <ChevronRight size={14} aria-hidden="true" />}
+        <span>Technische Details</span>
       </button>
 
       {techOpen && (

@@ -1,7 +1,7 @@
 import type {
   AdminAnswerDefinition,
   AdminResponsibilityOwner,
-  AdminTaskTemplate,
+  AdminTaskSpec,
 } from "../../types/auth";
 import type { WorkflowBuilderNodeDraft } from "../../hooks/adminWorkflowBuilderModel";
 import { parseConfig, writeString } from "./workflowBuilderEditorHelpers";
@@ -9,7 +9,7 @@ import { parseConfig, writeString } from "./workflowBuilderEditorHelpers";
 export type WorkflowBuilderStepConfigEditorProps = {
   node: WorkflowBuilderNodeDraft;
   responsibilityOwners: AdminResponsibilityOwner[];
-  taskTemplates: AdminTaskTemplate[];
+  taskTemplates: AdminTaskSpec[];
   answerDefinitions: AdminAnswerDefinition[];
   onUpdate: (patch: Partial<WorkflowBuilderNodeDraft>) => void;
 };

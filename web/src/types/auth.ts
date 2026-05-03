@@ -391,10 +391,15 @@ export type ClientLogEventRequest = {
   details?: unknown | null;
 };
 
-export type AdminTaskTemplate = {
+// LA5: Frontend-Typen heissen AdminTaskSpec*; Backend sendet weiter `templateKey`/
+// `taskTemplateId` ueber die Wire (siehe BackendAdminTaskTemplateDto in backendDtos.ts
+// + Mapper in services/api/mappers.ts). Spaltennamen im Backend-Schema sind bereits
+// `workflow_node_task_specs`; nur die Wire-DTOs bewahren die alten Property-Namen
+// fuer API-Kompatibilitaet.
+export type AdminTaskSpec = {
   id: number;
   workflowDefinitionId: number;
-  templateKey: string;
+  specKey: string;
   title: string;
   category: string;
   description: string;
@@ -412,9 +417,9 @@ export type AdminTaskTemplate = {
   dependencyCount: number;
 };
 
-export type AdminTaskTemplateCondition = {
+export type AdminTaskSpecCondition = {
   id: number;
-  taskTemplateId: number;
+  taskSpecId: number;
   conditionGroup: number;
   answerKey: string;
   operator: "eq" | "neq" | "is_true" | "is_false" | "is_null" | "is_not_null";
@@ -423,11 +428,11 @@ export type AdminTaskTemplateCondition = {
   expectedValueNumber: number | null;
 };
 
-export type AdminTaskTemplateDependency = {
+export type AdminTaskSpecDependency = {
   id: number;
-  taskTemplateId: number;
-  dependsOnTaskTemplateId: number;
-  dependsOnTemplateTitle: string;
+  taskSpecId: number;
+  dependsOnTaskSpecId: number;
+  dependsOnSpecTitle: string;
   requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
 };
 
@@ -439,8 +444,8 @@ export type AdminDependencyGraphNode = {
 
 export type AdminDependencyGraphEdge = {
   id: number;
-  sourceTemplateId: number;
-  targetTemplateId: number;
+  sourceSpecId: number;
+  targetSpecId: number;
   requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
 };
 

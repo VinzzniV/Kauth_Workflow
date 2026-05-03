@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { AdminDependencyGraph, AdminTaskTemplate } from "../../types/auth";
+import { X } from "lucide-react";
+import type { AdminDependencyGraph, AdminTaskSpec } from "../../types/auth";
 import { useConfirmationDialog } from "../feedback/useConfirmationDialog";
 
 type RequiredStatus = "open" | "ready" | "in_progress" | "blocked" | "done";
@@ -8,15 +9,15 @@ const REQUIRED_STATUS_OPTIONS: RequiredStatus[] = ["open", "ready", "in_progress
 
 type DependencyGraphEditorProps = {
   graph: AdminDependencyGraph;
-  templates: AdminTaskTemplate[];
+  templates: AdminTaskSpec[];
   selectedTemplateId: number | null;
   isLoading: boolean;
   isCreatingDependency: boolean;
   isDeletingDependency: boolean;
   onSelectTemplate: (templateId: number) => void;
   onCreateDependency: (
-    sourceTemplateId: number,
-    targetTemplateId: number,
+    sourceSpecId: number,
+    targetSpecId: number,
     requiredStatus: RequiredStatus
   ) => Promise<void>;
   onDeleteDependency: (dependencyId: number) => Promise<void>;
@@ -53,11 +54,11 @@ export function DependencyGraphEditor({
   const sortedEdges = useMemo(
     () =>
       [...graph.edges].sort((a, b) => {
-        const sa = templateIndex.get(a.sourceTemplateId)?.title ?? "";
-        const sb = templateIndex.get(b.sourceTemplateId)?.title ?? "";
+        const sa = templateIndex.get(a.sourceSpecId)?.title ?? "";
+        const sb = templateIndex.get(b.sourceSpecId)?.title ?? "";
         if (sa !== sb) return sa.localeCompare(sb, "de");
-        const ta = templateIndex.get(a.targetTemplateId)?.title ?? "";
-        const tb = templateIndex.get(b.targetTemplateId)?.title ?? "";
+        const ta = templateIndex.get(a.targetSpecId)?.title ?? "";
+        const tb = templateIndex.get(b.targetSpecId)?.title ?? "";
         return ta.localeCompare(tb, "de");
       }),
     [graph.edges, templateIndex]
@@ -81,7 +82,7 @@ export function DependencyGraphEditor({
     if (typeof draftSource !== "number" || typeof draftTarget !== "number") return;
     if (draftSource === draftTarget) return;
     const exists = graph.edges.some(
-      (e) => e.sourceTemplateId === draftSource && e.targetTemplateId === draftTarget
+      (e) => e.sourceSpecId === draftSource && e.targetSpecId === draftTarget
     );
     if (exists) return;
 
@@ -111,7 +112,7 @@ export function DependencyGraphEditor({
     typeof draftSource === "number"
     && typeof draftTarget === "number"
     && draftSource !== draftTarget
-    && !graph.edges.some((e) => e.sourceTemplateId === draftSource && e.targetTemplateId === draftTarget)
+    && !graph.edges.some((e) => e.sourceSpecId === draftSource && e.targetSpecId === draftTarget)
     && !isCreatingDependency;
 
   return (
@@ -210,29 +211,29 @@ export function DependencyGraphEditor({
             </thead>
             <tbody>
               {sortedEdges.map((edge) => {
-                const sourceTpl = templateIndex.get(edge.sourceTemplateId);
-                const targetTpl = templateIndex.get(edge.targetTemplateId);
+                const sourceTpl = templateIndex.get(edge.sourceSpecId);
+                const targetTpl = templateIndex.get(edge.targetSpecId);
                 return (
                   <tr key={edge.id}>
                     <td>
                       <button
                         type="button"
-                        className={`dep-editor-link${selectedTemplateId === edge.sourceTemplateId ? " dep-editor-link--selected" : ""}`}
-                        onClick={() => onSelectTemplate(edge.sourceTemplateId)}
+                        className={`dep-editor-link${selectedTemplateId === edge.sourceSpecId ? " dep-editor-link--selected" : ""}`}
+                        onClick={() => onSelectTemplate(edge.sourceSpecId)}
                         title="Template auswählen"
                       >
-                        {sourceTpl?.title ?? `#${edge.sourceTemplateId}`}
+                        {sourceTpl?.title ?? `#${edge.sourceSpecId}`}
                       </button>
                     </td>
                     <td className="dep-editor-arrow-cell" aria-hidden="true">→</td>
                     <td>
                       <button
                         type="button"
-                        className={`dep-editor-link${selectedTemplateId === edge.targetTemplateId ? " dep-editor-link--selected" : ""}`}
-                        onClick={() => onSelectTemplate(edge.targetTemplateId)}
+                        className={`dep-editor-link${selectedTemplateId === edge.targetSpecId ? " dep-editor-link--selected" : ""}`}
+                        onClick={() => onSelectTemplate(edge.targetSpecId)}
                         title="Template auswählen"
                       >
-                        {targetTpl?.title ?? `#${edge.targetTemplateId}`}
+                        {targetTpl?.title ?? `#${edge.targetSpecId}`}
                       </button>
                     </td>
                     <td>
@@ -246,9 +247,9 @@ export function DependencyGraphEditor({
                         className="btn-ghost btn-ghost--small"
                         onClick={() => void handleDelete(edge.id)}
                         disabled={isDeletingDependency}
-                        aria-label={`Abhängigkeit ${sourceTpl?.title ?? edge.sourceTemplateId} → ${targetTpl?.title ?? edge.targetTemplateId} löschen`}
+                        aria-label={`Abhängigkeit ${sourceTpl?.title ?? edge.sourceSpecId} → ${targetTpl?.title ?? edge.targetSpecId} löschen`}
                       >
-                        ✕
+                        <X size={16} aria-hidden="true" />
                       </button>
                     </td>
                   </tr>

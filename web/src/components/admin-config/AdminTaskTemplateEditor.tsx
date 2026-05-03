@@ -1,7 +1,7 @@
 import type {
   AdminDepartmentAssignment,
   AdminResponsibilityOwner,
-  AdminTaskTemplate,
+  AdminTaskSpec,
 } from "../../types/auth";
 import type { TemplateDraft } from "../../hooks/adminTaskTemplateManagementModel";
 import { formatTimestamp, responsibilityAreaLabel } from "./adminConfigHelpers";
@@ -10,7 +10,7 @@ import SectionHeader from "../ui/SectionHeader";
 type AdminTaskTemplateEditorProps = {
   panelTitle: string;
   selectedWorkflowDefinitionId: number | null;
-  selectedTemplate: AdminTaskTemplate | null;
+  selectedTemplate: AdminTaskSpec | null;
   isCreatingNew: boolean;
   draft: TemplateDraft;
   departments: AdminDepartmentAssignment[];
@@ -51,7 +51,7 @@ export function AdminTaskTemplateEditor({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem" }}>
             <label>
               <span className="form-label">Vorlagen-Key</span>
-              <input className="form-input" value={draft.templateKey} onChange={(event) => onUpdateDraft("templateKey", event.target.value)} />
+              <input className="form-input" value={draft.specKey} onChange={(event) => onUpdateDraft("specKey", event.target.value)} />
             </label>
             <label>
               <span className="form-label">Titel</span>

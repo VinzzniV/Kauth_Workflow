@@ -8,15 +8,21 @@ import type {
   AdminDirectorySyncResult,
   AdminDirectorySyncStatus,
   AdminRoleAnswerDefault,
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
   AdminWorkflowActionDefinition,
   AdminWorkflowDefinitionSummary,
   AdminWorkflowDefinitionVersionDetail,
   AdminWorkflowDefinitionVersionSummary,
 } from "../types/auth";
 import { encodeId, requestJson } from "./api/client";
+import {
+  mapAdminDependencyGraph,
+  mapAdminTaskSpec,
+  mapAdminTaskSpecCondition,
+  mapAdminTaskSpecDependency,
+} from "./api/mappers";
 import type {
   BackendAdminAnswerDefinitionDto,
   BackendAdminDependencyGraphDto,
@@ -88,20 +94,24 @@ export async function deleteAdminDirectoryGroupRoleMapping(mappingId: number): P
   });
 }
 
-export async function getAdminTaskTemplates(workflowDefinitionId: number): Promise<AdminTaskTemplate[]> {
+export async function getAdminTaskTemplates(workflowDefinitionId: number): Promise<AdminTaskSpec[]> {
   const params = new URLSearchParams({ workflowDefinitionId: String(workflowDefinitionId) });
-  return requestJson<BackendAdminTaskTemplateDto[]>(`/admin/config/task-templates?${params.toString()}`);
+  const dtos = await requestJson<BackendAdminTaskTemplateDto[]>(
+    `/admin/config/task-templates?${params.toString()}`
+  );
+  return dtos.map(mapAdminTaskSpec);
 }
 
 export async function getAdminDependencyGraph(workflowDefinitionId: number): Promise<AdminDependencyGraph> {
-  return requestJson<BackendAdminDependencyGraphDto>(
+  const dto = await requestJson<BackendAdminDependencyGraphDto>(
     `/admin/config/workflow-definitions/${encodeId(workflowDefinitionId)}/dependency-graph`
   );
+  return mapAdminDependencyGraph(dto);
 }
 
 export async function createAdminTaskTemplate(payload: {
   workflowDefinitionId: number;
-  templateKey: string;
+  specKey: string;
   title: string;
   category: string;
   description: string;
@@ -114,18 +124,21 @@ export async function createAdminTaskTemplate(payload: {
   dueInDays: number | null;
   sortOrder: number;
   isActive: boolean;
-}): Promise<AdminTaskTemplate> {
-  return requestJson<BackendAdminTaskTemplateDto>("/admin/config/task-templates", {
+}): Promise<AdminTaskSpec> {
+  // LA5: Backend erwartet weiter `templateKey` ueber die Wire — Mapping ist explizit.
+  const { specKey, ...rest } = payload;
+  const dto = await requestJson<BackendAdminTaskTemplateDto>("/admin/config/task-templates", {
     method: "POST",
-    body: payload,
+    body: { ...rest, templateKey: specKey },
   });
+  return mapAdminTaskSpec(dto);
 }
 
 export async function updateAdminTaskTemplate(
   templateId: number,
   payload: {
     workflowDefinitionId: number;
-    templateKey: string;
+    specKey: string;
     title: string;
     category: string;
     description: string;
@@ -139,14 +152,16 @@ export async function updateAdminTaskTemplate(
     sortOrder: number;
     isActive: boolean;
   }
-): Promise<AdminTaskTemplate> {
-  return requestJson<BackendAdminTaskTemplateDto>(
+): Promise<AdminTaskSpec> {
+  const { specKey, ...rest } = payload;
+  const dto = await requestJson<BackendAdminTaskTemplateDto>(
     `/admin/config/task-templates/${encodeId(templateId)}`,
     {
       method: "PATCH",
-      body: payload,
+      body: { ...rest, templateKey: specKey },
     }
   );
+  return mapAdminTaskSpec(dto);
 }
 
 export async function deleteAdminTaskTemplate(templateId: number): Promise<void> {
@@ -155,10 +170,11 @@ export async function deleteAdminTaskTemplate(templateId: number): Promise<void>
   });
 }
 
-export async function getAdminTaskTemplateConditions(templateId: number): Promise<AdminTaskTemplateCondition[]> {
-  return requestJson<BackendAdminTaskTemplateConditionDto[]>(
+export async function getAdminTaskTemplateConditions(templateId: number): Promise<AdminTaskSpecCondition[]> {
+  const dtos = await requestJson<BackendAdminTaskTemplateConditionDto[]>(
     `/admin/config/task-templates/${encodeId(templateId)}/conditions`
   );
+  return dtos.map(mapAdminTaskSpecCondition);
 }
 
 export async function createAdminTaskTemplateCondition(
@@ -171,14 +187,15 @@ export async function createAdminTaskTemplateCondition(
     expectedValueBoolean: boolean | null;
     expectedValueNumber: number | null;
   }
-): Promise<AdminTaskTemplateCondition> {
-  return requestJson<BackendAdminTaskTemplateConditionDto>(
+): Promise<AdminTaskSpecCondition> {
+  const dto = await requestJson<BackendAdminTaskTemplateConditionDto>(
     `/admin/config/task-templates/${encodeId(templateId)}/conditions`,
     {
       method: "POST",
       body: payload,
     }
   );
+  return mapAdminTaskSpecCondition(dto);
 }
 
 export async function deleteAdminTaskTemplateCondition(templateId: number, conditionId: number): Promise<void> {
@@ -190,26 +207,32 @@ export async function deleteAdminTaskTemplateCondition(templateId: number, condi
   );
 }
 
-export async function getAdminTaskTemplateDependencies(templateId: number): Promise<AdminTaskTemplateDependency[]> {
-  return requestJson<BackendAdminTaskTemplateDependencyDto[]>(
+export async function getAdminTaskTemplateDependencies(templateId: number): Promise<AdminTaskSpecDependency[]> {
+  const dtos = await requestJson<BackendAdminTaskTemplateDependencyDto[]>(
     `/admin/config/task-templates/${encodeId(templateId)}/dependencies`
   );
+  return dtos.map(mapAdminTaskSpecDependency);
 }
 
 export async function createAdminTaskTemplateDependency(
   templateId: number,
   payload: {
-    dependsOnTaskTemplateId: number;
+    dependsOnTaskSpecId: number;
     requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
   }
-): Promise<AdminTaskTemplateDependency> {
-  return requestJson<BackendAdminTaskTemplateDependencyDto>(
+): Promise<AdminTaskSpecDependency> {
+  // LA5: Backend erwartet weiter `dependsOnTaskTemplateId` ueber die Wire.
+  const dto = await requestJson<BackendAdminTaskTemplateDependencyDto>(
     `/admin/config/task-templates/${encodeId(templateId)}/dependencies`,
     {
       method: "POST",
-      body: payload,
+      body: {
+        dependsOnTaskTemplateId: payload.dependsOnTaskSpecId,
+        requiredStatus: payload.requiredStatus,
+      },
     }
   );
+  return mapAdminTaskSpecDependency(dto);
 }
 
 export async function deleteAdminTaskTemplateDependency(templateId: number, dependencyId: number): Promise<void> {

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { X } from "lucide-react";
 import type { AdminAnswerDefinition, AdminWorkflowActionDefinition } from "../../types/auth";
 import type { AdminAutomationPropertyCatalog } from "../../services/adminConfigApi";
 import {
@@ -232,9 +233,10 @@ function ParameterRow({
             className="wf-step-card-iconbtn wf-step-card-iconbtn--danger"
             onClick={onRemove}
             title="Parameter entfernen"
+            aria-label="Parameter entfernen"
             disabled={disabled}
           >
-            ✕
+            <X size={16} aria-hidden="true" />
           </button>
         )}
       </div>

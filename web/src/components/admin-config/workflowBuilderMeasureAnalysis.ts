@@ -1,9 +1,9 @@
 import type {
   AdminAnswerDefinition,
   AdminResponsibilityOwner,
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
 } from "../../types/auth";
 import { getDefaultWorkflowBuilderNodeTitle, type WorkflowBuilderNodeDraft } from "../../hooks/adminWorkflowBuilderModel";
 
@@ -48,10 +48,10 @@ export function buildMeasureNodeDetails(
   workflowDefinitionId: number | null,
   processTypeKey: string | null,
   processTypeName: string | null,
-  taskTemplates: AdminTaskTemplate[],
+  taskTemplates: AdminTaskSpec[],
   answerDefinitions: AdminAnswerDefinition[],
-  taskTemplateConditions: AdminTaskTemplateCondition[],
-  taskTemplateDependencies: AdminTaskTemplateDependency[],
+  taskTemplateConditions: AdminTaskSpecCondition[],
+  taskTemplateDependencies: AdminTaskSpecDependency[],
   responsibilityOwners: AdminResponsibilityOwner[]
 ): MeasureNodeDetails {
   const measureTypeLabel = getMeasureTypeLabel(node.nodeType, processTypeKey, processTypeName);
@@ -136,10 +136,10 @@ function buildConditionGroupSummaries(
   templateId: number,
   workflowDefinitionId: number | null,
   answerByCompositeKey: Map<string, AdminAnswerDefinition>,
-  conditions: AdminTaskTemplateCondition[]
+  conditions: AdminTaskSpecCondition[]
 ): MeasureConditionGroupSummary[] {
-  const grouped = new Map<number, AdminTaskTemplateCondition[]>();
-  for (const condition of conditions.filter((c) => c.taskTemplateId === templateId)) {
+  const grouped = new Map<number, AdminTaskSpecCondition[]>();
+  for (const condition of conditions.filter((c) => c.taskSpecId === templateId)) {
     const current = grouped.get(condition.conditionGroup) ?? [];
     current.push(condition);
     grouped.set(condition.conditionGroup, current);
@@ -163,20 +163,20 @@ function buildConditionGroupSummaries(
 
 function buildDependencySummaries(
   templateId: number,
-  templatesById: Map<number, AdminTaskTemplate>,
-  dependencies: AdminTaskTemplateDependency[]
+  templatesById: Map<number, AdminTaskSpec>,
+  dependencies: AdminTaskSpecDependency[]
 ): MeasureDependencySummary[] {
   return dependencies
-    .filter((d) => d.taskTemplateId === templateId)
+    .filter((d) => d.taskSpecId === templateId)
     .map((dependency) => {
-      const sourceTitle = templatesById.get(dependency.dependsOnTaskTemplateId)?.title
-        ?? dependency.dependsOnTemplateTitle
+      const sourceTitle = templatesById.get(dependency.dependsOnTaskSpecId)?.title
+        ?? dependency.dependsOnSpecTitle
         ?? "vorgelagerte Maßnahme";
       return { id: dependency.id, label: formatDependencyLabel(dependency.requiredStatus, sourceTitle) };
     });
 }
 
-function formatConditionLabel(condition: AdminTaskTemplateCondition, answer: AdminAnswerDefinition | null): string {
+function formatConditionLabel(condition: AdminTaskSpecCondition, answer: AdminAnswerDefinition | null): string {
   const answerLabel = answer?.title ?? "passende Anforderung";
   switch (condition.operator) {
     case "is_true": return `${answerLabel} ist ausgewählt`;
@@ -197,7 +197,7 @@ function formatConditionLabel(condition: AdminTaskTemplateCondition, answer: Adm
   }
 }
 
-function formatDependencyLabel(requiredStatus: AdminTaskTemplateDependency["requiredStatus"], source: string): string {
+function formatDependencyLabel(requiredStatus: AdminTaskSpecDependency["requiredStatus"], source: string): string {
   switch (requiredStatus) {
     case "done": return `Wartet auf Abschluss von ${source}`;
     case "in_progress": return `Startet sobald ${source} in Bearbeitung ist`;

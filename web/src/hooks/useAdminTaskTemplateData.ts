@@ -18,9 +18,9 @@ import type {
   AdminAnswerDefinition,
   AdminDependencyGraph,
   AdminWorkflowDefinitionSummary,
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
 } from "../types/auth";
 import {
   EMPTY_CONDITION_DRAFT,
@@ -42,29 +42,29 @@ type UseAdminTaskTemplateDataOptions = {
 export type AdminTaskTemplateDataController = {
   workflowDefinitions: AdminWorkflowDefinitionSummary[];
   selectedWorkflowDefinitionId: number | null;
-  templates: AdminTaskTemplate[];
+  templates: AdminTaskSpec[];
   dependencyGraph: AdminDependencyGraph;
-  selectedTemplate: AdminTaskTemplate | null;
+  selectedTemplate: AdminTaskSpec | null;
   selectedTemplateId: number | null;
   answerDefinitions: AdminAnswerDefinition[];
   draft: TemplateDraft;
-  conditions: AdminTaskTemplateCondition[];
-  dependencies: AdminTaskTemplateDependency[];
+  conditions: AdminTaskSpecCondition[];
+  dependencies: AdminTaskSpecDependency[];
   groupedConditions: ReturnType<typeof groupConditions>;
   conditionDraft: ConditionDraft;
   dependencyDraft: DependencyDraft;
   isCreatingNew: boolean;
-  setTemplates: Dispatch<SetStateAction<AdminTaskTemplate[]>>;
+  setTemplates: Dispatch<SetStateAction<AdminTaskSpec[]>>;
   setDependencyGraph: Dispatch<SetStateAction<AdminDependencyGraph>>;
   setSelectedTemplateId: Dispatch<SetStateAction<number | null>>;
   setDraft: Dispatch<SetStateAction<TemplateDraft>>;
-  setConditions: Dispatch<SetStateAction<AdminTaskTemplateCondition[]>>;
-  setDependencies: Dispatch<SetStateAction<AdminTaskTemplateDependency[]>>;
+  setConditions: Dispatch<SetStateAction<AdminTaskSpecCondition[]>>;
+  setDependencies: Dispatch<SetStateAction<AdminTaskSpecDependency[]>>;
   setConditionDraft: Dispatch<SetStateAction<ConditionDraft>>;
   setDependencyDraft: Dispatch<SetStateAction<DependencyDraft>>;
   setIsCreatingNew: Dispatch<SetStateAction<boolean>>;
   selectWorkflowDefinition: (nextValue: string) => void;
-  selectTemplate: (template: AdminTaskTemplate) => void;
+  selectTemplate: (template: AdminTaskSpec) => void;
   startCreatingTemplate: () => void;
   updateDraft: <K extends keyof TemplateDraft>(key: K, value: TemplateDraft[K]) => void;
   updateConditionDraft: <K extends keyof ConditionDraft>(key: K, value: ConditionDraft[K]) => void;
@@ -77,12 +77,12 @@ export function useAdminTaskTemplateData({
 }: UseAdminTaskTemplateDataOptions): AdminTaskTemplateDataController {
   const [workflowDefinitions, setWorkflowDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
   const [selectedWorkflowDefinitionId, setSelectedWorkflowDefinitionId] = useState<number | null>(null);
-  const [templates, setTemplates] = useState<AdminTaskTemplate[]>([]);
+  const [templates, setTemplates] = useState<AdminTaskSpec[]>([]);
   const [dependencyGraph, setDependencyGraph] = useState<AdminDependencyGraph>({ nodes: [], edges: [] });
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [draft, setDraft] = useState<TemplateDraft>(EMPTY_DRAFT);
-  const [conditions, setConditions] = useState<AdminTaskTemplateCondition[]>([]);
-  const [dependencies, setDependencies] = useState<AdminTaskTemplateDependency[]>([]);
+  const [conditions, setConditions] = useState<AdminTaskSpecCondition[]>([]);
+  const [dependencies, setDependencies] = useState<AdminTaskSpecDependency[]>([]);
   const [answerDefinitions, setAnswerDefinitions] = useState<AdminAnswerDefinition[]>([]);
   const [conditionDraft, setConditionDraft] = useState<ConditionDraft>(EMPTY_CONDITION_DRAFT);
   const [dependencyDraft, setDependencyDraft] = useState<DependencyDraft>(EMPTY_DEPENDENCY_DRAFT);
@@ -231,7 +231,7 @@ export function useAdminTaskTemplateData({
     setSelectedWorkflowDefinitionId(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
   }, []);
 
-  const selectTemplate = useCallback((template: AdminTaskTemplate) => {
+  const selectTemplate = useCallback((template: AdminTaskSpec) => {
     setSelectedTemplateId(template.id);
     setIsCreatingNew(false);
     setDraft(toDraft(template));

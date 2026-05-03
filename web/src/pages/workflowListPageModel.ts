@@ -192,6 +192,7 @@ export function useWorkflowListPageView() {
     },
     goToPreviousPage: () => setPageIndex((current) => Math.max(0, current - 1)),
     goToNextPage: () => setPageIndex((current) => current + 1),
+    setPageIndex: (next: number) => setPageIndex(Math.max(0, next)),
     refresh,
   };
 }

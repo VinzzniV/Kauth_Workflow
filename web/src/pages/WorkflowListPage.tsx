@@ -48,6 +48,7 @@ export default function WorkflowListPage() {
           onRefresh={() => void view.refresh()}
           onPreviousPage={view.goToPreviousPage}
           onNextPage={view.goToNextPage}
+          onPageIndexChange={view.setPageIndex}
         />
 
         <WorkflowListResults

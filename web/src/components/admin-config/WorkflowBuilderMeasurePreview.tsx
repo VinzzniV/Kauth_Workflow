@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type {
   AdminAnswerDefinition,
   AdminResponsibilityOwner,
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
   AdminWorkflowDefinitionSummary,
 } from "../../types/auth";
 import type {
@@ -17,10 +18,10 @@ export type WorkflowBuilderMeasurePreviewProps = {
   node: WorkflowBuilderNodeDraft;
   versionDraft: WorkflowBuilderVersionDraft;
   workflowDefinitions: AdminWorkflowDefinitionSummary[];
-  taskTemplates: AdminTaskTemplate[];
+  taskTemplates: AdminTaskSpec[];
   answerDefinitions: AdminAnswerDefinition[];
-  taskTemplateConditions: AdminTaskTemplateCondition[];
-  taskTemplateDependencies: AdminTaskTemplateDependency[];
+  taskTemplateConditions: AdminTaskSpecCondition[];
+  taskTemplateDependencies: AdminTaskSpecDependency[];
   responsibilityOwners: AdminResponsibilityOwner[];
 };
 
@@ -74,8 +75,11 @@ export function WorkflowBuilderMeasurePreview({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
-        {open ? "▼" : "►"} Geplante Maßnahmen ({templateCount}
-        {templateCount > 0 ? `, davon ${requiredCount} Pflicht` : ""})
+        {open
+          ? <ChevronDown size={14} aria-hidden="true" />
+          : <ChevronRight size={14} aria-hidden="true" />}
+        <span>Geplante Maßnahmen ({templateCount}
+        {templateCount > 0 ? `, davon ${requiredCount} Pflicht` : ""})</span>
       </button>
 
       {open && (

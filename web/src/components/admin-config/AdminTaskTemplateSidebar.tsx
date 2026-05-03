@@ -1,11 +1,11 @@
-import type { AdminTaskTemplate, AdminWorkflowDefinitionSummary } from "../../types/auth";
+import type { AdminTaskSpec, AdminWorkflowDefinitionSummary } from "../../types/auth";
 import SectionHeader from "../ui/SectionHeader";
 import SelectionListItem from "../ui/SelectionListItem";
 
 type AdminTaskTemplateSidebarProps = {
   workflowDefinitions: AdminWorkflowDefinitionSummary[];
   selectedWorkflowDefinitionId: number | null;
-  templates: AdminTaskTemplate[];
+  templates: AdminTaskSpec[];
   selectedTemplateId: number | null;
   isCreatingNew: boolean;
   isLoadingProcessTypes: boolean;
@@ -14,7 +14,7 @@ type AdminTaskTemplateSidebarProps = {
   isDeleting: boolean;
   onSelectWorkflowDefinition: (value: string) => void;
   onStartCreatingTemplate: () => void;
-  onSelectTemplate: (template: AdminTaskTemplate) => void;
+  onSelectTemplate: (template: AdminTaskSpec) => void;
 };
 
 export function AdminTaskTemplateSidebar({
@@ -79,7 +79,7 @@ export function AdminTaskTemplateSidebar({
                 key={template.id}
                 active={isSelected}
                 title={template.title}
-                meta={`${template.category} | Key ${template.templateKey}`}
+                meta={`${template.category} | Key ${template.specKey}`}
                 secondaryMeta={`Sortierung ${template.sortOrder} | Bedingungen ${template.conditionCount} | Abhängigkeiten ${template.dependencyCount}`}
                 onClick={() => onSelectTemplate(template)}
               />

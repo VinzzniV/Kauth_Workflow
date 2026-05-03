@@ -24,7 +24,7 @@ export function useAdminTaskTemplateDependencyMutations({
       return [];
     }
 
-    const existingDependencyIds = new Set(data.dependencies.map((dependency) => dependency.dependsOnTaskTemplateId));
+    const existingDependencyIds = new Set(data.dependencies.map((dependency) => dependency.dependsOnTaskSpecId));
     return data.templates.filter(
       (template) => template.id !== data.selectedTemplate!.id && !existingDependencyIds.has(template.id)
     );
@@ -37,8 +37,8 @@ export function useAdminTaskTemplateDependencyMutations({
       return;
     }
 
-    const dependsOnTaskTemplateId = Number(data.dependencyDraft.dependsOnTaskTemplateId);
-    if (!Number.isFinite(dependsOnTaskTemplateId) || dependsOnTaskTemplateId <= 0) {
+    const dependsOnTaskSpecId = Number(data.dependencyDraft.dependsOnTaskSpecId);
+    if (!Number.isFinite(dependsOnTaskSpecId) || dependsOnTaskSpecId <= 0) {
       onNotice(null);
       onError("Bitte ein gültiges abhängiges Template auswählen.");
       return;
@@ -50,7 +50,7 @@ export function useAdminTaskTemplateDependencyMutations({
 
     try {
       const createdDependency = await createAdminTaskTemplateDependency(data.selectedTemplate.id, {
-        dependsOnTaskTemplateId,
+        dependsOnTaskSpecId,
         requiredStatus: data.dependencyDraft.requiredStatus,
       });
 
@@ -64,14 +64,14 @@ export function useAdminTaskTemplateDependencyMutations({
         ...current,
         edges: current.edges.concat({
           id: createdDependency.id,
-          sourceTemplateId: createdDependency.dependsOnTaskTemplateId,
-          targetTemplateId: createdDependency.taskTemplateId,
+          sourceSpecId: createdDependency.dependsOnTaskSpecId,
+          targetSpecId: createdDependency.taskSpecId,
           requiredStatus: createdDependency.requiredStatus,
         }),
       }));
       data.setDependencyDraft((current) => ({
         ...current,
-        dependsOnTaskTemplateId: "",
+        dependsOnTaskSpecId: "",
       }));
       onNotice("Abhängigkeit wurde angelegt.");
     } catch (err) {
@@ -83,11 +83,11 @@ export function useAdminTaskTemplateDependencyMutations({
   }, [data, onError, onNotice, updateOperationState]);
 
   const createDependencyFromGraph = useCallback(async (
-    sourceTemplateId: number,
-    targetTemplateId: number,
+    sourceSpecId: number,
+    targetSpecId: number,
     requiredStatus: DependencyStatus
   ) => {
-    if (sourceTemplateId === targetTemplateId) {
+    if (sourceSpecId === targetSpecId) {
       onNotice(null);
       onError("Ein Template kann nicht von sich selbst abhängen.");
       return;
@@ -98,27 +98,27 @@ export function useAdminTaskTemplateDependencyMutations({
     onError(null);
 
     try {
-      const createdDependency = await createAdminTaskTemplateDependency(targetTemplateId, {
-        dependsOnTaskTemplateId: sourceTemplateId,
+      const createdDependency = await createAdminTaskTemplateDependency(targetSpecId, {
+        dependsOnTaskSpecId: sourceSpecId,
         requiredStatus,
       });
 
       data.setTemplates((current) =>
         current.map((item) =>
-          item.id === targetTemplateId ? { ...item, dependencyCount: item.dependencyCount + 1 } : item
+          item.id === targetSpecId ? { ...item, dependencyCount: item.dependencyCount + 1 } : item
         )
       );
       data.setDependencyGraph((current) => ({
         ...current,
         edges: current.edges.concat({
           id: createdDependency.id,
-          sourceTemplateId: createdDependency.dependsOnTaskTemplateId,
-          targetTemplateId: createdDependency.taskTemplateId,
+          sourceSpecId: createdDependency.dependsOnTaskSpecId,
+          targetSpecId: createdDependency.taskSpecId,
           requiredStatus: createdDependency.requiredStatus,
         }),
       }));
 
-      if (data.selectedTemplate?.id === targetTemplateId) {
+      if (data.selectedTemplate?.id === targetSpecId) {
         data.setDependencies((current) => sortDependencies(current.concat(createdDependency)));
       }
 
@@ -174,18 +174,18 @@ export function useAdminTaskTemplateDependencyMutations({
     onError(null);
 
     try {
-      await deleteAdminTaskTemplateDependency(edge.targetTemplateId, dependencyId);
+      await deleteAdminTaskTemplateDependency(edge.targetSpecId, dependencyId);
       data.setDependencyGraph((current) => ({
         ...current,
         edges: current.edges.filter((currentEdge) => currentEdge.id !== dependencyId),
       }));
       data.setTemplates((current) =>
         current.map((item) =>
-          item.id === edge.targetTemplateId ? { ...item, dependencyCount: Math.max(0, item.dependencyCount - 1) } : item
+          item.id === edge.targetSpecId ? { ...item, dependencyCount: Math.max(0, item.dependencyCount - 1) } : item
         )
       );
 
-      if (data.selectedTemplate?.id === edge.targetTemplateId) {
+      if (data.selectedTemplate?.id === edge.targetSpecId) {
         data.setDependencies((current) => current.filter((item) => item.id !== dependencyId));
       }
 

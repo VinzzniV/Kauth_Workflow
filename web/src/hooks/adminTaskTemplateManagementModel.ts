@@ -1,11 +1,11 @@
 import type {
-  AdminTaskTemplate,
-  AdminTaskTemplateCondition,
-  AdminTaskTemplateDependency,
+  AdminTaskSpec,
+  AdminTaskSpecCondition,
+  AdminTaskSpecDependency,
 } from "../types/auth";
 
 export type TemplateDraft = {
-  templateKey: string;
+  specKey: string;
   title: string;
   category: string;
   description: string;
@@ -30,7 +30,7 @@ export type ConditionDraft = {
 };
 
 export type DependencyDraft = {
-  dependsOnTaskTemplateId: string;
+  dependsOnTaskSpecId: string;
   requiredStatus: "open" | "ready" | "in_progress" | "blocked" | "done";
 };
 
@@ -51,7 +51,7 @@ export type OperationState = {
 };
 
 export const EMPTY_DRAFT: TemplateDraft = {
-  templateKey: "",
+  specKey: "",
   title: "",
   category: "general",
   description: "",
@@ -76,7 +76,7 @@ export const EMPTY_CONDITION_DRAFT: ConditionDraft = {
 };
 
 export const EMPTY_DEPENDENCY_DRAFT: DependencyDraft = {
-  dependsOnTaskTemplateId: "",
+  dependsOnTaskSpecId: "",
   requiredStatus: "done",
 };
 
@@ -94,9 +94,9 @@ export const INITIAL_OPERATION_STATE: OperationState = {
   deletingDependencyId: null,
 };
 
-export function toDraft(template: AdminTaskTemplate): TemplateDraft {
+export function toDraft(template: AdminTaskSpec): TemplateDraft {
   return {
-    templateKey: template.templateKey,
+    specKey: template.specKey,
     title: template.title,
     category: template.category,
     description: template.description,
@@ -112,8 +112,8 @@ export function toDraft(template: AdminTaskTemplate): TemplateDraft {
   };
 }
 
-export function groupConditions(conditions: AdminTaskTemplateCondition[]) {
-  const groups = new Map<number, AdminTaskTemplateCondition[]>();
+export function groupConditions(conditions: AdminTaskSpecCondition[]) {
+  const groups = new Map<number, AdminTaskSpecCondition[]>();
   for (const condition of conditions) {
     const current = groups.get(condition.conditionGroup) ?? [];
     current.push(condition);
@@ -128,7 +128,7 @@ export function groupConditions(conditions: AdminTaskTemplateCondition[]) {
     }));
 }
 
-export function sortTemplates(templates: AdminTaskTemplate[]) {
+export function sortTemplates(templates: AdminTaskSpec[]) {
   return templates.slice().sort((left, right) =>
     left.sortOrder === right.sortOrder
       ? left.title.localeCompare(right.title, "de")
@@ -136,7 +136,7 @@ export function sortTemplates(templates: AdminTaskTemplate[]) {
   );
 }
 
-export function sortConditions(conditions: AdminTaskTemplateCondition[]) {
+export function sortConditions(conditions: AdminTaskSpecCondition[]) {
   return conditions.slice().sort((left, right) =>
     left.conditionGroup === right.conditionGroup
       ? left.id - right.id
@@ -144,8 +144,8 @@ export function sortConditions(conditions: AdminTaskTemplateCondition[]) {
   );
 }
 
-export function sortDependencies(dependencies: AdminTaskTemplateDependency[]) {
+export function sortDependencies(dependencies: AdminTaskSpecDependency[]) {
   return dependencies
     .slice()
-    .sort((left, right) => left.dependsOnTemplateTitle.localeCompare(right.dependsOnTemplateTitle, "de"));
+    .sort((left, right) => left.dependsOnSpecTitle.localeCompare(right.dependsOnSpecTitle, "de"));
 }
