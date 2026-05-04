@@ -190,43 +190,69 @@ export function AdminDirectorySyncSection({
         />
       ) : null}
 
-      {!isLoading && identities.length > 0 ? (
-        <>
-          <div className="panel-head" style={{ marginTop: "1rem" }}>
-            <h2>Zuletzt übernommene Identitäten</h2>
-          </div>
+      {!isLoading && identities.length > 0 ? (() => {
+        const sharedSyncTimestamp = identities.every(
+          (item) => item.lastSyncedAt === identities[0]?.lastSyncedAt
+        )
+          ? identities[0]?.lastSyncedAt ?? null
+          : null;
 
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>UPN / Mail</th>
-                <th>Konto</th>
-                <th>Verknüpft mit</th>
-                <th>Zuletzt synchronisiert</th>
-              </tr>
-            </thead>
-            <tbody>
-              {identities.map((identity) => (
-                <tr key={identity.directoryIdentityId}>
-                  <td>{identity.displayName}</td>
-                  <td>
-                    <div>{identity.userPrincipalName}</div>
-                    {identity.mail ? <div className="panel-note">{identity.mail}</div> : null}
-                  </td>
-                  <td>
-                    <span className={`badge badge--${identity.accountEnabled ? "success" : "error"}`}>
-                      {identity.accountEnabled ? "Aktiv" : "Deaktiviert"}
-                    </span>
-                  </td>
-                  <td>{identity.appUserDisplayName ?? "Noch nicht verknüpft"}</td>
-                  <td>{formatTimestamp(identity.lastSyncedAt)}</td>
+        return (
+          <>
+            <div className="panel-head" style={{ marginTop: "1rem" }}>
+              <h2>Zuletzt übernommene Identitäten</h2>
+              {sharedSyncTimestamp ? (
+                <p className="panel-note">Stand: {formatTimestamp(sharedSyncTimestamp)}</p>
+              ) : null}
+            </div>
+
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>UPN / Mail</th>
+                  <th>Konto</th>
+                  {sharedSyncTimestamp ? null : <th>Zuletzt synchronisiert</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      ) : null}
+              </thead>
+              <tbody>
+                {identities.map((identity) => {
+                  const linkedNameDiffers =
+                    identity.appUserDisplayName !== null
+                    && identity.appUserDisplayName !== identity.displayName;
+                  const mailDiffers =
+                    !!identity.mail && identity.mail !== identity.userPrincipalName;
+
+                  return (
+                    <tr key={identity.directoryIdentityId}>
+                      <td>
+                        <div>{identity.displayName}</div>
+                        {identity.appUserDisplayName === null ? (
+                          <div className="panel-note">Noch nicht verknüpft</div>
+                        ) : linkedNameDiffers ? (
+                          <div className="panel-note">→ {identity.appUserDisplayName}</div>
+                        ) : null}
+                      </td>
+                      <td>
+                        <div>{identity.userPrincipalName}</div>
+                        {mailDiffers ? <div className="panel-note">{identity.mail}</div> : null}
+                      </td>
+                      <td>
+                        <span className={`badge badge--${identity.accountEnabled ? "success" : "error"}`}>
+                          {identity.accountEnabled ? "Aktiv" : "Deaktiviert"}
+                        </span>
+                      </td>
+                      {sharedSyncTimestamp ? null : (
+                        <td>{formatTimestamp(identity.lastSyncedAt)}</td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        );
+      })() : null}
 
       {!isLoading && auditEntries.length > 0 ? (
         <>

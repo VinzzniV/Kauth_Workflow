@@ -50,10 +50,18 @@ export default function AdminConfigPage() {
     return () => clearTimeout(timer);
   }, [notice]);
   const rawSection = (searchParams.get("section") ?? "").trim().toLowerCase();
+  const rawEntity = (searchParams.get("entity") ?? "").trim().toLowerCase();
   const redirectToBuilder =
     rawSection === "builder" || rawSection === "templates" || rawSection === "answers" || rawSection === "defaults";
   const redirectToSystemLogs = rawSection === "operations";
   const redirectToSystemConfiguration = rawSection === "system";
+  const legacyOrganizationRedirect =
+    rawSection === "organization"
+      ? rawEntity === "department"
+        ? "abteilungen"
+        : "personen"
+      : null;
+  const legacyRotationRedirect = rawSection === "rotation_requirements" ? "zustaendigkeiten" : null;
 
   const effectiveSectionValue = redirectToSystemConfiguration
     ? "system_configuration"
@@ -400,6 +408,19 @@ export default function AdminConfigPage() {
   if (redirectToSystemConfiguration) {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("section", "system_configuration");
+    return <Navigate to={`/admin/config?${nextParams.toString()}`} replace />;
+  }
+
+  if (legacyOrganizationRedirect) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("section", legacyOrganizationRedirect);
+    nextParams.delete("entity");
+    return <Navigate to={`/admin/config?${nextParams.toString()}`} replace />;
+  }
+
+  if (legacyRotationRedirect) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("section", legacyRotationRedirect);
     return <Navigate to={`/admin/config?${nextParams.toString()}`} replace />;
   }
 

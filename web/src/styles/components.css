@@ -162,6 +162,21 @@
   align-self: flex-start;
 }
 
+.card-unconfigured {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface-card-subtle) 60%, transparent);
+}
+
+.card-unconfigured h3 {
+  color: var(--text-secondary);
+}
+
+.meta-empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
 /* ─── Panels ─── */
 .panel {
   background: var(--surface-panel);

@@ -141,7 +141,7 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs): AdminC
   );
 
   const workspaceSelectedUser =
-    section === "organization" && organizationEntity === "user" && selectedEntityId ? selectedUser : null;
+    section === "personen" && selectedEntityId ? selectedUser : null;
 
   const warnings = useMemo(
     () =>
@@ -162,7 +162,7 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs): AdminC
   );
 
   useEffect(() => {
-    if (organizationEntity !== "user" || !selectedEntityId) {
+    if (section !== "personen" || !selectedEntityId) {
       return;
     }
 
@@ -172,28 +172,24 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs): AdminC
     }
 
     onSelectUser(matchingUser);
-  }, [onSelectUser, organizationEntity, selectedEntityId, selectedUserId, users]);
+  }, [onSelectUser, section, selectedEntityId, selectedUserId, users]);
 
   const updateWorkspace = useCallback(
-    (nextSection: AdminWorkspaceSection, nextEntity?: AdminOrganizationEntity, nextId?: number | null) => {
+    (nextSection: AdminWorkspaceSection, nextId?: number | null) => {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set("section", nextSection);
+      nextParams.delete("entity");
 
-      if (nextSection === "organization") {
-        nextParams.set("entity", nextEntity ?? organizationEntity);
-        if (nextId) {
-          nextParams.set("id", String(nextId));
-        } else {
-          nextParams.delete("id");
-        }
+      const supportsId = nextSection === "personen" || nextSection === "abteilungen";
+      if (supportsId && nextId) {
+        nextParams.set("id", String(nextId));
       } else {
-        nextParams.delete("entity");
         nextParams.delete("id");
       }
 
       setSearchParams(nextParams);
     },
-    [organizationEntity, searchParams, setSearchParams]
+    [searchParams, setSearchParams]
   );
 
   const handleSelectSection = useCallback(
@@ -205,7 +201,8 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs): AdminC
 
   const handleOpenOrganization = useCallback(
     (entity: AdminOrganizationEntity, id?: number | null) => {
-      updateWorkspace("organization", entity, id ?? null);
+      const targetSection: AdminWorkspaceSection = entity === "department" ? "abteilungen" : "personen";
+      updateWorkspace(targetSection, id ?? null);
     },
     [updateWorkspace]
   );

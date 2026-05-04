@@ -3,9 +3,13 @@ import { AdminDirectoryPendingImportsSection } from "./AdminDirectoryPendingImpo
 import { AdminDirectorySyncSection } from "./AdminDirectorySyncSection";
 import { AdminFieldConfigurationWorkspaceSection } from "./AdminFieldConfigurationWorkspaceSection";
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
-import { AdminOrganizationWorkspaceSection } from "./AdminOrganizationWorkspaceSection";
+import { AdminAbteilungenSection } from "./AdminAbteilungenSection";
+import { AdminPersonenSection } from "./AdminPersonenSection";
 import { AdminOverviewWorkspaceSection } from "./AdminOverviewWorkspaceSection";
-import { AdminResponsibilitiesAndRequirementsSection } from "./AdminResponsibilitiesAndRequirementsSection";
+import {
+  AbteilungsanforderungenPanel,
+  FachlicheZustaendigkeitenPanel,
+} from "./AdminResponsibilitiesAndRequirementsSection";
 import { AdminPermissionsSection } from "./AdminPermissionsSection";
 import { AdminNotificationTemplateSection } from "./AdminNotificationTemplateSection";
 import { AdminSystemConfigurationSection } from "./AdminSystemConfigurationSection";
@@ -18,6 +22,7 @@ import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceCon
 import {
   getAdminWorkspacePresentationSection,
   getAdminWorkspaceSectionMeta,
+  type AdminOrganizationEntity,
   type AdminWorkspaceSection,
 } from "./adminWorkspaceModel";
 
@@ -33,15 +38,14 @@ function renderWorkspaceWithIntro(section: AdminWorkspaceSection, content: React
 }
 
 export function renderOverviewWorkspace(props: AdminConfigWorkspaceContentProps) {
-  const { meta, organization, access, notification } = props;
+  const { meta, directory, notification } = props;
   return (
     <AdminOverviewWorkspaceSection
-      departmentCount={organization.departmentAssignments.length}
       warningCount={meta.warnings.length}
-      hasLoadedTechnicalAccess={access.hasLoadedTechnicalAccess}
-      roleCount={access.sortedRoles.length}
-      groupCount={access.groups.length}
       notificationEmailConfiguration={notification.notificationEmailConfiguration}
+      directoryStatus={directory.directoryStatus}
+      directoryPendingImports={directory.directoryPendingImports}
+      isSyncingDirectory={directory.isSyncingDirectory}
       warnings={meta.warnings}
       onOpenOrganization={meta.onOpenOrganization}
       onOpenSection={meta.onSelectSection}
@@ -49,19 +53,20 @@ export function renderOverviewWorkspace(props: AdminConfigWorkspaceContentProps)
   );
 }
 
-export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentProps) {
+export function renderPersonenWorkspace(props: AdminConfigWorkspaceContentProps) {
   const { meta, user, organization } = props;
   return renderWorkspaceWithIntro(
-    "organization",
-    <AdminOrganizationWorkspaceSection
-      organizationEntity={meta.organizationEntity}
+    "personen",
+    <AdminPersonenSection
       selectedEntityId={meta.selectedEntityId}
       sortedUsers={user.sortedUsers}
-      sortedDepartmentPositions={organization.sortedDepartmentPositions}
       sortedDepartments={organization.sortedDepartments}
+      sortedResponsibilities={organization.sortedResponsibilities}
+      sortedDepartmentPositions={organization.sortedDepartmentPositions}
       eligibleSupervisorUsers={user.eligibleSupervisorUsers}
       eligibleRequirementOwnerUsers={user.eligibleRequirementOwnerUsers}
-      selectedUser={user.workspaceSelectedUser}
+      selectedUser={user.selectedUser}
+      workspaceSelectedUser={user.workspaceSelectedUser}
       userDisplayNameDraft={user.userDisplayNameDraft}
       userEmailDraft={user.userEmailDraft}
       userNotificationEmailDraft={user.userNotificationEmailDraft}
@@ -79,6 +84,43 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       isCreatingUser={user.isCreatingUser}
       isSavingUserMasterData={user.isSavingUserMasterData}
       deletingUserId={user.deletingUserId}
+      departmentDrafts={organization.departmentDrafts}
+      positionDrafts={organization.positionDrafts}
+      savingDepartmentId={organization.savingDepartmentId}
+      onSelectOrganizationEntity={meta.onOpenOrganization}
+      onSelectUser={user.onSelectUser}
+      onCreateUser={user.onCreateUser}
+      onSaveUserMasterData={user.onSaveUserMasterData}
+      onRemoveUser={user.onRemoveUser}
+      onUserDisplayNameChange={user.onUserDisplayNameChange}
+      onUserEmailChange={user.onUserEmailChange}
+      onUserNotificationEmailChange={user.onUserNotificationEmailChange}
+      onUserExternalKeyChange={user.onUserExternalKeyChange}
+      onUserDepartmentIdChange={user.onUserDepartmentIdChange}
+      onUserIsActiveChange={user.onUserIsActiveChange}
+      onNewUserDisplayNameChange={user.onNewUserDisplayNameChange}
+      onNewUserEmailChange={user.onNewUserEmailChange}
+      onNewUserNotificationEmailChange={user.onNewUserNotificationEmailChange}
+      onNewUserExternalKeyChange={user.onNewUserExternalKeyChange}
+      onNewUserDepartmentIdChange={user.onNewUserDepartmentIdChange}
+      onNewUserIsActiveChange={user.onNewUserIsActiveChange}
+    />
+  );
+}
+
+export function renderAbteilungenWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { meta, user, organization } = props;
+  return renderWorkspaceWithIntro(
+    "abteilungen",
+    <AdminAbteilungenSection
+      selectedEntityId={meta.selectedEntityId}
+      sortedUsers={user.sortedUsers}
+      sortedDepartments={organization.sortedDepartments}
+      sortedDepartmentPositions={organization.sortedDepartmentPositions}
+      sortedResponsibilities={organization.sortedResponsibilities}
+      eligibleSupervisorUsers={user.eligibleSupervisorUsers}
+      eligibleRequirementOwnerUsers={user.eligibleRequirementOwnerUsers}
+      selectedUser={user.selectedUser}
       newDepartmentNameDraft={organization.newDepartmentNameDraft}
       newPositionNameDraft={organization.newPositionNameDraft}
       departmentDrafts={organization.departmentDrafts}
@@ -90,22 +132,6 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
       savingDepartmentId={organization.savingDepartmentId}
       savingPositionId={organization.savingPositionId}
       onSelectOrganizationEntity={meta.onOpenOrganization}
-      onSelectUser={user.onSelectUser}
-      onNewUserDisplayNameChange={user.onNewUserDisplayNameChange}
-      onNewUserEmailChange={user.onNewUserEmailChange}
-      onNewUserNotificationEmailChange={user.onNewUserNotificationEmailChange}
-      onNewUserExternalKeyChange={user.onNewUserExternalKeyChange}
-      onNewUserDepartmentIdChange={user.onNewUserDepartmentIdChange}
-      onNewUserIsActiveChange={user.onNewUserIsActiveChange}
-      onUserDisplayNameChange={user.onUserDisplayNameChange}
-      onUserEmailChange={user.onUserEmailChange}
-      onUserNotificationEmailChange={user.onUserNotificationEmailChange}
-      onUserExternalKeyChange={user.onUserExternalKeyChange}
-      onUserDepartmentIdChange={user.onUserDepartmentIdChange}
-      onUserIsActiveChange={user.onUserIsActiveChange}
-      onCreateUser={user.onCreateUser}
-      onSaveUserMasterData={user.onSaveUserMasterData}
-      onRemoveUser={user.onRemoveUser}
       onNewDepartmentNameChange={organization.onNewDepartmentNameChange}
       onNewPositionNameChange={organization.onNewPositionNameChange}
       onDepartmentDraftChange={organization.onDepartmentDraftChange}
@@ -120,11 +146,12 @@ export function renderOrganizationWorkspace(props: AdminConfigWorkspaceContentPr
   );
 }
 
-export function renderRotationRequirementsWorkspace() {
-  return renderWorkspaceWithIntro(
-    "rotation_requirements",
-    <AdminResponsibilitiesAndRequirementsSection />
-  );
+export function renderZustaendigkeitenWorkspace() {
+  return renderWorkspaceWithIntro("zustaendigkeiten", <FachlicheZustaendigkeitenPanel />);
+}
+
+export function renderMassnahmenvorlagenWorkspace() {
+  return renderWorkspaceWithIntro("massnahmenvorlagen", <AbteilungsanforderungenPanel />);
 }
 
 export function renderAccessWorkspace(props: AdminConfigWorkspaceContentProps) {

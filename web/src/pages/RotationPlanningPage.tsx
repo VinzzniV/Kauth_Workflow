@@ -147,7 +147,7 @@ export default function RotationPlanningPage() {
 
         {isCreateMode ? (
           <div>
-            <Link to="/rotation/planning" className="btn btn-secondary">
+            <Link to="/rotation" className="btn btn-secondary">
               ← Zurück zur Übersicht
             </Link>
           </div>
@@ -185,11 +185,14 @@ export default function RotationPlanningPage() {
           <section className="panel panel-muted">
             <div className="panel-head">
               <h2>Neuen Durchlauf starten</h2>
-              <p>Die Anlage eines neuen Abteilungsdurchlaufs startet unter <strong>Neuer Vorgang</strong>.</p>
+              <p>
+                Wählen Sie eine Person mit abgeschlossenem Onboarding aus, um einen neuen
+                Abteilungsdurchlauf anzulegen.
+              </p>
             </div>
             <div className="action-row">
-              <Link className="btn btn-primary" to="/create">
-                Zu Neuer Vorgang
+              <Link className="btn btn-primary" to="/rotation?mode=create">
+                Neuen Durchlaufplan anlegen
               </Link>
             </div>
           </section>
@@ -476,7 +479,26 @@ export default function RotationPlanningPage() {
             ) : null}
 
             {!rotationPlansQuery.isLoading && !rotationPlansQuery.error && visiblePlans.length === 0 ? (
-              <p className="panel-note">Es sind aktuell keine sichtbaren Durchlaufpläne vorhanden.</p>
+              <EmptyState
+                title={
+                  planSearch.trim().length > 0
+                    ? "Keine passenden Durchlaufpläne"
+                    : "Noch keine Durchlaufpläne"
+                }
+                description={
+                  planSearch.trim().length > 0
+                    ? "Passen Sie die Suche an oder löschen Sie den Suchbegriff, um alle sichtbaren Pläne zu sehen."
+                    : "Wählen Sie eine Person mit abgeschlossenem Onboarding aus, um den ersten Abteilungsdurchlauf anzulegen."
+                }
+                actionLabel={planSearch.trim().length > 0 ? "Suche zurücksetzen" : "Neuen Durchlaufplan anlegen"}
+                onAction={() => {
+                  if (planSearch.trim().length > 0) {
+                    setPlanSearch("");
+                  } else {
+                    void navigate("/rotation?mode=create");
+                  }
+                }}
+              />
             ) : null}
 
             {!rotationPlansQuery.isLoading && !rotationPlansQuery.error && visiblePlans.length > 0 ? (

@@ -343,7 +343,7 @@ describe("AdminConfigPage", () => {
     });
 
     expect(await screen.findByText("Arbeitsbereiche")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Personen & Organisation/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Personen & Zugriff/i })).toBeTruthy();
     expect(mockedGetAdminRoles).not.toHaveBeenCalled();
     expect(mockedGetAdminGroups).not.toHaveBeenCalled();
   });
@@ -364,7 +364,8 @@ describe("AdminConfigPage", () => {
       route: "/admin/config?section=organization&entity=responsibility&id=10",
     });
 
-    expect(await screen.findByText("Person anlegen")).toBeTruthy();
+    // Legacy responsibility entity should redirect to the personen list, not surface responsibility editing.
+    expect(await screen.findByRole("button", { name: "Neue Person" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Fachbereiche / Zuständigkeiten" })).toBeNull();
     expect(screen.queryByText("Feste Zuständigkeiten")).toBeNull();
   });
@@ -458,7 +459,8 @@ describe("AdminConfigPage", () => {
       route: "/admin/config?section=organization&entity=user",
     });
 
-    expect(await screen.findByText("Neue Person")).toBeTruthy();
+    // Open the create drawer via the toolbar button (replaces the always-visible new-person form).
+    fireEvent.click(await screen.findByRole("button", { name: "Neue Person" }));
 
     fireEvent.change(screen.getByLabelText("Anzeigename"), {
       target: { value: "Neue Person" },

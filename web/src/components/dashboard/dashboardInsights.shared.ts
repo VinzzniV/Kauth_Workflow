@@ -59,6 +59,8 @@ export type WorkflowMetrics = {
 };
 
 export const RECENT_COMPLETION_WINDOW_DAYS = 30;
+export const STUCK_WORKFLOW_THRESHOLD_DAYS = 7;
+export const COMPLETION_THIS_WEEK_DAYS = 7;
 
 export function toEpoch(value: string): number {
   const parsed = new Date(value);
@@ -183,4 +185,50 @@ export function getManagerWorkflowAction(
 
 export function isOpenTask(task: Pick<WorkflowTask, "status">): boolean {
   return task.status === "open" || task.status === "ready" || task.status === "in_progress" || task.status === "blocked";
+}
+
+export function isStuckWorkflow(workflow: WorkflowSummary, nowEpoch: number): boolean {
+  if (workflow.workflowStatus !== "waiting_for_supervisor" && workflow.workflowStatus !== "waiting_for_department") {
+    return false;
+  }
+
+  const createdEpoch = toEpoch(workflow.createdAt);
+  if (createdEpoch === 0) {
+    return false;
+  }
+
+  const thresholdMs = STUCK_WORKFLOW_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+  return nowEpoch - createdEpoch >= thresholdMs;
+}
+
+export function isCompletedThisWeek(workflow: WorkflowSummary, nowEpoch: number): boolean {
+  if (workflow.workflowStatus !== "completed" || !workflow.completedAt) {
+    return false;
+  }
+
+  const completedEpoch = toEpoch(workflow.completedAt);
+  if (completedEpoch === 0) {
+    return false;
+  }
+
+  const windowMs = COMPLETION_THIS_WEEK_DAYS * 24 * 60 * 60 * 1000;
+  return completedEpoch >= nowEpoch - windowMs;
+}
+
+export function hasUnresolvedRequirements(workflow: WorkflowSummary): boolean {
+  return workflow.requirementSummary.pendingVisibleCount > 0;
+}
+
+export function isDeadlineThisWeek(workflow: WorkflowSummary, nowEpoch: number): boolean {
+  if (!workflow.deadlineDate) {
+    return false;
+  }
+
+  const deadlineEpoch = toEpoch(workflow.deadlineDate);
+  if (deadlineEpoch === 0) {
+    return false;
+  }
+
+  const windowMs = COMPLETION_THIS_WEEK_DAYS * 24 * 60 * 60 * 1000;
+  return deadlineEpoch >= nowEpoch && deadlineEpoch <= nowEpoch + windowMs;
 }

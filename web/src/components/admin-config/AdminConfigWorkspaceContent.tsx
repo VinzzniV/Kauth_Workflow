@@ -1,16 +1,18 @@
 import {
+  renderAbteilungenWorkspace,
   renderBuilderWorkspace,
   renderAccessWorkspace,
   renderAnswerWorkspace,
   renderDefaultWorkspace,
   renderDirectoryWorkspace,
-  renderOrganizationWorkspace,
+  renderMassnahmenvorlagenWorkspace,
   renderOverviewWorkspace,
-  renderRotationRequirementsWorkspace,
+  renderPersonenWorkspace,
   renderSystemConfigurationWorkspace,
   renderSystemMailTemplatesWorkspace,
   renderSystemLogsWorkspace,
   renderTemplateWorkspace,
+  renderZustaendigkeitenWorkspace,
 } from "./AdminConfigWorkspaceSections";
 import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceContentTypes";
 
@@ -18,10 +20,14 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
   switch (props.meta.section) {
     case "overview":
       return renderOverviewWorkspace(props);
-    case "organization":
-      return renderOrganizationWorkspace(props);
-    case "rotation_requirements":
-      return renderRotationRequirementsWorkspace();
+    case "personen":
+      return renderPersonenWorkspace(props);
+    case "abteilungen":
+      return renderAbteilungenWorkspace(props);
+    case "zustaendigkeiten":
+      return renderZustaendigkeitenWorkspace();
+    case "massnahmenvorlagen":
+      return renderMassnahmenvorlagenWorkspace();
     case "access":
       return renderAccessWorkspace(props);
     case "directory":

@@ -1,19 +1,35 @@
-import { getAdminGroups, getAdminRoles, getAdminUsers } from "../../services/adminApi";
+import {
+  getAdminDepartmentAssignments,
+  getAdminNotificationEmailConfiguration,
+  getAdminResponsibilityOwners,
+  getAdminUsers,
+} from "../../services/adminApi";
 import { getMyTasks } from "../../services/taskApi";
 import { getSupervisorStepWorkflows, getWorkflows } from "../../services/workflowApi";
+import {
+  buildAdminOverviewWarnings,
+  clusterAdminOverviewWarnings,
+  groupAdminOverviewWarnings,
+} from "../admin-config/adminWorkspaceModel";
 import type { WorkflowSummary, WorkflowTask } from "../../types/workflow";
 import { formatDate } from "../../utils/dateFormat";
 import { getTaskStatusLabel } from "../../utils/taskStatus";
 import { getWorkflowRuntimeStatusLabel, isWorkflowTerminalStatus } from "../../utils/workflowStatus";
 import type { DashboardInsights, DashboardInsightsOptions, DashboardQueueItem } from "./dashboardInsights.shared";
 import {
+  COMPLETION_THIS_WEEK_DAYS,
   getManagerWorkflowAction,
   getManagerWorkflowContextText,
   getManagerWorkflowPriority,
   getWorkflowDefinitionContext,
+  hasUnresolvedRequirements,
+  isCompletedThisWeek,
+  isDeadlineThisWeek,
   isOpenTask,
   isRecentlyCompletedWorkflow,
+  isStuckWorkflow,
   RECENT_COMPLETION_WINDOW_DAYS,
+  STUCK_WORKFLOW_THRESHOLD_DAYS,
   summarizeWorkflows,
   toEpoch,
 } from "./dashboardInsights.shared";
@@ -21,9 +37,15 @@ import {
 export async function loadHrInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
   const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;
   const workflowDefinitionContext = getWorkflowDefinitionContext(selectedWorkflowDefinition);
+  const nowEpoch = Date.now();
   const workflows = await getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null });
   const metrics = summarizeWorkflows(workflows);
-  const departmentInProgress = metrics.waitingDepartment + metrics.inProgress;
+  const bottleneckCount = metrics.waitingSupervisor + metrics.waitingDepartment;
+  const completedThisWeek = workflows.filter((workflow) => isCompletedThisWeek(workflow, nowEpoch)).length;
+  const unresolvedRequirementWorkflows = workflows.filter(
+    (workflow) => !isWorkflowTerminalStatus(workflow.workflowStatus) && hasUnresolvedRequirements(workflow)
+  );
+  const draftWorkflows = workflows.filter((workflow) => workflow.workflowStatus === "draft");
   const activeWorkflows = workflows
     .filter((workflow) => !isWorkflowTerminalStatus(workflow.workflowStatus))
     .slice()
@@ -47,26 +69,43 @@ export async function loadHrInsights(options: DashboardInsightsOptions = {}): Pr
 
   return {
     heading: "HR auf einen Blick",
-    nextStep: selectedWorkflowDefinition
-      ? `${selectedWorkflowDefinition.name}-Fälle in Startphase und Rücklauf prüfen.`
-      : "Startphase und Rückläufe prüfen.",
+    nextStep: bottleneckCount > 0
+      ? "Engpässe bei Abteilungsleitung und Fachbereichen zuerst entlasten."
+      : unresolvedRequirementWorkflows.length > 0
+        ? "Vorgänge mit offenen Anforderungen prüfen."
+        : draftWorkflows.length > 0
+          ? "Entwürfe finalisieren oder verwerfen."
+          : selectedWorkflowDefinition
+            ? `${selectedWorkflowDefinition.name}-Fälle in Startphase und Rücklauf prüfen.`
+            : "Startphase und Rückläufe prüfen.",
     stats: [
-      { label: "Offene Vorgänge", value: metrics.open, note: "laufend", statusLabel: "Offen", tone: "neutral" },
       {
-        label: "Wartet auf Abteilungsleitung",
-        value: metrics.waitingSupervisor,
-        note: "Rückmeldung fehlt",
-        statusLabel: "wartet auf Abteilungsleitung",
-        tone: "attention",
+        label: "Wartet auf Freigabe / Fachbereich",
+        value: bottleneckCount,
+        note: "aktuelle Engpässe",
+        statusLabel: "Engpass",
+        tone: bottleneckCount > 0 ? "attention" : "neutral",
       },
       {
-        label: "In Bearbeitung in den Fachbereichen",
-        value: departmentInProgress,
-        note: "in Fachbereichen",
-        statusLabel: "in Bearbeitung",
+        label: "Offene Anforderungen",
+        value: unresolvedRequirementWorkflows.length,
+        note: "Vorgänge mit fehlenden Antworten",
+        tone: unresolvedRequirementWorkflows.length > 0 ? "attention" : "neutral",
+      },
+      {
+        label: "Aktive Vorgänge",
+        value: metrics.open,
+        note: "laufend",
+        statusLabel: "Offen",
         tone: "progress",
       },
-      { label: "Abgeschlossen", value: metrics.completed, note: "fertig", statusLabel: "abgeschlossen", tone: "success" },
+      {
+        label: "Abgeschlossen (7 Tage)",
+        value: completedThisWeek,
+        note: `letzte ${COMPLETION_THIS_WEEK_DAYS} Tage`,
+        statusLabel: "abgeschlossen",
+        tone: "success",
+      },
     ],
     queueTitle: workflowDefinitionContext.scopedTitle,
     queueItems: activeWorkflows.map((workflow) => ({
@@ -169,8 +208,24 @@ export async function loadManagerInsights(options: DashboardInsightsOptions = {}
           ? "Kürzlich abgeschlossene Vorgänge prüfen."
           : "Aktuell sind keine relevanten Vorgänge offen.",
     stats: [
-      { label: "Offene Anforderungen", value: pendingSelections, note: "offene Auswahlpunkte", tone: "attention" },
-      { label: "Wartet auf Sie", value: waitingForSupervisor.length, note: "Leitungs-Schritt", tone: "attention" },
+      {
+        label: "Wartet auf Ihre Freigabe",
+        value: waitingForSupervisor.length,
+        note: "Leitungs-Schritt",
+        tone: waitingForSupervisor.length > 0 ? "attention" : "neutral",
+      },
+      {
+        label: "Offene Anforderungen",
+        value: pendingSelections,
+        note: "Auswahlpunkte aus Freigaben",
+        tone: pendingSelections > 0 ? "attention" : "neutral",
+      },
+      {
+        label: "Deadline diese Woche",
+        value: relevantWorkflows.filter((workflow) => isDeadlineThisWeek(workflow, nowEpoch)).length,
+        note: `nächste ${COMPLETION_THIS_WEEK_DAYS} Tage`,
+        tone: "attention",
+      },
       {
         label: "Aktive Vorgänge",
         value: activeWorkflows.length,
@@ -178,7 +233,7 @@ export async function loadManagerInsights(options: DashboardInsightsOptions = {}
         tone: "progress",
       },
       {
-        label: "Kürzlich abgeschlossen",
+        label: "Abgeschlossen (30 Tage)",
         value: recentlyCompletedWorkflows.length,
         note: `letzte ${RECENT_COMPLETION_WINDOW_DAYS} Tage`,
         tone: "success",
@@ -201,9 +256,11 @@ export async function loadWorkerInsights(): Promise<DashboardInsights> {
     workflowDisplayName: string;
     taskTitle: string;
     taskStatus: WorkflowTask["status"];
+    createdAt: string | null;
   }> = [];
   let openTaskCount = 0;
   let inProgressTaskCount = 0;
+  let blockedTaskCount = 0;
   let doneTaskCount = 0;
 
   for (const item of tasksWithWorkflow) {
@@ -219,12 +276,17 @@ export async function loadWorkerInsights(): Promise<DashboardInsights> {
         workflowDisplayName,
         taskTitle: item.task.title,
         taskStatus: item.task.status,
+        createdAt: item.task.createdAt ?? null,
       });
       openTaskCount += 1;
     }
 
     if (item.task.status === "in_progress") {
       inProgressTaskCount += 1;
+    }
+
+    if (item.task.status === "blocked") {
+      blockedTaskCount += 1;
     }
 
     if (item.task.status === "done") {
@@ -251,105 +313,203 @@ export async function loadWorkerInsights(): Promise<DashboardInsights> {
         return statusDelta;
       }
 
+      const leftEpoch = left.createdAt ? toEpoch(left.createdAt) : 0;
+      const rightEpoch = right.createdAt ? toEpoch(right.createdAt) : 0;
+      if (leftEpoch !== rightEpoch) {
+        return leftEpoch - rightEpoch;
+      }
+
       return left.workflowDisplayName.localeCompare(right.workflowDisplayName, "de");
     })
     .slice(0, 6)
     .map((task) => ({
       key: `${task.workflowUid}:${task.taskId}`,
       title: task.taskTitle,
-      detail: getTaskStatusLabel(task.taskStatus),
+      detail: task.createdAt
+        ? `${getTaskStatusLabel(task.taskStatus)} – seit ${formatDate(task.createdAt)}`
+        : getTaskStatusLabel(task.taskStatus),
       to: "/tasks/my",
       actionLabel: "Aufgaben",
     }));
 
   return {
     heading: "Meine Aufgaben",
-    nextStep: "Blockierte und laufende Aufgaben zuerst prüfen.",
+    nextStep: blockedTaskCount > 0
+      ? "Blockierte Aufgaben zuerst klären."
+      : inProgressTaskCount > 0
+        ? "Laufende Aufgaben fertigstellen."
+        : openTaskCount > 0
+          ? "Älteste offene Aufgabe zuerst angehen."
+          : "Keine offenen Aufgaben — alles erledigt.",
     stats: [
-      { label: "Meine offenen Aufgaben", value: openTaskCount, note: "offen" },
-      { label: "In Bearbeitung", value: inProgressTaskCount, note: "läuft" },
-      { label: "Erledigt", value: doneTaskCount, note: "erledigt" },
+      {
+        label: "Blockiert",
+        value: blockedTaskCount,
+        note: "warten auf Klärung",
+        tone: blockedTaskCount > 0 ? "attention" : "neutral",
+      },
+      {
+        label: "In Bearbeitung",
+        value: inProgressTaskCount,
+        note: "läuft",
+        tone: "progress",
+      },
+      {
+        label: "Offen",
+        value: openTaskCount,
+        note: "noch zu erledigen",
+        tone: "neutral",
+      },
+      {
+        label: "Erledigt",
+        value: doneTaskCount,
+        note: "erledigt",
+        tone: "success",
+      },
     ],
-    queueTitle: "Danach relevant",
+    queueTitle: "Aufgabenqueue",
     queueItems,
     emptyQueueText: "Aktuell sind keine offenen Aufgaben vorhanden.",
   };
 }
 
 export async function loadAdminInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
-  const [users, roles, groups, workflows] = await Promise.all([
-    getAdminUsers(),
-    getAdminRoles(),
-    getAdminGroups(),
+  const nowEpoch = Date.now();
+  const [workflows, users, departments, responsibilities, notificationEmailConfiguration] = await Promise.all([
     getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null }),
+    getAdminUsers().catch(() => []),
+    getAdminDepartmentAssignments().catch(() => []),
+    getAdminResponsibilityOwners().catch(() => []),
+    getAdminNotificationEmailConfiguration().catch(() => null),
   ]);
   const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;
-  const activeUsers = users.filter((user) => user.isActive).length;
-  const inactiveUsers = users.length - activeUsers;
-  const groupsWithoutRoles = groups.filter((group) => group.roles.length === 0).length;
   const metrics = summarizeWorkflows(workflows);
-  const queueItems: DashboardQueueItem[] = [
-    {
-      key: "admin-config",
-      title: "Stammdaten und Rechte pflegen",
-      detail: "Pflege offen",
-      to: "/admin/config",
-      actionLabel: "Verwaltung",
-    },
-  ];
+  const bottleneckCount = metrics.waitingSupervisor + metrics.waitingDepartment;
+  const stuckWorkflows = workflows.filter((workflow) => isStuckWorkflow(workflow, nowEpoch));
+  const completedThisWeek = workflows.filter((workflow) => isCompletedThisWeek(workflow, nowEpoch)).length;
 
-  if (groupsWithoutRoles > 0) {
-    queueItems.push({
-      key: "groups-without-roles",
-      title: "Gruppen ohne Rollen prüfen",
-      detail: `${groupsWithoutRoles} ohne Rollen`,
-      to: "/admin/config",
-      actionLabel: "Gruppen",
-    });
+  const eligibleSupervisorUsers = users.filter(
+    (user) => user.isActive && Boolean(user.canAccessSupervisorStep ?? user.hasManagerAccess)
+  );
+  const eligibleRequirementOwnerUsers = users.filter((user) => user.isActive);
+  const adminWarnings = buildAdminOverviewWarnings({
+    departments,
+    responsibilities,
+    eligibleSupervisorUsers,
+    eligibleRequirementOwnerUsers,
+    notificationEmailConfiguration,
+  });
+  const warningClusters = clusterAdminOverviewWarnings(groupAdminOverviewWarnings(adminWarnings));
+  const adminWarningCount = adminWarnings.length;
+  const clusterTargetSection: Record<string, string> = {
+    stammdaten: "abteilungen",
+    zustaendigkeit: "zustaendigkeiten",
+    mail: "system_configuration",
+  };
+
+  const queueItems: DashboardQueueItem[] = [];
+
+  if (stuckWorkflows.length > 0) {
+    const sorted = stuckWorkflows
+      .slice()
+      .sort((left, right) => toEpoch(left.createdAt) - toEpoch(right.createdAt))
+      .slice(0, 3);
+    for (const workflow of sorted) {
+      const employeeName = `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
+      queueItems.push({
+        key: `stuck-${workflow.uid}`,
+        title: `Steckt fest: ${employeeName}`,
+        detail: `${getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action")} – seit ${formatDate(workflow.createdAt)}`,
+        to: `/workflows/${workflow.uid}`,
+        actionLabel: "Öffnen",
+      });
+    }
   }
 
-  if (inactiveUsers > 0) {
-    queueItems.push({
-      key: "inactive-users",
-      title: "Inaktive Benutzer verifizieren",
-      detail: `${inactiveUsers} inaktiv`,
-      to: "/admin/config",
-      actionLabel: "Benutzer",
-    });
-  }
-
-  if (metrics.waitingSupervisor > 0 || metrics.waitingDepartment > 0) {
+  if (bottleneckCount > 0 && stuckWorkflows.length === 0) {
     queueItems.push({
       key: "workflow-bottlenecks",
       title: "Prozess-Engpässe verfolgen",
-      detail: `${metrics.waitingSupervisor + metrics.waitingDepartment} warten`,
+      detail: `${bottleneckCount} ${bottleneckCount === 1 ? "Vorgang wartet" : "Vorgänge warten"}`,
       to: "/workflows",
       actionLabel: "Übersicht",
     });
   }
 
+  for (const cluster of warningClusters) {
+    queueItems.push({
+      key: `admin-warning-${cluster.cluster}`,
+      title: cluster.title,
+      detail: `${cluster.totalCount} ${cluster.totalCount === 1 ? "offene Warnung" : "offene Warnungen"}`,
+      to: `/admin/config?section=${clusterTargetSection[cluster.cluster] ?? "overview"}`,
+      actionLabel: "Prüfen",
+    });
+  }
+
   return {
-    heading: "Verwaltung",
+    heading: "Administration",
     nextStep: selectedWorkflowDefinition
-      ? `Stammdaten, Rechte und Engpässe für ${selectedWorkflowDefinition.name} prüfen.`
-      : "Stammdaten, Rechte und Engpässe prüfen.",
+      ? `Festhängende ${selectedWorkflowDefinition.name}-Vorgänge und Health-Signale prüfen.`
+      : stuckWorkflows.length > 0
+        ? "Festhängende Vorgänge zuerst entlasten."
+        : bottleneckCount > 0
+          ? "Aktuelle Engpässe in den Vorgängen prüfen."
+          : adminWarningCount > 0
+            ? `${adminWarningCount} offene Admin-Warnung${adminWarningCount === 1 ? "" : "en"} bereinigen.`
+            : "System läuft. Keine offenen Admin-Aufgaben.",
     stats: [
-      { label: "Benutzer", value: users.length, note: `${activeUsers} aktiv, ${inactiveUsers} inaktiv` },
-      { label: "Rollen", value: roles.length, note: "hinterlegt" },
-      { label: "Gruppen", value: groups.length, note: `${groupsWithoutRoles} ohne Rollen` },
-      { label: "Vorgänge gesamt", value: metrics.total, note: "gesamt" },
+      {
+        label: "Admin-Warnungen",
+        value: adminWarningCount,
+        note: warningClusters.length > 0
+          ? warningClusters.map((cluster) => cluster.title).join(", ")
+          : "Stammdaten, Zuständigkeiten, Mail",
+        tone: adminWarningCount === 0 ? "neutral" : adminWarningCount >= 10 ? "attention" : "attention",
+      },
+      {
+        label: "Festhängend",
+        value: stuckWorkflows.length,
+        note: `seit ≥ ${STUCK_WORKFLOW_THRESHOLD_DAYS} Tagen`,
+        tone: stuckWorkflows.length > 0 ? "attention" : "neutral",
+      },
+      {
+        label: "Wartet auf Freigabe / Fachbereich",
+        value: bottleneckCount,
+        note: "aktuelle Engpässe",
+        tone: bottleneckCount > 0 ? "attention" : "neutral",
+      },
+      {
+        label: "Aktive Vorgänge",
+        value: metrics.open,
+        note: "laufend",
+        tone: "progress",
+      },
+      {
+        label: "Abgeschlossen (7 Tage)",
+        value: completedThisWeek,
+        note: `letzte ${COMPLETION_THIS_WEEK_DAYS} Tage`,
+        tone: "success",
+      },
     ],
-    queueTitle: "Danach relevant",
+    queueTitle: stuckWorkflows.length > 0 ? "Festhängende Vorgänge" : "Aufmerksamkeit erforderlich",
     queueItems,
-    emptyQueueText: "Es sind aktuell keine administrativen Prüfpunkte vorhanden.",
+    emptyQueueText: adminWarningCount === 0 && bottleneckCount === 0
+      ? "Aktuell sind keine offenen Admin-Aufgaben oder Engpässe sichtbar."
+      : "Keine festhängenden Vorgänge — die Übersicht zeigt aktuelle Engpässe und Warnungen.",
   };
 }
 
 export async function loadViewerInsights(options: DashboardInsightsOptions = {}): Promise<DashboardInsights> {
   const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;
   const workflowDefinitionContext = getWorkflowDefinitionContext(selectedWorkflowDefinition);
+  const nowEpoch = Date.now();
   const workflows = await getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null });
   const metrics = summarizeWorkflows(workflows);
+  const completedThisWeek = workflows.filter((workflow) => isCompletedThisWeek(workflow, nowEpoch)).length;
+  const completedRecent = workflows.filter((workflow) => isRecentlyCompletedWorkflow(workflow, nowEpoch)).length;
+  const completionRatePercent = metrics.total > 0
+    ? Math.round((completedRecent / metrics.total) * 100)
+    : 0;
   const queueItems = workflows
     .slice()
     .sort((left, right) => toEpoch(right.createdAt) - toEpoch(left.createdAt))
@@ -364,11 +524,34 @@ export async function loadViewerInsights(options: DashboardInsightsOptions = {})
 
   return {
     heading: "Übersicht",
-    nextStep: "Aktuellen Stand prüfen.",
+    nextStep: metrics.open > 0
+      ? `${metrics.open} ${metrics.open === 1 ? "Vorgang läuft" : "Vorgänge laufen"} aktuell.`
+      : "Aktuell laufen keine Vorgänge.",
     stats: [
-      { label: "Vorgänge gesamt", value: metrics.total, note: "freigegeben" },
-      { label: "Offen", value: metrics.open, note: "noch offen" },
-      { label: "Abgeschlossen", value: metrics.completed, note: "fertig" },
+      {
+        label: `Erfolgsquote (${RECENT_COMPLETION_WINDOW_DAYS} Tage)`,
+        value: completionRatePercent,
+        note: `${completedRecent} von ${metrics.total} sichtbaren Vorgängen abgeschlossen`,
+        tone: "success",
+      },
+      {
+        label: "Aktive Vorgänge",
+        value: metrics.open,
+        note: "laufend",
+        tone: "progress",
+      },
+      {
+        label: "Abgeschlossen (7 Tage)",
+        value: completedThisWeek,
+        note: `letzte ${COMPLETION_THIS_WEEK_DAYS} Tage`,
+        tone: "success",
+      },
+      {
+        label: "Vorgänge gesamt",
+        value: metrics.total,
+        note: "sichtbar",
+        tone: "neutral",
+      },
     ],
     queueTitle: workflowDefinitionContext.scopedTitle,
     queueItems,

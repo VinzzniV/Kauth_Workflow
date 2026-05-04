@@ -1,4 +1,3 @@
-import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
 import type { AdminGroup, AdminRole, AdminUser } from "../../types/auth";
 import { roleDisplayName } from "./adminConfigHelpers";
@@ -61,6 +60,11 @@ export function AdminTechnicalAccessSection({
       <section className="panel">
         <div className="panel-head">
           <h2>Direkte Rollen und Gruppen</h2>
+          <p>
+            {selectedUser
+              ? `Direkte Zuweisungen für ${selectedUser.displayName} prüfen und bearbeiten.`
+              : "Wählen Sie eine Person, um deren direkte Rollen und Gruppenzuordnungen zu prüfen."}
+          </p>
         </div>
 
         {isLoadingTechnicalAccess ? <LoadingState title="Rechte werden geladen..." /> : null}
@@ -161,13 +165,6 @@ export function AdminTechnicalAccessSection({
             </div>
           </section>
         </div>
-      ) : null}
-
-      {!isLoadingTechnicalAccess && !selectedUser ? (
-        <EmptyState
-          title="Person auswählen"
-          description="Wählen Sie eine Person, um direkte Rollen und Gruppenzuordnungen zu prüfen."
-        />
       ) : null}
 
       {!isLoadingTechnicalAccess && groups.length > 0 ? (

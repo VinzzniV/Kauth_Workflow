@@ -8,10 +8,17 @@ type IntroBadgeTone = "default" | "brand" | "info" | "success" | "warning";
 
 function getIntroBadges(meta: AdminWorkspaceSectionMeta): Array<{ label: string; tone: IntroBadgeTone }> {
   switch (meta.key) {
-    case "organization":
+    case "personen":
+    case "abteilungen":
       return [
         { label: "Live", tone: "brand" },
         { label: "Struktur", tone: "default" },
+      ];
+    case "zustaendigkeiten":
+    case "massnahmenvorlagen":
+      return [
+        { label: "Live", tone: "brand" },
+        { label: "Vorgangslogik", tone: "default" },
       ];
     case "templates":
       return [

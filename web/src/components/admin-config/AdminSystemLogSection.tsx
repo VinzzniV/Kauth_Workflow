@@ -107,6 +107,10 @@ export function AdminSystemLogSection() {
   const [taskRef, setTaskRef] = useState("");
   const [limit, setLimit] = useState(50);
   const [offset, setOffset] = useState(0);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const advancedFilterCount = [actorUserId, workflowUid, rotationPlanId, taskRef].filter(
+    (value) => value.trim().length > 0
+  ).length;
   const [entries, setEntries] = useState<AdminSystemLogEntry[]>([]);
   const [summary, setSummary] = useState<AdminSystemLogSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -292,58 +296,17 @@ export function AdminSystemLogSection() {
           </label>
         </div>
 
-        <div className="admin-system-log-filter-row admin-system-log-filter-row--secondary">
-          <label className="field compact admin-system-log-field admin-system-log-field--narrow">
-            <span>User-ID</span>
-            <input
-              type="number"
-              value={actorUserId}
-              onChange={(event) => {
-                setOffset(0);
-                setActorUserId(event.target.value);
-              }}
-              placeholder="optional"
-            />
-          </label>
-
-          <label className="field compact admin-system-log-field">
-            <span>Workflow</span>
-            <input
-              type="text"
-              value={workflowUid}
-              onChange={(event) => {
-                setOffset(0);
-                setWorkflowUid(event.target.value);
-              }}
-              placeholder="Workflow-UID"
-            />
-          </label>
-
-          <label className="field compact admin-system-log-field admin-system-log-field--narrow">
-            <span>Plan-ID</span>
-            <input
-              type="number"
-              value={rotationPlanId}
-              onChange={(event) => {
-                setOffset(0);
-                setRotationPlanId(event.target.value);
-              }}
-              placeholder="optional"
-            />
-          </label>
-
-          <label className="field compact admin-system-log-field">
-            <span>Task-Ref</span>
-            <input
-              type="text"
-              value={taskRef}
-              onChange={(event) => {
-                setOffset(0);
-                setTaskRef(event.target.value);
-              }}
-              placeholder="z. B. rot:123"
-            />
-          </label>
+        <div className="admin-system-log-advanced-toggle">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setIsAdvancedOpen((current) => !current)}
+            aria-expanded={isAdvancedOpen || advancedFilterCount > 0}
+          >
+            Erweiterte Filter
+            {advancedFilterCount > 0 ? ` (${advancedFilterCount} aktiv)` : ""}
+            <span aria-hidden="true">{isAdvancedOpen || advancedFilterCount > 0 ? " ▴" : " ▾"}</span>
+          </button>
 
           <label className="field compact admin-system-log-field admin-system-log-field--narrow">
             <span>Seite</span>
@@ -360,6 +323,62 @@ export function AdminSystemLogSection() {
             </select>
           </label>
         </div>
+
+        {isAdvancedOpen || advancedFilterCount > 0 ? (
+          <div className="admin-system-log-filter-row admin-system-log-filter-row--secondary">
+            <label className="field compact admin-system-log-field admin-system-log-field--narrow">
+              <span>User-ID</span>
+              <input
+                type="number"
+                value={actorUserId}
+                onChange={(event) => {
+                  setOffset(0);
+                  setActorUserId(event.target.value);
+                }}
+                placeholder="optional"
+              />
+            </label>
+
+            <label className="field compact admin-system-log-field">
+              <span>Workflow</span>
+              <input
+                type="text"
+                value={workflowUid}
+                onChange={(event) => {
+                  setOffset(0);
+                  setWorkflowUid(event.target.value);
+                }}
+                placeholder="Workflow-UID"
+              />
+            </label>
+
+            <label className="field compact admin-system-log-field admin-system-log-field--narrow">
+              <span>Plan-ID</span>
+              <input
+                type="number"
+                value={rotationPlanId}
+                onChange={(event) => {
+                  setOffset(0);
+                  setRotationPlanId(event.target.value);
+                }}
+                placeholder="optional"
+              />
+            </label>
+
+            <label className="field compact admin-system-log-field">
+              <span>Task-Ref</span>
+              <input
+                type="text"
+                value={taskRef}
+                onChange={(event) => {
+                  setOffset(0);
+                  setTaskRef(event.target.value);
+                }}
+                placeholder="z. B. rot:123"
+              />
+            </label>
+          </div>
+        ) : null}
       </div>
 
       {isLoading ? <LoadingState title="System-Logs werden geladen..." /> : null}

@@ -8,8 +8,10 @@ import { toNullableNumber, toNullableText } from "./adminConfigHelpers";
 
 export type AdminWorkspaceSection =
   | "overview"
-  | "organization"
-  | "rotation_requirements"
+  | "personen"
+  | "abteilungen"
+  | "zustaendigkeiten"
+  | "massnahmenvorlagen"
   | "templates"
   | "builder"
   | "answers"
@@ -20,7 +22,7 @@ export type AdminWorkspaceSection =
   | "system_mail_templates"
   | "system_configuration";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
-export type AdminWorkspaceArea = "organization" | "configuration" | "access" | "system";
+export type AdminWorkspaceArea = "personen_zugriff" | "workflows_aufgaben" | "massnahmen_rotation" | "system";
 export type AdminWorkspaceWarningCategory =
   | "department_lead"
   | "department_owner"
@@ -65,8 +67,11 @@ export type AdminWorkspaceWarning = {
   targetSection?: AdminWorkspaceSection;
 };
 
+export type AdminWorkspaceWarningCluster = "stammdaten" | "zustaendigkeit" | "mail";
+
 export type AdminWorkspaceWarningGroup = {
   category: AdminWorkspaceWarningCategory;
+  cluster: AdminWorkspaceWarningCluster;
   title: string;
   detail: string;
   count: number;
@@ -75,6 +80,25 @@ export type AdminWorkspaceWarningGroup = {
   targetEntity?: AdminOrganizationEntity;
   targetId?: number | null;
   targetSection?: AdminWorkspaceSection;
+};
+
+export type AdminWorkspaceWarningClusterMeta = {
+  cluster: AdminWorkspaceWarningCluster;
+  title: string;
+};
+
+const ADMIN_WARNING_CLUSTER_BY_CATEGORY: Record<AdminWorkspaceWarningCategory, AdminWorkspaceWarningCluster> = {
+  department_lead: "stammdaten",
+  department_owner: "stammdaten",
+  responsibility_user: "zustaendigkeit",
+  responsibility_department: "zustaendigkeit",
+  mail_configuration: "mail",
+};
+
+export const ADMIN_WARNING_CLUSTER_META: Record<AdminWorkspaceWarningCluster, AdminWorkspaceWarningClusterMeta> = {
+  stammdaten: { cluster: "stammdaten", title: "Stammdaten-Lücken" },
+  zustaendigkeit: { cluster: "zustaendigkeit", title: "Zuständigkeits-Lücken" },
+  mail: { cluster: "mail", title: "Mail-Konfiguration" },
 };
 
 function hasAssignedResponsibilityUser(responsibility: AdminResponsibilityOwner): boolean {
@@ -112,41 +136,80 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     riskNote: "Warnungen auf der Übersicht sind Hinweise auf fehlende Zuordnungen oder Konfigurationen, die in anderen Bereichen bereinigt werden sollten.",
   },
   {
-    key: "organization",
-    label: "Personen & Organisation",
-    description: "Personen verwalten und Abteilungen pflegen.",
-    navLabel: "Personen & Abteilungen",
-    navDescription: "Personen, Abteilungen und Bereichsstammdaten pflegen.",
-    area: "organization",
-    introTitle: "Personen und Bereiche aktuell halten",
+    key: "personen",
+    label: "Personen",
+    description: "Benutzerkonten anlegen, Stammdaten pflegen und Abteilungszuordnungen prüfen.",
+    navLabel: "Personen",
+    navDescription: "Benutzerkonten, Stammdaten und Abteilungszuordnungen pflegen.",
+    area: "personen_zugriff",
+    introTitle: "Benutzerkonten verwalten",
     introDescription:
-      "Hier pflegen Sie die organisatorische Grundlage der App. Änderungen wirken auf Stammdaten, Bereichszuordnungen und Auswahlmöglichkeiten im laufenden Betrieb.",
+      "Hier pflegen Sie die Benutzerkonten der App: Stammdaten, Abteilungszuordnung und Aktivierungsstatus.",
     whatYouCanDo: [
       "Personen anlegen und Stammdaten pflegen",
-      "Abteilungen mit Leitung und Anforderungsverantwortung hinterlegen",
+      "Abteilungszuordnung und Anzeigedaten aktualisieren",
+      "Konten deaktivieren oder reaktivieren",
     ],
-    affectedObjects: ["Benutzerkonten", "Abteilungen"],
+    affectedObjects: ["Benutzerkonten", "Login-Identitäten"],
     impactNote: "Änderungen wirken sofort auf Zuordnungen, Filter und Prüfhinweise in der Administration.",
-    riskNote: "Fehlende Leitung, fehlende Anforderungsverantwortung oder unklare Bereichszuordnungen erzeugen Lücken in nachgelagerten Prozessen.",
+    riskNote: "Falsche Abteilungszuordnungen oder Deaktivierungen können Berechtigungen und Aufgabenzuweisungen unbeabsichtigt verändern.",
   },
   {
-    key: "rotation_requirements",
-    label: "Zuständigkeiten",
-    description: "Fachliche Zuständigkeiten und Abteilungsanforderungen für Durchläufe pflegen.",
-    navLabel: "Zuständigkeiten",
-    navDescription: "Fachliche Zuständigkeiten und Abteilungsanforderungen verwalten.",
-    area: "organization",
-    introTitle: "Zuständigkeiten und Abteilungsanforderungen",
+    key: "abteilungen",
+    label: "Abteilungen",
+    description: "Abteilungen, Leitung und Anforderungsverantwortung pflegen.",
+    navLabel: "Abteilungen",
+    navDescription: "Abteilungen mit Leitung und Anforderungsverantwortung pflegen.",
+    area: "personen_zugriff",
+    introTitle: "Abteilungen und Verantwortlichkeiten pflegen",
     introDescription:
-      "Hier pflegen Sie fachliche Zuständigkeiten (wer für Onboarding-Aufgaben verantwortlich ist) und Abteilungsanforderungen (welche Maßnahmen bei Eintritt oder Austritt in eine Abteilung entstehen).",
+      "Hier pflegen Sie die organisatorische Struktur: Abteilungen, deren Leitung und die anforderungsverantwortlichen Personen.",
     whatYouCanDo: [
-      "Fachliche Zuständigkeiten anlegen, Personen und Bereiche zuordnen",
-      "Maßnahmenvorlagen pro Abteilung und Auslöser (Eintritt/Austritt) konfigurieren",
+      "Abteilungen anlegen und umbenennen",
+      "Leitung und Anforderungsverantwortung pro Abteilung zuweisen",
+      "Bereichsspezifische Positionen pflegen",
+    ],
+    affectedObjects: ["Abteilungen", "Leitungs-Zuordnungen", "Anforderungsverantwortung"],
+    impactNote: "Änderungen wirken sofort auf Zuordnungen, Filter und Prüfhinweise in der Administration.",
+    riskNote: "Fehlende Leitung oder fehlende Anforderungsverantwortung erzeugen Lücken in nachgelagerten Prozessen.",
+  },
+  {
+    key: "zustaendigkeiten",
+    label: "Zuständigkeiten",
+    description: "Fachliche Zuständigkeiten für Aufgaben in Vorgängen pflegen.",
+    navLabel: "Zuständigkeiten",
+    navDescription: "Fachliche Zuständigkeiten verwalten und Personen zuweisen.",
+    area: "personen_zugriff",
+    introTitle: "Fachliche Zuständigkeiten",
+    introDescription:
+      "Hier pflegen Sie fachliche Zuständigkeiten: wer für die Aufgaben in Onboarding-Vorgängen oder Abteilungsanforderungen verantwortlich ist.",
+    whatYouCanDo: [
+      "Fachliche Zuständigkeiten anlegen",
+      "Personen oder Bereiche zuordnen",
+      "Unkonfigurierte Zuständigkeiten erkennen und vervollständigen",
+    ],
+    affectedObjects: ["fachliche Zuständigkeiten", "Aufgabenzuweisungen in Vorgängen"],
+    impactNote: "Änderungen wirken sofort auf zukünftige Aufgabenzuordnungen.",
+    riskNote: "Das Löschen einer Zuständigkeit kann Aufgaben ohne Verantwortlichkeit hinterlassen.",
+  },
+  {
+    key: "massnahmenvorlagen",
+    label: "Maßnahmenvorlagen",
+    description: "Vorlagen für Maßnahmen bei Eintritt oder Austritt in eine Abteilung pflegen.",
+    navLabel: "Maßnahmenvorlagen",
+    navDescription: "Maßnahmen für Eintritt und Austritt pro Abteilung pflegen.",
+    area: "massnahmen_rotation",
+    introTitle: "Maßnahmenvorlagen für Abteilungswechsel",
+    introDescription:
+      "Hier definieren Sie, welche Maßnahmen automatisch entstehen, wenn jemand in eine Abteilung eintritt oder sie verlässt — inklusive Zuständigkeit, Fälligkeit und optionaler Automatisierung.",
+    whatYouCanDo: [
+      "Maßnahmenvorlagen pro Abteilung und Auslöser konfigurieren",
+      "Zuständige Stelle, Fälligkeit und Erinnerung definieren",
       "Automatisierbare Maßnahmen mit einem Automation-Key vorbereiten",
     ],
-    affectedObjects: ["fachliche Zuständigkeiten", "Abteilungsanforderungen", "generierte Aufgaben in Durchläufen"],
-    impactNote: "Änderungen an Zuständigkeiten wirken sofort auf Aufgabenzuordnungen. Neue Vorlagen werden erst bei der nächsten Task-Synchronisierung eines Plans aktiv.",
-    riskNote: "Das Löschen einer Zuständigkeit kann Aufgaben ohne Verantwortlichkeit hinterlassen. Vorlagen sollten deaktiviert statt gelöscht werden, wenn laufende Pläne betroffen sind.",
+    affectedObjects: ["Maßnahmenvorlagen", "generierte Aufgaben in Durchläufen"],
+    impactNote: "Neue Vorlagen werden bei der nächsten Task-Synchronisierung eines Plans aktiv.",
+    riskNote: "Vorlagen sollten deaktiviert statt gelöscht werden, wenn laufende Pläne betroffen sind.",
   },
   {
     key: "templates",
@@ -154,7 +217,8 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Aufgaben für neue Vorgänge strukturieren und die entstehende Vorgangslogik pflegen.",
     navLabel: "Aufgaben",
     navDescription: "Vorlagen für automatisch entstehende Aufgaben in neuen Vorgängen pflegen.",
-    area: "configuration",
+    area: "workflows_aufgaben",
+    visibleInSubnav: false,
     introTitle: "Aufgaben definieren, die in neuen Vorgängen entstehen",
     introDescription:
       "Hier legen Sie fest, welche Aufgaben in einem Vorgang angelegt werden und unter welchen Bedingungen sie sichtbar oder abhängig voneinander sind.",
@@ -173,7 +237,7 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Workflow-Definitionen, Versionen, Nodes und Edges geführt konfigurieren.",
     navLabel: "Workflow Builder",
     navDescription: "Versionierte Workflow-Definitionen als Draft pflegen und veröffentlichen.",
-    area: "configuration",
+    area: "workflows_aufgaben",
     introTitle: "Workflow-Definitionen geführt modellieren",
     introDescription:
       "Hier entsteht der erste formularbasierte Builder für versionierte Workflow-Definitionen inklusive Nodes, Edges, Validierung und Veröffentlichung.",
@@ -192,7 +256,8 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Felder für neue Vorgänge definieren und Vorgaben je Rolle vorbereiten.",
     navLabel: "Felder & Vorgaben",
     navDescription: "Formularfelder und Vorgaben für neue Vorgänge gemeinsam steuern.",
-    area: "configuration",
+    area: "workflows_aufgaben",
+    visibleInSubnav: false,
     introTitle: "Felder und Vorgaben für neue Vorgänge steuern",
     introDescription:
       "Hier definieren Sie Eingabefelder und legen fest, welche Vorgaben neue Vorgänge je Rolle oder Bereich mitbringen.",
@@ -232,7 +297,7 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Standardzugriff über Rollen steuern und gezielte Ausnahmen für einzelne Personen pflegen.",
     navLabel: "App-Rechte",
     navDescription: "Standardrechte, Gruppen und Ausnahmen verständlich steuern.",
-    area: "access",
+    area: "personen_zugriff",
     introTitle: "Standardzugriff und Ausnahmen verständlich steuern",
     introDescription:
       "Hier definieren Sie, welche Rechte Rollen grundsätzlich mitbringen und wo einzelne Personen oder Gruppen bewusst abweichend behandelt werden.",
@@ -251,7 +316,7 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Externe Gruppen abgleichen, Identitäten prüfen und Gruppen mit App-Rollen verbinden.",
     navLabel: "Verzeichnis & Gruppen",
     navDescription: "Externe Gruppen holen, prüfen und mit App-Rollen verknüpfen.",
-    area: "access",
+    area: "personen_zugriff",
     introTitle: "Verzeichnis-Sync und Gruppenanbindung verwalten",
     introDescription:
       "Hier holen Sie externe Gruppen und Identitäten in die App und koppeln Gruppenmitgliedschaften an Rollen in der Anwendung.",
@@ -324,23 +389,30 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
 
 export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
   {
-    key: "organization",
-    label: "Personen & Organisation",
-    description: "Stammdaten und Abteilungen pflegen.",
-    defaultSection: "organization",
-    sections: ["organization", "rotation_requirements"],
+    key: "personen_zugriff",
+    label: "Personen & Zugriff",
+    description: "Personen, Abteilungen, Zuständigkeiten und App-Rechte gemeinsam pflegen.",
+    defaultSection: "personen",
+    sections: ["personen", "abteilungen", "zustaendigkeiten", "access", "directory"],
   },
   {
-    key: "access",
-    label: "App-Zugriff",
-    description: "Rechte, Gruppen und Verzeichnisanbindung gemeinsam steuern.",
-    defaultSection: "access",
-    sections: ["access", "directory"],
+    key: "workflows_aufgaben",
+    label: "Workflows & Aufgaben",
+    description: "Workflow-Definitionen, Aufgaben- und Feldvorlagen für neue Vorgänge pflegen.",
+    defaultSection: "builder",
+    sections: ["builder"],
+  },
+  {
+    key: "massnahmen_rotation",
+    label: "Maßnahmen & Rotation",
+    description: "Maßnahmenvorlagen für Eintritt, Austritt und Rotation steuern.",
+    defaultSection: "massnahmenvorlagen",
+    sections: ["massnahmenvorlagen"],
   },
   {
     key: "system",
     label: "System",
-    description: "Zentrale Betriebslogs und laufende Systemkonfiguration geordnet steuern.",
+    description: "Zentrale Betriebslogs, Mail-Vorlagen und Systemkonfiguration steuern.",
     defaultSection: "system_logs",
     sections: ["system_logs", "system_mail_templates", "system_configuration"],
   },
@@ -378,8 +450,10 @@ export function getAdminWorkspacePresentationSection(section: AdminWorkspaceSect
 
 export function normalizeAdminWorkspaceSection(value: string | null): AdminWorkspaceSection {
   switch ((value ?? "").trim().toLowerCase()) {
-    case "organization":
-    case "rotation_requirements":
+    case "personen":
+    case "abteilungen":
+    case "zustaendigkeiten":
+    case "massnahmenvorlagen":
     case "builder":
     case "access":
     case "directory":
@@ -387,6 +461,11 @@ export function normalizeAdminWorkspaceSection(value: string | null): AdminWorks
     case "system_mail_templates":
     case "system_configuration":
       return value!.trim().toLowerCase() as AdminWorkspaceSection;
+    case "organization":
+      // Legacy alias — entity-aware split into personen/abteilungen happens in AdminConfigPage redirect.
+      return "personen";
+    case "rotation_requirements":
+      return "zustaendigkeiten";
     case "system":
       return "system_logs";
     case "operations":
@@ -704,7 +783,7 @@ export function buildAdminOverviewWarnings(args: {
         title: `Zuständigkeit ohne feste Person: ${responsibility.responsibilityName}`,
         detail: "Die Zuständigkeit ist aktuell nur über die Abteilung oder den Standardfall abgesichert.",
         actionLabel: "Zuständigkeit öffnen",
-        targetSection: "rotation_requirements",
+        targetSection: "zustaendigkeiten",
       });
     }
 
@@ -716,7 +795,7 @@ export function buildAdminOverviewWarnings(args: {
         title: `Zuständigkeit ohne Bereich: ${responsibility.responsibilityName}`,
         detail: "Die Zuständigkeit hat aktuell keine saubere Bereichszuordnung.",
         actionLabel: "Zuständigkeit öffnen",
-        targetSection: "rotation_requirements",
+        targetSection: "zustaendigkeiten",
       });
     }
   }
@@ -774,13 +853,13 @@ const ADMIN_WARNING_GROUP_META: Record<AdminWorkspaceWarningCategory, {
     title: "Zuständigkeiten ohne feste Person",
     detail: "Diese Zuständigkeiten sind aktuell nicht eindeutig einer Person zugeordnet.",
     actionLabel: "Zuständigkeiten prüfen",
-    targetSection: "rotation_requirements",
+    targetSection: "zustaendigkeiten",
   },
   responsibility_department: {
     title: "Zuständigkeiten ohne Bereich",
     detail: "Bei diesen Zuständigkeiten fehlt die organisatorische Bereichszuordnung.",
     actionLabel: "Zuständigkeiten prüfen",
-    targetSection: "rotation_requirements",
+    targetSection: "zustaendigkeiten",
   },
   mail_configuration: {
     title: "Mail- und Versandkonfiguration",
@@ -814,6 +893,7 @@ export function groupAdminOverviewWarnings(
 
     groups.push({
       category,
+      cluster: ADMIN_WARNING_CLUSTER_BY_CATEGORY[category],
       title: meta.title,
       detail: meta.detail,
       count: categoryWarnings.length,
@@ -826,4 +906,28 @@ export function groupAdminOverviewWarnings(
   }
 
   return groups;
+}
+
+export type AdminWorkspaceWarningClusterBucket = {
+  cluster: AdminWorkspaceWarningCluster;
+  title: string;
+  totalCount: number;
+  groups: AdminWorkspaceWarningGroup[];
+};
+
+export function clusterAdminOverviewWarnings(
+  warningGroups: AdminWorkspaceWarningGroup[]
+): AdminWorkspaceWarningClusterBucket[] {
+  const order: AdminWorkspaceWarningCluster[] = ["stammdaten", "zustaendigkeit", "mail"];
+  return order
+    .map<AdminWorkspaceWarningClusterBucket>((cluster) => {
+      const groups = warningGroups.filter((group) => group.cluster === cluster);
+      return {
+        cluster,
+        title: ADMIN_WARNING_CLUSTER_META[cluster].title,
+        totalCount: groups.reduce((sum, group) => sum + group.count, 0),
+        groups,
+      };
+    })
+    .filter((bucket) => bucket.groups.length > 0);
 }

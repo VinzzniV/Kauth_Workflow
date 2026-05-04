@@ -92,9 +92,9 @@ describe("dashboardInsights", () => {
     });
 
     expect(mockedGetWorkflows).toHaveBeenCalledWith(expect.objectContaining({ workflowDefinitionKey: "onboarding" }));
-    expect(insights.stats[0]?.label).toBe("Offene Vorgänge");
+    expect(insights.stats[0]?.label).toBe("Wartet auf Freigabe / Fachbereich");
     expect(insights.queueTitle).toBe("Vorgänge (Onboarding)");
-    expect(insights.nextStep).toBe("Onboarding-Fälle in Startphase und Rücklauf prüfen.");
+    expect(insights.nextStep).toBe("Engpässe bei Abteilungsleitung und Fachbereichen zuerst entlasten.");
   });
 
   it("filters manager insights by process type using the visible workflow list", async () => {
@@ -141,8 +141,8 @@ describe("dashboardInsights", () => {
       selectedWorkflowDefinition: { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
     });
 
-    expect(insights.stats[0]?.value).toBe(2);
-    expect(insights.stats[1]?.value).toBe(1);
+    expect(insights.stats[0]?.value).toBe(1); // waitingForSupervisor (offboarding only)
+    expect(insights.stats[1]?.value).toBe(2); // pendingSelections from wf-2
     expect(insights.queueItems).toHaveLength(1);
     expect(insights.queueTitle).toBe("Mitarbeitende (Offboarding)");
     expect(insights.employeeItems).toHaveLength(1);
@@ -188,9 +188,9 @@ describe("dashboardInsights", () => {
 
     const insights = await loadDashboardInsights("manager");
 
-    expect(insights.stats[0]?.value).toBe(1);
-    expect(insights.stats[1]?.value).toBe(1);
-    expect(insights.stats[2]?.value).toBe(2);
+    expect(insights.stats[0]?.value).toBe(1); // waitingForSupervisor
+    expect(insights.stats[1]?.value).toBe(1); // pendingSelections from supervisor-step
+    expect(insights.stats[3]?.value).toBe(2); // activeWorkflows (now at index 3 after deadline insert)
     expect(insights.queueItems).toHaveLength(1);
     expect(insights.queueItems[0]?.title).toContain("1 Vorgänge warten auf Ihre Rückmeldung");
     expect(insights.employeeItems).toHaveLength(2);

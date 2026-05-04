@@ -818,7 +818,7 @@ function FormFooter({
         {hasChanges && (
           <button
             type="button"
-            className="btn-ghost"
+            className="btn btn-ghost"
             onClick={handleDiscard}
             disabled={builder.isSaving || builder.isPublishing}
           >
@@ -829,7 +829,7 @@ function FormFooter({
         <div className="wf-form-footer-actions">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn btn-secondary"
             onClick={() => void builder.saveVersion()}
             disabled={!hasChanges || builder.isSaving || builder.isPublishing || !builder.selectedDefinition}
           >
@@ -838,7 +838,7 @@ function FormFooter({
 
           <button
             type="button"
-            className="btn-primary"
+            className="btn btn-primary"
             onClick={() => void builder.publishVersion()}
             disabled={!canPublish || builder.isSaving || builder.isPublishing}
             title={!canManageAdvanced ? "Nur im Admin-Modus verfügbar" : !builder.selectedVersionSummary?.canPublish ? "Entwurf hat offene Validierungs-Issues" : undefined}

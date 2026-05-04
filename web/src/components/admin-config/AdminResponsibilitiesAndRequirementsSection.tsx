@@ -44,7 +44,14 @@ function getResponsibilityUserOptionLabel(user: { displayName: string; departmen
     : user.displayName;
 }
 
-function FachlicheZustaendigkeitenPanel() {
+type ResponsibilityTypeFilter = "all" | "application" | "process";
+type ResponsibilityStatusFilter = "all" | "assigned" | "unconfigured";
+
+function isResponsibilityUnconfigured(responsibility: AdminResponsibilityOwner): boolean {
+  return !responsibility.appUserDisplayName && !responsibility.departmentName;
+}
+
+export function FachlicheZustaendigkeitenPanel() {
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useToast();
 
@@ -74,6 +81,29 @@ function FachlicheZustaendigkeitenPanel() {
   const [editDraft, setEditDraft] = useState<ResponsibilityEditDraft>({ appUserId: "", departmentId: "" });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const [typeFilter, setTypeFilter] = useState<ResponsibilityTypeFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<ResponsibilityStatusFilter>("all");
+  const [search, setSearch] = useState("");
+
+  const applicationCount = responsibilities.filter((r) => r.responsibilityType === "application").length;
+  const processCount = responsibilities.filter((r) => r.responsibilityType !== "application").length;
+  const unconfiguredCount = responsibilities.filter(isResponsibilityUnconfigured).length;
+  const filteredResponsibilities = responsibilities.filter((r) => {
+    if (typeFilter === "application" && r.responsibilityType !== "application") return false;
+    if (typeFilter === "process" && r.responsibilityType === "application") return false;
+
+    const isUnconfigured = isResponsibilityUnconfigured(r);
+    if (statusFilter === "assigned" && isUnconfigured) return false;
+    if (statusFilter === "unconfigured" && !isUnconfigured) return false;
+
+    const normalizedSearch = search.trim().toLowerCase();
+    if (!normalizedSearch) return true;
+    return [r.responsibilityName, r.departmentName ?? "", r.appUserDisplayName ?? "", r.systemKey ?? ""]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedSearch);
+  });
 
   async function invalidate() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.admin.responsibilityOwners() });
@@ -182,6 +212,63 @@ function FachlicheZustaendigkeitenPanel() {
           <h2>Fachliche Zuständigkeiten{responsibilities.length > 0 ? ` (${responsibilities.length})` : ""}</h2>
         </div>
 
+        {!responsibilitiesQuery.isLoading && !responsibilitiesQuery.error && responsibilities.length > 0 ? (
+          <>
+            <div className="admin-tab-strip" role="tablist" aria-label="Filter nach Typ">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={typeFilter === "all"}
+                className={`admin-tab ${typeFilter === "all" ? "active" : ""}`}
+                onClick={() => setTypeFilter("all")}
+              >
+                Alle <span className="admin-tab-count">{responsibilities.length}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={typeFilter === "application"}
+                className={`admin-tab ${typeFilter === "application" ? "active" : ""}`}
+                onClick={() => setTypeFilter("application")}
+              >
+                Anwendung <span className="admin-tab-count">{applicationCount}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={typeFilter === "process"}
+                className={`admin-tab ${typeFilter === "process" ? "active" : ""}`}
+                onClick={() => setTypeFilter("process")}
+              >
+                Prozess <span className="admin-tab-count">{processCount}</span>
+              </button>
+            </div>
+
+            <div className="toolbar-row toolbar-row-filters">
+              <label className="field compact grow">
+                <span>Suche</span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Name, Bereich, Person oder System-Key"
+                />
+              </label>
+              <label className="field compact">
+                <span>Status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as ResponsibilityStatusFilter)}
+                >
+                  <option value="all">Alle</option>
+                  <option value="assigned">Zugewiesen</option>
+                  <option value="unconfigured">Unkonfiguriert ({unconfiguredCount})</option>
+                </select>
+              </label>
+            </div>
+          </>
+        ) : null}
+
         {responsibilitiesQuery.isLoading ? <LoadingState title="Zuständigkeiten werden geladen..." /> : null}
 
         {!responsibilitiesQuery.isLoading && responsibilitiesQuery.error ? (
@@ -196,12 +283,28 @@ function FachlicheZustaendigkeitenPanel() {
           <p className="panel-note">Noch keine fachlichen Zuständigkeiten angelegt.</p>
         ) : null}
 
-        {!responsibilitiesQuery.isLoading && !responsibilitiesQuery.error && responsibilities.length > 0 ? (
+        {!responsibilitiesQuery.isLoading && !responsibilitiesQuery.error && responsibilities.length > 0 && filteredResponsibilities.length === 0 ? (
+          <EmptyState
+            title="Keine Zuständigkeiten passen zu den Filtern"
+            description="Setzen Sie die Filter zurück oder passen Sie die Suche an."
+            actionLabel="Filter zurücksetzen"
+            onAction={() => {
+              setTypeFilter("all");
+              setStatusFilter("all");
+              setSearch("");
+            }}
+          />
+        ) : null}
+
+        {!responsibilitiesQuery.isLoading && !responsibilitiesQuery.error && filteredResponsibilities.length > 0 ? (
           <div className="workflow-grid" aria-label="Zuständigkeiten">
-            {responsibilities.map((r) => (
+            {filteredResponsibilities.map((r) => {
+              const isUnconfigured = !r.appUserDisplayName && !r.departmentName;
+              const isEditing = editingId === r.responsibilityId;
+              return (
               <article
                 key={r.responsibilityId}
-                className={`workflow-card card-list${editingId === r.responsibilityId ? " card-selected" : ""}`}
+                className={`workflow-card card-list${isEditing ? " card-selected" : ""}${isUnconfigured && !isEditing ? " card-unconfigured" : ""}`}
               >
                 <div className="workflow-card-top">
                   <h3>{r.responsibilityName}</h3>
@@ -210,11 +313,11 @@ function FachlicheZustaendigkeitenPanel() {
                 <dl className="workflow-meta">
                   <div>
                     <dt>Verantwortlich</dt>
-                    <dd>{r.appUserDisplayName ?? "–"}</dd>
+                    <dd>{r.appUserDisplayName ?? <span className="meta-empty">Nicht zugewiesen</span>}</dd>
                   </div>
                   <div>
                     <dt>Bereich</dt>
-                    <dd>{r.departmentName ?? "–"}</dd>
+                    <dd>{r.departmentName ?? <span className="meta-empty">Nicht zugewiesen</span>}</dd>
                   </div>
                   {r.systemKey ? (
                     <div>
@@ -283,14 +386,14 @@ function FachlicheZustaendigkeitenPanel() {
                   <div className="action-row">
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className={isUnconfigured ? "btn btn-primary" : "btn btn-secondary"}
                       onClick={() => openEdit(r)}
                     >
-                      Zuweisung bearbeiten
+                      {isUnconfigured ? "Jetzt zuweisen" : "Zuweisung bearbeiten"}
                     </button>
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className="btn btn-ghost"
                       onClick={() => void handleDelete(r)}
                       disabled={deletingId === r.responsibilityId}
                     >
@@ -299,7 +402,8 @@ function FachlicheZustaendigkeitenPanel() {
                   </div>
                 )}
               </article>
-            ))}
+              );
+            })}
           </div>
         ) : null}
       </section>
@@ -402,12 +506,15 @@ function getTaskTypeLabel(t: RotationTaskType): string {
   }
 }
 
-function AbteilungsanforderungenPanel() {
+type TriggerTabFilter = "all" | "enter" | "exit";
+
+export function AbteilungsanforderungenPanel() {
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useToast();
 
   const [filterDepartmentId, setFilterDepartmentId] = useState<number | null>(null);
   const [filterIsActive, setFilterIsActive] = useState<boolean | null>(true);
+  const [filterTrigger, setFilterTrigger] = useState<TriggerTabFilter>("all");
   const [editingTemplateId, setEditingTemplateId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [form, setForm] = useState<TemplateFormState>(createEmptyTemplateForm());
@@ -696,45 +803,94 @@ function AbteilungsanforderungenPanel() {
         </section>
       ) : null}
 
-      <section className="panel">
-        <div className="panel-head">
-          <h2>
-            Maßnahmenvorlagen
-            {filterDepartmentId ? ` – ${departments.find((d) => d.id === filterDepartmentId)?.name ?? ""}` : ""}
-          </h2>
-          <p>
-            {templates.length > 0
-              ? `${templates.length} Vorlage${templates.length !== 1 ? "n" : ""} gefunden.`
-              : "Keine Vorlagen für die gewählten Filter vorhanden."}
-          </p>
-        </div>
+      {(() => {
+        const enterCount = templates.filter((t) => t.triggerType === "enter").length;
+        const exitCount = templates.filter((t) => t.triggerType === "exit").length;
+        const visibleTemplates = filterTrigger === "all"
+          ? templates
+          : templates.filter((t) => t.triggerType === filterTrigger);
 
-        {templatesQuery.isLoading ? <LoadingState title="Vorlagen werden geladen..." /> : null}
+        return (
+          <section className="panel">
+            <div className="panel-head">
+              <h2>
+                Maßnahmenvorlagen
+                {filterDepartmentId ? ` – ${departments.find((d) => d.id === filterDepartmentId)?.name ?? ""}` : ""}
+              </h2>
+              <p>
+                {templates.length > 0
+                  ? `${templates.length} Vorlage${templates.length !== 1 ? "n" : ""} gefunden.`
+                  : "Keine Vorlagen für die gewählten Filter vorhanden."}
+              </p>
+            </div>
 
-        {!templatesQuery.isLoading && templatesQuery.error ? (
-          <EmptyState
-            title="Vorlagen konnten nicht geladen werden."
-            actionLabel="Erneut versuchen"
-            onAction={() => void templatesQuery.refetch()}
-          />
-        ) : null}
+            {!templatesQuery.isLoading && !templatesQuery.error && templates.length > 0 ? (
+              <div className="admin-tab-strip" role="tablist" aria-label="Filter nach Auslöser">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filterTrigger === "all"}
+                  className={`admin-tab ${filterTrigger === "all" ? "active" : ""}`}
+                  onClick={() => setFilterTrigger("all")}
+                >
+                  Alle <span className="admin-tab-count">{templates.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filterTrigger === "enter"}
+                  className={`admin-tab ${filterTrigger === "enter" ? "active" : ""}`}
+                  onClick={() => setFilterTrigger("enter")}
+                >
+                  Eintritt <span className="admin-tab-count">{enterCount}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filterTrigger === "exit"}
+                  className={`admin-tab ${filterTrigger === "exit" ? "active" : ""}`}
+                  onClick={() => setFilterTrigger("exit")}
+                >
+                  Austritt <span className="admin-tab-count">{exitCount}</span>
+                </button>
+              </div>
+            ) : null}
 
-        {!templatesQuery.isLoading && !templatesQuery.error && templates.length === 0 ? (
-          <EmptyState
-            title="Keine Vorlagen vorhanden"
-            description={
-              filterIsActive === true
-                ? "Aktuell sind keine aktiven Vorlagen sichtbar. Blenden Sie bei Bedarf inaktive Vorlagen über den Statusfilter ein oder legen Sie eine neue Vorlage an."
-                : "Legen Sie die erste Maßnahmenvorlage über 'Neue Vorlage' an."
-            }
-            actionLabel="Neue Vorlage anlegen"
-            onAction={openCreateForm}
-          />
-        ) : null}
+            {templatesQuery.isLoading ? <LoadingState title="Vorlagen werden geladen..." /> : null}
 
-        {!templatesQuery.isLoading && !templatesQuery.error && templates.length > 0 ? (
-          <div className="workflow-grid" aria-label="Vorlagenliste">
-            {templates.map((template) => (
+            {!templatesQuery.isLoading && templatesQuery.error ? (
+              <EmptyState
+                title="Vorlagen konnten nicht geladen werden."
+                actionLabel="Erneut versuchen"
+                onAction={() => void templatesQuery.refetch()}
+              />
+            ) : null}
+
+            {!templatesQuery.isLoading && !templatesQuery.error && templates.length === 0 ? (
+              <EmptyState
+                title="Keine Vorlagen vorhanden"
+                description={
+                  filterIsActive === true
+                    ? "Aktuell sind keine aktiven Vorlagen sichtbar. Blenden Sie bei Bedarf inaktive Vorlagen über den Statusfilter ein oder legen Sie eine neue Vorlage an."
+                    : "Legen Sie die erste Maßnahmenvorlage über 'Neue Vorlage' an."
+                }
+                actionLabel="Neue Vorlage anlegen"
+                onAction={openCreateForm}
+              />
+            ) : null}
+
+            {!templatesQuery.isLoading && !templatesQuery.error && templates.length > 0 && visibleTemplates.length === 0 ? (
+              <EmptyState
+                title="Keine Vorlagen für diesen Auslöser"
+                description={`Es gibt keine ${filterTrigger === "enter" ? "Eintritts" : "Austritts"}-Vorlagen mit den aktuellen Filtern.`}
+                actionLabel="Alle Auslöser anzeigen"
+                onAction={() => setFilterTrigger("all")}
+              />
+            ) : null}
+
+            {!templatesQuery.isLoading && !templatesQuery.error && visibleTemplates.length > 0 ? (
+              <div className="workflow-grid" aria-label="Vorlagenliste">
+                {visibleTemplates.map((template) => (
               <article
                 key={template.id}
                 className={`workflow-card card-list${editingTemplateId === template.id ? " card-selected" : ""}`}
@@ -789,11 +945,13 @@ function AbteilungsanforderungenPanel() {
                     {deletingId === template.id ? "Lösche..." : "Löschen"}
                   </button>
                 </div>
-              </article>
-            ))}
-          </div>
-        ) : null}
-      </section>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        );
+      })()}
     </>
   );
 }
