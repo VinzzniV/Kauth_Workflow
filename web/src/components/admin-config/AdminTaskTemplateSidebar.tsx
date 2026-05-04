@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import type { AdminTaskSpec, AdminWorkflowDefinitionSummary } from "../../types/auth";
 import SectionHeader from "../ui/SectionHeader";
 import SelectionListItem from "../ui/SelectionListItem";
@@ -62,7 +63,14 @@ export function AdminTaskTemplateSidebar({
         </button>
       </div>
 
-      {!selectedWorkflowDefinitionId ? <p className="panel-note">Bitte zuerst eine Workflow-Definition auswählen.</p> : null}
+      {selectedWorkflowDefinitionId ? (
+        <VersionContextBanner
+          workflowDefinitions={workflowDefinitions}
+          selectedWorkflowDefinitionId={selectedWorkflowDefinitionId}
+        />
+      ) : (
+        <p className="panel-note">Bitte zuerst eine Workflow-Definition auswählen.</p>
+      )}
       {isLoadingTemplates ? <p className="panel-note">Aufgabenvorlagen werden geladen...</p> : null}
 
       {!isLoadingTemplates && selectedWorkflowDefinitionId && templates.length === 0 ? (
@@ -89,4 +97,56 @@ export function AdminTaskTemplateSidebar({
       ) : null}
     </section>
   );
+}
+
+function VersionContextBanner({
+  workflowDefinitions,
+  selectedWorkflowDefinitionId,
+}: {
+  workflowDefinitions: AdminWorkflowDefinitionSummary[];
+  selectedWorkflowDefinitionId: number;
+}) {
+  const definition = workflowDefinitions.find((d) => d.id === selectedWorkflowDefinitionId);
+  if (!definition) return null;
+
+  const publishedVersions = definition.versions.filter((v) => v.status === "published");
+  const draftVersions = definition.versions.filter((v) => v.status !== "published" && v.status !== "archived");
+
+  const hasPublished = publishedVersions.length > 0;
+  const hasDraft = draftVersions.length > 0;
+  const latestDraft = draftVersions[draftVersions.length - 1];
+  const latestPublished = publishedVersions[publishedVersions.length - 1];
+
+  if (hasPublished && hasDraft) {
+    return (
+      <div className="panel-note panel-note--warning" role="alert" style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+        <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: "0.1rem" }} aria-hidden="true" />
+        <span>
+          <strong>Entwurf vorhanden (Version {latestDraft.versionNumber}).</strong>{" "}
+          Änderungen hier gelten auf Definitions-Ebene — sie beziehen sich auf die veröffentlichte Version{" "}
+          {latestPublished.versionNumber}. Wenn der Entwurf später veröffentlicht wird, können Specs aus dem
+          Builder diese Änderungen überschreiben. Versions-sichere Pflege ist erst mit Backend-Unterstützung
+          für versionierte Template-Endpunkte möglich.
+        </span>
+      </div>
+    );
+  }
+
+  if (!hasPublished && hasDraft) {
+    return (
+      <p className="panel-note">
+        Nur Entwurf (Version {latestDraft.versionNumber}) — noch keine veröffentlichte Version.
+      </p>
+    );
+  }
+
+  if (hasPublished && !hasDraft) {
+    return (
+      <p className="panel-note" style={{ color: "var(--color-text-secondary)" }}>
+        Aktive Version: {latestPublished.versionNumber} (veröffentlicht) — kein offener Entwurf.
+      </p>
+    );
+  }
+
+  return null;
 }
