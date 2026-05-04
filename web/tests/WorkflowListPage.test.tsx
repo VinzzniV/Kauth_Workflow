@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowListPage from "../src/pages/WorkflowListPage";
 import * as lookupApi from "../src/services/lookupApi";
@@ -64,9 +64,61 @@ describe("WorkflowListPage", () => {
     renderWithApp(<WorkflowListPage />, { roleKeys: ["auth_hr"] });
 
     expect(await screen.findByText("Mila Muster")).toBeTruthy();
-    expect(screen.getByText("Quality Engineer")).toBeTruthy();
+    expect(screen.getAllByText("Quality Engineer").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Onboarding").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Öffnen" }).getAttribute("href")).toBe("/workflows/wf-123");
+  });
+
+  it("offers a table mode for workflow scanning", async () => {
+    mockedGetWorkflowPage.mockResolvedValue(createWorkflowPageResponse({
+      items: [
+        createWorkflowSummary({
+          uid: "wf-123",
+          firstName: "Mila",
+          lastName: "Muster",
+        }),
+      ],
+    }));
+
+    renderWithApp(<WorkflowListPage />, { roleKeys: ["auth_hr"] });
+
+    expect(await screen.findByText("Mila Muster")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tabelle" }));
+
+    expect(screen.getByRole("table", { name: "Tabellenansicht Mitarbeiterprozesse" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Vorgang" })).toBeTruthy();
+  });
+
+  it("keeps the workflow list visible while showing a selected preview", async () => {
+    mockedGetWorkflowPage.mockResolvedValue(createWorkflowPageResponse({
+      items: [
+        createWorkflowSummary({
+          uid: "wf-mila",
+          firstName: "Mila",
+          lastName: "Muster",
+          createdAt: "2026-03-22T10:00:00.000Z",
+        }),
+        createWorkflowSummary({
+          uid: "wf-ben",
+          firstName: "Ben",
+          lastName: "Beispiel",
+          createdAt: "2026-03-21T10:00:00.000Z",
+        }),
+      ],
+      count: 2,
+    }));
+
+    renderWithApp(<WorkflowListPage />, { roleKeys: ["auth_hr"] });
+
+    const list = await screen.findByLabelText("Vorgangsliste");
+    expect(within(list).getByText("Mila Muster")).toBeTruthy();
+    expect(screen.getByLabelText("Vorschau für Mila Muster")).toBeTruthy();
+
+    fireEvent.click(within(list).getAllByRole("button", { name: "Vorschau" })[1]);
+
+    expect(screen.getByLabelText("Vorgangsliste")).toBeTruthy();
+    expect(screen.getByLabelText("Vorschau für Ben Beispiel")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Detail öffnen" }).getAttribute("href")).toBe("/workflows/wf-ben");
   });
 
   it("passes the selected process type filter to the workflow overview endpoint", async () => {
@@ -87,7 +139,13 @@ describe("WorkflowListPage", () => {
       target: { value: "offboarding" },
     });
 
-    expect(await screen.findByText("Offboarding")).toBeTruthy();
+    await waitFor(() => {
+      expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
+        20,
+        0,
+        expect.objectContaining({ workflowDefinitionKey: "offboarding" })
+      );
+    });
     expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
       20,
       0,

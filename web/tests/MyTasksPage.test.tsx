@@ -47,6 +47,23 @@ describe("MyTasksPage", () => {
     expect(within(list).getAllByRole("button")).toHaveLength(2);
   });
 
+  it("offers a table mode for workflow task summaries", async () => {
+    mockedGetMyTasks.mockResolvedValue([
+      createTaskWithWorkflow({
+        title: "Notebook vorbereiten",
+        status: "open",
+      }),
+    ]);
+
+    renderWithApp(<MyTasksPage />, { roleKeys: ["auth_worker"] });
+
+    expect(await screen.findByRole("generic", { name: "Vorgänge mit Aufgaben" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tabelle" }));
+
+    expect(screen.getByRole("table", { name: "Tabellenansicht Vorgänge mit Aufgaben" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Offen" })).toBeTruthy();
+  });
+
   it("groups tasks by their visible status buckets after selecting a workflow", async () => {
     // All three tasks belong to the same workflow (wf-1 default)
     mockedGetMyTasks.mockResolvedValue([
@@ -78,6 +95,8 @@ describe("MyTasksPage", () => {
     const summaryCard = await screen.findByRole("button", { name: /Alice Example/i });
     fireEvent.click(summaryCard);
 
+    expect(screen.getByLabelText("Vorgangs-Auswahl")).toBeTruthy();
+    expect(screen.getByLabelText("Aufgaben für Alice Example")).toBeTruthy();
     // Detail view shows task groups by status
     expect(await screen.findByRole("heading", { name: "Offen" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "In Bearbeitung" })).toBeTruthy();

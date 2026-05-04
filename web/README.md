@@ -18,7 +18,7 @@ Fachseiten fuer Dashboard, Workflow-Liste, Suche, Erstellung, Details, Aufgaben,
 
 `src/components/`
 Wiederverwendbare UI-Bausteine, besonders:
-- `components/layout`
+- `components/layout` — PageHeader, Shell-nahe Bausteine und gemeinsame Arbeitsmodus-Schalter wie `ViewModeToggle`
 - `components/workflows`
 - `components/workflow-detail`
 - `components/dashboard`
@@ -67,6 +67,8 @@ Aktueller Stand:
 - Seit T11 nutzt `/workflows/create` startbare Workflow-Definitionen aus dem Definition Layer statt `process_types`; die alten Admin-Sektionen fuer Process Types, Templates und Answer Defaults sind im sichtbaren Workspace ausgeblendet.
 - Seit dem mitarbeiterzentrierten Lifecycle-Schnitt legt `/workflows/create` bei neuen Onboardings zuerst einen kanonischen Mitarbeiter per `POST /people` an und startet danach den Workflow mit `targetPersonId`; bestehende Lifecycle-Prozesse suchen ihre Zielperson ueber `GET /people/search` statt ueber abgeschlossene Onboardings.
 - Die Workflow-Detailansicht zeigt parallel laufende Bereiche jetzt klarer ueber Pflichtfortschritt, sichtbare `blocked`-Status und konkrete aktuelle Fachbereiche statt generischer Parallel-Hinweise.
+- Operative Listen koennen seit FE-28 zwischen Karten- und Tabellenmodus wechseln. `WorkflowList`, `MyTasks`, `RotationOperations` und `PersonWorkflowHistory` nutzen dafuer `components/layout/ViewModeToggle`; die Tabellen sortieren clientseitig die aktuelle Sicht und fallen mobil auf Karten-/Listenansichten zurueck.
+- Seit FE-29 nutzen `MyTasks` und `WorkflowList` Split-Workspaces: die Liste bleibt links erhalten, waehrend Aufgabenbearbeitung bzw. Vorgangs-Vorschau rechts im Kontext angezeigt werden.
 
 Wichtig:
 - keine freie technische Automationskonfiguration im UI

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, X } from "lucide-react";
 import { useCurrentUser } from "../../auth/useCurrentUser";
+import { useConfirmationDialog } from "../feedback/useConfirmationDialog";
 import { useAdminWorkflowBuilder } from "../../hooks/useAdminWorkflowBuilder";
 import {
   topologicallyOrderNodes,
@@ -226,7 +227,9 @@ function WorkflowSelectorBar({
           value={builder.selectedDefinition?.id ?? ""}
           onChange={(e) => {
             const id = Number(e.target.value);
-            if (id) builder.selectDefinition(id);
+            if (id) {
+              void builder.selectDefinition(id);
+            }
           }}
         >
           {builder.definitions.length === 0 && (
@@ -246,7 +249,9 @@ function WorkflowSelectorBar({
           value={builder.selectedVersionSummary?.id ?? ""}
           onChange={(e) => {
             const id = Number(e.target.value);
-            if (id) builder.selectVersion(id);
+            if (id) {
+              void builder.selectVersion(id);
+            }
           }}
         >
           {(builder.selectedDefinition?.versions ?? []).map((ver) => (
@@ -491,6 +496,7 @@ function Section2Steps({
   builder: ReturnType<typeof useAdminWorkflowBuilder>;
   canManageAdvanced: boolean;
 }) {
+  const confirm = useConfirmationDialog();
   const [addOpen, setAddOpen] = useState(false);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dropBeforeNodeId, setDropBeforeNodeId] = useState<string | null>(null);
@@ -527,10 +533,19 @@ function Section2Steps({
     setAddOpen(false);
   };
 
-  const handleRemove = (node: WorkflowBuilderNodeDraft, index: number) => {
-    if (!window.confirm(`Schritt #${index + 1} (${getWorkflowBuilderNodeTypeLabel(node.nodeType)}) wirklich entfernen?`)) {
+  const handleRemove = async (node: WorkflowBuilderNodeDraft, index: number) => {
+    const shouldRemove = await confirm({
+      title: "Schritt entfernen?",
+      description: `Schritt #${index + 1} (${getWorkflowBuilderNodeTypeLabel(node.nodeType)}) und seine Verknüpfungen werden aus dem Entwurf entfernt.`,
+      confirmLabel: "Schritt entfernen",
+      cancelLabel: "Abbrechen",
+      tone: "danger",
+    });
+
+    if (!shouldRemove) {
       return;
     }
+
     builder.removeNode(node.id);
   };
 
@@ -598,7 +613,7 @@ function Section2Steps({
               onUpdate={(patch) => builder.updateNode(node.id, patch)}
               onMoveUp={() => builder.moveNode(node.id, "up")}
               onMoveDown={() => builder.moveNode(node.id, "down")}
-              onRemove={() => handleRemove(node, index)}
+                    onRemove={() => void handleRemove(node, index)}
               onAddAction={(actionKey) => builder.addActionFromDefinition(node.id, actionKey)}
               onUpdateAction={(actionId, patch) => builder.updateAction(node.id, actionId, patch)}
               onRemoveAction={(actionId) => builder.removeAction(node.id, actionId)}
@@ -1034,7 +1049,7 @@ function PublishedVersionBanner({
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => builder.selectVersion(latestDraft.id)}
+          onClick={() => void builder.selectVersion(latestDraft.id)}
         >
           Zum Entwurf (Version {latestDraft.versionNumber})
         </button>
@@ -1066,9 +1081,8 @@ function BuilderActionToolbar({
     && !builder.hasUnsavedChanges
   );
 
-  const handleDiscard = () => {
-    if (!window.confirm("Alle ungespeicherten Änderungen verwerfen?")) return;
-    builder.selectDefinition(builder.selectedDefinition!.id);
+  const handleDiscard = async () => {
+    await builder.discardChanges();
   };
 
   const handleAddStep = (nodeType: WorkflowBuilderNodeDraft["nodeType"]) => {
@@ -1154,7 +1168,7 @@ function BuilderActionToolbar({
           <button
             type="button"
             className="btn btn-ghost"
-            onClick={handleDiscard}
+            onClick={() => void handleDiscard()}
             disabled={builder.isSaving || builder.isPublishing}
           >
             Verwerfen

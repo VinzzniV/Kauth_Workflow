@@ -35,6 +35,7 @@ import {
   type WorkflowBuilderVersionDraft,
   validateWorkflowBuilderDraft,
 } from "./adminWorkflowBuilderModel";
+import { useConfirmationDialog } from "../components/feedback/useConfirmationDialog";
 
 type UseAdminWorkflowBuilderOptions = {
   onNotice: (message: string | null) => void;
@@ -55,6 +56,7 @@ function dedupeIssues(issues: WorkflowBuilderLocalIssue[]): WorkflowBuilderLocal
 }
 
 export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }: UseAdminWorkflowBuilderOptions) {
+  const confirm = useConfirmationDialog();
   const [definitions, setDefinitions] = useState<AdminWorkflowDefinitionSummary[]>([]);
   const [actionDefinitions, setActionDefinitions] = useState<AdminWorkflowActionDefinition[]>([]);
   const [automationPropertyCatalog, setAutomationPropertyCatalog] = useState<AdminAutomationPropertyCatalog | null>(null);
@@ -271,16 +273,22 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   }, [onError, resetLoadedVersion, resolveWorkingDraft, selectedDefinitionId]);
 
 
-  const confirmSelectionChange = useCallback(() => {
+  const confirmSelectionChange = useCallback(async () => {
     if (!hasUnsavedChanges) {
       return true;
     }
 
-    return window.confirm("Ungespeicherte Aenderungen verwerfen?");
-  }, [hasUnsavedChanges]);
+    return confirm({
+      title: "Ungespeicherte Änderungen verwerfen?",
+      description: "Ihre aktuellen Änderungen würden verworfen. Nur fortfahren, wenn der aktuelle Entwurf nicht behalten werden soll.",
+      confirmLabel: "Verwerfen",
+      cancelLabel: "Weiter bearbeiten",
+      tone: "danger",
+    });
+  }, [confirm, hasUnsavedChanges]);
 
-  const selectDefinition = useCallback((definitionId: number) => {
-    if (!confirmSelectionChange()) {
+  const selectDefinition = useCallback(async (definitionId: number) => {
+    if (!(await confirmSelectionChange())) {
       return;
     }
 
@@ -288,13 +296,28 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setSelectedDefinitionId(definitionId);
   }, [confirmSelectionChange, resetLoadedVersion]);
 
-  const selectVersion = useCallback((versionId: number) => {
-    if (!confirmSelectionChange()) {
+  const selectVersion = useCallback(async (versionId: number) => {
+    if (!(await confirmSelectionChange())) {
       return;
     }
 
     setSelectedVersionId(versionId);
   }, [confirmSelectionChange]);
+
+  const discardChanges = useCallback(async () => {
+    if (!selectedDefinition) {
+      return false;
+    }
+
+    if (!(await confirmSelectionChange())) {
+      return false;
+    }
+
+    onError(null);
+    onNotice(null);
+    await resolveWorkingDraft(selectedDefinition.id, { refreshDefinitions: true });
+    return true;
+  }, [confirmSelectionChange, onError, onNotice, resolveWorkingDraft, selectedDefinition]);
 
   const updateDefinitionDraft = useCallback((key: "name" | "description", value: string) => {
     setDefinitionDraft((current) => ({ ...current, [key]: value }));
@@ -587,7 +610,15 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    if (!window.confirm(`Ablauf '${selectedDefinition.name}' wirklich loeschen?`)) {
+    const shouldDelete = await confirm({
+      title: "Workflow löschen?",
+      description: `Der Ablauf '${selectedDefinition.name}' wird dauerhaft entfernt. Dieser Schritt lässt sich nicht rückgängig machen.`,
+      confirmLabel: "Workflow löschen",
+      cancelLabel: "Abbrechen",
+      tone: "danger",
+    });
+
+    if (!shouldDelete) {
       return;
     }
 
@@ -605,7 +636,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     } finally {
       setIsDeletingDefinition(false);
     }
-  }, [canManageAdvanced, loadDefinitions, onError, onNotice, resetLoadedVersion, selectedDefinition]);
+  }, [canManageAdvanced, confirm, loadDefinitions, onError, onNotice, resetLoadedVersion, selectedDefinition]);
 
   const collectValidationIssues = useCallback((draft: WorkflowBuilderVersionDraft): WorkflowBuilderLocalIssue[] => {
     const issues: WorkflowBuilderLocalIssue[] = [...validateWorkflowBuilderDraft(draft)];
@@ -771,6 +802,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     hasUnsavedChanges,
     selectDefinition,
     selectVersion,
+    discardChanges,
     updateDefinitionDraft,
     updateNewDefinitionDraft,
     updateVersionDraftField,

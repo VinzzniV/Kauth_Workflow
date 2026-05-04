@@ -114,7 +114,7 @@ describe("RotationPlanningPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Person öffnen" }));
 
     expect(await screen.findByRole("heading", { name: "Personendetail" })).toBeTruthy();
-    expect(screen.getAllByText("wf-onboarding-1")).toHaveLength(2);
+    expect(screen.getAllByTitle("wf-onboarding-1")).toHaveLength(2);
     const planSection = screen.getByRole("heading", { name: "Bestehende Durchlaufpläne" }).closest("section");
     expect(planSection).toBeTruthy();
     expect(

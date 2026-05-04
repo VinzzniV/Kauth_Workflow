@@ -45,6 +45,7 @@ export default function WorkflowListPage() {
           onDepartmentChange={view.setDepartmentFilter}
           onWorkflowDefinitionChange={view.setWorkflowDefinitionFilter}
           onResponsibilityChange={view.setResponsibilityFilter}
+          onResetFilters={view.resetFilters}
           onRefresh={() => void view.refresh()}
           onPreviousPage={view.goToPreviousPage}
           onNextPage={view.goToNextPage}

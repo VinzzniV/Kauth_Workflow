@@ -447,7 +447,7 @@ export default function AdminConfigPage() {
 
           <section className="admin-settings-main" aria-label="Admin-Arbeitsbereich">
             {!data.isLoading && notice ? (
-              <section className="panel panel-success" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
+              <section className="panel panel-success panel-banner">
                 <p className="panel-text">{notice}</p>
                 <button
                   type="button"
@@ -461,7 +461,7 @@ export default function AdminConfigPage() {
             ) : null}
 
             {!data.isLoading && error && view.hasAnyData ? (
-              <section className="panel panel-error" role="alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
+              <section className="panel panel-error panel-banner" role="alert">
                 <p className="panel-text text-error">{error}</p>
                 <button
                   type="button"

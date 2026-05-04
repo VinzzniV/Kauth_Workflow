@@ -276,7 +276,7 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Vorgaben für neue Vorgänge je Rolle und Prozesstyp festlegen.",
     navLabel: "Vorgaben je Rolle",
     navDescription: "Vorgaben für neue Vorgänge je Rolle vorbereiten.",
-    area: "configuration",
+    area: null,
     introTitle: "Vorgaben für neue Vorgänge je Rolle festlegen",
     introDescription:
       "Hier bereiten Sie Vorauswahlen für neue Vorgänge vor, damit Rollen und Bereiche passende Werte bereits mitbringen.",

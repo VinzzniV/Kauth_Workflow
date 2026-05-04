@@ -72,7 +72,7 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs): AdminC
     searchParams,
     setSearchParams,
     section,
-    organizationEntity,
+    organizationEntity: _organizationEntity,
     selectedEntityId,
     users,
     departmentPositions,
@@ -89,6 +89,7 @@ export function useAdminConfigPageView(args: UseAdminConfigPageViewArgs): AdminC
     onSelectUser,
   } = args;
   void _groups;
+  void _organizationEntity;
 
   const sortedUsers = useMemo(
     () => users.slice().sort((left, right) => left.displayName.localeCompare(right.displayName, "de")),

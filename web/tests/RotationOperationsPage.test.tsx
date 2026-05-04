@@ -56,6 +56,24 @@ describe("RotationOperationsPage", () => {
     expect(screen.getAllByRole("link", { name: "Detail öffnen" }).length).toBeGreaterThan(0);
   });
 
+  it("offers a table mode for rotation task triage", async () => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    mockedGetMyTasks.mockResolvedValue([
+      createRotationTask(undefined, {
+        anchorDate: tomorrow,
+      }),
+    ]);
+
+    renderWithApp(<RotationOperationsPage />, { roleKeys: ["auth_worker"] });
+
+    expect(await screen.findByLabelText("Rotationsaufgabenliste")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tabelle" }));
+
+    expect(screen.getByRole("table", { name: "Tabellenansicht Rotationsaufgaben" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Wechselbezug" })).toBeTruthy();
+  });
+
   it("updates a rotation task status via taskRef", async () => {
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 

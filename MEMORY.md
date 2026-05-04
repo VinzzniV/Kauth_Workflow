@@ -20,6 +20,9 @@ Verwende sie nur fuer:
 - `WorkflowAutomationService` und `WorkflowDefinitionRuntimeService` routen durch `IWorkflowLifecycleService`.
 - Naechster Schritt: kein weiterer Schritt 7 offen. Naechster Zyklus aus `CODE_REVIEW.md` lesen.
 - `DOCS_CONTROL.md` bleibt zentraler Einstieg; pro Aufgabe mitdenken, welche Doku im selben Arbeitsgang aktualisiert wird.
+- Frontend-Review vom 2026-05-04 ist als umsetzbare Roadmap in `FRONTEND_TODO.md` abgebildet.
+- `FE-25` bis `FE-29` sind erledigt: Builder-Dialoge sind gehärtet, wiederkehrende Inline-Layouts in gemeinsame CSS-Bausteine überführt, Haupt-Filterflächen sind vereinheitlicht, operative Listen haben Karten-/Tabellenmodus und `Meine Aufgaben`/`Laufende Vorgänge` nutzen Split-Views für weniger Navigationssprünge.
+- Naechster FE-Schritt ist `FE-30` (Builder konsequent canvas-first machen).
 
 ## Active Risks / Watchouts
 

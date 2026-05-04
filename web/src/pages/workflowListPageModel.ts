@@ -190,6 +190,15 @@ export function useWorkflowListPageView() {
       setResponsibilityFilter(value);
       setPageIndex(0);
     },
+    resetFilters: () => {
+      setSearch("");
+      setDebouncedSearch("");
+      setStatusFilter("all");
+      setDepartmentFilter("all");
+      setWorkflowDefinitionFilter("all");
+      setResponsibilityFilter("all");
+      setPageIndex(0);
+    },
     goToPreviousPage: () => setPageIndex((current) => Math.max(0, current - 1)),
     goToNextPage: () => setPageIndex((current) => current + 1),
     setPageIndex: (next: number) => setPageIndex(Math.max(0, next)),

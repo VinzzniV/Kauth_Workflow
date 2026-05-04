@@ -8,9 +8,9 @@ vi.mock("../src/services/adminConfigApi", () => ({
   createAdminWorkflowDefinition: vi.fn(),
   createAdminWorkflowDefinitionVersion: vi.fn(),
   deleteAdminWorkflowDefinition: vi.fn(),
+  ensureAdminWorkflowDefinitionWorkingDraft: vi.fn(),
   getAdminWorkflowActionDefinitions: vi.fn(),
   getAdminWorkflowDefinitionVersion: vi.fn(),
-  getOrCreateAdminWorkflowDefinitionWorkingDraft: vi.fn(),
   getAdminWorkflowDefinitions: vi.fn(),
   publishAdminWorkflowDefinitionVersion: vi.fn(),
   replaceAdminWorkflowDefinitionVersion: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock("../src/services/adminConfigApi", () => ({
 
 const mockedGetAdminWorkflowActionDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowActionDefinitions);
 const mockedGetAdminWorkflowDefinitionVersion = vi.mocked(adminConfigApi.getAdminWorkflowDefinitionVersion);
-const mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft = vi.mocked(adminConfigApi.getOrCreateAdminWorkflowDefinitionWorkingDraft);
+const mockedEnsureAdminWorkflowDefinitionWorkingDraft = vi.mocked(adminConfigApi.ensureAdminWorkflowDefinitionWorkingDraft);
 const mockedGetAdminWorkflowDefinitions = vi.mocked(adminConfigApi.getAdminWorkflowDefinitions);
 
 const sampleDefinition = {
@@ -72,13 +72,13 @@ describe("WorkflowBuilderPage (Form-Editor)", () => {
   beforeEach(() => {
     mockedGetAdminWorkflowActionDefinitions.mockReset();
     mockedGetAdminWorkflowDefinitionVersion.mockReset();
-    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockReset();
+    mockedEnsureAdminWorkflowDefinitionWorkingDraft.mockReset();
     mockedGetAdminWorkflowDefinitions.mockReset();
 
     mockedGetAdminWorkflowDefinitions.mockResolvedValue([sampleDefinition]);
     mockedGetAdminWorkflowActionDefinitions.mockResolvedValue([]);
     mockedGetAdminWorkflowDefinitionVersion.mockResolvedValue(sampleVersionDetail);
-    mockedGetOrCreateAdminWorkflowDefinitionWorkingDraft.mockResolvedValue(sampleVersionDetail);
+    mockedEnsureAdminWorkflowDefinitionWorkingDraft.mockResolvedValue(sampleVersionDetail);
   });
 
   it("renders the form-editor sections in admin mode", async () => {

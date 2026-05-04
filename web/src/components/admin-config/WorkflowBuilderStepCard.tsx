@@ -322,7 +322,7 @@ function AutomationStepSummary({
   const actions = node.actions ?? [];
   const actionLabels = actions.map((action) => {
     const def = actionDefinitions.find((d) => d.actionKey === action.actionKey);
-    return def?.actionName ?? action.actionKey;
+    return def?.displayName ?? action.actionKey;
   });
 
   return (

@@ -77,7 +77,7 @@ export function AdminNotificationTemplateSection({
         <p>Pflegen Sie Betreff und Text pro Mailtyp und prüfen Sie die Vorschau auf Basis echter Vorgänge.</p>
       </div>
 
-      <div className="admin-template-layout" style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(240px, 280px) minmax(0, 1fr)" }}>
+      <div className="admin-template-layout">
         <aside className="panel panel-muted">
           <h3 className="panel-title">Mailtypen</h3>
           <div className="content-stack">
@@ -265,7 +265,7 @@ export function AdminNotificationTemplateSection({
 
                         <div className="panel panel-muted">
                           <h3 className="panel-title">Gerenderter Text</h3>
-                          <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>{selectedVariant.renderedTextBody}</pre>
+                          <pre className="preformatted-block">{selectedVariant.renderedTextBody}</pre>
                         </div>
 
                         <div className="panel panel-muted">

@@ -20,6 +20,9 @@ Kurzlebiges Arbeitsgedaechtnis fuer naechste Sessions.
 `TODO.md`
 Priorisierte Umsetzungssteuerung fuer Review-Nacharbeit.
 
+`FRONTEND_TODO.md`
+Frontend-spezifische Umsetzungs- und UX-Roadmap fuer React-, CSS- und Interaktionsarbeit.
+
 `CODEX_SYNC.md`
 Handoff-Protokoll zwischen Claude und Codex.
 
@@ -76,6 +79,7 @@ Zentrale App-Huelle mit Routing, Login-Flows und geschuetzten Bereichen.
 Wichtige Bereiche:
 - `src/auth/`
 - `src/pages/`
+- `src/components/layout/` — Shell-, Header- und gemeinsame Arbeitsflächen-Bausteine wie `ViewModeToggle`
 - `src/components/admin-config/`
 - `src/components/workflow-detail/`
 - `src/services/`
@@ -89,6 +93,7 @@ Seit Phase 6 gibt es fuer HR zusaetzlich den Rotation-Frontend-Slice auf `/rotat
 Seit Phase 7 gibt es fuer IT und Fachbereiche den operativen Rotation-Slice auf `/rotation/operations` und `/rotation/tasks/:taskRef`; die Seiten `src/pages/RotationOperationsPage.tsx` und `src/pages/RotationTaskDetailPage.tsx` nutzen den familienfaehigen `/tasks`-Envelope, `src/services/taskApi.ts`, `src/services/mutations/workflowMutations.ts` und die erweiterten Task-/Status-Mappings in `src/services/api/` und `src/utils/taskStatus.ts`.
 Seit Phase 8 sind Audit-/Verlaufs- und Benachrichtigungshistorie in den bestehenden Rotations-Detailseiten sichtbar; `src/components/rotation/RotationAuditLog.tsx` und `src/components/rotation/RotationNotificationsPanel.tsx` werden in `RotationPlanDetailPage` und `RotationTaskDetailPage` eingebunden; `src/services/queries/rotationQueries.ts` enthaelt die planbezogenen History-Queries.
 Seit dem mitarbeiterzentrierten Lifecycle-Schnitt startet `/workflows/create` fachlich immer von einer kanonischen Person: bestehende Lifecycle-Prozesse suchen ueber `src/services/peopleApi.ts` und `src/services/queries/peopleQueries.ts`, neue Onboardings legen die Person zuerst per `POST /people` an und starten danach den Workflow mit `targetPersonId`. Die Personenhistorie lebt auf `src/pages/PersonWorkflowHistoryPage.tsx`.
+Seit FE-28 nutzen operative Listen (`WorkflowList`, `MyTasks`, `RotationOperations`, `PersonWorkflowHistory`) einen gemeinsamen Karten-/Tabellen-Schalter aus `src/components/layout/ViewModeToggle.tsx`; die Tabellen bleiben clientseitig sortierbar und fallen mobil auf Karten-/Listenansichten zurück.
 
 ## Backend: `api/API`
 

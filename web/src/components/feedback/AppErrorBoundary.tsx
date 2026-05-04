@@ -61,20 +61,17 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
               : "Diese Seite konnte nicht angezeigt werden."}{" "}
             Der Fehler wurde im System-Log protokolliert.
           </p>
-          <pre
-            className="text-error"
-            style={{ fontSize: "0.78rem", whiteSpace: "pre-wrap", marginTop: "0.5rem" }}
-          >
+          <pre className="panel-note text-error error-boundary-details">
             {this.state.error.message}
           </pre>
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.85rem" }}>
-            <button type="button" className="btn-secondary" onClick={this.handleReset}>
+          <div className="error-boundary-actions">
+            <button type="button" className="btn btn-secondary" onClick={this.handleReset}>
               Erneut versuchen
             </button>
             {!this.props.inline && (
               <button
                 type="button"
-                className="btn-primary"
+                className="btn btn-primary"
                 onClick={() => window.location.reload()}
               >
                 Seite neu laden

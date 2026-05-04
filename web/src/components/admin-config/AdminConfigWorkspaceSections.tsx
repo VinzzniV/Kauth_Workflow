@@ -21,7 +21,6 @@ import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceCon
 import {
   getAdminWorkspacePresentationSection,
   getAdminWorkspaceSectionMeta,
-  type AdminOrganizationEntity,
   type AdminWorkspaceSection,
 } from "./adminWorkspaceModel";
 

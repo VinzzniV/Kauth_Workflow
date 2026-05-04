@@ -38,6 +38,11 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 | # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
 |---|---------|------|---------|------------------|--------|--------|
+| FE-30 | **Builder konsequent canvas-first machen** (UX-Roadmap 2026-05-04, Block 4). Properties-Panel als Primärpfad, Edge-Bearbeitung naeher am Graph, Validierung direkt am Objekt/Canvas; Form-Sektionen deutlich entschlacken. | HIGH | 3–5 d | high | opus | offen |
+| FE-31 | **Personenakte zur 360-Grad-Ansicht ausbauen** (UX-Roadmap 2026-05-04, Block 5). Vorgänge, Rotation, offene Aufgaben, Benachrichtigungen und Directory-Kontext in einer Arbeitsflaeche zusammenziehen. | MEDIUM | 2–3 d | high | opus | offen |
+| FE-32 | **Globale Schnellnavigation / Command Search** (UX-Roadmap 2026-05-04, Block 5). Globales Such-/Springen-/Aktion-Feld fuer Personen, Vorgaenge, Tasks, Builder-Artefakte und Admin-Bereiche. | MEDIUM | 2–4 d | high | opus | offen |
+| FE-33 | **Gespeicherte Ansichten pro Rolle** (UX-Roadmap 2026-05-04, Block 5). Presets fuer `meine offenen`, `heute faellig`, `blockiert`, `Abteilung X`; URL-stabil und wiederverwendbar. | MEDIUM | 1,5–2 d | medium | sonnet | offen |
+| FE-34 | **Operative Serienarbeit / Bulk-Aktionen** (UX-Roadmap 2026-05-04, Block 5). Mehrfachselektion und Sammelaktionen fuer Aufgabenlisten, z. B. `in Bearbeitung`, `erledigt`, `zuweisen`. | MEDIUM | 2–3 d | high | opus | offen |
 | FE-7-Browser | **Manueller Dark-Mode Browser-Sichtprueftest** (FE-7-Folge). Static-Pass + FE-14 done; manuelle Sichtprueftest (`data-theme="dark"`, alle 8 Pages aus Checkliste unten) bleibt Nutzer-Aufgabe. | MEDIUM | 0,5 d | — | — | offen — Nutzer-Aufgabe |
 | FE-10 | **Browser-Verifikation Form-Editor** (R8). Alle 12 Schritt-Typen durchklicken (start, end, form, approval, task, decision, parallel_split/join, automation, measure_*). Manuelle Nutzer-Aufgabe — KI kann nicht pruefen. | MEDIUM | 0,5 d | — | — | offen — Nutzer-Aufgabe |
 | FE-11 | **AdminTaskTemplate-Editor versions-aware** (FE-9-Folge). AdminTaskTemplate-Editor schreibt heute via `/admin/config/task-templates/...` immer auf die `latest published` Version's measure-Node. Wenn ein Builder-Draft offen ist und der Admin parallel Specs editiert, leakt die Aenderung in die Live-Version. Fix: Toggle "Live" / "Draft (in Bearbeitung)" plus Versions-Param in den Endpoints. Pre-Prod-akzeptabel offen. | MEDIUM | 0,5 d | medium | sonnet | defer — erst bei produktivem Pilot-Use-Case |
@@ -75,6 +80,74 @@ Jede Page im Browser oeffnen, Theme-Toggle aktivieren (`data-theme="dark"`), fol
 
 ---
 
+## UX-Roadmap 2026-05-04
+
+Die folgenden Bloecke uebersetzen das Frontend-Review in eine konkrete Abarbeitungsreihenfolge. Jeder Block ist in sich geschlossen genug, dass man ihn als eigener Arbeitsgang mit Doku-Update, Tests und Abschlussbericht abarbeiten kann.
+
+### Block 4 — Builder wirklich produktisieren
+
+**Ziel**
+- Builder von Form-Sammlung zu echter visueller Arbeitsflaeche weiterentwickeln
+
+**Items**
+- `FE-30` Builder konsequent canvas-first machen
+
+**Reasoning / Modell**
+- `high`, `opus`
+
+**Abarbeitung**
+1. Objektselektion und Properties-Panel priorisieren
+2. Edge-Bearbeitung an den Graph heranziehen
+3. Validierungs-Issues direkt an Steps/Edges rueckspiegeln
+4. lange Formularsektionen reduzieren oder in sekundaere Bereiche schieben
+
+**Definition of Done**
+- zentrale Builder-Aktionen laufen ueber Canvas + Sidebar
+- der Graph ist nicht nur Vorschau, sondern der primäre Arbeitsort
+
+### Block 5 — Produkthebel nach den Kernflaechen
+
+**Ziel**
+- Navigation, Personenarbeit und Serienoperationen als naechste Produkthebel ausbauen
+
+**Items**
+- `FE-31` Personenakte zur 360-Grad-Ansicht ausbauen
+- `FE-32` Globale Schnellnavigation / Command Search
+- `FE-33` Gespeicherte Ansichten pro Rolle
+- `FE-34` Operative Serienarbeit / Bulk-Aktionen
+
+**Empfohlene Reihenfolge**
+1. `FE-31`
+2. `FE-33`
+3. `FE-34`
+4. `FE-32`
+
+**Reasoning / Modell**
+- `FE-31`: `high`, `opus`
+- `FE-32`: `high`, `opus`
+- `FE-33`: `medium`, `sonnet`
+- `FE-34`: `high`, `opus`
+
+**Definition of Done**
+- Personenarbeit, Listen-Presets und Serienbearbeitung sind als eigenstaendige Produktbausteine vorhanden
+
+---
+
+## Naechster sinnvoller Schritt
+
+Wenn kein anderer Nutzerwunsch priorisiert wird, startet der naechste Frontend-Zyklus mit:
+
+1. **Aufgabe**: `FE-30 Builder konsequent canvas-first machen`
+2. **Reasoning Effort**: `high`
+3. **Empfohlenes Modell**: `opus`
+
+Warum zuerst:
+- `FE-29` ist erledigt; Listenarbeit hat jetzt Split-View-Grundlagen
+- der naechste groesste Produktivitaetshebel liegt im Builder
+- `FE-30` baut auf dem bestehenden Canvas/Sidebar-Modell auf und macht den Graph zum primaeren Arbeitsort
+
+---
+
 ## Bewusst NICHT angefasst
 
 - **`tailwind.config.js` Theme-Migration** (UI-11). Tokens leben heute nur als CSS-Variablen, `extend: {}` ist leer. Migration zu Tailwind-Tokens waere 5836 Zeilen CSS reformatieren — riesiger Aufwand, kein konkreter Mehrwert. Das aktuelle System funktioniert, hat sauberes Dark-Mode-Mapping, ist gut typisiert.
@@ -97,6 +170,8 @@ Jede Page im Browser oeffnen, Theme-Toggle aktivieren (`data-theme="dark"`), fol
 - FE-20: Dashboard-Refresh ohne Layout-Jump via `lastInsightsRef` + Opacity-Dimming (`DashboardOverview`)
 - FE-21: Dismissible Notice/Error-Panels + 5-s-Auto-Clear in `AdminConfigPage`
 - FE-24: Rotation-Stationen als vertikale Timeline (`RotationStationTimeline.tsx`, `workflow.css`), inkl. `getStationStatusPillClass` und Status-Bug-Fix (alle Stationen waren hardcoded `open`)
+
+**Frontend-Roadmap Block 1 bis 3 2026-05-04:** FE-25 bis FE-29 abgeschlossen. Dialog-Haertung, UI-System-Konsolidierung, vereinheitlichte Filterleisten, Tabellenmodus fuer operative Listen und Split-View fuer Listenarbeit sind umgesetzt. Details bleiben in `CODEX_SYNC.md` und `git log`.
 
 ---
 

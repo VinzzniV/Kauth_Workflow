@@ -14,6 +14,15 @@ import type {
 } from "../types/rotation";
 import { formatDateTime } from "../utils/dateFormat";
 
+function FilterChip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="filter-chip">
+      <strong>{label}</strong>
+      <span>{value}</span>
+    </span>
+  );
+}
+
 function getRotationPlanStatusLabel(status: RotationPlanStatus): string {
   switch (status) {
     case "active":
@@ -94,6 +103,8 @@ export default function RotationPlanningPage() {
     );
   }, [existingPlans, planSearch]);
   const selectedPersonName = selectedPerson?.displayName ?? "Person";
+  const hasCreateSearch = search.trim().length > 0;
+  const hasPlanSearch = planSearch.trim().length > 0;
 
   async function handleCreatePlan() {
     if (!selectedPerson) {
@@ -178,6 +189,14 @@ export default function RotationPlanningPage() {
                 disabled={eligiblePeopleQuery.isFetching}
               >
                 {eligiblePeopleQuery.isFetching ? "Aktualisiere..." : "Aktualisieren"}
+              </button>
+            </div>
+            <div className="filter-panel-actions" aria-live="polite">
+              <div className="filter-chip-row" aria-label="Aktive Filter">
+                {hasCreateSearch ? <FilterChip label="Suche" value={search.trim()} /> : <span className="filter-chip-empty">Keine aktiven Filter.</span>}
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => setSearch("")} disabled={!hasCreateSearch}>
+                Filter zurücksetzen
               </button>
             </div>
           </section>
@@ -458,6 +477,14 @@ export default function RotationPlanningPage() {
                 disabled={rotationPlansQuery.isFetching}
               >
                 {rotationPlansQuery.isFetching ? "Aktualisiere..." : "Aktualisieren"}
+              </button>
+            </div>
+            <div className="filter-panel-actions" aria-live="polite">
+              <div className="filter-chip-row" aria-label="Aktive Filter">
+                {hasPlanSearch ? <FilterChip label="Suche" value={planSearch.trim()} /> : <span className="filter-chip-empty">Keine aktiven Filter.</span>}
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => setPlanSearch("")} disabled={!hasPlanSearch}>
+                Filter zurücksetzen
               </button>
             </div>
 

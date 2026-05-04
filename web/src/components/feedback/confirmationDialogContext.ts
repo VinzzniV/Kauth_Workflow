@@ -13,6 +13,7 @@ export type ConfirmationDialogOptions = {
 export type ConfirmationRequest = {
   options: ConfirmationDialogOptions;
   resolve: (value: boolean) => void;
+  previousActiveElement: HTMLElement | null;
 };
 
 export const ConfirmationDialogContext = createContext<
