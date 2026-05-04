@@ -1645,6 +1645,170 @@
   padding: 0.85rem 1rem;
 }
 
+.wf-graph-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.85rem 0.85rem;
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card-subtle);
+}
+
+.wf-graph-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: flex-start;
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.wf-graph-preview-toggle:hover {
+  color: var(--brand);
+}
+
+.wf-graph-preview-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.wf-graph-preview-meta {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin-left: 0.35rem;
+}
+
+.wf-graph-preview-canvas-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+.wf-graph-preview-canvas {
+  display: block;
+  min-width: 100%;
+}
+
+.wf-graph-edge {
+  stroke: color-mix(in srgb, var(--text-secondary) 65%, transparent);
+  stroke-width: 1.5;
+  fill: none;
+  cursor: pointer;
+  transition: stroke 120ms ease, stroke-width 120ms ease;
+}
+
+.wf-graph-edge:hover {
+  stroke: var(--brand);
+  stroke-width: 2.2;
+}
+
+.wf-graph-edge--decision {
+  stroke: var(--badge-warning-text, #b88200);
+  stroke-dasharray: 4 3;
+}
+
+.wf-graph-edge--decision:hover {
+  stroke: var(--brand);
+}
+
+.wf-graph-edge--backward {
+  stroke: color-mix(in srgb, var(--text-tertiary) 70%, transparent);
+}
+
+#wf-graph-arrow path {
+  fill: color-mix(in srgb, var(--text-secondary) 65%, transparent);
+}
+
+#wf-graph-arrow-decision path {
+  fill: var(--badge-warning-text, #b88200);
+}
+
+.wf-graph-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.wf-graph-node:focus-visible .wf-graph-node-bg {
+  stroke: var(--focus-ring);
+  stroke-width: 3;
+}
+
+.wf-graph-node-bg {
+  stroke-width: 1.5;
+  fill: var(--surface-panel);
+  transition: fill 120ms ease, stroke 120ms ease, transform 120ms ease;
+}
+
+.wf-graph-node:hover .wf-graph-node-bg {
+  fill: var(--brand-soft);
+}
+
+.wf-graph-node-content {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 100%;
+  width: 100%;
+  font-family: "Segoe UI", -apple-system, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.wf-graph-node-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.wf-graph-node--cat-control .wf-graph-node-bg {
+  stroke: #0e7490;
+  fill: color-mix(in srgb, #0e7490 8%, var(--surface-panel));
+}
+
+.wf-graph-node--cat-control:hover .wf-graph-node-bg {
+  fill: color-mix(in srgb, #0e7490 16%, var(--surface-panel));
+}
+
+.wf-graph-node--cat-user .wf-graph-node-bg {
+  stroke: var(--brand);
+  fill: color-mix(in srgb, var(--brand) 8%, var(--surface-panel));
+}
+
+.wf-graph-node--cat-user:hover .wf-graph-node-bg {
+  fill: color-mix(in srgb, var(--brand) 16%, var(--surface-panel));
+}
+
+.wf-graph-node--cat-measure .wf-graph-node-bg {
+  stroke: #047857;
+  fill: color-mix(in srgb, #047857 8%, var(--surface-panel));
+}
+
+.wf-graph-node--cat-measure:hover .wf-graph-node-bg {
+  fill: color-mix(in srgb, #047857 16%, var(--surface-panel));
+}
+
+.wf-graph-node--cat-automation .wf-graph-node-bg {
+  stroke: #7c3aed;
+  fill: color-mix(in srgb, #7c3aed 8%, var(--surface-panel));
+}
+
+.wf-graph-node--cat-automation:hover .wf-graph-node-bg {
+  fill: color-mix(in srgb, #7c3aed 16%, var(--surface-panel));
+}
+
 .wf-step-list-item {
   position: relative;
   transition: opacity 120ms ease;

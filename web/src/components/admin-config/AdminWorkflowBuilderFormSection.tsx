@@ -11,6 +11,7 @@ import {
 } from "../../hooks/adminWorkflowBuilderModel";
 import { WorkflowBuilderStepCard } from "./WorkflowBuilderStepCard";
 import { WorkflowBuilderConditionEditor } from "./WorkflowBuilderConditionEditor";
+import { WorkflowBuilderGraphPreview } from "./WorkflowBuilderGraphPreview";
 import { summarizeCondition } from "./workflowBuilderEditorHelpers";
 import { getWorkflowBuilderNodeTypeLabel } from "./workflowBuilderLabels";
 
@@ -542,6 +543,18 @@ function Section2Steps({
           (Hoch/Runter pro Schritt) wirken nur als Tie-Breaker bei mehrdeutigen Pfaden.
         </p>
       </div>
+
+      {nodes.length > 0 ? (
+        <WorkflowBuilderGraphPreview
+          nodes={nodes}
+          edges={edges}
+          onNodeClick={(nodeId) => {
+            const target = nodes.find((n) => n.id === nodeId);
+            if (target) jumpToAnchor(stepAnchorId(target));
+          }}
+          onEdgeClick={(edgeId) => jumpToAnchor(`wf-edge-${edgeId}`)}
+        />
+      ) : null}
 
       {nodes.length === 0 ? (
         <p className="wf-step-card-hint wf-step-card-hint--info">
