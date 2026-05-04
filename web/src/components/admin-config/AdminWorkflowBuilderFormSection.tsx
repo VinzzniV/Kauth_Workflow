@@ -96,6 +96,18 @@ const PROCESS_TYPE_OPTIONS: { key: string; label: string }[] = [
   { key: "name_change", label: "Namensänderung" },
 ];
 
+function formatVersionStatusLabel(status: string | null | undefined): string {
+  switch ((status ?? "").toLowerCase()) {
+    case "published":
+      return "Veröffentlicht";
+    case "archived":
+      return "Archiviert";
+    case "draft":
+    default:
+      return "Entwurf";
+  }
+}
+
 type StepCategoryGroup = {
   label: string;
   items: { key: WorkflowBuilderNodeDraft["nodeType"]; label: string }[];
@@ -394,7 +406,7 @@ function WorkflowSelectorBar({
         >
           {(builder.selectedDefinition?.versions ?? []).map((ver) => (
             <option key={ver.id} value={ver.id}>
-              Version {ver.versionNumber} ({ver.status})
+              Version {ver.versionNumber} ({formatVersionStatusLabel(ver.status)})
             </option>
           ))}
         </select>
@@ -553,7 +565,7 @@ function Section1Stammdaten({
 
         <div className="wf-form-field">
           <label className="form-label" htmlFor="wf-process-type">
-            Prozessbezug <span className="text-error">*</span>
+            Prozesstyp <span className="text-error">*</span>
           </label>
           <select
             id="wf-process-type"
@@ -567,13 +579,17 @@ function Section1Stammdaten({
               <option key={opt.key} value={opt.key}>{opt.label}</option>
             ))}
           </select>
+          <p className="wf-form-field-hint">
+            Bestimmt, welche Aufgaben- und Maßnahmenvorlagen automatisch zu diesem Workflow gehören.
+            Beispiel: „Onboarding" zieht alle Eintritts-Maßnahmen der Abteilungen.
+          </p>
         </div>
 
         <div className="wf-form-field">
           <label className="form-label">Version</label>
           <p className="wf-form-readonly-value">
             {builder.selectedVersionSummary
-              ? `Version ${builder.selectedVersionSummary.versionNumber} (${builder.selectedVersionSummary.status === "published" ? "Veröffentlicht" : "Entwurf"})`
+              ? `Version ${builder.selectedVersionSummary.versionNumber} (${formatVersionStatusLabel(builder.selectedVersionSummary.status)})`
               : "–"}
           </p>
         </div>
@@ -607,7 +623,7 @@ function Section1Stammdaten({
           </div>
 
           <div className="wf-form-field">
-            <label className="form-label" htmlFor="wf-legacy-key">Primärer Prozesstyp-Schlüssel</label>
+            <label className="form-label" htmlFor="wf-legacy-key">Prozesstyp-Schlüssel (technisch)</label>
             <input
               id="wf-legacy-key"
               className="form-input"
@@ -617,7 +633,10 @@ function Section1Stammdaten({
               placeholder="z. B. onboarding"
               disabled={!canManageAdvanced}
             />
-            <p className="wf-form-field-hint">Technischer Schlüssel für die Maßnahmen-Zuordnung.</p>
+            <p className="wf-form-field-hint">
+              Wird vom Prozesstyp-Dropdown oben gesetzt. Hier nur ändern, wenn ein abweichender Schlüssel
+              gegen ein bestehendes Backend-System gemappt werden muss.
+            </p>
           </div>
         </div>
       )}
@@ -1252,7 +1271,8 @@ function Section3Edges({
   issueIndex: WorkflowBuilderIssueIndex;
 }) {
   const [conditionEdgeId, setConditionEdgeId] = useState<string | null>(null);
-  const [tableOpen, setTableOpen] = useState(false);
+  const hasDecisionStep = builder.versionDraft.nodes.some((n) => n.nodeType === "decision");
+  const [tableOpen, setTableOpen] = useState(hasDecisionStep);
   const nodes = builder.versionDraft.nodes;
   const edges = builder.versionDraft.edges;
 
@@ -1285,10 +1305,11 @@ function Section3Edges({
   return (
     <section className="wf-form-section">
       <div className="wf-form-section-head">
-        <h2 className="wf-form-section-title">3 — Übergänge</h2>
+        <h2 className="wf-form-section-title">3 — Übergänge im Detail</h2>
         <p className="wf-form-section-subtitle">
-          Übergänge werden primär im Diagramm in Sektion 2 angeklickt und im rechten Eigenschaften-Panel
-          bearbeitet. Die Tabelle hier ist eine Detail-/Listenansicht.
+          Für einfache Workflows reichen die Verbindungen aus den Schritt-Karten und der Topologie-Vorschau.
+          Diese Tabelle ist nur dann nötig, wenn Sie Bedingungen für Entscheidungen oder Pfad-Reihenfolgen
+          bei mehreren ausgehenden Verbindungen feinjustieren möchten.
         </p>
       </div>
 
@@ -1706,8 +1727,15 @@ function BuilderActionToolbar({
           {builder.selectedDefinition?.name || builder.selectedDefinition?.key || "Workflow"}
         </h2>
         {versionNumber !== undefined ? (
-          <span className={`wf-builder-toolbar-badge wf-builder-toolbar-badge--${isPublished ? "published" : "draft"}`}>
-            Version {versionNumber} · {isPublished ? "Veröffentlicht" : "Entwurf"}
+          <span
+            className={`wf-builder-toolbar-badge wf-builder-toolbar-badge--${isPublished ? "published" : "draft"}`}
+            title={
+              isPublished
+                ? "Diese Version ist aktiv: Neue Vorgänge starten mit dieser Definition. Änderungen wirken sofort."
+                : "Diese Version ist ein Entwurf: Sie ist noch nicht aktiv. Neue Vorgänge starten weiter mit der zuletzt veröffentlichten Version."
+            }
+          >
+            Version {versionNumber} · {isPublished ? "Veröffentlicht (aktiv)" : "Entwurf (nicht aktiv)"}
           </span>
         ) : null}
         {hasChanges ? (
