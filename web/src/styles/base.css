@@ -495,6 +495,21 @@ h1, h2, h3, h4, p {
   box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.18), 0 10px 24px rgba(2, 6, 23, 0.16);
 }
 
+.sidebar-link-badge {
+  margin-left: auto;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: 9999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .sidebar-footer {
   border-top: 1px solid var(--surface-nav-border);
   background: var(--surface-nav-footer);

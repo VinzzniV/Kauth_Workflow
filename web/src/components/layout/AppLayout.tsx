@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
+import { useNavBadgeCounts } from "../../hooks/useNavBadgeCounts";
 import { useTheme } from "../../theme/useTheme";
 
 type Props = {
@@ -14,6 +15,7 @@ export default function AppLayout({ children }: Props) {
   const { logout } = useAuth();
   const { currentUser, roleLabels } = useCurrentUser();
   const { headerNavItems } = useRoleAwareNavigation();
+  const navBadgeCounts = useNavBadgeCounts();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const mobileMenuId = useId();
@@ -171,17 +173,25 @@ export default function AppLayout({ children }: Props) {
         </div>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">
-          {headerNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}
-            >
-              <span className="sidebar-link-icon">{item.icon}</span>
-              <span className="sidebar-link-label">{item.label}</span>
-            </NavLink>
-          ))}
+          {headerNavItems.map((item) => {
+            const badgeCount = navBadgeCounts[item.to] ?? 0;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}
+              >
+                <span className="sidebar-link-icon">{item.icon}</span>
+                <span className="sidebar-link-label">{item.label}</span>
+                {badgeCount > 0 && (
+                  <span className="sidebar-link-badge" aria-label={`${badgeCount} offen`}>
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {sidebarFooter}
@@ -215,17 +225,25 @@ export default function AppLayout({ children }: Props) {
         </div>
 
         <nav className="sidebar-nav" aria-label="Mobile Hauptnavigation">
-          {headerNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}
-            >
-              <span className="sidebar-link-icon">{item.icon}</span>
-              <span className="sidebar-link-label">{item.label}</span>
-            </NavLink>
-          ))}
+          {headerNavItems.map((item) => {
+            const badgeCount = navBadgeCounts[item.to] ?? 0;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}
+              >
+                <span className="sidebar-link-icon">{item.icon}</span>
+                <span className="sidebar-link-label">{item.label}</span>
+                {badgeCount > 0 && (
+                  <span className="sidebar-link-badge" aria-label={`${badgeCount} offen`}>
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {sidebarFooter}

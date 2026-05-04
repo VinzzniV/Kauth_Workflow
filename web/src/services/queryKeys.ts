@@ -29,6 +29,7 @@ export const queryKeys = {
   },
 
   myTasks: () => ["my-tasks"] as const,
+  supervisorWorkflows: () => ["supervisor-workflows"] as const,
 
   tasks: {
     byRef: (taskRef: string) => ["tasks", "ref", taskRef] as const,

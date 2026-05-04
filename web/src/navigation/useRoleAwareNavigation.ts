@@ -8,6 +8,7 @@ export type HeaderNavItem = {
   label: string;
   icon: ReactNode;
   end?: boolean;
+  badge?: number;
 };
 
 export type DashboardAction = {
