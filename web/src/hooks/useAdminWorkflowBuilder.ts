@@ -67,7 +67,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
   const [definitionDraft, setDefinitionDraft] = useState(createEmptyDefinitionDraft);
   const [newDefinitionDraft, setNewDefinitionDraft] = useState(createEmptyDefinitionDraft);
   const [versionDraft, setVersionDraft] = useState<WorkflowBuilderVersionDraft>(createEmptyVersionDraft);
-  const [localValidationIssues, setLocalValidationIssues] = useState<WorkflowBuilderLocalIssue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingVersion, setIsLoadingVersion] = useState(false);
   const [isDeletingDefinition, setIsDeletingDefinition] = useState(false);
@@ -94,6 +93,47 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       actionDefinitions.map((definition) => [definition.actionKey.trim().toLowerCase(), definition] as const)
     );
   }, [actionDefinitions]);
+
+  const collectValidationIssues = useCallback((draft: WorkflowBuilderVersionDraft): WorkflowBuilderLocalIssue[] => {
+    const issues: WorkflowBuilderLocalIssue[] = [...validateWorkflowBuilderDraft(draft)];
+
+    if (actionDefinitions.length === 0) {
+      return dedupeIssues(issues);
+    }
+
+    for (const node of draft.nodes) {
+      if (node.nodeType !== "automation") {
+        continue;
+      }
+
+      const nodeKey = node.nodeKey.trim() || "?";
+      for (const action of node.actions) {
+        const actionKey = action.actionKey.trim();
+        if (!actionKey) {
+          continue;
+        }
+
+        const definition = activeActionDefinitionsByKey.get(actionKey.toLowerCase());
+        if (!definition) {
+          issues.push({ scope: "action", message: `Node '${nodeKey}' referenziert unbekannte Action '${actionKey}'.`, referenceKey: nodeKey });
+          continue;
+        }
+
+        if (!definition.isActive) {
+          issues.push({ scope: "action", message: `Node '${nodeKey}' referenziert inaktive Action '${actionKey}'.`, referenceKey: nodeKey });
+        }
+      }
+    }
+
+    return dedupeIssues(issues);
+  }, [actionDefinitions.length, activeActionDefinitionsByKey]);
+
+  // Live-Validation: re-evaluate on every draft / action-catalog change so badges and markers
+  // reflect the current state without an explicit "Lokal pruefen" click.
+  const localValidationIssues = useMemo(
+    () => collectValidationIssues(versionDraft),
+    [collectValidationIssues, versionDraft]
+  );
 
   // Aufgaben-/Antwort-/Conditions-/Dependencies-Referenzdaten kommen aus einem
   // dedizierten Hook (HQ2-Z3): er beobachtet versionDraft + definitions und
@@ -182,7 +222,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     // werden vom useAdminWorkflowVersionReferenceData-Hook geliefert und resetten
     // sich automatisch, sobald der versionDraft keine referenzierten Process-Keys
     // mehr enthaelt.
-    setLocalValidationIssues([]);
     setIsDirty(false);
     setSelectedVersionId(null);
   }, []);
@@ -191,7 +230,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     const nextDraft = toVersionDraft(detail);
     setVersionDetail(detail);
     setVersionDraft(nextDraft);
-    setLocalValidationIssues([]);
     setIsDirty(false);
     setSelectedVersionId(detail.id);
   }, []);
@@ -533,12 +571,15 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     onError(null);
   }, [canManageAdvanced, onError]);
 
-  const addEdge = useCallback((initial?: { sourceNodeKey?: string }) => {
+  const addEdge = useCallback((initial?: { sourceNodeKey?: string; targetNodeKey?: string }) => {
     let createdEdgeId = "";
     setVersionDraft((current) => {
       const draft = createEmptyEdgeDraft();
       if (initial?.sourceNodeKey) {
         draft.sourceNodeKey = initial.sourceNodeKey;
+      }
+      if (initial?.targetNodeKey) {
+        draft.targetNodeKey = initial.targetNodeKey;
       }
       createdEdgeId = draft.id;
       return { ...current, edges: [...current.edges, draft] };
@@ -638,49 +679,13 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     }
   }, [canManageAdvanced, confirm, loadDefinitions, onError, onNotice, resetLoadedVersion, selectedDefinition]);
 
-  const collectValidationIssues = useCallback((draft: WorkflowBuilderVersionDraft): WorkflowBuilderLocalIssue[] => {
-    const issues: WorkflowBuilderLocalIssue[] = [...validateWorkflowBuilderDraft(draft)];
-
-    if (actionDefinitions.length === 0) {
-      return dedupeIssues(issues);
-    }
-
-    for (const node of draft.nodes) {
-      if (node.nodeType !== "automation") {
-        continue;
-      }
-
-      const nodeKey = node.nodeKey.trim() || "?";
-      for (const action of node.actions) {
-        const actionKey = action.actionKey.trim();
-        if (!actionKey) {
-          continue;
-        }
-
-        const definition = activeActionDefinitionsByKey.get(actionKey.toLowerCase());
-        if (!definition) {
-          issues.push({ scope: "action", message: `Node '${nodeKey}' referenziert unbekannte Action '${actionKey}'.`, referenceKey: nodeKey });
-          continue;
-        }
-
-        if (!definition.isActive) {
-          issues.push({ scope: "action", message: `Node '${nodeKey}' referenziert inaktive Action '${actionKey}'.`, referenceKey: nodeKey });
-        }
-      }
-    }
-
-    return dedupeIssues(issues);
-  }, [actionDefinitions.length, activeActionDefinitionsByKey]);
-
   const saveVersion = useCallback(async () => {
     if (!selectedDefinition || !selectedVersionId) {
       onError("Bitte zuerst einen Ablauf und einen Stand auswaehlen.");
       return;
     }
 
-    const localIssues = collectValidationIssues(versionDraft);
-    setLocalValidationIssues(localIssues);
-    if (localIssues.length > 0) {
+    if (localValidationIssues.length > 0) {
       onError("Der aktuelle Stand enthaelt lokale Fehler.");
       return;
     }
@@ -711,7 +716,6 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       const nextDraft = toVersionDraft(saved);
       setVersionDetail(saved);
       setVersionDraft(nextDraft);
-      setLocalValidationIssues([]);
       setIsDirty(false);
       onNotice(`Stand ${saved.versionNumber} wurde gespeichert.`);
     } catch (err) {
@@ -719,7 +723,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     } finally {
       setIsSaving(false);
     }
-  }, [canManageAdvanced, collectValidationIssues, definitionDraft.description, definitionDraft.name, hasDefinitionMetadataChanges, loadDefinitions, onError, onNotice, selectedDefinition, selectedVersionId, versionDraft]);
+  }, [canManageAdvanced, definitionDraft.description, definitionDraft.name, hasDefinitionMetadataChanges, loadDefinitions, localValidationIssues.length, onError, onNotice, selectedDefinition, selectedVersionId, versionDraft]);
 
   const publishVersion = useCallback(async () => {
     if (!canManageAdvanced) {
@@ -763,18 +767,15 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
       return;
     }
 
-    const localIssues = collectValidationIssues(versionDraft);
-    setLocalValidationIssues(localIssues);
-
-    if (localIssues.length > 0) {
-      onError("Der aktuelle Stand enthaelt lokale Fehler.");
+    if (localValidationIssues.length > 0) {
+      onError(`Der aktuelle Stand enthaelt ${localValidationIssues.length} lokale Issues.`);
       onNotice(null);
       return;
     }
 
     onError(null);
     onNotice("Lokale Pruefung erfolgreich.");
-  }, [collectValidationIssues, onError, onNotice, selectedVersionSummary, versionDraft]);
+  }, [localValidationIssues.length, onError, onNotice, selectedVersionSummary]);
 
   return {
     definitions,

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Pencil, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import { AlertTriangle, ChevronDown, ChevronRight, Link2, Pencil, X } from "lucide-react";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useConfirmationDialog } from "../feedback/useConfirmationDialog";
 import { useAdminWorkflowBuilder } from "../../hooks/useAdminWorkflowBuilder";
@@ -15,6 +15,12 @@ import { WorkflowBuilderConditionEditor } from "./WorkflowBuilderConditionEditor
 import { WorkflowBuilderGraphPreview } from "./WorkflowBuilderGraphPreview";
 import { summarizeCondition } from "./workflowBuilderEditorHelpers";
 import { getWorkflowBuilderNodeTypeLabel } from "./workflowBuilderLabels";
+import {
+  buildWorkflowBuilderIssueIndex,
+  highestSeverity,
+  type WorkflowBuilderIssueIndex,
+  type WorkflowBuilderIssueRef,
+} from "./workflowBuilderIssues";
 
 // ─── Anchors / jump-to ────────────────────────────────────────────────────────
 
@@ -136,6 +142,117 @@ export function AdminWorkflowBuilderFormSection({
   const canManageAdvanced = capabilities.canManageAdminConfiguration;
   const builder = useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced });
 
+  const [rawSelectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [rawSelectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [rawConnectingFromNodeId, setConnectingFromNodeId] = useState<string | null>(null);
+
+  const versionNodes = builder.versionDraft.nodes;
+  const versionEdges = builder.versionDraft.edges;
+  const issueIndex = useMemo(
+    () => buildWorkflowBuilderIssueIndex(
+      builder.localValidationIssues,
+      builder.versionDetail?.validationIssues ?? [],
+      builder.versionDraft
+    ),
+    [builder.localValidationIssues, builder.versionDetail, builder.versionDraft]
+  );
+
+  // Treat selection as null if the underlying draft object disappears (delete / version switch).
+  const selectedNodeId = rawSelectedNodeId
+    && versionNodes.some((node) => node.id === rawSelectedNodeId)
+    ? rawSelectedNodeId
+    : null;
+  const selectedEdgeId = rawSelectedEdgeId
+    && versionEdges.some((edge) => edge.id === rawSelectedEdgeId)
+    ? rawSelectedEdgeId
+    : null;
+  const connectingFromNodeId = rawConnectingFromNodeId
+    && versionNodes.some((node) => node.id === rawConnectingFromNodeId)
+    ? rawConnectingFromNodeId
+    : null;
+
+  const selectEdge = useCallback((edgeId: string) => {
+    setSelectedEdgeId(edgeId);
+    setSelectedNodeId(null);
+    setConnectingFromNodeId(null);
+  }, []);
+  const clearSelection = useCallback(() => {
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setConnectingFromNodeId(null);
+  }, []);
+  const cancelConnect = useCallback(() => {
+    setConnectingFromNodeId(null);
+  }, []);
+
+  const connectingNode = connectingFromNodeId
+    ? versionNodes.find((node) => node.id === connectingFromNodeId) ?? null
+    : null;
+  const isConnecting = Boolean(connectingNode);
+
+  const startConnectFromNode = useCallback((nodeId: string) => {
+    const sourceNode = versionNodes.find((node) => node.id === nodeId);
+    if (!sourceNode) {
+      return;
+    }
+    if (!sourceNode.nodeKey.trim()) {
+      onError("Der Quell-Schritt braucht zuerst einen Schritt-Key, bevor Verbindungen entstehen können.");
+      return;
+    }
+    onError(null);
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeId(null);
+    setConnectingFromNodeId(nodeId);
+  }, [onError, versionNodes]);
+
+  const selectNode = useCallback((nodeId: string) => {
+    if (connectingFromNodeId && connectingFromNodeId !== nodeId) {
+      const sourceNode = versionNodes.find((node) => node.id === connectingFromNodeId);
+      const targetNode = versionNodes.find((node) => node.id === nodeId);
+      if (sourceNode && targetNode) {
+        const sourceKey = sourceNode.nodeKey.trim();
+        const targetKey = targetNode.nodeKey.trim();
+        if (!sourceKey) {
+          onError("Der Quell-Schritt braucht einen Schritt-Key, bevor Verbindungen entstehen können.");
+          setConnectingFromNodeId(null);
+          return;
+        }
+        if (!targetKey) {
+          onError("Der Ziel-Schritt braucht einen Schritt-Key, bevor er Verbindungen empfangen kann.");
+          setConnectingFromNodeId(null);
+          setSelectedNodeId(nodeId);
+          setSelectedEdgeId(null);
+          return;
+        }
+        const newEdgeId = builder.addEdge({ sourceNodeKey: sourceKey, targetNodeKey: targetKey });
+        setConnectingFromNodeId(null);
+        if (newEdgeId) {
+          setSelectedEdgeId(newEdgeId);
+          setSelectedNodeId(null);
+          onError(null);
+          onNotice(`Verbindung '${sourceKey} → ${targetKey}' wurde angelegt.`);
+        }
+        return;
+      }
+    }
+    setConnectingFromNodeId(null);
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeId(null);
+  }, [builder, connectingFromNodeId, onError, onNotice, versionNodes]);
+
+  // Esc bricht den Connect-Mode global ab — bleibt unaufdringlich, weil ein
+  // aktiver Connect-Mode visuell hervorgehoben wird.
+  useEffect(() => {
+    if (!isConnecting) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setConnectingFromNodeId(null);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isConnecting]);
+
   return (
     <div className="wf-form-editor">
       <WorkflowSelectorBar builder={builder} canManageAdvanced={canManageAdvanced} />
@@ -152,9 +269,30 @@ export function AdminWorkflowBuilderFormSection({
           <PublishedVersionBanner builder={builder} />
           <div className="wf-form-body">
             <Section1Stammdaten builder={builder} canManageAdvanced={canManageAdvanced} />
-            <Section2Steps builder={builder} canManageAdvanced={canManageAdvanced} />
-            <Section3Edges builder={builder} canManageAdvanced={canManageAdvanced} />
-            <Section4Validation builder={builder} />
+            <Section2Steps
+              builder={builder}
+              canManageAdvanced={canManageAdvanced}
+              selectedNodeId={selectedNodeId}
+              selectedEdgeId={selectedEdgeId}
+              onSelectNode={selectNode}
+              onSelectEdge={selectEdge}
+              onClearSelection={clearSelection}
+              issueIndex={issueIndex}
+              connectingFromNodeId={connectingFromNodeId}
+              connectingFromNodeLabel={connectingNode
+                ? connectingNode.title.trim() || connectingNode.nodeKey.trim() || "Schritt"
+                : null}
+              onStartConnect={startConnectFromNode}
+              onCancelConnect={cancelConnect}
+            />
+            <Section3Edges
+              builder={builder}
+              canManageAdvanced={canManageAdvanced}
+              selectedEdgeId={selectedEdgeId}
+              onSelectEdge={selectEdge}
+              issueIndex={issueIndex}
+            />
+            <Section4Validation builder={builder} issueIndex={issueIndex} />
           </div>
         </>
       )}
@@ -492,12 +630,33 @@ function Section1Stammdaten({
 function Section2Steps({
   builder,
   canManageAdvanced,
+  selectedNodeId,
+  selectedEdgeId,
+  onSelectNode,
+  onSelectEdge,
+  onClearSelection,
+  issueIndex,
+  connectingFromNodeId,
+  connectingFromNodeLabel,
+  onStartConnect,
+  onCancelConnect,
 }: {
   builder: ReturnType<typeof useAdminWorkflowBuilder>;
   canManageAdvanced: boolean;
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+  onSelectNode: (nodeId: string) => void;
+  onSelectEdge: (edgeId: string) => void;
+  onClearSelection: () => void;
+  issueIndex: WorkflowBuilderIssueIndex;
+  connectingFromNodeId: string | null;
+  connectingFromNodeLabel: string | null;
+  onStartConnect: (nodeId: string) => void;
+  onCancelConnect: () => void;
 }) {
   const confirm = useConfirmationDialog();
   const [addOpen, setAddOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dropBeforeNodeId, setDropBeforeNodeId] = useState<string | null>(null);
   const arrayNodes = builder.versionDraft.nodes;
@@ -507,6 +666,28 @@ function Section2Steps({
     [arrayNodes, edges]
   );
   const hasStart = nodes.some((node) => node.nodeType === "start");
+  const selectedNodeIndex = selectedNodeId
+    ? nodes.findIndex((node) => node.id === selectedNodeId)
+    : -1;
+  const selectedNode = selectedNodeIndex >= 0 ? nodes[selectedNodeIndex] : null;
+  const selectedEdge = selectedEdgeId
+    ? edges.find((edge) => edge.id === selectedEdgeId) ?? null
+    : null;
+
+  const nodeIssueCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [id, list] of issueIndex.byNodeId) {
+      map.set(id, list.length);
+    }
+    return map;
+  }, [issueIndex]);
+  const edgeIssueCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [id, list] of issueIndex.byEdgeId) {
+      map.set(id, list.length);
+    }
+    return map;
+  }, [issueIndex]);
 
   const handleDragStart = (nodeId: string) => {
     setDraggingNodeId(nodeId);
@@ -533,10 +714,10 @@ function Section2Steps({
     setAddOpen(false);
   };
 
-  const handleRemove = async (node: WorkflowBuilderNodeDraft, index: number) => {
+  const handleRemove = async (node: WorkflowBuilderNodeDraft, position: number) => {
     const shouldRemove = await confirm({
       title: "Schritt entfernen?",
-      description: `Schritt #${index + 1} (${getWorkflowBuilderNodeTypeLabel(node.nodeType)}) und seine Verknüpfungen werden aus dem Entwurf entfernt.`,
+      description: `Schritt #${position} (${getWorkflowBuilderNodeTypeLabel(node.nodeType)}) und seine Verknüpfungen werden aus dem Entwurf entfernt.`,
       confirmLabel: "Schritt entfernen",
       cancelLabel: "Abbrechen",
       tone: "danger",
@@ -549,27 +730,59 @@ function Section2Steps({
     builder.removeNode(node.id);
   };
 
+  const renderStepCard = (
+    node: WorkflowBuilderNodeDraft,
+    index: number,
+    options?: { dnd?: boolean }
+  ) => {
+    const dndEnabled = Boolean(options?.dnd);
+    return (
+      <WorkflowBuilderStepCard
+        node={node}
+        index={index}
+        totalCount={nodes.length}
+        canManageAdvanced={canManageAdvanced}
+        versionDraft={builder.versionDraft}
+        workflowDefinitions={builder.definitions}
+        actionDefinitions={builder.actionDefinitions}
+        automationPropertyCatalog={builder.automationPropertyCatalog}
+        taskTemplates={builder.taskTemplates}
+        answerDefinitions={builder.answerDefinitions}
+        taskTemplateConditions={builder.taskTemplateConditions}
+        taskTemplateDependencies={builder.taskTemplateDependencies}
+        responsibilityOwners={builder.responsibilityOwners}
+        onUpdate={(patch) => builder.updateNode(node.id, patch)}
+        onMoveUp={() => builder.moveNode(node.id, "up")}
+        onMoveDown={() => builder.moveNode(node.id, "down")}
+        onRemove={() => void handleRemove(node, index + 1)}
+        onAddAction={(actionKey) => builder.addActionFromDefinition(node.id, actionKey)}
+        onUpdateAction={(actionId, patch) => builder.updateAction(node.id, actionId, patch)}
+        onRemoveAction={(actionId) => builder.removeAction(node.id, actionId)}
+        onAddOutgoingEdge={() => {
+          const newEdgeId = builder.addEdge({ sourceNodeKey: node.nodeKey });
+          if (newEdgeId) {
+            onSelectEdge(newEdgeId);
+          }
+        }}
+        onJumpToEdge={(edgeId) => onSelectEdge(edgeId)}
+        onDragStart={dndEnabled ? () => handleDragStart(node.id) : undefined}
+        onDragEnd={dndEnabled ? handleDragEnd : undefined}
+        isDragging={dndEnabled && draggingNodeId === node.id}
+      />
+    );
+  };
+
   return (
-    <section className="wf-form-section">
+    <section className="wf-form-section wf-form-section--canvas">
       <div className="wf-form-section-head">
         <h2 className="wf-form-section-title">2 — Schritte</h2>
         <p className="wf-form-section-subtitle">
-          Welche Schritte hat der Workflow? Reihenfolge folgt aus den Übergängen (Sektion 3) — die Pfeil-Buttons
-          (Hoch/Runter pro Schritt) wirken nur als Tie-Breaker bei mehrdeutigen Pfaden.
+          Schritt im Diagramm anklicken, um ihn rechts zu bearbeiten. Übergänge können direkt im
+          Diagramm angeklickt werden. Für eine neue Verbindung den „+"-Anker am rechten Rand eines
+          Schritts klicken und anschließend den Zielschritt anwählen. Die Reihenfolge folgt aus den
+          Übergängen — Hoch/Runter wirkt nur als Tie-Breaker.
         </p>
       </div>
-
-      {nodes.length > 0 ? (
-        <WorkflowBuilderGraphPreview
-          nodes={nodes}
-          edges={edges}
-          onNodeClick={(nodeId) => {
-            const target = nodes.find((n) => n.id === nodeId);
-            if (target) jumpToAnchor(stepAnchorId(target));
-          }}
-          onEdgeClick={(edgeId) => jumpToAnchor(`wf-edge-${edgeId}`)}
-        />
-      ) : null}
 
       {nodes.length === 0 ? (
         <p className="wf-step-card-hint wf-step-card-hint--info">
@@ -577,59 +790,54 @@ function Section2Steps({
           {!hasStart && " Beginne mit einem Start-Schritt über das Dropdown unten."}
         </p>
       ) : (
-        <div
-          className="wf-step-list"
-          onDragOver={(event) => {
-            if (!draggingNodeId) return;
-            event.preventDefault();
-            event.dataTransfer.dropEffect = "move";
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            handleDragEnd();
-          }}
-        >
-          {nodes.map((node, index) => (
-            <div
-              key={node.id}
-              id={stepAnchorId(node)}
-              className={`wf-step-list-item${draggingNodeId === node.id ? " wf-step-list-item--dragging" : ""}${dropBeforeNodeId === node.id && draggingNodeId && draggingNodeId !== node.id ? " wf-step-list-item--drop-before" : ""}`}
-              onDragOver={(event) => handleDragOver(node.id, event)}
-            >
-            <WorkflowBuilderStepCard
-              node={node}
-              index={index}
-              totalCount={nodes.length}
-              canManageAdvanced={canManageAdvanced}
-              versionDraft={builder.versionDraft}
-              workflowDefinitions={builder.definitions}
-              actionDefinitions={builder.actionDefinitions}
-              automationPropertyCatalog={builder.automationPropertyCatalog}
-              taskTemplates={builder.taskTemplates}
-              answerDefinitions={builder.answerDefinitions}
-              taskTemplateConditions={builder.taskTemplateConditions}
-              taskTemplateDependencies={builder.taskTemplateDependencies}
-              responsibilityOwners={builder.responsibilityOwners}
-              onUpdate={(patch) => builder.updateNode(node.id, patch)}
-              onMoveUp={() => builder.moveNode(node.id, "up")}
-              onMoveDown={() => builder.moveNode(node.id, "down")}
-                    onRemove={() => void handleRemove(node, index)}
-              onAddAction={(actionKey) => builder.addActionFromDefinition(node.id, actionKey)}
-              onUpdateAction={(actionId, patch) => builder.updateAction(node.id, actionId, patch)}
-              onRemoveAction={(actionId) => builder.removeAction(node.id, actionId)}
-              onAddOutgoingEdge={() => {
-                const newEdgeId = builder.addEdge({ sourceNodeKey: node.nodeKey });
-                if (newEdgeId) {
-                  window.setTimeout(() => jumpToAnchor(`wf-edge-${newEdgeId}`), 50);
-                }
-              }}
-              onJumpToEdge={(edgeId) => jumpToAnchor(`wf-edge-${edgeId}`)}
-              onDragStart={() => handleDragStart(node.id)}
-              onDragEnd={handleDragEnd}
-              isDragging={draggingNodeId === node.id}
+        <div className="wf-builder-canvas-grid">
+          <div className="wf-builder-canvas-area">
+            {connectingFromNodeId ? (
+              <div className="wf-builder-connect-banner" role="status">
+                <Link2 size={14} aria-hidden="true" />
+                <span>
+                  Verbindung von{" "}
+                  <strong>{connectingFromNodeLabel ?? "Schritt"}</strong>: jetzt einen Zielschritt
+                  im Diagramm anklicken.
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-ghost wf-builder-connect-banner-cancel"
+                  onClick={onCancelConnect}
+                >
+                  Abbrechen (Esc)
+                </button>
+              </div>
+            ) : null}
+            <WorkflowBuilderGraphPreview
+              nodes={nodes}
+              edges={edges}
+              variant="canvas"
+              selectedNodeId={selectedNodeId}
+              selectedEdgeId={selectedEdgeId}
+              onNodeClick={(nodeId) => onSelectNode(nodeId)}
+              onEdgeClick={(edgeId) => onSelectEdge(edgeId)}
+              nodeIssueCounts={nodeIssueCounts}
+              edgeIssueCounts={edgeIssueCounts}
+              connectingFromNodeId={canManageAdvanced ? connectingFromNodeId : null}
+              onStartConnect={canManageAdvanced ? onStartConnect : undefined}
+              onCancelConnect={onCancelConnect}
             />
-            </div>
-          ))}
+          </div>
+          <aside className="wf-builder-properties-panel" aria-label="Eigenschaften">
+            <BuilderPropertiesPanel
+              builder={builder}
+              canManageAdvanced={canManageAdvanced}
+              selectedNode={selectedNode}
+              selectedNodeIndex={selectedNodeIndex}
+              selectedEdge={selectedEdge}
+              nodes={nodes}
+              renderStepCard={renderStepCard}
+              onSelectNode={onSelectNode}
+              onClearSelection={onClearSelection}
+              issueIndex={issueIndex}
+            />
+          </aside>
         </div>
       )}
 
@@ -679,18 +887,372 @@ function Section2Steps({
           )}
         </div>
       </div>
+
+      {nodes.length > 0 ? (
+        <details
+          className="wf-form-collapsible"
+          open={listOpen}
+          onToggle={(event) => setListOpen((event.target as HTMLDetailsElement).open)}
+        >
+          <summary className="wf-form-collapsible-summary">
+            Listenansicht aller Schritte ({nodes.length})
+          </summary>
+          <div
+            className="wf-step-list wf-form-collapsible-body"
+            onDragOver={(event) => {
+              if (!draggingNodeId) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              handleDragEnd();
+            }}
+          >
+            {nodes.map((node, index) => {
+              const issues = issueIndex.byNodeId.get(node.id);
+              const issueCount = issues?.length ?? 0;
+              const severity = highestSeverity(issues);
+              return (
+                <div
+                  key={node.id}
+                  id={stepAnchorId(node)}
+                  className={`wf-step-list-item${draggingNodeId === node.id ? " wf-step-list-item--dragging" : ""}${dropBeforeNodeId === node.id && draggingNodeId && draggingNodeId !== node.id ? " wf-step-list-item--drop-before" : ""}${selectedNodeId === node.id ? " wf-step-list-item--selected" : ""}${issueCount > 0 ? ` wf-step-list-item--issue wf-step-list-item--issue-${severity ?? "info"}` : ""}`}
+                  onDragOver={(event) => handleDragOver(node.id, event)}
+                  onClick={() => onSelectNode(node.id)}
+                >
+                  {issueCount > 0 ? (
+                    <span
+                      className={`wf-list-issue-badge wf-list-issue-badge--${severity ?? "info"}`}
+                      title={`${issueCount} ${issueCount === 1 ? "Issue" : "Issues"} an diesem Schritt`}
+                    >
+                      <AlertTriangle size={11} aria-hidden="true" />
+                      <span>{issueCount}</span>
+                    </span>
+                  ) : null}
+                  {renderStepCard(node, index, { dnd: true })}
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      ) : null}
     </section>
+  );
+}
+
+function BuilderPropertiesPanel({
+  builder,
+  canManageAdvanced,
+  selectedNode,
+  selectedNodeIndex,
+  selectedEdge,
+  nodes,
+  renderStepCard,
+  onSelectNode,
+  onClearSelection,
+  issueIndex,
+}: {
+  builder: ReturnType<typeof useAdminWorkflowBuilder>;
+  canManageAdvanced: boolean;
+  selectedNode: WorkflowBuilderNodeDraft | null;
+  selectedNodeIndex: number;
+  selectedEdge: WorkflowBuilderEdgeDraft | null;
+  nodes: WorkflowBuilderNodeDraft[];
+  renderStepCard: (node: WorkflowBuilderNodeDraft, index: number) => ReactElement;
+  onSelectNode: (nodeId: string) => void;
+  onClearSelection: () => void;
+  issueIndex: WorkflowBuilderIssueIndex;
+}) {
+  if (selectedNode) {
+    const nodeIssues = issueIndex.byNodeId.get(selectedNode.id) ?? [];
+    return (
+      <div className="wf-properties-panel-inner">
+        <header className="wf-properties-panel-head">
+          <span className="wf-properties-panel-eyebrow">Schritt-Eigenschaften</span>
+          <button
+            type="button"
+            className="wf-properties-panel-close"
+            onClick={onClearSelection}
+            aria-label="Auswahl aufheben"
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        </header>
+        <div className="wf-properties-panel-body">
+          <PropertiesPanelIssueList issues={nodeIssues} subject="Schritt" />
+          {renderStepCard(selectedNode, selectedNodeIndex)}
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedEdge) {
+    const edgeIssues = issueIndex.byEdgeId.get(selectedEdge.id) ?? [];
+    return (
+      <div className="wf-properties-panel-inner">
+        <header className="wf-properties-panel-head">
+          <span className="wf-properties-panel-eyebrow">Übergangs-Eigenschaften</span>
+          <button
+            type="button"
+            className="wf-properties-panel-close"
+            onClick={onClearSelection}
+            aria-label="Auswahl aufheben"
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        </header>
+        <div className="wf-properties-panel-body">
+          <PropertiesPanelIssueList issues={edgeIssues} subject="Übergang" />
+          <EdgePropertiesPanel
+            builder={builder}
+            edge={selectedEdge}
+            nodes={nodes}
+            canManageAdvanced={canManageAdvanced}
+            onSelectNode={onSelectNode}
+            onAfterDelete={onClearSelection}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wf-properties-panel-inner wf-properties-panel-inner--empty">
+      <p className="wf-properties-panel-hint">
+        Schritt oder Übergang im Diagramm anklicken, um Eigenschaften hier zu bearbeiten.
+      </p>
+      <p className="wf-properties-panel-hint wf-properties-panel-hint--muted">
+        Eine Listenansicht aller Schritte steht weiter unten als Detailbereich zur Verfügung.
+      </p>
+    </div>
+  );
+}
+
+function PropertiesPanelIssueList({
+  issues,
+  subject,
+}: {
+  issues: WorkflowBuilderIssueRef[];
+  subject: "Schritt" | "Übergang";
+}) {
+  if (issues.length === 0) return null;
+  const severity = highestSeverity(issues) ?? "info";
+  return (
+    <div className={`wf-properties-issues wf-properties-issues--${severity}`} role="status">
+      <div className="wf-properties-issues-head">
+        <AlertTriangle size={13} aria-hidden="true" />
+        <span>
+          {issues.length} {issues.length === 1 ? "Issue" : "Issues"} an diesem {subject}
+        </span>
+      </div>
+      <ul className="wf-properties-issues-list">
+        {issues.map((issue, idx) => (
+          <li
+            key={`${issue.origin}-${idx}`}
+            className={`wf-properties-issues-item wf-properties-issues-item--${issue.severity}`}
+          >
+            <span className="wf-properties-issues-item-message">{issue.message}</span>
+            <span className="wf-properties-issues-item-meta">
+              {issue.origin === "local" ? "Lokal" : "Backend"}
+              {issue.code ? ` · ${issue.code}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function EdgePropertiesPanel({
+  builder,
+  edge,
+  nodes,
+  canManageAdvanced,
+  onSelectNode,
+  onAfterDelete,
+}: {
+  builder: ReturnType<typeof useAdminWorkflowBuilder>;
+  edge: WorkflowBuilderEdgeDraft;
+  nodes: WorkflowBuilderNodeDraft[];
+  canManageAdvanced: boolean;
+  onSelectNode: (nodeId: string) => void;
+  onAfterDelete: () => void;
+}) {
+  const [conditionOpen, setConditionOpen] = useState(false);
+  const confirm = useConfirmationDialog();
+
+  const sourceNode = nodes.find(
+    (n) => n.nodeKey.trim().toLowerCase() === edge.sourceNodeKey.trim().toLowerCase()
+  );
+  const targetNode = nodes.find(
+    (n) => n.nodeKey.trim().toLowerCase() === edge.targetNodeKey.trim().toLowerCase()
+  );
+  const isDecisionSource = sourceNode?.nodeType === "decision";
+
+  const nodeOptions = nodes
+    .map((node) => {
+      const key = node.nodeKey.trim();
+      if (!key) return null;
+      const title = node.title.trim();
+      return { key, label: title ? `${title} (${key})` : key };
+    })
+    .filter((opt): opt is { key: string; label: string } => opt !== null);
+
+  const handleDelete = async () => {
+    const shouldRemove = await confirm({
+      title: "Übergang entfernen?",
+      description: "Dieser Übergang wird aus dem Entwurf entfernt.",
+      confirmLabel: "Übergang entfernen",
+      cancelLabel: "Abbrechen",
+      tone: "danger",
+    });
+    if (!shouldRemove) return;
+    builder.removeEdge(edge.id);
+    onAfterDelete();
+  };
+
+  return (
+    <div className="wf-edge-panel">
+      <div className="wf-edge-panel-route">
+        {sourceNode ? (
+          <button
+            type="button"
+            className="wf-edge-panel-chip"
+            onClick={() => onSelectNode(sourceNode.id)}
+            title="Quell-Schritt auswählen"
+          >
+            {sourceNode.title.trim() || sourceNode.nodeKey.trim() || "Quelle"}
+          </button>
+        ) : (
+          <span className="wf-edge-panel-chip wf-edge-panel-chip--missing">{edge.sourceNodeKey || "?"}</span>
+        )}
+        <span className="wf-edge-panel-arrow" aria-hidden="true">→</span>
+        {targetNode ? (
+          <button
+            type="button"
+            className="wf-edge-panel-chip"
+            onClick={() => onSelectNode(targetNode.id)}
+            title="Ziel-Schritt auswählen"
+          >
+            {targetNode.title.trim() || targetNode.nodeKey.trim() || "Ziel"}
+          </button>
+        ) : (
+          <span className="wf-edge-panel-chip wf-edge-panel-chip--missing">{edge.targetNodeKey || "?"}</span>
+        )}
+      </div>
+
+      <div className="wf-form-fields">
+        <div className="wf-form-field">
+          <label className="form-label" htmlFor={`wf-edge-source-${edge.id}`}>Von Schritt</label>
+          <select
+            id={`wf-edge-source-${edge.id}`}
+            className="form-select"
+            value={edge.sourceNodeKey}
+            onChange={(e) => builder.updateEdge(edge.id, { sourceNodeKey: e.target.value })}
+            disabled={!canManageAdvanced}
+          >
+            <option value="">– wählen –</option>
+            {nodeOptions.map((opt) => (
+              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="wf-form-field">
+          <label className="form-label" htmlFor={`wf-edge-target-${edge.id}`}>Zu Schritt</label>
+          <select
+            id={`wf-edge-target-${edge.id}`}
+            className="form-select"
+            value={edge.targetNodeKey}
+            onChange={(e) => builder.updateEdge(edge.id, { targetNodeKey: e.target.value })}
+            disabled={!canManageAdvanced}
+          >
+            <option value="">– wählen –</option>
+            {nodeOptions.map((opt) => (
+              <option key={opt.key} value={opt.key}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="wf-form-field">
+          <label className="form-label" htmlFor={`wf-edge-priority-${edge.id}`}>Pfad-Reihenfolge</label>
+          <input
+            id={`wf-edge-priority-${edge.id}`}
+            className="form-input wf-edge-priority-input"
+            type="number"
+            min={1}
+            value={edge.priority}
+            onChange={(e) => builder.updateEdge(edge.id, { priority: e.target.value })}
+            disabled={!canManageAdvanced}
+          />
+          <p className="wf-form-field-hint">
+            Pfade an einer Verzweigung werden in dieser Reihenfolge geprüft.
+          </p>
+        </div>
+
+        <div className="wf-form-field">
+          <label className="form-label">Bedingung</label>
+          {isDecisionSource ? (
+            <button
+              type="button"
+              className="wf-edge-condition-trigger"
+              onClick={() => setConditionOpen(true)}
+              aria-label="Bedingung bearbeiten"
+              disabled={!canManageAdvanced}
+            >
+              <span className="wf-edge-condition-summary">
+                {summarizeCondition(edge.conditionExpression)}
+              </span>
+              <Pencil size={12} aria-hidden="true" />
+            </button>
+          ) : (
+            <p className="wf-form-readonly-value text-secondary">
+              Nur bei Entscheidung-Schritten relevant.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="wf-edge-panel-actions">
+        <button
+          type="button"
+          className="btn btn-ghost btn-danger"
+          onClick={() => void handleDelete()}
+          disabled={!canManageAdvanced}
+        >
+          Übergang entfernen
+        </button>
+      </div>
+
+      {conditionOpen ? (
+        <ConditionEditorDrawer
+          edge={edge}
+          nodes={nodes}
+          answerDefinitions={builder.answerDefinitions}
+          onClose={() => setConditionOpen(false)}
+          onChange={(next) => builder.updateEdge(edge.id, { conditionExpression: next })}
+        />
+      ) : null}
+    </div>
   );
 }
 
 function Section3Edges({
   builder,
   canManageAdvanced,
+  selectedEdgeId,
+  onSelectEdge,
+  issueIndex,
 }: {
   builder: ReturnType<typeof useAdminWorkflowBuilder>;
   canManageAdvanced: boolean;
+  selectedEdgeId: string | null;
+  onSelectEdge: (edgeId: string) => void;
+  issueIndex: WorkflowBuilderIssueIndex;
 }) {
   const [conditionEdgeId, setConditionEdgeId] = useState<string | null>(null);
+  const [tableOpen, setTableOpen] = useState(false);
   const nodes = builder.versionDraft.nodes;
   const edges = builder.versionDraft.edges;
 
@@ -724,7 +1286,10 @@ function Section3Edges({
     <section className="wf-form-section">
       <div className="wf-form-section-head">
         <h2 className="wf-form-section-title">3 — Übergänge</h2>
-        <p className="wf-form-section-subtitle">Wie hängen die Schritte zusammen?</p>
+        <p className="wf-form-section-subtitle">
+          Übergänge werden primär im Diagramm in Sektion 2 angeklickt und im rechten Eigenschaften-Panel
+          bearbeitet. Die Tabelle hier ist eine Detail-/Listenansicht.
+        </p>
       </div>
 
       {nodeOptions.length < 2 ? (
@@ -736,7 +1301,15 @@ function Section3Edges({
           Noch keine Übergänge definiert. Über „+ Übergang hinzufügen" eine erste Verbindung anlegen.
         </p>
       ) : (
-        <div className="wf-edge-table-wrap">
+      <details
+        className="wf-form-collapsible"
+        open={tableOpen}
+        onToggle={(event) => setTableOpen((event.target as HTMLDetailsElement).open)}
+      >
+        <summary className="wf-form-collapsible-summary">
+          Tabellenansicht aller Übergänge ({edges.length})
+        </summary>
+        <div className="wf-edge-table-wrap wf-form-collapsible-body">
           <table className="wf-edge-table">
             <thead>
               <tr>
@@ -752,9 +1325,30 @@ function Section3Edges({
               {sortedEdges.map(({ edge }) => {
                 const sourceNormalized = edge.sourceNodeKey.trim().toLowerCase();
                 const isDecision = decisionKeys.has(sourceNormalized);
+                const edgeIssues = issueIndex.byEdgeId.get(edge.id);
+                const issueCount = edgeIssues?.length ?? 0;
+                const severity = highestSeverity(edgeIssues);
+                const rowClass = [
+                  selectedEdgeId === edge.id ? "wf-edge-table-row--selected" : null,
+                  issueCount > 0 ? `wf-edge-table-row--issue wf-edge-table-row--issue-${severity ?? "info"}` : null,
+                ].filter(Boolean).join(" ") || undefined;
                 return (
-                  <tr key={edge.id} id={edgeAnchorId(edge)}>
+                  <tr
+                    key={edge.id}
+                    id={edgeAnchorId(edge)}
+                    className={rowClass}
+                    onClick={() => onSelectEdge(edge.id)}
+                  >
                     <td data-label="Von Schritt">
+                      {issueCount > 0 ? (
+                        <span
+                          className={`wf-list-issue-badge wf-list-issue-badge--${severity ?? "info"} wf-list-issue-badge--inline`}
+                          title={`${issueCount} ${issueCount === 1 ? "Issue" : "Issues"} an diesem Übergang`}
+                        >
+                          <AlertTriangle size={11} aria-hidden="true" />
+                          <span>{issueCount}</span>
+                        </span>
+                      ) : null}
                       <select
                         className="form-select"
                         value={edge.sourceNodeKey}
@@ -815,7 +1409,10 @@ function Section3Edges({
                       <button
                         type="button"
                         className="wf-step-card-iconbtn wf-step-card-iconbtn--danger"
-                        onClick={() => builder.removeEdge(edge.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          builder.removeEdge(edge.id);
+                        }}
                         aria-label="Übergang entfernen"
                       ><X size={16} aria-hidden="true" /></button>
                     </td>
@@ -825,6 +1422,7 @@ function Section3Edges({
             </tbody>
           </table>
         </div>
+      </details>
       )}
 
       <div className="wf-edge-table-footer">
@@ -917,12 +1515,15 @@ function ConditionEditorDrawer({
 
 function Section4Validation({
   builder,
+  issueIndex,
 }: {
   builder: ReturnType<typeof useAdminWorkflowBuilder>;
+  issueIndex: WorkflowBuilderIssueIndex;
 }) {
   const localIssues = builder.localValidationIssues;
   const backendIssues = builder.versionDetail?.validationIssues ?? [];
   const totalCount = localIssues.length + backendIssues.length;
+  const mappedCount = totalCount - issueIndex.general.length;
   const draft = builder.versionDraft;
 
   return (
@@ -943,6 +1544,7 @@ function Section4Validation({
         </button>
         <span className="wf-form-field-hint" style={{ margin: 0 }}>
           Backend-Issues stammen aus dem zuletzt gespeicherten Stand.
+          {mappedCount > 0 ? ` ${mappedCount} ${mappedCount === 1 ? "Issue ist" : "Issues sind"} direkt am Schritt oder Übergang im Diagramm markiert.` : ""}
         </span>
       </div>
 

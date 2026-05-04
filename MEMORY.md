@@ -22,7 +22,7 @@ Verwende sie nur fuer:
 - `DOCS_CONTROL.md` bleibt zentraler Einstieg; pro Aufgabe mitdenken, welche Doku im selben Arbeitsgang aktualisiert wird.
 - Frontend-Review vom 2026-05-04 ist als umsetzbare Roadmap in `FRONTEND_TODO.md` abgebildet.
 - `FE-25` bis `FE-29` sind erledigt: Builder-Dialoge sind gehärtet, wiederkehrende Inline-Layouts in gemeinsame CSS-Bausteine überführt, Haupt-Filterflächen sind vereinheitlicht, operative Listen haben Karten-/Tabellenmodus und `Meine Aufgaben`/`Laufende Vorgänge` nutzen Split-Views für weniger Navigationssprünge.
-- Naechster FE-Schritt ist `FE-30` (Builder konsequent canvas-first machen).
+- `FE-30` ist vollständig done (Slice 1 canvas-first Properties-Panel, Slice 2 Validation am Objekt, Slice 3 Edge-Erzeugung direkt am Graph). Slice 3: „+"-Anker am rechten Rand jedes Schritts startet Connect-Mode (Esc/Background bricht ab); Klick auf Zielschritt legt die Verbindung über bestehenden `addEdge`-Pfad an. Backend-Vertrag unverändert.
 
 ## Active Risks / Watchouts
 

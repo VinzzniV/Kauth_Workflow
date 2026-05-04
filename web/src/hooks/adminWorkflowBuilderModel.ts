@@ -422,6 +422,7 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
 
   for (const node of draft.nodes) {
     const nodeKey = node.nodeKey.trim();
+    const refKey = nodeKey || undefined;
     if (!nodeKey) {
       issues.push({ scope: "node", message: "Jeder Schritt braucht einen Schritt-Key." });
     } else {
@@ -446,33 +447,33 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
       try {
         const parsed = JSON.parse(node.configText);
         if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
-          issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' braucht ein gültiges JSON-Objekt in der technischen Konfiguration.` });
+          issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' braucht ein gültiges JSON-Objekt in der technischen Konfiguration.`, referenceKey: refKey });
         }
       } catch {
-        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' hat ungültiges JSON in der technischen Konfiguration.` });
+        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' hat ungültiges JSON in der technischen Konfiguration.`, referenceKey: refKey });
       }
     }
 
     if (node.nodeType !== "automation" && node.actions.length > 0) {
-      issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' darf keine automatischen Aktionen enthalten.` });
+      issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' darf keine automatischen Aktionen enthalten.`, referenceKey: refKey });
     }
 
     if (node.nodeType === "automation") {
       if (node.actions.length === 0) {
-        issues.push({ scope: "node", message: `Die Automatisierung '${nodeKey || "?"}' braucht mindestens eine Aktion.` });
+        issues.push({ scope: "node", message: `Die Automatisierung '${nodeKey || "?"}' braucht mindestens eine Aktion.`, referenceKey: refKey });
       }
 
       const executionOrders = new Set<number>();
       for (const action of node.actions) {
         if (!action.actionKey.trim()) {
-          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthält eine Aktion ohne Aktion-Key.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthält eine Aktion ohne Aktion-Key.`, referenceKey: refKey });
         }
 
         const parsedOrder = Number(action.executionOrder);
         if (!Number.isInteger(parsedOrder) || parsedOrder <= 0) {
-          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthält eine Aktion mit ungültiger Reihenfolge.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' enthält eine Aktion mit ungültiger Reihenfolge.`, referenceKey: refKey });
         } else if (executionOrders.has(parsedOrder)) {
-          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' verwendet die Reihenfolge '${parsedOrder}' doppelt.` });
+          issues.push({ scope: "action", message: `Die Automatisierung '${nodeKey || "?"}' verwendet die Reihenfolge '${parsedOrder}' doppelt.`, referenceKey: refKey });
         } else {
           executionOrders.add(parsedOrder);
         }
@@ -481,17 +482,17 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
           try {
             const parsed = JSON.parse(action.inputMappingText);
             if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
-              issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' braucht ein JSON-Objekt im Eingabe-Mapping.` });
+              issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' braucht ein JSON-Objekt im Eingabe-Mapping.`, referenceKey: refKey });
             }
           } catch {
-            issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' hat ungültiges JSON im Eingabe-Mapping.` });
+            issues.push({ scope: "action", message: `Die Aktion '${action.actionKey || "?"}' hat ungültiges JSON im Eingabe-Mapping.`, referenceKey: refKey });
           }
         }
       }
     }
 
     if ((node.nodeType === "parallel_split" || node.nodeType === "parallel_join") && node.configText.trim()) {
-      issues.push({ scope: "node", message: `Der Gateway-Schritt '${nodeKey || "?"}' darf keine technische Konfiguration enthalten.` });
+      issues.push({ scope: "node", message: `Der Gateway-Schritt '${nodeKey || "?"}' darf keine technische Konfiguration enthalten.`, referenceKey: refKey });
     }
   }
 
@@ -554,22 +555,25 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
     const incomingCount = incomingCounts.get(normalizedNodeKey) ?? 0;
     const outgoingCount = outgoingCounts.get(normalizedNodeKey) ?? 0;
 
+    const refKey = node.nodeKey.trim() || undefined;
+
     if (node.nodeType === "decision" && outgoingCount < 2) {
-      issues.push({ scope: "node", message: `Die Entscheidung '${node.nodeKey || "?"}' braucht mindestens zwei Folgepfade.` });
+      issues.push({ scope: "node", message: `Die Entscheidung '${node.nodeKey || "?"}' braucht mindestens zwei Folgepfade.`, referenceKey: refKey });
     }
 
     if (node.nodeType === "parallel_split" && outgoingCount < 2) {
-      issues.push({ scope: "node", message: `Der Parallel-Split '${node.nodeKey || "?"}' braucht mindestens zwei ausgehende Pfade.` });
+      issues.push({ scope: "node", message: `Der Parallel-Split '${node.nodeKey || "?"}' braucht mindestens zwei ausgehende Pfade.`, referenceKey: refKey });
     }
 
     if (node.nodeType === "parallel_join" && incomingCount < 2) {
-      issues.push({ scope: "node", message: `Der Parallel-Join '${node.nodeKey || "?"}' braucht mindestens zwei eingehende Pfade.` });
+      issues.push({ scope: "node", message: `Der Parallel-Join '${node.nodeKey || "?"}' braucht mindestens zwei eingehende Pfade.`, referenceKey: refKey });
     }
 
     if (!["decision", "parallel_split"].includes(node.nodeType) && outgoingCount > 1) {
       issues.push({
         scope: "node",
         message: `Der Schritt '${node.nodeKey || "?"}' darf nur einen Folgepfad haben. Für echte Parallelität nutze Parallel-Split.`,
+        referenceKey: refKey,
       });
     }
   }

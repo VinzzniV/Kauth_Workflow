@@ -1814,6 +1814,512 @@
   fill: color-mix(in srgb, #7c3aed 16%, var(--surface-panel));
 }
 
+.wf-graph-node--selected .wf-graph-node-bg {
+  stroke: var(--brand);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 0 2px color-mix(in srgb, var(--brand) 28%, transparent));
+}
+
+.wf-graph-edge--selected {
+  stroke: var(--brand) !important;
+  stroke-width: 2.6 !important;
+}
+
+/* ─── Validation markers on graph nodes/edges (FE-30 Slice) ────────────── */
+
+.wf-graph-node--issue .wf-graph-node-bg {
+  stroke: var(--badge-error-border, #dc2626);
+  stroke-width: 2;
+}
+
+.wf-graph-node--issue.wf-graph-node--selected .wf-graph-node-bg {
+  stroke: var(--badge-error-border, #dc2626);
+  filter: drop-shadow(0 0 0 2px color-mix(in srgb, var(--badge-error-border, #dc2626) 32%, transparent));
+}
+
+.wf-graph-node-issue-marker-bg {
+  fill: var(--badge-error-border, #dc2626);
+  stroke: var(--surface-panel, var(--bg-card));
+  stroke-width: 1.5;
+}
+
+.wf-graph-node-issue-marker-text {
+  font-size: 10px;
+  font-weight: 700;
+  fill: #fff;
+  pointer-events: none;
+}
+
+.wf-graph-edge--issue {
+  stroke: var(--badge-error-border, #dc2626) !important;
+  stroke-width: 2.4 !important;
+  stroke-dasharray: 5 3;
+}
+
+.wf-graph-edge--issue.wf-graph-edge--selected {
+  stroke-width: 3 !important;
+  stroke-dasharray: none;
+}
+
+/* ─── Canvas connect-mode (FE-30 Slice 3): Edges direkt am Graph erzeugen ── */
+
+.wf-graph-node-connect-handle {
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.wf-graph-node:hover .wf-graph-node-connect-handle,
+.wf-graph-node:focus-within .wf-graph-node-connect-handle,
+.wf-graph-node-connect-handle:hover,
+.wf-graph-node-connect-handle--active,
+.wf-graph-preview--connecting .wf-graph-node-connect-handle {
+  opacity: 1;
+}
+
+.wf-graph-node-connect-handle-bg {
+  fill: var(--surface-panel);
+  stroke: var(--brand);
+  stroke-width: 1.5;
+  transition: fill 120ms ease, stroke 120ms ease;
+}
+
+.wf-graph-node-connect-handle:hover .wf-graph-node-connect-handle-bg,
+.wf-graph-node-connect-handle--active .wf-graph-node-connect-handle-bg {
+  fill: var(--brand);
+}
+
+.wf-graph-node-connect-handle-glyph {
+  stroke: var(--brand);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  pointer-events: none;
+  transition: stroke 120ms ease;
+}
+
+.wf-graph-node-connect-handle:hover .wf-graph-node-connect-handle-glyph,
+.wf-graph-node-connect-handle--active .wf-graph-node-connect-handle-glyph {
+  stroke: #fff;
+}
+
+.wf-graph-preview--connecting {
+  cursor: crosshair;
+}
+
+.wf-graph-preview--connecting .wf-graph-preview-canvas {
+  cursor: crosshair;
+}
+
+.wf-graph-node--connect-source .wf-graph-node-bg {
+  stroke: var(--brand);
+  stroke-width: 2.4;
+  stroke-dasharray: 4 3;
+}
+
+.wf-graph-node--connect-target .wf-graph-node-bg {
+  stroke-dasharray: 3 2;
+}
+
+.wf-graph-node--connect-target:hover .wf-graph-node-bg {
+  fill: color-mix(in srgb, var(--brand) 18%, var(--surface-panel));
+  stroke: var(--brand);
+  stroke-width: 2.2;
+  stroke-dasharray: none;
+}
+
+/* Hint-Banner über dem Canvas, während der Connect-Mode aktiv ist. */
+
+.wf-builder-connect-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-panel));
+  border: 1px solid var(--brand);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.wf-builder-connect-banner-cancel {
+  margin-left: auto;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+/* ─── Inline issue badge for secondary lists / tables ──────────────────── */
+
+.wf-list-issue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--badge-error-bg, #fee2e2);
+  color: var(--badge-error-text, #991b1b);
+  border: 1px solid var(--badge-error-border, #dc2626);
+}
+
+.wf-list-issue-badge--warning {
+  background: color-mix(in srgb, var(--badge-warning-text, #b88200) 14%, transparent);
+  color: var(--badge-warning-text, #b88200);
+  border-color: var(--badge-warning-text, #b88200);
+}
+
+.wf-list-issue-badge--info {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.wf-list-issue-badge--inline {
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+.wf-step-list-item > .wf-list-issue-badge {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.55rem;
+  z-index: 2;
+}
+
+.wf-step-list-item--issue > .wf-step-card {
+  border-color: var(--badge-error-border, #dc2626);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--badge-error-border, #dc2626) 18%, transparent);
+}
+
+.wf-step-list-item--issue-warning > .wf-step-card {
+  border-color: var(--badge-warning-text, #b88200);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--badge-warning-text, #b88200) 18%, transparent);
+}
+
+.wf-edge-table-row--issue > td {
+  background: color-mix(in srgb, var(--badge-error-bg, #fee2e2) 25%, transparent);
+}
+
+.wf-edge-table-row--issue-warning > td {
+  background: color-mix(in srgb, var(--badge-warning-text, #b88200) 12%, transparent);
+}
+
+/* ─── Properties-panel inline issue list ──────────────────────────────── */
+
+.wf-properties-issues {
+  border-radius: 6px;
+  border: 1px solid var(--badge-error-border, #dc2626);
+  background: color-mix(in srgb, var(--badge-error-bg, #fee2e2) 60%, var(--surface-elevated, var(--bg-card)));
+  padding: 0.6rem 0.7rem;
+  margin-bottom: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.wf-properties-issues--warning {
+  border-color: var(--badge-warning-text, #b88200);
+  background: color-mix(in srgb, var(--badge-warning-text, #b88200) 12%, var(--surface-elevated, var(--bg-card)));
+}
+
+.wf-properties-issues--info {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface-elevated, var(--bg-card)));
+}
+
+.wf-properties-issues-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--badge-error-text, #991b1b);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.wf-properties-issues--warning .wf-properties-issues-head {
+  color: var(--badge-warning-text, #b88200);
+}
+
+.wf-properties-issues--info .wf-properties-issues-head {
+  color: var(--brand);
+}
+
+.wf-properties-issues-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.wf-properties-issues-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 4px;
+  background: var(--surface-elevated, var(--bg-card));
+  border-left: 3px solid var(--badge-error-border, #dc2626);
+}
+
+.wf-properties-issues-item--warning {
+  border-left-color: var(--badge-warning-text, #b88200);
+}
+
+.wf-properties-issues-item--info {
+  border-left-color: var(--brand);
+}
+
+.wf-properties-issues-item-message {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.wf-properties-issues-item-meta {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+/* ─── Canvas-first workspace (FE-30) ────────────────────────────────────── */
+
+.wf-form-section--canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.wf-builder-canvas-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.wf-builder-canvas-area {
+  min-width: 0;
+}
+
+.wf-builder-properties-panel {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.04));
+  max-height: calc(100vh - 6rem);
+  overflow: auto;
+}
+
+.wf-properties-panel-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.wf-properties-panel-inner--empty {
+  padding: 1.25rem;
+  gap: 0.5rem;
+}
+
+.wf-properties-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--surface-card-border);
+  background: var(--surface-card-subtle);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.wf-properties-panel-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.wf-properties-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.wf-properties-panel-close:hover {
+  background: var(--surface-hover, color-mix(in srgb, var(--text-primary) 6%, transparent));
+  color: var(--text-primary);
+}
+
+.wf-properties-panel-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.wf-properties-panel-body {
+  padding: 0.85rem;
+}
+
+.wf-properties-panel-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.wf-properties-panel-hint--muted {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.wf-graph-preview--canvas {
+  margin-bottom: 0;
+  min-height: 360px;
+}
+
+.wf-graph-preview--canvas .wf-graph-preview-canvas-wrap {
+  padding: 0;
+}
+
+.wf-edge-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.wf-edge-panel-route {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.wf-edge-panel-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--surface-card-border);
+  border-radius: 999px;
+  background: var(--surface-card-subtle);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.wf-edge-panel-chip:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.wf-edge-panel-chip--missing {
+  background: transparent;
+  color: var(--text-tertiary);
+  border-style: dashed;
+  cursor: default;
+}
+
+.wf-edge-panel-arrow {
+  color: var(--text-tertiary);
+  font-size: 1rem;
+}
+
+.wf-edge-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--surface-card-border);
+  padding-top: 0.6rem;
+}
+
+.wf-form-collapsible {
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card-subtle);
+  padding: 0;
+}
+
+.wf-form-collapsible[open] {
+  background: var(--surface-panel);
+}
+
+.wf-form-collapsible-summary {
+  cursor: pointer;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  list-style: none;
+}
+
+.wf-form-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.wf-form-collapsible-summary:hover {
+  color: var(--brand);
+}
+
+.wf-form-collapsible-summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
+}
+
+.wf-form-collapsible-summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.4rem;
+  transition: transform 120ms ease;
+  color: var(--text-secondary);
+}
+
+.wf-form-collapsible[open] > .wf-form-collapsible-summary::before {
+  transform: rotate(90deg);
+}
+
+.wf-form-collapsible-body {
+  padding: 0.85rem;
+  border-top: 1px solid var(--surface-card-border);
+  background: var(--surface-panel);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.wf-step-list-item--selected > .wf-step-card {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+.wf-edge-table-row--selected {
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+@media (max-width: 1024px) {
+  .wf-builder-canvas-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wf-builder-properties-panel {
+    position: static;
+    max-height: none;
+  }
+}
+
 .wf-step-list-item {
   position: relative;
   transition: opacity 120ms ease;

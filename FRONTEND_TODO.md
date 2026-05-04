@@ -14,7 +14,7 @@ Vor jeder Aufgabe muss die KI zuerst die folgenden Dokumente lesen:
 Pflicht nach dem Lesen:
 - Vor der Umsetzung kurz pruefen, welche Dokus mitgezogen werden muessen.
 - Code-Aenderungen + Doku-Aenderungen gehen in denselben Arbeitsgang.
-- Bei Abschluss Status hier auf `done` setzen.
+- Bei Abschluss den Eintrag aus der Tabelle "Offene Items" **entfernen** (nicht nur auf `done` setzen) und unten unter "Abgeschlossene Zyklen" kurz vermerken.
 
 ## Pflicht zwischen Aufgaben
 
@@ -38,7 +38,6 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 | # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
 |---|---------|------|---------|------------------|--------|--------|
-| FE-30 | **Builder konsequent canvas-first machen** (UX-Roadmap 2026-05-04, Block 4). Properties-Panel als Primärpfad, Edge-Bearbeitung naeher am Graph, Validierung direkt am Objekt/Canvas; Form-Sektionen deutlich entschlacken. | HIGH | 3–5 d | high | opus | offen |
 | FE-31 | **Personenakte zur 360-Grad-Ansicht ausbauen** (UX-Roadmap 2026-05-04, Block 5). Vorgänge, Rotation, offene Aufgaben, Benachrichtigungen und Directory-Kontext in einer Arbeitsflaeche zusammenziehen. | MEDIUM | 2–3 d | high | opus | offen |
 | FE-32 | **Globale Schnellnavigation / Command Search** (UX-Roadmap 2026-05-04, Block 5). Globales Such-/Springen-/Aktion-Feld fuer Personen, Vorgaenge, Tasks, Builder-Artefakte und Admin-Bereiche. | MEDIUM | 2–4 d | high | opus | offen |
 | FE-33 | **Gespeicherte Ansichten pro Rolle** (UX-Roadmap 2026-05-04, Block 5). Presets fuer `meine offenen`, `heute faellig`, `blockiert`, `Abteilung X`; URL-stabil und wiederverwendbar. | MEDIUM | 1,5–2 d | medium | sonnet | offen |
@@ -86,24 +85,7 @@ Die folgenden Bloecke uebersetzen das Frontend-Review in eine konkrete Abarbeitu
 
 ### Block 4 — Builder wirklich produktisieren
 
-**Ziel**
-- Builder von Form-Sammlung zu echter visueller Arbeitsflaeche weiterentwickeln
-
-**Items**
-- `FE-30` Builder konsequent canvas-first machen
-
-**Reasoning / Modell**
-- `high`, `opus`
-
-**Abarbeitung**
-1. Objektselektion und Properties-Panel priorisieren
-2. Edge-Bearbeitung an den Graph heranziehen
-3. Validierungs-Issues direkt an Steps/Edges rueckspiegeln
-4. lange Formularsektionen reduzieren oder in sekundaere Bereiche schieben
-
-**Definition of Done**
-- zentrale Builder-Aktionen laufen ueber Canvas + Sidebar
-- der Graph ist nicht nur Vorschau, sondern der primäre Arbeitsort
+**Status**: abgeschlossen (FE-30, siehe "Abgeschlossene Zyklen").
 
 ### Block 5 — Produkthebel nach den Kernflaechen
 
@@ -137,14 +119,13 @@ Die folgenden Bloecke uebersetzen das Frontend-Review in eine konkrete Abarbeitu
 
 Wenn kein anderer Nutzerwunsch priorisiert wird, startet der naechste Frontend-Zyklus mit:
 
-1. **Aufgabe**: `FE-30 Builder konsequent canvas-first machen`
+1. **Aufgabe**: `FE-31 Personenakte zur 360-Grad-Ansicht ausbauen`
 2. **Reasoning Effort**: `high`
 3. **Empfohlenes Modell**: `opus`
 
 Warum zuerst:
-- `FE-29` ist erledigt; Listenarbeit hat jetzt Split-View-Grundlagen
-- der naechste groesste Produktivitaetshebel liegt im Builder
-- `FE-30` baut auf dem bestehenden Canvas/Sidebar-Modell auf und macht den Graph zum primaeren Arbeitsort
+- `FE-30` ist abgeschlossen; der Builder ist jetzt vollständig canvas-first inklusive Edge-Erzeugung am Graph
+- die nächste UX-Roadmap-Stufe (Block 5) startet mit der Personenakte als zentraler 360°-Arbeitsfläche
 
 ---
 
@@ -173,6 +154,8 @@ Warum zuerst:
 
 **Frontend-Roadmap Block 1 bis 3 2026-05-04:** FE-25 bis FE-29 abgeschlossen. Dialog-Haertung, UI-System-Konsolidierung, vereinheitlichte Filterleisten, Tabellenmodus fuer operative Listen und Split-View fuer Listenarbeit sind umgesetzt. Details bleiben in `CODEX_SYNC.md` und `git log`.
 
+**Frontend-Roadmap Block 4 2026-05-04 (FE-30):** Builder canvas-first abgeschlossen. Slice 1 (Canvas + Properties-Panel als Primärpfad, Step-Liste und Edge-Tabelle als sekundäre `details`), Slice 2 (Validation-Issues live an Nodes/Edges/Properties-Panel; lokale Validation `useMemo`-derived) und Slice 3 (Edge-Erzeugung direkt am Graph: „+"-Anker am Source-Knoten startet Connect-Mode, Klick auf Zielknoten legt die Verbindung über bestehenden `addEdge` an, Esc/Hintergrund bricht ab) sind umgesetzt. Details siehe `web/README.md` und `git log`.
+
 ---
 
 ## Abschlussregel fuer jede KI-Aufgabe
@@ -184,4 +167,4 @@ Nach jedem groesseren Schritt muss berichtet werden:
 4. Welche Risiken oder Luecken bleiben offen?
 5. Welche Tests wurden ergaenzt oder fehlen noch?
 6. Welche Doku musste mitgezogen werden? (Insbesondere `web/README.md` bei UI-Module-Verschiebungen)
-7. Wurde der Status hier auf `done` gesetzt?
+7. Wurde der Eintrag aus der Tabelle "Offene Items" entfernt und unter "Abgeschlossene Zyklen" vermerkt?
