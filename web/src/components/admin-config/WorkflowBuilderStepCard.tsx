@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, ChevronUp, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowRight, ChevronDown, ChevronRight, ChevronUp, Copy, GripVertical, Plus, X } from "lucide-react";
 import type {
   WorkflowBuilderActionDraft,
   WorkflowBuilderNodeDraft,
@@ -16,7 +16,12 @@ import type {
   AdminWorkflowDefinitionSummary,
 } from "../../types/auth";
 import type { AdminAutomationPropertyCatalog } from "../../services/adminConfigApi";
-import { getWorkflowBuilderNodeTypeLabel } from "./workflowBuilderLabels";
+import {
+  getWorkflowBuilderNodeCategory,
+  getWorkflowBuilderNodeIcon,
+  getWorkflowBuilderNodeTypeLabel,
+} from "./workflowBuilderLabels";
+import { summarizeCondition } from "./workflowBuilderEditorHelpers";
 import { WorkflowBuilderMeasurePreview } from "./WorkflowBuilderMeasurePreview";
 import { WorkflowBuilderActionEditor } from "./WorkflowBuilderActionEditor";
 import { WorkflowBuilderStepConfigEditor } from "./WorkflowBuilderStepConfigEditor";
@@ -45,20 +50,54 @@ export type WorkflowBuilderStepCardProps = {
   onAddAction: (actionKey: string) => void;
   onUpdateAction: (actionId: string, patch: Partial<WorkflowBuilderActionDraft>) => void;
   onRemoveAction: (actionId: string) => void;
+  onAddOutgoingEdge: () => void;
+  onJumpToEdge: (edgeId: string) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
 };
 
 export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
-  const { node, index, totalCount, onUpdate, onMoveUp, onMoveDown, onRemove } = props;
+  const { node, index, totalCount, onUpdate, onMoveUp, onMoveDown, onRemove, onDragStart, onDragEnd, isDragging } = props;
   const [techOpen, setTechOpen] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
   const typeLabel = getWorkflowBuilderNodeTypeLabel(node.nodeType);
+  const NodeIcon = getWorkflowBuilderNodeIcon(node.nodeType);
+  const category = getWorkflowBuilderNodeCategory(node.nodeType);
   const isFirst = index === 0;
   const isLast = index === totalCount - 1;
+  const trimmedKey = node.nodeKey.trim();
+  const dndEnabled = Boolean(onDragStart && onDragEnd);
+
+  const handleCopyKey = async () => {
+    if (!trimmedKey) return;
+    try {
+      await navigator.clipboard.writeText(trimmedKey);
+      setKeyCopied(true);
+      window.setTimeout(() => setKeyCopied(false), 1400);
+    } catch {
+      // Clipboard not available — silently ignore.
+    }
+  };
 
   return (
-    <div className={`wf-step-card wf-step-card--${node.nodeType}`}>
+    <div
+      className={`wf-step-card wf-step-card--${node.nodeType} wf-step-card--cat-${category}${isDragging ? " wf-step-card--dragging" : ""}`}
+      draggable={dndEnabled}
+      onDragStart={dndEnabled ? () => onDragStart!() : undefined}
+      onDragEnd={dndEnabled ? () => onDragEnd!() : undefined}
+    >
       <div className="wf-step-card-head">
+        {dndEnabled ? (
+          <span className="wf-step-card-drag-handle" aria-hidden="true" title="Schritt per Drag verschieben">
+            <GripVertical size={14} />
+          </span>
+        ) : null}
         <span className="wf-step-card-num">#{index + 1}</span>
-        <span className="wf-step-card-type">{typeLabel}</span>
+        <span className={`wf-step-card-type wf-step-card-type--${category}`} aria-label={`Schritt-Typ: ${typeLabel}`}>
+          <NodeIcon size={14} aria-hidden="true" />
+          <span>{typeLabel}</span>
+        </span>
         <input
           className="form-input wf-step-card-title-input"
           type="text"
@@ -67,6 +106,18 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
           placeholder="Schritt-Name"
           aria-label={`Schritt ${index + 1} Name`}
         />
+        {trimmedKey ? (
+          <button
+            type="button"
+            className="wf-step-card-key"
+            onClick={() => void handleCopyKey()}
+            title={keyCopied ? "Kopiert!" : `Step-Key kopieren: ${trimmedKey}`}
+            aria-label={`Step-Key ${trimmedKey} kopieren`}
+          >
+            <code>{trimmedKey}</code>
+            <Copy size={11} aria-hidden="true" />
+          </button>
+        ) : null}
         <div className="wf-step-card-actions">
           <button
             type="button"
@@ -97,6 +148,16 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
       <div className="wf-step-card-body">
         <StepCardBody {...props} />
       </div>
+
+      {node.nodeType !== "end" ? (
+        <StepCardOutgoingEdges
+          node={node}
+          versionDraft={props.versionDraft}
+          canManageAdvanced={props.canManageAdvanced}
+          onAddOutgoingEdge={props.onAddOutgoingEdge}
+          onJumpToEdge={props.onJumpToEdge}
+        />
+      ) : null}
 
       <button
         type="button"
@@ -149,6 +210,186 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
   );
 }
 
+function StepCardOutgoingEdges({
+  node,
+  versionDraft,
+  canManageAdvanced,
+  onAddOutgoingEdge,
+  onJumpToEdge,
+}: {
+  node: WorkflowBuilderNodeDraft;
+  versionDraft: WorkflowBuilderVersionDraft;
+  canManageAdvanced: boolean;
+  onAddOutgoingEdge: () => void;
+  onJumpToEdge: (edgeId: string) => void;
+}) {
+  const trimmedKey = node.nodeKey.trim();
+  const outgoing = useMemo(() => {
+    if (!trimmedKey) return [];
+    const lowerKey = trimmedKey.toLowerCase();
+    return versionDraft.edges
+      .filter((edge) => edge.sourceNodeKey.trim().toLowerCase() === lowerKey)
+      .map((edge) => {
+        const target = versionDraft.nodes.find(
+          (n) => n.nodeKey.trim().toLowerCase() === edge.targetNodeKey.trim().toLowerCase()
+        );
+        const targetLabel = target
+          ? (target.title.trim() || target.nodeKey.trim() || "?")
+          : (edge.targetNodeKey.trim() || "?");
+        return { edge, targetLabel };
+      });
+  }, [trimmedKey, versionDraft.edges, versionDraft.nodes]);
+
+  const isDecision = node.nodeType === "decision";
+  const isParallelSplit = node.nodeType === "parallel_split";
+  const showAddButton = canManageAdvanced && Boolean(trimmedKey);
+
+  if (!trimmedKey) {
+    return (
+      <div className="wf-step-edges">
+        <span className="wf-step-edges-label">Verbindet zu</span>
+        <span className="wf-step-edges-empty">Schritt-Key zuerst setzen, dann sind Verbindungen möglich.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wf-step-edges">
+      <span className="wf-step-edges-label">Verbindet zu</span>
+      {outgoing.length === 0 ? (
+        <span className="wf-step-edges-empty">
+          {isDecision
+            ? "Decision braucht ≥ 2 ausgehende Verbindungen."
+            : isParallelSplit
+              ? "Parallel-Split braucht ≥ 2 ausgehende Verbindungen."
+              : "Noch keine Verbindung."}
+        </span>
+      ) : (
+        <div className="wf-step-edges-chips">
+          {outgoing.map(({ edge, targetLabel }) => {
+            const summary = isDecision ? summarizeCondition(edge.conditionExpression) : null;
+            return (
+              <button
+                key={edge.id}
+                type="button"
+                className="wf-step-edges-chip"
+                onClick={() => onJumpToEdge(edge.id)}
+                title={summary ? `Bedingung: ${summary}` : "Übergang in Sektion 3 öffnen"}
+              >
+                <ArrowRight size={11} aria-hidden="true" />
+                <span className="wf-step-edges-chip-target">{targetLabel}</span>
+                {summary ? <span className="wf-step-edges-chip-condition">{summary}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {showAddButton ? (
+        <button
+          type="button"
+          className="wf-step-edges-add"
+          onClick={onAddOutgoingEdge}
+          title="Neue ausgehende Verbindung anlegen"
+        >
+          <Plus size={11} aria-hidden="true" />
+          <span>Verbindung</span>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function AutomationStepSummary({
+  node,
+  actionDefinitions,
+  automationPropertyCatalog,
+  answerDefinitions,
+  canManageAdvanced,
+  onAddAction,
+  onUpdateAction,
+  onRemoveAction,
+}: {
+  node: WorkflowBuilderNodeDraft;
+  actionDefinitions: AdminWorkflowActionDefinition[];
+  automationPropertyCatalog: AdminAutomationPropertyCatalog | null;
+  answerDefinitions: AdminAnswerDefinition[];
+  canManageAdvanced: boolean;
+  onAddAction: (actionKey: string) => void;
+  onUpdateAction: (actionId: string, patch: Partial<WorkflowBuilderActionDraft>) => void;
+  onRemoveAction: (actionId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const actions = node.actions ?? [];
+  const actionLabels = actions.map((action) => {
+    const def = actionDefinitions.find((d) => d.actionKey === action.actionKey);
+    return def?.actionName ?? action.actionKey;
+  });
+
+  return (
+    <div className="wf-automation-summary">
+      <div className="wf-automation-summary-head">
+        <span className="wf-automation-summary-count">
+          {actions.length === 0
+            ? "Noch keine Aktionen konfiguriert"
+            : `${actions.length} ${actions.length === 1 ? "Aktion" : "Aktionen"} konfiguriert`}
+        </span>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setOpen(true)}
+        >
+          {actions.length === 0 ? "Aktionen anlegen" : "Aktionen bearbeiten"}
+        </button>
+      </div>
+      {actions.length > 0 ? (
+        <div className="wf-automation-summary-chips">
+          {actionLabels.map((label, idx) => (
+            <span key={`${node.id}-action-${idx}`} className="chip">
+              {idx + 1}. {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {open ? (
+        <>
+          <div className="admin-drawer-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />
+          <aside
+            className="admin-drawer wf-automation-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Automatisierungs-Aktionen bearbeiten"
+          >
+            <header className="admin-drawer-head">
+              <div className="admin-drawer-title">
+                <h2>Automatisierungs-Aktionen</h2>
+                <span className="wf-condition-drawer-route">
+                  <strong>{node.title.trim() || node.nodeKey.trim() || "Automatisierung"}</strong>
+                </span>
+              </div>
+              <button type="button" className="admin-drawer-close" onClick={() => setOpen(false)} aria-label="Schließen">
+                ×
+              </button>
+            </header>
+            <div className="admin-drawer-body content-stack">
+              <WorkflowBuilderActionEditor
+                node={node}
+                actionDefinitions={actionDefinitions}
+                automationPropertyCatalog={automationPropertyCatalog}
+                answerDefinitions={answerDefinitions}
+                canManageAdvanced={canManageAdvanced}
+                onAddAction={onAddAction}
+                onUpdateAction={onUpdateAction}
+                onRemoveAction={onRemoveAction}
+              />
+            </div>
+          </aside>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function StepCardBody(props: WorkflowBuilderStepCardProps) {
   const {
     node, versionDraft, workflowDefinitions,
@@ -182,7 +423,7 @@ function StepCardBody(props: WorkflowBuilderStepCardProps) {
       );
     }
     return (
-      <WorkflowBuilderActionEditor
+      <AutomationStepSummary
         node={node}
         actionDefinitions={actionDefinitions}
         automationPropertyCatalog={automationPropertyCatalog}

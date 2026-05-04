@@ -4,18 +4,17 @@ import { AdminDirectorySyncSection } from "./AdminDirectorySyncSection";
 import { AdminFieldConfigurationWorkspaceSection } from "./AdminFieldConfigurationWorkspaceSection";
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
 import { AdminAbteilungenSection } from "./AdminAbteilungenSection";
+import { AdminAccessWorkspaceContent } from "./AdminAccessWorkspaceContent";
 import { AdminPersonenSection } from "./AdminPersonenSection";
 import { AdminOverviewWorkspaceSection } from "./AdminOverviewWorkspaceSection";
 import {
   AbteilungsanforderungenPanel,
   FachlicheZustaendigkeitenPanel,
 } from "./AdminResponsibilitiesAndRequirementsSection";
-import { AdminPermissionsSection } from "./AdminPermissionsSection";
 import { AdminNotificationTemplateSection } from "./AdminNotificationTemplateSection";
 import { AdminSystemConfigurationSection } from "./AdminSystemConfigurationSection";
 import { AdminSystemWorkspaceSection } from "./AdminSystemWorkspaceSection";
 import { AdminTaskTemplateSection } from "./AdminTaskTemplateSection";
-import { AdminTechnicalAccessSection } from "./AdminTechnicalAccessSection";
 import { AdminWorkflowBuilderFormSection } from "./AdminWorkflowBuilderFormSection";
 import { AdminWorkspaceIntro } from "./AdminWorkspaceIntro";
 import type { AdminConfigWorkspaceContentProps } from "./adminConfigWorkspaceContentTypes";
@@ -155,54 +154,7 @@ export function renderMassnahmenvorlagenWorkspace() {
 }
 
 export function renderAccessWorkspace(props: AdminConfigWorkspaceContentProps) {
-  const { user, access, organization } = props;
-  return renderWorkspaceWithIntro(
-    "access",
-    <div className="content-stack">
-      <AdminTechnicalAccessSection
-        isTechnicalAccessOpen={true}
-        isLoadingTechnicalAccess={access.isLoadingTechnicalAccess}
-        sortedUsers={user.sortedUsers}
-        selectedUser={user.selectedUser}
-        selectedUserRoleIds={access.selectedUserRoleIds}
-        selectedUserGroupIds={access.selectedUserGroupIds}
-        selectedGroupId={access.selectedGroupId}
-        selectedGroup={access.selectedGroup}
-        selectedGroupRoleIds={access.selectedGroupRoleIds}
-        sortedRoles={access.sortedRoles}
-        groups={access.groups}
-        isSavingUserRoles={access.isSavingUserRoles}
-        isSavingUserGroups={access.isSavingUserGroups}
-        isSavingGroupRoles={access.isSavingGroupRoles}
-        onSelectUser={user.onSelectUser}
-        onToggleUserRole={access.onToggleUserRole}
-        onToggleUserGroup={access.onToggleUserGroup}
-        onSelectGroup={access.onSelectGroup}
-        onToggleGroupRole={access.onToggleGroupRole}
-        onSaveUserRoles={access.onSaveUserRoles}
-        onSaveUserGroups={access.onSaveUserGroups}
-        onSaveGroupRoles={access.onSaveGroupRoles}
-      />
-      <AdminPermissionsSection
-        roles={access.sortedRoles}
-        permissions={access.permissions}
-        auditEntries={access.permissionAuditEntries}
-        departments={organization.sortedDepartments}
-        selectedRoleId={access.selectedRoleId}
-        selectedRolePermissionIds={access.selectedRolePermissionIds}
-        selectedUser={user.selectedUser}
-        userOverrideDrafts={access.userOverrideDrafts}
-        isLoading={access.isLoadingTechnicalAccess}
-        isSavingRolePermissions={access.isSavingRolePermissions}
-        isSavingUserOverrides={access.isSavingUserOverrides}
-        onSelectRole={access.onSelectRole}
-        onToggleRolePermission={access.onToggleRolePermission}
-        onSaveRolePermissions={access.onSaveRolePermissions}
-        onUserOverrideDraftsChange={access.onUserOverrideDraftsChange}
-        onSaveUserOverrides={access.onSaveUserOverrides}
-      />
-    </div>
-  );
+  return renderWorkspaceWithIntro("access", <AdminAccessWorkspaceContent props={props} />);
 }
 
 export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps) {

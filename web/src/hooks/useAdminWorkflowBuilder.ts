@@ -357,6 +357,29 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setIsDirty(true);
   }, [versionDraft.nodes]);
 
+  const reorderNode = useCallback((nodeId: string, beforeNodeId: string | null) => {
+    setVersionDraft((current) => {
+      const fromIndex = current.nodes.findIndex((node) => node.id === nodeId);
+      if (fromIndex < 0) return current;
+      if (beforeNodeId === nodeId) return current;
+      const moved = current.nodes[fromIndex];
+      if (!moved) return current;
+      const without = current.nodes.filter((_, idx) => idx !== fromIndex);
+      if (beforeNodeId === null) {
+        return { ...current, nodes: [...without, moved] };
+      }
+      const insertAt = without.findIndex((node) => node.id === beforeNodeId);
+      if (insertAt < 0) {
+        return { ...current, nodes: [...without, moved] };
+      }
+      return {
+        ...current,
+        nodes: [...without.slice(0, insertAt), moved, ...without.slice(insertAt)],
+      };
+    });
+    setIsDirty(true);
+  }, []);
+
   const moveNode = useCallback((nodeId: string, direction: "up" | "down") => {
     setVersionDraft((current) => {
       const index = current.nodes.findIndex((node) => node.id === nodeId);
@@ -487,9 +510,18 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     onError(null);
   }, [canManageAdvanced, onError]);
 
-  const addEdge = useCallback(() => {
-    setVersionDraft((current) => ({ ...current, edges: [...current.edges, createEmptyEdgeDraft()] }));
+  const addEdge = useCallback((initial?: { sourceNodeKey?: string }) => {
+    let createdEdgeId = "";
+    setVersionDraft((current) => {
+      const draft = createEmptyEdgeDraft();
+      if (initial?.sourceNodeKey) {
+        draft.sourceNodeKey = initial.sourceNodeKey;
+      }
+      createdEdgeId = draft.id;
+      return { ...current, edges: [...current.edges, draft] };
+    });
     setIsDirty(true);
+    return createdEdgeId;
   }, []);
 
   const updateEdge = useCallback((edgeId: string, patch: Partial<WorkflowBuilderVersionDraft["edges"][number]>) => {
@@ -744,6 +776,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     updateVersionDraftField,
     addNode,
     moveNode,
+    reorderNode,
     updateNode,
     removeNode,
     addActionFromDefinition,

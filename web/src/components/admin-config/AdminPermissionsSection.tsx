@@ -15,6 +15,8 @@ export type AdminPermissionOverrideDraft = {
   scopeDepartmentId: number | null;
 };
 
+type AdminPermissionsView = "standards" | "exceptions" | "all";
+
 type AdminPermissionsSectionProps = {
   roles: AdminRole[];
   permissions: AdminPermission[];
@@ -27,6 +29,7 @@ type AdminPermissionsSectionProps = {
   isLoading: boolean;
   isSavingRolePermissions: boolean;
   isSavingUserOverrides: boolean;
+  view?: AdminPermissionsView;
   onSelectRole: (roleId: number | null) => void;
   onToggleRolePermission: (permissionId: number) => void;
   onSaveRolePermissions: () => void | Promise<void>;
@@ -50,12 +53,16 @@ export function AdminPermissionsSection({
   isLoading,
   isSavingRolePermissions,
   isSavingUserOverrides,
+  view = "all",
   onSelectRole,
   onToggleRolePermission,
   onSaveRolePermissions,
   onUserOverrideDraftsChange,
   onSaveUserOverrides,
 }: AdminPermissionsSectionProps) {
+  const showStandards = view === "all" || view === "standards";
+  const showExceptions = view === "all" || view === "exceptions";
+  const showAudit = view === "all" || view === "standards";
   const [newOverridePermissionId, setNewOverridePermissionId] = useState<string>("");
   const [newOverrideEffect, setNewOverrideEffect] = useState<string>("allow");
   const [newOverrideScope, setNewOverrideScope] = useState<string>("global");
@@ -127,11 +134,14 @@ export function AdminPermissionsSection({
 
   return (
     <section className="panel">
-      <div className="panel-head">
-        <h2>Standardrechte und gezielte Ausnahmen</h2>
-      </div>
+      {view === "all" ? (
+        <div className="panel-head">
+          <h2>Standardrechte und gezielte Ausnahmen</h2>
+        </div>
+      ) : null}
 
       <div className="content-stack">
+        {showStandards ? (
         <section className="panel panel-muted">
           <div className="panel-head">
             <h2>Rollen als Standardzugriff</h2>
@@ -184,7 +194,9 @@ export function AdminPermissionsSection({
             </>
           ) : null}
         </section>
+        ) : null}
 
+        {showExceptions ? (
         <section className="panel panel-muted">
           <div className="panel-head">
             <h2>Gezielte Ausnahmen für einzelne Personen</h2>
@@ -195,30 +207,8 @@ export function AdminPermissionsSection({
           {selectedUser ? (
             <>
               <p className="panel-note">
-                Verzeichnisquelle:{" "}
-                {selectedUser.directorySynced
-                  ? selectedUser.userPrincipalName ?? selectedUser.directoryDisplayName ?? "Entra synchronisiert"
-                  : "Nur lokal"}
-                {" | "}Abteilung: {selectedUser.departmentName ?? "keine"} ({selectedUser.departmentSource}
-                {selectedUser.departmentOverrideActive ? ", Override aktiv" : ""})
-              </p>
-              <p className="panel-note">
-                Effektive Rollen:{" "}
-                {selectedUser.effectiveRoles.length > 0
-                  ? selectedUser.effectiveRoles
-                      .map((role) => `${role.roleName} (${formatScope(role.scope, role.scopeDepartmentName)})`)
-                      .join(", ")
-                  : "keine"}
-              </p>
-              <p className="panel-note">
-                Effektive Berechtigungen:{" "}
-                {selectedUser.effectivePermissions.length > 0
-                  ? selectedUser.effectivePermissions
-                      .map((permission) =>
-                        `${permission.permissionName} (${formatScope(permission.scope, permission.scopeDepartmentName)})`
-                      )
-                      .join(", ")
-                  : "keine"}
+                Definieren Sie hier explizite Erlaube/Entziehe-Ausnahmen, die zusätzlich zu Rollen und Gruppen wirken.
+                Die aktuell wirksamen Rollen und Berechtigungen sind oben unter „Aktuelle Berechtigungen" zu sehen.
               </p>
 
               <div className="form-grid">
@@ -316,8 +306,9 @@ export function AdminPermissionsSection({
             </>
           ) : null}
         </section>
+        ) : null}
 
-        {auditEntries.length > 0 ? (
+        {showAudit && auditEntries.length > 0 ? (
           <section className="panel panel-muted">
             <div className="panel-head">
               <h2>Änderungsprotokoll</h2>

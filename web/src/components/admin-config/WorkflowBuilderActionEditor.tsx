@@ -141,7 +141,7 @@ export function WorkflowBuilderActionEditor({
         <div className="wf-step-add-dropdown">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn btn-secondary"
             onClick={() => setAddOpen((v) => !v)}
             aria-expanded={addOpen}
             disabled={!canManageAdvanced || actionDefinitions.length === 0}

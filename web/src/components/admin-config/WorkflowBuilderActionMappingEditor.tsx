@@ -177,7 +177,7 @@ export function WorkflowBuilderActionMappingEditor({
       <div className="wf-mapping-add-row">
         <button
           type="button"
-          className="btn-secondary"
+          className="btn btn-secondary"
           onClick={handleAddCustomParameter}
           disabled={disabled}
         >

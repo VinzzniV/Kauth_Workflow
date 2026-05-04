@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Pencil, X } from "lucide-react";
 import { useCurrentUser } from "../../auth/useCurrentUser";
 import { useAdminWorkflowBuilder } from "../../hooks/useAdminWorkflowBuilder";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../../hooks/adminWorkflowBuilderModel";
 import { WorkflowBuilderStepCard } from "./WorkflowBuilderStepCard";
 import { WorkflowBuilderConditionEditor } from "./WorkflowBuilderConditionEditor";
+import { summarizeCondition } from "./workflowBuilderEditorHelpers";
 import { getWorkflowBuilderNodeTypeLabel } from "./workflowBuilderLabels";
 
 // ─── Anchors / jump-to ────────────────────────────────────────────────────────
@@ -87,19 +88,42 @@ const PROCESS_TYPE_OPTIONS: { key: string; label: string }[] = [
   { key: "name_change", label: "Namensänderung" },
 ];
 
-const STEP_TYPE_OPTIONS: { key: WorkflowBuilderNodeDraft["nodeType"]; label: string }[] = [
-  { key: "form", label: "Formular" },
-  { key: "approval", label: "Freigabe" },
-  { key: "task", label: "Aufgabe" },
-  { key: "decision", label: "Entscheidung" },
-  { key: "parallel_split", label: "Parallel-Split" },
-  { key: "parallel_join", label: "Parallel-Join" },
-  { key: "measure_provision", label: "Bereitstellung (Maßnahmen)" },
-  { key: "measure_deprovision", label: "Entzug (Maßnahmen)" },
-  { key: "measure_change", label: "Änderung (Maßnahmen)" },
-  { key: "measure_rename", label: "Umbenennung (Maßnahmen)" },
-  { key: "automation", label: "Automatisierung" },
-  { key: "end", label: "Ende" },
+type StepCategoryGroup = {
+  label: string;
+  items: { key: WorkflowBuilderNodeDraft["nodeType"]; label: string }[];
+};
+
+const STEP_CATEGORY_GROUPS: StepCategoryGroup[] = [
+  {
+    label: "Steuerung",
+    items: [
+      { key: "decision", label: "Entscheidung" },
+      { key: "parallel_split", label: "Parallel-Split" },
+      { key: "parallel_join", label: "Parallel-Join" },
+      { key: "end", label: "Ende" },
+    ],
+  },
+  {
+    label: "Bearbeitung",
+    items: [
+      { key: "form", label: "Formular" },
+      { key: "approval", label: "Freigabe" },
+      { key: "task", label: "Aufgabe" },
+    ],
+  },
+  {
+    label: "Maßnahmen",
+    items: [
+      { key: "measure_provision", label: "Bereitstellung" },
+      { key: "measure_deprovision", label: "Entzug" },
+      { key: "measure_change", label: "Änderung" },
+      { key: "measure_rename", label: "Umbenennung" },
+    ],
+  },
+  {
+    label: "Technisch",
+    items: [{ key: "automation", label: "Automatisierung" }],
+  },
 ];
 
 export function AdminWorkflowBuilderFormSection({
@@ -119,19 +143,63 @@ export function AdminWorkflowBuilderFormSection({
           <p className="panel-text text-secondary">Ablaufdefinitionen werden geladen …</p>
         </div>
       ) : !builder.selectedDefinition ? (
-        <div className="panel panel-muted">
-          <p className="panel-text text-secondary">Keine Ablaufdefinition ausgewählt.</p>
-        </div>
+        <BuilderEmptyState canManageAdvanced={canManageAdvanced} hasDefinitions={builder.definitions.length > 0} />
       ) : (
-        <div className="wf-form-body">
-          <Section1Stammdaten builder={builder} canManageAdvanced={canManageAdvanced} />
-          <Section2Steps builder={builder} canManageAdvanced={canManageAdvanced} />
-          <Section3Edges builder={builder} canManageAdvanced={canManageAdvanced} />
-          <Section4Validation builder={builder} />
-        </div>
+        <>
+          <BuilderActionToolbar builder={builder} canManageAdvanced={canManageAdvanced} />
+          <PublishedVersionBanner builder={builder} />
+          <div className="wf-form-body">
+            <Section1Stammdaten builder={builder} canManageAdvanced={canManageAdvanced} />
+            <Section2Steps builder={builder} canManageAdvanced={canManageAdvanced} />
+            <Section3Edges builder={builder} canManageAdvanced={canManageAdvanced} />
+            <Section4Validation builder={builder} />
+          </div>
+        </>
       )}
+    </div>
+  );
+}
 
-      <FormFooter builder={builder} canManageAdvanced={canManageAdvanced} />
+// ─── Empty state ─────────────────────────────────────────────────────────────
+
+function BuilderEmptyState({
+  canManageAdvanced,
+  hasDefinitions,
+}: {
+  canManageAdvanced: boolean;
+  hasDefinitions: boolean;
+}) {
+  if (hasDefinitions) {
+    return (
+      <div className="wf-builder-empty">
+        <div className="wf-builder-empty-icon" aria-hidden="true">
+          <ChevronRight size={24} />
+        </div>
+        <h3 className="wf-builder-empty-title">Wählen Sie einen Workflow aus</h3>
+        <p className="wf-builder-empty-description">
+          Oben in der Auswahl steht jeder bestehende Workflow zur Verfügung. Aktionen wirken nur
+          auf den ausgewählten Workflow.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wf-builder-empty">
+      <div className="wf-builder-empty-icon" aria-hidden="true">
+        <ChevronRight size={24} />
+      </div>
+      <h3 className="wf-builder-empty-title">Noch kein Workflow vorhanden</h3>
+      <p className="wf-builder-empty-description">
+        {canManageAdvanced
+          ? "Legen Sie den ersten Workflow an. Sie können später Versionen erzeugen, Schritte hinzufügen und veröffentlichen."
+          : "Aktuell ist kein Workflow konfiguriert. Bitte wenden Sie sich an einen Administrator."}
+      </p>
+      {canManageAdvanced ? (
+        <p className="wf-builder-empty-hint">
+          Nutzen Sie oben den Button <strong>+ Neuer Workflow</strong>, um zu starten.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -198,7 +266,7 @@ function WorkflowSelectorBar({
         <div className="wf-form-selector-actions">
           <button
             type="button"
-            className="btn-secondary"
+            className="btn btn-secondary"
             onClick={() => setCreateOpen((v) => !v)}
             disabled={builder.isCreatingDefinition}
             aria-expanded={createOpen}
@@ -207,7 +275,7 @@ function WorkflowSelectorBar({
           </button>
           <button
             type="button"
-            className="btn-ghost"
+            className="btn btn-ghost"
             onClick={() => void builder.deleteDefinition()}
             disabled={!builder.selectedDefinition || builder.isDeletingDefinition || builder.hasUnsavedChanges}
             title={
@@ -281,10 +349,10 @@ function CreateDefinitionForm({
         />
       </div>
       <div className="wf-form-create-definition-actions">
-        <button type="button" className="btn-ghost" onClick={onClose} disabled={builder.isCreatingDefinition}>
+        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={builder.isCreatingDefinition}>
           Abbrechen
         </button>
-        <button type="submit" className="btn-primary" disabled={!canSubmit}>
+        <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
           {builder.isCreatingDefinition ? "Lege an …" : "Anlegen"}
         </button>
       </div>
@@ -423,6 +491,8 @@ function Section2Steps({
   canManageAdvanced: boolean;
 }) {
   const [addOpen, setAddOpen] = useState(false);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [dropBeforeNodeId, setDropBeforeNodeId] = useState<string | null>(null);
   const arrayNodes = builder.versionDraft.nodes;
   const edges = builder.versionDraft.edges;
   const nodes = useMemo(
@@ -430,6 +500,26 @@ function Section2Steps({
     [arrayNodes, edges]
   );
   const hasStart = nodes.some((node) => node.nodeType === "start");
+
+  const handleDragStart = (nodeId: string) => {
+    setDraggingNodeId(nodeId);
+  };
+  const handleDragOver = (targetNodeId: string | null, event: React.DragEvent<HTMLDivElement>) => {
+    if (!draggingNodeId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (targetNodeId !== draggingNodeId) {
+      setDropBeforeNodeId(targetNodeId);
+    }
+  };
+  const handleDragEnd = () => {
+    if (draggingNodeId) {
+      const target = dropBeforeNodeId === draggingNodeId ? null : dropBeforeNodeId;
+      builder.reorderNode(draggingNodeId, target);
+    }
+    setDraggingNodeId(null);
+    setDropBeforeNodeId(null);
+  };
 
   const handleAdd = (nodeType: WorkflowBuilderNodeDraft["nodeType"]) => {
     builder.addNode(nodeType);
@@ -459,9 +549,25 @@ function Section2Steps({
           {!hasStart && " Beginne mit einem Start-Schritt über das Dropdown unten."}
         </p>
       ) : (
-        <div className="wf-step-list">
+        <div
+          className="wf-step-list"
+          onDragOver={(event) => {
+            if (!draggingNodeId) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            handleDragEnd();
+          }}
+        >
           {nodes.map((node, index) => (
-            <div key={node.id} id={stepAnchorId(node)}>
+            <div
+              key={node.id}
+              id={stepAnchorId(node)}
+              className={`wf-step-list-item${draggingNodeId === node.id ? " wf-step-list-item--dragging" : ""}${dropBeforeNodeId === node.id && draggingNodeId && draggingNodeId !== node.id ? " wf-step-list-item--drop-before" : ""}`}
+              onDragOver={(event) => handleDragOver(node.id, event)}
+            >
             <WorkflowBuilderStepCard
               node={node}
               index={index}
@@ -483,6 +589,16 @@ function Section2Steps({
               onAddAction={(actionKey) => builder.addActionFromDefinition(node.id, actionKey)}
               onUpdateAction={(actionId, patch) => builder.updateAction(node.id, actionId, patch)}
               onRemoveAction={(actionId) => builder.removeAction(node.id, actionId)}
+              onAddOutgoingEdge={() => {
+                const newEdgeId = builder.addEdge({ sourceNodeKey: node.nodeKey });
+                if (newEdgeId) {
+                  window.setTimeout(() => jumpToAnchor(`wf-edge-${newEdgeId}`), 50);
+                }
+              }}
+              onJumpToEdge={(edgeId) => jumpToAnchor(`wf-edge-${edgeId}`)}
+              onDragStart={() => handleDragStart(node.id)}
+              onDragEnd={handleDragEnd}
+              isDragging={draggingNodeId === node.id}
             />
             </div>
           ))}
@@ -493,7 +609,7 @@ function Section2Steps({
         {!hasStart && (
           <button
             type="button"
-            className="btn-secondary wf-step-add-start"
+            className="btn btn-secondary wf-step-add-start"
             onClick={() => handleAdd("start")}
             disabled={!canManageAdvanced}
           >
@@ -504,7 +620,7 @@ function Section2Steps({
         <div className="wf-step-add-dropdown">
           <button
             type="button"
-            className="btn-primary"
+            className="btn btn-primary"
             onClick={() => setAddOpen((v) => !v)}
             aria-expanded={addOpen}
             aria-haspopup="menu"
@@ -514,17 +630,22 @@ function Section2Steps({
             <ChevronDown size={14} aria-hidden="true" />
           </button>
           {addOpen && (
-            <div className="wf-step-add-menu" role="menu" style={{ maxHeight: "320px", overflowY: "auto" }}>
-              {STEP_TYPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  className="wf-step-add-menu-item"
-                  role="menuitem"
-                  onClick={() => handleAdd(opt.key)}
-                >
-                  {opt.label}
-                </button>
+            <div className="wf-step-add-menu" role="menu">
+              {STEP_CATEGORY_GROUPS.map((group) => (
+                <div key={group.label} className="wf-builder-toolbar-add-group">
+                  <div className="wf-builder-toolbar-add-group-label">{group.label}</div>
+                  {group.items.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      className="wf-step-add-menu-item"
+                      role="menuitem"
+                      onClick={() => handleAdd(opt.key)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           )}
@@ -541,6 +662,7 @@ function Section3Edges({
   builder: ReturnType<typeof useAdminWorkflowBuilder>;
   canManageAdvanced: boolean;
 }) {
+  const [conditionEdgeId, setConditionEdgeId] = useState<string | null>(null);
   const nodes = builder.versionDraft.nodes;
   const edges = builder.versionDraft.edges;
 
@@ -604,7 +726,7 @@ function Section3Edges({
                 const isDecision = decisionKeys.has(sourceNormalized);
                 return (
                   <tr key={edge.id} id={edgeAnchorId(edge)}>
-                    <td>
+                    <td data-label="Von Schritt">
                       <select
                         className="form-select"
                         value={edge.sourceNodeKey}
@@ -617,7 +739,7 @@ function Section3Edges({
                       </select>
                     </td>
                     <td className="wf-edge-table-arrow" aria-hidden="true">→</td>
-                    <td>
+                    <td data-label="Zu Schritt">
                       <select
                         className="form-select"
                         value={edge.targetNodeKey}
@@ -629,7 +751,7 @@ function Section3Edges({
                         ))}
                       </select>
                     </td>
-                    <td>
+                    <td data-label="Pfad-Reihenfolge">
                       <input
                         className="form-input wf-edge-priority-input"
                         type="number"
@@ -638,13 +760,19 @@ function Section3Edges({
                         onChange={(e) => builder.updateEdge(edge.id, { priority: e.target.value })}
                       />
                     </td>
-                    <td>
+                    <td data-label="Bedingung">
                       {isDecision ? (
-                        <WorkflowBuilderConditionEditor
-                          conditionExpression={edge.conditionExpression}
-                          answerDefinitions={builder.answerDefinitions}
-                          onChange={(next) => builder.updateEdge(edge.id, { conditionExpression: next })}
-                        />
+                        <button
+                          type="button"
+                          className="wf-edge-condition-trigger"
+                          onClick={() => setConditionEdgeId(edge.id)}
+                          aria-label="Bedingung bearbeiten"
+                        >
+                          <span className="wf-edge-condition-summary">
+                            {summarizeCondition(edge.conditionExpression)}
+                          </span>
+                          <Pencil size={12} aria-hidden="true" />
+                        </button>
                       ) : (
                         <span
                           className="text-secondary"
@@ -655,7 +783,7 @@ function Section3Edges({
                         </span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Aktionen">
                       <button
                         type="button"
                         className="wf-step-card-iconbtn wf-step-card-iconbtn--danger"
@@ -674,14 +802,88 @@ function Section3Edges({
       <div className="wf-edge-table-footer">
         <button
           type="button"
-          className="btn-secondary"
+          className="btn btn-secondary"
           onClick={() => builder.addEdge()}
           disabled={!canManageAdvanced || nodeOptions.length < 2}
         >
           + Übergang hinzufügen
         </button>
       </div>
+
+      {conditionEdgeId ? (
+        <ConditionEditorDrawer
+          edge={edges.find((e) => e.id === conditionEdgeId) ?? null}
+          nodes={nodes}
+          answerDefinitions={builder.answerDefinitions}
+          onClose={() => setConditionEdgeId(null)}
+          onChange={(next) => builder.updateEdge(conditionEdgeId, { conditionExpression: next })}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function ConditionEditorDrawer({
+  edge,
+  nodes,
+  answerDefinitions,
+  onClose,
+  onChange,
+}: {
+  edge: WorkflowBuilderEdgeDraft | null;
+  nodes: WorkflowBuilderNodeDraft[];
+  answerDefinitions: ReturnType<typeof useAdminWorkflowBuilder>["answerDefinitions"];
+  onClose: () => void;
+  onChange: (next: string) => void;
+}) {
+  if (!edge) return null;
+
+  const sourceNode = nodes.find(
+    (n) => n.nodeKey.trim().toLowerCase() === edge.sourceNodeKey.trim().toLowerCase()
+  );
+  const targetNode = nodes.find(
+    (n) => n.nodeKey.trim().toLowerCase() === edge.targetNodeKey.trim().toLowerCase()
+  );
+  const sourceLabel = sourceNode?.title.trim() || sourceNode?.nodeKey.trim() || edge.sourceNodeKey || "?";
+  const targetLabel = targetNode?.title.trim() || targetNode?.nodeKey.trim() || edge.targetNodeKey || "?";
+
+  return (
+    <>
+      <div className="admin-drawer-backdrop" onClick={onClose} aria-hidden="true" />
+      <aside
+        className="admin-drawer wf-condition-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Bedingung bearbeiten"
+      >
+        <header className="admin-drawer-head">
+          <div className="admin-drawer-title">
+            <h2>Bedingung für Übergang</h2>
+            <span className="wf-condition-drawer-route">
+              <strong>{sourceLabel}</strong>
+              <span aria-hidden="true">→</span>
+              <strong>{targetLabel}</strong>
+            </span>
+          </div>
+          <button type="button" className="admin-drawer-close" onClick={onClose} aria-label="Schließen">
+            ×
+          </button>
+        </header>
+
+        <div className="admin-drawer-body content-stack">
+          <p className="wf-form-field-hint">
+            Diese Bedingung steuert, ob dieser Pfad ausgeführt wird, wenn der Decision-Knoten erreicht wird.
+            Pfade werden in der Reihenfolge ihrer „Pfad-Reihenfolge" geprüft.
+          </p>
+
+          <WorkflowBuilderConditionEditor
+            conditionExpression={edge.conditionExpression}
+            answerDefinitions={answerDefinitions}
+            onChange={onChange}
+          />
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -705,7 +907,7 @@ function Section4Validation({
       <div className="wf-validation-toolbar">
         <button
           type="button"
-          className="btn-secondary"
+          className="btn btn-secondary"
           onClick={() => builder.validateDraft()}
           disabled={!builder.selectedVersionSummary}
         >
@@ -791,16 +993,60 @@ function Section4Validation({
   );
 }
 
-// ─── Sticky Footer ────────────────────────────────────────────────────────────
+// ─── Published Version Banner ───────────────────────────────────────────────
 
-function FormFooter({
+function PublishedVersionBanner({
+  builder,
+}: {
+  builder: ReturnType<typeof useAdminWorkflowBuilder>;
+}) {
+  const summary = builder.selectedVersionSummary;
+  if (!summary || summary.status !== "published") return null;
+
+  const drafts = (builder.selectedDefinition?.versions ?? []).filter((v) => v.status !== "published");
+  const latestDraft = drafts.length > 0 ? drafts[drafts.length - 1] : null;
+
+  return (
+    <div className="wf-published-banner" role="note">
+      <div className="wf-published-banner-icon" aria-hidden="true">!</div>
+      <div className="wf-published-banner-body">
+        <strong>Version {summary.versionNumber} ist veröffentlicht.</strong>
+        <span>
+          {" "}
+          Änderungen wirken sich direkt auf laufende Workflows aus. Für sicherheitsrelevante Anpassungen
+          {latestDraft ? " auf einen vorhandenen Entwurf wechseln" : " einen neuen Workflow anlegen"}.
+        </span>
+      </div>
+      {latestDraft ? (
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => builder.selectVersion(latestDraft.id)}
+        >
+          Zum Entwurf (Version {latestDraft.versionNumber})
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Sticky Action Toolbar ───────────────────────────────────────────────────
+
+function BuilderActionToolbar({
   builder,
   canManageAdvanced,
 }: {
   builder: ReturnType<typeof useAdminWorkflowBuilder>;
   canManageAdvanced: boolean;
 }) {
+  const [addOpen, setAddOpen] = useState(false);
   const hasChanges = builder.hasUnsavedChanges;
+  const versionStatus = builder.selectedVersionSummary?.status ?? "draft";
+  const isPublished = versionStatus === "published";
+  const versionNumber = builder.selectedVersionSummary?.versionNumber;
+  const localIssueCount = builder.localValidationIssues.length;
+  const backendIssueCount = builder.versionDetail?.validationIssues.length ?? 0;
+  const issueCount = localIssueCount + backendIssueCount;
   const canPublish = Boolean(
     canManageAdvanced
     && builder.selectedVersionSummary?.canPublish
@@ -812,10 +1058,86 @@ function FormFooter({
     builder.selectDefinition(builder.selectedDefinition!.id);
   };
 
+  const handleAddStep = (nodeType: WorkflowBuilderNodeDraft["nodeType"]) => {
+    builder.addNode(nodeType);
+    setAddOpen(false);
+  };
+
+  const handleScrollToValidation = () => {
+    const validationSection = document.querySelector(".wf-form-section:last-of-type");
+    if (validationSection) {
+      validationSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
-    <div className="wf-form-footer">
-      <div className="wf-form-footer-inner">
-        {hasChanges && (
+    <div className="wf-builder-toolbar">
+      <div className="wf-builder-toolbar-status">
+        <h2 className="wf-builder-toolbar-title">
+          {builder.selectedDefinition?.name || builder.selectedDefinition?.key || "Workflow"}
+        </h2>
+        {versionNumber !== undefined ? (
+          <span className={`wf-builder-toolbar-badge wf-builder-toolbar-badge--${isPublished ? "published" : "draft"}`}>
+            Version {versionNumber} · {isPublished ? "Veröffentlicht" : "Entwurf"}
+          </span>
+        ) : null}
+        {hasChanges ? (
+          <span className="wf-builder-toolbar-dirty" title="Ungespeicherte Änderungen">
+            <span className="wf-builder-toolbar-dirty-dot" aria-hidden="true" />
+            <span>Ungespeichert</span>
+          </span>
+        ) : null}
+      </div>
+
+      <div className="wf-builder-toolbar-actions">
+        <button
+          type="button"
+          className={`wf-builder-toolbar-issues ${issueCount === 0 ? "wf-builder-toolbar-issues--ok" : "wf-builder-toolbar-issues--warn"}`}
+          onClick={handleScrollToValidation}
+          aria-label={issueCount === 0 ? "Keine Validierungs-Issues" : `${issueCount} Validierungs-Issues anzeigen`}
+        >
+          {issueCount === 0 ? (
+            <>✓ Keine Issues</>
+          ) : (
+            <>⚠ {issueCount} {issueCount === 1 ? "Issue" : "Issues"}</>
+          )}
+        </button>
+
+        <div className="wf-builder-toolbar-add">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setAddOpen((v) => !v)}
+            aria-expanded={addOpen}
+            aria-haspopup="menu"
+            disabled={!canManageAdvanced}
+          >
+            <span>+ Schritt</span>
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+          {addOpen ? (
+            <div className="wf-builder-toolbar-add-menu" role="menu">
+              {STEP_CATEGORY_GROUPS.map((group) => (
+                <div key={group.label} className="wf-builder-toolbar-add-group">
+                  <div className="wf-builder-toolbar-add-group-label">{group.label}</div>
+                  {group.items.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className="wf-builder-toolbar-add-item"
+                      role="menuitem"
+                      onClick={() => handleAddStep(item.key)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {hasChanges ? (
           <button
             type="button"
             className="btn btn-ghost"
@@ -824,28 +1146,34 @@ function FormFooter({
           >
             Verwerfen
           </button>
-        )}
+        ) : null}
 
-        <div className="wf-form-footer-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => void builder.saveVersion()}
-            disabled={!hasChanges || builder.isSaving || builder.isPublishing || !builder.selectedDefinition}
-          >
-            {builder.isSaving ? "Speichern …" : "Speichern (Entwurf)"}
-          </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => void builder.saveVersion()}
+          disabled={!hasChanges || builder.isSaving || builder.isPublishing || !builder.selectedDefinition}
+        >
+          {builder.isSaving ? "Speichert …" : "Speichern"}
+        </button>
 
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => void builder.publishVersion()}
-            disabled={!canPublish || builder.isSaving || builder.isPublishing}
-            title={!canManageAdvanced ? "Nur im Admin-Modus verfügbar" : !builder.selectedVersionSummary?.canPublish ? "Entwurf hat offene Validierungs-Issues" : undefined}
-          >
-            {builder.isPublishing ? "Veröffentlichen …" : "Veröffentlichen"}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => void builder.publishVersion()}
+          disabled={!canPublish || builder.isSaving || builder.isPublishing}
+          title={
+            !canManageAdvanced
+              ? "Nur im Admin-Modus verfügbar"
+              : hasChanges
+                ? "Erst speichern, dann veröffentlichbar"
+                : !builder.selectedVersionSummary?.canPublish
+                  ? "Entwurf hat offene Validierungs-Issues"
+                  : undefined
+          }
+        >
+          {builder.isPublishing ? "Veröffentlichen …" : "Veröffentlichen"}
+        </button>
       </div>
     </div>
   );

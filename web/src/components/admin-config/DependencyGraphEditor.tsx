@@ -124,7 +124,7 @@ export function DependencyGraphEditor({
         </p>
         <button
           type="button"
-          className="btn-secondary"
+          className="btn btn-secondary"
           onClick={() => setCreateOpen((v) => !v)}
           disabled={isCreatingDependency}
           aria-expanded={createOpen}
@@ -185,7 +185,7 @@ export function DependencyGraphEditor({
           <div className="dep-editor-create-actions">
             <button
               type="button"
-              className="btn-primary"
+              className="btn btn-primary"
               onClick={() => void handleAdd()}
               disabled={!canSave}
             >
@@ -244,7 +244,7 @@ export function DependencyGraphEditor({
                     <td>
                       <button
                         type="button"
-                        className="btn-ghost btn-ghost--small"
+                        className="btn btn-ghost btn-ghost--small"
                         onClick={() => void handleDelete(edge.id)}
                         disabled={isDeletingDependency}
                         aria-label={`Abhängigkeit ${sourceTpl?.title ?? edge.sourceSpecId} → ${targetTpl?.title ?? edge.targetSpecId} löschen`}

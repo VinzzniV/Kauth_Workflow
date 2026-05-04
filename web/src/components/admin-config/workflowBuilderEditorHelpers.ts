@@ -102,6 +102,36 @@ export function isConditionOperator(value: string): value is ConditionOperator {
   return ALL_CONDITION_OPERATORS.includes(value as ConditionOperator);
 }
 
+const CONDITION_OPERATOR_SHORT: Record<ConditionOperator, string> = {
+  is_true: "= ja",
+  is_false: "= nein",
+  is_not_null: "ist gepflegt",
+  is_null: "ist leer",
+  eq: "=",
+  neq: "≠",
+};
+
+export function summarizeCondition(text: string): string {
+  const parsed = parseCondition(text);
+  if (parsed === "invalid") return "Ungültiger Ausdruck";
+  if (!parsed.answerKey) return "Keine Bedingung";
+  const opLabel = CONDITION_OPERATOR_SHORT[parsed.operator];
+  const valueLabel = (() => {
+    if (parsed.operator === "eq" || parsed.operator === "neq") {
+      if (parsed.expectedValueBoolean !== null) {
+        return parsed.expectedValueBoolean ? "ja" : "nein";
+      }
+      if (parsed.expectedValueText.trim()) return `"${parsed.expectedValueText}"`;
+      if (parsed.expectedValueNumber.trim()) return parsed.expectedValueNumber;
+      return "?";
+    }
+    return null;
+  })();
+  return valueLabel
+    ? `${parsed.answerKey} ${opLabel} ${valueLabel}`
+    : `${parsed.answerKey} ${opLabel}`;
+}
+
 // ─── Action mapping editor ──────────────────────────────────────────────────
 
 export type MappingSource = "static" | "workflow" | "target_person" | "directory_identity" | "answer";

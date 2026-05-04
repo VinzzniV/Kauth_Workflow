@@ -22,7 +22,7 @@ export type AdminWorkspaceSection =
   | "system_mail_templates"
   | "system_configuration";
 export type AdminOrganizationEntity = "user" | "department" | "responsibility";
-export type AdminWorkspaceArea = "personen_zugriff" | "workflows_aufgaben" | "massnahmen_rotation" | "system";
+export type AdminWorkspaceArea = "personen_zugriff" | "massnahmen_rotation" | "system";
 export type AdminWorkspaceWarningCategory =
   | "department_lead"
   | "department_owner"
@@ -217,7 +217,7 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Aufgaben für neue Vorgänge strukturieren und die entstehende Vorgangslogik pflegen.",
     navLabel: "Aufgaben",
     navDescription: "Vorlagen für automatisch entstehende Aufgaben in neuen Vorgängen pflegen.",
-    area: "workflows_aufgaben",
+    area: null,
     visibleInSubnav: false,
     introTitle: "Aufgaben definieren, die in neuen Vorgängen entstehen",
     introDescription:
@@ -237,7 +237,7 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Workflow-Definitionen, Versionen, Nodes und Edges geführt konfigurieren.",
     navLabel: "Workflow Builder",
     navDescription: "Versionierte Workflow-Definitionen als Draft pflegen und veröffentlichen.",
-    area: "workflows_aufgaben",
+    area: null,
     introTitle: "Workflow-Definitionen geführt modellieren",
     introDescription:
       "Hier entsteht der erste formularbasierte Builder für versionierte Workflow-Definitionen inklusive Nodes, Edges, Validierung und Veröffentlichung.",
@@ -256,7 +256,7 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     description: "Felder für neue Vorgänge definieren und Vorgaben je Rolle vorbereiten.",
     navLabel: "Felder & Vorgaben",
     navDescription: "Formularfelder und Vorgaben für neue Vorgänge gemeinsam steuern.",
-    area: "workflows_aufgaben",
+    area: null,
     visibleInSubnav: false,
     introTitle: "Felder und Vorgaben für neue Vorgänge steuern",
     introDescription:
@@ -394,13 +394,6 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
     description: "Personen, Abteilungen, Zuständigkeiten und App-Rechte gemeinsam pflegen.",
     defaultSection: "personen",
     sections: ["personen", "abteilungen", "zustaendigkeiten", "access", "directory"],
-  },
-  {
-    key: "workflows_aufgaben",
-    label: "Workflows & Aufgaben",
-    description: "Workflow-Definitionen, Aufgaben- und Feldvorlagen für neue Vorgänge pflegen.",
-    defaultSection: "builder",
-    sections: ["builder"],
   },
   {
     key: "massnahmen_rotation",
