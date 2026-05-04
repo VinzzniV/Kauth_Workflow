@@ -38,7 +38,6 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 | # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
 |---|---------|------|---------|------------------|--------|--------|
-| FE-31 | **Personenakte zur 360-Grad-Ansicht ausbauen** (UX-Roadmap 2026-05-04, Block 5). Vorgänge, Rotation, offene Aufgaben, Benachrichtigungen und Directory-Kontext in einer Arbeitsflaeche zusammenziehen. | MEDIUM | 2–3 d | high | opus | offen |
 | FE-32 | **Globale Schnellnavigation / Command Search** (UX-Roadmap 2026-05-04, Block 5). Globales Such-/Springen-/Aktion-Feld fuer Personen, Vorgaenge, Tasks, Builder-Artefakte und Admin-Bereiche. | MEDIUM | 2–4 d | high | opus | offen |
 | FE-33 | **Gespeicherte Ansichten pro Rolle** (UX-Roadmap 2026-05-04, Block 5). Presets fuer `meine offenen`, `heute faellig`, `blockiert`, `Abteilung X`; URL-stabil und wiederverwendbar. | MEDIUM | 1,5–2 d | medium | sonnet | offen |
 | FE-34 | **Operative Serienarbeit / Bulk-Aktionen** (UX-Roadmap 2026-05-04, Block 5). Mehrfachselektion und Sammelaktionen fuer Aufgabenlisten, z. B. `in Bearbeitung`, `erledigt`, `zuweisen`. | MEDIUM | 2–3 d | high | opus | offen |
@@ -93,19 +92,17 @@ Die folgenden Bloecke uebersetzen das Frontend-Review in eine konkrete Abarbeitu
 - Navigation, Personenarbeit und Serienoperationen als naechste Produkthebel ausbauen
 
 **Items**
-- `FE-31` Personenakte zur 360-Grad-Ansicht ausbauen
+- `FE-31` Personenakte zur 360-Grad-Ansicht ausbauen — abgeschlossen (siehe "Abgeschlossene Zyklen")
 - `FE-32` Globale Schnellnavigation / Command Search
 - `FE-33` Gespeicherte Ansichten pro Rolle
 - `FE-34` Operative Serienarbeit / Bulk-Aktionen
 
 **Empfohlene Reihenfolge**
-1. `FE-31`
-2. `FE-33`
-3. `FE-34`
-4. `FE-32`
+1. `FE-33`
+2. `FE-34`
+3. `FE-32`
 
 **Reasoning / Modell**
-- `FE-31`: `high`, `opus`
 - `FE-32`: `high`, `opus`
 - `FE-33`: `medium`, `sonnet`
 - `FE-34`: `high`, `opus`
@@ -119,13 +116,13 @@ Die folgenden Bloecke uebersetzen das Frontend-Review in eine konkrete Abarbeitu
 
 Wenn kein anderer Nutzerwunsch priorisiert wird, startet der naechste Frontend-Zyklus mit:
 
-1. **Aufgabe**: `FE-31 Personenakte zur 360-Grad-Ansicht ausbauen`
-2. **Reasoning Effort**: `high`
-3. **Empfohlenes Modell**: `opus`
+1. **Aufgabe**: `FE-33 Gespeicherte Ansichten pro Rolle`
+2. **Reasoning Effort**: `medium`
+3. **Empfohlenes Modell**: `sonnet`
 
 Warum zuerst:
-- `FE-30` ist abgeschlossen; der Builder ist jetzt vollständig canvas-first inklusive Edge-Erzeugung am Graph
-- die nächste UX-Roadmap-Stufe (Block 5) startet mit der Personenakte als zentraler 360°-Arbeitsfläche
+- `FE-31` ist abgeschlossen; die Personenakte ist jetzt eine 360°-Arbeitsfläche mit Übersichts-/Aufgaben-/Benachrichtigungs-/Vorgangs-Tabs.
+- Listen-Presets (`FE-33`) hebeln die nächste Sichtbarkeitsstufe für rollen-typische Arbeitsmodi und stützen die Bulk-Aktionen aus `FE-34`.
 
 ---
 
@@ -155,6 +152,8 @@ Warum zuerst:
 **Frontend-Roadmap Block 1 bis 3 2026-05-04:** FE-25 bis FE-29 abgeschlossen. Dialog-Haertung, UI-System-Konsolidierung, vereinheitlichte Filterleisten, Tabellenmodus fuer operative Listen und Split-View fuer Listenarbeit sind umgesetzt. Details bleiben in `CODEX_SYNC.md` und `git log`.
 
 **Frontend-Roadmap Block 4 2026-05-04 (FE-30):** Builder canvas-first abgeschlossen. Slice 1 (Canvas + Properties-Panel als Primärpfad, Step-Liste und Edge-Tabelle als sekundäre `details`), Slice 2 (Validation-Issues live an Nodes/Edges/Properties-Panel; lokale Validation `useMemo`-derived) und Slice 3 (Edge-Erzeugung direkt am Graph: „+"-Anker am Source-Knoten startet Connect-Mode, Klick auf Zielknoten legt die Verbindung über bestehenden `addEdge` an, Esc/Hintergrund bricht ab) sind umgesetzt. Details siehe `web/README.md` und `git log`.
+
+**Frontend-Roadmap Block 5 Auftakt 2026-05-04 (FE-31):** Personenakte ist jetzt 360°-Arbeitsfläche. `PersonWorkflowHistoryPage` wurde von "Stammdaten + Liste" zu Tab-Workspace ausgebaut: Statuschips + Metric-Strip (aktive Vorgänge, offene Aufgaben, ausstehende/fehlgeschlagene Benachrichtigungen) und vier Tabs `Übersicht` (Stammdaten + Verzeichnis-Kontext + Schnellzugriff aktive Vorgänge), `Offene Aufgaben` (clientseitig aggregiert, sortiert nach SLA/Frist), `Benachrichtigungen` (failed + pending, gruppiert) und `Vorgänge` (bisherige Karten-/Tabellenansicht). Aggregation läuft über neuen Hook `usePersonWorkflowAggregates`, der für aktive Workflows parallel `getWorkflowByUid` (`useQueries`) zieht — Backend-Vertrag bleibt unverändert.
 
 ---
 

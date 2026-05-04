@@ -76,10 +76,30 @@ describe("PersonWorkflowHistoryPage", () => {
       { roleKeys: ["auth_hr"], route: "/people/11" }
     );
 
+    fireEvent.click(await screen.findByRole("tab", { name: /Vorgänge/ }));
+
     expect(await screen.findByRole("heading", { name: "Vorgänge (1)" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Tabelle" }));
 
     expect(screen.getByRole("table", { name: "Tabellenansicht Vorgänge dieser Person" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Erstellt" })).toBeTruthy();
+  });
+
+  it("renders the 360-degree workspace tabs and overview metrics", async () => {
+    mockedGetPersonWorkflowHistory.mockResolvedValue(createPersonWorkflowHistory());
+
+    renderWithApp(
+      <Routes>
+        <Route path="/people/:personId" element={<PersonWorkflowHistoryPage />} />
+      </Routes>,
+      { roleKeys: ["auth_hr"], route: "/people/11" }
+    );
+
+    expect(await screen.findByRole("heading", { name: "Anika Sattler" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Übersicht/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Offene Aufgaben/ })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: /Benachrichtigungen/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Stammdaten" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Verzeichnis-Kontext" })).toBeTruthy();
   });
 });
