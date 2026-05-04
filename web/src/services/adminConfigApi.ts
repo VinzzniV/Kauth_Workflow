@@ -414,11 +414,20 @@ export async function getAdminWorkflowDefinitionVersion(
   );
 }
 
+export type ReplaceAdminWorkflowDefinitionVersionConflict = {
+  message: string;
+  currentUpdatedAt: string;
+};
+
 export async function replaceAdminWorkflowDefinitionVersion(
   versionId: number,
   payload: {
     name: string | null;
     description: string | null;
+    // FE-13: Optimistic-Concurrency-Token. Server lehnt Replace mit 409 ab,
+    // wenn der DB-Stand zwischenzeitlich von einem anderen Schreiber verändert
+    // wurde. Wenn null/undefined, wird kein Stale-Check gemacht.
+    expectedUpdatedAt?: string | null;
     nodes: Array<{
       nodeKey: string | null;
       nodeType: string | null;

@@ -398,6 +398,15 @@ WHERE id = @definitionId;
                 $"Workflow definition version '{versionId}' is not editable because it is in status '{versionRecord.Status}'.");
         }
 
+        // FE-13: Optimistic-Concurrency. Wenn der Client einen erwarteten updated_at
+        // mitschickt und der DB-Stand davon abweicht, hat ein paralleler Schreiber
+        // (z. B. Admin-Spec-Editor) die Version verändert — Replace ablehnen.
+        if (request.ExpectedUpdatedAt is { } expected
+            && !DateTimesMatchWithTolerance(expected, versionRecord.UpdatedAt))
+        {
+            throw new WorkflowDefinitionVersionStaleException(versionRecord.UpdatedAt);
+        }
+
         const string updateVersionSql = """
 UPDATE workflow_definition_versions
 SET
@@ -982,7 +991,7 @@ LIMIT 1;
         long versionId)
     {
         const string sql = """
-SELECT id, workflow_definition_id, status
+SELECT id, workflow_definition_id, status, updated_at
 FROM workflow_definition_versions
 WHERE id = @versionId
 FOR UPDATE;
@@ -1001,7 +1010,8 @@ FOR UPDATE;
         {
             Id = reader.GetInt64(0),
             WorkflowDefinitionId = reader.GetInt32(1),
-            Status = reader.GetString(2)
+            Status = reader.GetString(2),
+            UpdatedAt = reader.GetDateTime(3)
         };
     }
 
@@ -1189,11 +1199,26 @@ LIMIT 1;
         return await command.ExecuteScalarAsync() is not null;
     }
 
+    private static bool DateTimesMatchWithTolerance(DateTime expected, DateTime actual)
+    {
+        // Toleranz, weil PG µs-Präzision hat, .NET 100ns-Ticks und JSON-Roundtrip
+        // kleine Drifts erzeugen kann. 1ms ist deutlich kleiner als jede realistische
+        // Schreib-Latenz, also drift-fest aber sicher gegen echte parallele Edits.
+        var expectedUtc = expected.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(expected, DateTimeKind.Utc)
+            : expected.ToUniversalTime();
+        var actualUtc = actual.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(actual, DateTimeKind.Utc)
+            : actual.ToUniversalTime();
+        return Math.Abs((expectedUtc - actualUtc).TotalMilliseconds) < 1.0;
+    }
+
     internal sealed class WorkflowDefinitionVersionRecord
     {
         public required long Id { get; init; }
         public required int WorkflowDefinitionId { get; init; }
         public required string Status { get; init; }
+        public required DateTime UpdatedAt { get; init; }
     }
 
     // Naming-Hinweis: Methode heißt aus Legacy-Gründen weiter Resolve...LegacyProcessTypeId,

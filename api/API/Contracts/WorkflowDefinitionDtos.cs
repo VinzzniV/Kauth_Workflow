@@ -154,4 +154,26 @@ public sealed class ReplaceWorkflowDefinitionVersionRequest
     public string? Description { get; init; }
     public List<WorkflowDefinitionNodeDto> Nodes { get; init; } = new();
     public List<WorkflowDefinitionEdgeDto> Edges { get; init; } = new();
+
+    // FE-13: Optimistic-Concurrency-Token. Wenn gesetzt, muss er zum aktuellen
+    // updated_at der Version passen — sonst lehnt der Server den Replace mit
+    // 409 Conflict ab. Nicht gesetzt = kein Stale-Check (Backwards-Compat).
+    public DateTime? ExpectedUpdatedAt { get; init; }
+}
+
+public sealed class WorkflowDefinitionVersionConflictDto
+{
+    public required string Message { get; init; }
+    public required DateTime CurrentUpdatedAt { get; init; }
+}
+
+public sealed class WorkflowDefinitionVersionStaleException : Exception
+{
+    public WorkflowDefinitionVersionStaleException(DateTime currentUpdatedAt, string? message = null)
+        : base(message ?? "Workflow definition version was modified by another writer.")
+    {
+        CurrentUpdatedAt = currentUpdatedAt;
+    }
+
+    public DateTime CurrentUpdatedAt { get; }
 }

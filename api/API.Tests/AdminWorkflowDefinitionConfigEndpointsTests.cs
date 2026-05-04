@@ -195,6 +195,40 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
     }
 
     [Fact]
+    public async Task ReplaceDefinitionVersionEndpoint_ReturnsConflictWhenStale()
+    {
+        var currentUpdatedAt = new DateTime(2026, 5, 4, 9, 30, 0, DateTimeKind.Utc);
+        var repository = new StubWorkflowDefinitionRepository
+        {
+            ReplaceAdminWorkflowDefinitionVersionException =
+                new WorkflowDefinitionVersionStaleException(currentUpdatedAt)
+        };
+
+        var app = CreateApp(repository);
+        var endpoint = GetEndpoint(app, "/admin/config/workflow-definition-versions/{versionId:long}", HttpMethods.Put);
+        var context = CreateJsonRequestContext(
+            app.Services,
+            endpoint,
+            HttpMethods.Put,
+            "/admin/config/workflow-definition-versions/12",
+            new ReplaceWorkflowDefinitionVersionRequest
+            {
+                ExpectedUpdatedAt = currentUpdatedAt.AddMinutes(-5)
+            },
+            ("versionId", 12L));
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status409Conflict, context.Response.StatusCode);
+        Assert.Equal(1, repository.ReplaceAdminWorkflowDefinitionVersionCallCount);
+        Assert.Equal(currentUpdatedAt, repository.LastReplaceAdminWorkflowDefinitionVersionRequest!.ExpectedUpdatedAt!.Value.AddMinutes(5));
+
+        context.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        Assert.Equal(currentUpdatedAt, document.RootElement.GetProperty("currentUpdatedAt").GetDateTime().ToUniversalTime());
+    }
+
+    [Fact]
     public async Task ReplaceDefinitionVersionEndpoint_RoundtripsNodePositions()
     {
         var repository = new StubWorkflowDefinitionRepository

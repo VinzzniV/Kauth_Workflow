@@ -339,10 +339,14 @@ export function toJsonText(value: unknown | null): string {
   return JSON.stringify(value, null, 2);
 }
 
-export function buildVersionReplacePayload(draft: WorkflowBuilderVersionDraft) {
+export function buildVersionReplacePayload(
+  draft: WorkflowBuilderVersionDraft,
+  expectedUpdatedAt?: string | null
+) {
   return {
     name: toNullableText(draft.name),
     description: toNullableText(draft.description),
+    expectedUpdatedAt: expectedUpdatedAt ?? null,
     nodes: draft.nodes.map((node, index) => ({
       nodeKey: toNullableText(node.nodeKey),
       nodeType: node.nodeType,

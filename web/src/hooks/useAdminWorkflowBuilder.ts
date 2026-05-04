@@ -707,23 +707,64 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
         });
       }
 
-      const saved = await replaceAdminWorkflowDefinitionVersion(selectedVersionId, buildVersionReplacePayload(versionDraft));
-      await loadDefinitions({
-        keepSelection: true,
-        selectedDefinitionId: selectedDefinition.id,
-        selectedVersionId,
-      });
-      const nextDraft = toVersionDraft(saved);
-      setVersionDetail(saved);
-      setVersionDraft(nextDraft);
-      setIsDirty(false);
-      onNotice(`Stand ${saved.versionNumber} wurde gespeichert.`);
+      // FE-13: Optimistic-Concurrency-Loop. Erst-Save mit `expectedUpdatedAt`,
+      // damit der Server 409 wirft, falls jemand parallel geschrieben hat.
+      // Nach Bestätigung wiederholen wir ohne Token (= Force-Overwrite).
+      let expectedUpdatedAt: string | null = versionDetail?.updatedAt ?? null;
+      while (true) {
+        try {
+          const saved = await replaceAdminWorkflowDefinitionVersion(
+            selectedVersionId,
+            buildVersionReplacePayload(versionDraft, expectedUpdatedAt)
+          );
+          await loadDefinitions({
+            keepSelection: true,
+            selectedDefinitionId: selectedDefinition.id,
+            selectedVersionId,
+          });
+          const nextDraft = toVersionDraft(saved);
+          setVersionDetail(saved);
+          setVersionDraft(nextDraft);
+          setIsDirty(false);
+          onNotice(`Stand ${saved.versionNumber} wurde gespeichert.`);
+          break;
+        } catch (err) {
+          const status = (err as { status?: number } | null | undefined)?.status;
+          if (status !== 409) {
+            throw err;
+          }
+
+          const shouldOverwrite = await confirm({
+            title: "Entwurf wurde zwischenzeitlich geändert",
+            description:
+              "Seit Ihrem letzten Laden hat jemand anderes diesen Entwurf geändert (z. B. über den Aufgabenvorlagen-Editor). " +
+              "Wenn Sie jetzt speichern, werden diese neueren Änderungen überschrieben.",
+            confirmLabel: "Trotzdem speichern",
+            cancelLabel: "Abbrechen und neu laden",
+            tone: "danger",
+          });
+
+          if (!shouldOverwrite) {
+            try {
+              const fresh = await getAdminWorkflowDefinitionVersion(selectedVersionId);
+              applyLoadedVersionDetail(fresh);
+              onNotice("Entwurf wurde neu geladen – bitte Änderungen prüfen.");
+            } catch {
+              // Reload-Fehler ignorieren; der Nutzer behält zumindest seinen Stand
+            }
+            return;
+          }
+
+          // Force-Overwrite: ohne Token erneut speichern
+          expectedUpdatedAt = null;
+        }
+      }
     } catch (err) {
       onError(err instanceof Error ? err.message : "Stand konnte nicht gespeichert werden.");
     } finally {
       setIsSaving(false);
     }
-  }, [canManageAdvanced, definitionDraft.description, definitionDraft.name, hasDefinitionMetadataChanges, loadDefinitions, localValidationIssues.length, onError, onNotice, selectedDefinition, selectedVersionId, versionDraft]);
+  }, [applyLoadedVersionDetail, canManageAdvanced, confirm, definitionDraft.description, definitionDraft.name, hasDefinitionMetadataChanges, loadDefinitions, localValidationIssues.length, onError, onNotice, selectedDefinition, selectedVersionId, versionDetail, versionDraft]);
 
   const publishVersion = useCallback(async () => {
     if (!canManageAdvanced) {

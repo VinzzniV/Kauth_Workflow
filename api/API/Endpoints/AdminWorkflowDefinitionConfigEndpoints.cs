@@ -294,11 +294,20 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
                     ? Results.NotFound(new { message = "Workflow definition version not found." })
                     : Results.Ok(updated);
             }
+            catch (WorkflowDefinitionVersionStaleException ex)
+            {
+                return Results.Conflict(new WorkflowDefinitionVersionConflictDto
+                {
+                    Message = ex.Message,
+                    CurrentUpdatedAt = ex.CurrentUpdatedAt,
+                });
+            }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
         }).Produces<WorkflowDefinitionVersionDetailDto>(StatusCodes.Status200OK)
+          .Produces<WorkflowDefinitionVersionConflictDto>(StatusCodes.Status409Conflict)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status404NotFound)
           .Produces(StatusCodes.Status403Forbidden)
