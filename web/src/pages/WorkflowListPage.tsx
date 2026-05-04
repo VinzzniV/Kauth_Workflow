@@ -3,11 +3,21 @@ import { useCurrentUser } from "../auth/useCurrentUser";
 import PageHeader from "../components/layout/PageHeader";
 import { WorkflowListFilters } from "./WorkflowListFilters";
 import { WorkflowListResults } from "./WorkflowListResults";
+import { WorkflowListSavedViewsBar } from "./WorkflowListSavedViewsBar";
 import { useWorkflowListPageView } from "./workflowListPageModel";
+import type { SavedView } from "./workflowListSavedViews";
 
 export default function WorkflowListPage() {
   const view = useWorkflowListPageView();
   const { capabilities } = useCurrentUser();
+
+  const applySavedView = (savedView: SavedView) => {
+    view.setStatusFilter(savedView.statusFilter);
+    view.setDepartmentFilter(savedView.departmentFilter);
+    view.setWorkflowDefinitionFilter(savedView.workflowDefinitionFilter);
+    view.setResponsibilityFilter(savedView.responsibilityFilter);
+    view.setSearch("");
+  };
 
   return (
     <main className="app-shell">
@@ -23,6 +33,17 @@ export default function WorkflowListPage() {
               </Link>
             ) : undefined
           }
+        />
+
+        <WorkflowListSavedViewsBar
+          capabilities={capabilities}
+          current={{
+            statusFilter: view.statusFilter,
+            departmentFilter: view.departmentFilter,
+            workflowDefinitionFilter: view.workflowDefinitionFilter,
+            responsibilityFilter: view.responsibilityFilter,
+          }}
+          onApply={applySavedView}
         />
 
         <WorkflowListFilters

@@ -39,7 +39,6 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 | # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
 |---|---------|------|---------|------------------|--------|--------|
 | FE-32 | **Globale Schnellnavigation / Command Search** (UX-Roadmap 2026-05-04, Block 5). Globales Such-/Springen-/Aktion-Feld fuer Personen, Vorgaenge, Tasks, Builder-Artefakte und Admin-Bereiche. | MEDIUM | 2–4 d | high | opus | offen |
-| FE-33 | **Gespeicherte Ansichten pro Rolle** (UX-Roadmap 2026-05-04, Block 5). Presets fuer `meine offenen`, `heute faellig`, `blockiert`, `Abteilung X`; URL-stabil und wiederverwendbar. | MEDIUM | 1,5–2 d | medium | sonnet | offen |
 | FE-34 | **Operative Serienarbeit / Bulk-Aktionen** (UX-Roadmap 2026-05-04, Block 5). Mehrfachselektion und Sammelaktionen fuer Aufgabenlisten, z. B. `in Bearbeitung`, `erledigt`, `zuweisen`. | MEDIUM | 2–3 d | high | opus | offen |
 | FE-7-Browser | **Manueller Dark-Mode Browser-Sichtprueftest** (FE-7-Folge). Static-Pass + FE-14 done; manuelle Sichtprueftest (`data-theme="dark"`, alle 8 Pages aus Checkliste unten) bleibt Nutzer-Aufgabe. | MEDIUM | 0,5 d | — | — | offen — Nutzer-Aufgabe |
 | FE-10 | **Browser-Verifikation Form-Editor** (R8). Alle 12 Schritt-Typen durchklicken (start, end, form, approval, task, decision, parallel_split/join, automation, measure_*). Manuelle Nutzer-Aufgabe — KI kann nicht pruefen. | MEDIUM | 0,5 d | — | — | offen — Nutzer-Aufgabe |
@@ -49,7 +48,6 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 | FE-8 | **`approval_task_template_key` → `approval_spec_key`** (LA5-Watch). Spalte auf `workflow_definitions` heisst nominell noch `_template_key`, semantisch ist es Spec-Key. ~30 Files Backend+Frontend Rename. Cosmetic-Schuld, kein Funktionsproblem. | LOW | 1 d | medium | sonnet | defer ohne Trigger |
 | FE-13 | **Stale-Detection beim Builder-Save** (FE-9-Folge). Wenn AdminTaskTemplate-Editor und Builder parallel Specs aendern, kann der Builder-Save die juengere Edit-Generation ueberschreiben. Fix: `updatedAt`-Pruefung beim Replace, 409 Conflict bei Drift, UI fragt zurueck. | LOW | 0,5 d | medium | sonnet | defer — Pre-Prod kein realer Risk |
 | FE-22 | **Navigations-Badges mit Aufgabenzähler** (UI/UX-Review 2026-05-04). Sidebar-Navigation zeigt keine Zähler. „Meine Aufgaben" und „Supervisor-Schritt" könnten Badge-Counts tragen; `useRoleAwareNavigation` hat Zugriff auf Insights. Optionales Feature — Navigation wird zur Aktions-Trigger-Fläche. | LOW | 1 d | medium | sonnet | defer — erst bei konkretem Nutzerfeedback |
-| FE-23 | **Metric-Cards ohne semantischen Kontext** (UI/UX-Review 2026-05-04). `.dashboard-metric` zeigt nur `value` + `label`. Der `tone`-Farbstreifen links ist visuell vorhanden, aber semantisch stumm — ohne Tooltipp oder Sublabel wie „davon heute fällig" ist die Zahl kontextlos. Optional: Sublabel-Feld im `DashboardStat`-Interface ergänzen und als `font-size: 0.7rem` unter dem Wert rendern. | LOW | 0,5 d | low | sonnet | defer — erst wenn Dashboard-Feedback kommt |
 
 ---
 
@@ -93,8 +91,8 @@ Die folgenden Bloecke uebersetzen das Frontend-Review in eine konkrete Abarbeitu
 
 **Items**
 - `FE-31` Personenakte zur 360-Grad-Ansicht ausbauen — abgeschlossen (siehe "Abgeschlossene Zyklen")
+- `FE-33` Gespeicherte Ansichten pro Rolle — abgeschlossen (siehe "Abgeschlossene Zyklen")
 - `FE-32` Globale Schnellnavigation / Command Search
-- `FE-33` Gespeicherte Ansichten pro Rolle
 - `FE-34` Operative Serienarbeit / Bulk-Aktionen
 
 **Empfohlene Reihenfolge**
@@ -116,13 +114,13 @@ Die folgenden Bloecke uebersetzen das Frontend-Review in eine konkrete Abarbeitu
 
 Wenn kein anderer Nutzerwunsch priorisiert wird, startet der naechste Frontend-Zyklus mit:
 
-1. **Aufgabe**: `FE-33 Gespeicherte Ansichten pro Rolle`
-2. **Reasoning Effort**: `medium`
-3. **Empfohlenes Modell**: `sonnet`
+1. **Aufgabe**: `FE-34 Operative Serienarbeit / Bulk-Aktionen`
+2. **Reasoning Effort**: `high`
+3. **Empfohlenes Modell**: `opus`
 
 Warum zuerst:
-- `FE-31` ist abgeschlossen; die Personenakte ist jetzt eine 360°-Arbeitsfläche mit Übersichts-/Aufgaben-/Benachrichtigungs-/Vorgangs-Tabs.
-- Listen-Presets (`FE-33`) hebeln die nächste Sichtbarkeitsstufe für rollen-typische Arbeitsmodi und stützen die Bulk-Aktionen aus `FE-34`.
+- `FE-31` und `FE-33` sind abgeschlossen; Personenakte und rollenbasierte Listen-Presets sind umgesetzt.
+- Bulk-Aktionen (`FE-34`) sind der nächste Produkthebel für operative Effizienz.
 
 ---
 
@@ -152,6 +150,8 @@ Warum zuerst:
 **Frontend-Roadmap Block 1 bis 3 2026-05-04:** FE-25 bis FE-29 abgeschlossen. Dialog-Haertung, UI-System-Konsolidierung, vereinheitlichte Filterleisten, Tabellenmodus fuer operative Listen und Split-View fuer Listenarbeit sind umgesetzt. Details bleiben in `CODEX_SYNC.md` und `git log`.
 
 **Frontend-Roadmap Block 4 2026-05-04 (FE-30):** Builder canvas-first abgeschlossen. Slice 1 (Canvas + Properties-Panel als Primärpfad, Step-Liste und Edge-Tabelle als sekundäre `details`), Slice 2 (Validation-Issues live an Nodes/Edges/Properties-Panel; lokale Validation `useMemo`-derived) und Slice 3 (Edge-Erzeugung direkt am Graph: „+"-Anker am Source-Knoten startet Connect-Mode, Klick auf Zielknoten legt die Verbindung über bestehenden `addEdge` an, Esc/Hintergrund bricht ab) sind umgesetzt. Details siehe `web/README.md` und `git log`.
+
+**Frontend-Roadmap Block 5 FE-33 2026-05-04:** Gespeicherte Ansichten pro Rolle umgesetzt. `WorkflowListPage` zeigt rollenbasierte Ansichten-Leiste (`WorkflowListSavedViewsBar`); Preset-Definitionen in `workflowListSavedViews.ts`. Presets: HR (alle Phasen), Manager (Freigabe + Bearbeitung), Worker (Fachbereich-Status), Admin/Leser (Überblick). URL-stabil über bestehende `useSearchParams`-Filter. CSS in `components.css` (`.saved-views-bar`, `.saved-view-chip`). `web/README.md` aktualisiert.
 
 **Frontend-Roadmap Block 5 Auftakt 2026-05-04 (FE-31):** Personenakte ist jetzt 360°-Arbeitsfläche. `PersonWorkflowHistoryPage` wurde von "Stammdaten + Liste" zu Tab-Workspace ausgebaut: Statuschips + Metric-Strip (aktive Vorgänge, offene Aufgaben, ausstehende/fehlgeschlagene Benachrichtigungen) und vier Tabs `Übersicht` (Stammdaten + Verzeichnis-Kontext + Schnellzugriff aktive Vorgänge), `Offene Aufgaben` (clientseitig aggregiert, sortiert nach SLA/Frist), `Benachrichtigungen` (failed + pending, gruppiert) und `Vorgänge` (bisherige Karten-/Tabellenansicht). Aggregation läuft über neuen Hook `usePersonWorkflowAggregates`, der für aktive Workflows parallel `getWorkflowByUid` (`useQueries`) zieht — Backend-Vertrag bleibt unverändert.
 
