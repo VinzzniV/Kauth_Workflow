@@ -2947,6 +2947,178 @@
   line-height: 1.45;
 }
 
+/* Spec summary (inline in measure step card) */
+.wf-spec-summary {
+  border-top: 1px dashed var(--border);
+  padding-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wf-spec-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.wf-spec-summary-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+/* Spec editor drawer */
+.wf-spec-drawer .admin-drawer {
+  width: min(780px, 96vw);
+}
+
+.wf-spec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.wf-spec-row {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.wf-spec-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.65rem;
+  background: var(--surface-raised, var(--surface));
+}
+
+.wf-spec-row-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  padding: 0;
+}
+
+.wf-spec-row-toggle:hover {
+  color: var(--brand);
+}
+
+.wf-spec-row-title {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wf-spec-row-body {
+  padding: 0.75rem 0.9rem 0.9rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wf-spec-inline-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.wf-spec-checkboxes {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.wf-spec-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.wf-spec-subsection {
+  border-top: 1px dashed var(--border);
+  padding-top: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.wf-spec-subsection-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wf-spec-subsection-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.wf-spec-subsection-add {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.wf-spec-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.wf-spec-condition-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.5fr) minmax(120px, 1fr) minmax(100px, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+@media (max-width: 680px) {
+  .wf-spec-condition-row {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+.wf-spec-condition-noval {
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.wf-spec-deps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.wf-spec-dep-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.wf-spec-dep-label {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
 /* Action editor */
 .wf-action-editor {
   display: flex;

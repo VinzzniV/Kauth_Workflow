@@ -25,6 +25,7 @@ import { summarizeCondition } from "./workflowBuilderEditorHelpers";
 import { WorkflowBuilderMeasurePreview } from "./WorkflowBuilderMeasurePreview";
 import { WorkflowBuilderActionEditor } from "./WorkflowBuilderActionEditor";
 import { WorkflowBuilderStepConfigEditor } from "./WorkflowBuilderStepConfigEditor";
+import { WorkflowBuilderSpecEditor } from "./WorkflowBuilderSpecEditor";
 
 export type WorkflowBuilderStepCardProps = {
   node: WorkflowBuilderNodeDraft;
@@ -206,6 +207,60 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MeasureSpecSummary({
+  node,
+  answerDefinitions,
+  responsibilityOwners,
+  canManageAdvanced,
+  onUpdate,
+}: {
+  node: WorkflowBuilderNodeDraft;
+  answerDefinitions: AdminAnswerDefinition[];
+  responsibilityOwners: AdminResponsibilityOwner[];
+  canManageAdvanced: boolean;
+  onUpdate: (patch: Partial<WorkflowBuilderNodeDraft>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const specs = node.specs;
+  const nodeName = node.title.trim() || node.nodeKey.trim() || "Maßnahmen-Schritt";
+
+  return (
+    <div className="wf-spec-summary">
+      <div className="wf-spec-summary-head">
+        <span className="wf-spec-summary-count">
+          {specs.length === 0
+            ? "Noch keine versionierten Specs"
+            : `${specs.length} ${specs.length === 1 ? "Spec" : "Specs"} in dieser Version`}
+        </span>
+        <button type="button" className="btn btn-secondary" onClick={() => setOpen(true)}>
+          {specs.length === 0 ? "Specs anlegen" : "Specs bearbeiten"}
+        </button>
+      </div>
+      {specs.length > 0 ? (
+        <div className="wf-automation-summary-chips">
+          {specs.slice(0, 5).map((spec, idx) => (
+            <span key={`${node.id}-spec-${idx}`} className="chip">
+              {spec.title.trim() || spec.specKey.trim() || `Spec ${idx + 1}`}
+            </span>
+          ))}
+          {specs.length > 5 ? <span className="chip">+{specs.length - 5} weitere</span> : null}
+        </div>
+      ) : null}
+      {open ? (
+        <WorkflowBuilderSpecEditor
+          specs={specs}
+          answerDefinitions={answerDefinitions}
+          responsibilityOwners={responsibilityOwners}
+          canManageAdvanced={canManageAdvanced}
+          onChangeSpecs={(updated) => onUpdate({ specs: updated })}
+          onClose={() => setOpen(false)}
+          nodeName={nodeName}
+        />
+      ) : null}
     </div>
   );
 }
@@ -401,16 +456,25 @@ function StepCardBody(props: WorkflowBuilderStepCardProps) {
 
   if (isMeasureGenerationNodeType(node.nodeType)) {
     return (
-      <WorkflowBuilderMeasurePreview
-        node={node}
-        versionDraft={versionDraft}
-        workflowDefinitions={workflowDefinitions}
-        taskTemplates={taskTemplates}
-        answerDefinitions={answerDefinitions}
-        taskTemplateConditions={taskTemplateConditions}
-        taskTemplateDependencies={taskTemplateDependencies}
-        responsibilityOwners={responsibilityOwners}
-      />
+      <>
+        <WorkflowBuilderMeasurePreview
+          node={node}
+          versionDraft={versionDraft}
+          workflowDefinitions={workflowDefinitions}
+          taskTemplates={taskTemplates}
+          answerDefinitions={answerDefinitions}
+          taskTemplateConditions={taskTemplateConditions}
+          taskTemplateDependencies={taskTemplateDependencies}
+          responsibilityOwners={responsibilityOwners}
+        />
+        <MeasureSpecSummary
+          node={node}
+          answerDefinitions={answerDefinitions}
+          responsibilityOwners={responsibilityOwners}
+          canManageAdvanced={canManageAdvanced}
+          onUpdate={onUpdate}
+        />
+      </>
     );
   }
 
