@@ -4,6 +4,7 @@ namespace API;
 
 internal sealed class TaskApplicationService(
     IWorkflowRepository repository,
+    IWorkflowLifecycleService workflowLifecycleService,
     IAuthorizationPolicyService authorizationPolicyService,
     IWorkflowVisibilityService workflowVisibilityService,
     IWorkflowNotificationDispatchService workflowNotificationDispatchService,
@@ -88,7 +89,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Approval decisions require the assigned supervisor responsibility or Admin override.");
         }
 
-        var task = await repository.DecideTaskApproval(taskId, request, currentUser.UserId);
+        var task = await workflowLifecycleService.DecideTaskApprovalAsync(taskId, request, currentUser.UserId);
         if (task is null)
         {
             return null;
@@ -120,7 +121,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Task updates require the current workflow phase, matching assignment or Admin override.");
         }
 
-        var task = await repository.UpdateTaskStatus(taskId, request.Status, currentUser.UserId);
+        var task = await workflowLifecycleService.UpdateTaskStatusAsync(taskId, request.Status, currentUser.UserId);
         if (task is null)
         {
             return null;
@@ -154,7 +155,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Task updates require the current workflow phase, matching assignment or Admin override.");
         }
 
-        var task = await repository.UpdateTaskStatusByRef(taskRef, request.Status, currentUser.UserId);
+        var task = await workflowLifecycleService.UpdateTaskStatusByRefAsync(taskRef, request.Status, currentUser.UserId);
         if (task is null)
         {
             return null;
@@ -331,7 +332,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Approval decisions require the assigned supervisor responsibility or Admin override.");
         }
 
-        var task = await repository.DecideTaskApprovalByRef(taskRef, request, currentUser.UserId);
+        var task = await workflowLifecycleService.DecideTaskApprovalByRefAsync(taskRef, request, currentUser.UserId);
         if (task is null)
         {
             return null;

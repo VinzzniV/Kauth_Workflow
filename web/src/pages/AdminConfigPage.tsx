@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AdminConfigWorkspaceContent } from "../components/admin-config/AdminConfigWorkspaceContent";
 import { AdminWorkspaceNavigation } from "../components/admin-config/AdminWorkspaceNavigation";
 import {
+  getAdminWorkspaceAreaMeta,
+  getAdminWorkspaceSectionMeta,
   normalizeAdminOrganizationEntity,
   normalizeAdminWorkspaceSection,
   parseAdminWorkspaceId,
@@ -41,6 +43,12 @@ export default function AdminConfigPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
   const rawSection = (searchParams.get("section") ?? "").trim().toLowerCase();
   const redirectToBuilder =
     rawSection === "builder" || rawSection === "templates" || rawSection === "answers" || rawSection === "defaults";
@@ -309,11 +317,15 @@ export default function AdminConfigPage() {
     directoryIdentities: data.directoryIdentities,
     directoryAuditEntries: data.directoryAuditEntries,
     directoryStatus: data.directoryStatus,
+    directoryResponsibilityGaps: data.directoryResponsibilityGaps,
+    directoryPendingImports: data.directoryPendingImports,
     isLoadingDirectory: data.isLoadingDirectory,
     isSyncingDirectory: data.isSyncingDirectory,
+    isImportingDirectory: data.isImportingDirectory,
     savingDirectoryGroupId: data.savingDirectoryGroupId,
     deletingDirectoryMappingId: data.deletingDirectoryMappingId,
     onSyncDirectory: data.handleSyncDirectory,
+    onImportDirectoryIdentities: data.handleImportDirectoryIdentities,
     onCreateDirectoryMapping: data.handleCreateDirectoryMapping,
     onDeleteDirectoryMapping: data.handleDeleteDirectoryMapping,
   };
@@ -394,7 +406,16 @@ export default function AdminConfigPage() {
   return (
     <main className="app-shell">
       <div className="page-container admin-settings-page">
-        <PageHeader variant="section" title="Administration" description={undefined} />
+        <PageHeader
+          variant="section"
+          title="Administration"
+          description={(() => {
+            if (section === "overview") return undefined;
+            const sectionMeta = getAdminWorkspaceSectionMeta(section);
+            const areaMeta = sectionMeta.area ? getAdminWorkspaceAreaMeta(sectionMeta.area) : null;
+            return areaMeta ? `${areaMeta.label} › ${sectionMeta.label}` : sectionMeta.label;
+          })()}
+        />
 
         <div className="admin-settings-shell">
           <AppErrorBoundary scope="AdminConfigPage/sidebar" inline>
@@ -405,14 +426,30 @@ export default function AdminConfigPage() {
 
           <section className="admin-settings-main" aria-label="Admin-Arbeitsbereich">
             {!data.isLoading && notice ? (
-              <section className="panel panel-success">
+              <section className="panel panel-success" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
                 <p className="panel-text">{notice}</p>
+                <button
+                  type="button"
+                  className="toast-close"
+                  aria-label="Hinweis schließen"
+                  onClick={() => setNotice(null)}
+                >
+                  ×
+                </button>
               </section>
             ) : null}
 
             {!data.isLoading && error && view.hasAnyData ? (
-              <section className="panel panel-error" role="alert">
+              <section className="panel panel-error" role="alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>
                 <p className="panel-text text-error">{error}</p>
+                <button
+                  type="button"
+                  className="toast-close"
+                  aria-label="Fehler schließen"
+                  onClick={() => handleError(null)}
+                >
+                  ×
+                </button>
               </section>
             ) : null}
 

@@ -58,7 +58,7 @@ internal static class LifecycleRuntimeSettingsResolver
             DirectoryGroupPrefix = Normalize(configuration["DIRECTORY_GROUP_PREFIX"]),
             DirectoryExplicitGroupIds = Normalize(configuration["DIRECTORY_EXPLICIT_GROUP_IDS"]),
             DirectorySyncScheduled = GetBoolean(configuration["DIRECTORY_SYNC_SCHEDULED"], defaultValue: true),
-            DirectorySyncIntervalMinutes = GetPositiveInt(configuration["DIRECTORY_SYNC_INTERVAL_MINUTES"], defaultValue: 15),
+            DirectorySyncIntervalMinutes = GetPositiveInt(configuration["DIRECTORY_SYNC_INTERVAL_MINUTES"], defaultValue: 60),
             AutoProvisionDefaultRoleKey = Normalize(configuration["AUTO_PROVISION_DEFAULT_ROLE_KEY"])
         };
     }

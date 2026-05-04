@@ -1,6 +1,6 @@
 // Rollenspezifisches Dashboard mit Kennzahlen und dem naechsten sinnvollen Arbeitsschritt.
 // Struktur: Zone 1 (Focus/Naechster Schritt), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit).
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
 import { useStartableWorkflowDefinitions } from "../../services/queries/workflowDefinitionQueries";
@@ -39,12 +39,21 @@ export default function DashboardOverview() {
     workflowDefinitionKey,
     selectedWorkflowDefinition
   );
-  const priorityItem = insights?.queueItems[0] ?? null;
-  const secondaryQueueItems = insights?.queueItems.slice(1) ?? [];
-  const employeeItems = insights?.employeeItems ?? [];
+
+  const lastInsightsRef = useRef(insights);
+  if (insights !== null) {
+    lastInsightsRef.current = insights;
+  }
+  const displayInsights = insights ?? lastInsightsRef.current;
+  const isInitialLoading = (isInsightsLoading || isDefinitionsLoading) && displayInsights === null;
+  const isRefreshing = (isInsightsLoading || isDefinitionsLoading) && displayInsights !== null;
+
+  const priorityItem = displayInsights?.queueItems[0] ?? null;
+  const secondaryQueueItems = displayInsights?.queueItems.slice(1) ?? [];
+  const employeeItems = displayInsights?.employeeItems ?? [];
   const meaningfulStats = useMemo(
-    () => (insights?.stats ?? []).filter((stat) => stat.value > 0),
-    [insights?.stats]
+    () => (displayInsights?.stats ?? []).filter((stat) => stat.value > 0),
+    [displayInsights?.stats]
   );
 
   if (dashboardActions.length === 0) {
@@ -58,9 +67,9 @@ export default function DashboardOverview() {
 
   return (
     <div className="content-stack">
-      {isInsightsLoading || isDefinitionsLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
+      {isInitialLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
 
-      {!isInsightsLoading && !isDefinitionsLoading && insightsError ? (
+      {!isInitialLoading && insightsError ? (
         <EmptyState
           title="Übersichtsdaten konnten nicht geladen werden."
           description={insightsError}
@@ -71,8 +80,8 @@ export default function DashboardOverview() {
         />
       ) : null}
 
-      {!isInsightsLoading && !isDefinitionsLoading && !insightsError && insights ? (
-        <>
+      {!isInitialLoading && !insightsError && displayInsights ? (
+        <div style={isRefreshing ? { opacity: 0.55, pointerEvents: "none", transition: "opacity 120ms ease" } : undefined}>
           {/* ─── Zone 1: Focus — nächster Schritt + Filter + Aktualisieren ─── */}
           <section className="panel dashboard-focus">
             <div className="dashboard-focus__head">
@@ -110,7 +119,7 @@ export default function DashboardOverview() {
               <Link to={priorityItem.to} className="dashboard-next-step dashboard-next-step--action">
                 <div>
                   <p className="dashboard-next-step__kicker">Nächster Schritt</p>
-                  <p className="dashboard-next-step__title">{insights.nextStep}</p>
+                  <p className="dashboard-next-step__title">{displayInsights.nextStep}</p>
                   <p className="dashboard-next-step__detail">{priorityItem.title}</p>
                 </div>
                 <span className="dashboard-next-step__cta">{priorityItem.actionLabel}</span>
@@ -118,8 +127,8 @@ export default function DashboardOverview() {
             ) : (
               <div className="dashboard-next-step">
                 <p className="dashboard-next-step__kicker">Aktueller Stand</p>
-                <p className="dashboard-next-step__title">{insights.nextStep}</p>
-                <p className="dashboard-next-step__detail">{insights.emptyQueueText}</p>
+                <p className="dashboard-next-step__title">{displayInsights.nextStep}</p>
+                <p className="dashboard-next-step__detail">{displayInsights.emptyQueueText}</p>
               </div>
             )}
           </section>
@@ -143,7 +152,7 @@ export default function DashboardOverview() {
           {secondaryQueueItems.length > 0 ? (
             <section className="panel panel-muted">
               <div className="panel-head">
-                <h2>{insights.queueTitle}</h2>
+                <h2>{displayInsights.queueTitle}</h2>
               </div>
               <ul className="dashboard-work-list">
                 {secondaryQueueItems.map((item) => (
@@ -165,8 +174,8 @@ export default function DashboardOverview() {
           {dashboardPersona === "manager" && employeeItems.length > 0 ? (
             <section className="panel panel-muted">
               <div className="panel-head">
-                <h2>{insights.employeeListTitle ?? "Mitarbeitende"}</h2>
-                {insights.employeeListDescription ? <p>{insights.employeeListDescription}</p> : null}
+                <h2>{displayInsights.employeeListTitle ?? "Mitarbeitende"}</h2>
+                {displayInsights.employeeListDescription ? <p>{displayInsights.employeeListDescription}</p> : null}
               </div>
               <ul className="dashboard-employee-list">
                 {employeeItems.map((item) => (
@@ -198,7 +207,7 @@ export default function DashboardOverview() {
               </ul>
             </section>
           ) : null}
-        </>
+        </div>
       ) : null}
     </div>
   );

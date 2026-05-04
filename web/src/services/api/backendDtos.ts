@@ -45,6 +45,9 @@ import type {
   AdminWorkflowValidationIssue,
   SimulationLoginUserOption,
   Me,
+  DirectoryResponsibilityGaps,
+  DirectoryPendingImports,
+  DirectoryImportResult,
 } from "../../types/auth";
 
 export type BackendDepartmentDto = Department;
@@ -416,6 +419,9 @@ export type BackendAdminDirectoryIdentityDto = AdminDirectoryIdentity;
 export type BackendAdminDirectoryMappingAuditEntryDto = AdminDirectoryMappingAuditEntry;
 export type BackendAdminDirectorySyncStatusDto = AdminDirectorySyncStatus;
 export type BackendAdminDirectorySyncResultDto = AdminDirectorySyncResult;
+export type BackendDirectoryResponsibilityGapsDto = DirectoryResponsibilityGaps;
+export type BackendDirectoryPendingImportsDto = DirectoryPendingImports;
+export type BackendDirectoryImportResultDto = DirectoryImportResult;
 export type BackendAdminGraphApplicationConfigurationDto = AdminGraphApplicationConfiguration;
 export type BackendAdminSystemLogEntryDto = AdminSystemLogEntry;
 export type BackendAdminSystemLogSummaryDto = AdminSystemLogSummary;

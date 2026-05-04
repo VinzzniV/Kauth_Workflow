@@ -360,7 +360,9 @@ async Task HandleNodeCompletionAsync(workflowId, completedNodeId, actorUserId, .
 - 2026-05-03 — Option B vom Nutzer angenommen. Q1–Q5 entschieden (siehe §6).
 - 2026-05-03 — Slice 0 abgeschlossen: Inventur in §10 angehängt.
 - 2026-05-03 — Q6 entschieden: Option (a) Apply-seitige Iteration mit `ApplyResult.ImmediatelyCompletedMeasureNode`-Signal.
-- Nächste Aktion: **Slice 1** — Engine-Extraktion auf Basis der Inventur. Gated nur noch auf lokale Postgres-DB (Verhaltens-Paritäts-Beweis via Bestandstests).
+- 2026-05-03 — Slice 1 (1.1–1.8) abgeschlossen: Engine extrahiert, Loop von 340 Z. auf 30 Z. queue-basierte Drainage reduziert, 25 Engine-Unit-Tests gruen, 384 Bestandstests gruen.
+- 2026-05-04 — Slice 2.0 abgeschlossen: Inventur-Refresh (§11). 6 Loop-Eintrittspunkte, 6 Brücken-Aufrufer, 4 Connection-Owners identifiziert. Lifecycle-Service-API skizziert.
+- Nächste Aktion: **Slice 2.1** — `IWorkflowLifecycleService` Skelett + DI (kein Verhaltenswechsel). Gated nur noch auf User-Approval der Sub-Slicing-Tabelle in TODO.md.
 
 ---
 
@@ -454,3 +456,90 @@ Direkte Aufrufer von `AdvanceRuntimeUntilWaitOrTerminal` und der drei Brücken:
 - **`BuildAutomationJobPayloadAsync` (Z. 1266)**: DB-Read für `automation`-Node mitten im Switch-Branch. Payload-Mapping-Logik ist heute in `AutomationOperations` — für Slice 1 muss entschieden werden, ob der Payload-Build in den Apply-Pfad wandert oder ob das Input-Mapping als Teil des Snapshots vorab geladen wird.
 
 - **Drei separate Transaction-Owners** (`TaskOperations.cs`, `DecideTaskApproval`, `AutomationOperations.cs`): alle öffnen eigene Connections und rufen dann den Loop-Eintrittspunkt auf. Slice 1 ändert das nicht; erst Slice 2 adressiert das via `IWorkflowLifecycleService` mit Connection-Scope (Q1/Q2).
+
+---
+
+## 11. Slice 2.0 — Inventur-Refresh nach Slice 1.6/1.7/1.8 (2026-05-04)
+
+Stand der Codebasis am Anfang von Slice 2, nachdem Slice 1 vollständig abgeschlossen ist.
+
+### 11.1 Was Slice 1.6 strukturell verändert hat
+
+`AdvanceRuntimeUntilWaitOrTerminal` (`PostgresWorkflowRuntimeRepository.cs:1017–1053`) ist jetzt eine **~30-Zeilen queue-basierte Drainage** über `WorkflowRuntimeEngine.Plan` + `EngineAdapter.LoadRuntimeSnapshot` + `EngineAdapter.ApplyRuntimePlan`. Die alten ~340 Zeilen Switch-/SQL-Logik aus §10.1 sind entfernt.
+
+Re-Plan-Pfad für sofort-completable Measure-Nodes läuft über `ApplyResult.ImmediatelyCompletedMeasureNodeIds`-Queue (Q6 (a), bestätigt umgesetzt).
+
+### 11.2 Aktuelle Loop-Eintrittspunkte (6 Stellen)
+
+| # | Aufrufer | Zweck | Tx-Owner |
+|---|----------|-------|----------|
+| 1 | `PostgresWorkflowRuntimeRepository.cs:363` | `CreateWorkflowDefinitionInstance` — initialer Loop ab `start`-Node | eigene Conn+Tx |
+| 2 | `PostgresWorkflowRuntimeRepository.cs:690` | `CompleteRuntimeFormNodeInternal` — Form-Completion | eigene Conn+Tx (vom Public-Service-Pfad) |
+| 3 | `PostgresWorkflowRuntimeRepository.cs:1434` | `TryCompleteRuntimeSetupNodeIfReady` — Setup-Node done (von Bridge `TryAdvanceRuntimeSetupFromTaskStatusUpdate` ausgelöst) | erbt von Bridge |
+| 4 | `PostgresWorkflowRuntimeRepository.cs:1793` | `CompleteRuntimeTaskNodeFromTaskStatusUpdate` (Brücke) | erbt von TaskOperations.cs:78 oder Service-Pfad |
+| 5 | `PostgresWorkflowRuntimeRepository.cs:1883` | `ApplyRuntimeApprovalDecisionFromWorkflowTask` (Brücke) | erbt von TaskOperations.cs:161 oder Service-Pfad |
+| 6 | `PostgresWorkflowRepository.AutomationOperations.cs:202` | `CompleteAutomationJobSuccess` — Automation-Job-Completion | eigene Conn+Tx |
+
+### 11.3 Brücken-Aufrufer (Slice-2-Ziele)
+
+Es gibt **drei** Brücken-Methoden, die Slice 2 entfernt, und **sechs** Aufrufstellen, die migriert werden müssen:
+
+| Aufrufer (Datei:Zeile) | Brücke | Entry-Pfad |
+|------------------------|--------|------------|
+| `TaskOperations.cs:131` | `CompleteRuntimeTaskNodeFromTaskStatusUpdate` | Task-System (`PUT /tasks/{id}/status` mit Runtime-Task in Terminal-Status) |
+| `TaskOperations.cs:145` | `TryAdvanceRuntimeSetupFromTaskStatusUpdate` | Task-System (`PUT /tasks/{id}/status` mit Setup-Task) |
+| `TaskOperations.cs:215` | `ApplyRuntimeApprovalDecisionFromWorkflowTask` | Task-System (`PUT /tasks/{id}/approval`) |
+| `AutomationOperations.cs:202` | direkt `AdvanceRuntimeUntilWaitOrTerminal` | Automation-Worker nach Job-Erfolg |
+| `PostgresWorkflowRuntimeRepository.cs:514` | `ApplyRuntimeApprovalDecisionFromWorkflowTask` | Service-Pfad `WorkflowDefinitionRuntimeService.CompleteApprovalNodeAsync` (`POST /runtime/.../approval`) |
+| `PostgresWorkflowRuntimeRepository.cs:574` | `CompleteRuntimeTaskNodeFromTaskStatusUpdate` | Service-Pfad `WorkflowDefinitionRuntimeService.CompleteTaskNodeAsync` (`POST /runtime/.../task`) |
+
+**Wichtig:** Die letzten beiden Aufrufer waren in der ursprünglichen Skizze §10.2 nicht als Slice-2-Pflicht markiert, sind es aber: solange die Brücken existieren, leben sie. Slice 2 schiebt diese Logik in den Lifecycle-Service.
+
+### 11.4 Aktuelle Connection-Owners (4 Stellen)
+
+Heute öffnet jeder dieser Pfade selbst eine `NpgsqlConnection` + `BeginTransaction` und treibt den Loop in derselben Tx:
+
+1. `TaskOperations.cs:78` — `UpdateTaskStatus`
+2. `TaskOperations.cs:161` — `DecideTaskApproval`
+3. `AutomationOperations.cs:105` — `CompleteAutomationJobSuccess`
+4. `PostgresWorkflowRuntimeRepository.cs` — `CreateWorkflowDefinitionInstance`, `CompleteRuntimeFormNode`, `CompleteRuntimeApprovalNode`, `CompleteRuntimeTaskNode` (jeweils eigene Conn+Tx je Public-Methode)
+
+Q1-Entscheidung: **Alle vier wandern in den `IWorkflowLifecycleService`**. Repo bekommt `*InScope`-Varianten, die Conn+Tx als Parameter nehmen.
+
+### 11.5 Schnitt der Lifecycle-Service-API
+
+Aus den Aufrufketten ableitbar:
+
+```csharp
+internal interface IWorkflowLifecycleService
+{
+    // Task-System
+    Task<TaskWithWorkflowDto?> UpdateTaskStatusAsync(long taskId, string status, long actorUserId);
+    Task<TaskWithWorkflowDto?> UpdateTaskStatusByRefAsync(string taskRef, string status, long actorUserId);
+    Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(long taskId, TaskApprovalDecisionRequest request, long actorUserId);
+    Task<TaskWithWorkflowDto?> DecideTaskApprovalByRefAsync(string taskRef, TaskApprovalDecisionRequest request, long actorUserId);
+
+    // Automation-Layer
+    Task OnAutomationJobCompletedAsync(ClaimedAutomationJobRecord job, WorkflowAutomationHandlerResult result, CancellationToken cancellationToken);
+
+    // Definition-Service-Pfade
+    Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId);
+    Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId);
+    Task<WorkflowDefinitionRuntimeDetailDto?> CompleteApprovalNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId);
+    Task<WorkflowDefinitionRuntimeDetailDto?> CompleteTaskNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId);
+}
+```
+
+Jede Methode öffnet Conn+Tx, ruft `repository.*InScope(conn, tx, ...)` für die Status-/Persistenz-Vorarbeit, treibt dann via `EngineAdapter` den Plan-Apply, committet.
+
+### 11.6 Gotchas / Risiken für Slice 2
+
+- **Service-Pfade `CompleteRuntimeApprovalNode` Z. 514 und `CompleteRuntimeTaskNode` Z. 574** machen vor der Brücke noch zusätzliche Arbeit (Task-Status-Sync, Audit-Eintrag). Der Lifecycle-Service muss diesen Vor-Code mitnehmen — sonst Doppel-Audit oder verlorenes `task_status_changed`-Event.
+- **`DecideTaskApproval` (TaskOperations.cs:215)** persistiert vor der Brücke `done` + Audit + Comment. Auch das muss im Lifecycle-Pfad entweder vor oder via `*InScope`-Variante passieren — sonst kippt die Approval-Reihenfolge.
+- **`UpdateTaskStatus` (TaskOperations.cs:74)** hat zwei Brücken-Pfade (`isRuntimeNodeTask=true` mit Terminal vs. Setup-Task). Lifecycle muss beide unterscheiden — die Information `isRuntimeNodeTask` kommt aus `LoadTaskStateForUpdate`, also braucht der Lifecycle-Pfad das Result aus der `*InScope`-Variante zurück, bevor er die Engine-Verzweigung wählt.
+- **TaskOperations.cs unterstützt Rotation-Tasks via `_rotationRepository`** (`UpdateTaskStatusByRef`, `DecideTaskApprovalByRef`). Rotation-Tasks haben kein `node_instance_id` und treiben keinen Workflow-Loop — Lifecycle-Service darf für Rotation-Pfade nicht in den Engine-Apply gehen. Routing-Branch (`WorkflowTaskRef.TryParse` vor `RotationTaskRef.TryParse`) liegt heute im Repo; der Lifecycle-Service umfasst nur den Workflow-Task-Pfad, der Rotation-Pfad bleibt direkt im Repo.
+- **Verhaltens-Paritäts-Beweis**: 384 Bestandstests + 25 Engine-Unit-Tests müssen grün bleiben. Insbesondere die Integration-Tests, die `PUT /tasks/{id}/status` und `POST /runtime/.../task` durchgehen, sind die Hauptabsicherung gegen Regressionen in der Brücken-Migration.
+
+### 11.7 Geplante Sub-Slices
+
+Detaillierte Tabelle in `TODO.md` (S7-Slice2.0 bis S7-Slice2.6).

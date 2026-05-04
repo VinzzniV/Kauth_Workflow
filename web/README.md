@@ -24,7 +24,7 @@ Wiederverwendbare UI-Bausteine, besonders:
 - `components/dashboard`
 - `components/admin-config`
 - `components/feedback`
-- `components/rotation` — Audit-Log- und Benachrichtigungshistorie-Panels für Rotation-Detailseiten
+- `components/rotation` — Stations-Timeline (`RotationStationTimeline`), Kalenderansicht, Stationsformular, Audit-Log und Benachrichtigungshistorie für Rotation-Detailseiten
 
 `src/auth/`
 Auth-Provider, Session-Wiederherstellung, aktueller Benutzer, Rollenmodell, MSAL/Entra-Integration.

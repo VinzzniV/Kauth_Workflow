@@ -7,6 +7,7 @@ internal sealed class WorkflowAutomationService(
     IWorkflowAutomationReadRepository readRepository,
     IWorkflowAutomationHandlerRegistry handlerRegistry,
     ISystemEventLogService systemEventLogService,
+    IWorkflowLifecycleService lifecycleService,
     WorkflowAutomationRetrySettings retrySettings,
     ILogger<WorkflowAutomationService> logger) : IWorkflowAutomationService
 {
@@ -42,7 +43,7 @@ internal sealed class WorkflowAutomationService(
                 Payload = job.Payload
             }, cancellationToken);
 
-            await repository.CompleteAutomationJobSuccess(job, result, cancellationToken);
+            await lifecycleService.OnAutomationJobCompletedAsync(job, result, cancellationToken);
             logger.LogInformation(
                 "Automation job {JobId} for action {ActionKey} completed successfully on attempt {AttemptNumber}.",
                 job.JobId,

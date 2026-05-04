@@ -2,8 +2,9 @@ import type {
   AdminDirectoryIdentity,
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncStatus,
+  DirectoryResponsibilityGaps,
 } from "../../types/auth";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
 import { formatTimestamp } from "./adminConfigHelpers";
@@ -12,6 +13,7 @@ type AdminDirectorySyncSectionProps = {
   status: AdminDirectorySyncStatus | null;
   identities: AdminDirectoryIdentity[];
   auditEntries: AdminDirectoryMappingAuditEntry[];
+  responsibilityGaps: DirectoryResponsibilityGaps | null;
   isLoading: boolean;
   isSyncing: boolean;
   onSync: (groupPrefix: string | null) => void | Promise<void>;
@@ -47,12 +49,14 @@ export function AdminDirectorySyncSection({
   status,
   identities,
   auditEntries,
+  responsibilityGaps,
   isLoading,
   isSyncing,
   onSync,
 }: AdminDirectorySyncSectionProps) {
   const configuredGroupPrefix = status?.configuredGroupPrefix ?? "Onboarding";
   const groupPrefixInputRef = useRef<HTMLInputElement | null>(null);
+  const [gapsExpanded, setGapsExpanded] = useState(false);
 
   return (
     <section className="panel">
@@ -87,6 +91,59 @@ export function AdminDirectorySyncSection({
 
       {status?.lastError ? (
         <p className="panel-note">Letzter Fehler: {status.lastError}</p>
+      ) : null}
+
+      {!isLoading && responsibilityGaps && responsibilityGaps.totalUnassignedDepartments > 0 ? (
+        <div className="panel-note" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>
+              {responsibilityGaps.totalCandidatesNotYetAssigned}{" "}
+              {responsibilityGaps.totalCandidatesNotYetAssigned === 1 ? "Person" : "Personen"} in Entra-Gruppen
+              ohne Zuständigkeitszuweisung in{" "}
+              {responsibilityGaps.totalUnassignedDepartments}{" "}
+              {responsibilityGaps.totalUnassignedDepartments === 1 ? "Abteilung" : "Abteilungen"}.
+            </span>
+            <button
+              type="button"
+              className="btn btn-link"
+              onClick={() => setGapsExpanded((prev) => !prev)}
+            >
+              {gapsExpanded ? "Ausblenden" : "Details"}
+            </button>
+          </div>
+
+          {gapsExpanded ? (
+            <table className="table" style={{ marginTop: "0.5rem" }}>
+              <thead>
+                <tr>
+                  <th>Abteilung</th>
+                  <th>Entra-Gruppe</th>
+                  <th>Kandidaten</th>
+                  <th>Aktuelle Zuweisung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {responsibilityGaps.gaps
+                  .filter((g) => g.assignedLeadPersonId === null)
+                  .map((gap) => (
+                    <tr key={gap.departmentId}>
+                      <td>{gap.departmentName}</td>
+                      <td>{gap.entraGroupName ?? "–"}</td>
+                      <td>
+                        {gap.candidates.map((c) => (
+                          <div key={c.appUserId}>
+                            {c.displayName}
+                            {c.mail ? <span className="panel-note"> ({c.mail})</span> : null}
+                          </div>
+                        ))}
+                      </td>
+                      <td>Nicht zugewiesen</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="toolbar-row">

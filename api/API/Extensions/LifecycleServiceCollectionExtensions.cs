@@ -87,6 +87,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IRotationRepository, PostgresRotationRepository>();
         services.AddScoped<IWorkflowDefinitionRuntimeRepository, PostgresWorkflowRuntimeRepository>();
         services.AddScoped<IWorkflowAutomationRepository, PostgresWorkflowRepository>();
+        services.AddScoped<IWorkflowLifecycleScopedRepository, PostgresWorkflowRepository>();
         services.AddScoped<IWorkflowDefinitionValidationService, WorkflowDefinitionValidationService>();
         services.AddHttpContextAccessor();
         services.AddSingleton(runtimeSettings);
@@ -156,6 +157,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateErpEmployeeAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, SendWelcomeMailAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationHandlerRegistry, WorkflowAutomationHandlerRegistry>();
+        services.AddScoped<IWorkflowLifecycleService, WorkflowLifecycleService>();
         services.AddScoped<ITaskApplicationService, TaskApplicationService>();
         services.AddScoped<ISupervisorStepService, PostgresSupervisorStepService>();
         services.Configure<NotificationEmailOptions>(

@@ -15,14 +15,18 @@ Verwende sie nur fuer:
 
 ## Current Focus
 
-- **Schritt 7 (Runtime ↔ Task-System) ist aktiv.** Architektur-Skizze + Slice 0 Inventur done (2026-05-03). Option B (Engine als pure Domain-Service, analog H6) angenommen. Q1–Q5 entschieden; Q6 (rekursiver Loop-Pfad) offen vor Slice 1. Skizze: `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`.
-- Slice 1 (Engine-Extraktion, ~3–5 d, opus) ist gated auf Q6-Entscheidung + lokale Postgres-DB.
+- **Schritt 7 Slice 2 ist vollstaendig abgeschlossen** (2026-05-04). 2.0–2.6 done. 409 Tests gruen, 0 failed.
+- `WorkflowLifecycleService` besitzt jetzt Conn+Tx fuer alle Mutationspfade: Task-Status, Approval, Automation, Definition-Runtime-Delegierung.
+- `WorkflowAutomationService` und `WorkflowDefinitionRuntimeService` routen durch `IWorkflowLifecycleService`.
+- Naechster Schritt: kein weiterer Schritt 7 offen. Naechster Zyklus aus `CODE_REVIEW.md` lesen.
 - `DOCS_CONTROL.md` bleibt zentraler Einstieg; pro Aufgabe mitdenken, welche Doku im selben Arbeitsgang aktualisiert wird.
 
 ## Active Risks / Watchouts
 
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
-- DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432` — relevant fuer Slice 1 (Verhaltens-Paritaets-Beweis).
+- DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432` — relevant fuer Slice 2.3+ (Verhaltens-Paritaets-Beweis nach Brücken-Migration).
+- Repo-Methoden `CompleteRuntimeApprovalNode` / `CompleteRuntimeTaskNode` / `CreateWorkflowDefinitionInstance` / `CompleteRuntimeFormNode` in `PostgresWorkflowRuntimeRepository` existieren noch — sie werden nur noch via `lifecycleService.*` aufgerufen (Slice 2.5 Routing). Vollstaendige Verschiebung der Logik in den Service ist defer.
+- Rotation-Task-Routing bleibt im Repo (`UpdateTaskStatusByRef` / `DecideTaskApprovalByRef`): RotationTaskRef → `_rotationRepository`, WorkflowTaskRef → Lifecycle-Service.
 - Permission-Schema ist seit Slice 6.3d-iv vollstaendig definitionsgetrieben (`workflows.create.<definition_key>`).
 - LA5 done: Task-Specs liegen am `workflow_node_id`. `workflow_definitions.approval_task_template_key` heisst nominell noch `_template_key` — Naming-Cleanup als FE-8 backlog.
 - FE-9 done: Spec-Carry-Over via `WorkflowDefinitionNodeDto.Specs`. AdminTaskTemplate-Editor schreibt weiter auf published Version — Cross-Version-Leak bleibt Watch-Item (FE-11/13).

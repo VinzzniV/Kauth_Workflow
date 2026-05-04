@@ -5,6 +5,8 @@ import type {
   AdminDirectoryIdentity,
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncStatus,
+  DirectoryPendingImports,
+  DirectoryResponsibilityGaps,
   AdminGraphApplicationConfiguration,
   AdminGroup,
   AdminNotificationEmailConfiguration,
@@ -176,11 +178,15 @@ export type AdminConfigDirectoryBundle = {
   directoryIdentities: AdminDirectoryIdentity[];
   directoryAuditEntries: AdminDirectoryMappingAuditEntry[];
   directoryStatus: AdminDirectorySyncStatus | null;
+  directoryResponsibilityGaps: DirectoryResponsibilityGaps | null;
+  directoryPendingImports: DirectoryPendingImports | null;
   isLoadingDirectory: boolean;
   isSyncingDirectory: boolean;
+  isImportingDirectory: boolean;
   savingDirectoryGroupId: number | null;
   deletingDirectoryMappingId: number | null;
   onSyncDirectory: (groupPrefix: string | null) => void | Promise<void>;
+  onImportDirectoryIdentities: (ids: number[]) => void | Promise<void>;
   onCreateDirectoryMapping: (
     directoryGroupId: number,
     appRoleId: number,

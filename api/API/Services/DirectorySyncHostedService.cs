@@ -45,6 +45,9 @@ internal sealed class DirectorySyncHostedService : BackgroundService
         }
 
         var interval = TimeSpan.FromMinutes(_runtimeSettings.DirectorySyncIntervalMinutes);
+        _logger.LogInformation(
+            "Scheduled directory sync active. Interval: {IntervalMinutes} min. Configure via DIRECTORY_SYNC_INTERVAL_MINUTES.",
+            _runtimeSettings.DirectorySyncIntervalMinutes);
         await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)

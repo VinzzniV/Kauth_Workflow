@@ -104,6 +104,82 @@ internal static class AdminDirectorySyncEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapGet("/admin/directory/responsibility-gaps", async (
+            [FromServices] IDirectorySyncService directorySyncService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await directorySyncService.GetResponsibilityGapsAsync());
+        }).Produces<DirectoryResponsibilityGapsDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapGet("/admin/directory/pending-imports", async (
+            [FromServices] IDirectorySyncService directorySyncService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await directorySyncService.GetPendingImportsAsync());
+        }).Produces<DirectoryPendingImportsDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPost("/admin/directory/import", async (
+            [FromBody] DirectoryImportRequest request,
+            [FromServices] IDirectorySyncService directorySyncService,
+            [FromServices] ISystemEventLogService systemEventLogService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            if (request.DirectoryIdentityIds is null || request.DirectoryIdentityIds.Count == 0)
+            {
+                return Results.BadRequest(new { message = "At least one directoryIdentityId is required." });
+            }
+
+            var result = await directorySyncService.ImportIdentitiesAsync(request, access.User?.UserId);
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = result.FailedCount > 0 ? "warning" : "info",
+                Source = "admin",
+                Category = "directory_import",
+                EventKey = "directory_import_batch",
+                Message = $"Directory import batch: {result.ImportedCount} imported, {result.FailedCount} failed.",
+                ActorUserId = access.User?.UserId,
+                Details = result
+            });
+            return Results.Ok(result);
+        }).Produces<DirectoryImportResultDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapGet("/admin/directory/audit", async (
             [FromQuery] int? limit,
             [FromServices] IDirectorySyncService directorySyncService,

@@ -214,6 +214,51 @@ export type AdminDirectoryMappingAuditEntry = {
   createdAt: string;
 };
 
+export type DirectoryPendingImport = {
+  directoryIdentityId: number;
+  entraObjectId: string;
+  displayName: string;
+  mail: string | null;
+  userPrincipalName: string;
+  departmentName: string | null;
+  previewDepartmentId: number | null;
+  groupNames: string[];
+  previewRoleKeys: string[];
+};
+
+export type DirectoryPendingImports = {
+  pendingImports: DirectoryPendingImport[];
+  totalCount: number;
+};
+
+export type DirectoryImportResult = {
+  importedCount: number;
+  failedCount: number;
+  imported: Array<{ directoryIdentityId: number; appUserId: number; displayName: string }>;
+  failed: Array<{ directoryIdentityId: number; reason: string }>;
+};
+
+export type DirectoryResponsibilityCandidate = {
+  appUserId: number;
+  displayName: string;
+  mail: string | null;
+};
+
+export type DirectoryResponsibilityGapEntry = {
+  departmentId: number;
+  departmentName: string;
+  entraGroupName: string | null;
+  assignedLeadPersonId: number | null;
+  candidatesInEntra: number;
+  candidates: DirectoryResponsibilityCandidate[];
+};
+
+export type DirectoryResponsibilityGaps = {
+  gaps: DirectoryResponsibilityGapEntry[];
+  totalUnassignedDepartments: number;
+  totalCandidatesNotYetAssigned: number;
+};
+
 export type AdminPermissionAuditEntry = {
   auditEntryId: number;
   actorUserId: number | null;

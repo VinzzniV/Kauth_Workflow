@@ -39,6 +39,11 @@ function getRotationPlanStatusPillClass(status: RotationPlanStatus): string {
   }
 }
 
+function formatUid(uid: string | null | undefined): string {
+  if (!uid) return "-";
+  return uid.length > 8 ? `${uid.slice(0, 8)}…` : uid;
+}
+
 function formatEmploymentStatus(status: string | null): string {
   switch (status) {
     case "planned":
@@ -139,6 +144,14 @@ export default function RotationPlanningPage() {
               : "Übersicht über bestehende Durchlaufpläne, Stände und Einstiege in die Detailansicht."
           }
         />
+
+        {isCreateMode ? (
+          <div>
+            <Link to="/rotation/planning" className="btn btn-secondary">
+              ← Zurück zur Übersicht
+            </Link>
+          </div>
+        ) : null}
 
 
         {isCreateMode ? (
@@ -290,7 +303,9 @@ export default function RotationPlanningPage() {
                 </div>
                 <div>
                   <dt>Quell-Onboarding</dt>
-                  <dd>{selectedPerson.latestCompletedOnboardingWorkflowUid ?? "-"}</dd>
+                  <dd title={selectedPerson.latestCompletedOnboardingWorkflowUid ?? undefined} className="uid-value">
+                    {formatUid(selectedPerson.latestCompletedOnboardingWorkflowUid)}
+                  </dd>
                 </div>
                 <div>
                   <dt>Abgeschlossen</dt>
@@ -397,7 +412,9 @@ export default function RotationPlanningPage() {
                         </div>
                         <div>
                           <dt>Quell-Onboarding</dt>
-                          <dd>{plan.sourceWorkflowUid}</dd>
+                          <dd title={plan.sourceWorkflowUid} className="uid-value">
+                            {formatUid(plan.sourceWorkflowUid)}
+                          </dd>
                         </div>
                       </dl>
 

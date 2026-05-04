@@ -113,6 +113,14 @@ AD / Entra liefern die technische Identität. Person und technische Identity ble
 
 Standardzugriff kommt über Gruppen-Mapping. Lokale Sonderfälle bleiben Ausnahme.
 
+### Entra-Sync setzt keine Zuständigkeiten mehr automatisch (2026-05-04)
+
+Der Directory-Sync-Zyklus aktualisiert ausschließlich Identitätsdaten (`directory_identities`, `directory_groups`, `app_users`-Felder). `department_settings.department_lead_person_id` und alle weiteren Zuständigkeiten werden nicht mehr automatisch aus Entra-Gruppen-Mitgliedschaften abgeleitet.
+
+**Warum:** Manuelle Zuweisungen durch Admins wurden beim nächsten Sync-Durchlauf überschrieben oder gelöscht, weil `SyncDepartmentLeadAssignmentsFromDirectory()` `department_settings` vollständig aus Gruppen-Kandidaten neu berechnete. Das Modell vermischte "wer ist im System bekannt" (Identität, Entra-Quelle) mit "wer ist für was zuständig" (Responsibility, Admin-Entscheidung).
+
+**Konsequenz:** Admins weisen Abteilungsleitungen und Approver manuell zu. Der Sync liefert nur noch die Kandidaten-Basis (wer existiert, ist aktiv, in welcher Gruppe). Eine informative Anzeige ("X Personen in Entra-Gruppen ohne Zuweisung") unterstützt Admins dabei, offene Zuweisungen zu erkennen.
+
 ---
 
 ## Dokumentation & Prozess

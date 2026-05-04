@@ -7,6 +7,9 @@ import type {
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncResult,
   AdminDirectorySyncStatus,
+  DirectoryImportResult,
+  DirectoryPendingImports,
+  DirectoryResponsibilityGaps,
   AdminRoleAnswerDefault,
   AdminTaskSpec,
   AdminTaskSpecCondition,
@@ -32,6 +35,9 @@ import type {
   BackendAdminDirectoryMappingAuditEntryDto,
   BackendAdminDirectorySyncResultDto,
   BackendAdminDirectorySyncStatusDto,
+  BackendDirectoryImportResultDto,
+  BackendDirectoryPendingImportsDto,
+  BackendDirectoryResponsibilityGapsDto,
   BackendAdminRoleAnswerDefaultDto,
   BackendAdminTaskTemplateConditionDto,
   BackendAdminTaskTemplateDependencyDto,
@@ -68,6 +74,21 @@ export async function getAdminDirectoryIdentities(
     offset: String(offset),
   });
   return requestJson<BackendAdminDirectoryIdentityDto[]>(`/admin/directory/identities?${params.toString()}`);
+}
+
+export async function getAdminDirectoryResponsibilityGaps(): Promise<DirectoryResponsibilityGaps> {
+  return requestJson<BackendDirectoryResponsibilityGapsDto>("/admin/directory/responsibility-gaps");
+}
+
+export async function getAdminDirectoryPendingImports(): Promise<DirectoryPendingImports> {
+  return requestJson<BackendDirectoryPendingImportsDto>("/admin/directory/pending-imports");
+}
+
+export async function postAdminDirectoryImport(directoryIdentityIds: number[]): Promise<DirectoryImportResult> {
+  return requestJson<BackendDirectoryImportResultDto>("/admin/directory/import", {
+    method: "POST",
+    body: { directoryIdentityIds },
+  });
 }
 
 export async function getAdminDirectoryAudit(limit = 50): Promise<AdminDirectoryMappingAuditEntry[]> {

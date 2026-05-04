@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AdminDirectoryPendingImportsSection } from "./AdminDirectoryPendingImportsSection";
 import { AdminDirectorySyncSection } from "./AdminDirectorySyncSection";
 import { AdminFieldConfigurationWorkspaceSection } from "./AdminFieldConfigurationWorkspaceSection";
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
@@ -182,10 +183,17 @@ export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps
   return renderWorkspaceWithIntro(
     "directory",
     <div className="content-stack">
+      <AdminDirectoryPendingImportsSection
+        pendingImports={directory.directoryPendingImports}
+        isLoading={directory.isLoadingDirectory}
+        isImporting={directory.isImportingDirectory}
+        onImport={directory.onImportDirectoryIdentities}
+      />
       <AdminDirectorySyncSection
         status={directory.directoryStatus}
         identities={directory.directoryIdentities}
         auditEntries={directory.directoryAuditEntries}
+        responsibilityGaps={directory.directoryResponsibilityGaps}
         isLoading={directory.isLoadingDirectory}
         isSyncing={directory.isSyncingDirectory}
         onSync={directory.onSyncDirectory}

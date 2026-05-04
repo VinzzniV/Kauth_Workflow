@@ -31,23 +31,9 @@ Format-Beispiel: *„Naechster Schritt: S7-Slice1 — Engine-Extraktion. Reasoni
 
 ---
 
-## Aktiver Zyklus: Runtime-Lifecycle (Zyklus 6, 2026-05-03)
+## Abgeschlossener Zyklus: Runtime-Lifecycle (Zyklus 6, 2026-05-03 – 2026-05-04)
 
-Migrationspfad-Schritt 7 ("Task-System an Node-Runtime anbinden"). Detail-Skizze + Slice-Plan in `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`. Option B (Engine als pure Domain-Service, analog H6) angenommen; Q1–Q6 entschieden.
-
-| # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
-|---|---------|------|---------|------------------|--------|--------|
-| S7-Slice0 | **Inventur**: Loop-Aufrufe, Eintrittspunkte, Plan-Schnitt-Vorschlag, Risiken — als §10 in der Skizze. | LOW | 0,5 d | medium | sonnet | ✓ done (2026-05-03) |
-| S7-Q6 | **Q6 entscheiden**: rekursiver Loop-Pfad aus `TryCompleteRuntimeSetupNodeIfReady`. | HIGH | 0,2 d | high | opus | ✓ done (2026-05-03) — Option (a) Apply-seitige Iteration |
-| S7-Slice1.1 | **Pure Helpers extrahieren**: 7 Helper + `ActiveRuntimeNodeRecord` von `PostgresWorkflowRuntimeRepository` in neue `api/API/Services/WorkflowRuntimeEngine.cs`. Aufrufstellen via `WorkflowRuntimeEngine.X(...)`. Kein Verhaltenswechsel. | LOW | 0,5 d | medium | sonnet | ✓ done (2026-05-03) — 384 Tests gruen |
-| S7-Slice1.2 | **Snapshot-Records definieren** (Input fuer `Engine.Plan`): `WorkflowRuntimeSnapshot` (Graph + Answers + NodeInstanceStatusByWorkflowNodeId + Context + ApprovalSpecByNodeId). Eigene Datei `WorkflowRuntimeEngineSnapshot.cs`. Reine Records, noch ohne Konsumenten. | LOW | 0,3 d | low | sonnet | ✓ done (2026-05-03) |
-| S7-Slice1.3 | **Plan-Records definieren** (Output von `Engine.Plan`): `WorkflowRuntimePlan` (NodeSteps + Outcome), abstract `RuntimeNodeStep` + 5 konkrete Sub-Typen, abstract `RuntimeWorkflowOutcome` + 3 Sub-Typen, plus `WorkflowRuntimeApplyResult { ImmediatelyCompletedMeasureNodeId }` fuer Q6. Eigene Datei `WorkflowRuntimePlan.cs`. | LOW | 0,3 d | low | sonnet | ✓ done (2026-05-03) |
-| S7-Slice1.4 | **`Engine.Plan(...)` schreiben**: pure Methode, die einen `WorkflowRuntimePlan` aus Snapshot + completedNode ableitet. Spiegelt die Logik aus `AdvanceRuntimeUntilWaitOrTerminal` 1:1, aber ohne DB-Calls. Wirft kein, signalisiert Failure als Plan-Variant. Noch nicht im Loop verwendet. | HIGH | 1,5–2 d | high | opus | ✓ done (2026-05-03) |
-| S7-Slice1.5 | **Repo-Adapter `LoadRuntimeSnapshot` + `ApplyRuntimePlan`**: Snapshot in einem Read-Block laden (alle DB-Reads aus dem Loop konsolidiert); Plan-Apply schreibt INSERTs/UPDATEs + Tasks/Automation-Jobs. `ApplyResult.ImmediatelyCompletedMeasureNodeIds` als Liste fuer parallele Measure-Auto-Completions. | HIGH | 1–1,5 d | high | opus | ✓ done (2026-05-03) |
-| S7-Slice1.6 | **`AdvanceRuntimeUntilWaitOrTerminal` auf Engine umstellen**: Loop wird zur duennen Schleife `LoadSnapshot → Plan → ApplyPlan → re-loop wenn ApplyResult triggert`. Bestehende Aufrufer aendern sich nicht. Verhaltens-Paritaet gegen Bestandstests. | HIGH | 0,5–1 d | high | opus | ✓ done (2026-05-03) — 340 Z. Loop → 30 Z. Queue-Drainage; 5 tote Helpers + 1 Record entfernt; 384 Tests gruen |
-| S7-Slice1.7 | **Unit-Tests fuer `WorkflowRuntimeEngine.Plan`**: ~20–30 Tests gegen Plan-Granularitaet (Decision-Branching, Parallel-Join-Konvergenz, Auto-Complete-Bridge, Measure-Node-Aktivierung, Failure-Pfade, leere Outgoing-Edges). Datei `api/API.Tests/WorkflowRuntimeEngineTests.cs`. DB-frei. | MEDIUM | 1 d | medium | sonnet | ✓ done (2026-05-03) — 25 Tests gruen, kein DB |
-| S7-Slice1.8 | **Integration-Tests gruen halten**: Bestandstests (384) muessen ohne Aenderung gruen sein nach Slice 1.6. Falls einer kippt, ist Slice 1.4/1.5 nicht verhaltens-aequivalent — vor Slice 2 fixen. | LOW | 0,2 d | low | sonnet | ✓ done (2026-05-03) — 409 Tests gruen (384 + 25 neu), 0 failed |
-| S7-Slice2 | **Service-Brücke**: `IWorkflowLifecycleService` mit Connection-Scope. `TaskApplicationService` + `WorkflowAutomationService` rufen Lifecycle direkt. Repo-Brücken (`*FromTaskStatusUpdate`, `*FromWorkflowTask`) entfernt. | HIGH | 2–3 d | high | opus/sonnet | gated auf S7-Slice1.8 |
+Schritt 7 vollstaendig abgeschlossen. Detail-Skizze + Slice-Plan in `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`. Alle S7-Slices (0, Q6, 1.1–1.8, 2.0–2.6) done. 409 Tests gruen.
 
 ---
 
@@ -71,7 +57,7 @@ Migrationspfad-Schritt 7 ("Task-System an Node-Runtime anbinden"). Detail-Skizze
 
 ## Abgeschlossene Zyklen
 
-Zyklen 1–5 (2026-04-23 bis 2026-05-03) sind abgeschlossen. Detail-Historie via `git log`; Highlights pro Zyklus in `KauthWorkflow/Stand/Code-Review-Status.md`.
+Zyklen 1–6 (2026-04-23 bis 2026-05-04) sind abgeschlossen. Detail-Historie via `git log`; Highlights pro Zyklus in `KauthWorkflow/Stand/Code-Review-Status.md`.
 
 ---
 

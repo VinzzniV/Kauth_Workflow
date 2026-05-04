@@ -74,30 +74,39 @@ internal sealed partial class PostgresWorkflowRepository
     public async Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId)
     {
         var normalizedStatus = TaskStatusRules.NormalizeTaskStatus(status);
-
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
-
-        if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
-        {
+        var result = await UpdateTaskStatusInScope(connection, transaction, taskId, normalizedStatus, actorUserId);
+        if (result is null)
             return null;
-        }
+        if (result.ShouldCompleteRuntimeTaskNode && result.RuntimeNodeInstanceId.HasValue)
+            await PostgresWorkflowRuntimeRepository.CompleteTaskNodeRuntimeSide(connection, transaction, result.WorkflowId, result.WorkflowUid, result.RuntimeNodeInstanceId.Value, actorUserId);
+        else if (result.ShouldTryAdvanceRuntimeSetup)
+            await PostgresWorkflowRuntimeRepository.TryAdvanceSetupNodeIfReady(connection, transaction, result.WorkflowId, result.WorkflowUid, actorUserId);
+        await transaction.CommitAsync();
+        return await GetTaskById(taskId);
+    }
+
+    public async Task<TaskStatusUpdateScopeResult?> UpdateTaskStatusInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId,
+        string normalizedStatus,
+        long actorUserId)
+    {
+        if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
+            return null;
 
         var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, taskId);
         if (!taskRecord.HasValue)
-        {
             return null;
-        }
 
         var (workflowId, workflowUid, currentStatus, _, taskKey, isApprovalTask, taskTitle, nodeInstanceId, isRuntimeNodeTask) = taskRecord.Value;
         TaskStatusRules.EnsureTaskTransitionAllowed(currentStatus, normalizedStatus);
 
         if (currentStatus.Equals(normalizedStatus, StringComparison.OrdinalIgnoreCase))
-        {
-            await transaction.CommitAsync();
-            return await GetTaskById(taskId);
-        }
+            return new TaskStatusUpdateScopeResult(false, null, workflowId, workflowUid, false);
 
         if (isApprovalTask && TaskStatusRules.TerminalTaskStatuses.Contains(normalizedStatus))
         {
@@ -126,69 +135,55 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (isRuntimeNodeTask)
         {
-            if (nodeInstanceId.HasValue && TaskStatusRules.TerminalTaskStatuses.Contains(normalizedStatus))
-            {
-                await PostgresWorkflowRuntimeRepository.CompleteRuntimeTaskNodeFromTaskStatusUpdate(
-                    connection,
-                    transaction,
-                    workflowId,
-                    workflowUid,
-                    nodeInstanceId.Value,
-                    actorUserId,
-                    null);
-            }
+            var shouldComplete = nodeInstanceId.HasValue && TaskStatusRules.TerminalTaskStatuses.Contains(normalizedStatus);
+            return new TaskStatusUpdateScopeResult(shouldComplete, nodeInstanceId, workflowId, workflowUid, false);
         }
         else
         {
             await _statusCalculation.RecalculateWorkflowTaskAvailability(connection, transaction, workflowId);
             await _statusCalculation.RecalculateAndPersistWorkflowStatus(connection, transaction, workflowId, actorUserId);
-            await PostgresWorkflowRuntimeRepository.TryAdvanceRuntimeSetupFromTaskStatusUpdate(
-                connection,
-                transaction,
-                workflowId,
-                workflowUid,
-                actorUserId);
+            return new TaskStatusUpdateScopeResult(false, null, workflowId, workflowUid, true);
         }
-
-        await transaction.CommitAsync();
-        return await GetTaskById(taskId);
     }
 
     public async Task<TaskWithWorkflowDto?> DecideTaskApproval(long taskId, TaskApprovalDecisionRequest request, long actorUserId)
     {
         ArgumentNullException.ThrowIfNull(request);
-
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
-
-        if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
-        {
+        var result = await DecideTaskApprovalInScope(connection, transaction, taskId, request, actorUserId);
+        if (result is null)
             return null;
-        }
+        await PostgresWorkflowRuntimeRepository.ApplyApprovalNodeDecision(connection, transaction, result.WorkflowId, result.WorkflowUid, result.NodeInstanceId, request.Approved, actorUserId);
+        await transaction.CommitAsync();
+        return await GetTaskById(taskId);
+    }
+
+    public async Task<DecideTaskApprovalScopeResult?> DecideTaskApprovalInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long taskId,
+        TaskApprovalDecisionRequest request,
+        long actorUserId)
+    {
+        if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
+            return null;
 
         var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, taskId);
         if (!taskRecord.HasValue)
-        {
             return null;
-        }
 
         var (workflowId, workflowUid, currentStatus, _, taskKey, isApprovalTask, taskTitle, nodeInstanceId, isRuntimeNodeTask) = taskRecord.Value;
         if (!isApprovalTask)
-        {
             throw new InvalidOperationException($"Task '{taskKey}' is not an approval task.");
-        }
 
         if (!isRuntimeNodeTask || !nodeInstanceId.HasValue)
-        {
             throw new InvalidOperationException(
                 "Die Anforderungen der Abteilungsleitung muessen ueber den Schritt der Abteilungsleitung abgeschlossen werden.");
-        }
 
         if (TaskStatusRules.TerminalTaskStatuses.Contains(currentStatus))
-        {
             throw new InvalidOperationException("Approval decisions are not allowed for terminal task states.");
-        }
 
         var normalizedComment = string.IsNullOrWhiteSpace(request.CommentText)
             ? null
@@ -208,21 +203,9 @@ internal sealed partial class PostgresWorkflowRepository
         await _statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, taskId, "done");
 
         if (normalizedComment is not null)
-        {
             await InsertTaskComment(connection, transaction, taskId, workflowId, normalizedComment, actorUserId);
-        }
 
-        await PostgresWorkflowRuntimeRepository.ApplyRuntimeApprovalDecisionFromWorkflowTask(
-            connection,
-            transaction,
-            workflowId,
-            workflowUid,
-            nodeInstanceId.Value,
-            request.Approved,
-            actorUserId);
-
-        await transaction.CommitAsync();
-        return await GetTaskById(taskId);
+        return new DecideTaskApprovalScopeResult(nodeInstanceId.Value, workflowId, workflowUid);
     }
 
     // Zuweisungen werden ebenfalls transaktional aktualisiert, damit Aufgaben- und Workflow-Sicht konsistent bleiben.

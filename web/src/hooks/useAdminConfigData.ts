@@ -6,7 +6,10 @@ import {
   getAdminDirectoryAudit,
   getAdminDirectoryGroups,
   getAdminDirectoryIdentities,
+  getAdminDirectoryPendingImports,
+  getAdminDirectoryResponsibilityGaps,
   getAdminDirectoryStatus,
+  postAdminDirectoryImport,
   syncAdminDirectory,
 } from "../services/adminConfigApi";
 import {
@@ -27,6 +30,8 @@ import type {
   AdminDirectoryIdentity,
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncStatus,
+  DirectoryPendingImports,
+  DirectoryResponsibilityGaps,
   AdminGraphApplicationConfiguration,
   AdminGroup,
   AdminNotificationEmailConfiguration,
@@ -61,6 +66,8 @@ export function useAdminConfigData({
   const [directoryIdentities, setDirectoryIdentities] = useState<AdminDirectoryIdentity[]>([]);
   const [directoryAuditEntries, setDirectoryAuditEntries] = useState<AdminDirectoryMappingAuditEntry[]>([]);
   const [directoryStatus, setDirectoryStatus] = useState<AdminDirectorySyncStatus | null>(null);
+  const [directoryResponsibilityGaps, setDirectoryResponsibilityGaps] = useState<DirectoryResponsibilityGaps | null>(null);
+  const [directoryPendingImports, setDirectoryPendingImports] = useState<DirectoryPendingImports | null>(null);
   const [departmentAssignments, setDepartmentAssignments] = useState<AdminDepartmentAssignment[]>([]);
   const [departmentPositions, setDepartmentPositions] = useState<AdminRole[]>([]);
   const [responsibilityOwners, setResponsibilityOwners] = useState<AdminResponsibilityOwner[]>([]);
@@ -68,6 +75,7 @@ export function useAdminConfigData({
   const [isLoadingTechnicalAccess, setIsLoadingTechnicalAccess] = useState(false);
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
   const [isSyncingDirectory, setIsSyncingDirectory] = useState(false);
+  const [isImportingDirectory, setIsImportingDirectory] = useState(false);
   const [savingDirectoryGroupId, setSavingDirectoryGroupId] = useState<number | null>(null);
   const [deletingDirectoryMappingId, setDeletingDirectoryMappingId] = useState<number | null>(null);
   const [hasLoadedTechnicalAccess, setHasLoadedTechnicalAccess] = useState(false);
@@ -117,12 +125,14 @@ export function useAdminConfigData({
     setError(null);
 
     try {
-      const [statusData, groupsData, identitiesData, auditData, rolesData] = await Promise.all([
+      const [statusData, groupsData, identitiesData, auditData, rolesData, responsibilityGapsData, pendingImportsData] = await Promise.all([
         getAdminDirectoryStatus(),
         getAdminDirectoryGroups(),
         getAdminDirectoryIdentities(25, 0),
         getAdminDirectoryAudit(20),
         getAdminRoles(),
+        getAdminDirectoryResponsibilityGaps(),
+        getAdminDirectoryPendingImports(),
       ]);
 
       setDirectoryStatus(statusData);
@@ -130,6 +140,8 @@ export function useAdminConfigData({
       setDirectoryIdentities(identitiesData);
       setDirectoryAuditEntries(auditData);
       setRoles(rolesData);
+      setDirectoryResponsibilityGaps(responsibilityGapsData);
+      setDirectoryPendingImports(pendingImportsData);
       setHasLoadedDirectory(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Verzeichnisdaten konnten nicht geladen werden.";
@@ -138,6 +150,8 @@ export function useAdminConfigData({
       setDirectoryGroups([]);
       setDirectoryIdentities([]);
       setDirectoryAuditEntries([]);
+      setDirectoryResponsibilityGaps(null);
+      setDirectoryPendingImports(null);
     } finally {
       setIsLoadingDirectory(false);
     }
@@ -271,6 +285,33 @@ export function useAdminConfigData({
     [departmentAssignments, loadDirectoryData, setError, setNotice]
   );
 
+  const handleImportDirectoryIdentities = useCallback(
+    async (directoryIdentityIds: number[]) => {
+      setIsImportingDirectory(true);
+      setNotice(null);
+      setError(null);
+
+      try {
+        const result = await postAdminDirectoryImport(directoryIdentityIds);
+        await loadDirectoryData();
+        if (result.importedCount > 0) {
+          setNotice(
+            `${result.importedCount} ${result.importedCount === 1 ? "Person" : "Personen"} erfolgreich importiert.${result.failedCount > 0 ? ` ${result.failedCount} fehlgeschlagen.` : ""}`
+          );
+        }
+        if (result.failedCount > 0 && result.importedCount === 0) {
+          setError(`Import fehlgeschlagen: ${result.failed.map((f) => f.reason).join(", ")}`);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Import konnte nicht durchgeführt werden.";
+        setError(message);
+      } finally {
+        setIsImportingDirectory(false);
+      }
+    },
+    [loadDirectoryData, setError, setNotice]
+  );
+
   const handleDeleteDirectoryMapping = useCallback(
     async (mappingId: number) => {
       setDeletingDirectoryMappingId(mappingId);
@@ -305,6 +346,8 @@ export function useAdminConfigData({
     directoryIdentities,
     directoryAuditEntries,
     directoryStatus,
+    directoryResponsibilityGaps,
+    directoryPendingImports,
     departmentAssignments,
     setDepartmentAssignments,
     departmentPositions,
@@ -315,11 +358,13 @@ export function useAdminConfigData({
     isLoadingTechnicalAccess,
     isLoadingDirectory,
     isSyncingDirectory,
+    isImportingDirectory,
     savingDirectoryGroupId,
     deletingDirectoryMappingId,
     hasLoadedTechnicalAccess,
     reload,
     handleSyncDirectory,
+    handleImportDirectoryIdentities,
     handleCreateDirectoryMapping,
     handleDeleteDirectoryMapping,
   };

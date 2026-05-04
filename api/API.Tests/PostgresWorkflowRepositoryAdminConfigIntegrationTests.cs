@@ -175,7 +175,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             {
                 await connection.OpenAsync();
                 var method = typeof(EntraDirectorySyncService).GetMethod(
-                    "UpsertProjectedAppUsersFromDirectory",
+                    "UpdateExistingAppUsersFromDirectory",
                     BindingFlags.Static | BindingFlags.NonPublic);
                 Assert.NotNull(method);
 

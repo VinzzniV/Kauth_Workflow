@@ -4,6 +4,7 @@ namespace API;
 
 internal sealed class WorkflowDefinitionRuntimeService(
     IWorkflowDefinitionRuntimeRepository repository,
+    IWorkflowLifecycleService lifecycleService,
     IWorkflowNotificationDispatchService workflowNotificationDispatchService,
     IPersonLifecycleProjectionService personLifecycleProjectionService,
     ILogger<WorkflowDefinitionRuntimeService> logger) : IWorkflowDefinitionRuntimeService
@@ -13,7 +14,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CurrentUser currentUser,
         CancellationToken cancellationToken = default)
     {
-        var created = await repository.CreateWorkflowDefinitionInstance(request, currentUser.UserId);
+        var created = await lifecycleService.CreateWorkflowInstanceAsync(request, currentUser.UserId);
         await workflowNotificationDispatchService.DispatchReadyTaskNotificationsAsync(created.WorkflowUid, cancellationToken);
         if (string.Equals(created.CurrentRuntimeStatus, "completed", StringComparison.OrdinalIgnoreCase))
         {
@@ -56,7 +57,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CancellationToken cancellationToken = default)
     {
         return CompleteAndDispatchAsync(
-            repository.CompleteRuntimeFormNode(workflowUid, nodeInstanceId, request, currentUser.UserId),
+            lifecycleService.CompleteFormNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId),
             cancellationToken);
     }
 
@@ -68,7 +69,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CancellationToken cancellationToken = default)
     {
         return CompleteAndDispatchAsync(
-            repository.CompleteRuntimeApprovalNode(workflowUid, nodeInstanceId, request, currentUser.UserId),
+            lifecycleService.CompleteApprovalNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId),
             cancellationToken);
     }
 
@@ -80,7 +81,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CancellationToken cancellationToken = default)
     {
         return CompleteAndDispatchAsync(
-            repository.CompleteRuntimeTaskNode(workflowUid, nodeInstanceId, request, currentUser.UserId),
+            lifecycleService.CompleteTaskNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId),
             cancellationToken);
     }
 

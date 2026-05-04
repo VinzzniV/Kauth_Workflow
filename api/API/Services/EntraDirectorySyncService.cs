@@ -237,17 +237,17 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                 }
             }, cancellationToken);
 
-            var appUserProjectionResult = await UpsertProjectedAppUsersFromDirectory(connection, startedAt, cancellationToken);
+            var appUserProjectionResult = await UpdateExistingAppUsersFromDirectory(connection, startedAt, cancellationToken);
             await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
             {
                 Severity = "info",
                 Source = "directory",
                 Category = "user_projection",
-                EventKey = "directory_users_projected",
-                Message = $"Directory sync projected {appUserProjectionResult.TouchedUserCount} app users and refreshed department assignments.",
+                EventKey = "directory_users_updated",
+                Message = $"Directory sync updated {appUserProjectionResult.TouchedUserCount} existing app users. New identities are not auto-imported — use POST /admin/directory/import.",
                 Details = new
                 {
-                    origin = "app_users.department_id is derived from the latest linked directory identity department_name unless department_override_active is true",
+                    origin = "Only existing app_users are updated. New directory_identities without app_user_id require explicit admin import.",
                     appUserProjectionResult.TouchedUserCount,
                     appUserProjectionResult.DirectoryAssignedUserCount,
                     appUserProjectionResult.OverrideUserCount,
@@ -288,24 +288,16 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                 }, cancellationToken);
             }
 
-            var departmentLeadSyncResult = await SyncDepartmentLeadAssignmentsFromDirectory(connection, cancellationToken);
             await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
             {
-                Severity = departmentLeadSyncResult.ConflictCount > 0 || departmentLeadSyncResult.MissingCount > 0 ? "warning" : "info",
+                Severity = "info",
                 Source = "directory",
                 Category = "department_lead",
-                EventKey = "directory_department_assignments_evaluated",
-                Message = $"Directory sync evaluated {departmentLeadSyncResult.TotalDepartments} department lead assignments.",
+                EventKey = "directory_department_assignments_skipped",
+                Message = "Directory sync skipped automatic department lead assignment. Responsibilities are now managed manually by admins.",
                 Details = new
                 {
-                    origin = "department_settings is resolved from active directory-synced users in the same department that receive the auth_manager system role via directory_group_role_mappings",
-                    departmentLeadSyncResult.TotalDepartments,
-                    departmentLeadSyncResult.ResolvedCount,
-                    departmentLeadSyncResult.MissingCount,
-                    departmentLeadSyncResult.ConflictCount,
-                    sampleResolvedDepartments = departmentLeadSyncResult.ResolvedDepartments.Take(8).ToArray(),
-                    sampleMissingDepartments = departmentLeadSyncResult.MissingDepartments.Take(8).ToArray(),
-                    sampleConflictDepartments = departmentLeadSyncResult.ConflictDepartments.Take(8).ToArray()
+                    reason = "Automatic department lead resolution from Entra group memberships was disabled. Assignments in department_settings are no longer modified by the sync cycle."
                 }
             }, cancellationToken);
         }
@@ -918,6 +910,341 @@ RETURNING id;";
         }
     }
 
+    public async Task<DirectoryResponsibilityGapsDto> GetResponsibilityGapsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var connectionString = _runtimeSettings.ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return new DirectoryResponsibilityGapsDto { Gaps = [], TotalUnassignedDepartments = 0, TotalCandidatesNotYetAssigned = 0 };
+        }
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        // Returns departments that have active auth_manager candidates in Entra groups,
+        // together with the currently assigned department lead (if any).
+        // Used to surface "people in Entra groups without a responsibility assignment" to admins.
+        const string sql = @"
+SELECT
+    d.id              AS department_id,
+    d.name            AS department_name,
+    ds.department_lead_person_id,
+    candidate.app_user_id,
+    candidate.display_name,
+    candidate.mail,
+    candidate.group_name
+FROM departments d
+LEFT JOIN department_settings ds ON ds.department_id = d.id
+JOIN (
+    SELECT DISTINCT
+        u.department_id,
+        u.id              AS app_user_id,
+        u.display_name,
+        di.mail,
+        dg.display_name   AS group_name
+    FROM app_users u
+    JOIN directory_identities di           ON di.app_user_id = u.id
+    JOIN directory_group_members dgm       ON dgm.directory_identity_id = di.id
+    JOIN directory_groups dg               ON dg.id = dgm.directory_group_id
+    JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
+    JOIN app_roles ar                      ON ar.id = dgrm.app_role_id
+    WHERE u.directory_synced = TRUE
+      AND u.is_active = TRUE
+      AND di.account_enabled = TRUE
+      AND u.department_override_active = FALSE
+      AND u.department_id IS NOT NULL
+      AND dgrm.is_active = TRUE
+      AND ar.role_key = 'auth_manager'
+      AND ar.role_kind = 'system'
+) candidate ON candidate.department_id = d.id
+ORDER BY d.id, candidate.display_name, candidate.app_user_id;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var entryMap = new Dictionary<int, DirectoryResponsibilityGapEntry>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var departmentId = reader.GetInt32(0);
+
+            if (!entryMap.TryGetValue(departmentId, out var entry))
+            {
+                entry = new DirectoryResponsibilityGapEntry
+                {
+                    DepartmentId = departmentId,
+                    DepartmentName = reader.GetString(1),
+                    AssignedLeadPersonId = reader.IsDBNull(2) ? null : reader.GetInt64(2),
+                    EntraGroupName = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    Candidates = []
+                };
+                entryMap[departmentId] = entry;
+            }
+
+            if (!reader.IsDBNull(3))
+            {
+                entry.Candidates.Add(new DirectoryResponsibilityCandidate
+                {
+                    AppUserId = reader.GetInt64(3),
+                    DisplayName = reader.GetString(4),
+                    Mail = reader.IsDBNull(5) ? null : reader.GetString(5)
+                });
+            }
+        }
+
+        var gaps = entryMap.Values.OrderBy(e => e.DepartmentName).ToList();
+        var unassigned = gaps.Where(g => g.AssignedLeadPersonId is null).ToList();
+
+        return new DirectoryResponsibilityGapsDto
+        {
+            Gaps = gaps,
+            TotalUnassignedDepartments = unassigned.Count,
+            TotalCandidatesNotYetAssigned = unassigned.Sum(g => g.CandidatesInEntra)
+        };
+    }
+
+    public async Task<DirectoryPendingImportsDto> GetPendingImportsAsync(CancellationToken cancellationToken = default)
+    {
+        var connectionString = _runtimeSettings.ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return new DirectoryPendingImportsDto { PendingImports = [], TotalCount = 0 };
+        }
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        // Returns all directory_identities in mapped groups that have not yet been imported (no app_user_id).
+        // One row per (identity × group mapping) — grouped in C# by identity id.
+        const string sql = @"
+SELECT
+    di.id              AS directory_identity_id,
+    di.entra_object_id,
+    di.display_name,
+    di.mail,
+    di.user_principal_name,
+    di.department_name,
+    d.id               AS preview_department_id,
+    dg.display_name    AS group_name,
+    ar.role_key
+FROM directory_identities di
+JOIN directory_group_members dgm        ON dgm.directory_identity_id = di.id
+JOIN directory_groups dg                ON dg.id = dgm.directory_group_id
+JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dg.id
+JOIN app_roles ar                       ON ar.id = dgrm.app_role_id
+LEFT JOIN departments d                 ON LOWER(d.name) = LOWER(BTRIM(COALESCE(di.department_name, '')))
+WHERE di.app_user_id IS NULL
+  AND dgrm.is_active = TRUE
+  AND di.account_enabled = TRUE
+ORDER BY di.display_name, di.id, dg.display_name;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var identityMap = new Dictionary<long, DirectoryPendingImportDto>();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var directoryIdentityId = reader.GetInt64(0);
+
+            if (!identityMap.TryGetValue(directoryIdentityId, out var dto))
+            {
+                dto = new DirectoryPendingImportDto
+                {
+                    DirectoryIdentityId = directoryIdentityId,
+                    EntraObjectId = reader.GetGuid(1),
+                    DisplayName = reader.GetString(2),
+                    Mail = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    UserPrincipalName = reader.GetString(4),
+                    DepartmentName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    PreviewDepartmentId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                    GroupNames = [],
+                    PreviewRoleKeys = []
+                };
+                identityMap[directoryIdentityId] = dto;
+            }
+
+            var groupName = reader.IsDBNull(7) ? null : reader.GetString(7);
+            if (groupName is not null && !dto.GroupNames.Contains(groupName))
+            {
+                dto.GroupNames.Add(groupName);
+            }
+
+            var roleKey = reader.IsDBNull(8) ? null : reader.GetString(8);
+            if (roleKey is not null && !dto.PreviewRoleKeys.Contains(roleKey))
+            {
+                dto.PreviewRoleKeys.Add(roleKey);
+            }
+        }
+
+        var pendingImports = identityMap.Values.OrderBy(d => d.DisplayName).ToList();
+        return new DirectoryPendingImportsDto
+        {
+            PendingImports = pendingImports,
+            TotalCount = pendingImports.Count
+        };
+    }
+
+    public async Task<DirectoryImportResultDto> ImportIdentitiesAsync(
+        DirectoryImportRequest request,
+        long? actorUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var connectionString = _runtimeSettings.ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return new DirectoryImportResultDto
+            {
+                ImportedCount = 0,
+                FailedCount = request.DirectoryIdentityIds.Count,
+                Imported = [],
+                Failed = request.DirectoryIdentityIds
+                    .Select(id => new DirectoryImportFailureEntry { DirectoryIdentityId = id, Reason = "Database not configured." })
+                    .ToList()
+            };
+        }
+
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var imported = new List<DirectoryImportSuccessEntry>();
+        var failed = new List<DirectoryImportFailureEntry>();
+
+        foreach (var directoryIdentityId in request.DirectoryIdentityIds)
+        {
+            try
+            {
+                var entry = await ImportSingleIdentityAsync(connection, directoryIdentityId, cancellationToken);
+                if (entry is null)
+                {
+                    failed.Add(new DirectoryImportFailureEntry
+                    {
+                        DirectoryIdentityId = directoryIdentityId,
+                        Reason = "Identity not found or already imported."
+                    });
+                }
+                else
+                {
+                    imported.Add(entry);
+                    await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                    {
+                        Severity = "info",
+                        Source = "admin",
+                        Category = "directory_import",
+                        EventKey = "directory_identity_imported",
+                        Message = $"Directory identity {entry.DisplayName} imported as app user {entry.AppUserId}.",
+                        ActorUserId = actorUserId,
+                        EntityType = "app_user",
+                        EntityId = entry.AppUserId.ToString(),
+                        Details = new { entry.DirectoryIdentityId, entry.AppUserId, entry.DisplayName }
+                    }, cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to import directory identity {DirectoryIdentityId}.", directoryIdentityId);
+                failed.Add(new DirectoryImportFailureEntry
+                {
+                    DirectoryIdentityId = directoryIdentityId,
+                    Reason = ex.Message
+                });
+            }
+        }
+
+        return new DirectoryImportResultDto
+        {
+            ImportedCount = imported.Count,
+            FailedCount = failed.Count,
+            Imported = imported,
+            Failed = failed
+        };
+    }
+
+    private static async Task<DirectoryImportSuccessEntry?> ImportSingleIdentityAsync(
+        NpgsqlConnection connection,
+        long directoryIdentityId,
+        CancellationToken cancellationToken)
+    {
+        // INSERT only when app_user_id IS NULL — guards against double-import.
+        const string insertSql = @"
+INSERT INTO app_users (
+    display_name, email, external_key, entra_object_id,
+    directory_synced, last_directory_synced_at,
+    department_id, department_source,
+    is_active
+)
+SELECT
+    di.display_name,
+    COALESCE(di.mail, di.user_principal_name),
+    di.entra_object_id::text,
+    di.entra_object_id,
+    TRUE,
+    NOW(),
+    dept.id,
+    CASE WHEN dept.id IS NULL THEN 'unassigned' ELSE 'directory' END,
+    TRUE
+FROM directory_identities di
+LEFT JOIN departments dept ON LOWER(dept.name) = LOWER(BTRIM(COALESCE(di.department_name, '')))
+WHERE di.id = @directoryIdentityId
+  AND di.app_user_id IS NULL
+RETURNING id, display_name, department_id;";
+
+        long newAppUserId;
+        string displayName;
+        int? departmentId;
+
+        await using (var insertCmd = new NpgsqlCommand(insertSql, connection))
+        {
+            insertCmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+            await using var reader = await insertCmd.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return null;
+            }
+            newAppUserId = reader.GetInt64(0);
+            displayName = reader.GetString(1);
+            departmentId = reader.IsDBNull(2) ? null : reader.GetInt32(2);
+        }
+
+        const string linkIdentitySql = @"
+UPDATE directory_identities
+SET app_user_id = @appUserId
+WHERE id = @directoryIdentityId;";
+
+        await using (var linkCmd = new NpgsqlCommand(linkIdentitySql, connection))
+        {
+            linkCmd.Parameters.AddWithValue("appUserId", newAppUserId);
+            linkCmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+            await linkCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        const string peopleSql = @"
+INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
+VALUES (@appUserId, @departmentId, @directoryIdentityId, NOW())
+ON CONFLICT (app_user_id) DO UPDATE
+SET
+    department_id = EXCLUDED.department_id,
+    directory_identity_id = EXCLUDED.directory_identity_id,
+    updated_at = NOW();";
+
+        await using (var peopleCmd = new NpgsqlCommand(peopleSql, connection))
+        {
+            peopleCmd.Parameters.AddWithValue("appUserId", newAppUserId);
+            var deptParam = peopleCmd.Parameters.Add("departmentId", NpgsqlDbType.Integer);
+            deptParam.Value = (object?)departmentId ?? DBNull.Value;
+            peopleCmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+            await peopleCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return new DirectoryImportSuccessEntry
+        {
+            DirectoryIdentityId = directoryIdentityId,
+            AppUserId = newAppUserId,
+            DisplayName = displayName
+        };
+    }
+
     private static async Task<int?> FindExistingMappingIdAsync(
         NpgsqlConnection connection,
         int directoryGroupId,
@@ -1334,80 +1661,16 @@ SELECT
         return new DirectoryDepartmentSyncResult(0, [], 0, []);
     }
 
-    private static async Task<DirectoryUserProjectionResult> UpsertProjectedAppUsersFromDirectory(
+    private static async Task<DirectoryUserProjectionResult> UpdateExistingAppUsersFromDirectory(
         NpgsqlConnection connection,
         DateTime startedAt,
         CancellationToken cancellationToken)
     {
         await EnsureDirectoryProjectionUserColumnsAsync(connection, cancellationToken);
 
+        // Only updates existing app_users. New identities from Entra are NOT automatically
+        // promoted to app_users — they remain in directory_identities until an admin imports them.
         const string sql = @"
-WITH scoped_identities AS (
-    SELECT DISTINCT
-        di.id AS directory_identity_id,
-        di.app_user_id,
-        di.entra_object_id,
-        di.user_principal_name,
-        di.mail,
-        COALESCE(di.mail, di.user_principal_name, di.entra_object_id::text || '@directory.local') AS resolved_email,
-        di.display_name,
-        di.department_name,
-        di.account_enabled,
-        department.id AS department_id
-    FROM directory_identities di
-    JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
-    JOIN directory_groups dg ON dg.id = dgm.directory_group_id
-    LEFT JOIN departments department ON LOWER(department.name) = LOWER(di.department_name)
-),
-insert_candidates AS (
-    SELECT DISTINCT ON (LOWER(scoped.resolved_email))
-        scoped.entra_object_id,
-        scoped.department_id,
-        scoped.display_name,
-        scoped.resolved_email,
-        scoped.account_enabled
-    FROM scoped_identities scoped
-    WHERE scoped.app_user_id IS NULL
-      AND NOT EXISTS (
-        SELECT 1
-        FROM app_users existing
-        WHERE existing.entra_object_id = scoped.entra_object_id
-           OR LOWER(existing.email) = LOWER(scoped.resolved_email)
-    )
-    ORDER BY LOWER(scoped.resolved_email), scoped.directory_identity_id
-),
-upserted_users AS (
-    INSERT INTO app_users (
-        external_key,
-        entra_object_id,
-        department_id,
-        display_name,
-        email,
-        notification_email,
-        is_active,
-        directory_synced,
-        last_directory_synced_at,
-        department_source,
-        department_override_active
-    )
-    SELECT
-        scoped.entra_object_id::text,
-        scoped.entra_object_id,
-        scoped.department_id,
-        scoped.display_name,
-        scoped.resolved_email,
-        NULL,
-        scoped.account_enabled,
-        TRUE,
-        NOW(),
-        CASE
-            WHEN scoped.department_id IS NULL THEN 'unassigned'
-            ELSE 'directory'
-        END,
-        FALSE
-    FROM insert_candidates scoped
-    RETURNING id, entra_object_id
-)
 UPDATE app_users u
 SET
     external_key = di.entra_object_id::text,

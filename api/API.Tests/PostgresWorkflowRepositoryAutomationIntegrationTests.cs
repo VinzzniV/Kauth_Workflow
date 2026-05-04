@@ -283,6 +283,10 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
 
     private static WorkflowAutomationService CreateAutomationService(PostgresWorkflowRepository repository)
     {
+        var lifecycleService = new WorkflowLifecycleService(
+            repository,
+            new StubWorkflowDefinitionRuntimeRepository(),
+            repository);
         return new WorkflowAutomationService(
             repository,
             new PostgresWorkflowAutomationReadRepository(),
@@ -295,8 +299,20 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
                 new SendWelcomeMailAutomationHandler()
             ]),
             new StubSystemEventLogService(),
+            lifecycleService,
             new WorkflowAutomationRetrySettings(),
             NullLogger<WorkflowAutomationService>.Instance);
+    }
+
+    private sealed class StubWorkflowDefinitionRuntimeRepository : IWorkflowDefinitionRuntimeRepository
+    {
+        public Task<WorkflowDefinitionVersionDetailDto?> PublishWorkflowDefinitionVersion(long versionId) => throw new NotImplementedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowDefinitionInstance(CreateWorkflowDefinitionInstanceRequest request, long createdByUserId) => throw new NotImplementedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetail(Guid workflowUid) => throw new NotImplementedException();
+        public Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid) => throw new NotImplementedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeFormNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId) => throw new NotImplementedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeApprovalNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId) => throw new NotImplementedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeTaskNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId) => throw new NotImplementedException();
     }
 
     private sealed class StubSystemEventLogService : ISystemEventLogService

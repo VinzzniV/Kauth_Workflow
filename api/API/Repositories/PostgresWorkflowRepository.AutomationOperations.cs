@@ -105,7 +105,17 @@ LIMIT 1;
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await CompleteAutomationJobSuccessInScope(connection, transaction, job, result, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
 
+    public async Task CompleteAutomationJobSuccessInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        ClaimedAutomationJobRecord job,
+        WorkflowAutomationHandlerResult result,
+        CancellationToken cancellationToken = default)
+    {
         await PostgresWorkflowAutomationOperations.CompleteAutomationAttemptAsync(
             connection,
             transaction,
@@ -163,7 +173,6 @@ LIMIT 1;
                     actionKey = job.ActionKey,
                     executionOrder = job.ExecutionOrder
                 }));
-            await transaction.CommitAsync(cancellationToken);
             return;
         }
 
@@ -207,8 +216,6 @@ LIMIT 1;
             node,
             await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, job.WorkflowId),
             job.CreatedByUserId);
-
-        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task CompleteAutomationJobFailure(

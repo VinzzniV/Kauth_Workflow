@@ -7,11 +7,11 @@ import RotationAuditLog from "../components/rotation/RotationAuditLog";
 import RotationCalendarView from "../components/rotation/RotationCalendarView";
 import RotationNotificationsPanel from "../components/rotation/RotationNotificationsPanel";
 import RotationStationFormCard from "../components/rotation/RotationStationFormCard";
+import RotationStationTimeline from "../components/rotation/RotationStationTimeline";
 import {
   getGeneratedTaskStatusLabel,
   getPlanStatusLabel,
   getPlanStatusPillClass,
-  getStationStatusLabel,
 } from "../components/rotation/rotationLabels";
 import { useRotationStationForm } from "../hooks/useRotationStationForm";
 import {
@@ -128,7 +128,9 @@ export default function RotationPlanDetailPage() {
                 </div>
                 <div>
                   <dt>Quell-Onboarding</dt>
-                  <dd>{plan.sourceWorkflowUid}</dd>
+                  <dd title={plan.sourceWorkflowUid} className="uid-value">
+                    {plan.sourceWorkflowUid.slice(0, 8)}…
+                  </dd>
                 </div>
                 <div>
                   <dt>Erstellt</dt>
@@ -155,64 +157,16 @@ export default function RotationPlanDetailPage() {
             <section className="panel">
               <div className="panel-head">
                 <h2>Stationen</h2>
-                <p>Die Reihenfolge bleibt klar über `orderIndex`, Zeitraum und Status sichtbar.</p>
+                <p>Chronologische Reihenfolge der Abteilungsphasen im Durchlauf.</p>
               </div>
-
-              {orderedStations.length === 0 ? (
-                <EmptyState
-                  title="Noch keine Stationen vorhanden"
-                  description="Legen Sie die erste Abteilungsphase über das Formular an."
-                  actionLabel="Stationsformular öffnen"
-                  onAction={stationForm.openCreateStationForm}
-                />
-              ) : (
-                <div className="workflow-grid" aria-label="Stationsliste">
-                  {orderedStations.map((station) => (
-                    <article key={station.id} className="workflow-card card-list">
-                      <div className="workflow-card-top">
-                        <h3>
-                          {station.orderIndex + 1}. {station.departmentName}
-                        </h3>
-                        <span className="status-pill open">{getStationStatusLabel(station.status)}</span>
-                      </div>
-                      <dl className="workflow-meta">
-                        <div>
-                          <dt>Zeitraum</dt>
-                          <dd>
-                            {formatDate(station.startDate)} bis {formatDate(station.endDate)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Ort</dt>
-                          <dd>{station.location ?? "-"}</dd>
-                        </div>
-                        <div>
-                          <dt>Notizen</dt>
-                          <dd>{station.notes ?? "-"}</dd>
-                        </div>
-                      </dl>
-
-                      <div className="action-row">
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => stationForm.openEditStationForm(station)}
-                        >
-                          Bearbeiten
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => void stationForm.handleDeleteStation(station)}
-                          disabled={stationForm.deletingStationId === station.id}
-                        >
-                          {stationForm.deletingStationId === station.id ? "Lösche..." : "Löschen"}
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
+              <RotationStationTimeline
+                stations={orderedStations}
+                editingStationId={stationForm.editingStationId}
+                deletingStationId={stationForm.deletingStationId}
+                onEdit={stationForm.openEditStationForm}
+                onDelete={stationForm.handleDeleteStation}
+                onOpenCreate={stationForm.openCreateStationForm}
+              />
             </section>
 
             <RotationCalendarView stations={orderedStations} />

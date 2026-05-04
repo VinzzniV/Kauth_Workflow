@@ -511,7 +511,7 @@ ORDER BY e.created_at, e.id;
             }
         }
 
-        await ApplyRuntimeApprovalDecisionFromWorkflowTask(
+        await ApplyApprovalNodeDecision(
             connection,
             transaction,
             workflow.WorkflowId,
@@ -571,7 +571,7 @@ ORDER BY e.created_at, e.id;
             }
         }
 
-        await CompleteRuntimeTaskNodeFromTaskStatusUpdate(
+        await CompleteTaskNodeRuntimeSide(
             connection,
             transaction,
             workflow.WorkflowId,
@@ -1391,7 +1391,7 @@ SELECT EXISTS(
         return (bool)(await command.ExecuteScalarAsync() ?? false);
     }
 
-    private static async Task<bool> TryCompleteRuntimeSetupNodeIfReady(
+    internal static async Task<bool> TryCompleteRuntimeSetupNodeIfReady(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -1538,7 +1538,7 @@ FOR UPDATE OF ni;
         };
     }
 
-    private static async Task<WorkflowNodeExecutionRecord?> LoadActiveRuntimeMeasureNodeExecution(
+    internal static async Task<WorkflowNodeExecutionRecord?> LoadActiveRuntimeMeasureNodeExecution(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId)
@@ -1744,14 +1744,16 @@ FOR UPDATE;
         return scalar is long taskId ? taskId : null;
     }
 
-    internal static async Task CompleteRuntimeTaskNodeFromTaskStatusUpdate(
+    // Fuehrt die Runtime-Seite eines Task-Node-Abschlusses aus (Status setzen, Event, Audit, Engine-Loop).
+    // Aufgerufen vom Lifecycle-Service und vom Repo-Wrapper UpdateTaskStatus nach dem Task-Level-Scope.
+    internal static async Task CompleteTaskNodeRuntimeSide(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
         Guid workflowUid,
         long nodeInstanceId,
         long actorUserId,
-        string? comment)
+        string? comment = null)
     {
         var workflow = await LoadRuntimeWorkflowHeader(connection, transaction, workflowUid)
             ?? throw new InvalidOperationException("Workflow runtime instance was not found.");
@@ -1800,7 +1802,42 @@ FOR UPDATE;
             actorUserId);
     }
 
-    internal static async Task ApplyRuntimeApprovalDecisionFromWorkflowTask(
+    // Prueft, ob der aktive Setup-Node nach einem Task-Status-Wechsel abgeschlossen werden kann.
+    internal static async Task TryAdvanceSetupNodeIfReady(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long actorUserId)
+    {
+        var workflow = await LoadRuntimeWorkflowHeader(connection, transaction, workflowUid);
+        if (workflow is null)
+        {
+            return;
+        }
+
+        var activeSetupNode = await LoadActiveRuntimeMeasureNodeExecution(
+            connection,
+            transaction,
+            workflowId);
+        if (activeSetupNode is null)
+        {
+            return;
+        }
+
+        var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+        await TryCompleteRuntimeSetupNodeIfReady(
+            connection,
+            transaction,
+            workflowId,
+            graph,
+            activeSetupNode,
+            await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, workflowId),
+            actorUserId);
+    }
+
+    // Setzt die Approval-Entscheidung am Runtime-Approval-Node durch (rejected = Workflow cancelled; approved = Engine-Loop).
+    internal static async Task ApplyApprovalNodeDecision(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -1967,7 +2004,7 @@ LIMIT 1;
         };
     }
 
-    private static async Task<WorkflowNodeExecutionRecord?> LoadNodeExecutionForUpdate(
+    internal static async Task<WorkflowNodeExecutionRecord?> LoadNodeExecutionForUpdate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -2018,7 +2055,7 @@ FOR UPDATE OF ni;
         };
     }
 
-    private static void EnsureActiveRuntimeNode(WorkflowNodeExecutionRecord? nodeExecution, string expectedNodeType)
+    internal static void EnsureActiveRuntimeNode(WorkflowNodeExecutionRecord? nodeExecution, string expectedNodeType)
     {
         if (nodeExecution is null)
         {
@@ -2060,7 +2097,7 @@ WHERE workflow_id = @workflowId
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task SetWorkflowRuntimeState(
+    internal static async Task SetWorkflowRuntimeState(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
@@ -2172,7 +2209,7 @@ WHERE id = @workflowId;
         public required string CurrentRuntimeStatus { get; init; }
     }
 
-    private sealed class WorkflowNodeExecutionRecord
+    internal sealed class WorkflowNodeExecutionRecord
     {
         public required long NodeInstanceId { get; init; }
         public required string Status { get; init; }

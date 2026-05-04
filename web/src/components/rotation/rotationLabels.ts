@@ -29,6 +29,19 @@ export function getPlanStatusPillClass(status: RotationPlanStatus): string {
   }
 }
 
+export function getStationStatusPillClass(status: RotationStationStatus): string {
+  switch (status) {
+    case "active":
+      return "running";
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "open";
+  }
+}
+
 export function getStationStatusLabel(status: RotationStationStatus): string {
   switch (status) {
     case "active":
