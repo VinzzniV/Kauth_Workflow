@@ -54,10 +54,10 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 | Z8-2.2 | Hotspot #2+#3 (gemeinsamer Slice) — `RotationNotificationService` Daily-Sweep `LIMIT`/Batch + Batch-Update Apply | HIGH | medium..high | sonnet | done (2026-05-05) — Sweep batched (BatchSize 200), Apply nutzt Bulk-Metadata + Bulk-UPDATE via `unnest` |
 | Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync` Group-Member-Schleifen auf Batch-Upsert/-Insert | HIGH | medium | sonnet | done (2026-05-05) — Bulk-Upsert via `unnest`+RETURNING und Bulk-Insert fuer Memberships statt pro-Member Round-Trips |
 | Z8-3.1 | Hotspot #5 Verifikation + Hotspot #7 Recipient-Bulk-Lookup | HIGH | medium | sonnet | done (2026-05-05) — #5 false positive (CPU-/Policy-Pfad), #7 nutzt jetzt `LoadActiveUserNotificationRecipientsBulk` einmalig (auch im Create-Pfad mitgezogen) |
-| Z8-3 | Sweep- und Dispatch-Performance Resthebel (#8 `RotationTaskGenerationService`) | MEDIUM | medium | sonnet | offen — Naechster Schritt |
-| Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | wartet auf Z8-3 (Coverage pro Slice mitziehen) |
+| Z8-3.2 | Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` | MEDIUM | medium | sonnet | deferred (2026-05-05) — kein kleiner SQL-/Batch-Hebel ohne breiten Umbau; admin-getriggert. Z8-3 damit geschlossen. Detail: `CODE_REVIEW.md` § Z8-3.2 |
+| Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | offen — Naechster Schritt |
 
-**Naechster Schritt:** Z8-3 (Resthebel #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync`). Reasoning: medium. Modell: sonnet. Basis: Slice-Plan in `CODE_REVIEW.md` § Z8-1.2.
+**Naechster Schritt:** Z8-4 (Test-Coverage fuer Z8-2.x/Z8-3.1 gepushte Pfade). Reasoning: medium. Modell: sonnet.
 
 ---
 
@@ -69,6 +69,7 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | L7-Backlog | backlog — kein konkreter Bedarf |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | Zyklus 1 | deferred — wartet auf Produkt-Entscheidung |
 | LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split | Zyklus 3 | deferred — kein Trigger |
+| Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | Zyklus 8 | deferred — admin-getriggert, kein kleiner SQL-Hebel |
 
 ---
 

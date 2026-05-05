@@ -62,8 +62,8 @@ Naechster Schwerpunkt nach Abschluss von Zyklus 7. Skalierbarkeit ist mit B- die
 | Z8-2.2 — Hotspot #2+#3 `RotationNotificationService` Sweep+Apply (gemeinsamer Slice) | HIGH | done 2026-05-05 — Sweep batched (200), Apply Bulk-Metadata+Bulk-UPDATE |
 | Z8-2.3 — Hotspot #4 `EntraDirectorySyncService` Group/Member Batch | HIGH | done 2026-05-05 — Bulk-Upsert via `unnest`+RETURNING und Bulk-Insert fuer Memberships ersetzen pro-Member Round-Trips |
 | Z8-3.1 — #5 Verifikation + #7 Recipient-Bulk-Lookup | HIGH | done 2026-05-05 — #5 false positive (CPU/Policy), #7 Bulk-Lookup |
-| Z8-3 — Sweep-/Dispatch-Resthebel (#8 `RotationTaskGenerationService`) | MEDIUM | offen — Naechster Schritt |
-| Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | wartet auf Z8-3 |
+| Z8-3.2 — Hotspot #8 `RotationTaskGenerationService` | MEDIUM | deferred 2026-05-05 — kein kleiner SQL-/Batch-Hebel ohne breiten Umbau; admin-getriggert. Z8-3 geschlossen |
+| Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | offen — Naechster Schritt |
 
 Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehen erst, falls API-Vertraege brechen.
 
@@ -77,6 +77,7 @@ Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehe
 | R10 | Mobile-Layout Form-Editor | backlog |
 | L2 | Datenbereinigung Drafts | deferred — Produkt-Entscheidung |
 | LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split | deferred — kein Trigger |
+| Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein kleiner SQL-Hebel |
 | FE-8 | `approval_task_template_key` → `approval_spec_key` Rename | defer ohne Trigger |
 
 ---

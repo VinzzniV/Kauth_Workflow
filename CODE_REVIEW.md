@@ -82,8 +82,8 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 | Z8-2.2 | Hotspot #2+#3 (gemeinsamer Slice) — `RotationNotificationService` Daily-Sweep: `LIMIT`/Batch-Fetch + Batch-Update der Dispatch-Results | **done** (2026-05-05) — Service-Loop mit `DispatchBatchSize=200`; Apply mit Bulk-Metadata + Bulk-UPDATE via `unnest` |
 | Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync`: Group-Member-Schleifen auf Batch-Upsert/-Insert umstellen | **done** (2026-05-05) — `UpsertDirectoryIdentitiesBatch` (Bulk-Upsert via `unnest` + RETURNING) und `InsertGroupMembershipsBatch` ersetzen pro-Member Round-Trips |
 | Z8-3.1 | Hotspot #5 verifizieren + Hotspot #7 Recipient-Bulk-Lookup | HIGH | **done** (2026-05-05) — #5 false positive (CPU/Policy-Pfad ohne Repo-Hits); #7 nutzt jetzt `LoadActiveUserNotificationRecipientsBulk` einmalig pro Preview/Create statt pro Recipient |
-| Z8-3 | Sweep- und Dispatch-Performance Resthebel (#8 `RotationTaskGenerationService`) | MEDIUM — wartet auf Z8-3.1 |
-| Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — wartet auf Z8-3 |
+| Z8-3.2 | Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` | **deferred** (2026-05-05) — siehe § Z8-3.2 Defer-Begruendung. Z8-3 damit geschlossen. |
+| Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — Naechster Schritt |
 
 **Empfohlener Einstieg:** Z8-1.1 als reine Inventur — opus/high. Output: konkret nummerierte Hotspot-Liste mit Aufrufer-Pfad und Datenkardinalitaet, kein Code-Change. Erst auf dieser Basis entscheidet Z8-1.2, ob Pagination, Sortier-Pushdown oder N+1-Aufloesung den groessten Hebel hat.
 
@@ -115,6 +115,17 @@ Reine Inventur, kein Code-Change. Pro Hotspot: Datei/Symbol, Art `(a)` unbegrenz
 **Frontend-Folgen:** aus #6 entstehen ggf. FE-Items (Pagination/Suche fuer Departments/Rollen). Erst bei Z8-1.2 entscheiden — bis dahin **kein** FE-Eintrag.
 
 **Frontend-Folgen Status Z8 gesamt:** aktuell **keine**. Z8 ist backend-fokussiert. Wenn Z8-2 API-Vertraege aendert (z. B. Pagination-Tokens, Sortier-Parameter), entstehen erst dann FE-Items in `FRONTEND_TODO.md`. Bis dahin wird keine FE-Arbeit kuenstlich erzeugt.
+
+### Z8-3.2 Hotspot #8 — Defer-Begruendung (2026-05-05)
+
+`RotationTaskGenerationService.RegenerateDepartmentPlansAsync` (`api/API/Services/RotationTaskGenerationService.cs:53-64`) wurde als verbliebener Z8-3-Resthebel geprueft. Ergebnis: **deferred ohne Code-Change**. Begruendung:
+
+- Pfad ist admin-getriggert (Department-Regeneration), kein Hot-/Sweep-Pfad und kein Background-Timer. Keine offene Last-Beschwerde.
+- Die foreach-Schleife ruft pro Plan `SynchronizeRotationGeneratedTasks(planId)` auf — eine transaktionale Multi-Step-Synchronisation pro Plan (Diff vs. Bestand, Insert/Update/Delete generierter Tasks, Audit). Es gibt **keinen** kleinen SQL-/Batch-Hebel analog zu Z8-2.x: Bundling mehrerer Plaene in eine Statement-Schicht waere genau der untersagte breite Umbau an `SynchronizeRotationGeneratedTasks` und den zugehoerigen Repository-Pfaden.
+- Parallelisierung der Schleife (`Task.WhenAll`) wuerde mehrere transaktionale Sync-Pfade auf dieselbe Connection/Tx-Grenze setzen und ist im aktuellen Pool-/Tx-Modell riskant — kein klarer kleiner Hebel.
+- Keine Frontend-Folgen, keine API-Vertragsaenderung.
+
+Damit ist Z8-3 abgeschlossen (Z8-3.1 done, Z8-3.2 deferred). #8 wandert in die zyklusuebergreifenden offenen Befunde mit Defer-Status; Re-Bewertung nur bei konkretem Last-Trigger oder wenn `SynchronizeRotationGeneratedTasks` ohnehin angefasst wird.
 
 ### Z8-1.2 Top-3-Auswahl + Slice-Plan (2026-05-05)
 
@@ -177,6 +188,7 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | backlog — kein konkreter Bedarf | L7 |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | deferred — wartet auf Produkt-Entscheidung | Zyklus 1 |
 | LQ2-Z3 | `EntraDirectorySyncService.cs` (2485 Z.) Split | deferred ohne Trigger — Risiko niedrig (Timer-Pfad). Refactor erst bei Anlass | Zyklus 3 |
+| Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein Hot-Path; kein kleiner SQL-/Batch-Hebel ohne breiten Umbau an `SynchronizeRotationGeneratedTasks` | Zyklus 8 |
 
 ---
 

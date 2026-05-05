@@ -33,7 +33,8 @@
 ## Current Focus
 
 - **Aktiver Zyklus:** Z8 — Skalierbarkeits- & Last-Haertung
-- **Naechster Schritt:** Z8-3 (Resthebel #8 `RotationTaskGenerationService`), dann Z8-4 (Coverage).
+- **Naechster Schritt:** Z8-4 (Test-Coverage fuer Z8-2.x/Z8-3.1 gepushte Pfade).
+- **Z8-3.2 deferred (2026-05-05):** Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` bewusst deferred — admin-getriggerter Pfad ohne Hot-Path; pro Plan transaktionale Multi-Step-Sync via `SynchronizeRotationGeneratedTasks`. Kein kleiner SQL-/Batch-Hebel ohne breiten Repo-Umbau (explizit verboten). Z8-3 damit geschlossen.
 - **Z8-3.1 done (2026-05-05):** Hotspot #5 (`WorkflowVisibilityService.ApplyWorkflowTaskPermissions`) als DB-Lasthebel verifiziert → false positive (CPU/Policy ohne Repo-Hits), aus Z8 herausgenommen. Hotspot #7 (`BuildReadyTaskNotificationPreviewTargetsAsync`) nutzt jetzt einmaligen `LoadActiveUserNotificationRecipientsBulk(@userIds = ANY)` statt N×Single-Lookup; selber Helper auch im Create-Pfad (`CreateReadyTaskNotificationsAsync`) mitgezogen, da identisches Recipient-Pattern.
 - **Z8-2.3 done (2026-05-05):** `EntraDirectorySyncService.SyncAllAsync` ersetzt die per-Member-Schleife durch `UpsertDirectoryIdentitiesBatch` (Bulk-Upsert via `unnest(uuid[],text[],...)` + RETURNING fuer Id-Mapping) und `InsertGroupMembershipsBatch` (Bulk-Insert via `unnest(bigint[])` + ON CONFLICT DO NOTHING). Counts (`identitiesSynced`/`membershipsSynced`) zaehlen weiter pro valide-Member-Vorkommen, semantisch wie vorher. LQ2-Z3 (File-Split) bleibt deferred.
 - **Z8-2.2 done (2026-05-05):** `RotationNotificationService.ExecuteDailySweepAsync` schleift mit `DispatchBatchSize=200` ueber `GetDispatchableRotationNotifications(limit, excludeIds)`; `ApplyRotationNotificationDispatchResults` macht Bulk-Metadata-SELECT (`id = ANY(@ids)`) und Bulk-UPDATE via `unnest`. Audit weiter pro Result, aber ohne Per-Item-SELECT.
