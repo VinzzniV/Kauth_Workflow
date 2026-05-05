@@ -41,7 +41,7 @@
 | Z7-1.4 | Doppelte Aufrufstellen `TaskOperations.cs:84/86/158` + `AutomationOperations.cs:100` aufloesen | **HIGH** — done am 2026-05-05 |
 | Z7-1.5a | Public non-scope Wrapper aus `PostgresWorkflowRuntimeRepository` + Interface entfernen, Tests/Stubs auf Lifecycle-Service migrieren | **HIGH** — done am 2026-05-05 |
 | Z7-1.5b | Inhalte der `*InScope`-Methoden physisch in den Lifecycle-Service ziehen (in 5 Sub-Slices b.i–b.v zerlegt) | **HIGH** — done am 2026-05-05 (alle Sub-Slices) |
-| Z7-3 | `WorkflowDefinitionValidationService` (2131 Z.) splitten | MEDIUM |
+| Z7-3 | `WorkflowDefinitionValidationService` (2131 Z.) splitten | MEDIUM — done am 2026-05-05 (alle Sub-Slices) |
 
 ### Z7-1 Lifecycle-Service-Konsolidierung (HIGH)
 
@@ -94,9 +94,9 @@ Mehrere Helper existieren als Overload-Paar (z. B. `ValidateGraphStructure`, `Va
 - **Z7-3.1 (done 2026-05-05)** — `WorkflowDefinitionValidationCatalog` extrahieren: vier Konstanten-Sets (`SupportedDecisionOperators`, `AllowedNodeTypes`, `MeasureGenerationNodeTypes`, `ExpectedMeasureNodeTypeByDefinitionKey`) in neue interne Klasse ziehen; `WorkflowDefinitionValidationService` referenziert nur noch den Catalog. Niedrigstes Risiko, reine Move-Operation, keine Verhaltensaenderung.
 - **Z7-3.2 (done 2026-05-05)** — `WorkflowDefinitionValidationHelpers` extrahieren: pure statische Helfer (`NormalizeRequiredKey`, `NormalizeOptionalText`, `TryNormalizeRequiredKey`-Overloads, `HasConfig`, `CreateIssue`, `ValidateRequiredStringConfig`-Overloads, `ValidateOptionalObjectConfig`-Overloads) in neue interne `static class`. Service haelt private Forwarder fuer unveraenderte Call-Sites; keine Verhaltensaenderung.
 - **Z7-3.3 (done 2026-05-05)** — `WorkflowDefinitionSnapshotValidator` extrahieren: `ValidateSnapshot` plus alle issues-basierten Validate-Overloads (`ValidateGraphStructure`, `ValidateReachability`, `ValidateNodeConfigurations`, `ValidateNodeActions`, `ValidateDecisionConditions`, `ValidateGatewayTopology`, `ValidateMeasurePhaseTopology`), die snapshot-only Validierungen (`ValidateSupervisorGatekeeper`, `ValidateMeasurePhaseProcessConsistency`) und die Snapshot-/`*ForRead`-Normalisierer (`NormalizeNodeActions`/`NormalizeNodeSpecs`/`NormalizeSpecConditions`/`NormalizeSpecDependencies`/`ValidateSpecDependenciesPointToSiblings`) in neue interne `static class WorkflowDefinitionSnapshotValidator`. Service haelt nur noch eine Delegation. Shared zwischen Write- und Snapshot-Pfad gemeinsam genutzte Helfer (`CloneConfig`, `FindUnreachableNodeKeys`, `HasAnyExpectedValue`, `IsMeasureGenerationNodeType`, `GetExpectedMeasureNodeTypeForDefinitionKey`, `NodeTypeCanHaveSpecs`, `NodeTypeAllowsAtMostOneSpec`, `TryGetNodeConfigValue`) sind nach `WorkflowDefinitionValidationHelpers` gewandert; `AllowedSpecConditionOperators` nach `WorkflowDefinitionValidationCatalog`. Service ist von 1971 auf ~700 Zeilen geschrumpft. 416/417 Tests gruen.
-- **Z7-3.4** — `WorkflowDefinitionDraftValidator` extrahieren: Rest (`NormalizeDefinitionKey`, `ValidateAndNormalize`, Draft-Overload-Varianten der Validate-/Normalize-Helfer). Service wird Facade oder verschwindet, falls nichts mehr uebrigbleibt.
+- **Z7-3.4 (done 2026-05-05)** — `WorkflowDefinitionDraftValidator` extrahieren: `NormalizeDefinitionKey`, `ValidateAndNormalize` und alle Draft-internen Validatoren (`ValidateGraphStructure`, `ValidateReachability`, `ValidateNodeConfigurations`, `ValidateNodeActions`, `ValidateDecisionConditions`, `ValidateGatewayTopology`, `ValidateMeasurePhaseTopology`) sowie die Write-Pfad-Normalisierer (`NormalizeNodeActions`, `NormalizeNodeSpecs`, `NormalizeSpecConditions`, `NormalizeSpecDependencies`, `ValidateSpecDependenciesPointToSiblings`) in neue interne `static class WorkflowDefinitionDraftValidator`. `WorkflowDefinitionValidationService` ist nur noch eine duenne Facade ueber Draft- und Snapshot-Validator (Typdefinitionen bleiben in der Datei). 370 Unit-Tests gruen.
 
-Naechster Schritt: Z7-3.4 (DraftValidator). Reasoning: medium. Modell: sonnet.
+Z7-3 vollstaendig abgeschlossen (Catalog + Helpers + SnapshotValidator + DraftValidator). Service ist jetzt eine duenne Facade.
 
 ---
 

@@ -47,9 +47,9 @@ Folgearbeit aus Zyklus 6. Lifecycle-Service nach Schritt 7 mid-state: vier Pass-
 |--------|------|--------|
 | Z7-1 — Lifecycle-Service vollstaendig zur Commit-Grenze ausbauen (Slice-Plan) | HIGH | done am 2026-05-05 — Z7-1.1, Z7-2, Z7-1.2, Z7-1.3, Z7-1.4, Z7-1.5a, Z7-1.5b.i–v erledigt; Scoped-Vertrag `IWorkflowDefinitionRuntimeScopedRepository` aufgeloest |
 | Z7-2 — `WorkflowLifecycleService` Test-Coverage | HIGH | done am 2026-05-05 |
-| Z7-3 — `WorkflowDefinitionValidationService` (2131 Z.) splitten | MEDIUM | in Arbeit (4 Sub-Slices, Z7-3.1 Catalog + Z7-3.2 Helpers + Z7-3.3 SnapshotValidator done am 2026-05-05) |
+| Z7-3 — `WorkflowDefinitionValidationService` (2131 Z.) splitten | MEDIUM | done am 2026-05-05 (alle 4 Sub-Slices: Catalog, Helpers, SnapshotValidator, DraftValidator) |
 
-Naechster Schritt: Z7-3.4 (`WorkflowDefinitionDraftValidator` extrahieren, sonnet, medium). Z7-3.1 (Catalog) + Z7-3.2 (Helpers) + Z7-3.3 (SnapshotValidator) am 2026-05-05 erledigt.
+Z7-3 vollstaendig abgeschlossen am 2026-05-05; `WorkflowDefinitionValidationService` ist jetzt eine duenne Facade ueber `WorkflowDefinitionDraftValidator` und `WorkflowDefinitionSnapshotValidator`.
 
 ---
 
