@@ -35,8 +35,22 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 
 ---
 
-**Stand**: 2026-05-05 — Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit; Z9-3 Coverage).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen).
+## Schreibregel fuer Reviews und Findings (verbindlich)
+
+Jedes Review-Finding und jeder Slice in dieser Datei muss neben dem technischen Befund in kurzen Saetzen erklaeren:
+
+- **Was bedeutet das praktisch?** — was ein normal verstaendlicher Leser im Alltag merkt (z. B. „Listen werden langsam, sobald viele Eintraege da sind", „Admin-UI zeigt nicht alles, was wirklich existiert", „Sync schlaegt still fehl").
+- **Warum lohnt es sich, das anzugehen?** — der konkrete Anlass oder das Risiko, nicht nur „technische Schuld".
+- **Was wird dadurch besser, sicherer, schneller oder wartbarer?** — der erwartete Nutzen, mit dem die Priorisierung begruendet ist.
+
+Reine Technik-Beschreibung ohne Nutzen-/Bedeutung-Erklaerung ist nicht ausreichend. Die Regel gilt fuer alle neuen Zyklen, fuer einzelne Befunde und fuer den jeweils gefuehrten Slice-Plan. Bei zyklusuebergreifend offenen Befunden reicht ein kurzer Hinweis, warum sie aktuell nicht angegangen werden.
+
+Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unter Codex-Orchestrierung verankert.
+
+---
+
+**Stand**: 2026-05-05 — Zyklus 10 eroeffnet (Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken). Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit; Z9-3 Coverage).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 eroeffnet).
 
 ---
 
@@ -53,6 +67,64 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 | Skalierbarkeit | **B-** | Mehrere Listen-, Sweep- und Dispatch-Pfade sind noch Kandidaten fuer SQL-Pushdown, Pagination oder N+1-Abbau |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
+
+---
+
+## Aktiver Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege und Query-Kontrakt-Risiken (2026-05-05)
+
+**Status:** eroeffnet 2026-05-05. Reiner Review-/Planungszyklus. Keine Code-Umsetzung in Z10-1.x; Umsetzungs-Slices erst nach Z10-1.3 mit explizitem Folgezyklus.
+
+**Thema:** Admin- und Master-Data-Listen (z. B. Departments, Rollen, Group-Role-Mappings, Identities, Pending-Imports, Audit-Logs, Workflow-Definitionsbestand) werden derzeit zu grossen Teilen ohne Pagination, ohne Suchparameter und ohne stabilen Sortier-Vertrag gegen Backend-API und Frontend gefahren. Der Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync` ohne Pagination) ist nur die sichtbarste Stelle; das Muster betrifft mehrere Read-Pfade unter Admin-Konfiguration und Directory-Sync.
+
+**Was bedeutet das praktisch?**
+- Admin-Listen werden bei wachsender Datenmenge spuerbar langsamer zu laden, irgendwann bricht das UI-Rendering ein, oder die Liste zeigt zwar Eintraege, aber Filter und Reihenfolge fuehlen sich „zufaellig" an.
+- Suche und Filter passieren heute ueberwiegend im Browser. Damit findet man nur, was bereits geladen wurde — wer mit „nicht da, sehe ich auch in der Liste nicht" rechnet, kann etwas uebersehen, das wirklich existiert.
+- Ohne expliziten Pagination-/Sort-Vertrag aendert sich Verhalten still (z. B. zwei UI-Stellen sortieren unterschiedlich), und API-Konsumenten ausserhalb des Frontends koennen sich nicht auf eine stabile Reihenfolge stuetzen.
+
+**Warum lohnt es sich, das anzugehen?**
+- Die Plattform geht in Richtung mehr Workflows, mehr Definitionen, mehr Identitaeten und mehr Mappings — das Wachstum der Listen ist eingeplant, nicht zufaellig.
+- Bisher gab es **keinen** akuten Last-Trigger, deshalb wurden Vertrags-Themen zugunsten der Last-Pfade in Z8/Z9 hintenangestellt. Dieser Zyklus zieht den Vertrags-Teil bewusst vor das Wachstum, statt ihn am Schmerzpunkt nachzuschieben.
+- Klare Vertraege (`?limit`, `?offset` oder `?cursor`, `?search`, `?sort`) verhindern halbgaarige FE-Workarounds und reduzieren das Risiko, dass spaetere Performance-Hotfixes API-Brueche fuer das FE bedeuten.
+
+**Was wird dadurch besser, sicherer, schneller oder wartbarer?**
+- **Schneller:** Listen liefern bei wachsendem Bestand stabile Antwortzeiten, weil das Backend nur einen Ausschnitt rechnet.
+- **Sicherer:** Such-/Filterergebnisse sind komplett, nicht nur der gerade geladene Browser-Block.
+- **Wartbarer:** ein einheitlicher Listen-/Suchvertrag ist der gleiche Mechanismus an mehreren Endpunkten — neue Listen koennen ihn uebernehmen, statt jedes Mal eigene Sonderloesungen zu bauen.
+- **FE-stabilitaet:** das Frontend kann gezielt Filter, Sortierung und Pagination uebernehmen, ohne sich auf „alles auf einmal"-Annahmen zu stuetzen.
+
+**Begruendung gegen alternative Zyklen:**
+- *Direkt Pagination implementieren ohne Inventur*: erzeugt halbgaaren Stand mit unterschiedlichen Vertraegen je Endpunkt — genau das, was vermieden werden soll. Z10 startet bewusst als Inventur + Plan.
+- *Z8-3.2/#8 Rotation-Regeneration*: bleibt deferred — admin-getriggert, kein kleiner SQL-Hebel, kein Listen-Vertragsproblem.
+- *Neuer Hygiene-Refactor anderer grosser Services*: ohne Wachstums-/Vertrags-Trigger waere das blindes Aufraeumen.
+
+**Fokus:**
+1. Inventur aller Read-/Listen-Pfade unter Admin-Konfiguration, Directory-Sync, Workflow-Definitionsbestand und verbundener Audit-Listen, die heute ohne Pagination/Suche laufen.
+2. Vertrags-Skizze: pro Endpunkt entscheiden, ob Pagination per `limit/offset` oder Cursor sinnvoll ist, ob Server-Suche/-Sort gebraucht wird, und welche FE-Folgen daran haengen.
+3. Slice-Plan: erste sichere Umsetzungsslices (API-Vertrag + minimale FE-Adaption) als Vorschlag fuer einen Folgezyklus formulieren — **nicht** in Z10 implementieren.
+
+**Leitplanken:**
+- Z10 ist Review-/Planungszyklus, keine Implementierung. Kein Code-Slice in Z10 wird als done markiert, das eine API-Vertragsaenderung oder DB-Aenderung enthaelt.
+- FE-Folgen werden klar benannt, sobald die Inventur sie sichtbar macht — kein „kuenstliches FE-TODO" ohne API-Trigger.
+- Kein paralleler zweiter Hebel; Z10 bleibt thematisch fokussiert.
+- Vertrags-Skizze muss explizit erklaeren, was der Vertrag fuer normal verstaendliche Leser im Alltag bedeutet (siehe Schreibregel oben), nicht nur Parameter-Listen.
+
+**Geplante Slices (Erst-Definition, nicht Umsetzung):**
+
+| ID | Aufgabe | Prio | Reasoning | Modell | Status |
+|----|---------|------|-----------|--------|--------|
+| Z10-1.1 | Inventur: alle Admin-/Master-Data-/Directory-Read-Endpunkte und ihre Repository-/Service-Pfade ohne Pagination/Suche/Sort-Vertrag dokumentieren (Datei/Symbol, Rueckgabeform, aktuelle Aufrufer im FE, beobachtete Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | high | opus | offen |
+| Z10-1.2 | Vertrags-Skizze: pro identifiziertem Endpunkt entscheiden — `limit`/`offset` vs. Cursor, Server-`search` ja/nein, stabiler `sort`-Vertrag ja/nein, Antwort-Hull (`items` + `total`/`nextCursor`); jeweils kurz erklaeren, was sich fuer den Nutzer aendert und welche FE-Adaption noetig waere | HIGH | high | opus | offen |
+| Z10-1.3 | Slice-Plan fuer Folgezyklus: erste 2–3 sichere Umsetzungsslices priorisieren (API-Vertrag + minimaler FE-Adaption) inkl. Begruendung, warum gerade die zuerst; Vorschlag, welche Endpunkte in Z10 absichtlich noch nicht angefasst werden und warum | HIGH | medium..high | opus | offen |
+
+**Erwartete Ausgaenge aus Z10:**
+- aktualisierte Inventur in `CODE_REVIEW.md` § Z10-1.1
+- Vertrags-Skizze in `CODE_REVIEW.md` § Z10-1.2
+- Slice-Plan fuer Folgezyklus in `CODE_REVIEW.md` § Z10-1.3
+- bei sichtbaren FE-Folgen: kurzer Hinweis in `FRONTEND_TODO.md` mit Trigger-Kennzeichnung, **nicht** als praeventives FE-TODO
+
+**Reihenfolge / Abhaengigkeiten:**
+- Z10-1.1 → Z10-1.2 → Z10-1.3 streng sequenziell. Inventur vor Vertrag, Vertrag vor Slice-Plan.
+- Umsetzungs-Slices entstehen erst in einem Folgezyklus, nicht in Z10.
 
 ---
 
@@ -522,6 +594,7 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | deferred — wartet auf Produkt-Entscheidung | Zyklus 1 |
 | LQ2-Z3 | `EntraDirectorySyncService.cs` (2591 → 1563 Z.) Split + Coverage `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` | **abgeschlossen als Zyklus 9** (2026-05-05) — Z9-1.1/1.2 Inventur+Plan, Z9-2.1/2.2/2.3 Splits, Z9-3 Coverage | Zyklus 3 / Z8 → Z9 |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein Hot-Path; kein kleiner SQL-/Batch-Hebel ohne breiten Umbau an `SynchronizeRotationGeneratedTasks` | Zyklus 8 |
+| Z8-1.2/#6 | `GetDepartmentsAsync`/`GetRolesAsync` (und vergleichbare Master-Data-/Admin-Listen) ohne Pagination/Suche/Sort-Vertrag | **aktiv als Zyklus 10** (2026-05-05) — adressiert breiter als nur #6 unter „Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken" | Zyklus 8 → Zyklus 10 |
 
 ---
 
@@ -537,4 +610,5 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | 6 | 2026-05-03..04 | Runtime-Lifecycle (Schritt 7): Engine-Extraktion + Lifecycle-Service mit Conn+Tx-Scope |
 | 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung + Validation-Split |
 | 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung (Hotspots #1/#2/#3/#4/#7 gepushed; #5 verifiziert; #8 deferred; Z8-4 Coverage) |
-| 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3 aktiviert) — eroeffnet |
+| 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3 aktiviert) — abgeschlossen |
+| 10 | 2026-05-05 | Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — eroeffnet |

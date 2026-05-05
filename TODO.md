@@ -40,6 +40,28 @@ Zusaetzlich immer mitlesen:
 - `PROJECT_CONTEXT.md`
 - `MEMORY.md`
 
+Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen Befund kurz erklaeren, was er praktisch bedeutet, warum es sich lohnt, ihn anzugehen, und was dadurch besser, sicherer, schneller oder wartbarer wird. Detail in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
+
+---
+
+## Aktiver Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken (2026-05-05)
+
+Z10 ist eroeffnet (2026-05-05) als reiner Review-/Planungszyklus. Thema: Admin-/Master-Data-/Directory-Listen werden zu grossen Teilen ohne Pagination, Server-Suche und stabilen Sort-Vertrag bedient — vor weiterem Wachstum werden Vertraege gezogen, statt am Schmerzpunkt nachzuschieben. Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync`) ist nur die sichtbarste Stelle.
+
+**Praktisch:** Listen werden bei wachsendem Bestand spuerbar langsamer, Suche/Filter fuehlen sich unvollstaendig an, weil viele Stellen heute im Browser filtern. **Lohnenswert:** Vertrag jetzt klaeren ist deutlich billiger als Hotfix unter Last; vermeidet halbgaarige Workarounds und API-Brueche fuer das FE. **Nutzen:** stabile Antwortzeiten, vollstaendige Server-Suche, einheitlicher Listen-/Such-/Sort-Vertrag, der wiederverwendbar ist. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 10".
+
+| Block | Aufgabe | Prio | Reasoning | Modell | Status |
+|-------|---------|------|-----------|--------|--------|
+| Z10-1.1 | Inventur: alle Admin-/Master-Data-/Directory-Read-Endpunkte ohne Pagination/Suche/Sort-Vertrag dokumentieren (Datei/Symbol, Rueckgabeform, FE-Aufrufer, Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | high | opus | offen |
+| Z10-1.2 | Vertrags-Skizze: pro Endpunkt entscheiden — `limit`/`offset` vs. Cursor, Server-`search` ja/nein, stabiler `sort`-Vertrag, Antwort-Hull (`items` + `total`/`nextCursor`); jeweils kurz erklaeren, was sich fuer Nutzer aendert und welche FE-Adaption noetig waere | HIGH | high | opus | offen |
+| Z10-1.3 | Slice-Plan fuer Folgezyklus: 2–3 sichere Umsetzungsslices (API-Vertrag + minimale FE-Adaption) priorisieren; benennen, welche Endpunkte bewusst noch nicht angefasst werden und warum | HIGH | medium..high | opus | offen |
+
+**Leitplanken Z10:**
+- Reiner Review-/Planungszyklus. Keine Code-Umsetzung in Z10. Kein Slice darf in Z10 als done markiert werden, der einen API-Vertrag oder eine DB-Aenderung enthaelt.
+- FE-Folgen erst eintragen, wenn die Inventur sie sichtbar macht. Kein praeventives Frontend-TODO.
+- Reihenfolge streng sequenziell: Z10-1.1 → Z10-1.2 → Z10-1.3.
+- Schreibregel anwenden: zu jedem Finding klare Bedeutung-/Nutzen-Erklaerung.
+
 ---
 
 ## Abgeschlossener Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
@@ -99,6 +121,7 @@ Z8 abgeschlossen; Folge-Zyklus Z9 eroeffnet (siehe oben).
 - Zyklus 7 ist abgeschlossen. Kurzfassung in `CODE_REVIEW.md`, Detail in `CODE_REVIEW_ARCHIVE.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
 - Zyklus 8 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 8".
 - Zyklus 9 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 9".
+- Zyklus 10 ist eroeffnet (2026-05-05). Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 10".
 
 ---
 

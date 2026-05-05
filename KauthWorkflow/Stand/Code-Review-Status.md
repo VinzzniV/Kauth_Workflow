@@ -20,7 +20,13 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-05 — Zyklus 8 + Zyklus 9 abgeschlossen)
+## Schreibregel (verbindlich)
+
+Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen Befund kurz aus Nutzersicht erklaert: was es praktisch bedeutet, warum es sich lohnt, das anzugehen, und was dadurch besser, sicherer, schneller oder wartbarer wird. Detail in `CODE_REVIEW.md` § „Schreibregel fuer Reviews und Findings" und `CLAUDE_CONTROL.md`.
+
+---
+
+## Gesamtbewertung (Stand 2026-05-05 — Zyklus 8 + Zyklus 9 abgeschlossen, Zyklus 10 eroeffnet)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -49,6 +55,25 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 | 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung (Z7-1 in 5 Sub-Slices) + Validation-Service-Split (Z7-3 in 4 Sub-Slices); 416/417 Tests gruen |
 | 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung: #1 Bulk-Lookup, #2/#3 Sweep+Apply Batching, #4 Entra Group/Member Bulk, #7 Recipient-Bulk; #5 false positive; #8 deferred; Z8-4 Coverage |
 | 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3) — abgeschlossen (Split + Coverage) |
+| 10 | 2026-05-05 | Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — eroeffnet (Review-/Planungszyklus) |
+
+---
+
+## Aktiver Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken (2026-05-05)
+
+Eroeffnet 2026-05-05 als reiner Review-/Planungszyklus. Folge-Hebel aus Z8-1.2 (#6 `GetDepartmentsAsync`/`GetRolesAsync` ohne Pagination), aber breiter gefasst: das Vertrags-Thema betrifft mehrere Admin-/Master-Data-/Directory-Read-Pfade und nicht nur Departments/Rollen.
+
+**Praktisch:** Admin-Listen werden bei wachsendem Bestand spuerbar langsamer; Suche und Filter laufen heute ueberwiegend im Browser, deshalb fuehlen sich Ergebnisse irgendwann unvollstaendig oder „zufaellig sortiert" an. **Lohnenswert:** ein einheitlicher Listen-/Such-/Sort-Vertrag jetzt zu definieren ist deutlich billiger als spaeterer Hotfix unter Last und vermeidet API-Brueche fuer das FE. **Nutzen:** stabile Antwortzeiten, vollstaendige Server-Suche, klarer Vertrag, der an mehreren Endpunkten gleich aussieht und so neue Listen direkt mitnimmt.
+
+| Befund | Prio | Status |
+|--------|------|--------|
+| Z10-1.1 — Inventur aller Admin-/Master-Data-/Directory-Read-Endpunkte ohne Pagination/Suche/Sort-Vertrag (Datei/Symbol, FE-Aufrufer, Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | offen |
+| Z10-1.2 — Vertrags-Skizze pro Endpunkt (`limit`/`offset` vs. Cursor, Server-`search`, stabiler `sort`, Antwort-Hull) inkl. FE-Adaption-Folgen | HIGH | offen |
+| Z10-1.3 — Slice-Plan fuer Folgezyklus: erste 2–3 sichere Umsetzungsslices mit Begruendung der Reihenfolge | HIGH | offen |
+
+Frontend-Folgen Z10-1.x: aktuell **keine**. Z10 produziert Inventur und Vertrags-Skizze, kein Code-Change. FE-Eintraege entstehen erst, wenn aus Z10-1.2 konkrete API-Vertragsaenderungen folgen — dann mit Trigger-Kennzeichnung in `FRONTEND_TODO.md`, nicht praeventiv.
+
+Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 10".
 
 ---
 

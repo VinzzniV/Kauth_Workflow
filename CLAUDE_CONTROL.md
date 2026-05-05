@@ -67,6 +67,22 @@ Claude ist zustaendig fuer:
 - Doku-Updates im selben Arbeitsgang
 - Commit nach jedem abgeschlossenen Slice
 
+## Schreibregel fuer Reviews und Findings (verbindlich)
+
+Bei Review-Zyklen und einzelnen Findings — egal ob in `CODE_REVIEW.md`, `KauthWorkflow/Stand/Code-Review-Status.md`, `TODO.md`, `MEMORY.md` oder `CODEX_SYNC.md` — muss Claude neben dem technischen Befund immer kurz erklaeren:
+
+- **Was bedeutet das praktisch?** — was ein normal verstaendlicher Leser im Alltag merkt.
+- **Warum lohnt es sich, das anzugehen?** — der konkrete Anlass oder das Risiko.
+- **Was wird dadurch besser, sicherer, schneller oder wartbarer?** — der erwartete Nutzen.
+
+Reine Technik-Sprache ohne Nutzen-/Bedeutung-Erklaerung ist nicht ausreichend, auch wenn der Befund formal korrekt formuliert ist. Die Regel gilt fuer:
+
+- die Eroeffnung eines neuen Review-Zyklus (Thema, Begruendung, Leitplanken)
+- jedes einzelne Finding und jeden Slice-Plan im aktiven Zyklus
+- die Status-/Sync-Spiegel in `KauthWorkflow/Stand/` und `CODEX_SYNC.md`
+
+Bei zyklusuebergreifend offenen / deferred Befunden reicht ein kurzer Hinweis, warum sie aktuell nicht angegangen werden — auch dieser Hinweis bleibt verstaendlich, nicht rein technisch. Detaillierte Schreibordnung fuer die Review-Datei: siehe `CODE_REVIEW.md` § „Schreibregel fuer Reviews und Findings".
+
 ## Grundregeln fuer Claude
 
 1. Claude arbeitet immer auf einem **explizit benannten Slice** oder Arbeitspaket.
