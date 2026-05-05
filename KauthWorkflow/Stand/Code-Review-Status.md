@@ -73,7 +73,7 @@ Eroeffnet und abgeschlossen 2026-05-05 als reiner Review-/Planungszyklus. Alle d
 
 Frontend-Folgen Z10-1.x: aktuell **keine**. Z10 produziert Inventur und Vertrags-Skizze, kein Code-Change. FE-Eintraege entstehen erst, wenn aus Z10-1.2 konkrete API-Vertragsaenderungen folgen — dann mit Trigger-Kennzeichnung in `FRONTEND_TODO.md`, nicht praeventiv.
 
-Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 10".
+Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 10".
 
 ---
 

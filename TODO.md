@@ -48,7 +48,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 Z10 ist abgeschlossen (2026-05-05) — alle drei Planungs-Slices done, formaler Zyklusabschluss vollzogen. Naechster Schritt: Eroeffnung eines Umsetzungszyklus (vorgeschlagen Z11) auf Basis von `CODE_REVIEW.md` § Z10-1.3 (F1 → F2 → F3). Thema: Admin-/Master-Data-/Directory-Listen werden zu grossen Teilen ohne Pagination, Server-Suche und stabilen Sort-Vertrag bedient — vor weiterem Wachstum werden Vertraege gezogen, statt am Schmerzpunkt nachzuschieben. Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync`) ist nur die sichtbarste Stelle.
 
-**Praktisch:** Listen werden bei wachsendem Bestand spuerbar langsamer, Suche/Filter fuehlen sich unvollstaendig an, weil viele Stellen heute im Browser filtern. **Lohnenswert:** Vertrag jetzt klaeren ist deutlich billiger als Hotfix unter Last; vermeidet halbgaarige Workarounds und API-Brueche fuer das FE. **Nutzen:** stabile Antwortzeiten, vollstaendige Server-Suche, einheitlicher Listen-/Such-/Sort-Vertrag, der wiederverwendbar ist. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 10".
+**Praktisch:** Listen werden bei wachsendem Bestand spuerbar langsamer, Suche/Filter fuehlen sich unvollstaendig an, weil viele Stellen heute im Browser filtern. **Lohnenswert:** Vertrag jetzt klaeren ist deutlich billiger als Hotfix unter Last; vermeidet halbgaarige Workarounds und API-Brueche fuer das FE. **Nutzen:** stabile Antwortzeiten, vollstaendige Server-Suche, einheitlicher Listen-/Such-/Sort-Vertrag, der wiederverwendbar ist. Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 10".
 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|

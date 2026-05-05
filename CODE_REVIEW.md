@@ -50,7 +50,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 ---
 
 **Stand**: 2026-05-05 — Zyklus 10 abgeschlossen (Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — reiner Review-/Planungszyklus, alle Slices done). Kein aktiver Zyklus. Naechster Schritt: Eroeffnung Umsetzungszyklus (vorgeschlagen Z11) auf Basis F1/F2/F3 aus § Z10-1.3. Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit; Z9-3 Coverage).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 eroeffnet).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen).
 
 ---
 
@@ -994,7 +994,7 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | deferred — wartet auf Produkt-Entscheidung | Zyklus 1 |
 | LQ2-Z3 | `EntraDirectorySyncService.cs` (2591 → 1563 Z.) Split + Coverage `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` | **abgeschlossen als Zyklus 9** (2026-05-05) — Z9-1.1/1.2 Inventur+Plan, Z9-2.1/2.2/2.3 Splits, Z9-3 Coverage | Zyklus 3 / Z8 → Z9 |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein Hot-Path; kein kleiner SQL-/Batch-Hebel ohne breiten Umbau an `SynchronizeRotationGeneratedTasks` | Zyklus 8 |
-| Z8-1.2/#6 | `GetDepartmentsAsync`/`GetRolesAsync` (und vergleichbare Master-Data-/Admin-Listen) ohne Pagination/Suche/Sort-Vertrag | **aktiv als Zyklus 10** (2026-05-05) — adressiert breiter als nur #6 unter „Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken" | Zyklus 8 → Zyklus 10 |
+| Z8-1.2/#6 | `GetDepartmentsAsync`/`GetRolesAsync` (und vergleichbare Master-Data-/Admin-Listen) ohne Pagination/Suche/Sort-Vertrag | **abgeschlossen als Zyklus 10** (2026-05-05) — adressiert breiter als nur #6 unter „Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken" | Zyklus 8 → Zyklus 10 |
 
 ---
 
