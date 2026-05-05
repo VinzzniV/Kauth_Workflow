@@ -30,7 +30,12 @@ __pycache__/
 # Build- und Test-Caches (sollten nie committed werden)
 /artifacts/
 /.tmp-build/
+/.tmp-test-bin/
 /.tmp-test-obj/
+
+# Obsidian local workspace state
+/KauthWorkflow/.obsidian/app.json
+/KauthWorkflow/.obsidian/workspace.json
 
 # Editors / OS
 .DS_Store
