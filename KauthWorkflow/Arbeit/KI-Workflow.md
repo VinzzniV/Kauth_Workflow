@@ -15,6 +15,8 @@
 
 Der Vault **ersetzt nicht** die Repo-Docs. Er ergänzt sie mit menschlicher Navigierbarkeit und stabilem Hintergrundwissen.
 
+Einstieg in den Vault: [[00 Start]]
+
 ---
 
 ## Wann Claude den Vault lesen soll
@@ -117,5 +119,6 @@ Die operative Regeldatei dafuer ist `CLAUDE_CONTROL.md` im Repo-Root.
 ## Verwandte Notizen
 
 - [[00 Start]] — Einstieg in den Vault
+- [[Begriffe]] — Glossar zentraler Projektbegriffe
 - [[Zielarchitektur]] — Stabiles Sollbild
 - [[Migrationspfad]] — Aktueller Stand

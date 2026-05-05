@@ -1,5 +1,37 @@
 # PROJECT_CONTEXT.md
 
+## Zweck
+
+- stabile Projektwahrheit und Guardrails
+- produktseitige und architektonische Rahmenbedingungen fuer jede Arbeit im Repo
+
+## Primaerquelle fuer
+
+- Zielbild des Produkts
+- nicht verhandelbare Kernregeln
+- Abgrenzung zwischen Legacy, Zielarchitektur und Migration
+
+## Nicht verwenden fuer
+
+- kurzfristigen Task-Status
+- Session-Kontext
+- detaillierte Slice-Planung
+
+## Wann aktualisieren
+
+- wenn sich stabile Produktregeln oder Guardrails aendern
+- wenn sich das Zielbild der Plattform verschiebt
+
+## Verwandte Dateien
+
+- `DOCS_CONTROL.md`
+- `PROJECT_STRUCTURE.md`
+- `CODE_REVIEW.md`
+- `KauthWorkflow/Architektur/Zielarchitektur.md`
+- `KauthWorkflow/Architektur/Entscheidungen.md`
+
+---
+
 ## Ziel
 
 Das Projekt entwickelt sich von einem konfigurierbaren Employee-Lifecycle-Tool zu einer versionierten internen Workflow-Plattform.
@@ -35,7 +67,7 @@ Noch nicht im Zielbild:
 Wichtige Diagnose:
 - Das Problem ist nicht nur "zu viel hardcoded".
 - Das aktuelle Kernmodell ist fuer das Produktziel zu eng und noch zu task-generator-lastig.
-- Die aktuelle CodeReview benennt zusaetzlich das monolithische Repository, fehlende Transaktionsgrenzen, in-memory Task-Filter und unvollstaendige Validierungen als wichtigste technische Risiken.
+- Die aktuelle CodeReview benennt zusaetzlich das monolithische Repository, fehlende Transaktionsgrenzen, Lastpfade und unvollstaendige Validierungen als wichtigste technische Risiken.
 
 ---
 
@@ -141,14 +173,3 @@ Wir bewegen uns in diese Richtung:
 - Business-Regeln ins Frontend verschieben
 - Altlogik voreilig loeschen
 - grosse Refactors ohne klaren Migrationsschnitt machen
-
----
-
-## Arbeitsdokumente
-
-- `DOCS_CONTROL.md` = Lesereihenfolge, Schreibziele, Doku-Hygiene
-- `CODE_REVIEW.md` = aktuelle CodeReview und priorisierte Nacharbeit
-- `KauthWorkflow/Architektur/Zielarchitektur.md` = stabiles Sollbild der Plattform
-- `KauthWorkflow/Architektur/Entscheidungen.md` = langfristige Architekturentscheidungen
-- `MEMORY.md` = kurzfristiger Session-Kontext
-- `TODO.md` = priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature

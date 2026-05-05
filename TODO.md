@@ -1,39 +1,50 @@
 # TODO.md
 
-Diese Datei steuert die Reihenfolge der Umsetzung aktiver Review-Zyklen.
-Die aktuelle Priorisierung und Review-Begruendung stehen zentral in `CODE_REVIEW.md`.
+## Zweck
+
+- aktive Arbeitsplanung fuer Review-Nacharbeit
+- nur offene oder unmittelbar relevante Arbeit
+
+## Primaerquelle fuer
+
+- naechsten Arbeitsschritt
+- Reihenfolge der offenen Slices
+
+## Nicht verwenden fuer
+
+- lange Historie abgeschlossener Slices
+- Architekturargumentation
+- Session-Notizen
+
+## Wann aktualisieren
+
+- wenn ein neuer Zyklus startet
+- wenn sich Priorisierung aendert
+- wenn eine Aufgabe abgeschlossen oder deferred wird
+
+## Verwandte Dateien
+
+- `CODE_REVIEW.md`
+- `MEMORY.md`
+- `CODEX_SYNC.md`
+- `FRONTEND_TODO.md`
+
+---
 
 ## Pflicht vor jeder Aufgabe
 
-Vor jeder Aufgabe muss die KI zuerst `CODE_REVIEW.md` lesen (Priorisierungs- und Analyseabschnitte).
+Vor jeder Aufgabe muss die KI zuerst `CODE_REVIEW.md` lesen.
 
-Zusaetzlich immer mitlesen: `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `MEMORY.md`.
-
-Pflicht nach dem Lesen:
-- Vor der Umsetzung kurz festhalten, welche Dokus mitgezogen werden muessen, falls sich Struktur, Scope, Verhalten, Setup oder Risiken aendern.
-- Doku-Aenderungen gehoeren in denselben Arbeitsgang wie die Code-Aenderung.
-- Bei Abschluss Status hier auf `done` setzen.
-
-## Pflicht zwischen Aufgaben
-
-Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
-
-1. **Welche Aufgabe als naechstes ansteht** (mit ID/Block-Bezeichner aus TODO.md)
-2. **Reasoning Effort** (`low` / `medium` / `high`)
-3. **Empfohlenes Modell** (`sonnet` / `opus`)
-
-Format-Beispiel: *„Naechster Schritt: Z7-1.1 Lifecycle-Inventur. Reasoning: high. Modell: opus."*
-
-## Aufgabenteilung Codex/Claude
-
-> Fuer jede Aufgabe gilt: Die KI, die sie abschliesst, traegt Datum + kurze Aenderungszusammenfassung in `CODEX_SYNC.md` ein.
-> Claude liest `CODEX_SYNC.md` am Sitzungsanfang, um Codex-Aenderungen nachzuvollziehen.
+Zusaetzlich immer mitlesen:
+- `DOCS_CONTROL.md`
+- `PROJECT_CONTEXT.md`
+- `MEMORY.md`
 
 ---
 
 ## Aktiver Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
 
-Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWorkflow/Stand/Code-Review-Status.md`. Frontend ist nicht betroffen, solange keine API-Vertraege brechen.
+Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWorkflow/Stand/Code-Review-Status.md`.
 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|
@@ -47,45 +58,26 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 
 ---
 
-## Abgeschlossener Zyklus 7 — Lifecycle-Service-Konsolidierung (2026-05-05)
-
-Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 7" und in `KauthWorkflow/Stand/Code-Review-Status.md`.
-
-Ergebnis: Lifecycle-Service ist Commit-Grenze fuer Create/Form/Approval/Task; Validation-Service ist in Draft-/Snapshot-/Helper-/Catalog-Slices aufgeteilt.
-
----
-
-## Watch-Items / Defer
-
-| ID | Aufgabe | Status |
-|----|---------|--------|
-| LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split | defer ohne Trigger (Risiko niedrig — Timer-Pfad, kein User-Pfad) |
-
----
-
-## Offene Restposten (zyklusuebergreifend)
+## Zyklusuebergreifend offen
 
 | ID | Aufgabe | Quelle | Status |
 |----|---------|--------|--------|
 | R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | L7 | offen — Nutzer-Aufgabe |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | L7-Backlog | backlog — kein konkreter Bedarf |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | Zyklus 1 | deferred — wartet auf Produkt-Entscheidung |
+| LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split | Zyklus 3 | deferred — kein Trigger |
 
 ---
 
 ## Abgeschlossene Zyklen
 
-Zyklen 1–7 (2026-04-23 bis 2026-05-05) sind abgeschlossen. Detail-Historie via `git log`; Highlights pro Zyklus in `KauthWorkflow/Stand/Code-Review-Status.md`.
+- Zyklus 7 ist abgeschlossen. Kurzfassung in `CODE_REVIEW.md`, Detail in `CODE_REVIEW_ARCHIVE.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
 
 ---
 
-## Abschlussregel fuer jede KI-Aufgabe
+## Arbeitsregel
 
-Nach jedem groesseren Schritt muss berichtet werden:
-1. Welche Dateien wurden geaendert?
-2. Auf welchen Abschnitt in `CODE_REVIEW.md` wurde gearbeitet?
-3. Wie passt die Aenderung zur Zielarchitektur?
-4. Welche Risiken oder Luecken bleiben offen?
-5. Welche Tests wurden angepasst oder fehlen noch?
-6. Welche Doku musste mitgezogen werden?
-7. Wurde die erledigte Aufgabe in `TODO.md` auf `done` gesetzt?
+Vor dem Start einer Aufgabe immer explizit nennen:
+1. welche Aufgabe als naechstes ansteht
+2. welches Reasoning sinnvoll ist
+3. welches Modell empfohlen ist

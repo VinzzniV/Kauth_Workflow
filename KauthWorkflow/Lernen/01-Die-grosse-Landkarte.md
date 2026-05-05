@@ -58,10 +58,13 @@ Kein Code, sondern Doku/Steuerung für die KIs:
 | Datei | Wofür |
 |---|---|
 | `CLAUDE.md` | Anweisungen an Claude |
+| `CLAUDE_CONTROL.md` | operative Claude-Regeln unter Codex-Orchestrierung |
 | `TODO.md` | Aktuelle Aufgabenliste |
 | `CODE_REVIEW.md` | Code-Review-Befunde |
+| `CODE_REVIEW_ARCHIVE.md` | Detailarchiv abgeschlossener Review-Zyklen |
 | `CODEX_SYNC.md` | Handoff-Protokoll Codex ↔ Claude |
-| `MEMORY.md` | Persistenter Speicher zwischen Sessions |
+| `CODEX_SYNC_ARCHIVE.md` | aeltere Handoff-Historie |
+| `MEMORY.md` | kurzer aktueller Session-Fokus |
 | `PROJECT_CONTEXT.md` | Übergeordneter Projekt-Kontext |
 | `DOCS_CONTROL.md` | Welche Doku wann zu lesen ist |
 
@@ -70,6 +73,7 @@ Kein Code, sondern Doku/Steuerung für die KIs:
 Sammlung von Markdown-Notizen (Obsidian).
 
 - `Architektur/` = Wie das System aufgebaut sein soll
+- `Domäne/Begriffe.md` = Glossar wichtiger Begriffe
 - `Domäne/` = Fachliche Konzepte (Workflow, Rotation, Identity, ...)
 - `Stand/` = Aktueller Code-Review-Stand
 - `Arbeit/` = Wie KI und Mensch zusammenarbeiten

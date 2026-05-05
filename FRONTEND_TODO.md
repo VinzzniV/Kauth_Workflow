@@ -44,7 +44,7 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 ## Naechster sinnvoller Schritt
 
-Zyklus 7 (2026-05-05) ist bewusst backend-fokussiert: Lifecycle-Service-Konsolidierung und Validation-Service-Split. Aus dem aktuellen Frontend-Stand sind keine neuen Items entstanden — Builder, Listen-Workspaces und Personenakte sind nach FE-25..FE-31 ausreichend stabil. Naechster sinnvoller FE-Trigger: konkrete Nutzerreaktion auf Personenakte (FE-31) oder Builder-Pflege nach Z7-Backend-Aenderungen.
+Zyklus 8 (2026-05-05) ist bewusst backend-fokussiert: Skalierbarkeits- & Last-Haertung. Aus dem aktuellen Frontend-Stand sind keine neuen Items entstanden — Builder, Listen-Workspaces und Personenakte sind nach FE-25..FE-31 ausreichend stabil. Naechster sinnvoller FE-Trigger: konkrete Nutzerreaktion auf Personenakte (FE-31) oder API-Vertragsaenderungen aus Z8 (z. B. Pagination/Sortierung).
 
 ---
 

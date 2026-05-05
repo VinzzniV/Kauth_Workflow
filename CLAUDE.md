@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code when working in this repository.
 
 For Codex-orchestrated Claude work, also read `CLAUDE_CONTROL.md`.
+For vault navigation and stable knowledge, start with `KauthWorkflow/00 Start.md` when needed.
 
 ---
 
@@ -38,6 +39,7 @@ Documentation and task descriptions are primarily written in German.
 There is a knowledge base at `KauthWorkflow/` (Obsidian vault, lives inside the repo).
 
 **Read from the vault when:**
+- Getting the human-readable map of the vault → `KauthWorkflow/00 Start.md`
 - Planning architecture changes or migration steps → `KauthWorkflow/Architektur/`
 - Clarifying domain concepts (Rotation, Identity, Automation, Workflow) → `KauthWorkflow/Domäne/`
 - Checking what is open vs. done in the code review → `KauthWorkflow/Stand/Code-Review-Status.md`

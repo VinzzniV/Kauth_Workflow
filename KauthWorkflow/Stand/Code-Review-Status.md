@@ -8,6 +8,16 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 
 > Diese Datei kann veralten. Für den aktuellen Stand immer `CODE_REVIEW.md` und `TODO.md` im Repo prüfen.
 
+## Zweck
+
+- menschlich lesbarer Spiegel des aktuellen Review-Status
+- komprimierte Orientierung ohne die aktive Root-Datei zu ersetzen
+
+## Nicht verwenden fuer
+
+- den exakten naechsten Arbeitsschritt
+- Slice-fuer-Slice-History abgeschlossener Zyklen
+
 ---
 
 ## Gesamtbewertung (Stand 2026-05-05 — nach Zyklus 7, Zyklus 8 aktiv)
@@ -70,6 +80,7 @@ Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehe
 
 ## Verwandte Notizen
 
+- `CODE_REVIEW_ARCHIVE.md` — Detailarchiv abgeschlossener Review-Zyklen
 - [[Migrationspfad]] — Gesamtbild offener Punkte
 - [[Schritt7-Runtime-TaskSystem-Skizze]] — Architekturarbeit aus Zyklus 6
 - [[Rotation]] — Rotation-spezifische Issues

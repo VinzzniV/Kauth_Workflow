@@ -14,10 +14,11 @@ Einstieg: `KauthWorkflow/00 Start.md`
 
 Vault-Dateien nach Thema:
 - Architektur, Zielarchitektur, Entscheidungen, Migrationspfad → `KauthWorkflow/Architektur/`
-- Domänenkonzepte (Workflow, Rotation, Identity, Automation) → `KauthWorkflow/Domäne/`
+- Domänenkonzepte und Glossar (Workflow, Rotation, Identity, Automation, Begriffe) → `KauthWorkflow/Domäne/`
 - Betrieb, Setup, Deployment → `KauthWorkflow/Betrieb/`
 - Aktueller Stand (Code Review, Onboarding-Entkopplung) → `KauthWorkflow/Stand/`
 - KI-Workflow, Engineering-Regeln → `KauthWorkflow/Arbeit/`
+- Einstieg und Lerneinheiten → `KauthWorkflow/00 Start.md`, `KauthWorkflow/Lernen/`
 
 ---
 
@@ -33,8 +34,10 @@ Vor allen nicht-trivialen Aenderungen:
 Zusaetzlich je nach Aufgabe:
 - `CODE_REVIEW.md` und `TODO.md` bei allen Aufgaben zum Rotations-/Durchlauf-Feature oder bei Review-Nacharbeit
 - `PROJECT_STRUCTURE.md` fuer Dateilayout, Module und Einstiegspunkte
+- `KauthWorkflow/00 Start.md` fuer Vault-Navigation und Lesepfade
 - `KauthWorkflow/Architektur/Zielarchitektur.md` fuer das stabile Sollbild
 - `KauthWorkflow/Architektur/Entscheidungen.md` fuer langfristige Architektur- und Produktentscheidungen
+- `KauthWorkflow/Domäne/Begriffe.md` fuer Kernbegriffe bei Einarbeitung oder Mehrdeutigkeiten
 - `KauthWorkflow/Arbeit/Engineering-Regeln.md` fuer Umsetzungs- und Handoff-Regeln
 - `CLAUDE_CONTROL.md` fuer Rollen, Commit-Regel und Slice-Workflow zwischen Codex und Claude
 - `KauthWorkflow/Betrieb/Setup.md` fuer lokale Entwicklung, Deployment und Laufzeitkonfiguration
@@ -56,9 +59,11 @@ Verwende diese Dateien bewusst:
 - stabile Projektwahrheit und Guardrails → `PROJECT_CONTEXT.md`
 - verbindliche Zielarchitektur der Plattform → `KauthWorkflow/Architektur/Zielarchitektur.md`
 - aktuelle CodeReview, Risiken und empfohlene Nacharbeit → `CODE_REVIEW.md`
+- abgeschlossene Review-Details → `CODE_REVIEW_ARCHIVE.md`
 - langfristige Architektur- und Produktentscheidungen → `KauthWorkflow/Architektur/Entscheidungen.md`
 - kurzfristiger Session-Kontext, aktive Risiken, naechste Schritte → `MEMORY.md`
 - Repo-/Modulstruktur und wichtige Einstiegspunkte → `PROJECT_STRUCTURE.md`
+- aeltere Claude/Codex-Handoffs → `CODEX_SYNC_ARCHIVE.md`
 - lokale Setup-, Deploy- und Laufzeitdoku → `KauthWorkflow/Betrieb/Setup.md`
 - priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature → `TODO.md`
 - Claude-Steuerung unter Codex-Orchestrierung → `CLAUDE_CONTROL.md`
