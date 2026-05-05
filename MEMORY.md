@@ -33,9 +33,10 @@
 ## Current Focus
 
 - **Aktiver Zyklus:** Z8 — Skalierbarkeits- & Last-Haertung
-- **Naechster Schritt:** Z8-2.2 — `RotationNotificationService` Daily-Sweep `LIMIT`/Batch + Batch-Update Apply (gemeinsamer Slice).
-- **Folgeschnitt:** Z8-2.3 (Entra-Sync Group/Member Batch), dann Z8-3 / Z8-4.
-- **Z8-2.1 done (2026-05-05):** `WorkflowCatalogService` ruft jetzt `repository.GetManagerCreatableDefinitionKeys()` einmalig (lazy) statt N×`IsManagerCreatableDefinition`. `WorkflowRuntimeService` nutzt `IsManagerCreatableDefinition` weiter unveraendert.
+- **Naechster Schritt:** Z8-2.3 — `EntraDirectorySyncService.SyncAllAsync` Group/Member-Schleifen auf Batch-Upsert/-Insert.
+- **Folgeschnitt:** Z8-3 (Sweep-/Dispatch-Resthebel #5/#7/#8), dann Z8-4 (Coverage).
+- **Z8-2.2 done (2026-05-05):** `RotationNotificationService.ExecuteDailySweepAsync` schleift mit `DispatchBatchSize=200` ueber `GetDispatchableRotationNotifications(limit, excludeIds)`; `ApplyRotationNotificationDispatchResults` macht Bulk-Metadata-SELECT (`id = ANY(@ids)`) und Bulk-UPDATE via `unnest`. Audit weiter pro Result, aber ohne Per-Item-SELECT.
+- **Z8-2.1 done (2026-05-05):** `WorkflowCatalogService` ruft jetzt `repository.GetManagerCreatableDefinitionKeys()` einmalig (lazy) statt N×`IsManagerCreatableDefinition`.
 - **Vorher lesen:** `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `CODE_REVIEW.md`, `TODO.md`, `CODEX_SYNC.md`
 
 ## Active Risks / Watchouts

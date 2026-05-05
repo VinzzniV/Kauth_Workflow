@@ -293,7 +293,9 @@ public sealed class RotationTemplateAdminServiceTests
         public Task<int> CreateDueRotationNotifications(DateOnly asOfDate)
             => Task.FromResult(0);
 
-        public Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications()
+        public Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications(
+            int? limit = null,
+            IReadOnlyCollection<long>? excludeNotificationIds = null)
             => Task.FromResult(new List<RotationNotificationDispatchTarget>());
 
         public Task ApplyRotationNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results)

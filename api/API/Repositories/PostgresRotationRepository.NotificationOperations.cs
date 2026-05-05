@@ -121,12 +121,15 @@ internal sealed partial class PostgresRotationRepository
         return created;
     }
 
-    public async Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications()
+    public async Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications(
+        int? limit = null,
+        IReadOnlyCollection<long>? excludeNotificationIds = null)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        const string sql = @"
+        var hasExclude = excludeNotificationIds is { Count: > 0 };
+        var sql = @"
 SELECT
     rn.id AS notification_id,
     rn.rotation_plan_id,
@@ -140,10 +143,23 @@ SELECT
 FROM rotation_notifications rn
 JOIN rotation_plans rp ON rp.id = rn.rotation_plan_id
 WHERE rn.status IN ('pending', 'failed')
-  AND rp.status IN ('draft', 'active')
-ORDER BY rn.created_at, rn.id;";
+  AND rp.status IN ('draft', 'active')";
+        if (hasExclude)
+        {
+            sql += "\n  AND rn.id <> ALL(@excludeIds)";
+        }
+        sql += "\nORDER BY rn.created_at, rn.id";
+        if (limit is int limitValue && limitValue > 0)
+        {
+            sql += $"\nLIMIT {limitValue}";
+        }
+        sql += ";";
 
         await using var command = new NpgsqlCommand(sql, connection);
+        if (hasExclude)
+        {
+            command.Parameters.Add("excludeIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = excludeNotificationIds!.ToArray();
+        }
         await using var reader = await command.ExecuteReaderAsync();
 
         var targets = new List<RotationNotificationDispatchTarget>();
@@ -189,6 +205,16 @@ ORDER BY rn.created_at, rn.id;";
         return targets;
     }
 
+    private sealed class RotationNotificationApplyMetadata
+    {
+        public required long RotationPlanId { get; init; }
+        public long? RotationStationId { get; init; }
+        public long? GeneratedTaskId { get; init; }
+        public string? NotificationType { get; init; }
+        public string? RecipientEmail { get; init; }
+        public string? OldStatus { get; init; }
+    }
+
     public async Task ApplyRotationNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results)
     {
         if (results.Count == 0)
@@ -200,8 +226,11 @@ ORDER BY rn.created_at, rn.id;";
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
+        var ids = results.Select(r => r.NotificationId).ToArray();
+
         const string selectSql = @"
 SELECT
+    id,
     rotation_plan_id,
     rotation_station_id,
     generated_task_id,
@@ -209,57 +238,58 @@ SELECT
     recipient_email,
     status AS old_status
 FROM rotation_notifications
-WHERE id = @notificationId
-LIMIT 1;";
+WHERE id = ANY(@ids);";
+
+        var metadata = new Dictionary<long, RotationNotificationApplyMetadata>(ids.Length);
+        await using (var selectCommand = new NpgsqlCommand(selectSql, connection, transaction))
+        {
+            selectCommand.Parameters.Add("ids", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = ids;
+            await using var reader = await selectCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var idOrdinal = reader.GetOrdinal("id");
+                var planOrdinal = reader.GetOrdinal("rotation_plan_id");
+                var stationOrdinal = reader.GetOrdinal("rotation_station_id");
+                var taskOrdinal = reader.GetOrdinal("generated_task_id");
+                var typeOrdinal = reader.GetOrdinal("notification_type");
+                var emailOrdinal = reader.GetOrdinal("recipient_email");
+                var oldStatusOrdinal = reader.GetOrdinal("old_status");
+
+                metadata[reader.GetInt64(idOrdinal)] = new RotationNotificationApplyMetadata
+                {
+                    RotationPlanId = reader.GetInt64(planOrdinal),
+                    RotationStationId = reader.IsDBNull(stationOrdinal) ? null : reader.GetInt64(stationOrdinal),
+                    GeneratedTaskId = reader.IsDBNull(taskOrdinal) ? null : reader.GetInt64(taskOrdinal),
+                    NotificationType = reader.IsDBNull(typeOrdinal) ? null : reader.GetString(typeOrdinal),
+                    RecipientEmail = reader.IsDBNull(emailOrdinal) ? null : reader.GetString(emailOrdinal),
+                    OldStatus = reader.IsDBNull(oldStatusOrdinal) ? null : reader.GetString(oldStatusOrdinal)
+                };
+            }
+        }
 
         const string updateSql = @"
-UPDATE rotation_notifications
+UPDATE rotation_notifications rn
 SET
-    status = @status,
-    attempts = attempts + CASE WHEN @attempted THEN 1 ELSE 0 END,
-    sent_at = CASE WHEN @status = 'sent' THEN NOW() ELSE sent_at END,
-    last_error = @lastError
-WHERE id = @notificationId;";
+    status = data.status,
+    attempts = rn.attempts + CASE WHEN data.attempted THEN 1 ELSE 0 END,
+    sent_at = CASE WHEN data.status = 'sent' THEN NOW() ELSE rn.sent_at END,
+    last_error = data.last_error
+FROM unnest(@ids::bigint[], @statuses::text[], @attempted::bool[], @errors::text[])
+    AS data(id, status, attempted, last_error)
+WHERE rn.id = data.id;";
+
+        await using (var updateCommand = new NpgsqlCommand(updateSql, connection, transaction))
+        {
+            updateCommand.Parameters.Add("ids", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = ids;
+            updateCommand.Parameters.Add("statuses", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = results.Select(r => r.Status).ToArray();
+            updateCommand.Parameters.Add("attempted", NpgsqlDbType.Array | NpgsqlDbType.Boolean).Value = results.Select(r => r.Attempted).ToArray();
+            updateCommand.Parameters.Add("errors", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = results.Select(r => r.ErrorMessage).ToArray();
+            await updateCommand.ExecuteNonQueryAsync();
+        }
 
         foreach (var result in results)
         {
-            long? rotationPlanId = null;
-            long? rotationStationId = null;
-            long? generatedTaskId = null;
-            string? notificationType = null;
-            string? recipientEmail = null;
-            string? oldStatus = null;
-
-            await using (var selectCommand = new NpgsqlCommand(selectSql, connection, transaction))
-            {
-                selectCommand.Parameters.AddWithValue("notificationId", result.NotificationId);
-                await using var reader = await selectCommand.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    var rotationPlanIdOrdinal = reader.GetOrdinal("rotation_plan_id");
-                    var rotationStationIdOrdinal = reader.GetOrdinal("rotation_station_id");
-                    var generatedTaskIdOrdinal = reader.GetOrdinal("generated_task_id");
-                    var notificationTypeOrdinal = reader.GetOrdinal("notification_type");
-                    var recipientEmailOrdinal = reader.GetOrdinal("recipient_email");
-                    var oldStatusOrdinal = reader.GetOrdinal("old_status");
-
-                    rotationPlanId = reader.GetInt64(rotationPlanIdOrdinal);
-                    rotationStationId = reader.IsDBNull(rotationStationIdOrdinal) ? null : reader.GetInt64(rotationStationIdOrdinal);
-                    generatedTaskId = reader.IsDBNull(generatedTaskIdOrdinal) ? null : reader.GetInt64(generatedTaskIdOrdinal);
-                    notificationType = reader.IsDBNull(notificationTypeOrdinal) ? null : reader.GetString(notificationTypeOrdinal);
-                    recipientEmail = reader.IsDBNull(recipientEmailOrdinal) ? null : reader.GetString(recipientEmailOrdinal);
-                    oldStatus = reader.IsDBNull(oldStatusOrdinal) ? null : reader.GetString(oldStatusOrdinal);
-                }
-            }
-
-            await using var command = new NpgsqlCommand(updateSql, connection, transaction);
-            command.Parameters.AddWithValue("status", result.Status);
-            command.Parameters.AddWithValue("attempted", result.Attempted);
-            command.Parameters.Add("lastError", NpgsqlDbType.Text).Value = (object?)result.ErrorMessage ?? DBNull.Value;
-            command.Parameters.AddWithValue("notificationId", result.NotificationId);
-            await command.ExecuteNonQueryAsync();
-
-            if (!rotationPlanId.HasValue)
+            if (!metadata.TryGetValue(result.NotificationId, out var meta))
             {
                 continue;
             }
@@ -279,17 +309,17 @@ WHERE id = @notificationId;";
             await InsertRotationAuditEntry(
                 connection,
                 transaction,
-                rotationPlanId.Value,
-                rotationStationId,
-                generatedTaskId,
+                meta.RotationPlanId,
+                meta.RotationStationId,
+                meta.GeneratedTaskId,
                 null,
                 eventType,
-                oldStatus is null ? null : new { status = oldStatus },
+                meta.OldStatus is null ? null : new { status = meta.OldStatus },
                 new
                 {
                     notificationId = result.NotificationId,
-                    notificationType,
-                    recipientEmail,
+                    notificationType = meta.NotificationType,
+                    recipientEmail = meta.RecipientEmail,
                     status = result.Status
                 },
                 result.ErrorMessage);

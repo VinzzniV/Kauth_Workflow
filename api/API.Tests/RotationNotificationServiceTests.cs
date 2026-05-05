@@ -55,6 +55,45 @@ public sealed class RotationNotificationServiceTests
     }
 
     [Fact]
+    public async Task ExecuteDailySweepAsync_ProcessesDispatchableNotificationsInBatches()
+    {
+        var targets = Enumerable.Range(1, 250)
+            .Select(i => CreateTarget(i, "reminder"))
+            .ToList();
+        var repository = new StubRotationRepository
+        {
+            CreatedNotificationCount = 0,
+            DispatchTargets = targets
+        };
+        var sender = new StubEmailNotificationSender
+        {
+            RotationResultBuilder = batch => batch
+                .Select(target => new NotificationDispatchResult
+                {
+                    NotificationId = target.NotificationId,
+                    Status = "sent",
+                    Success = true,
+                    Attempted = true
+                })
+                .ToList()
+        };
+        var service = new RotationNotificationService(
+            repository,
+            sender,
+            new StubSystemEventLogService(),
+            NullLogger<RotationNotificationService>.Instance);
+
+        var result = await service.ExecuteDailySweepAsync();
+
+        // 250 targets with batch size 200 → 2 dispatch calls (200 + 50); loop exits on the short batch.
+        Assert.Equal(2, sender.RotationDispatchCallCount);
+        Assert.Equal(new[] { 200, 50 }, repository.GetDispatchableBatchSizes.ToArray());
+        Assert.Equal(250, repository.AppliedResults.Count);
+        Assert.Equal(250, result.Dispatched);
+        Assert.Equal(0, result.Failed);
+    }
+
+    [Fact]
     public async Task ExecuteDailySweepAsync_DoesNotDispatchWhenNoPendingTargetsExist()
     {
         var repository = new StubRotationRepository
@@ -121,7 +160,9 @@ public sealed class RotationNotificationServiceTests
     private sealed class StubEmailNotificationSender : IWorkflowEmailNotificationSender
     {
         public bool WasRotationDispatchCalled { get; private set; }
+        public int RotationDispatchCallCount { get; private set; }
         public IReadOnlyList<NotificationDispatchResult> RotationResults { get; set; } = [];
+        public Func<IReadOnlyList<RotationNotificationDispatchTarget>, IReadOnlyList<NotificationDispatchResult>>? RotationResultBuilder { get; set; }
 
         public Task<IReadOnlyList<NotificationDispatchResult>> SendNotificationsAsync(
             Guid workflowUid,
@@ -134,7 +175,9 @@ public sealed class RotationNotificationServiceTests
             CancellationToken cancellationToken = default)
         {
             WasRotationDispatchCalled = true;
-            return Task.FromResult(RotationResults);
+            RotationDispatchCallCount++;
+            var results = RotationResultBuilder is null ? RotationResults : RotationResultBuilder(targets);
+            return Task.FromResult(results);
         }
     }
 
@@ -170,8 +213,24 @@ public sealed class RotationNotificationServiceTests
             return Task.FromResult(CreatedNotificationCount);
         }
 
-        public Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications()
-            => Task.FromResult(DispatchTargets);
+        public List<int> GetDispatchableBatchSizes { get; } = [];
+
+        public Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications(
+            int? limit = null,
+            IReadOnlyCollection<long>? excludeNotificationIds = null)
+        {
+            var exclude = excludeNotificationIds is null
+                ? new HashSet<long>()
+                : new HashSet<long>(excludeNotificationIds);
+            var filtered = DispatchTargets.Where(target => !exclude.Contains(target.NotificationId));
+            if (limit is int limitValue && limitValue > 0)
+            {
+                filtered = filtered.Take(limitValue);
+            }
+            var result = filtered.ToList();
+            GetDispatchableBatchSizes.Add(result.Count);
+            return Task.FromResult(result);
+        }
 
         public Task ApplyRotationNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results)
         {

@@ -27,7 +27,9 @@ internal interface IRotationRepository
     Task<List<long>> GetRotationPlanIdsForDepartment(int departmentId);
     Task<RotationTaskRegenerationResultDto> SynchronizeRotationGeneratedTasks(long planId, long actorUserId, string reason);
     Task<int> CreateDueRotationNotifications(DateOnly asOfDate);
-    Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications();
+    Task<List<RotationNotificationDispatchTarget>> GetDispatchableRotationNotifications(
+        int? limit = null,
+        IReadOnlyCollection<long>? excludeNotificationIds = null);
     Task ApplyRotationNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results);
     Task<List<DepartmentActionTemplateDto>> GetDepartmentActionTemplates(int? departmentId, bool? isActive = null);
     Task<DepartmentActionTemplateDto?> GetDepartmentActionTemplate(int templateId);

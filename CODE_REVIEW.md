@@ -79,8 +79,8 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 | Z8-1.1 | Inventur: Endpunkte + Repos mit unbeschraenktem Laden, In-Memory-Filter/-Sort, N+1 | **done** (2026-05-05) — siehe § Z8-1.1 Hotspot-Inventur |
 | Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan auf Basis der Inventur | **done** (2026-05-05) — siehe § Z8-1.2 Slice-Plan |
 | Z8-2.1 | Hotspot #1 — `WorkflowCatalogService.GetStartableWorkflowDefinitionsAsync`: N+1 fuer `IsManagerCreatableDefinition` aufloesen (Bulk-/SQL-Pushdown) | **done** (2026-05-05) — Bulk-Lookup `GetManagerCreatableDefinitionKeys()` |
-| Z8-2.2 | Hotspot #2+#3 (gemeinsamer Slice) — `RotationNotificationService` Daily-Sweep: `LIMIT`/Batch-Fetch + Batch-Update der Dispatch-Results | **HIGH** — Naechster Schritt |
-| Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync`: Group-Member-Schleifen auf Batch-Upsert/-Insert umstellen | **HIGH** — wartet auf Z8-2.2 |
+| Z8-2.2 | Hotspot #2+#3 (gemeinsamer Slice) — `RotationNotificationService` Daily-Sweep: `LIMIT`/Batch-Fetch + Batch-Update der Dispatch-Results | **done** (2026-05-05) — Service-Loop mit `DispatchBatchSize=200`; Apply mit Bulk-Metadata + Bulk-UPDATE via `unnest` |
+| Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync`: Group-Member-Schleifen auf Batch-Upsert/-Insert umstellen | **HIGH** — Naechster Schritt |
 | Z8-3 | Sweep- und Dispatch-Performance Resthebel (`RotationTaskRegenerationEngine`-Sweep, weitere Notification-Pfade #5/#7) | MEDIUM — wartet auf Z8-2 |
 | Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — wartet auf Z8-2 |
 

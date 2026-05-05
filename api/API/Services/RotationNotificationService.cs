@@ -8,12 +8,52 @@ internal sealed class RotationNotificationService(
     ISystemEventLogService systemEventLogService,
     ILogger<RotationNotificationService> logger) : IRotationNotificationService
 {
+    private const int DispatchBatchSize = 200;
+
     public async Task<RotationNotificationSweepResult> ExecuteDailySweepAsync(CancellationToken cancellationToken = default)
     {
         var asOfDate = DateOnly.FromDateTime(DateTime.UtcNow);
         var created = await rotationRepository.CreateDueRotationNotifications(asOfDate);
-        var targets = await rotationRepository.GetDispatchableRotationNotifications();
-        if (targets.Count == 0)
+
+        var processedIds = new HashSet<long>();
+        var dispatched = 0;
+        var failed = 0;
+        var disabled = 0;
+        var anyTargets = false;
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var batch = await rotationRepository.GetDispatchableRotationNotifications(DispatchBatchSize, processedIds);
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            // Defensive: even if the repository did not honour the exclude set, never dispatch the same id twice in one sweep.
+            var fresh = batch.Where(target => processedIds.Add(target.NotificationId)).ToList();
+            if (fresh.Count == 0)
+            {
+                break;
+            }
+
+            anyTargets = true;
+            var results = await emailNotificationSender.SendRotationNotificationsAsync(fresh, cancellationToken);
+            if (results.Count > 0)
+            {
+                await rotationRepository.ApplyRotationNotificationDispatchResults(results);
+            }
+
+            dispatched += results.Count(result => string.Equals(result.Status, "sent", StringComparison.OrdinalIgnoreCase));
+            failed += results.Count(result => string.Equals(result.Status, "failed", StringComparison.OrdinalIgnoreCase));
+            disabled += results.Count(result => string.Equals(result.Status, "disabled", StringComparison.OrdinalIgnoreCase));
+
+            if (batch.Count < DispatchBatchSize)
+            {
+                break;
+            }
+        }
+
+        if (!anyTargets)
         {
             return new RotationNotificationSweepResult
             {
@@ -23,16 +63,6 @@ internal sealed class RotationNotificationService(
                 Disabled = 0
             };
         }
-
-        var results = await emailNotificationSender.SendRotationNotificationsAsync(targets, cancellationToken);
-        if (results.Count > 0)
-        {
-            await rotationRepository.ApplyRotationNotificationDispatchResults(results);
-        }
-
-        var failed = results.Count(result => string.Equals(result.Status, "failed", StringComparison.OrdinalIgnoreCase));
-        var disabled = results.Count(result => string.Equals(result.Status, "disabled", StringComparison.OrdinalIgnoreCase));
-        var dispatched = results.Count(result => string.Equals(result.Status, "sent", StringComparison.OrdinalIgnoreCase));
 
         logger.LogInformation(
             "Rotation notification sweep completed for {AsOfDate}: created={Created}, dispatched={Dispatched}, failed={Failed}, disabled={Disabled}.",
