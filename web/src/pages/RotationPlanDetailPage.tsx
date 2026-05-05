@@ -35,7 +35,7 @@ export default function RotationPlanDetailPage() {
   const notificationsQuery = useRotationNotifications(isValidPlanId ? numericPlanId : null, 100, 0, true);
 
   const departmentsQuery = useDepartments();
-  const departments = departmentsQuery.data ?? [];
+  const departments = departmentsQuery.data?.items ?? [];
 
   const plan = planDetailQuery.data;
   const orderedStations = useMemo(

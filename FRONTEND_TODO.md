@@ -44,7 +44,7 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 ## Naechster sinnvoller Schritt
 
-Zyklus 8 (2026-05-05) ist bewusst backend-fokussiert: Skalierbarkeits- & Last-Haertung. Aus dem aktuellen Frontend-Stand sind keine neuen Items entstanden — Builder, Listen-Workspaces und Personenakte sind nach FE-25..FE-31 ausreichend stabil. Naechster sinnvoller FE-Trigger: konkrete Nutzerreaktion auf Personenakte (FE-31) oder API-Vertragsaenderungen aus Z8 (z. B. Pagination/Sortierung).
+Z11-F1 ist abgeschlossen: der FE-Service-Layer versteht jetzt die P1-Huelle `AdminListPage<T>` fuer `/departments`, `/roles` und die drei Master-Data-Listen, und die betroffenen Screens lesen aktuell bewusst `page.items`. Der naechste sinnvolle FE-Trigger ist **Z11-F2** (P2-Hull fuer Audit-Streams) oder spaeter **Z11-F3** fuer sichtbare Builder-Listenvertraege und URL-Filterzustand.
 
 ---
 
@@ -58,6 +58,8 @@ Zyklus 8 (2026-05-05) ist bewusst backend-fokussiert: Skalierbarkeits- & Last-Ha
 ---
 
 ## Abgeschlossene Zyklen
+
+- `2026-05-05` `Z11-F1` P1-Hull fuer Master-Data/Lookups im FE aufgenommen: neuer typed Wrapper `web/src/services/api/adminList.ts`, `lookupApi.ts`/`adminApi.ts` auf `AdminListPage<T>` umgestellt, betroffene Consumer vorerst pragmatisch auf `page.items` + `limit: 200` adaptiert. UX-Prinzip: Vertrag zuerst vereinheitlichen, sichtbare Paging-UI erst im passenden Folgeslice statt halb fertiger Mischloesung.
 
 ---
 

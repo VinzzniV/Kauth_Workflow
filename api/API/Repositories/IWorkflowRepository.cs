@@ -24,8 +24,8 @@ internal sealed class WorkflowListResult
 
 internal interface IWorkflowRepository
 {
-    Task<List<DepartmentDto>> GetDepartments();
-    Task<List<RoleDto>> GetRoles();
+    Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query);
+    Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query);
     Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions();
     Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey);
     Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey);

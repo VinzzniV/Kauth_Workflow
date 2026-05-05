@@ -106,6 +106,7 @@ internal static class AdminOrgEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/master-data/departments", async (
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -119,12 +120,14 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminDepartmentAssignments());
-        }).Produces<List<AdminDepartmentAssignmentDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminDepartmentAssignments(query));
+        }).Produces<AdminListPageDto<AdminDepartmentAssignmentDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/master-data/positions", async (
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -138,8 +141,9 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminDepartmentPositions());
-        }).Produces<List<AdminRoleDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminDepartmentPositions(query));
+        }).Produces<AdminListPageDto<AdminRoleDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
@@ -304,6 +308,7 @@ internal static class AdminOrgEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/master-data/responsibilities", async (
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -317,8 +322,9 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminResponsibilityOwners());
-        }).Produces<List<AdminResponsibilityOwnerDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminResponsibilityOwners(query));
+        }).Produces<AdminListPageDto<AdminResponsibilityOwnerDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

@@ -5,21 +5,38 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    // Stammdaten fuer die HR-Erfassung.
-    public async Task<List<DepartmentDto>> GetDepartments()
+    // Stammdaten fuer die HR-Erfassung. P1-Hull (Z11-F1): einheitliche Listen mit Limit/Offset/Search/Sort + Total.
+    public async Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        const string sql = @"
-SELECT id, name
+        // Sort-Whitelist: name (default), id (Tie-Breaker via ORDER BY angehaengt).
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "name_desc" => "name DESC, id DESC",
+            "id" => "id ASC",
+            "id_desc" => "id DESC",
+            _ => "name ASC, id ASC"
+        };
+
+        var sql = $@"
+SELECT id, name, COUNT(*) OVER() AS total_count
 FROM departments
-ORDER BY name;";
+WHERE (@search = '' OR name ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
+
         await using var reader = await command.ExecuteReaderAsync();
 
         var departments = new List<DepartmentDto>();
+        var total = 0;
         while (await reader.ReadAsync())
         {
             departments.Add(new DepartmentDto
@@ -27,28 +44,54 @@ ORDER BY name;";
                 Id = reader.GetInt32(0),
                 Name = reader.GetString(1)
             });
+            total = reader.GetInt32(2);
         }
 
-        return departments;
+        return new AdminListPageDto<DepartmentDto>
+        {
+            Items = departments,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
-    public async Task<List<RoleDto>> GetRoles()
+    public async Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        const string sql = @"
-SELECT r.id, r.department_id, d.name, r.name, r.is_active
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "name" => "r.name ASC, r.id ASC",
+            "name_desc" => "r.name DESC, r.id DESC",
+            "department" => "d.name ASC, r.name ASC, r.id ASC",
+            "department_desc" => "d.name DESC, r.name DESC, r.id DESC",
+            "id" => "r.id ASC",
+            "id_desc" => "r.id DESC",
+            _ => "d.name ASC, r.name ASC, r.id ASC"
+        };
+
+        var sql = $@"
+SELECT r.id, r.department_id, d.name, r.name, r.is_active, COUNT(*) OVER() AS total_count
 FROM app_roles r
 JOIN departments d ON d.id = r.department_id
 WHERE r.role_kind = 'position'
   AND r.is_active = TRUE
-ORDER BY d.name, r.name;";
+  AND (@search = '' OR r.name ILIKE @pattern OR d.name ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
+
         await using var reader = await command.ExecuteReaderAsync();
 
         var roles = new List<RoleDto>();
+        var total = 0;
         while (await reader.ReadAsync())
         {
             roles.Add(new RoleDto
@@ -59,9 +102,16 @@ ORDER BY d.name, r.name;";
                 Name = reader.GetString(3),
                 IsActive = reader.GetBoolean(4)
             });
+            total = reader.GetInt32(5);
         }
 
-        return roles;
+        return new AdminListPageDto<RoleDto>
+        {
+            Items = roles,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey)

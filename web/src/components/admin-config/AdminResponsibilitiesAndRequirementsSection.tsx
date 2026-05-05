@@ -57,7 +57,7 @@ export function FachlicheZustaendigkeitenPanel() {
 
   const responsibilitiesQuery = useQuery({
     queryKey: queryKeys.admin.responsibilityOwners(),
-    queryFn: getAdminResponsibilityOwners,
+    queryFn: async () => (await getAdminResponsibilityOwners({ limit: 200 })).items,
     staleTime: 2 * 60 * 1000,
   });
 
@@ -71,7 +71,7 @@ export function FachlicheZustaendigkeitenPanel() {
 
   const responsibilities = responsibilitiesQuery.data ?? [];
   const users = (usersQuery.data ?? []).filter((u) => !u.isTechnicalActor && u.isActive);
-  const departments = departmentsQuery.data ?? [];
+  const departments = departmentsQuery.data?.items ?? [];
 
   const [newName, setNewName] = useState("");
   const [newDepartmentId, setNewDepartmentId] = useState("");
@@ -522,11 +522,11 @@ export function AbteilungsanforderungenPanel() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const departmentsQuery = useDepartments();
-  const departments = departmentsQuery.data ?? [];
+  const departments = departmentsQuery.data?.items ?? [];
 
   const responsibilitiesQuery = useQuery({
     queryKey: queryKeys.admin.responsibilityOwners(),
-    queryFn: getAdminResponsibilityOwners,
+    queryFn: async () => (await getAdminResponsibilityOwners({ limit: 200 })).items,
     staleTime: 5 * 60 * 1000,
   });
   const responsibilities = responsibilitiesQuery.data ?? [];

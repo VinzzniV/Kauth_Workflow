@@ -10,9 +10,9 @@ internal interface IUserAuthorizationRepository
     Task<List<AdminGroupDto>> GetAdminGroups(CancellationToken cancellationToken = default);
     Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default);
     Task<List<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(int limit = 100, CancellationToken cancellationToken = default);
-    Task<List<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(CancellationToken cancellationToken = default);
-    Task<List<AdminRoleDto>> GetAdminDepartmentPositions(CancellationToken cancellationToken = default);
-    Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(AdminListQuery query, CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminRoleDto>> GetAdminDepartmentPositions(AdminListQuery query, CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<AdminDepartmentAssignmentDto> CreateDepartment(string departmentName, CancellationToken cancellationToken = default);
     Task<bool> DeleteDepartment(int departmentId, CancellationToken cancellationToken = default);
     Task<AdminRoleDto> CreateDepartmentPosition(

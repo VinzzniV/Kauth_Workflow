@@ -1457,11 +1457,17 @@ public sealed class WorkflowEndpointsTests
         };
         public Dictionary<Guid, List<WorkflowNotificationDispatchTarget>> WorkflowCreatedNotificationTargetsByUid { get; } = new();
 
-        public Task<List<DepartmentDto>> GetDepartments() => throw new NotSupportedException();
-        public Task<List<RoleDto>> GetRoles()
+        public Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query) => throw new NotSupportedException();
+        public Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query)
         {
             GetRolesCallCount += 1;
-            return Task.FromResult(Roles);
+            return Task.FromResult(new AdminListPageDto<RoleDto>
+            {
+                Items = Roles,
+                Total = Roles.Count,
+                Limit = query.Limit,
+                Offset = query.Offset
+            });
         }
         public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions()
         {
@@ -1845,9 +1851,9 @@ public sealed class WorkflowEndpointsTests
         public Task<List<AdminGroupDto>> GetAdminGroups(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(int limit = 100, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<List<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<List<AdminRoleDto>> GetAdminDepartmentPositions(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminRoleDto>> GetAdminDepartmentPositions(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminDepartmentAssignmentDto> CreateDepartment(string departmentName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> DeleteDepartment(int departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminRoleDto> CreateDepartmentPosition(int departmentId, string positionName, CancellationToken cancellationToken = default) => throw new NotSupportedException();

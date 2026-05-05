@@ -49,14 +49,14 @@ internal sealed class WorkflowCatalogService(
         return result;
     }
 
-    public async Task<IReadOnlyList<DepartmentDto>> GetDepartmentsAsync(CancellationToken cancellationToken = default)
+    public async Task<AdminListPageDto<DepartmentDto>> GetDepartmentsAsync(AdminListQuery query, CancellationToken cancellationToken = default)
     {
-        return await repository.GetDepartments();
+        return await repository.GetDepartments(query);
     }
 
-    public async Task<IReadOnlyList<RoleDto>> GetRolesAsync(CurrentUser currentUser, CancellationToken cancellationToken = default)
+    public async Task<AdminListPageDto<RoleDto>> GetRolesAsync(AdminListQuery query, CurrentUser currentUser, CancellationToken cancellationToken = default)
     {
-        return await repository.GetRoles();
+        return await repository.GetRoles(query);
     }
 
     public async Task<IReadOnlyList<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSourcesAsync(

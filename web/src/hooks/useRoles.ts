@@ -22,14 +22,17 @@ export function useRoles(): UseRolesResult {
     setError(null);
 
     try {
-      const [roleData, departmentData] = await Promise.all([getRoles(), getDepartments()]);
-      const activeRoles = roleData.filter((role) => role.isActive);
+      const [rolePage, departmentPage] = await Promise.all([
+        getRoles({ limit: 200 }),
+        getDepartments({ limit: 200 }),
+      ]);
+      const activeRoles = rolePage.items.filter((role) => role.isActive);
 
       setRoles(activeRoles);
-      setDepartments(departmentData);
+      setDepartments(departmentPage.items);
       console.info("[roles] loaded", {
         roles: activeRoles.length,
-        departments: departmentData.length,
+        departments: departmentPage.items.length,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Die Rollen konnten nicht geladen werden.";

@@ -10,6 +10,7 @@ internal static class WorkflowMasterDataEndpoints
     public static IEndpointRouteBuilder MapWorkflowMasterDataEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/departments", async (
+            HttpRequest request,
             IWorkflowCatalogService workflowCatalogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -23,10 +24,12 @@ internal static class WorkflowMasterDataEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await workflowCatalogService.GetDepartmentsAsync());
-        }).Produces<List<DepartmentDto>>(StatusCodes.Status200OK);
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await workflowCatalogService.GetDepartmentsAsync(query));
+        }).Produces<AdminListPageDto<DepartmentDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/roles", async (
+            HttpRequest request,
             IWorkflowCatalogService workflowCatalogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -40,8 +43,9 @@ internal static class WorkflowMasterDataEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await workflowCatalogService.GetRolesAsync(access.User!));
-        }).Produces<List<RoleDto>>(StatusCodes.Status200OK);
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await workflowCatalogService.GetRolesAsync(query, access.User!));
+        }).Produces<AdminListPageDto<RoleDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/workflow-definitions/startable", async (
             IWorkflowCatalogService workflowCatalogService,

@@ -378,8 +378,8 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
   const [workflows, users, departments, responsibilities, notificationEmailConfiguration] = await Promise.all([
     getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null }),
     getAdminUsers().catch(() => []),
-    getAdminDepartmentAssignments().catch(() => []),
-    getAdminResponsibilityOwners().catch(() => []),
+    getAdminDepartmentAssignments({ limit: 200 }).then((page) => page.items).catch(() => []),
+    getAdminResponsibilityOwners({ limit: 200 }).then((page) => page.items).catch(() => []),
     getAdminNotificationEmailConfiguration().catch(() => null),
   ]);
   const selectedWorkflowDefinition = options.selectedWorkflowDefinition ?? null;

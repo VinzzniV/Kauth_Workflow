@@ -57,7 +57,7 @@ export default function WorkflowSearchPage() {
   const departmentsQuery = useDepartments();
   const workflowSearchQuery = useWorkflowList(searchQueryOptions, 0, SEARCH_PAGE_SIZE, hasActiveFilters);
   const workflowDefinitionOptions: StartableWorkflowDefinition[] = workflowDefinitionsQuery.data ?? [];
-  const departmentOptions: Department[] = departmentsQuery.data ?? [];
+  const departmentOptions: Department[] = departmentsQuery.data?.items ?? [];
   const rows: WorkflowSummary[] = workflowSearchQuery.data?.items ?? [];
   const isLoading = workflowSearchQuery.isLoading;
   const isRefreshing =

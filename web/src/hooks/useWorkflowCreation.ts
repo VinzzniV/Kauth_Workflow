@@ -89,10 +89,10 @@ export function useWorkflowCreation(): UseWorkflowCreationResult {
   const rolesQuery = useRoles();
   const departmentsQuery = useDepartments();
   const roles = useMemo(
-    () => (rolesQuery.data ?? []).filter((role) => role.isActive),
+    () => (rolesQuery.data?.items ?? []).filter((role) => role.isActive),
     [rolesQuery.data]
   );
-  const departments = useMemo(() => departmentsQuery.data ?? [], [departmentsQuery.data]);
+  const departments = useMemo(() => departmentsQuery.data?.items ?? [], [departmentsQuery.data]);
   const rolesLoading = rolesQuery.isLoading || departmentsQuery.isLoading;
   const rolesError =
     rolesQuery.error instanceof Error

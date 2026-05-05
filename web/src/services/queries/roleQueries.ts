@@ -5,7 +5,7 @@ import { queryKeys } from "../queryKeys";
 export function useRoles() {
   return useQuery({
     queryKey: queryKeys.roles(),
-    queryFn: getRoles,
+    queryFn: () => getRoles({ limit: 200 }),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -13,7 +13,7 @@ export function useRoles() {
 export function useDepartments() {
   return useQuery({
     queryKey: queryKeys.departments(),
-    queryFn: getDepartments,
+    queryFn: () => getDepartments({ limit: 200 }),
     staleTime: 5 * 60 * 1000,
   });
 }

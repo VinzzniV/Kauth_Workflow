@@ -18,6 +18,7 @@ import type {
 } from "../types/auth";
 import type { WorkflowConfig } from "../types/workflow";
 import { encodeId, requestJson } from "./api/client";
+import { buildAdminListQuery, type AdminListPage, type AdminListQueryOptions } from "./api/adminList";
 import type {
   BackendAdminDepartmentAssignmentDto,
   BackendAdminGraphApplicationConfigurationDto,
@@ -234,16 +235,28 @@ export async function getAdminPermissionAudit(limit = 100): Promise<AdminPermiss
   return requestJson<BackendAdminPermissionAuditEntryDto[]>(`/admin/auth/audit?${params.toString()}`);
 }
 
-export async function getAdminDepartmentAssignments(): Promise<AdminDepartmentAssignment[]> {
-  return requestJson<BackendAdminDepartmentAssignmentDto[]>("/admin/master-data/departments");
+export async function getAdminDepartmentAssignments(
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminDepartmentAssignment>> {
+  return requestJson<AdminListPage<BackendAdminDepartmentAssignmentDto>>(
+    `/admin/master-data/departments${buildAdminListQuery(options)}`
+  );
 }
 
-export async function getAdminDepartmentPositions(): Promise<AdminRole[]> {
-  return requestJson<BackendAdminRoleDto[]>("/admin/master-data/positions");
+export async function getAdminDepartmentPositions(
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminRole>> {
+  return requestJson<AdminListPage<BackendAdminRoleDto>>(
+    `/admin/master-data/positions${buildAdminListQuery(options)}`
+  );
 }
 
-export async function getAdminResponsibilityOwners(): Promise<AdminResponsibilityOwner[]> {
-  return requestJson<BackendAdminResponsibilityOwnerDto[]>("/admin/master-data/responsibilities");
+export async function getAdminResponsibilityOwners(
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminResponsibilityOwner>> {
+  return requestJson<AdminListPage<BackendAdminResponsibilityOwnerDto>>(
+    `/admin/master-data/responsibilities${buildAdminListQuery(options)}`
+  );
 }
 
 export async function createAdminDepartment(departmentName: string): Promise<AdminDepartmentAssignment> {

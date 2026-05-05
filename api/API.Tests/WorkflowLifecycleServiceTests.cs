@@ -613,8 +613,8 @@ public sealed class WorkflowLifecycleServiceTests
         public int UpdateTaskStatusByRefCalls { get; private set; }
         public int DecideTaskApprovalByRefCalls { get; private set; }
 
-        public Task<List<DepartmentDto>> GetDepartments() => throw new NotSupportedException();
-        public Task<List<RoleDto>> GetRoles() => throw new NotSupportedException();
+        public Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query) => throw new NotSupportedException();
+        public Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query) => throw new NotSupportedException();
         public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions() => throw new NotSupportedException();
         public Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey) => throw new NotSupportedException();
         public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey) => throw new NotSupportedException();

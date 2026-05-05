@@ -176,7 +176,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     }
 
     try {
-      loadedResponsibilityOwners = await getAdminResponsibilityOwners();
+      loadedResponsibilityOwners = (await getAdminResponsibilityOwners({ limit: 200 })).items;
     } catch {
       loadedResponsibilityOwners = [];
     }

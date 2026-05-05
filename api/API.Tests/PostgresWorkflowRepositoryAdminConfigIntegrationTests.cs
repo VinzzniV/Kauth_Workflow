@@ -141,9 +141,13 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.True(deleted);
 
             var responsibilities = await WithUserAuthorizationRepositoryAsync(connectionString, repo =>
-                repo.GetAdminResponsibilityOwners());
+                repo.GetAdminResponsibilityOwners(new AdminListQuery
+                {
+                    Limit = AdminListQuery.MaxLimit,
+                    Offset = 0
+                }));
 
-            Assert.DoesNotContain(responsibilities, item => item.ResponsibilityId == created.ResponsibilityId);
+            Assert.DoesNotContain(responsibilities.Items, item => item.ResponsibilityId == created.ResponsibilityId);
         }
         finally
         {

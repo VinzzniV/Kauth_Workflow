@@ -164,24 +164,24 @@ export function useAdminConfigData({
     try {
       const [
         usersData,
-        departmentsData,
-        positionsData,
-        responsibilitiesData,
+        departmentsPage,
+        positionsPage,
+        responsibilitiesPage,
         graphApplicationConfigurationData,
         notificationEmailConfigurationData,
       ] = await Promise.all([
         getAdminUsers(),
-        getAdminDepartmentAssignments(),
-        getAdminDepartmentPositions(),
-        getAdminResponsibilityOwners(),
+        getAdminDepartmentAssignments({ limit: 200 }),
+        getAdminDepartmentPositions({ limit: 200 }),
+        getAdminResponsibilityOwners({ limit: 200 }),
         getAdminGraphApplicationConfiguration(),
         getAdminNotificationEmailConfiguration(),
       ]);
 
       setUsers(usersData);
-      setDepartmentAssignments(departmentsData);
-      setDepartmentPositions(positionsData);
-      setResponsibilityOwners(responsibilitiesData);
+      setDepartmentAssignments(departmentsPage.items);
+      setDepartmentPositions(positionsPage.items);
+      setResponsibilityOwners(responsibilitiesPage.items);
       setGraphApplicationConfiguration(graphApplicationConfigurationData);
       setNotificationEmailConfiguration(notificationEmailConfigurationData);
 

@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-05 — Aktiver Zyklus 11 (Admin-/Master-Data-Listen-Vertraege in Umsetzung; reiner Umsetzungszyklus). Slice-Reihenfolge: F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Keine Code-Aenderung in der Zykluseroeffnung selbst. Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet).
+**Stand**: 2026-05-05 — Aktiver Zyklus 11 (Admin-/Master-Data-Listen-Vertraege in Umsetzung; F1 abgeschlossen, F2 als naechster aktiver Slice). Slice-Reihenfolge bleibt F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit).
 
 ---
 
@@ -72,7 +72,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ## Aktiver Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05)
 
-**Status:** eroeffnet 2026-05-05. Reiner Umsetzungszyklus auf Basis des in Z10-1.3 verabschiedeten Slice-Plans. Keine Code-Aenderung in der Eroeffnung selbst — die Eroeffnung legt nur Slice-Reihenfolge, Modell-/Effort-Zuweisung und Risikozaeune fest.
+**Status:** eroeffnet 2026-05-05. Reiner Umsetzungszyklus auf Basis des in Z10-1.3 verabschiedeten Slice-Plans. **Z11-F1 ist abgeschlossen**, F2 ist der naechste aktive Slice, F3 bleibt nachgelagert.
 
 **Thema:** die in Zyklus 10 definierten Antwort-Hulls **P1** (`AdminListPageDto<T>` — `?limit&offset&search&sort` mit `total`) und **P2** (`CursorPageDto<T>` — Cursor-Stream ohne `total`) werden in Z11 in drei sauber getrennten Slices umgesetzt: **F1** fuehrt P1 ein und wendet sie auf Master-Data/Lookups an, **F2** fuehrt P2 ein und wendet sie auf die zwei Audit-Streams an, **F3** rollt die in F1 etablierte P1-Hull auf die sieben scoped Builder-Lese-Endpunkte aus.
 
@@ -120,12 +120,12 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 | ID | Aufgabe | Hull | Endpunkte | Prio | Reasoning | Modell | Status |
 |----|---------|------|-----------|------|-----------|--------|--------|
-| Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups; Server-`search`/`sort`-Whitelist pro Endpunkt; clientseitige Filter im FE durch Server-`search` ersetzen; typed Wrapper im FE | P1 | `/departments`, `/roles`, `/admin/master-data/departments`, `/admin/master-data/positions`, `/admin/master-data/responsibilities` | HIGH | high | opus | offen |
+| Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups; Server-`search`/`sort`-Whitelist pro Endpunkt; typed Wrapper im FE; bestehende Aufrufer zunaechst auf `items` adaptieren | P1 | `/departments`, `/roles`, `/admin/master-data/departments`, `/admin/master-data/positions`, `/admin/master-data/responsibilities` | HIGH | high | opus | done (2026-05-05) — `AdminListPageDto<T>` eingefuehrt, fuenf Endpunkte auf P1 umgestellt, FE-Service-Layer und aktuelle Consumer auf Page-Huelle adaptiert |
 | Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams; opaque Base64-Cursor ueber `(occurredAt, id)`; FE-Wrapper plus „Mehr laden"-Knopf in beiden Audit-Tabs | P2 | `/admin/auth/audit`, `/admin/directory/audit` | HIGH | medium..high | sonnet | offen |
 | Z11-F3 | P1 ausrollen + D Builder-Tabs (scoped); Pflicht-Scope (`workflowDefinitionId` bzw. `task-template-id`) als Whitelist-Bedingung; Filterzustand im FE in URL-Query verschieben | P1 (wiederverwendet aus F1) | `/admin/config/workflow-definitions`, `/admin/config/action-definitions`, `/admin/config/task-templates`, `/admin/config/task-templates/{id}/conditions`, `/admin/config/task-templates/{id}/dependencies`, `/admin/config/answer-definitions`, `/admin/config/role-answer-defaults` | HIGH | medium..high | opus | offen |
 
 **Erwartete Ausgaenge aus Z11:**
-- F1 abgeschlossen: zentraler `AdminListPageDto<T>`-Hull-Typ im Backend, fuenf Master-Data/Lookup-Endpunkte auf P1, ein typed FE-Wrapper plus Aufrufer-Refactor, Eintrag in `FRONTEND_TODO.md` mit Trigger F1.
+- F1 abgeschlossen: zentraler `AdminListPageDto<T>`-Hull-Typ im Backend, fuenf Master-Data/Lookup-Endpunkte auf P1, ein typed FE-Wrapper plus Aufrufer-Refactor, in `FRONTEND_TODO.md` als abgeschlossener Trigger F1 dokumentiert.
 - F2 abgeschlossen: zentraler `CursorPageDto<T>`-Hull-Typ im Backend, zwei Audit-Endpunkte auf P2, ein typed FE-Wrapper plus Audit-Tab-„Mehr laden", Eintrag in `FRONTEND_TODO.md` mit Trigger F2.
 - F3 abgeschlossen: sieben scoped Builder-Endpunkte auf P1, FE-Builder-Inspector ohne clientseitigen Filter, Eintrag in `FRONTEND_TODO.md` mit Trigger F3.
 - Pro Slice: aktualisierte Doku (Status, Erkenntnisse, Folgeentscheidungen); Tests fuer den jeweiligen Slice angepasst/ergaenzt.
@@ -134,7 +134,28 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 - Z11-F1 → Z11-F2 → Z11-F3 streng sequenziell. F3 setzt die in F1 etablierte P1-Hull voraus.
 - Folgekandidaten nach Z11 (informativ, nicht beauftragt): A Identity-Listen, C `/admin/directory/identities`, H `/workflow-definitions/startable` mit dem etablierten P1-Adapter; G Runtime-Sub-Resources mit dem etablierten P2-Adapter; C Gaps/Pending Split als eigener vorbereiteter Slice.
 
-**Naechster Schritt:** Z11-F1 beauftragen — Codex setzt `--model opus` und `--effort high` explizit per CLI; Claude liefert pro Slice eigenen Commit gemaess `CLAUDE_CONTROL.md`.
+### Z11-F1 — P1-Hull fuer Master-Data und Lookups (2026-05-05)
+
+**Was passiert ist:** `AdminListPageDto<T>` plus `AdminListQuery` wurden als gemeinsame P1-Huelle eingefuehrt. Die Endpunkte `GET /departments`, `GET /roles`, `GET /admin/master-data/departments`, `GET /admin/master-data/positions` und `GET /admin/master-data/responsibilities` liefern jetzt `items`, `total`, `limit`, `offset` statt nackter Arrays. Repository- und Service-Signaturen wurden entlang derselben Kette auf die neue Hull umgestellt. Im Frontend gibt es einen typed Wrapper (`web/src/services/api/adminList.ts`), und die betroffenen bestehenden Aufrufer lesen vorerst bewusst `page.items`, damit der Vertrag live ist, ohne schon im selben Slice einen groesseren UI-Pagination-Umbau mitzuziehen.
+
+**Was bedeutet das praktisch?**
+- Listen unter Master-Data und im Erfassungseinstieg haben jetzt denselben Vertrag. Das verhindert, dass eine Stelle spaeter schon paging-faehig ist und die naechste weiter alle Daten blind laedt.
+- Suche und Sortierung liegen fuer diese Endpunkte jetzt serverseitig vorbereitet bereit. Auch wenn einzelne Screens vorerst noch `limit: 200` nutzen, ist die API nicht mehr auf unendliche Voll-Loads festgelegt.
+
+**Warum lohnt sich das?**
+- Das war der breiteste sichtbare Read-Hotspot aus Z10/Z8, aber noch klein genug fuer einen kontrollierten Slice ohne Schreibpfade.
+- F1 schafft die Plattform-Huelle, die F3 spaeter nur noch wiederverwendet. Ohne diesen Schnitt wuerde jeder weitere Listenumbau wieder seinen eigenen Mini-Vertrag mitbringen.
+
+**Was wird dadurch besser, sicherer, schneller oder wartbarer?**
+- **Wartbarer:** ein P1-Muster statt fuenf leicht unterschiedlicher Listenvertraege.
+- **Schneller anschlussfaehig:** F2/F3 und spaetere Listen koennen denselben FE-/BE-Adapter wiederverwenden.
+- **Stabiler:** Tests und Stubs haengen jetzt am neuen Vertrag; ein stilles Zurueck auf nackte Arrays wuerde sofort auffallen.
+
+**Verifikation:** `dotnet build api/API.Tests/API.Tests.csproj` gruen (3 vorbestehende Nullability-Warnungen), `npm run build` gruen.
+
+**Restgrenzen von F1:** Die heutigen FE-Consumer nutzen den neuen Vertrag noch pragmatisch ueber `page.items` und `limit: 200`; echte sichtbare Paging-/Search-UI folgt erst, wenn ein eigener UI-Slice oder F3/Folgeslices sie explizit ziehen. `GET /workflow-definitions/startable` bleibt bewusst draussen.
+
+**Naechster Schritt:** Z11-F2 beauftragen — Codex setzt fuer Claude explizit `--model sonnet --effort medium..high`; Thema nur P2-Hull + Audit-Streams, kein P1-Mischslice.
 
 ---
 

@@ -343,25 +343,25 @@ ORDER BY u.id, di.last_synced_at DESC NULLS LAST, di.id DESC;";
         return await LoadAdminGroups(connection, null, null, cancellationToken);
     }
 
-    public async Task<List<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(CancellationToken cancellationToken = default)
+    public async Task<AdminListPageDto<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(AdminListQuery query, CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
-        return await LoadAdminDepartmentAssignments(connection, null, null, cancellationToken);
+        return await LoadAdminDepartmentAssignmentsPage(connection, null, query, cancellationToken);
     }
 
-    public async Task<List<AdminRoleDto>> GetAdminDepartmentPositions(CancellationToken cancellationToken = default)
+    public async Task<AdminListPageDto<AdminRoleDto>> GetAdminDepartmentPositions(AdminListQuery query, CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
-        return await LoadAdminPositionRoles(connection, null, null, cancellationToken);
+        return await LoadAdminPositionRolesPage(connection, null, query, cancellationToken);
     }
 
-    public async Task<List<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(CancellationToken cancellationToken = default)
+    public async Task<AdminListPageDto<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(AdminListQuery query, CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
-        return await LoadAdminResponsibilityOwners(connection, null, null, cancellationToken);
+        return await LoadAdminResponsibilityOwnersPage(connection, null, query, cancellationToken);
     }
 
     private static async Task<List<CurrentUserRole>> LoadDirectRoles(
