@@ -59,10 +59,10 @@ Eroeffnet 2026-05-05. Folge-Hebel aus Z8: die in Z8-2.3 eingefuehrten Bulk-Helfe
 | Befund | Prio | Status |
 |--------|------|--------|
 | Z9-1.1 — Boundary-/Split-Inventur | HIGH | done 2026-05-05 — `CODE_REVIEW.md` § Z9-1.1 |
-| Z9-1.2 — Extract-Plan (File-/Klassen-Schnitt) | HIGH | offen — naechster Schritt |
-| Z9-2.1 — `SyncAllAsync`-Zuschnitt | HIGH | offen — wartet auf Z9-1.2 |
-| Z9-2.2 — Graph-Zugriff hinter testbaren Adapter | HIGH | offen — wartet auf Z9-2.1 |
-| Z9-2.3 — DB-Batch-Helfer hinter Operations-Modul | HIGH | offen — wartet auf Z9-2.1 |
+| Z9-1.2 — Extract-Plan (File-/Klassen-Schnitt) | HIGH | done 2026-05-05 — `CODE_REVIEW.md` § Z9-1.2 |
+| Z9-2.1 — Pre-Cleanup (Dead-Code raus) + `SyncAllAsync` in Phasen-Methoden | HIGH | offen — naechster Schritt |
+| Z9-2.2 — Graph-Adapter `IEntraGraphClient` unter `Services/Directory/` extrahieren | HIGH | offen — wartet auf Z9-2.1 |
+| Z9-2.3 — DB-Sync-Operations-Modul `IEntraDirectorySyncOperations` unter `Services/Directory/` extrahieren | HIGH | offen — wartet auf Z9-2.2 |
 | Z9-3 — Coverage Batch-Helfer (aus Z8-4 verschoben) + Orchestrator-Stub-Tests | MEDIUM | offen — nach Z9-2.x |
 
 Frontend-Folgen: keine. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 9".

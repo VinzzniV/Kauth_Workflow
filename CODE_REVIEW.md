@@ -207,6 +207,113 @@ Z9-1.2 entscheidet die konkrete Reihenfolge und die Test-Strategie (Graph-Stub v
 - Z9-2.x: 2.1 zuerst (Orchestrierungs-Schnitt), danach 2.2 und 2.3 unabhaengig moeglich, aber sequenziell halten, damit der Tree pro Slice klar bleibt.
 - Z9-3 erst, wenn die Batch-/Graph-Schnitte stehen. Coverage darf den Refactor nicht treiben.
 
+### Z9-1.2 Extract-Plan (2026-05-05)
+
+Reine Planung, kein Code-Change. Verbindlicher Schnitt fuer Z9-2.x, basierend auf Z9-1.1.
+
+#### Lebendigkeitspruefung (vorab verifiziert)
+
+Repo-weite `Grep`-Pruefung der drei Z9-1.1-Verdachtsfaelle:
+- `EntraDirectorySyncService.SyncDepartmentLeadAssignmentsFromDirectory` (Z. 2099): einziger lebender Aufrufer ist die Reflection-Invocation in `api/API.Tests/PostgresWorkflowRepositoryAdminConfigIntegrationTests.cs:104`. **Dead code im Prod-Pfad** bestaetigt. Sub-Helfer `LoadDepartmentLeadSyncStatesAsync`, `EnsureDirectoryManagedPersonRecordAsync`, `UpsertDepartmentLeadAssignmentAsync`, `ClearDepartmentLeadAssignmentAsync`, `CreateDepartmentLeadAuditSnapshot` sind ausschliesslich Sub-Aufrufer dieser toten Methode → ebenfalls dead.
+- `UpsertDirectoryIdentity` (Single-Row, Z. 1469): keine Aufrufer im Repo. **Dead**.
+- `InsertGroupMembership` (Single-Row, Z. 1511): keine Aufrufer im Repo. **Dead**.
+
+Damit ist der Pre-Cleanup eindeutig: alles drei wird in Z9-2.1 entfernt, **bevor** der File-Split startet. Begruendung: ein File-Split, der toten Code mitnimmt, zementiert ihn in einem neuen Modul und vergroessert die Splittsflaeche unnoetig.
+
+#### Ziel-Endzustand nach Z9-2.x
+
+Drei Files unter neuem Namespace `api/API/Services/Directory/`:
+
+1. **`EntraDirectorySyncService.cs`** (alte Datei, deutlich verschlankt; bleibt am bestehenden Pfad fuer DI-Stabilitaet):
+   - `IDirectorySyncService`-Implementation aller 11 oeffentlichen Methoden.
+   - `SyncAllAsync` als duenner Treiber: orchestriert `_graphClient` (Z9-2.2) + `_syncOps` (Z9-2.3) + `_systemEventLogService`.
+   - Admin-Read/Write (Achse 7): `GetSyncStatusAsync`, `GetGroupsAsync`, `GetIdentitiesAsync`, `GetMappingAuditAsync`, `UpsertGroupRoleMappingAsync`, `DeleteGroupRoleMappingAsync`, `GetResponsibilityGapsAsync`, `GetPendingImportsAsync`. Bleiben hier.
+   - Import-Pfad (Achse 8): `ImportIdentitiesAsync` + `ImportSingleIdentityAsync` + `FindExistingMappingIdAsync` + `GetGroupRoleMappingByIdAsync`/`…OrNullAsync`. Bleiben hier.
+   - Mapping-Audit-Helfer (`LogMappingAuditAsync`) bleibt hier (Admin-Pfad-Bedarf).
+   - CPU-Helfer (Achse 6) bleiben als `private static` hier — keine Test-Isolations-Wirkung.
+   - Erwartete LOC: ~1200 (von 2591).
+
+2. **`api/API/Services/Directory/IEntraGraphClient.cs` + `EntraGraphClient.cs`** (Z9-2.2):
+   - Interface kapselt: `Task<IReadOnlyList<Group>> LoadSecurityGroupsAsync(ct)`, `Task<IReadOnlyList<DirectoryObject>> LoadGroupMembersAsync(string groupId, ct)`.
+   - `EntraGraphClient` impl: `ResolveGraphCredentialsAsync` + `GraphServiceClient`-Bau intern (Konstruktor-Inject `IGraphApplicationConfigurationService`). Einzige Stelle mit `Microsoft.Graph.*`-Abhaengigkeit nach dem Schnitt.
+   - DI: `services.AddScoped<IEntraGraphClient, EntraGraphClient>()` in `LifecycleServiceCollectionExtensions`.
+
+3. **`api/API/Services/Directory/IEntraDirectorySyncOperations.cs` + `EntraDirectorySyncOperations.cs`** (Z9-2.3):
+   - Interface enthaelt nur die **Sync-Pfad**-DB-Operationen aus Achsen 3+4+5 (Sync-Logging):
+     - `EnsureDirectoryProjectionUserColumnsAsync`
+     - `UpsertDirectoryGroup`
+     - `ClearGroupMemberships`
+     - `UpsertDirectoryIdentitiesBatch` (Z8-2.3-Hebel)
+     - `InsertGroupMembershipsBatch` (Z8-2.3-Hebel)
+     - `AutoLinkIdentitiesToAppUsers`
+     - `EnsureDirectoryDepartmentsExist`
+     - `UpdateExistingAppUsersFromDirectory`
+     - `EnsureDevelopmentDefaultGroupMappings` (DevSim-Pfad bleibt; Verzweigung weiterhin im Orchestrator entschieden)
+     - `UpdateDirectoryUserActivationStates`
+     - `LogSyncRun`
+     - `LogDirectoryAuditEventAsync` fuer Sync-Pfad-Eintraege
+   - Methoden werden `public` auf der Klasse → integration-testbar ohne Reflection.
+   - Konstruktor: `LifecycleRuntimeSettings` (ConnectionString) + `ILogger<EntraDirectorySyncOperations>`. **Kein** `ISystemEventLogService`-Cross-Cutting hier; Eventlog-Schreiben bleibt im Orchestrator.
+   - DI: `services.AddScoped<IEntraDirectorySyncOperations, EntraDirectorySyncOperations>()`.
+
+#### Was explizit **draussen** bleibt
+
+- **Admin-Read/Write-Methoden** (Achse 7) und **Import-Pfad** (Achse 8): kein Z8-Trigger, kein Test-Isolations-Druck. Bleiben in `EntraDirectorySyncService.cs`. In Folgezyklen ggf. eigener Schnitt.
+- **Mapping-Audit** (`LogMappingAuditAsync`): wird auch von Admin-Pfaden (UpsertGroupRoleMapping/Delete) verwendet. Bleibt in der Hauptklasse, nicht ins Operations-Modul ziehen.
+- **CPU-Helfer** (Achse 6): keine Test-Isolations-Wirkung. Bleiben `private static` in der Hauptklasse.
+- **`ISystemEventLogService`-Wrapper**: nicht einfuehren. Bestehender DI-Stub `StubSystemEventLogService` reicht.
+- **Repository-/Connection-Factory-Abstraktion**: nicht in Z9. `EntraDirectorySyncOperations` oeffnet weiterhin `NpgsqlConnection` aus `LifecycleRuntimeSettings.ConnectionString`. Integration-Tests laufen ueber bestehende Postgres-Fixture.
+- **Namespace-Massenmove** anderer Services: nur die drei neuen Files unter `Services/Directory/`. Bestehende Datei behaelt ihren Pfad.
+
+#### Umgang mit Dead Code (verbindlich)
+
+- **DepartmentLead-Resolver** (`SyncDepartmentLeadAssignmentsFromDirectory` + 5 Sub-Helfer): in **Z9-2.1 loeschen**. Begruendung gegen "in eigene Datei isolieren": der Pfad ist seit der bewussten Stop-Entscheidung (`KauthWorkflow/Architektur/Entscheidungen.md`) aus dem Prod-Pfad raus; eine isolierte Datei dafuer waere Konservierung von totem Code in einem neuen Modul. Reflection-Test in `PostgresWorkflowRepositoryAdminConfigIntegrationTests.cs:103-105` wird im selben Slice mit entfernt. Test fuer `UpdateExistingAppUsersFromDirectory` (Z. 177-179) bleibt — Methode wird in Z9-2.3 nach `EntraDirectorySyncOperations` verschoben und dort `public`, der Test kann auf direktem Aufruf umgestellt oder einstweilen entfernt werden (siehe Z9-2.3-Test-Strategie).
+- **Single-Row-Helfer** `UpsertDirectoryIdentity` (1469) und `InsertGroupMembership` (1511): in **Z9-2.1 loeschen**. Verifiziert ohne Aufrufer im Repo. Begruendung gegen "im Operations-Modul behalten als Convenience": kein einziger Aufrufer existiert, Behalten bedeutet ungetestete tote API im neuen Modul.
+
+#### Slice-Schnitt Z9-2.1 / 2.2 / 2.3 (verbindlich)
+
+**Z9-2.1 — Pre-Cleanup + SyncAllAsync-Strukturierung**
+- Loeschen: `SyncDepartmentLeadAssignmentsFromDirectory` und Sub-Helfer (`LoadDepartmentLeadSyncStatesAsync`, `EnsureDirectoryManagedPersonRecordAsync`, `UpsertDepartmentLeadAssignmentAsync`, `ClearDepartmentLeadAssignmentAsync`, `CreateDepartmentLeadAuditSnapshot`); zugehoerige `DepartmentLeadSyncSummary`/`DepartmentLeadSyncState`/`DepartmentLeadSyncOutcome`-Records, falls nicht anderweitig genutzt; Reflection-Test in `PostgresWorkflowRepositoryAdminConfigIntegrationTests.cs:103-105`.
+- Loeschen: `UpsertDirectoryIdentity` (1469), `InsertGroupMembership` (1511).
+- `SyncAllAsync` intern in drei klar benannte Phasen-private-Methoden zerlegen (`RunGroupSyncAsync`, `RunDirectoryProjectionAsync`, `RunActivationAsync`) — **noch in derselben Datei**, kein neuer Namespace. Bereitet 2.2/2.3 vor.
+- LOC-Erwartung: ~600 Zeilen weniger in der Hauptdatei.
+- **Test-Strategie**: keine neuen Tests. Bestehende API.Tests-Suite bleibt gruen (minus den geloeschten Reflection-Test). Verifikation: `dotnet build` + `dotnet test --filter Category!=Integration`.
+
+**Z9-2.2 — Graph-Adapter extrahieren**
+- Neue Files unter `api/API/Services/Directory/`: `IEntraGraphClient.cs`, `EntraGraphClient.cs`.
+- Verschieben: `LoadSecurityGroupsAsync`, `LoadGroupMembersAsync`, `ResolveGraphCredentialsAsync`, GraphServiceClient-Bau aus `SyncAllAsync` Z. 61-89.
+- `EntraDirectorySyncService` bekommt `IEntraGraphClient` per Konstruktor.
+- Microsoft.Graph-`using` aus der Hauptdatei entfernen.
+- DI-Registrierung in `LifecycleServiceCollectionExtensions`.
+- **Test-Strategie**: Smoke-Test, dass Build gruen ist und bestehende Suite gruen bleibt. Echte Stub-getriebene Orchestrator-Tests kommen erst in Z9-3, sobald `IEntraDirectorySyncOperations` (2.3) ebenfalls steht — sonst muesste man halb-fertige Test-Doubles bauen.
+
+**Z9-2.3 — DB-Sync-Operations-Modul extrahieren**
+- Neue Files unter `api/API/Services/Directory/`: `IEntraDirectorySyncOperations.cs`, `EntraDirectorySyncOperations.cs`.
+- Verschieben: die unter "Ziel-Endzustand Punkt 3" gelisteten Methoden inkl. `UpsertDirectoryIdentitiesBatch` und `InsertGroupMembershipsBatch`. Methoden werden `public` auf der Operations-Klasse.
+- `EntraDirectorySyncService` bekommt `IEntraDirectorySyncOperations` per Konstruktor; `SyncAllAsync` ruft `_syncOps.UpsertDirectoryIdentitiesBatch(...)` etc.
+- Reflection-Test fuer `UpdateExistingAppUsersFromDirectory` in `PostgresWorkflowRepositoryAdminConfigIntegrationTests.cs:177-179`: auf direkten `EntraDirectorySyncOperations`-Aufruf umstellen (Methode ist jetzt public). Falls der Aufwand das Slice unnoetig aufblaeht, alternativ entfernen — die echte Coverage kommt in Z9-3.
+- DI-Registrierung in `LifecycleServiceCollectionExtensions`.
+- **Test-Strategie**: bestehende Suite gruen halten. Direkte Integration-Tests gegen die neuen `public`-Methoden kommen in Z9-3, nicht hier. Begruendung: Coverage darf den Refactor nicht treiben (Leitplanke Z9).
+
+#### Test-Strategie zusammengefasst (pro Slice)
+
+| Slice | Neue Tests | Bestehende Tests | Verifikation |
+|-------|-----------|------------------|--------------|
+| Z9-2.1 | keine | Reflection-Test fuer `SyncDepartmentLeadAssignmentsFromDirectory` entfernen | `dotnet build`; `dotnet test --filter Category!=Integration` gruen |
+| Z9-2.2 | keine | Build muss gruen bleiben; keine Verhaltensaenderung | `dotnet build`; Suite gruen |
+| Z9-2.3 | keine (Coverage in Z9-3) | Reflection-Test fuer `UpdateExistingAppUsersFromDirectory` umstellen oder entfernen | `dotnet build`; Suite gruen |
+| Z9-3 | Integration-Tests fuer `UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch` + Unit-Tests fuer Orchestrator gegen `IEntraGraphClient`-Stub und `IEntraDirectorySyncOperations`-Stub | bestehende gruen halten | `dotnet test` inkl. Integration |
+
+Begruendung gegen "Tests pro Slice mitziehen": die Z9-2.x-Slices sind reine Strukturarbeit ohne Verhaltensaenderung; sinnvolle Coverage haengt erst nach 2.3 an stabilen Interfaces. Tests in 2.2 zu schreiben, die in 2.3 erneut umgebaut werden muessen, ist verschwendet.
+
+#### Risiken / Watchouts
+
+- **DI-Reihenfolge**: `EntraDirectorySyncService`, `EntraGraphClient`, `EntraDirectorySyncOperations` muessen alle `Scoped` registriert werden, damit der Sweep-Lebenszyklus konsistent bleibt (`DirectorySyncHostedService` erstellt pro Run einen Scope).
+- **`LifecycleRuntimeSettings`-Sharing**: das Settings-Objekt wird jetzt in Service + Operations gleichzeitig konsumiert — kein Problem (Singleton/Scoped Snapshot), aber bei Aenderungen von `ConnectionString`/`DirectoryGroupPrefix` einheitlich halten.
+- **DevSim-Verzweigung**: `EnsureDevelopmentDefaultGroupMappings` ruft die Operations, aber die Entscheidung "DevSim aktiv?" bleibt im Orchestrator — Operations-Modul kennt die DevSim-Flag nicht.
+- **Reflection-Test-Umstellung in 2.3**: wenn die Test-Anpassung die Fixture-Initialisierung beruehrt, kann das den Slice unerwartet vergroessern. Fallback: Test entfernen, Coverage in Z9-3 neu schreiben.
+- **Naming**: `Services/Directory/` als Sub-Namespace ist neu. `PROJECT_STRUCTURE.md` muss in Z9-2.2 mitgezogen werden, sobald die ersten Files dort liegen.
+
 **Frontend-Folgen:** **keine**. Reiner Backend-Refactor. `FRONTEND_TODO.md` wird nicht angefasst.
 
 **Abgrenzung zu Z8:**
