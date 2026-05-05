@@ -56,8 +56,8 @@ Naechster Schwerpunkt nach Abschluss von Zyklus 7. Skalierbarkeit ist mit B- die
 
 | Befund | Prio | Status |
 |--------|------|--------|
-| Z8-1.1 — Inventur unbegrenztes Laden / In-Memory-Filter / N+1 | HIGH | offen |
-| Z8-1.2 — Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | wartet auf Z8-1.1 |
+| Z8-1.1 — Inventur unbegrenztes Laden / In-Memory-Filter / N+1 | HIGH | done 2026-05-05 — Hotspot-Liste in `CODE_REVIEW.md` § Z8-1.1 |
+| Z8-1.2 — Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | offen — Naechster Schritt |
 | Z8-2.x — SQL-Pushdown / Pagination der Top-Hotspots | HIGH | wartet auf Z8-1.2 |
 | Z8-3 — Sweep- und Dispatch-Performance | MEDIUM | offen |
 | Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | wartet auf Z8-2 |

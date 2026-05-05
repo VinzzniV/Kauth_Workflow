@@ -48,13 +48,13 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|
-| Z8-1.1 | Inventur: unbegrenztes Laden, In-Memory-Filter/-Sort, N+1 | HIGH | high | opus | offen |
-| Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | high | opus | wartet auf Z8-1.1 |
+| Z8-1.1 | Inventur: unbegrenztes Laden, In-Memory-Filter/-Sort, N+1 | HIGH | high | opus | done (2026-05-05) — Ergebnis in `CODE_REVIEW.md` § Z8-1.1 |
+| Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | high | opus | offen — Naechster Schritt |
 | Z8-2.x | SQL-Pushdown / Pagination der Top-Hotspots | HIGH | medium..high | sonnet/opus | wartet auf Z8-1.2 |
 | Z8-3 | Sweep- und Dispatch-Performance | MEDIUM | medium | sonnet | offen |
 | Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | wartet auf Z8-2 |
 
-**Naechster Schritt:** Z8-1.1 (Inventur). Reasoning: high. Modell: opus. Output: nummerierte Hotspot-Liste mit Aufrufer-Pfad und Datenkardinalitaet, ohne Code-Change.
+**Naechster Schritt:** Z8-1.2 (Top-3-Hotspot-Auswahl + Slice-Plan). Reasoning: high. Modell: opus. Basis: Hotspot-Inventur in `CODE_REVIEW.md` § Z8-1.1 (Empfehlung dort: #1 `WorkflowCatalogService`, #2/#3 `RotationNotificationService`-Sweep, #4 `EntraDirectorySyncService`-Schleifen).
 
 ---
 

@@ -76,15 +76,42 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 
 | ID | Befund | Prio |
 |----|--------|------|
-| Z8-1.1 | Inventur: Endpunkte + Repos mit unbeschraenktem Laden, In-Memory-Filter/-Sort, N+1 | **HIGH** — offen |
-| Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan auf Basis der Inventur | **HIGH** — offen |
+| Z8-1.1 | Inventur: Endpunkte + Repos mit unbeschraenktem Laden, In-Memory-Filter/-Sort, N+1 | **done** (2026-05-05) — siehe § Z8-1.1 Hotspot-Inventur |
+| Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan auf Basis der Inventur | **HIGH** — offen, Naechster Schritt |
 | Z8-2.x | SQL-Pushdown / Pagination der Top-Hotspots (pro Hotspot ein Slice) | **HIGH** — wartet auf Z8-1.2 |
 | Z8-3 | Sweep- und Dispatch-Performance (`RotationTaskRegenerationEngine`-Sweep, Notification-Dispatch) | MEDIUM — offen |
 | Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — wartet auf Z8-2 |
 
 **Empfohlener Einstieg:** Z8-1.1 als reine Inventur — opus/high. Output: konkret nummerierte Hotspot-Liste mit Aufrufer-Pfad und Datenkardinalitaet, kein Code-Change. Erst auf dieser Basis entscheidet Z8-1.2, ob Pagination, Sortier-Pushdown oder N+1-Aufloesung den groessten Hebel hat.
 
-**Frontend-Folgen:** aktuell **keine**. Z8 ist backend-fokussiert. Wenn Z8-2 API-Vertraege aendert (z. B. Pagination-Tokens, Sortier-Parameter), entstehen erst dann FE-Items in `FRONTEND_TODO.md`. Bis dahin wird keine FE-Arbeit kuenstlich erzeugt.
+### Z8-1.1 Hotspot-Inventur (2026-05-05)
+
+Reine Inventur, kein Code-Change. Pro Hotspot: Datei/Symbol, Art `(a)` unbegrenztes Laden / `(b)` In-Memory-Filter-Sort / `(c)` N+1 / `(d)` Sweep-/Dispatch-Last, Kardinalitaetsgrund, Prio fuer Z8-1.2.
+
+1. **`WorkflowCatalogService.GetStartableWorkflowDefinitionsAsync`** — `api/API/Services/WorkflowCatalogService.cs:8-42`. Art **(b)+(c)**. Laedt **alle** publizierten Definitionen ohne Limit und ruft danach pro Definition `repository.IsManagerCreatableDefinition(definitionKey)` in einer foreach-Schleife auf (Z. 34). Aufrufer: Workflow-Start (Master-Data-Endpoint). Kardinalitaet: pro Manager-User bei jedem Workflow-Anlegen 1 + N DB-Calls; bei wachsendem Definitionsbestand linear teurer. **Prio HIGH**.
+2. **`RotationNotificationService.ExecuteDailySweepAsync` + `IRotationRepository.GetDispatchableRotationNotifications`** — `api/API/Services/RotationNotificationService.cs:11-62`, SQL in `api/API/Repositories/PostgresRotationRepository.NotificationOperations.cs`. Art **(a)+(d)**. Laedt **alle** dispatchable Notifications ohne `LIMIT` und uebergibt sie en bloc an den Mail-Sender. Kein Batching, kein Pagings. Kardinalitaet: bei Backlog (z. B. nach Mail-Ausfall) zehntausende Saetze in einem Aufruf — Memory- und Mail-Pfad. **Prio HIGH**.
+3. **`RotationNotificationOperations.ApplyRotationNotificationDispatchResults`** — `api/API/Repositories/PostgresRotationRepository.NotificationOperations.cs:192-299`. Art **(c)+(d)**. Pro Result: Select + Update sequenziell statt Batch-Update. Kardinalitaet: skaliert 1:1 mit #2; verdoppelt die DB-Last des Sweeps. **Prio HIGH** (haengt logisch an #2 — bietet sich als gemeinsamer Slice an).
+4. **`EntraDirectorySyncService.SyncAllAsync` (Group-Member-Schleifen)** — `api/API/Services/EntraDirectorySyncService.cs` ~Z. 153-218. Art **(c)+(d)**. Geschachtelte Schleifen `groups` × `members` mit `UpsertDirectoryIdentity` und `InsertGroupMembership` einzeln pro Member. Kein Batch-Insert. Aufrufer: `DirectorySyncHostedService` (24h-Sweep, 2h-Timeout aus Z6). Kardinalitaet: bei breiterer Org (>100 Gruppen × Dutzende Mitglieder) tausende Round-Trips pro Sweep. **Prio HIGH**, aber Timer-Pfad — Last zeigt sich erst beim Timeout. (Hinweis: vollstaendiger File-Split bleibt LQ2-Z3 deferred; hier geht es nur um die Sync-Schleifen, nicht um Strukturhygiene.)
+5. **`WorkflowVisibilityService.ApplyWorkflowTaskPermissions`** — `api/API/Services/WorkflowVisibilityService.cs:59-110`. Art **(b)** (potentiell **(c)** je nach Policy-Service). Pro Task im Workflow drei Policy-Aufrufe (`CanUpdateTaskStatus`/`CanDecideTaskApproval`/`CanAddTaskComment`). Aufrufer: Workflow-Detail-Endpunkt. Kardinalitaet: grosse Workflows (≥100 Tasks) mit DB-gestuetzter Policy → spuerbarer Detail-Render. **Prio MEDIUM**, Hebel haengt davon ab, ob Policy-Service intern weitere Repo-Hits macht — vor Slice verifizieren.
+6. **`WorkflowCatalogService.GetDepartmentsAsync` / `GetRolesAsync`** — `api/API/Services/WorkflowCatalogService.cs:44-52`, SQL in `api/API/Repositories/PostgresWorkflowRepository.MasterDataOperations.cs`. Art **(a)**. `ORDER BY` ohne `LIMIT`/Pagination. Kardinalitaet: in einer Filiale unkritisch, in groesseren Org-Strukturen wird die Master-Data-Liste ohne Pagination zum Hot-Path. **Prio MEDIUM** — Pagination/Suche im Frontend bedeutet auch FE-Folgen, deshalb fuer Z8-1.2 separat bewerten.
+7. **`PostgresWorkflowNotificationDispatchOperations.BuildReadyTaskNotificationPreviewTargetsAsync`** — `api/API/Repositories/PostgresWorkflowNotificationDispatchOperations.cs` ~Z. 280-313. Art **(c)**. `foreach` ueber Recipient-Ids mit `LoadActiveUserNotificationRecipient` pro Empfaenger statt einem JOIN/IN-Set. Aufrufer: Notification-Preview. Kardinalitaet: skaliert mit Recipient-Anzahl pro Workflow. **Prio MEDIUM**.
+8. **`RotationTaskGenerationService.RegenerateDepartmentPlansAsync`** — `api/API/Services/RotationTaskGenerationService.cs:53-64`. Art **(c)**. Liest Plan-Ids einer Abteilung und ruft `SynchronizeRotationGeneratedTasks(planId)` pro Plan in einer foreach-Schleife. Aufrufer: Admin-/Regeneration-Pfad. Kardinalitaet: pro Abteilung × Plaene; admin-getriggert, kein Hot-Path. **Prio LOW-MEDIUM** — eher Z8-3-Material (Sweep/Regeneration-Performance) als Top-3-Kandidat.
+9. **`EntraDirectorySyncService.ImportDirectoryIdentitiesAsync`** — `api/API/Services/EntraDirectorySyncService.cs` ~Z. 1114-1153. Art **(c)**. Sequenzieller Import pro Identity inkl. SystemEventLog-Schreiben pro Item. Aufrufer: Admin-Import-Endpoint. Kardinalitaet: blockiert UI bei Massen-Import; nicht permanent unter Last. **Prio LOW-MEDIUM**.
+
+**False Positives / bewusst ausgenommen:**
+- `WorkflowLifecycleService` — Commit-Grenze, kein Listenpfad.
+- Workflow-/Task-Listen-Filter (`PostgresWorkflowRepository.WorkflowQueryOperations` + `TaskOperations` Filter): bereits durch Z2 SQL-pre-narrowed, keine doppelte Listung.
+- `WorkflowDefinitionDraftValidator` / `SnapshotValidator` (Z7) — reiner CPU-Pfad pro Validierung, keine Listen-Last.
+- Suche-Endpunkte `SearchWorkflowTargetPersonSources/People` — bereits mit `limit`-Parameter; nicht hier.
+
+**Empfehlung fuer Z8-1.2:** Top-Kandidaten **#1, #2 (+#3 als gemeinsamer Slice), #4**. Begruendung:
+- #1 ist nutzersichtbarer Hot-Path bei jedem Workflow-Anlegen → Pagination greift hier nicht, sondern SQL-seitige `IsManagerCreatable`-Auswertung pro Definition oder Bulk-Lookup.
+- #2/#3 ist der naechste Skalierungs-Cliff im Background-Sweep mit klarem Hebel (LIMIT + Batch-Update).
+- #4 ist der teuerste Sweep ohne Batching; alternativ kann #4 nach Z8-3 verschoben werden, wenn #1/#2 zuerst gehaertet werden.
+
+**Frontend-Folgen:** aus #6 entstehen ggf. FE-Items (Pagination/Suche fuer Departments/Rollen). Erst bei Z8-1.2 entscheiden — bis dahin **kein** FE-Eintrag.
+
+**Frontend-Folgen Status Z8 gesamt:** aktuell **keine**. Z8 ist backend-fokussiert. Wenn Z8-2 API-Vertraege aendert (z. B. Pagination-Tokens, Sortier-Parameter), entstehen erst dann FE-Items in `FRONTEND_TODO.md`. Bis dahin wird keine FE-Arbeit kuenstlich erzeugt.
 
 ---
 
