@@ -31,14 +31,25 @@ Format-Beispiel: *„Naechster Schritt: Z7-1.1 Lifecycle-Inventur. Reasoning: hi
 
 ---
 
+## Aktiver Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
+
+Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWorkflow/Stand/Code-Review-Status.md`. Frontend ist nicht betroffen, solange keine API-Vertraege brechen.
+
+| Block | Aufgabe | Prio | Reasoning | Modell | Status |
+|-------|---------|------|-----------|--------|--------|
+| Z8-1.1 | Inventur: unbegrenztes Laden, In-Memory-Filter/-Sort, N+1 | HIGH | high | opus | offen |
+| Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | high | opus | wartet auf Z8-1.1 |
+| Z8-2.x | SQL-Pushdown / Pagination der Top-Hotspots | HIGH | medium..high | sonnet/opus | wartet auf Z8-1.2 |
+| Z8-3 | Sweep- und Dispatch-Performance | MEDIUM | medium | sonnet | offen |
+| Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | wartet auf Z8-2 |
+
+**Naechster Schritt:** Z8-1.1 (Inventur). Reasoning: high. Modell: opus. Output: nummerierte Hotspot-Liste mit Aufrufer-Pfad und Datenkardinalitaet, ohne Code-Change.
+
+---
+
 ## Abgeschlossener Zyklus 7 — Lifecycle-Service-Konsolidierung (2026-05-05)
 
-Detail und Begruendung bleiben in `CODE_REVIEW.md` § "Aktiver Zyklus 7" und in `KauthWorkflow/Stand/Code-Review-Status.md`.
-
-| Block | Ergebnis | Status |
-|-------|----------|--------|
-
-**Naechster sinnvoller Schritt:** Kein offener Zyklus-7-Arbeitspunkt mehr. Naechsten Block aus `CODE_REVIEW.md` ziehen, sobald ein neuer Review-Zyklus festgelegt ist.
+Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 7" und in `KauthWorkflow/Stand/Code-Review-Status.md`.
 
 ---
 
@@ -62,7 +73,7 @@ Detail und Begruendung bleiben in `CODE_REVIEW.md` § "Aktiver Zyklus 7" und in 
 
 ## Abgeschlossene Zyklen
 
-Zyklen 1–6 (2026-04-23 bis 2026-05-04) sind abgeschlossen. Detail-Historie via `git log`; Highlights pro Zyklus in `KauthWorkflow/Stand/Code-Review-Status.md`.
+Zyklen 1–7 (2026-04-23 bis 2026-05-05) sind abgeschlossen. Detail-Historie via `git log`; Highlights pro Zyklus in `KauthWorkflow/Stand/Code-Review-Status.md`.
 
 ---
 

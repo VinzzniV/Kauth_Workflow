@@ -10,7 +10,7 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-05 — nach Zyklus 6, Zyklus 7 aktiv)
+## Gesamtbewertung (Stand 2026-05-05 — nach Zyklus 7, Zyklus 8 aktiv)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -36,20 +36,23 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 | 4 | 2026-05-02 | Naming + Härtungen: HQ1-Z4 LegacyProcessTypeKey, HQ2-Z4 effectiveResponsibilityIds, LQ1-Z4..LQ4-Z4 |
 | 5 | 2026-05-02..03 | Legacy-Abbau: LA1 (LegacyWorkflowStatus), LA2 (setup-Node), LA3 (definition_key Filter), LA4 (HasLegacyRolePermission), LA5 (Specs am Node) |
 | 6 | 2026-05-03..04 | Runtime-Lifecycle (Schritt 7): Engine-Extraktion + Lifecycle-Service mit Conn+Tx-Scope; 409 Tests gruen |
+| 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung (Z7-1 in 5 Sub-Slices) + Validation-Service-Split (Z7-3 in 4 Sub-Slices); 416/417 Tests gruen |
 
 ---
 
-## Aktiver Zyklus 7 — Lifecycle-Service-Konsolidierung (2026-05-05)
+## Aktiver Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
 
-Folgearbeit aus Zyklus 6. Lifecycle-Service nach Schritt 7 mid-state: vier Pass-Through-Methoden ohne Conn+Tx, drei statische Repo-Aufrufe als Bridge, doppelte Aufrufstelle in `PostgresWorkflowRepository.TaskOperations`. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 7".
+Naechster Schwerpunkt nach Abschluss von Zyklus 7. Skalierbarkeit ist mit B- die niedrigste Gesamtnote; Hygiene-Refactors (Lifecycle, Validation) sind erledigt. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 8".
 
 | Befund | Prio | Status |
 |--------|------|--------|
-| Z7-1 — Lifecycle-Service vollstaendig zur Commit-Grenze ausbauen (Slice-Plan) | HIGH | done am 2026-05-05 — Z7-1.1, Z7-2, Z7-1.2, Z7-1.3, Z7-1.4, Z7-1.5a, Z7-1.5b.i–v erledigt; Scoped-Vertrag `IWorkflowDefinitionRuntimeScopedRepository` aufgeloest |
-| Z7-2 — `WorkflowLifecycleService` Test-Coverage | HIGH | done am 2026-05-05 |
-| Z7-3 — `WorkflowDefinitionValidationService` (2131 Z.) splitten | MEDIUM | done am 2026-05-05 (alle 4 Sub-Slices: Catalog, Helpers, SnapshotValidator, DraftValidator) |
+| Z8-1.1 — Inventur unbegrenztes Laden / In-Memory-Filter / N+1 | HIGH | offen |
+| Z8-1.2 — Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | wartet auf Z8-1.1 |
+| Z8-2.x — SQL-Pushdown / Pagination der Top-Hotspots | HIGH | wartet auf Z8-1.2 |
+| Z8-3 — Sweep- und Dispatch-Performance | MEDIUM | offen |
+| Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | wartet auf Z8-2 |
 
-Z7-3 vollstaendig abgeschlossen am 2026-05-05; `WorkflowDefinitionValidationService` ist jetzt eine duenne Facade ueber `WorkflowDefinitionDraftValidator` und `WorkflowDefinitionSnapshotValidator`.
+Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehen erst, falls API-Vertraege brechen.
 
 ---
 
