@@ -68,7 +68,7 @@ Eroeffnet 2026-05-05 als reiner Review-/Planungszyklus. Folge-Hebel aus Z8-1.2 (
 | Befund | Prio | Status |
 |--------|------|--------|
 | Z10-1.1 — Inventur aller Admin-/Master-Data-/Directory-Read-Endpunkte ohne Pagination/Suche/Sort-Vertrag (Datei/Symbol, FE-Aufrufer, Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | done 2026-05-05 — `CODE_REVIEW.md` § Z10-1.1 (Bloecke A Identity, B Master-Data + `/departments`/`/roles`, C Directory, D Builder, E Notification-Templates, F Rotation, G Runtime-Subresources, H Startable; saubere Listen und Single-Doc-Endpunkte explizit ausgenommen) |
-| Z10-1.2 — Vertrags-Skizze pro Endpunkt (`limit`/`offset` vs. Cursor, Server-`search`, stabiler `sort`, Antwort-Hull) inkl. FE-Adaption-Folgen | HIGH | offen |
+| Z10-1.2 — Vertrags-Skizze pro Endpunkt (`limit`/`offset` vs. Cursor, Server-`search`, stabiler `sort`, Antwort-Hull) inkl. FE-Adaption-Folgen | HIGH | done 2026-05-05 — `CODE_REVIEW.md` § Z10-1.2 (Muster P1 Standard Admin Page / P2 Cursor Stream / P3 Typeahead Lookup; Bloecke A–H; Identity-/Directory-/Audit getrennt nach P1/P2; Builder als scoped P1; Runtime-Sub-Resources P2) |
 | Z10-1.3 — Slice-Plan fuer Folgezyklus: erste 2–3 sichere Umsetzungsslices mit Begruendung der Reihenfolge | HIGH | offen |
 
 Frontend-Folgen Z10-1.x: aktuell **keine**. Z10 produziert Inventur und Vertrags-Skizze, kein Code-Change. FE-Eintraege entstehen erst, wenn aus Z10-1.2 konkrete API-Vertragsaenderungen folgen — dann mit Trigger-Kennzeichnung in `FRONTEND_TODO.md`, nicht praeventiv.

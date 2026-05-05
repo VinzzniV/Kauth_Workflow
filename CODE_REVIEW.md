@@ -275,6 +275,176 @@ Sichtbar sind heute potenzielle Adaptionen in `web/src/services/adminApi.ts` (A/
 
 Z10-1.2 — Vertrags-Skizze pro identifiziertem Endpunkt auf Basis dieser Inventur. Reihenfolgenkandidaten (informativ, ohne Vorgriff): Hotspot-naheste FE-spuerbare Pfade (B `/departments`, `/roles`; D `task-templates`/`answer-definitions`; C `identities`/`audit`) zuerst skizzieren, weil dort der Wachstumstrigger zuerst sichtbar wird.
 
+### Z10-1.2 Vertrags-Skizze Admin-/Master-Data-/Directory-Read-Endpunkte (2026-05-05)
+
+Reine Skizze auf Basis von Z10-1.1, kein Code-Change und keine API-Vertragsaenderung. Pro Endpunkt wird das Zielmuster benannt (welcher Pagination-Stil, ob Server-`search`, ob stabiler `sort`, welche Antwort-Hull) plus die minimal noetige FE-Adaption als Folge — nicht als TODO. Vertraege werden bewusst **gemustert** statt pro Endpunkt einzeln, damit FE-Adapter wiederverwendbar bleiben und neue Listen das gleiche Verhalten erben.
+
+**Schreibregel angewandt:** zu jedem Block kurz „Praktisch / Lohnenswert / Nutzen" pro Nutzersicht. FE-Folgen nur als Konsequenz des Vertrags, nicht als neues TODO.
+
+#### Gemeinsame Muster (P1/P2/P3)
+
+Aus Z10-1.1 ergeben sich drei klar unterscheidbare Vertrags-Familien. Jeder Endpunkt unten verweist auf eine davon — das hält den Plattformvertrag stabil und vermeidet, dass jeder Endpunkt sein eigenes Format erfindet.
+
+| Muster | Wofür | Query-Parameter | Antwort-Hull | Sort-Vertrag |
+|---|---|---|---|---|
+| **P1 — Standard Admin Page** | endliche, monoton wachsende Adminlisten (Identity, Master-Data, Builder-Konfiguration, Directory-Status, Notification-/Rotation-Templates, Identitaeten) | `?limit&offset&search&sort` plus endpunkt-eigene Filter | `AdminListPageDto<T> { items: T[], total: int, limit: int, offset: int }` | `sort=field[:asc|desc][,field2[:dir]]`, Server validiert pro Endpunkt zugelassene Felder; Default explizit dokumentiert; Tie-Breaker immer `id` |
+| **P2 — Cursor Stream** | append-only Logs/Events/Jobs mit potenziell unbeschraenktem Wachstum (Audit-Tabellen, Runtime-Events/Jobs) | `?limit&cursor&search` plus Filter (z. B. `severity`, `actor`, `since`) | `CursorPageDto<T> { items: T[], nextCursor: string?, hasMore: bool }` | implizit chronologisch absteigend `(occurredAt desc, id desc)` als Cursor-Schluessel; kein Sort-Wechsel zur Laufzeit |
+| **P3 — Typeahead Lookup** | bewusst unvollstaendige Suche fuer Auswahl-Dialoge mit Eingabe-Trigger | `?query&limit` (bereits etabliert, siehe Z10-1.1 „bereits saubere Listen") | bare `T[]` (durch `limit` gedeckelt) | implizit Treffer-Score / Display-Name |
+
+**Regeln fuer alle drei Muster:**
+- `limit` Default 50, Maximum 200; Server klemmt Werte ausserhalb der Grenzen statt Fehler — Schutz vor versehentlichem „limit=10000".
+- `search` ist case-insensitive, ueber im Endpunkt fest deklarierte Felder. FE darf nicht raten, wonach gesucht wird.
+- `sort`-Felder sind eine **Whitelist pro Endpunkt**. Keine freien Spaltenausdruecke aus dem FE — schliesst SQL-Injection und semantisch instabile Sortierungen aus.
+- Bei P1 wird `total` einmal pro Request gezaehlt (ein zusaetzliches `COUNT(*)` ueber dieselbe WHERE-Klausel). Das ist auf Adminlisten in dieser Groesse vertretbar; bei P2 bewusst weggelassen, weil Audit-/Event-Bestaende den Count-Aufwand nicht mehr rechtfertigen.
+- Cursor in P2 ist **opaque** (Base64 ueber `(timestamp, id)`); FE behandelt ihn als String, nie zerlegen.
+
+**Praktisch:** drei feste Muster bedeuten, dass das FE genau drei Adapter braucht (`AdminListPageDto<T>`, `CursorPageDto<T>`, plain `T[]`) und neue Listen sich automatisch in einen davon einfuegen.
+**Lohnenswert:** verhindert, dass jeder Endpunkt am Ende ein eigenes Hull-Schema bekommt — genau das wuerde halbgare FE-Workarounds erzwingen.
+**Nutzen:** ein Adminerlebnis, das ueberall gleich reagiert; das Backend kann die drei Hulls zentral validieren und testen, statt pro Endpunkt.
+
+#### A) Identity & Permissions
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` (Whitelist) | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /admin/auth/users` | P1 | ja: ueber `displayName`, `email`, `identityKey` | `displayName` (Default asc), `email`, `lastLoginAt`, `isActive` | `AdminListPageDto<AdminUserDto>` | `?role`, `?group`, `?isActive` |
+| `GET /admin/auth/roles` | P1 | ja: ueber `key`, `name` | `name` (Default asc), `key` | `AdminListPageDto<AdminRoleDto>` | — |
+| `GET /admin/auth/groups` | P1 | ja: ueber `key`, `name` | `name` (Default asc), `key` | `AdminListPageDto<AdminGroupDto>` | — |
+| `GET /admin/auth/permissions` | P1 | ja: ueber `key`, `description` | `key` (Default asc) | `AdminListPageDto<AdminPermissionDto>` | `?role` |
+| `GET /admin/auth/audit` | **P2** | ja: ueber `actorIdentityKey`, `targetIdentityKey`, `reason` | implizit `(occurredAt desc, id desc)` | `CursorPageDto<AdminPermissionAuditEntryDto>` | `?actor`, `?action`, `?since`, `?until` |
+
+**Praktisch:** Benutzer-/Rollen-/Gruppenpflege fuehlt sich konsistent an — gleiche Suchbox, gleiches Pagination-Muster ueber alle Tabs. Beim Permission-Audit ersetzt der Cursor den heutigen `limit=100`-Cap; man kann aelter weiterblaettern statt blind abgeschnitten zu werden.
+**Lohnenswert:** Identity-Bestand waechst mit Entra-Sync monoton; Audit-Log waechst pro Aenderung. Die Beschwerde „ich sehe meine letzte Aenderung nicht mehr" entsteht heute genau am Audit-Cap.
+**Nutzen:** vollstaendige Suche und vorhersagbare Reihenfolge in der UI; Audit ist beliebig zurueckblaetterbar, ohne dass das Backend Riesen-Counts rechnen muss.
+**FE-Folge (Konsequenz, kein TODO):** `adminApi.getAdminUsers/Roles/Groups/Permissions` muss von `Promise<T[]>` auf `Promise<AdminListPageDto<T>>` umgestellt werden; clientseitige Filter in den vier Tabs entfallen. Permission-Audit-Tab braucht einen „Mehr laden"-Knopf statt eines fixen Caps.
+
+#### B) Master-Data + Workflow-Lookups (`/departments`, `/roles`)
+
+Hier teilen sich zwei Konsumentenklassen denselben Datenbestand: die **Pflege-Listen** in der Admin-Konfiguration (Vollbild, Sortier-/Filter-fuehrend) und die **Lookup-Aufrufe** in der Workflow-Erfassung (Auswahl-Dialog, eingabe-getrieben). Statt zwei getrennte Endpunkte mit zwei Vertraegen wird das gemeinsame Muster ausdruecklich benannt.
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` (Whitelist) | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /admin/master-data/departments` | P1 | ja: `name`, `key` | `name` (Default asc), `key` | `AdminListPageDto<AdminDepartmentAssignmentDto>` | `?leadStatus` (`resolved`/`missing`/`conflict`) |
+| `GET /admin/master-data/positions` | P1 | ja: `name`, `key` | `name` (Default asc), `departmentName` | `AdminListPageDto<AdminRoleDto>` | `?departmentId` |
+| `GET /admin/master-data/responsibilities` | P1 | ja: `key`, `name` | `name` (Default asc) | `AdminListPageDto<AdminResponsibilityOwnerDto>` | `?departmentId`, `?ownerType` |
+| `GET /departments` | P1 (mit P3-kompatiblem Default) | ja: `name`, `key` | `name` asc | `AdminListPageDto<DepartmentDto>` | — |
+| `GET /roles` | P1 (mit P3-kompatiblem Default) | ja: `name`, `key` | `name` asc | `AdminListPageDto<RoleDto>` | — |
+
+**Gemeinsames Muster:** `/admin/master-data/departments` und `/departments` sind nicht zwei verschiedene Datenquellen, sondern dasselbe Set in zwei Sichten. Vertraglich teilen sie deshalb dieselbe Hull-Form (P1) und dieselbe `search`-Semantik. Workflow-Erfassungsdialoge konsumieren das gleiche Endpunktformat, schicken aber typisch nur `?search=…&limit=20` — das ist P3 als Spezialfall von P1, ohne dass das Backend zwei Pfade pflegen muss.
+
+**Praktisch:** Der Erfassungs-Dialog tippt eine Abteilung/Rolle, das Backend antwortet mit Treffern statt mit allem. Die Pflege-Liste blaettert stabil. Beide Sichten sehen aus, als ob sie zur selben Datenquelle gehoeren.
+**Lohnenswert:** Hotspot #6 aus Z8-1.2 ist genau hier; Departments/Rollen sind Pflicht-Lookup auf jedem Workflow-Erfassungseinstieg. Ein gemeinsamer Vertrag spart die Versuchung, einen zweiten „leichten" Endpunkt zu bauen.
+**Nutzen:** schnelle Initialantwort beim Erfassen, vollstaendige Suche bei der Pflege, ein einziges FE-Muster fuer beide.
+**FE-Folge:** `lookupApi.getDepartments/getRoles` werden zu `(query?: string, limit?: number) => Promise<AdminListPageDto<…>>`; bestehende Aufrufstellen entpacken `items`. AdminConfig-Pflegeseiten verlieren ihren clientseitigen Filter und uebergeben `?search` an die API.
+
+#### C) Directory-Sync
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /admin/directory/groups` | P1 | ja: `displayName`, `objectId` | `displayName` (Default asc) | `AdminListPageDto<AdminDirectoryGroupDto>` | `?syncStatus` |
+| `GET /admin/directory/identities` | P1 (Upgrade) | ja: `displayName`, `email`, `entraObjectId` | `displayName` (Default asc), `email`, `lastSeenAt` | `AdminListPageDto<AdminDirectoryIdentityDto>` | `?syncStatus`, `?hasAppUserLink` |
+| `GET /admin/directory/responsibility-gaps` | **Split** in zwei P1-Listen + ein Summary-Endpunkt | innen ja | innen `responsibilityKey`, `departmentName` | je `AdminListPageDto<…>` | siehe unten |
+| `GET /admin/directory/pending-imports` | **Split** in zwei P1-Listen + ein Summary-Endpunkt | innen ja | innen `submittedAt desc`, `displayName` | je `AdminListPageDto<…>` | siehe unten |
+| `GET /admin/directory/audit` | **P2** | ja: `actor`, `targetIdentityKey`, `eventKey` | implizit `(occurredAt desc, id desc)` | `CursorPageDto<AdminDirectoryMappingAuditEntryDto>` | `?eventKey`, `?since`, `?until` |
+
+**Split-Begruendung Gaps/Pending:** Der heutige Composite-DTO mischt mehrere Listen mit eingebetteten Counts. Sobald eine der inneren Listen waechst, wird der Composite-Vertrag unbrauchbar (kein Pagination-Anker pro Liste). Der Schnitt: `…/responsibility-gaps/summary` bleibt das aggregat (Counts/Status), `…/responsibility-gaps/missing` und `…/responsibility-gaps/excess` werden eigene P1-Listen. Analog Pending: `…/pending-imports/summary` + zwei P1-Listen je nach Trennung (`new` vs. `conflicts`). Das ist exakt das Muster, das `/admin/system/logs` + `/admin/system/logs/summary` bereits sauber etabliert hat.
+
+**Praktisch:** Nach einem Sync sieht man genau die Treffer, nach denen man sucht — nicht „die ersten 100". Das Audit blaettert beliebig zurueck, ohne dass aelter heimlich abgeschnitten wird.
+**Lohnenswert:** Sync-Listen wachsen mit jedem Sync-Run, genau hier laufen Alltagsbeschwerden zuerst auf. Das Audit-`limit=50` von heute ist der naechste echte Hotspot, sobald Sync-Probleme aufgearbeitet werden muessen.
+**Nutzen:** UI kann ehrlich „Seite X von Y" zeigen statt zu raten; gleicher Vertrag fuer Identitaeten und Audit reduziert Sonderfaelle in der FE-Sync-Sicht.
+**FE-Folge:** `adminConfigApi.getDirectoryIdentities` upgrade auf P1-Hull (heute schon `limit`/`offset`, fehlt nur Hull/`total`/`search`/`sort`); Gaps/Pending muessen im FE in Summary-Aufruf + zwei Listen-Aufrufe geteilt werden — Konsequenz aus dem Split, kein neuer Featurewunsch.
+
+#### D) Workflow-Konfiguration / Builder
+
+Alle Builder-Read-Endpunkte teilen ein gemeinsames Verhalten: sie sind **scoped** auf eine `workflowDefinitionId` (oder eine Sub-Ressource davon) und liefern den vollstaendigen Konfig-Block. Der Vertrag muss diesen Scope erhalten und gleichzeitig pro Scope blaetterbar werden.
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /admin/config/workflow-definitions` | P1 | ja: `key`, `name` | `name` (Default asc), `updatedAt desc` | `AdminListPageDto<WorkflowDefinitionSummaryDto>` | `?status`, `?owner` |
+| `GET /admin/config/action-definitions` | P1 | ja: `key`, `name` | `name` (Default asc), `category` | `AdminListPageDto<ActionDefinitionDto>` | `?category` |
+| `GET /admin/config/task-templates?workflowDefinitionId` | P1 (scoped) | ja: `key`, `title` | `sortOrder` (Default asc), `title` | `AdminListPageDto<AdminTaskTemplateDto>` | `?phase`, `?responsibilityKey` |
+| `GET /admin/config/task-templates/{id}/conditions` | P1 (scoped) | nein (kleines Set pro Template) | `sortOrder` asc | `AdminListPageDto<AdminTaskTemplateConditionDto>` | — |
+| `GET /admin/config/task-templates/{id}/dependencies` | P1 (scoped) | nein | `sortOrder` asc | `AdminListPageDto<AdminTaskTemplateDependencyDto>` | — |
+| `GET /admin/config/answer-definitions?workflowDefinitionId` | P1 (scoped) | ja: `answerKey`, `label` | `sortOrder` asc, `answerKey` | `AdminListPageDto<AdminAnswerDefinitionDto>` | `?sectionKey` |
+| `GET /admin/config/role-answer-defaults?workflowDefinitionId` | P1 (scoped) | ja: `roleKey`, `answerKey` | `roleKey` asc, `answerKey` asc | `AdminListPageDto<AdminRoleAnswerDefaultDto>` | `?roleKey`, `?answerKey` |
+
+**Gemeinsames Muster:** „Builder-Liste = P1 mit erzwungenem Scope-Filter". Scope (`workflowDefinitionId` oder `task-template-id`) ist Pflicht-Query, nicht optional — der Builder laedt nie ueber alle Definitionen hinweg. Conditions/Dependencies bekommen bewusst keine Server-Suche, weil sie pro Template typischerweise klein sind und der Inspector ohnehin alle anzeigt; Pagination genuegt fuer den Wachstumsschutz.
+
+**Praktisch:** Der Builder bleibt schnell, auch wenn eine Definition Dutzende Vorlagen oder Defaults hat. Suche im Inspector findet wirklich alles, nicht nur den geladenen Block.
+**Lohnenswert:** Versionierte Definitionen sind Plattformziel — die Listen wachsen pro Definition (mehr Bausteine) und ueber Definitionen hinweg (mehr Versionen). Builder-Antwortzeit ist Adminerlebnis Nummer eins.
+**Nutzen:** ein einheitlicher Tab-Vertrag; Builder kann pro Tab paginiert nachladen, statt beim ersten Klick ein Komplett-Set durchzukauen.
+**FE-Folge:** `adminConfigApi`-Wrapper fuer die sieben Builder-Lese-Endpunkte werden auf `Promise<AdminListPageDto<…>>` umgezogen; clientseitige Filter im Builder-Inspector entfallen zugunsten Server-`search` mit definierter Trefferquelle.
+
+#### E) Notification Templates
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /admin/notification-templates` | P1 | ja: `key`, `subject`, `description` | `key` (Default asc), `category` | `AdminListPageDto<AdminNotificationTemplateDto>` | `?category`, `?language` |
+
+**Praktisch:** Template-Tab bleibt fuer den heutigen kleinen Bestand unauffaellig; sobald Sprachvarianten und Kategorien zunehmen, faengt P1 das ohne UI-Bruch ab.
+**Lohnenswert:** mit mehr Workflow-Definitionen waechst die Liste monoton. Heute billig zu setzen, spaeter teuer.
+**Nutzen:** konsistenter Vertrag mit den Admin-Listen oben — der Template-Tab faellt nicht aus dem Plattformmuster heraus.
+**FE-Folge:** `adminApi.getNotificationTemplates` von `Promise<T[]>` auf `Promise<AdminListPageDto<T>>`; clientseitiger Filter im Template-Tab entfaellt.
+
+#### F) Rotation Action Templates
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /admin/rotation/action-templates` | P1 | ja: `key`, `title` | `sortOrder` (Default asc), `title`, `updatedAt desc` | `AdminListPageDto<DepartmentActionTemplateDto>` | `?departmentId`, `?isActive` (heute schon) |
+
+**Praktisch:** Maßnahmenpflege bleibt sortier-stabil; Suche nach Vorlage funktioniert, statt durchscrollen zu muessen.
+**Lohnenswert:** Rotation ist B+-aktiv weiter ausgebaut worden, Vorlagenbestand pro Abteilung wird absehbar groesser.
+**Nutzen:** explizite Sort-Reihenfolge (`sortOrder, title`) macht das, was heute implizit aus dem Repo kommt, vertraglich.
+**FE-Folge:** `rotationApi.getDepartmentActionTemplates` auf Hull umstellen; bestehende `departmentId`/`isActive`-Filter bleiben.
+
+#### G) Runtime-Sub-Resources
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /admin/runtime/workflow-instances/{uid}/events` | **P2** | ja: `eventKey`, `nodeKey` | implizit `(occurredAt desc, id desc)` | `CursorPageDto<WorkflowRuntimeEventDto>` | `?severity`, `?eventKey`, `?since`, `?until` |
+| `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` | **P2** | ja: `actionKey`, `status` | implizit `(scheduledAt desc, id desc)` | `CursorPageDto<AutomationJobDetailDto>` | `?status`, `?actionKey` |
+
+**Begruendung P2:** Beide Listen sind pro Instanz append-only und potenziell unbeschraenkt (Retry, lange Laufzeit). `total` waere hier irrefuehrend (sowohl teuer als auch wenig hilfreich); ein Cursor mit „neuestes zuerst" matcht die typische Diagnose-Sicht „was ist gerade passiert, dann zurueckblaettern".
+
+**Praktisch:** Runtime-Tab laedt auch fuer lange Instanzen schnell; man kann gezielt „nur Fehler" oder „nur seit gestern" filtern, statt im ganzen Verlauf nach Strg+F zu suchen.
+**Lohnenswert:** mit mehr Automation pro Instanz waechst die Eventzahl schneller als der Workflow-Bestand. Diagnose ist genau der Moment, in dem die Liste am laengsten ist.
+**Nutzen:** der Admin kann eine Instanz auch nach Wochen Laufzeit ergonomisch nachvollziehen; gleicher Hull-Typ wie Audit, ein Adapter im FE.
+**FE-Folge:** Runtime-Detail-Tab bekommt zwei „Mehr laden"-Knoepfe (Events, Jobs); Severity-/Status-Filter werden Server-Filter statt Client-Filter.
+
+#### H) Workflow Catalog Lookup (`/workflow-definitions/startable`)
+
+| Endpunkt | Muster | Server-`search` | Stabiler `sort` | Antwort-Hull | Filter |
+|---|---|---|---|---|---|
+| `GET /workflow-definitions/startable` | P1 | ja: `name`, `key` | `name` (Default asc); spaeter optional `lastUsedAt desc` als Whitelist-Erweiterung | `AdminListPageDto<WorkflowStartableDefinitionDto>` | — |
+
+**Praktisch:** Erfassungs-Dialog fuehlt sich auch bei vielen Definitionen wie eine kurze Auswahl an, weil per `?search` getippt wird statt blaetternd zu suchen.
+**Lohnenswert:** Plattformziel ist „mehrere Workflows auf einem Plattformkern" — Bestand waechst absehbar.
+**Nutzen:** kein Sonderpfad fuer den Erfassungseinstieg; gleicher Adapter wie B (Departments/Rollen).
+**FE-Folge:** `lookupApi.getStartableWorkflowDefinitions` auf P1-Hull — analog zu B.
+
+#### Konsolidierte FE-Konsequenz (Notiz, kein TODO)
+
+Aus Z10-1.2 folgt **eine** Familie zusaetzlicher FE-Adapter, nicht eine pro Endpunkt:
+
+- typed `AdminListPageDto<T>`-Wrapper in `web/src/services/` (P1) — bedient A/B/C-Identitaeten/D/E/F/H.
+- typed `CursorPageDto<T>`-Wrapper (P2) — bedient A-Audit/C-Audit/G.
+- Reihen von clientseitigen Filtern in den Admin-Tabs werden zu Server-Filtern; Filterzustand wandert in die URL/Query, nicht mehr in Komponenten-State.
+
+Das sind zwei neue Hull-Typen und eine Refactor-Achse, nicht 25 neue Calls. Keine FE-TODOs in `FRONTEND_TODO.md` — die folgen erst aus dem Slice-Plan in Z10-1.3 und nur fuer die zuerst umgesetzten Endpunkte.
+
+#### Reihenfolgen-Hinweis fuer Z10-1.3 (informativ, ohne Vorgriff)
+
+Aus den Spuerbarkeits-Zonen oben legen sich drei Schubs nahe — die endgueltige Auswahl trifft Z10-1.3:
+
+1. **B `/departments`+`/roles`** (gemeinsamer Schnitt, Hotspot #6, FE-spuerbar im Erfassungseinstieg).
+2. **A-Audit + C-Audit** (P2 ablesbar, eigenstaendiger Vertrag, kein Hull-Bruch in den anderen Tabs).
+3. **D Builder-Listen** (gemeinsames scoped P1, groesster Wirkungsgrad fuer Adminerlebnis im Builder).
+
+Identitaeten (C) sind ein billiger Mitnahmeschnitt nach 1, weil sie heute schon `limit`/`offset` haben und nur Hull/`search`/`sort` fehlt. G (Runtime) und E/F bleiben absehbar in den hinteren Schubs, weil ihre Spuerbarkeit erst mit weiterem Wachstum entsteht.
+
+#### Naechster Schritt
+
+Z10-1.3 — Slice-Plan fuer Folgezyklus: 2–3 sichere Umsetzungsslices priorisieren (API-Vertrag + minimale FE-Adaption), inkl. Begruendung der Reihenfolge und expliziter Liste der Endpunkte, die in Z10 noch nicht angefasst werden und warum.
+
 ---
 
 ## Abgeschlossener Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
