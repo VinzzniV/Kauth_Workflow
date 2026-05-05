@@ -42,6 +42,23 @@ Zusaetzlich immer mitlesen:
 
 ---
 
+## Aktiver Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
+
+Z9 ist eroeffnet. Thema: LQ2-Z3 als aktiver Hebel — Test-Isolation der in Z8-2.3 eingefuehrten Batch-Helfer durch File-Split. Begruendung und Slice-Plan in `CODE_REVIEW.md` § "Aktiver Zyklus 9".
+
+| Block | Aufgabe | Prio | Reasoning | Modell | Status |
+|-------|---------|------|-----------|--------|--------|
+| Z9-1.1 | Boundary-/Split-Inventur (oeffentliche API, Aufrufer, interne Achsen, Test-Isolations-Hindernisse) | HIGH | high | opus | offen |
+| Z9-1.2 | Extract-Plan: File-/Klassen-Schnitt + Reihenfolge + Test-Strategie | HIGH | high | opus | offen — wartet auf Z9-1.1 |
+| Z9-2.1 | `SyncAllAsync`-Zuschnitt: Orchestrierung von Graph-Zugriff und DB-Batch trennen | HIGH | medium..high | sonnet | offen — wartet auf Z9-1.2 |
+| Z9-2.2 | Graph-Zugriff hinter testbaren Adapter | HIGH | medium..high | sonnet | offen — wartet auf Z9-2.1 |
+| Z9-2.3 | DB-Batch-Helfer hinter dediziertes Operations-Modul | HIGH | medium | sonnet | offen — wartet auf Z9-2.1 |
+| Z9-3 | Coverage: Integration-Tests Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — nach Z9-2.x |
+
+**Naechster Schritt:** Z9-1.1 — Boundary-/Split-Inventur. Reine Inventur, kein Code-Change.
+
+---
+
 ## Abgeschlossener Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
 
 Z8 ist geschlossen. Alle priorisierten Hotspots sind entweder gepushed (#1/#2/#3/#4/#7), als false positive verifiziert (#5) oder bewusst deferred (#8). Z8-4 Coverage abgeschlossen; Coverage fuer EntraDirectorySync-Batch-Helfer in LQ2-Z3 verschoben.
@@ -61,7 +78,7 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 | Z8-3.2 | Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` | MEDIUM | medium | sonnet | deferred (2026-05-05) — kein kleiner SQL-/Batch-Hebel ohne breiten Umbau; admin-getriggert. Z8-3 damit geschlossen. Detail: `CODE_REVIEW.md` § Z8-3.2 |
 | Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | done (2026-05-05) — Z8-4.1 Bulk-Recipient-Helper; Z8-2.1/Z8-2.2-Coverage liegt in den Umsetzungs-Slices; EntraDirectorySync-Batch-Helfer-Coverage in LQ2-Z3 verschoben |
 
-**Naechster Schritt:** neuen Review-Zyklus eroeffnen, sobald ein klarer Hebel feststeht (Kandidaten: LQ2-Z3-Split mit Z8-2.3-Coverage-Mitnahme, #6 Pagination falls Last-Trigger, oder neue Befunde aus laufender Arbeit). Bis dahin keine offene Z-ID.
+Z8 abgeschlossen; Folge-Zyklus Z9 eroeffnet (siehe oben).
 
 ---
 
@@ -72,7 +89,7 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 | R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | L7 | offen — Nutzer-Aufgabe |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | L7-Backlog | backlog — kein konkreter Bedarf |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | Zyklus 1 | deferred — wartet auf Produkt-Entscheidung |
-| LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` (aus Z8-4 verschoben) | Zyklus 3 / Z8 | deferred — kein Trigger |
+| LQ2-Z3 | `EntraDirectorySyncService` (2591 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` | Zyklus 3 / Z8 → Z9 | aktiv als Zyklus 9 (2026-05-05) |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | Zyklus 8 | deferred — admin-getriggert, kein kleiner SQL-Hebel |
 
 ---

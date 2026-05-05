@@ -32,9 +32,11 @@
 
 ## Current Focus
 
-- **Aktiver Zyklus:** keiner — Z8 geschlossen 2026-05-05.
-- **Naechster Schritt:** neuen Review-Zyklus eroeffnen, sobald ein klarer Hebel feststeht. Kandidaten: LQ2-Z3 (`EntraDirectorySyncService`-Split, bringt auch Coverage fuer Z8-2.3-Batch-Helfer mit), #6 Pagination fuer Departments/Rollen falls Last-Trigger, oder neue Befunde aus laufender Arbeit.
-- **Z8 Abschluss-Stand:** #1/#2/#3/#4/#7 gepushed (Bulk-Lookups, Batch-Sweep+Apply, Entra Group/Member Bulk, Recipient-Bulk); #5 als false positive verifiziert; #8 deferred (admin-getriggert, kein kleiner SQL-Hebel); Z8-4 Coverage mit Z8-4.1 (Bulk-Recipient-Integration-Tests) abgeschlossen, EntraDirectorySync-Batch-Helfer-Coverage nach LQ2-Z3 verschoben.
+- **Aktiver Zyklus:** Z9 — `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3 aktiviert), eroeffnet 2026-05-05.
+- **Trigger:** Z8 hat die Lastpfade in `SyncAllAsync` gehaertet (Z8-2.3 Batch-Helfer). Offene Grenze ist die fehlende Test-Isolation: `UpsertDirectoryIdentitiesBatch` / `InsertGroupMembershipsBatch` sind `private` hinter dem 2.4k-Z. `SyncAllAsync` mit Live-Graph + DB. File-Split bringt sowohl Wartbarkeit als auch testbare Abgrenzung.
+- **Naechster Schritt:** Z9-1.1 Boundary-/Split-Inventur (oeffentliche API, Aufrufer, interne Achsen Graph-Zugriff/DB-Batch/Orchestrierung/DepartmentLead/Import). Reine Inventur, kein Code-Change.
+- **Geplante Slices:** Z9-1.1 Inventur → Z9-1.2 Extract-Plan → Z9-2.1 `SyncAllAsync`-Zuschnitt → Z9-2.2 Graph-Adapter → Z9-2.3 DB-Batch-Modul → Z9-3 Coverage.
+- **Z8 Abschluss-Stand:** #1/#2/#3/#4/#7 gepushed; #5 false positive; #8 deferred; Z8-4 Coverage abgeschlossen; EntraDirectorySync-Batch-Helfer-Coverage formal nach Z9-3 verschoben.
 - **Vorher lesen:** `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `CODE_REVIEW.md`, `TODO.md`, `CODEX_SYNC.md`
 
 ## Active Risks / Watchouts

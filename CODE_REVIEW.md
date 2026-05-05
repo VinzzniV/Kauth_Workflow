@@ -35,8 +35,8 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 
 ---
 
-**Stand**: 2026-05-05 — nach Abschluss von Zyklus 7 und Zyklus 8.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 eroeffnet).
+**Stand**: 2026-05-05 — Zyklus 9 eroeffnet (`EntraDirectorySyncService`-Split / Testbarkeit).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 eroeffnet).
 
 ---
 
@@ -53,6 +53,56 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 | Skalierbarkeit | **B-** | Mehrere Listen-, Sweep- und Dispatch-Pfade sind noch Kandidaten fuer SQL-Pushdown, Pagination oder N+1-Abbau |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
+
+---
+
+## Aktiver Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
+
+**Status:** eroeffnet 2026-05-05. Kein Code-Change in dieser Eroeffnung — nur Zyklus- und Slice-Definition.
+
+**Thema:** Z8 hat die Lastpfade gehaertet (Bulk-Lookups, Sweep-Batching, Group/Member-Bulk in `EntraDirectorySyncService.SyncAllAsync`). Die offene Grenze aus Z8 ist **nicht** ein neuer Last-Hotspot, sondern die **fehlende saubere Test-Isolation** der neuen Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`): sie sind `private` hinter dem 2.4k-Zeilen-Service, der direkt gegen Live-Graph + DB laeuft. Reflection-Probing waere fragil, ein End-to-End-Test ueber `SyncAllAsync` braucht einen Graph-Stub und einen sauberen Schnitt zwischen Orchestrierung, Graph-Zugriff und DB-Batch-Operationen.
+
+LQ2-Z3 (`EntraDirectorySyncService` File-Split, 2591 Zeilen) trifft genau diesen Hebel: er bringt Wartbarkeit **und** testbare Abgrenzung, beides mit konkretem, aus Z8 begruendetem Nutzen — nicht als blindes Aufraeumen.
+
+**Begruendung gegen alternative Zyklen:**
+- *#6 Departments/Rollen Pagination*: erzeugt API-Vertrags- und FE-Folgen ohne aktuellen Last-Trigger. Wartet auf Anlass.
+- *#8 RotationTaskGeneration*: bewusst deferred (admin-getriggert, kein kleiner SQL-Hebel).
+- *Neue Last-Hotspots erfinden*: Z8 hat die priorisierten Pfade gepushed; ein synthetischer Last-Zyklus waere Bauchgefuehl-Refactor.
+- *Reine Hygiene-Splits anderer grosser Dateien*: ohne Z8-Kopplung waere das genau das untersagte „blinde Aufraeumen".
+
+**Fokus:**
+1. Boundary-Inventur: oeffentliche API, Aufrufer, interne Achsen (Graph-Zugriff, DB-Batch, Orchestrierung, DepartmentLead-Resolution, Import-Pfad).
+2. Extract-Plan: konkreter File-/Klassen-Schnitt, der Graph- und DB-Seite hinter Interfaces stellt und `SyncAllAsync` zur duennen Orchestrierung schrumpft.
+3. `SyncAllAsync`-Zuschnitt nach Plan; Graph-/Batch-Helfer hinter Interface bringen.
+4. Coverage nachziehen: insbesondere die Z8-2.3-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) plus DepartmentLead-Resolver.
+
+**Leitplanken:**
+- Kein paralleler zweiter Hebel. Nur LQ2-Z3.
+- Keine semantischen Aenderungen an Sync-Verhalten oder DB-Spalten — reine Strukturarbeit mit Test-Nutzen.
+- Keine FE-Folgen erwartet (Service ist Backend-/Timer-Pfad).
+- API-Vertraege der Admin-Endpunkte bleiben unveraendert.
+
+**Geplante Slices (Erst-Definition, nicht Umsetzung):**
+
+| ID | Aufgabe | Prio | Reasoning | Modell | Status |
+|----|---------|------|-----------|--------|--------|
+| Z9-1.1 | Boundary-/Split-Inventur: oeffentliche API, Aufrufer (`DirectorySyncHostedService`, Admin-Endpunkte), interne Achsen (Graph-Zugriff, DB-Batch-Helfer, `SyncAllAsync`-Orchestrierung, `SyncDepartmentLeadAssignmentsFromDirectory`, `ImportDirectoryIdentitiesAsync`); pro Achse: Abhaengigkeiten, Test-Isolations-Hindernisse | HIGH | high | opus | offen |
+| Z9-1.2 | Extract-Plan: konkreter File-/Klassen-Schnitt (Kandidaten z. B. `EntraGraphClient`/-Adapter, `EntraDirectoryBatchOperations`, `EntraDepartmentLeadResolver`, schlanker `EntraDirectorySyncOrchestrator`), Reihenfolge der Extraktionen, Test-Strategie (Graph-Stub vs. echtem Client), explizite Nicht-Ziele | HIGH | high | opus | offen |
+| Z9-2.1 | `SyncAllAsync`-Zuschnitt: Orchestrierung von Graph-Zugriff und DB-Batch-Helfern trennen, ohne Verhaltensaenderung | HIGH | medium..high | sonnet | offen — wartet auf Z9-1.2 |
+| Z9-2.2 | Graph-Zugriff hinter Adapter-Interface; Adapter testbar (Stub) machen | HIGH | medium..high | sonnet | offen — wartet auf Z9-2.1 |
+| Z9-2.3 | DB-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) hinter dediziertes, testbares Operations-Modul ziehen | HIGH | medium | sonnet | offen — wartet auf Z9-2.1 |
+| Z9-3 | Coverage nachziehen: Integration-Tests fuer Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests fuer Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — nach Z9-2.x |
+
+**Reihenfolge / Abhaengigkeiten:**
+- Z9-1.1 → Z9-1.2 sequenziell (Inventur vor Plan).
+- Z9-2.x: 2.1 zuerst (Orchestrierungs-Schnitt), danach 2.2 und 2.3 unabhaengig moeglich, aber sequenziell halten, damit der Tree pro Slice klar bleibt.
+- Z9-3 erst, wenn die Batch-/Graph-Schnitte stehen. Coverage darf den Refactor nicht treiben.
+
+**Frontend-Folgen:** **keine**. Reiner Backend-Refactor. `FRONTEND_TODO.md` wird nicht angefasst.
+
+**Abgrenzung zu Z8:**
+- Z8 hat `SyncAllAsync` an der Last-Front gehaertet (Group/Member-Bulk). Z9 fasst die so eingefuehrten Helfer **nicht inhaltlich** an, sondern nur strukturell, damit sie isoliert testbar werden.
+- LQ2-Z3 wird als aktiver Zyklus 9 aus dem zyklusuebergreifend-offenen Block herausgehoben; die Coverage fuer die Z8-2.3-Batch-Helfer wandert formal nach Z9-3 (vorher: aus Z8-4 nach LQ2-Z3 verschoben).
 
 ---
 
@@ -208,7 +258,7 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | offen — Nutzer-Aufgabe, KI kann nicht pruefen | L7 |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | backlog — kein konkreter Bedarf | L7 |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | deferred — wartet auf Produkt-Entscheidung | Zyklus 1 |
-| LQ2-Z3 | `EntraDirectorySyncService.cs` (2485 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` (aus Z8-4 verschoben) | deferred ohne Trigger — Risiko niedrig (Timer-Pfad). Refactor erst bei Anlass; bringt dann auch Test-Isolation fuer die Z8-2.3-Batch-Helfer | Zyklus 3 / Z8 |
+| LQ2-Z3 | `EntraDirectorySyncService.cs` (2591 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` | **aktiv als Zyklus 9** (2026-05-05) — Trigger: Test-Isolation der Z8-2.3-Batch-Helfer | Zyklus 3 / Z8 → Z9 |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein Hot-Path; kein kleiner SQL-/Batch-Hebel ohne breiten Umbau an `SynchronizeRotationGeneratedTasks` | Zyklus 8 |
 
 ---
@@ -225,3 +275,4 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | 6 | 2026-05-03..04 | Runtime-Lifecycle (Schritt 7): Engine-Extraktion + Lifecycle-Service mit Conn+Tx-Scope |
 | 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung + Validation-Split |
 | 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung (Hotspots #1/#2/#3/#4/#7 gepushed; #5 verifiziert; #8 deferred; Z8-4 Coverage) |
+| 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3 aktiviert) — eroeffnet |
