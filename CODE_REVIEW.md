@@ -77,9 +77,11 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 | ID | Befund | Prio |
 |----|--------|------|
 | Z8-1.1 | Inventur: Endpunkte + Repos mit unbeschraenktem Laden, In-Memory-Filter/-Sort, N+1 | **done** (2026-05-05) — siehe § Z8-1.1 Hotspot-Inventur |
-| Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan auf Basis der Inventur | **HIGH** — offen, Naechster Schritt |
-| Z8-2.x | SQL-Pushdown / Pagination der Top-Hotspots (pro Hotspot ein Slice) | **HIGH** — wartet auf Z8-1.2 |
-| Z8-3 | Sweep- und Dispatch-Performance (`RotationTaskRegenerationEngine`-Sweep, Notification-Dispatch) | MEDIUM — offen |
+| Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan auf Basis der Inventur | **done** (2026-05-05) — siehe § Z8-1.2 Slice-Plan |
+| Z8-2.1 | Hotspot #1 — `WorkflowCatalogService.GetStartableWorkflowDefinitionsAsync`: N+1 fuer `IsManagerCreatableDefinition` aufloesen (Bulk-/SQL-Pushdown) | **HIGH** — Naechster Schritt |
+| Z8-2.2 | Hotspot #2+#3 (gemeinsamer Slice) — `RotationNotificationService` Daily-Sweep: `LIMIT`/Batch-Fetch + Batch-Update der Dispatch-Results | **HIGH** — wartet auf Z8-2.1 |
+| Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync`: Group-Member-Schleifen auf Batch-Upsert/-Insert umstellen | **HIGH** — wartet auf Z8-2.2 |
+| Z8-3 | Sweep- und Dispatch-Performance Resthebel (`RotationTaskRegenerationEngine`-Sweep, weitere Notification-Pfade #5/#7) | MEDIUM — wartet auf Z8-2 |
 | Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — wartet auf Z8-2 |
 
 **Empfohlener Einstieg:** Z8-1.1 als reine Inventur — opus/high. Output: konkret nummerierte Hotspot-Liste mit Aufrufer-Pfad und Datenkardinalitaet, kein Code-Change. Erst auf dieser Basis entscheidet Z8-1.2, ob Pagination, Sortier-Pushdown oder N+1-Aufloesung den groessten Hebel hat.
@@ -112,6 +114,45 @@ Reine Inventur, kein Code-Change. Pro Hotspot: Datei/Symbol, Art `(a)` unbegrenz
 **Frontend-Folgen:** aus #6 entstehen ggf. FE-Items (Pagination/Suche fuer Departments/Rollen). Erst bei Z8-1.2 entscheiden — bis dahin **kein** FE-Eintrag.
 
 **Frontend-Folgen Status Z8 gesamt:** aktuell **keine**. Z8 ist backend-fokussiert. Wenn Z8-2 API-Vertraege aendert (z. B. Pagination-Tokens, Sortier-Parameter), entstehen erst dann FE-Items in `FRONTEND_TODO.md`. Bis dahin wird keine FE-Arbeit kuenstlich erzeugt.
+
+### Z8-1.2 Top-3-Auswahl + Slice-Plan (2026-05-05)
+
+Reine Planung, kein Code-Change. Bestaetigt die Empfehlung aus Z8-1.1 und schneidet Z8-2.x.
+
+**Bestaetigte Top-3 fuer Z8-2.x:**
+
+1. **Hotspot #1 — `WorkflowCatalogService.GetStartableWorkflowDefinitionsAsync`** → Slice **Z8-2.1**.
+   - User-sichtbarer Hot-Path bei jedem Workflow-Anlegen durch Manager.
+   - Hebel: N+1 ueber `IsManagerCreatableDefinition` aufloesen (Bulk-Lookup oder SQL-seitige `EXISTS`-Auswertung im selben Statement, das die Definitionen liefert).
+   - Pagination greift hier nicht (Auswahl-Liste, fachliche Vollstaendigkeit erforderlich) — daher gezielter Bulk- bzw. JOIN-Pushdown statt LIMIT.
+   - Risiko: gering, klar lokal abgrenzbar; keine API-Vertragsaenderung erwartet → keine FE-Folge.
+   - Modell: opus, Reasoning: medium..high.
+
+2. **Hotspot #2 + #3 — `RotationNotificationService` Daily-Sweep + `ApplyRotationNotificationDispatchResults`** → **gemeinsamer Slice Z8-2.2**.
+   - Begruendung fuer Bundling: #3 ist der DB-Schreibpfad genau fuer die Eintraege, die #2 lieferte. Getrennt zu schneiden hiesse, eine Haelfte (LIMIT) ohne die andere (Batch-Update) zu landen, was den Sweep-Cliff nur halb behebt und zusaetzliche Migrations-Schritte zwischen den Slices erzeugt. Gemeinsam ist der Slice immer noch klein und in einem Service-Namespace.
+   - Hebel: dispatchable-Notifications mit `LIMIT`/Batch-Fenster laden, Apply-Phase auf Batch-Update statt Select+Update pro Item.
+   - Risiko: gering, Background-Pfad ohne UI-Vertraege.
+   - Modell: sonnet, Reasoning: medium..high.
+
+3. **Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync` (Group×Member-Schleifen)** → Slice **Z8-2.3**, bewusst **hinter** #1 und #2/#3.
+   - Entscheidung: #4 bleibt in der Top-3, aber **als letzter** der drei Z8-2-Slices. Begruendung: Timer-Pfad (24h-Sweep) ohne aktuelle User-Beschwerde, aber groesster Round-Trip-Hebel pro Sweep und einziger der Top-Sweeps mit Batch-Insert-Potenzial fuer Group-Memberships. Vor #1/#2 zu ziehen waere falsch priorisiert (kein User-Pfad). Nach Z8-3 zu schieben waere unsauber, weil Z8-3 explizit fuer `RotationTaskRegenerationEngine`-Sweep und Resthebel reserviert ist und der Entra-Sweep technisch denselben Batching-Ansatz wie #2 nutzt — also gehoert er thematisch zum Pushdown-Block, nicht zum Resthebel.
+   - Hebel: Batch-`UpsertDirectoryIdentity` und Batch-`InsertGroupMembership` statt Item-by-Item; ggf. Set-Diff statt Vollabgleich pro Group.
+   - Achtung: vollstaendiger File-Split bleibt LQ2-Z3 deferred — Z8-2.3 fasst nur die Sync-Schleifen an, keine Strukturhygiene.
+   - Modell: sonnet, Reasoning: medium.
+
+**Nicht in Top-3 fuer Z8-2.x (bewusst):**
+- #5 `WorkflowVisibilityService.ApplyWorkflowTaskPermissions`: vor Slice noch verifizieren, ob Policy-Service intern Repo-Hits macht. Bleibt MEDIUM und wird nach Bedarf in Z8-3 oder einem Folgezyklus aufgenommen.
+- #6 `GetDepartmentsAsync` / `GetRolesAsync`: erzeugt API-Vertragsaenderung (Pagination/Suche) und FE-Folgen. Ohne konkreten Last-Trigger nicht in Z8-2 — Re-Bewertung am Ende von Z8.
+- #7 `BuildReadyTaskNotificationPreviewTargetsAsync`: gehoert zu Z8-3 (Notification-Pfad-Resthebel).
+- #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync`: admin-getriggert, kein Hot-Path → Z8-3.
+- #9 `EntraDirectorySyncService.ImportDirectoryIdentitiesAsync`: Admin-Massen-Import, kein permanenter Last-Pfad → Folgezyklus.
+
+**Frontend-Folgen Z8-2.x:** weiterhin **keine**. #1, #2/#3, #4 aendern keine API-Vertraege; #6 mit FE-Folgen bewusst nicht in Top-3. `FRONTEND_TODO.md` wird nicht angefasst.
+
+**Reihenfolge / Abhaengigkeiten:**
+- Z8-2.1 → Z8-2.2 → Z8-2.3 sequenziell. Keine harten Code-Abhaengigkeiten zwischen den Slices, aber sequenziell, damit der Worker nicht parallel mehrere Pfade halb anfasst und die Tests pro Slice klar zuordenbar bleiben.
+- Z8-3 startet nach Z8-2.3 mit Resthebel #5/#7/#8.
+- Z8-4 (Test-Coverage) parallel pro Slice mitziehen, nicht erst am Ende — Z8-4 bleibt als eigene ID nur fuer ergaenzende Coverage uebrig.
 
 ---
 

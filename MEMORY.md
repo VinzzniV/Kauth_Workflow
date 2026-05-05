@@ -33,7 +33,8 @@
 ## Current Focus
 
 - **Aktiver Zyklus:** Z8 — Skalierbarkeits- & Last-Haertung
-- **Naechster Schritt:** Z8-1.1 Inventur (unbegrenztes Laden, In-Memory-Filter/-Sort, N+1), kein Code-Change
+- **Naechster Schritt:** Z8-2.1 — `WorkflowCatalogService.GetStartableWorkflowDefinitionsAsync` N+1 fuer `IsManagerCreatableDefinition` aufloesen (Bulk-/SQL-Pushdown). Top-3-Bestaetigung + Slice-Plan in `CODE_REVIEW.md` § Z8-1.2.
+- **Folgeschnitt:** Z8-2.2 (Rotation-Notification Sweep + Apply gemeinsam), dann Z8-2.3 (Entra-Sync Group/Member Batch).
 - **Vorher lesen:** `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `CODE_REVIEW.md`, `TODO.md`, `CODEX_SYNC.md`
 
 ## Active Risks / Watchouts
