@@ -49,6 +49,7 @@ Pflicht nach dem Lesen:
 - Wenn eine Aufgabe aus `TODO.md` abgeschlossen wurde, muss der Aufgabenstatus im selben Arbeitsgang auf `done` gesetzt werden.
 - `MEMORY.md` muss immer aufgeraeumt werden, sobald Inhalte nicht mehr gebraucht werden.
 - Dokumentationsdateien muessen auf dem aktuellen Ist-Stand gehalten werden; veraltete Hinweise sind im selben Arbeitsgang zu bereinigen.
+- Wenn Codex Claude ueber die CLI orchestriert, muessen das vorgesehene Modell und der vorgesehene Reasoning-/Effort-Level nicht nur in `TODO.md`/`CODE_REVIEW.md` stehen, sondern bei jedem Lauf explizit per CLI-Parametern gesetzt werden.
 
 ---
 

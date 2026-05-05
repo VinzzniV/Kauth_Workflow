@@ -52,6 +52,7 @@ Sie ist keine Architektur- oder Produktdoku, sondern die operative Steuerungsdat
 Codex ist zustaendig fuer:
 - Lesen und Abgleichen von `DOCS_CONTROL.md`, `CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`
 - Auswahl des naechsten sinnvollen Schritts
+- Auswahl und **explizite CLI-Erzwingung** von Claude-`--model` und `--effort` pro Slice
 - Pruefen, ob Claude zu breit oder in den falschen Bereich arbeitet
 - Einfordern von Doku-Konsistenz ueber mehrere Dateien
 - Entscheidung, ob ein grosser Block weiter geschnitten werden muss
@@ -90,10 +91,14 @@ Claude ist zustaendig fuer:
 Codex gibt Claude:
 - den aktuellen Fokus
 - den exakten Slice oder Block
+- das zu verwendende Claude-`--model`
+- das zu verwendende Claude-`--effort`
 - Leitplanken
 - Pflichtdokus
 - Testerwartung
 - Commit-Regel
+
+**Verbindliche Regel:** Wenn Codex Claude ueber die CLI startet, muessen `--model` und `--effort` immer explizit gesetzt werden. Es reicht nicht, Modell oder Reasoning nur im Prompttext oder indirekt ueber `TODO.md` zu empfehlen. Die Auswahl aus `TODO.md`/`CODE_REVIEW.md` ist technisch per CLI-Flag zu erzwingen.
 
 ### 2. Analyse durch Claude
 
@@ -134,6 +139,8 @@ Claude liefert am Ende mindestens:
 - welche Testbefehle gelaufen sind und mit welchem Resultat
 - welcher Commit erstellt wurde
 - welcher naechste offene Schritt folgt
+
+Codex dokumentiert im Auftrag intern immer auch, welches `--model` und welches `--effort` fuer diesen Slice erzwungen wurden.
 
 ## Verhalten bei zu grossen oder unsauberen Slices
 

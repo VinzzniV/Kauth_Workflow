@@ -108,3 +108,4 @@ Vor dem Start einer Aufgabe immer explizit nennen:
 1. welche Aufgabe als naechstes ansteht
 2. welches Reasoning sinnvoll ist
 3. welches Modell empfohlen ist
+4. wenn Claude per CLI laeuft: `--model` und `--effort` explizit setzen, nicht nur im Prompt empfehlen
