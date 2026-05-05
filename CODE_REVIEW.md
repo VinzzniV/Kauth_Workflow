@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-05 — Zyklus 10 abgeschlossen (Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — reiner Review-/Planungszyklus, alle Slices done). Kein aktiver Zyklus. Naechster Schritt: Eroeffnung Umsetzungszyklus (vorgeschlagen Z11) auf Basis F1/F2/F3 aus § Z10-1.3. Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit; Z9-3 Coverage).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen).
+**Stand**: 2026-05-05 — Aktiver Zyklus 11 (Admin-/Master-Data-Listen-Vertraege in Umsetzung; reiner Umsetzungszyklus). Slice-Reihenfolge: F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Keine Code-Aenderung in der Zykluseroeffnung selbst. Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet).
 
 ---
 
@@ -67,6 +67,74 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | Skalierbarkeit | **B-** | Mehrere Listen-, Sweep- und Dispatch-Pfade sind noch Kandidaten fuer SQL-Pushdown, Pagination oder N+1-Abbau |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
+
+---
+
+## Aktiver Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05)
+
+**Status:** eroeffnet 2026-05-05. Reiner Umsetzungszyklus auf Basis des in Z10-1.3 verabschiedeten Slice-Plans. Keine Code-Aenderung in der Eroeffnung selbst — die Eroeffnung legt nur Slice-Reihenfolge, Modell-/Effort-Zuweisung und Risikozaeune fest.
+
+**Thema:** die in Zyklus 10 definierten Antwort-Hulls **P1** (`AdminListPageDto<T>` — `?limit&offset&search&sort` mit `total`) und **P2** (`CursorPageDto<T>` — Cursor-Stream ohne `total`) werden in Z11 in drei sauber getrennten Slices umgesetzt: **F1** fuehrt P1 ein und wendet sie auf Master-Data/Lookups an, **F2** fuehrt P2 ein und wendet sie auf die zwei Audit-Streams an, **F3** rollt die in F1 etablierte P1-Hull auf die sieben scoped Builder-Lese-Endpunkte aus.
+
+**Was bedeutet das praktisch?**
+- Wer im Erfassungsdialog eine Abteilung oder Rolle eintippt, bekommt nach F1 sofort die passende Trefferliste statt zu warten, bis der ganze Bestand geladen ist; die drei Master-Data-Tabs verhalten sich erstmals identisch.
+- Wer im Audit „meine Aenderung von letzter Woche" sucht, kann sie nach F2 zurueckblaettern. Heute schneidet der stille `limit=100`/`limit=50`-Cap Historie ab, ohne dass das im UI sichtbar ist.
+- Der Builder bleibt nach F3 schnell, auch wenn eine Definition Dutzende Aufgabenvorlagen, Antwortfelder oder Rollen-Defaults hat; Suche im Inspector findet wirklich alles, nicht nur den geladenen Block.
+
+**Warum lohnt es sich, das anzugehen?**
+- Z10 hat den Vertrag bewusst vor das Wachstum gezogen. Z11 ist die naechste konsequente Stufe: die Hulls aus der Skizze werden zu echtem Code, bevor sich pro Endpunkt unterschiedliche Mini-Implementierungen einschleichen.
+- F1 trifft Hotspot #6 aus Z8-1.2 (`/departments`/`/roles`) und stabilisiert gleichzeitig die Plattform-Hull P1, die ab F3 nur noch ausgerollt wird.
+- F2 ersetzt einen Cap, der heute ohne Hinweis Audit-Historie abschneidet — ein Sicherheitsgewinn, der unabhaengig von F1 zieht, weil P2 eine eigene Hull-Familie ist.
+- F3 ist der breiteste Slice und setzt P1 voraus; ein eigener Slice am Ende verhindert, dass Builder-Refactor-Aufwand in F1/F2 einsickert.
+
+**Was wird dadurch besser, sicherer, schneller oder wartbarer?**
+- **Schneller:** Listen liefern bei wachsendem Bestand stabile Antwortzeiten, weil das Backend nur einen Ausschnitt rechnet und Suche/Sortierung per SQL passieren.
+- **Sicherer:** keine still abgeschnittene Audit-Historie mehr; vollstaendige Server-Suche statt unvollstaendigem Browser-Filter.
+- **Wartbarer:** zwei zentrale Hull-Definitionen (`AdminListPageDto<T>`, `CursorPageDto<T>`) statt pro Endpunkt erfundener Mini-Vertraege; FE bekommt zwei typed Adapter, die spaeter auch fuer Identity-Listen, Identities, Notification-Templates, Rotation, Runtime-Sub-Resources und Startable wiederverwendet werden.
+- **FE-Stabilitaet:** Filterzustand wandert in URL-Query, Komponenten verlieren clientseitige Filterhilfen — eine Refactor-Achse, einmal etabliert, mehrfach genutzt.
+
+**Begruendung gegen alternative Zyklen / alternative Reihenfolgen:**
+- *Alle Endpunkte gleichzeitig migrieren*: erzwingt paralleles FE-Refactoring an mehreren Stellen und genau die halbgaarigen Workarounds, die Z10 verhindern soll.
+- *Mit F3 starten (groesste Wirkung)*: setzt P1 voraus, ohne sie etabliert zu haben — entweder muesste der Slice die Hull-Definition implizit mitbringen (Bloat), oder F1 wuerde nachgeschoben (Rueckwaertsgang).
+- *F2 vor F1*: F2 ist klein und unabhaengig, aber der lautere User-Hebel im Alltag liegt am Erfassungseinstieg (F1). F1 zuerst maximiert spuerbaren Nutzen pro Slice.
+- *A Identity-Listen / C Identities / E Notification-Templates / F Rotation / G Runtime / H Startable in Z11 mitnehmen*: bewusst nicht — Begruendungen pro Block in § Z10-1.3 unter „Bewusst in Z11 (Folgezyklus) noch nicht angefasst". Z11 bleibt thematisch klar auf Hull-Foundation (F1/F2) und Breitenrolle der etablierten Hull (F3).
+- *C Gaps/Pending Split jetzt*: Composite-DTO-Umbau ueber mehrere Endpunkte plus FE-Sichtumbau — explizit kein Hull-Anbau, eigener vorbereiteter Slice nach F1–F3.
+
+**Fokus:**
+1. **F1** P1 zentral einfuehren + B Master-Data/Lookups (`GET /departments`, `GET /roles`, `GET /admin/master-data/departments`, `GET /admin/master-data/positions`, `GET /admin/master-data/responsibilities`).
+2. **F2** P2 zentral einfuehren + Audit-Streams (`GET /admin/auth/audit`, `GET /admin/directory/audit`).
+3. **F3** P1 ausrollen + D Builder-Tabs scoped (`GET /admin/config/workflow-definitions`, `GET /admin/config/action-definitions`, `GET /admin/config/task-templates`, `GET /admin/config/task-templates/{id}/conditions`, `GET /admin/config/task-templates/{id}/dependencies`, `GET /admin/config/answer-definitions`, `GET /admin/config/role-answer-defaults`).
+
+**Leitplanken Z11:**
+- Slice-Reihenfolge ist streng F1 → F2 → F3. F1 etabliert P1, F2 etabliert P2, F3 nutzt nur die in F1 fertige P1.
+- Pro Slice **eine** Hull-Familie. Kein Mischen P1/P2 in einem Slice.
+- Pro Slice nur Read-/Listen-Vertraege; keine Schreibpfade, keine Versionierungs-/Publish-Pfade, keine Composite-DTO-Umbauten.
+- Server-Clamp `limit` Default 50/Max 200 (P1 und P2). `search`-Felder, Sort-Whitelists und Scope-Pflichten sind pro Endpunkt deklarativ; FE darf den P2-Cursor nie zerlegen (opaque Base64).
+- API-Vertraege der **nicht** in F1/F2/F3 enthaltenen Endpunkte bleiben in Z11 unangetastet.
+- Frontend-Folgen sind Konsequenz pro Slice, **nicht** praeventives FE-TODO. Eintrag in `FRONTEND_TODO.md` mit Trigger-Kennzeichnung F1/F2/F3 erst beim Start des jeweiligen Slices.
+- Schreibregel: jedes Slice-Ergebnis erklaert auch fuer normale Leser, was sich praktisch aendert, warum es sich gelohnt hat und welcher Nutzen entsteht — nicht nur Diff-Beschreibung.
+- Keine stillen Mitnahme-Refactors ausserhalb des beauftragten Slices (`CLAUDE_CONTROL.md`).
+- Nach jedem Slice: Commit mit klarem Slice-Bezug; Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass nachziehen.
+
+**Geplante Slices:**
+
+| ID | Aufgabe | Hull | Endpunkte | Prio | Reasoning | Modell | Status |
+|----|---------|------|-----------|------|-----------|--------|--------|
+| Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups; Server-`search`/`sort`-Whitelist pro Endpunkt; clientseitige Filter im FE durch Server-`search` ersetzen; typed Wrapper im FE | P1 | `/departments`, `/roles`, `/admin/master-data/departments`, `/admin/master-data/positions`, `/admin/master-data/responsibilities` | HIGH | high | opus | offen |
+| Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams; opaque Base64-Cursor ueber `(occurredAt, id)`; FE-Wrapper plus „Mehr laden"-Knopf in beiden Audit-Tabs | P2 | `/admin/auth/audit`, `/admin/directory/audit` | HIGH | medium..high | sonnet | offen |
+| Z11-F3 | P1 ausrollen + D Builder-Tabs (scoped); Pflicht-Scope (`workflowDefinitionId` bzw. `task-template-id`) als Whitelist-Bedingung; Filterzustand im FE in URL-Query verschieben | P1 (wiederverwendet aus F1) | `/admin/config/workflow-definitions`, `/admin/config/action-definitions`, `/admin/config/task-templates`, `/admin/config/task-templates/{id}/conditions`, `/admin/config/task-templates/{id}/dependencies`, `/admin/config/answer-definitions`, `/admin/config/role-answer-defaults` | HIGH | medium..high | opus | offen |
+
+**Erwartete Ausgaenge aus Z11:**
+- F1 abgeschlossen: zentraler `AdminListPageDto<T>`-Hull-Typ im Backend, fuenf Master-Data/Lookup-Endpunkte auf P1, ein typed FE-Wrapper plus Aufrufer-Refactor, Eintrag in `FRONTEND_TODO.md` mit Trigger F1.
+- F2 abgeschlossen: zentraler `CursorPageDto<T>`-Hull-Typ im Backend, zwei Audit-Endpunkte auf P2, ein typed FE-Wrapper plus Audit-Tab-„Mehr laden", Eintrag in `FRONTEND_TODO.md` mit Trigger F2.
+- F3 abgeschlossen: sieben scoped Builder-Endpunkte auf P1, FE-Builder-Inspector ohne clientseitigen Filter, Eintrag in `FRONTEND_TODO.md` mit Trigger F3.
+- Pro Slice: aktualisierte Doku (Status, Erkenntnisse, Folgeentscheidungen); Tests fuer den jeweiligen Slice angepasst/ergaenzt.
+
+**Reihenfolge / Abhaengigkeiten:**
+- Z11-F1 → Z11-F2 → Z11-F3 streng sequenziell. F3 setzt die in F1 etablierte P1-Hull voraus.
+- Folgekandidaten nach Z11 (informativ, nicht beauftragt): A Identity-Listen, C `/admin/directory/identities`, H `/workflow-definitions/startable` mit dem etablierten P1-Adapter; G Runtime-Sub-Resources mit dem etablierten P2-Adapter; C Gaps/Pending Split als eigener vorbereiteter Slice.
+
+**Naechster Schritt:** Z11-F1 beauftragen — Codex setzt `--model opus` und `--effort high` explizit per CLI; Claude liefert pro Slice eigenen Commit gemaess `CLAUDE_CONTROL.md`.
 
 ---
 

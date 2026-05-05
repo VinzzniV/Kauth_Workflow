@@ -44,6 +44,31 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
+## Aktiver Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05)
+
+Z11 ist eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. Die in Z10 entworfenen Hull-Typen (P1 `AdminListPageDto<T>`, P2 `CursorPageDto<T>`) werden in drei Slices F1 → F2 → F3 implementiert. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 11".
+
+**Praktisch:** F1 macht Erfassungseinstieg und Master-Data-Pflege schnell und konsistent; F2 macht Audit-Verlauf vollstaendig durchsuchbar (heute schneidet ein stiller `limit`-Cap die Historie ab); F3 macht den Builder schnell, auch wenn Definitionen wachsen. **Lohnenswert:** Vertrag jetzt bauen, statt unter Last halbgaarig nachzuruesten — drei kontrollierte Slices statt N parallele Mini-Vertraege. **Nutzen:** zwei zentrale Hull-Typen, zwei typed FE-Adapter, eine wiederverwendbare Refactor-Achse fuer alle spaeter folgenden Listen.
+
+| Block | Aufgabe | Prio | Reasoning | Modell | Status |
+|-------|---------|------|-----------|--------|--------|
+| Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups (`/departments`, `/roles`, `/admin/master-data/departments|positions|responsibilities`); Server-`search`/`sort`-Whitelist pro Endpunkt; FE: typed Wrapper + Aufrufer-Refactor; clientseitige Filter raus | HIGH | high | opus | offen |
+| Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams (`/admin/auth/audit`, `/admin/directory/audit`); opaque Base64-Cursor ueber `(occurredAt, id)`; FE: typed Wrapper + „Mehr laden"-Knopf in beiden Audit-Tabs | HIGH | medium..high | sonnet | offen |
+| Z11-F3 | P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte: `workflow-definitions`, `action-definitions`, `task-templates` + `…/conditions` + `…/dependencies`, `answer-definitions`, `role-answer-defaults`); Pflicht-Scope; Filterzustand im FE in URL-Query | HIGH | medium..high | opus | offen |
+
+**Leitplanken Z11:**
+- Strenge Reihenfolge F1 → F2 → F3. F3 setzt P1 aus F1 voraus.
+- Pro Slice **eine** Hull-Familie. Kein Mischen P1/P2 in einem Slice.
+- Pro Slice nur Read-/Listen-Vertraege; keine Schreibpfade, keine Composite-DTO-Umbauten, keine Versionierungs-/Publish-Pfade.
+- Server-Clamp `limit` Default 50/Max 200; `search`/`sort` deklarativ; P2-Cursor opaque.
+- FE-Folgen sind Konsequenz pro Slice — Eintrag in `FRONTEND_TODO.md` mit Trigger F1/F2/F3 erst beim Start des Slices, nicht praeventiv.
+- Schreibregel anwenden: zu jedem Slice-Ergebnis kurze Bedeutung-/Nutzen-Erklaerung.
+- Nach jedem Slice Commit + Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass.
+
+**Nicht in Z11 (Begruendung in `CODE_REVIEW.md` § Z10-1.3):** A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation Action-Templates, G Runtime-Sub-Resources, H `/workflow-definitions/startable`. Diese werden nach Z11 als billige Mitnahmeschnitte mit dem dann etablierten P1-/P2-Adapter geplant — der Composite-Split fuer C Gaps/Pending bleibt eigener vorbereiteter Slice.
+
+---
+
 ## Abgeschlossener Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken (2026-05-05)
 
 Z10 ist abgeschlossen (2026-05-05) — alle drei Planungs-Slices done, formaler Zyklusabschluss vollzogen. Naechster Schritt: Eroeffnung eines Umsetzungszyklus (vorgeschlagen Z11) auf Basis von `CODE_REVIEW.md` § Z10-1.3 (F1 → F2 → F3). Thema: Admin-/Master-Data-/Directory-Listen werden zu grossen Teilen ohne Pagination, Server-Suche und stabilen Sort-Vertrag bedient — vor weiterem Wachstum werden Vertraege gezogen, statt am Schmerzpunkt nachzuschieben. Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync`) ist nur die sichtbarste Stelle.
