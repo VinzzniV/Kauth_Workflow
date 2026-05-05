@@ -126,6 +126,155 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 - Z10-1.1 → Z10-1.2 → Z10-1.3 streng sequenziell. Inventur vor Vertrag, Vertrag vor Slice-Plan.
 - Umsetzungs-Slices entstehen erst in einem Folgezyklus, nicht in Z10.
 
+### Z10-1.1 Inventur Admin-/Master-Data-/Directory-Read-Endpunkte (2026-05-05)
+
+Reine Inventur, kein Code-Change. Aufgenommen wurden alle GET-Endpunkte unter Admin-Konfiguration, Directory-Sync, Workflow-Definitionsbestand und Master-Data, deren Antwort eine **Liste** ist und die heute **keinen** vollstaendigen Pagination-/Server-Such-/Sort-Vertrag haben. Ein Endpunkt zaehlt zur Inventur, sobald mindestens eine der drei Achsen fehlt: (a) Pagination (`limit`/`offset` oder Cursor), (b) Server-`search`, (c) explizit dokumentierter `sort`. Detail-Reads (Single-Doc), reine Aggregat-Endpunkte (z. B. `/admin/system/logs/summary`) und bereits sauber vertragene Listen (siehe „Bereits vertraglich saubere Listen" am Ende) bleiben aussen vor.
+
+**Schreibregel angewandt:** zu jedem Block kurz „Praktisch / Lohnenswert / Nutzen" pro Nutzersicht. Keine Vertragsentscheidung — die folgt in Z10-1.2.
+
+#### A) Identity & Permissions (`AdminOrgEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag (Rueckgabe) | Achsen-Defizit |
+|---|---|---|---|
+| `GET /admin/auth/users` (`AdminOrgEndpoints.cs:12`) → `IUserAuthorizationRepository.GetAdminUsers()` | `web/src/services/adminApi.ts:217` `getAdminUsers()` (Admin-Konfig „Benutzer & Rollen") | `List<AdminUserDto>` als JSON-Array, kein Hull, keine Total | (a) keine Pagination, (b) keine Server-`search`, (c) kein dokumentierter `sort` |
+| `GET /admin/auth/roles` (`AdminOrgEndpoints.cs:31`) → `GetAdminRoles()` | `adminApi.ts:221` (Admin-UI Rollenpflege) | `List<AdminRoleDto>` | a/b/c fehlen |
+| `GET /admin/auth/groups` (`AdminOrgEndpoints.cs:50`) → `GetAdminGroups()` | `adminApi.ts:225` (Gruppenmatrix) | `List<AdminGroupDto>` | a/b/c fehlen |
+| `GET /admin/auth/permissions` (`AdminOrgEndpoints.cs:69`) → `GetAdminPermissions()` | `adminApi.ts:229` (Rollen-Permission-Editor) | `List<AdminPermissionDto>` | a/b/c fehlen — Bestand heute klein, mittelfristig stabil |
+| `GET /admin/auth/audit?limit` (`AdminOrgEndpoints.cs:88`) → `GetAdminPermissionAudit(limit ?? 100)` | `adminApi.ts:234` (Permission-Audit-Liste) | `List<AdminPermissionAuditEntryDto>`; nur `limit` (Default 100), kein Offset, kein Cursor, keine Filter | (a) nur Cap, kein Weiterblaettern; (b) keine Server-`search`/Filter (z. B. nach Actor, Reason); (c) kein expliziter `sort` |
+
+**Praktisch:** Listen werden bei wachsender Nutzerschaft/Rollenzahl traege geladen, FE filtert/sucht heute clientseitig — was nicht im JSON-Array drin ist, findet niemand. Beim Audit-Log heisst „limit=100" praktisch: alles ab dem 101. Eintrag fehlt unsichtbar.
+**Lohnenswert:** Identity-Bestand wird mit Entra-Sync und Plattformwachstum monoton groesser; das Audit-Log waechst pro Aenderung, ein Cap blendet Historie still aus.
+**Nutzen:** vorhersehbare Antwortzeiten, vollstaendige Suche/Filter (z. B. „alle Aenderungen durch User X"), klar dokumentierter `sort`, der zwischen UI und API-Konsumenten gleich aussieht.
+
+#### B) Master-Data (`AdminOrgEndpoints.cs` + `WorkflowMasterDataEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag | Achsen-Defizit |
+|---|---|---|---|
+| `GET /admin/master-data/departments` (`AdminOrgEndpoints.cs:108`) → `GetAdminDepartmentAssignments()` | `adminApi.ts:238` (Abteilungs-/Lead-Pflege, Zuweisungen) | `List<AdminDepartmentAssignmentDto>` | a/b/c fehlen |
+| `GET /admin/master-data/positions` (`AdminOrgEndpoints.cs:127`) → `GetAdminDepartmentPositions()` | `adminApi.ts:242` (Positionen-Tab unter Abteilung) | `List<AdminRoleDto>` (Positionen abteilungsuebergreifend) | a/b/c fehlen |
+| `GET /admin/master-data/responsibilities` (`AdminOrgEndpoints.cs:306`) → `GetAdminResponsibilityOwners()` | `adminApi.ts:246` (Responsibility-Pflege) | `List<AdminResponsibilityOwnerDto>` | a/b/c fehlen |
+| `GET /departments` (`WorkflowMasterDataEndpoints.cs:12`) → `IWorkflowCatalogService.GetDepartmentsAsync()` | `web/src/services/lookupApi.ts:18` (Workflow-Erfassung, Filter) | `List<DepartmentDto>` (kompletter aktiver Bestand) | a/b/c fehlen — **Hotspot #6 aus Z8-1.2** |
+| `GET /roles` (`WorkflowMasterDataEndpoints.cs:29`) → `GetRolesAsync(user)` | `lookupApi.ts:10` (Workflow-Erfassung, Konfig-Auswahl) | `List<RoleDto>` (alle Rollen, einmal pro User-Aufruf) | a/b/c fehlen — **Hotspot #6 aus Z8-1.2** |
+
+**Praktisch:** Wer eine Abteilung oder Rolle eintippt, sucht im Browser — die UI laedt vorher die ganze Liste. Bei wachsender Org wird der Erfassungs-Dialog merklich traeger, und beim Filtern fehlt eine sichtbare Stelle ab der die Liste „mehr koennte" — niemand sieht, dass Eintraege ueberhaupt fehlen koennten.
+**Lohnenswert:** Departments/Rollen sind Pflicht-Lookups in fast allen Workflow-Erfassungsmasken. Schon bei mittlerer Org-Groesse spuerbar; Hotspot #6 ist dort markiert, wurde in Z8 wegen FE-Folge und ohne akuten Last-Trigger aber bewusst zurueckgestellt.
+**Nutzen:** Server-Suche im Erfassungsdialog (typeahead-fuehrend), schnelle Initialantwort, gleiches Verhalten in Master-Data-Pflege und Workflow-Erfassung — heute bedienen die zwei Pfade dieselben Daten ueber zwei Vertraege.
+
+#### C) Directory-Sync (`AdminDirectorySyncEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag | Achsen-Defizit |
+|---|---|---|---|
+| `GET /admin/directory/groups` (`AdminDirectorySyncEndpoints.cs:67`) → `IDirectorySyncService.GetGroupsAsync()` | `adminConfigApi.ts:65` (Directory-Tab „Gruppen", Group-Role-Mapping-Editor) | `List<AdminDirectoryGroupDto>` | a/b/c fehlen |
+| `GET /admin/directory/identities?limit&offset` (`AdminDirectorySyncEndpoints.cs:86`) → `GetIdentitiesAsync(limit ?? 100, offset ?? 0)` | `adminConfigApi.ts:68-77` (Directory-Tab „Identitaeten") | `List<AdminDirectoryIdentityDto>`; **hat** `limit`/`offset`, **kein** Hull mit Total/`hasMore`, **keine** Server-`search`, **kein** `sort` | (a) Pagination ohne Total/`hasMore` — UI weiss nicht, ob es eine naechste Seite gibt; (b) Server-Suche fehlt; (c) `sort` fehlt — Reihenfolge ergibt sich rein aus Repo-Implementierung |
+| `GET /admin/directory/responsibility-gaps` (`AdminDirectorySyncEndpoints.cs:107`) → `GetResponsibilityGapsAsync()` | `adminConfigApi.ts:79` (Directory-Tab Luecken-Badge + Detail) | `DirectoryResponsibilityGapsDto` mit eingebetteten Listen (gemischter Hull) | a/b/c fehlen — Gaps-Listen koennen mit Bestand wachsen |
+| `GET /admin/directory/pending-imports` (`AdminDirectorySyncEndpoints.cs:126`) → `GetPendingImportsAsync()` | `adminConfigApi.ts:83` (Directory-Tab „Offene Imports") | `DirectoryPendingImportsDto` mit eingebetteten Listen | a/b/c fehlen — Pending-Liste kann nach grossen Syncs hoch gehen |
+| `GET /admin/directory/audit?limit` (`AdminDirectorySyncEndpoints.cs:183`) → `GetMappingAuditAsync(limit ?? 50)` | `adminConfigApi.ts:94` (Directory-Audit-Detail) | `List<AdminDirectoryMappingAuditEntryDto>`; nur `limit` (Default 50), kein Offset/Cursor, keine Filter, kein `sort` | (a) nur Cap, kein Weiterblaettern; (b) keine Server-`search`; (c) kein `sort` |
+
+**Praktisch:** Identitaeten/Gaps/Pending-Imports sind die Bildschirme, an denen man nach einem Sync nachsieht, was zu tun ist — heute sieht man entweder „die ersten 100" oder den ganzen Block ohne Suchhilfe. Wer nach einem konkreten User oder einer Mailadresse sucht, scrollt oder druckt Strg+F im Browser. Beim Audit zeigt „die letzten 50" still nur einen Ausschnitt, ohne dass jemand merkt: davor gab es noch was.
+**Lohnenswert:** Sync-Listen wachsen mit jedem Sync-Lauf monoton (insb. Audit, Pending-Imports); ohne klaren Vertrag werden hier zuerst Alltagsbeschwerden auflaufen, sobald die Org groesser wird oder Sync-Probleme aufgearbeitet werden muessen.
+**Nutzen:** vollstaendige Suche/Filter (z. B. „nur Konflikte"), Pagination mit `total`/`hasMore` — UI kann ehrlich „Seite 3 von n" zeigen statt zu raten; gleicher Vertrag fuer Identitaeten und Audit, der die Sync-UI insgesamt ruhiger macht.
+
+#### D) Workflow-Konfiguration / Builder (`AdminWorkflowDefinitionConfigEndpoints.cs`, `AdminProcessConfigEndpoints.cs`, `AdminAnswerConfigEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag | Achsen-Defizit |
+|---|---|---|---|
+| `GET /admin/config/workflow-definitions` (`AdminWorkflowDefinitionConfigEndpoints.cs:13`) → `IWorkflowRepository.GetAdminWorkflowDefinitions()` | `adminConfigApi.ts:342` (Workflow-Builder-Liste, AdminConfig-Bundle) | `List<WorkflowDefinitionSummaryDto>` (alle Definitionen) | a/b/c fehlen — Definitionsbestand waechst monoton mit dem Plattformziel (Versionierung) |
+| `GET /admin/config/action-definitions` (`AdminWorkflowDefinitionConfigEndpoints.cs:32`) → `IWorkflowAutomationService.GetActionDefinitionsAsync()` | `adminConfigApi.ts:502` (Builder Inspector / Action-Picker) | `List<ActionDefinitionDto>` | a/b/c fehlen — Katalog waechst mit jeder Automation Definition |
+| `GET /admin/config/task-templates?workflowDefinitionId` (`AdminProcessConfigEndpoints.cs:12`) → `GetAdminTaskTemplates(definitionId)` | `adminConfigApi.ts:118-123` (Builder „Aufgabenvorlagen") | `List<AdminTaskTemplateDto>`, gefiltert nur per Pflichtparameter `workflowDefinitionId` | a/b/c fehlen |
+| `GET /admin/config/task-templates/{id}/conditions` (`AdminProcessConfigEndpoints.cs:131`) → `GetAdminTaskTemplateConditions(id)` | `adminConfigApi.ts:194-196` (Builder Inspector) | `List<AdminTaskTemplateConditionDto>` | a/b/c fehlen |
+| `GET /admin/config/task-templates/{id}/dependencies` (`AdminProcessConfigEndpoints.cs:219`) → `GetAdminTaskTemplateDependencies(id)` | `adminConfigApi.ts:231-233` (Builder Inspector) | `List<AdminTaskTemplateDependencyDto>` | a/b/c fehlen |
+| `GET /admin/config/answer-definitions?workflowDefinitionId` (`AdminAnswerConfigEndpoints.cs:12`) → `GetAdminAnswerDefinitions(definitionId)` | `adminConfigApi.ts:268-270` (Builder „Antwortfelder") | `List<AdminAnswerDefinitionDto>` | a/b/c fehlen |
+| `GET /admin/config/role-answer-defaults?workflowDefinitionId` (`AdminAnswerConfigEndpoints.cs:131`) → `GetAdminRoleAnswerDefaults(definitionId)` | `adminConfigApi.ts:321-323` (Builder „Rollen-Defaults") | `List<AdminRoleAnswerDefaultDto>` | a/b/c fehlen — skaliert ueber Rollen × Antwortfelder |
+
+**Praktisch:** Der Builder laedt pro Definition heute ihre Vorlagen, Bedingungen, Abhaengigkeiten und Antwortfelder als kompletten Block — und filtert clientseitig. Bei kleinen Definitionen bleibt das unauffaellig; sobald eine Definition Dutzende Aufgabenvorlagen oder Rollen-Defaults hat, wird der Builder beim ersten Klick traege, und Suche im Inspector findet nur, was bereits im Block enthalten ist.
+**Lohnenswert:** Versionierte Definitionen sind ausdruecklich Zielarchitektur — die Listen wachsen kuenftig sowohl pro Definition (mehr Bausteine) als auch ueber Definitionen hinweg (mehr Versionen, mehr Definitionen). Builder-Antwortzeit ist Adminerlebnis Nummer eins.
+**Nutzen:** ein einheitlicher Listen-/Sucheintritt im Builder fuehlt sich gleich an, egal welche Definition oder welcher Tab; Pagination/Server-Suche schuetzt die Builder-Performance, sobald Definitions- oder Vorlagebestand groesser werden.
+
+#### E) Notification Templates List (`AdminNotificationTemplateEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag | Achsen-Defizit |
+|---|---|---|---|
+| `GET /admin/notification-templates` (`AdminNotificationTemplateEndpoints.cs:12`) → `INotificationTemplateService.GetAdminTemplates()` | `adminApi.ts:144` (Admin-Tab Notification-Templates) | `List<AdminNotificationTemplateDto>` | a/b/c fehlen |
+
+**Praktisch:** Die Template-Uebersicht laedt aktuell den ganzen Bestand. Heute klein und stabil, deshalb nicht akut, aber das Wachstumsmuster (mehr Workflows → mehr Templates → mehr Sprachvarianten) zeigt in dieselbe Richtung wie der Rest.
+**Lohnenswert:** Mit mehr Workflow-Definitionen waechst die Liste monoton; ohne Such-/Sort-Vertrag wird sie schnell unhandlich.
+**Nutzen:** konsistenter Vertrag mit den Admin-Listen oben, billiger einzeichnen, solange der Bestand klein ist.
+
+#### F) Rotation Action Templates (`AdminRotationConfigEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag | Achsen-Defizit |
+|---|---|---|---|
+| `GET /admin/rotation/action-templates?departmentId&isActive` (`AdminRotationConfigEndpoints.cs:11`) → `IRotationTemplateAdminService.GetDepartmentActionTemplatesAsync(departmentId, isActive)` | `web/src/services/rotationApi.ts:138` (Rotation-Konfig „Maßnahmenvorlagen") | `List<DepartmentActionTemplateDto>`; Filter nur per `departmentId`/`isActive`, kein `limit`/`offset`/`search`/`sort` | a/b/c fehlen |
+
+**Praktisch:** Pro Abteilung kann der Vorlagenbestand wachsen, Suche im Browser; Reihenfolge wird heute durch das Repo bestimmt — der Admin merkt nicht, dass es eine implizite Sortierung gibt.
+**Lohnenswert:** Rotation ist im B+-Note-Kontext aktiv weiter ausgebaut worden; mehr Vorlagen je Abteilung sind absehbar.
+**Nutzen:** explizite Sortierung („nach `sortOrder`, dann Titel") und Server-`search` machen die Maßnahmenpflege im Alltag verlaesslich.
+
+#### G) Runtime-Sub-Resources (`AdminWorkflowRuntimeEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag | Achsen-Defizit |
+|---|---|---|---|
+| `GET /admin/runtime/workflow-instances/{uid}/events` (`AdminWorkflowRuntimeEndpoints.cs:65`) → `GetWorkflowInstanceEventsAsync(uid)` | indirekt aus dem Runtime-Detail-Tab im Admin (Event-Trace einer Instanz) | `List<WorkflowRuntimeEventDto>` (alle Events der Instanz) | a/b/c fehlen — Events wachsen monoton ueber den Lifecycle der Instanz |
+| `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` (`AdminWorkflowRuntimeEndpoints.cs:85`) → `GetWorkflowAutomationJobsAsync(uid)` | gleicher Tab | `List<AutomationJobDetailDto>` (alle Jobs der Instanz) | a/b/c fehlen — Jobs wachsen mit Retry/Wiederholung |
+
+**Praktisch:** Der Runtime-Detail-Tab bringt aktuell den gesamten Event-/Job-Verlauf einer Instanz auf einen Schlag in den Browser. Bei langen oder retry-lastigen Instanzen wird der Tab spuerbar traege, und „relevante Stelle finden" laeuft ueber Strg+F.
+**Lohnenswert:** Wenn Z8 weiter geht und mehr Automation in der Plattform landet, waechst die Anzahl der Events/Jobs pro Instanz schneller als der Workflow-Bestand selbst.
+**Nutzen:** konsistenter Listen-/Sort-Vertrag (zeitlich, Filter nach Severity/Status), damit der Admin eine Instanz auch nach Wochen Laufzeit ergonomisch nachvollziehen kann.
+
+#### H) Workflow Catalog Lookup (`WorkflowMasterDataEndpoints.cs`)
+
+| Endpunkt (Datei:Zeile) | FE-Aufrufer | Aktueller Vertrag | Achsen-Defizit |
+|---|---|---|---|
+| `GET /workflow-definitions/startable` (`WorkflowMasterDataEndpoints.cs:46`) → `IWorkflowCatalogService.GetStartableWorkflowDefinitionsAsync(user)` | `lookupApi.ts:14` (Workflow-Erfassung „startbare Definitionen") | `List<WorkflowStartableDefinitionDto>` (alle fuer den User startbaren Definitionen) | a/b/c fehlen — Bestand waechst mit Plattformziel |
+
+**Praktisch:** Wer einen Workflow startet, bekommt heute alle erlaubten Definitionen auf einen Schlag — perfekt fuer 5–10 Definitionen, wird aber unuebersichtlich, sobald der Definitionsbestand spuerbar waechst (z. B. wenn Versionen pro Workflow als separate startbare Eintraege erscheinen).
+**Lohnenswert:** Plattformziel ist „mehrere Workflows auf einem Plattformkern" — die Liste wird absehbar groesser.
+**Nutzen:** Server-`search` und stabiler `sort` (z. B. zuletzt benutzt) machen den Erfassungs-Dialog auch bei vielen Definitionen schnell.
+
+#### Bereits vertraglich saubere Listen (informativ, nicht Z10-Material)
+
+| Endpunkt | Stand |
+|---|---|
+| `GET /workflows?status&department&workflowDefinitionKey&search&responsibility&limit&offset` (`WorkflowEndpoints.cs:85`) | hat vollen Vertrag (Filter + `search` + `limit`/`offset` + Hull `WorkflowListPageDto`) — Z2-Resultat |
+| `GET /workflows/{uid}/audit-log?limit&offset` (`WorkflowEndpoints.cs:158`) | hat `limit`/`offset` |
+| `GET /admin/system/logs?...&limit&offset` (`AdminSystemLogEndpoints.cs:12`) | reicher Filter + `search` + `limit`/`offset` |
+| `GET /admin/system/logs/summary?...` (`AdminSystemLogEndpoints.cs:54`) | Aggregat, keine Liste |
+| `GET /workflow-target-person-sources?query&limit` / `/workflow-target-people?query&limit` / `/people/search?query&limit` / `/people/rotation-eligible?query&limit` (`WorkflowMasterDataEndpoints.cs:63..152`) | Server-`search` + `limit` (typeahead-Vertrag) |
+| `GET /admin/notification-templates/preview-targets/workflows?query&limit` / `…/rotation-plans?query&limit` (`AdminNotificationTemplateEndpoints.cs:79..117`) | Server-`search` + `limit` |
+| `GET /rotation/plans/{planId}/audit?limit&offset` und `…/notifications?limit&offset` (`RotationPlanningEndpoints.cs:76..129`) | `limit`/`offset` mit Validierung |
+
+#### Bewusst aussen vor (Detail-/Aggregat-Lese-Endpunkte)
+
+- `GET /admin/directory/status`, `GET /admin/runtime/workflow-instances/{uid}`, `GET /admin/config/workflow-definition-versions/{id}`, `GET /admin/config/workflow-definitions/{id}/dependency-graph` — Single-Doc bzw. Graph-Payload, keine Listen, kein Listen-Vertragsproblem.
+
+#### Beobachtete Kardinalitaet (Annahme statt Messung)
+
+Die heutige Datenbasis ist klein — keine direkt messbare Lastbeschwerde, deshalb auch der bisherige bewusste Verzicht auf Pagination an diesen Pfaden (siehe Z10-Begruendung). Wachstumsrichtung pro Block:
+
+- **A Identity & Permissions:** Users + Audit waechst mit Org-Groesse und Permission-Aenderungen monoton; Roles/Groups/Permissions klein und stabil.
+- **B Master-Data + `/departments`/`/roles`:** Departments einige Dutzend, Positionen Hunderte, Responsibilities Dutzende — beim FE-Lookup auf jeden Workflow-Erfassungseinstieg.
+- **C Directory:** Identitaeten skalieren wie Org-Groesse, Audit/Pending wachsen pro Sync-Run.
+- **D Builder:** Definitions-, Vorlagen-, Bedingungs- und Default-Bestand waechst durch Plattformziel (mehr Workflows/Versionen).
+- **E/F Notification + Rotation Templates:** waechst pro Workflow- bzw. Abteilungs-Konfiguration.
+- **G Runtime Sub-Resources:** waechst pro Instanz mit Lifecycle/Retry — pro Instanz potenziell unbeschraenkt.
+- **H Startable:** waechst mit Plattformziel.
+
+#### Spuerbarkeit fuer Nutzer (zusammengefasst)
+
+- **Admin-Konfiguration (A/B/D/E):** „die Liste laedt erst lange, danach finde ich genau, was schon da ist" — Hauptbeschwerde wird Antwortzeit + Suche, sobald der Bestand spuerbar groesser wird.
+- **Directory-Sync (C):** „nach dem Sync sehe ich nur die ersten 100 Identitaeten / die letzten 50 Audit-Eintraege" — Schnitt heute unsichtbar fuer den Admin.
+- **Builder (D):** „der Builder ist langsam beim ersten Klick auf eine grosse Definition" — relevant fuer Adoption der neuen Builder-Erfahrung.
+- **Runtime-Detail (G):** „Eventliste einer langen Instanz ist unergonomisch" — relevant fuer Diagnose.
+- **Workflow-Erfassung (B/H):** Endnutzer-Pfad — sobald der Definitions-/Department-Bestand groesser wird, wird das die erste Stelle, die auffaellt.
+
+#### Mögliche FE-Folgen (nur Notiz, kein TODO)
+
+Sichtbar sind heute potenzielle Adaptionen in `web/src/services/adminApi.ts` (A/B/E), `adminConfigApi.ts` (C/D), `lookupApi.ts` (B/H), `rotationApi.ts` (F) — sobald in Z10-1.2 ein konkreter Vertrag (z. B. Hull `items` + `total`/`nextCursor`, Server-`search`) gesetzt wird. Kein praeventives FE-TODO; FE-Eintraege entstehen erst, wenn aus Z10-1.2 ein konkreter API-Vertragsschnitt folgt.
+
+#### Naechster Schritt
+
+Z10-1.2 — Vertrags-Skizze pro identifiziertem Endpunkt auf Basis dieser Inventur. Reihenfolgenkandidaten (informativ, ohne Vorgriff): Hotspot-naheste FE-spuerbare Pfade (B `/departments`, `/roles`; D `task-templates`/`answer-definitions`; C `identities`/`audit`) zuerst skizzieren, weil dort der Wachstumstrigger zuerst sichtbar wird.
+
 ---
 
 ## Abgeschlossener Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)

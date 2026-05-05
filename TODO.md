@@ -52,7 +52,7 @@ Z10 ist eroeffnet (2026-05-05) als reiner Review-/Planungszyklus. Thema: Admin-/
 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|
-| Z10-1.1 | Inventur: alle Admin-/Master-Data-/Directory-Read-Endpunkte ohne Pagination/Suche/Sort-Vertrag dokumentieren (Datei/Symbol, Rueckgabeform, FE-Aufrufer, Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | high | opus | offen |
+| Z10-1.1 | Inventur: alle Admin-/Master-Data-/Directory-Read-Endpunkte ohne Pagination/Suche/Sort-Vertrag dokumentieren (Datei/Symbol, Rueckgabeform, FE-Aufrufer, Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | high | opus | done (2026-05-05) — Inventur in `CODE_REVIEW.md` § Z10-1.1 (Bloecke A–H + bereits saubere Listen + bewusst aussen vor) |
 | Z10-1.2 | Vertrags-Skizze: pro Endpunkt entscheiden — `limit`/`offset` vs. Cursor, Server-`search` ja/nein, stabiler `sort`-Vertrag, Antwort-Hull (`items` + `total`/`nextCursor`); jeweils kurz erklaeren, was sich fuer Nutzer aendert und welche FE-Adaption noetig waere | HIGH | high | opus | offen |
 | Z10-1.3 | Slice-Plan fuer Folgezyklus: 2–3 sichere Umsetzungsslices (API-Vertrag + minimale FE-Adaption) priorisieren; benennen, welche Endpunkte bewusst noch nicht angefasst werden und warum | HIGH | medium..high | opus | offen |
 
