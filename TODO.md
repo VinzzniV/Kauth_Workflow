@@ -42,9 +42,9 @@ Zusaetzlich immer mitlesen:
 
 ---
 
-## Aktiver Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
+## Abgeschlossener Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
 
-Z9 ist eroeffnet. Thema: LQ2-Z3 als aktiver Hebel — Test-Isolation der in Z8-2.3 eingefuehrten Batch-Helfer durch File-Split. Begruendung und Slice-Plan in `CODE_REVIEW.md` § "Aktiver Zyklus 9".
+Z9 ist abgeschlossen (2026-05-05). Alle Slices done: Z9-1.1/1.2 Inventur+Plan, Z9-2.1/2.2/2.3 File-Splits, Z9-3 Coverage gegen die neuen Interfaces. Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 9".
 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|
@@ -53,9 +53,9 @@ Z9 ist eroeffnet. Thema: LQ2-Z3 als aktiver Hebel — Test-Isolation der in Z8-2
 | Z9-2.1 | Pre-Cleanup (DepartmentLead-Resolver + Single-Row-Helfer loeschen) + `SyncAllAsync`-Phasen-Strukturierung in der Hauptdatei | HIGH | medium..high | sonnet | done (2026-05-05) — Dead-Code geloescht (`SyncDepartmentLeadAssignmentsFromDirectory` + 4 Sub-Helfer + `LogDirectoryAuditEventAsync` + `CreateDepartmentLeadAuditSnapshot` + Records; `UpsertDirectoryIdentity`/`InsertGroupMembership`); Reflection-Test entfernt; `SyncAllAsync` in `RunGroupSyncAsync`/`RunDirectoryProjectionAsync`/`RunActivationAsync` zerlegt |
 | Z9-2.2 | Graph-Adapter (`IEntraGraphClient` + `EntraGraphClient`) unter `Services/Directory/` extrahieren | HIGH | medium..high | sonnet | done (2026-05-05) — Adapter unter `api/API/Services/Directory/`, Microsoft.Graph aus Hauptdatei raus, DI ergaenzt |
 | Z9-2.3 | DB-Sync-Operations-Modul (`IEntraDirectorySyncOperations` + Impl) unter `Services/Directory/` extrahieren | HIGH | medium | sonnet | done (2026-05-05) — `IEntraDirectorySyncOperations` + `EntraDirectorySyncOperations` unter `api/API/Services/Directory/`, Service konsumiert per Konstruktor; Reflection-Test auf direkten Aufruf der neuen Operations umgestellt |
-| Z9-3 | Coverage: Integration-Tests fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` + Unit-Tests Orchestrator gegen Graph-/Ops-Stubs | MEDIUM | medium | sonnet | offen — naechster Schritt |
+| Z9-3 | Coverage: Integration-Tests fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` + Unit-Tests Orchestrator gegen Graph-/Ops-Stubs | MEDIUM | medium | sonnet | done (2026-05-05) — `EntraDirectorySyncServiceTests` (3/3 gruen, Stub-Pfade `MissingConnectionString`/`MissingCredentials`/`GraphFailed`) + `EntraDirectorySyncOperationsIntegrationTests` (3 Tests fuer `UpsertDirectoryIdentitiesBatchAsync` + `InsertGroupMembershipsBatchAsync`, Fixture-Gating wie Z8-4.1) |
 
-**Naechster Schritt:** Z9-3 — Coverage gegen die neuen Interfaces (`IEntraGraphClient` + `IEntraDirectorySyncOperations`).
+Z9 abgeschlossen; Folge-Zyklus oder zyklusuebergreifende Themen siehe unten.
 
 ---
 
@@ -89,7 +89,7 @@ Z8 abgeschlossen; Folge-Zyklus Z9 eroeffnet (siehe oben).
 | R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | L7 | offen — Nutzer-Aufgabe |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | L7-Backlog | backlog — kein konkreter Bedarf |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | Zyklus 1 | deferred — wartet auf Produkt-Entscheidung |
-| LQ2-Z3 | `EntraDirectorySyncService` (2591 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` | Zyklus 3 / Z8 → Z9 | aktiv als Zyklus 9 (2026-05-05) |
+| LQ2-Z3 | `EntraDirectorySyncService` Split + Coverage Z8-2.3-Batch-Helfer | Zyklus 3 / Z8 → Z9 | abgeschlossen als Zyklus 9 (2026-05-05) |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | Zyklus 8 | deferred — admin-getriggert, kein kleiner SQL-Hebel |
 
 ---
@@ -98,6 +98,7 @@ Z8 abgeschlossen; Folge-Zyklus Z9 eroeffnet (siehe oben).
 
 - Zyklus 7 ist abgeschlossen. Kurzfassung in `CODE_REVIEW.md`, Detail in `CODE_REVIEW_ARCHIVE.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
 - Zyklus 8 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 8".
+- Zyklus 9 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 9".
 
 ---
 

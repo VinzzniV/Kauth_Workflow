@@ -35,8 +35,8 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 
 ---
 
-**Stand**: 2026-05-05 — Zyklus 9 eroeffnet (`EntraDirectorySyncService`-Split / Testbarkeit).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 eroeffnet).
+**Stand**: 2026-05-05 — Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit; Z9-3 Coverage).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen).
 
 ---
 
@@ -56,9 +56,9 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 
 ---
 
-## Aktiver Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
+## Abgeschlossener Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
 
-**Status:** eroeffnet 2026-05-05. Kein Code-Change in dieser Eroeffnung — nur Zyklus- und Slice-Definition.
+**Status:** abgeschlossen 2026-05-05. Z9-3 Coverage gegen die neuen Interfaces ist gesetzt; Z9 damit geschlossen.
 
 **Thema:** Z8 hat die Lastpfade gehaertet (Bulk-Lookups, Sweep-Batching, Group/Member-Bulk in `EntraDirectorySyncService.SyncAllAsync`). Die offene Grenze aus Z8 ist **nicht** ein neuer Last-Hotspot, sondern die **fehlende saubere Test-Isolation** der neuen Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`): sie sind `private` hinter dem 2.4k-Zeilen-Service, der direkt gegen Live-Graph + DB laeuft. Reflection-Probing waere fragil, ein End-to-End-Test ueber `SyncAllAsync` braucht einen Graph-Stub und einen sauberen Schnitt zwischen Orchestrierung, Graph-Zugriff und DB-Batch-Operationen.
 
@@ -91,7 +91,7 @@ LQ2-Z3 (`EntraDirectorySyncService` File-Split, 2591 Zeilen) trifft genau diesen
 | Z9-2.1 | Pre-Cleanup (Dead-Code raus) + `SyncAllAsync` in Phasen-Methoden zerlegen, ohne Verhaltensaenderung, noch in derselben Datei | HIGH | medium..high | sonnet | done 2026-05-05 — Detail im Sync-Log und in `CODEX_SYNC.md` |
 | Z9-2.2 | Graph-Zugriff hinter Adapter-Interface; Adapter testbar (Stub) machen | HIGH | medium..high | sonnet | done 2026-05-05 — `IEntraGraphClient`/`EntraGraphClient` unter `api/API/Services/Directory/`; `Microsoft.Graph` aus Hauptdatei raus |
 | Z9-2.3 | DB-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) hinter dediziertes, testbares Operations-Modul ziehen | HIGH | medium | sonnet | done 2026-05-05 — `IEntraDirectorySyncOperations` + `EntraDirectorySyncOperations` unter `api/API/Services/Directory/`; Service konsumiert per Konstruktor; Reflection-Test auf direkten Aufruf umgestellt; Detail im Sync-Log |
-| Z9-3 | Coverage nachziehen: Integration-Tests fuer Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests fuer Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — naechster Schritt |
+| Z9-3 | Coverage nachziehen: Integration-Tests fuer Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests fuer Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | done 2026-05-05 — Unit-Tests `EntraDirectorySyncServiceTests` (3/3 gruen) gegen `IEntraGraphClient`-/`IEntraDirectorySyncOperations`-Stubs; Integration-Tests `EntraDirectorySyncOperationsIntegrationTests` fuer `UpsertDirectoryIdentitiesBatchAsync` und `InsertGroupMembershipsBatchAsync` ueber bestehende Postgres-Fixture (lokal ohne Docker/Postgres dieselbe Fixture-Gating-Grenze wie Z8-4.1). Detail unten § Z9-3. |
 
 ### Z9-1.1 Boundary-/Split-Inventur (2026-05-05)
 
@@ -339,6 +339,33 @@ Begruendung gegen "Tests pro Slice mitziehen": die Z9-2.x-Slices sind reine Stru
 - Z8 hat `SyncAllAsync` an der Last-Front gehaertet (Group/Member-Bulk). Z9 fasst die so eingefuehrten Helfer **nicht inhaltlich** an, sondern nur strukturell, damit sie isoliert testbar werden.
 - LQ2-Z3 wird als aktiver Zyklus 9 aus dem zyklusuebergreifend-offenen Block herausgehoben; die Coverage fuer die Z8-2.3-Batch-Helfer wandert formal nach Z9-3 (vorher: aus Z8-4 nach LQ2-Z3 verschoben).
 
+### Z9-3 Coverage gegen die neuen Interfaces (2026-05-05)
+
+Nach Abschluss der Strukturarbeit (Z9-2.1..2.3) deckt Z9-3 die in Z8-2.3 eingefuehrten und in Z9-2.3 unter `IEntraDirectorySyncOperations` verschobenen Batch-Helfer plus den nun duennen Orchestrator ab.
+
+**Unit-Tests Orchestrator** — `api/API.Tests/EntraDirectorySyncServiceTests.cs` (neu, 3 Tests):
+- `SyncAllAsync_MissingConnectionString_FailsBeforeGraphInit` — `LifecycleRuntimeSettings.ConnectionString = null`; verifiziert: Status `failed`, `directory_sync_missing_connection_string`-Eventlog, **kein** Graph-`InitializeAsync`, **kein** `UpsertDirectoryIdentitiesBatchAsync`.
+- `SyncAllAsync_GraphMissingCredentials_FailsAndLogsEvent` — Graph-Stub liefert `EntraGraphInitStatus.MissingCredentials`; verifiziert: Status `failed`, `directory_sync_missing_graph_credentials`-Event, kein `LoadSecurityGroupsAsync`, `AppliedGroupPrefix` aus `groupPrefixOverride` durchgereicht.
+- `SyncAllAsync_GraphFailed_FailsAndLogsErrorWithDetails` — Graph-Stub liefert `Failed` mit `ErrorMessage`/`ExceptionType`; verifiziert: Status `failed`, `ErrorMessage` durchgereicht, `directory_sync_graph_client_failed`-Event geschrieben.
+
+Diese drei Pfade sind die im aktuellen Service ohne reale Postgres-Verbindung sauber stub-fahigen Orchestrierungs-Pfade. Alles jenseits des `MissingConnectionString`/Graph-Init-Gates oeffnet eine echte `NpgsqlConnection` und gehoert in Integration-Tests; ein zusaetzlicher Connection-Factory-Schnitt waere ein neuer Refactor und damit gegen die Leitplanke "kein weiterer Produktiv-Refactor in Z9-3". Offen benannt.
+
+**Integration-Tests Operations** — `api/API.Tests/EntraDirectorySyncOperationsIntegrationTests.cs` (neu, 3 Tests, `[Trait("Category", "Integration")]`, gleiche `PostgresWorkflowRepositoryIntegrationCollection`-Fixture wie Z8-4.1):
+- `UpsertDirectoryIdentitiesBatchAsync_InsertsNewIdentitiesAndReturnsMapping` — zwei frische `entra_object_id`s; verifiziert RETURNING-Mapping (beide Schluessel vorhanden) sowie persistierte Spalten (`display_name`, `mail`, `account_enabled`, `department_name`, `employee_number` inkl. `Normalize`/`ParseDirectoryEmployeeNumber`).
+- `UpsertDirectoryIdentitiesBatchAsync_UpdatesExistingAndDedupsLastWins` — zweite Batch trifft denselben `entra_object_id` zweimal; verifiziert `ON CONFLICT … DO UPDATE` (selbe `id` zurueck) und das in der Implementation dokumentierte „last-wins"-Verhalten der internen Dedup-Map.
+- `InsertGroupMembershipsBatchAsync_InsertsAndIsIdempotent` — zwei Memberships, zweimaliger Aufruf; verifiziert exakt zwei Eintraege (ON CONFLICT DO NOTHING) plus den Empty-Array-No-Op-Pfad.
+
+**Verifikation:**
+- `dotnet test --filter "FullyQualifiedName~EntraDirectorySyncServiceTests"` (im Test-Projekt): 3/3 gruen.
+- `dotnet test --filter "FullyQualifiedName~EntraDirectorySyncOperationsIntegrationTests"`: lokal **nicht** ausfuehrbar — der `PostgresWorkflowRepositoryDatabaseFixture` faellt mit `ArgumentException : Docker is either not running or misconfigured` zurueck (kein Docker / kein Postgres unter `127.0.0.1:26432`). Identisches Fixture-Gating wie alle anderen `[Category=Integration]`-Tests im Projekt (vgl. Z8-4.1). Tests sind im etablierten Fixture-Muster angelegt; Verifikation auf einem CI-/Lokal-Setup mit Docker oder live-DB.
+- `dotnet build api/API.Tests/API.Tests.csproj`: erfolgreich (3 vorbestehende CS8602-Warnungen in `PostgresWorkflowRepositoryConcurrencyTests.cs`, 0 Fehler).
+
+**Bewusst draussen:**
+- Tests fuer `RunGroupSyncAsync`/`RunDirectoryProjectionAsync`/`RunActivationAsync`-Pfade als reine Unit-Tests — verlangen Connection-Factory-Schnitt, der explizit nicht in Z9 angefasst wird.
+- Coverage fuer `EnsureDirectoryProjectionUserColumnsAsync`, `AutoLinkIdentitiesToAppUsersAsync`, `EnsureDirectoryDepartmentsExistAsync`, `EnsureDevelopmentDefaultGroupMappingsAsync` — nicht in der Z9-Auftragsliste; wuerden den Slice ohne neuen Hebel verbreitern.
+
+**Z9-Abschluss:** Mit Z9-3 ist Zyklus 9 abgeschlossen. Naechster Schritt liegt zyklusuebergreifend (`#6` Pagination, `#8` Rotation-Regeneration) oder bei einem neuen, durch Anlass getriggerten Zyklus.
+
 ---
 
 ## Abgeschlossener Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
@@ -493,7 +520,7 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | offen — Nutzer-Aufgabe, KI kann nicht pruefen | L7 |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | backlog — kein konkreter Bedarf | L7 |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | deferred — wartet auf Produkt-Entscheidung | Zyklus 1 |
-| LQ2-Z3 | `EntraDirectorySyncService.cs` (2591 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` | **aktiv als Zyklus 9** (2026-05-05) — Trigger: Test-Isolation der Z8-2.3-Batch-Helfer | Zyklus 3 / Z8 → Z9 |
+| LQ2-Z3 | `EntraDirectorySyncService.cs` (2591 → 1563 Z.) Split + Coverage `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` | **abgeschlossen als Zyklus 9** (2026-05-05) — Z9-1.1/1.2 Inventur+Plan, Z9-2.1/2.2/2.3 Splits, Z9-3 Coverage | Zyklus 3 / Z8 → Z9 |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein Hot-Path; kein kleiner SQL-/Batch-Hebel ohne breiten Umbau an `SynchronizeRotationGeneratedTasks` | Zyklus 8 |
 
 ---

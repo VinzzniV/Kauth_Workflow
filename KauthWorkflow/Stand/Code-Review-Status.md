@@ -20,7 +20,7 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-05 — Zyklus 8 abgeschlossen, Zyklus 9 aktiv)
+## Gesamtbewertung (Stand 2026-05-05 — Zyklus 8 + Zyklus 9 abgeschlossen)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -48,13 +48,13 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 | 6 | 2026-05-03..04 | Runtime-Lifecycle (Schritt 7): Engine-Extraktion + Lifecycle-Service mit Conn+Tx-Scope; 409 Tests gruen |
 | 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung (Z7-1 in 5 Sub-Slices) + Validation-Service-Split (Z7-3 in 4 Sub-Slices); 416/417 Tests gruen |
 | 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung: #1 Bulk-Lookup, #2/#3 Sweep+Apply Batching, #4 Entra Group/Member Bulk, #7 Recipient-Bulk; #5 false positive; #8 deferred; Z8-4 Coverage |
-| 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3 aktiviert) — eroeffnet |
+| 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3) — abgeschlossen (Split + Coverage) |
 
 ---
 
-## Aktiver Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
+## Abgeschlossener Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
 
-Eroeffnet 2026-05-05. Folge-Hebel aus Z8: die in Z8-2.3 eingefuehrten Bulk-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) liegen `private` hinter dem 2.4k-Z. `SyncAllAsync`-Service. Saubere Test-Isolation verlangt File-Split + Graph-Stub. LQ2-Z3 wird aktiv.
+Abgeschlossen 2026-05-05. Folge-Hebel aus Z8: die in Z8-2.3 eingefuehrten Bulk-Helfer lagen `private` hinter dem 2.4k-Z. `SyncAllAsync`-Service. Z9 hat den Service in Graph-Adapter (`IEntraGraphClient`) und DB-Sync-Operations (`IEntraDirectorySyncOperations`) zerlegt und die Coverage gegen die neuen Interfaces gesetzt.
 
 | Befund | Prio | Status |
 |--------|------|--------|
@@ -63,7 +63,7 @@ Eroeffnet 2026-05-05. Folge-Hebel aus Z8: die in Z8-2.3 eingefuehrten Bulk-Helfe
 | Z9-2.1 — Pre-Cleanup (Dead-Code raus) + `SyncAllAsync` in Phasen-Methoden | HIGH | done 2026-05-05 — Dead-Code raus (DepartmentLead-Resolver + 5 Sub-Helfer + Single-Row-Helfer + Reflection-Test); `SyncAllAsync` in `RunGroupSyncAsync`/`RunDirectoryProjectionAsync`/`RunActivationAsync` zerlegt; 2591 → 2104 Z. |
 | Z9-2.2 — Graph-Adapter `IEntraGraphClient` unter `Services/Directory/` extrahieren | HIGH | done 2026-05-05 — `IEntraGraphClient`/`EntraGraphClient` neu unter `api/API/Services/Directory/`; `Microsoft.Graph` aus Hauptdatei raus; DI scoped |
 | Z9-2.3 — DB-Sync-Operations-Modul `IEntraDirectorySyncOperations` unter `Services/Directory/` extrahieren | HIGH | done 2026-05-05 — `IEntraDirectorySyncOperations`/`EntraDirectorySyncOperations` neu unter `api/API/Services/Directory/`; Service konsumiert per Konstruktor; Reflection-Test umgestellt; LOC Hauptdatei ~2030 → 1563 |
-| Z9-3 — Coverage Batch-Helfer (aus Z8-4 verschoben) + Orchestrator-Stub-Tests | MEDIUM | offen — naechster Schritt |
+| Z9-3 — Coverage Batch-Helfer (aus Z8-4 verschoben) + Orchestrator-Stub-Tests | MEDIUM | done 2026-05-05 — `EntraDirectorySyncServiceTests` (3/3 gruen, Stub-Pfade ConnectionString/MissingCredentials/GraphFailed) + `EntraDirectorySyncOperationsIntegrationTests` (Upsert+Dedup, Membership-Insert+Idempotenz; Fixture-Gating wie Z8-4.1) |
 
 Frontend-Folgen: keine. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 9".
 
@@ -95,7 +95,7 @@ Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehe
 | R8 | Browser-Verifikation Form-Editor | offen — Nutzer-Aufgabe |
 | R10 | Mobile-Layout Form-Editor | backlog |
 | L2 | Datenbereinigung Drafts | deferred — Produkt-Entscheidung |
-| LQ2-Z3 | `EntraDirectorySyncService` (2591 Z.) Split — inkl. Coverage fuer Z8-2.3-Batch-Helfer | aktiv als Zyklus 9 (2026-05-05) |
+| LQ2-Z3 | `EntraDirectorySyncService` Split + Coverage Z8-2.3-Batch-Helfer | abgeschlossen als Zyklus 9 (2026-05-05) |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein kleiner SQL-Hebel |
 | FE-8 | `approval_task_template_key` → `approval_spec_key` Rename | defer ohne Trigger |
 

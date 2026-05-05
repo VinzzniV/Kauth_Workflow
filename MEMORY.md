@@ -32,11 +32,10 @@
 
 ## Current Focus
 
-- **Aktiver Zyklus:** Z9 — `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3 aktiviert), eroeffnet 2026-05-05.
-- **Trigger:** Z8 hat die Lastpfade in `SyncAllAsync` gehaertet (Z8-2.3 Batch-Helfer). Offene Grenze ist die fehlende Test-Isolation: `UpsertDirectoryIdentitiesBatch` / `InsertGroupMembershipsBatch` sind `private` hinter dem 2.4k-Z. `SyncAllAsync` mit Live-Graph + DB. File-Split bringt sowohl Wartbarkeit als auch testbare Abgrenzung.
-- **Naechster Schritt:** Z9-3 Coverage gegen die neuen Interfaces (`IEntraGraphClient` + `IEntraDirectorySyncOperations`): Integration-Tests fuer `UpsertDirectoryIdentitiesBatchAsync`/`InsertGroupMembershipsBatchAsync` + Unit-Tests `EntraDirectorySyncService` gegen Graph-/Ops-Stubs.
-- **Geplante Slices:** Z9-1.1 Inventur (done) → Z9-1.2 Extract-Plan (done) → Z9-2.1 Pre-Cleanup + Phasen-Strukturierung (done 2026-05-05) → Z9-2.2 Graph-Adapter (done 2026-05-05) → Z9-2.3 DB-Sync-Operations-Modul (done 2026-05-05) → Z9-3 Coverage.
-- **Z9-1.2 Kernentscheidungen:** DepartmentLead-Resolver wird **geloescht**, nicht isoliert (kein Konservieren von totem Code in neuem Modul). Single-Row-Helfer ebenfalls geloescht (verifiziert dead). Admin-Read/Write- und Import-Pfad bleiben in der alten Datei. Kein neuer EventLog-Wrapper, kein Repository/Connection-Factory in Z9. Coverage erst in Z9-3, nicht pro Slice.
+- **Aktiver Zyklus:** keiner. Z9 abgeschlossen 2026-05-05 (Split + Coverage). Nachfolge-Zyklus offen — Trigger-getrieben.
+- **Z9 Endzustand:** `EntraDirectorySyncService` 2591 → 1563 Z., Graph- und DB-Sync-Operations hinter `IEntraGraphClient`/`IEntraDirectorySyncOperations` unter `api/API/Services/Directory/`. Coverage: Unit-Tests `EntraDirectorySyncServiceTests` (Stub-Pfade ConnectionString/MissingCredentials/GraphFailed, 3/3 gruen) + Integration-Tests `EntraDirectorySyncOperationsIntegrationTests` (Upsert-Insert/Update+Dedup, Membership-Insert+Idempotenz, Empty-Array-No-Op; Fixture-Gating wie Z8-4.1).
+- **Naechster Schritt:** offen — entweder anlassgetrieben neuer Zyklus (z. B. #6 Pagination wenn FE-Trigger, #8 Rotation-Regeneration wenn Last-Trigger) oder Codex-Priorisierung.
+- **Z9-Leitplanke fuer Folge:** `EntraDirectorySyncService` oeffnet weiterhin direkt `NpgsqlConnection`. Tiefere Unit-Coverage der `RunGroupSyncAsync`/`RunDirectoryProjectionAsync`-Pfade verlangt einen Connection-Factory-Schnitt — bewusst nicht in Z9.
 - **Z8 Abschluss-Stand:** #1/#2/#3/#4/#7 gepushed; #5 false positive; #8 deferred; Z8-4 Coverage abgeschlossen; EntraDirectorySync-Batch-Helfer-Coverage formal nach Z9-3 verschoben.
 - **Vorher lesen:** `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `CODE_REVIEW.md`, `TODO.md`, `CODEX_SYNC.md`
 
