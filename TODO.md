@@ -46,7 +46,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktiver Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken (2026-05-05)
 
-Z10 ist eroeffnet (2026-05-05) als reiner Review-/Planungszyklus. Thema: Admin-/Master-Data-/Directory-Listen werden zu grossen Teilen ohne Pagination, Server-Suche und stabilen Sort-Vertrag bedient — vor weiterem Wachstum werden Vertraege gezogen, statt am Schmerzpunkt nachzuschieben. Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync`) ist nur die sichtbarste Stelle.
+Z10 ist inhaltlich abgeschlossen (2026-05-05) — alle drei Planungs-Slices done. Naechster Schritt ausserhalb Z10: Eroeffnung eines Umsetzungszyklus (vorgeschlagen Z11) auf Basis von `CODE_REVIEW.md` § Z10-1.3 (F1 → F2 → F3). Bis dahin bleibt Z10 als reiner Review-/Planungszyklus aktiv. Thema: Admin-/Master-Data-/Directory-Listen werden zu grossen Teilen ohne Pagination, Server-Suche und stabilen Sort-Vertrag bedient — vor weiterem Wachstum werden Vertraege gezogen, statt am Schmerzpunkt nachzuschieben. Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync`) ist nur die sichtbarste Stelle.
 
 **Praktisch:** Listen werden bei wachsendem Bestand spuerbar langsamer, Suche/Filter fuehlen sich unvollstaendig an, weil viele Stellen heute im Browser filtern. **Lohnenswert:** Vertrag jetzt klaeren ist deutlich billiger als Hotfix unter Last; vermeidet halbgaarige Workarounds und API-Brueche fuer das FE. **Nutzen:** stabile Antwortzeiten, vollstaendige Server-Suche, einheitlicher Listen-/Such-/Sort-Vertrag, der wiederverwendbar ist. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 10".
 
@@ -54,7 +54,7 @@ Z10 ist eroeffnet (2026-05-05) als reiner Review-/Planungszyklus. Thema: Admin-/
 |-------|---------|------|-----------|--------|--------|
 | Z10-1.1 | Inventur: alle Admin-/Master-Data-/Directory-Read-Endpunkte ohne Pagination/Suche/Sort-Vertrag dokumentieren (Datei/Symbol, Rueckgabeform, FE-Aufrufer, Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | high | opus | done (2026-05-05) — Inventur in `CODE_REVIEW.md` § Z10-1.1 (Bloecke A–H + bereits saubere Listen + bewusst aussen vor) |
 | Z10-1.2 | Vertrags-Skizze: pro Endpunkt entscheiden — `limit`/`offset` vs. Cursor, Server-`search` ja/nein, stabiler `sort`-Vertrag, Antwort-Hull (`items` + `total`/`nextCursor`); jeweils kurz erklaeren, was sich fuer Nutzer aendert und welche FE-Adaption noetig waere | HIGH | high | opus | done (2026-05-05) — Vertrags-Skizze in `CODE_REVIEW.md` § Z10-1.2 (Muster P1/P2/P3 + Bloecke A–H + konsolidierte FE-Konsequenz) |
-| Z10-1.3 | Slice-Plan fuer Folgezyklus: 2–3 sichere Umsetzungsslices (API-Vertrag + minimale FE-Adaption) priorisieren; benennen, welche Endpunkte bewusst noch nicht angefasst werden und warum | HIGH | medium..high | opus | offen |
+| Z10-1.3 | Slice-Plan fuer Folgezyklus: 2–3 sichere Umsetzungsslices (API-Vertrag + minimale FE-Adaption) priorisieren; benennen, welche Endpunkte bewusst noch nicht angefasst werden und warum | HIGH | medium..high | opus | done (2026-05-05) — Slice-Plan in `CODE_REVIEW.md` § Z10-1.3 (F1 P1+B Master-Data → F2 P2+Audit-Streams → F3 P1-Ausrollen+D Builder; bewusst spaeter: A Identity-Listen, C Identities, C Gaps/Pending Split, E Notification-Templates, F Rotation, G Runtime, H Startable — jeweils mit Begruendung) |
 
 **Leitplanken Z10:**
 - Reiner Review-/Planungszyklus. Keine Code-Umsetzung in Z10. Kein Slice darf in Z10 als done markiert werden, der einen API-Vertrag oder eine DB-Aenderung enthaelt.

@@ -61,7 +61,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ## Aktiver Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken (2026-05-05)
 
-Eroeffnet 2026-05-05 als reiner Review-/Planungszyklus. Folge-Hebel aus Z8-1.2 (#6 `GetDepartmentsAsync`/`GetRolesAsync` ohne Pagination), aber breiter gefasst: das Vertrags-Thema betrifft mehrere Admin-/Master-Data-/Directory-Read-Pfade und nicht nur Departments/Rollen.
+Eroeffnet 2026-05-05 als reiner Review-/Planungszyklus; inhaltlich abgeschlossen 2026-05-05 mit Z10-1.3-Slice-Plan. Formaler Zyklusabschluss / Eroeffnung Z11 bewusst nicht hier. Folge-Hebel aus Z8-1.2 (#6 `GetDepartmentsAsync`/`GetRolesAsync` ohne Pagination), aber breiter gefasst: das Vertrags-Thema betrifft mehrere Admin-/Master-Data-/Directory-Read-Pfade und nicht nur Departments/Rollen.
 
 **Praktisch:** Admin-Listen werden bei wachsendem Bestand spuerbar langsamer; Suche und Filter laufen heute ueberwiegend im Browser, deshalb fuehlen sich Ergebnisse irgendwann unvollstaendig oder „zufaellig sortiert" an. **Lohnenswert:** ein einheitlicher Listen-/Such-/Sort-Vertrag jetzt zu definieren ist deutlich billiger als spaeterer Hotfix unter Last und vermeidet API-Brueche fuer das FE. **Nutzen:** stabile Antwortzeiten, vollstaendige Server-Suche, klarer Vertrag, der an mehreren Endpunkten gleich aussieht und so neue Listen direkt mitnimmt.
 
@@ -69,7 +69,7 @@ Eroeffnet 2026-05-05 als reiner Review-/Planungszyklus. Folge-Hebel aus Z8-1.2 (
 |--------|------|--------|
 | Z10-1.1 — Inventur aller Admin-/Master-Data-/Directory-Read-Endpunkte ohne Pagination/Suche/Sort-Vertrag (Datei/Symbol, FE-Aufrufer, Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | done 2026-05-05 — `CODE_REVIEW.md` § Z10-1.1 (Bloecke A Identity, B Master-Data + `/departments`/`/roles`, C Directory, D Builder, E Notification-Templates, F Rotation, G Runtime-Subresources, H Startable; saubere Listen und Single-Doc-Endpunkte explizit ausgenommen) |
 | Z10-1.2 — Vertrags-Skizze pro Endpunkt (`limit`/`offset` vs. Cursor, Server-`search`, stabiler `sort`, Antwort-Hull) inkl. FE-Adaption-Folgen | HIGH | done 2026-05-05 — `CODE_REVIEW.md` § Z10-1.2 (Muster P1 Standard Admin Page / P2 Cursor Stream / P3 Typeahead Lookup; Bloecke A–H; Identity-/Directory-/Audit getrennt nach P1/P2; Builder als scoped P1; Runtime-Sub-Resources P2) |
-| Z10-1.3 — Slice-Plan fuer Folgezyklus: erste 2–3 sichere Umsetzungsslices mit Begruendung der Reihenfolge | HIGH | offen |
+| Z10-1.3 — Slice-Plan fuer Folgezyklus: erste 2–3 sichere Umsetzungsslices mit Begruendung der Reihenfolge | HIGH | done 2026-05-05 — `CODE_REVIEW.md` § Z10-1.3 (F1 P1+B → F2 P2+Audit → F3 P1+D Builder; bewusst spaeter: A Identity-Listen, C Identities, C Gaps/Pending Split, E Notification-Templates, F Rotation, G Runtime, H Startable mit Einzelbegruendung) |
 
 Frontend-Folgen Z10-1.x: aktuell **keine**. Z10 produziert Inventur und Vertrags-Skizze, kein Code-Change. FE-Eintraege entstehen erst, wenn aus Z10-1.2 konkrete API-Vertragsaenderungen folgen — dann mit Trigger-Kennzeichnung in `FRONTEND_TODO.md`, nicht praeventiv.
 

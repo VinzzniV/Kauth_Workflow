@@ -445,6 +445,87 @@ Identitaeten (C) sind ein billiger Mitnahmeschnitt nach 1, weil sie heute schon 
 
 Z10-1.3 — Slice-Plan fuer Folgezyklus: 2–3 sichere Umsetzungsslices priorisieren (API-Vertrag + minimale FE-Adaption), inkl. Begruendung der Reihenfolge und expliziter Liste der Endpunkte, die in Z10 noch nicht angefasst werden und warum.
 
+### Z10-1.3 Slice-Plan fuer Folgezyklus (2026-05-05)
+
+Reine Planungsausgabe auf Basis von Z10-1.1 (Inventur) und Z10-1.2 (Vertrags-Skizze). Kein Code-Change, kein API-Vertrag wird hier aktiviert — die folgenden Slices definieren, **was als naechstes umgesetzt werden soll**, in welcher Reihenfolge und warum gerade so. Umsetzung erst im in einem Folgezyklus (Z11), nicht in Z10.
+
+**Schreibregel angewandt:** zu jedem Slice Praktisch/Lohnenswert/Nutzen aus Nutzersicht; bewusst nicht angefasste Endpunkte bekommen jeweils eine kurze, verstaendliche Begruendung statt nur „spaeter".
+
+#### Auswahl-Logik
+
+Die Reihenfolge folgt drei klaren Kriterien, in dieser Prioritaet:
+
+1. **Hull-Foundation vor Breitenrolle.** Der erste Slice muss die jeweils noch nicht existente Antwort-Hull (P1 bzw. P2) zentral und einmalig einfuehren. Sonst bekommen spaetere Endpunkte abweichende Mini-Implementierungen.
+2. **Spuerbarkeit fuer Nutzer vor reinem Wachstumsschutz.** Endpunkte, an denen ein Nutzer im Alltag heute schon sucht/blaettert (Erfassungseinstieg, Audit-Tabs), werden vor reinen Adminpflege-Listen mit kleinem Bestand gezogen.
+3. **Gemeinsame FE-Adapter wiederverwenden, statt mehrere parallele Hull-Familien gleichzeitig oeffnen.** Ein Slice fuehrt **eine** Hull-Familie ein und bedient alle Endpunkte, die genau diese Hull brauchen — kein Mischen P1/P2 in einem Slice.
+
+#### Vorgeschlagene Slices F1–F3
+
+| ID | Titel | Hull-Familie | Endpunkte | Prio | Reasoning | Modell |
+|----|-------|--------------|-----------|------|-----------|--------|
+| **F1** | P1 einfuehren + B Master-Data/Lookups | P1 (`AdminListPageDto<T>`) | `GET /departments`, `GET /roles`, `GET /admin/master-data/departments`, `GET /admin/master-data/positions`, `GET /admin/master-data/responsibilities` | HIGH | high | opus |
+| **F2** | P2 einfuehren + Audit-Streams | P2 (`CursorPageDto<T>`) | `GET /admin/auth/audit`, `GET /admin/directory/audit` | HIGH | medium..high | sonnet |
+| **F3** | P1 ausrollen + D Builder-Tabs (scoped) | P1 (wiederverwendet aus F1) | `GET /admin/config/workflow-definitions`, `GET /admin/config/action-definitions`, `GET /admin/config/task-templates`, `GET /admin/config/task-templates/{id}/conditions`, `GET /admin/config/task-templates/{id}/dependencies`, `GET /admin/config/answer-definitions`, `GET /admin/config/role-answer-defaults` | HIGH | medium..high | opus |
+
+##### F1 — P1 einfuehren + B Master-Data/Lookups
+
+- **Was passiert:** zentrale Definition `AdminListPageDto<T> { items, total, limit, offset }` im Backend; gemeinsame Query-Bindung `?limit&offset&search&sort` mit Server-Clamp (Default 50, Max 200), Whitelist-Sort, case-insensitive Server-Suche ueber pro-Endpunkt deklarierte Felder. Erstanwendung an genau den Endpunkten aus Block B (Z10-1.1/1.2).
+- **FE-Folge (Konsequenz, nicht zusaetzliches TODO ueber das hinaus, was der Slice selbst mitnimmt):** ein neuer typed `AdminListPageDto<T>`-Wrapper in `web/src/services/`, plus Anpassung der Aufrufer in `lookupApi.ts` (`getDepartments`/`getRoles`) und `adminApi.ts` (`getAdminDepartmentAssignments`/`getAdminDepartmentPositions`/`getAdminResponsibilityOwners`) auf `Promise<AdminListPageDto<T>>`. Clientseitige Filter in den drei Master-Data-Tabs verschwinden zugunsten Server-`search`. **Eintrag in `FRONTEND_TODO.md` mit Trigger-Kennzeichnung „F1"** — erst beim Start von F1, nicht praeventiv.
+- **Praktisch:** Wer im Erfassungs-Dialog eine Abteilung oder Rolle eintippt, bekommt sofort die passende Trefferliste statt zu warten, bis der ganze Bestand geladen wurde. Die Pflege-Listen unter Master-Data fuehlen sich ueber alle drei Tabs gleich an.
+- **Lohnenswert:** Hotspot #6 aus Z8-1.2 — `/departments` und `/roles` sind Pflicht-Lookups in fast allen Workflow-Erfassungsmasken und werden mit wachsender Org zuerst spuerbar. Gleichzeitig wird hier die Plattform-Hull P1 zum ersten Mal echt scharfgestellt; jeder spaetere P1-Slice kann die gleiche Definition wiederverwenden.
+- **Nutzen:** stabile Antwortzeiten am Erfassungseinstieg, vollstaendige Server-Suche ueber alle Departments/Rollen/Responsibilities, ein einziges Hull-Schema, das ab F1 in der Plattform existiert und in F3 nur noch ausgerollt wird.
+- **Risikozaun:** F1 fasst keine Schreibpfade an, keine Composite-DTOs, keinen Audit-Stream. Reines Read-/Listenvertragsthema mit klarem Tx-/Repo-Boundary.
+
+##### F2 — P2 einfuehren + Audit-Streams
+
+- **Was passiert:** zentrale Definition `CursorPageDto<T> { items, nextCursor, hasMore }` im Backend; opaque Base64-Cursor ueber `(occurredAt, id)`; Erstanwendung an `/admin/auth/audit` und `/admin/directory/audit`. Beide ersetzen den heutigen stillen `limit`-Cap (`100`/`50`) durch echtes Weiterblaettern. Filter (`?actor`/`?action`/`?eventKey`/`?since`/`?until`) werden mitgenommen, weil sie ohne den Cursor-Vertrag keinen Mehrwert haben.
+- **FE-Folge (Konsequenz):** ein neuer typed `CursorPageDto<T>`-Wrapper in `web/src/services/`; Permission-Audit-Tab und Directory-Audit-Detail bekommen einen „Mehr laden"-Knopf statt eines fixen Caps; `adminApi.getAdminPermissionAudit` und `adminConfigApi.getDirectoryMappingAudit` werden auf das Hull umgestellt. **Eintrag in `FRONTEND_TODO.md` mit Trigger-Kennzeichnung „F2"** — erst beim Start von F2.
+- **Praktisch:** „Ich finde meine Aenderung von letzter Woche nicht mehr im Audit" verschwindet, weil zurueckblaetterbar. Filter (z. B. „nur Aenderungen durch Person X") greifen ueber den ganzen Audit-Bestand statt nur ueber die geladenen 100/50.
+- **Lohnenswert:** Audit-Listen wachsen pro Aenderung monoton; der `limit`-Cap ist genau der Punkt, an dem heute Historie still abgeschnitten wird. Frueh angegangen, weil P2 eine eigenstaendige Hull-Familie ist und in F1 noch nicht gebraucht wird — F1 und F2 koennen sich nicht gegenseitig brechen.
+- **Nutzen:** vollstaendiger, ergonomisch durchsuchbarer Audit-Verlauf in beiden Audit-Tabs; ein Cursor-Adapter im FE, der spaeter direkt fuer Runtime-Events/Jobs (G in der Vertrags-Skizze) wiederverwendbar ist.
+- **Risikozaun:** F2 beruehrt keine P1-Endpunkte und keine Schreibpfade. `total` wird bewusst weggelassen, kein Versuch, Counts ueber wachsende Audit-Tabellen zu rechnen.
+
+##### F3 — P1 ausrollen + D Builder-Tabs (scoped)
+
+- **Was passiert:** Anwendung der in F1 etablierten P1-Hull auf die sieben Builder-Lese-Endpunkte aus Block D, mit Pflicht-Scope (`workflowDefinitionId` bzw. `task-template-id`) als Whitelist-Bedingung im Server. `task-templates/{id}/conditions` und `…/dependencies` bewusst ohne Server-`search` (kleines Set pro Template), aber mit Pagination und stabilem `sortOrder asc`. Keine API-Erweiterung um neue Filter ueber Z10-1.2 hinaus.
+- **FE-Folge (Konsequenz):** `adminConfigApi`-Wrapper fuer die sieben Builder-Lese-Endpunkte werden auf `Promise<AdminListPageDto<…>>` umgezogen; clientseitige Filter im Builder-Inspector werden durch Server-`search` ersetzt; Filterzustand wandert in URL-Query, nicht in Komponenten-State. **Eintrag in `FRONTEND_TODO.md` mit Trigger-Kennzeichnung „F3"** — erst beim Start von F3.
+- **Praktisch:** Der Builder bleibt schnell, auch wenn eine Definition Dutzende Aufgabenvorlagen, Antwortfelder oder Rollen-Defaults hat. Suche im Inspector findet wirklich alles, nicht nur den geladenen Block.
+- **Lohnenswert:** Versionierte Definitionen sind Plattformziel — Wachstum ueber Definitionen und pro Definition ist eingeplant. Builder-Antwortzeit ist Adminerlebnis Nummer eins.
+- **Nutzen:** ein einheitliches Tab-Verhalten ueber den ganzen Builder; weil F1 die P1-Hull bereits stabilisiert hat, ist F3 ein reines Ausrollen, kein neuer Vertrag.
+- **Risikozaun:** F3 schreibt nicht in den Definitionsbestand. Keine Aenderung an Versionierungs- oder Publish-Pfaden. Scope-Pflicht bleibt erhalten, das Risiko eines versehentlichen „global ueber alle Definitionen" Calls wird durch Server-Validierung des Scope-Filters explizit ausgeschlossen.
+
+#### Reihenfolge und Begruendung
+
+- **F1 vor F2:** F1 bringt die haeufigste Hull (P1) und den lautesten User-Hebel (Erfassungseinstieg). F2 baut die zweite Hull-Familie (P2) und kann F1 nicht stoeren, weil keine Endpunkte ueberlappen.
+- **F2 vor F3:** F2 ist klein, eigenstaendig und ersetzt einen Cap, der heute still Historie abschneidet — klarer Sicherheitsgewinn vor jedem Builder-Refactor. Ausserdem entkoppelt F2 die P2-Adoption von F3, sodass F3 sich rein auf P1-Ausrollung konzentrieren kann.
+- **F3 als Drittes:** F3 setzt P1 voraus (kommt aus F1) und ist im Umfang am breitesten (sieben Endpunkte). Ein eigener Slice am Ende vermeidet, dass die Builder-Refactor-Achse in einen vorherigen Slice einsickert.
+
+#### Bewusst in Z11 (Folgezyklus) noch nicht angefasst — Begruendung
+
+| Block / Endpunkt | Aus Z10-1.2 | Warum spaeter (oder nicht) |
+|---|---|---|
+| **A Identity-Listen** (`/admin/auth/users`, `/admin/auth/roles`, `/admin/auth/groups`, `/admin/auth/permissions`) | P1 | Wachstum vorhanden, aber heute keine Beschwerden zur Such-/Listen-Ergonomie. F2 deckt den akuten Hebel im Identity-Bereich (Audit-Cap) bereits ab. Diese vier Listen lassen sich nach F3 in einem schmalen Folgeslice mit dem etablierten P1-Adapter mitnehmen — Risiko sinkt durch Wiederverwendung. |
+| **C `/admin/directory/identities`** | P1 (Upgrade, hat schon `limit`/`offset`) | „Billiger Mitnahmeschnitt", aber bewusst **nicht** in F1, weil der Identities-Pfad an Directory-Sync-DTOs haengt und F1 stoffrein nur Master-Data/Lookups oeffnen soll. Direkter Folgekandidat nach F3. |
+| **C Gaps/Pending Split** (`/admin/directory/responsibility-gaps`, `/admin/directory/pending-imports`) | Composite → Summary + zwei P1-Listen | API-Vertragsumbau ueber **mehrere** neue Endpunkte plus Frontend-Sichtumbau (zwei Lade-Aufrufe statt einer). Das ist explizit kein „kleiner Hull-Anbau", sondern ein Schnitt im DTO-Modell — gehoert in einen eigenen, vorbereiteten Slice nach F1–F3. F2 macht den Audit-Pfad daneben unabhaengig nutzbar, sodass der Sync-Tab nicht warten muss. |
+| **E Notification Templates** | P1 | Bestand heute klein und stabil; keine Last- oder Such-Beschwerde. Erst sinnvoll, wenn der P1-Adapter im FE breit etabliert ist (nach F3) — dann ein billiges Mitnehmen, vorher reines Polieren ohne Trigger. |
+| **F Rotation Action Templates** | P1 | Bestand klein, Rotation-FE ist frisch (Karten/Tabelle, Personenakte 360°). Kein akuter Trigger; Wartezeit kostet nichts und verhindert paralleles Refactoring im selben FE-Bereich. |
+| **G Runtime Sub-Resources** (`…/events`, `…/automation-jobs`) | P2 | Pro Instanz, nur in der Diagnose-Sicht relevant. Heute kein Spuerbarkeits-Trigger. F2 etabliert bereits den `CursorPageDto<T>`-Adapter, sodass G spaeter ohne neue Hull-Familie ausgerollt werden kann — sparsamer Schnitt. |
+| **H `/workflow-definitions/startable`** | P1 (mit P3-kompatiblem Default) | Selber Lookup-Charakter wie B (Departments/Rollen). Sinnvoll **direkt nach F1** mitzunehmen, falls F1 sich am Ende kleiner zeigt als geplant; sonst eigenstaendiger schmaler Slice nach F3 mit dem etablierten Adapter. Bewusst nicht in F1 gebuendelt, um F1 thematisch auf Master-Data klar zu halten. |
+
+**Gemeinsame Begruendung „warum nicht alles auf einmal":** jeder Slice fuehrt entweder eine neue Hull ein (F1, F2) oder rollt eine bestehende auf eine grosse Endpunkt-Gruppe aus (F3). Das gleichzeitige Oeffnen aller Vertraege wuerde paralleles FE-Refactoring an mehreren Stellen erzwingen und genau das Risiko erzeugen, das Z10 verhindern soll: halbgaarige Workarounds, weil ein Endpunkt schon umgestellt ist und der naechste noch nicht.
+
+#### Was Z10 mit Z10-1.3 abschliesst
+
+- Inventur (Z10-1.1) → was heute Vertragsachsen vermissen laesst.
+- Vertrags-Skizze (Z10-1.2) → welche Hull-Familien ueberhaupt entstehen sollen.
+- Slice-Plan (Z10-1.3, dieser Block) → in welcher Reihenfolge die ersten drei Umsetzungsslices in Z11 angegangen werden, plus explizite Liste der Endpunkte, die in Z11 noch nicht angefasst werden und warum.
+
+Ob daraus ein eigenstaendiger Folgezyklus „Z11" wird oder Z10 mit dem Slice-Plan abgeschlossen und ein anderer Hebel als naechstes gezogen wird, entscheidet die naechste Eroeffnung — Z10-1.3 trifft diese Entscheidung **nicht**, sondern liefert nur den Plan, der einer Eroeffnung zugrunde liegen wuerde.
+
+#### Naechster Schritt
+
+Z10 inhaltlich abgeschlossen mit Z10-1.3. Folgender Schritt ist die Eroeffnung des Umsetzungszyklus (vorgeschlagen Z11) auf Basis dieses Slice-Plans, nicht in Z10. Bis dahin bleibt der Plan in `CODE_REVIEW.md` § Z10-1.3 die Quelle fuer die F1/F2/F3-Reihenfolge.
+
 ---
 
 ## Abgeschlossener Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit (2026-05-05)
