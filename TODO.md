@@ -48,14 +48,14 @@ Z9 ist eroeffnet. Thema: LQ2-Z3 als aktiver Hebel — Test-Isolation der in Z8-2
 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|
-| Z9-1.1 | Boundary-/Split-Inventur (oeffentliche API, Aufrufer, interne Achsen, Test-Isolations-Hindernisse) | HIGH | high | opus | offen |
-| Z9-1.2 | Extract-Plan: File-/Klassen-Schnitt + Reihenfolge + Test-Strategie | HIGH | high | opus | offen — wartet auf Z9-1.1 |
+| Z9-1.1 | Boundary-/Split-Inventur (oeffentliche API, Aufrufer, interne Achsen, Test-Isolations-Hindernisse) | HIGH | high | opus | done (2026-05-05) — `CODE_REVIEW.md` § Z9-1.1 |
+| Z9-1.2 | Extract-Plan: File-/Klassen-Schnitt + Reihenfolge + Test-Strategie | HIGH | high | opus | offen — naechster Schritt |
 | Z9-2.1 | `SyncAllAsync`-Zuschnitt: Orchestrierung von Graph-Zugriff und DB-Batch trennen | HIGH | medium..high | sonnet | offen — wartet auf Z9-1.2 |
 | Z9-2.2 | Graph-Zugriff hinter testbaren Adapter | HIGH | medium..high | sonnet | offen — wartet auf Z9-2.1 |
 | Z9-2.3 | DB-Batch-Helfer hinter dediziertes Operations-Modul | HIGH | medium | sonnet | offen — wartet auf Z9-2.1 |
 | Z9-3 | Coverage: Integration-Tests Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — nach Z9-2.x |
 
-**Naechster Schritt:** Z9-1.1 — Boundary-/Split-Inventur. Reine Inventur, kein Code-Change.
+**Naechster Schritt:** Z9-1.2 — Extract-Plan auf Basis von `CODE_REVIEW.md` § Z9-1.1.
 
 ---
 

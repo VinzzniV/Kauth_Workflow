@@ -93,6 +93,115 @@ LQ2-Z3 (`EntraDirectorySyncService` File-Split, 2591 Zeilen) trifft genau diesen
 | Z9-2.3 | DB-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) hinter dediziertes, testbares Operations-Modul ziehen | HIGH | medium | sonnet | offen — wartet auf Z9-2.1 |
 | Z9-3 | Coverage nachziehen: Integration-Tests fuer Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests fuer Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — nach Z9-2.x |
 
+### Z9-1.1 Boundary-/Split-Inventur (2026-05-05)
+
+Reine Inventur, kein Code-Change. Datei: `api/API/Services/EntraDirectorySyncService.cs` (2591 Z., `internal sealed class EntraDirectorySyncService : IDirectorySyncService`).
+
+**Konstruktor-Abhaengigkeiten** (4): `IGraphApplicationConfigurationService` (Graph-Credentials), `LifecycleRuntimeSettings` (ConnectionString, DirectoryGroupPrefix, DirectoryExplicitGroupIds, DevSimulationEnabled), `ISystemEventLogService` (Audit/Eventlog), `ILogger<EntraDirectorySyncService>`. Kein Repository-Interface — der Service oeffnet `NpgsqlConnection` direkt aus dem ConnectionString.
+
+#### Oeffentliche API (`IDirectorySyncService` → `EntraDirectorySyncService`)
+
+| Methode | LOC | Aufruf-Pfad | Kohaesionsbereich |
+|---------|-----|-------------|-------------------|
+| `SyncAllAsync(groupPrefixOverride?, ct)` | 34-393 | HostedService + Admin POST `/admin/directory/sync` | Sync-Orchestrierung (Graph + DB + Eventlog) |
+| `GetSyncStatusAsync(ct)` | 467 | Admin GET `/admin/directory/status` | DB-Read |
+| `GetGroupsAsync(ct)` | 537 | Admin GET `/admin/directory/groups` | DB-Read |
+| `GetIdentitiesAsync(limit, offset, ct)` | 647 | Admin GET `/admin/directory/identities` | DB-Read |
+| `GetMappingAuditAsync(limit, ct)` | 726 | Admin GET `/admin/directory/audit` | DB-Read |
+| `UpsertGroupRoleMappingAsync(req, actor?, ct)` | 788 | Admin POST `/admin/directory/group-mappings` | DB-Write + Mapping-Audit |
+| `DeleteGroupRoleMappingAsync(id, actor?, ct)` | 882 | Admin DELETE `/admin/directory/group-mappings/{id}` | DB-Write + Mapping-Audit |
+| `GetResponsibilityGapsAsync(ct)` | 928 | Admin GET `/admin/directory/responsibility-gaps` | DB-Read (komplexe Aggregation) |
+| `GetPendingImportsAsync(ct)` | 1022 | Admin GET `/admin/directory/pending-imports` | DB-Read |
+| `ImportIdentitiesAsync(req, actor?, ct)` | 1104 | Admin POST `/admin/directory/import` | DB-Write (Import-Pfad, ruft `ImportSingleIdentityAsync`) |
+
+#### Echte externe Aufrufer
+
+- `DirectorySyncHostedService` (`api/API/Services/DirectorySyncHostedService.cs`): nur `SyncAllAsync(ct)` — periodisch (DIRECTORY_SYNC_INTERVAL_MINUTES), gated durch `DirectorySyncEnabled` + `DirectorySyncScheduled`.
+- `AdminDirectorySyncEndpoints` (`api/API/Endpoints/AdminDirectorySyncEndpoints.cs`): saemtliche `IDirectorySyncService`-Methoden ueber das Admin-API.
+- DI-Registrierung: `LifecycleServiceCollectionExtensions.cs` (Z. 165 `IGraphApplicationConfigurationService`; `IDirectorySyncService → EntraDirectorySyncService` ist scoped registriert in derselben Datei).
+- Tests: ausschliesslich `api/API.Tests/PostgresWorkflowRepositoryAdminConfigIntegrationTests.cs` — **Reflection-Zugriff** auf zwei `private`-Methoden (siehe Test-Isolations-Hindernisse).
+
+Keine weiteren Aufrufer (verifiziert via `Grep` ueber Repo).
+
+#### Interne Achsen / Kohaesionsbereiche innerhalb der Datei
+
+1. **Sync-Orchestrierung** (`SyncAllAsync`, 34-393, ~360 Z.) — Connection-Open, Graph-Client-Bau, Group-Loop, Cross-Cutting-Eventlog, Status-Aggregation, Final-`LogSyncRun`. Direkt an Graph **und** DB **und** SystemEventLog gekoppelt.
+2. **Graph-Zugriff** (Microsoft.Graph) — `LoadSecurityGroupsAsync` (395), `LoadGroupMembersAsync` (424), `ResolveGraphCredentialsAsync` (453), `GraphServiceClient`-Bau in `SyncAllAsync` (61-89). Einzige Stellen mit `Microsoft.Graph.*`-Abhaengigkeit.
+3. **DB-Batch-Helfer (Sync-Pfad)** — `UpsertDirectoryIdentitiesBatch` (1528), `InsertGroupMembershipsBatch` (1596) — die in Z8-2.3 eingefuehrten `unnest`-Bulk-Statements; aktuell `private static`. Daneben Single-Row-Helfer `UpsertDirectoryGroup` (1446), `UpsertDirectoryIdentity` (1469, dead-code-Kandidat — nach Z8-2.3 nicht mehr aufgerufen, pruefen), `ClearGroupMemberships` (1500), `InsertGroupMembership` (1511), `AutoLinkIdentitiesToAppUsers` (1619).
+4. **Projection / Activation** (DB-Batch im Sync-Pfad) — `EnsureDirectoryProjectionUserColumnsAsync` (1996), `EnsureDirectoryDepartmentsExist` (1732), `UpdateExistingAppUsersFromDirectory` (1770), `UpdateDirectoryUserActivationStates` (2018), `EnsureDevelopmentDefaultGroupMappings` (2484). Reine SQL-Pfade, keine Graph-Kopplung.
+5. **Sync-Logging / Audit** — `LogSyncRun` (1633), `LogMappingAuditAsync` (1358), `LogDirectoryAuditEventAsync` (1390), `CreateDepartmentLeadAuditSnapshot` (1422). Schreiben in `directory_sync_log` / `directory_mapping_audit_log`. Nicht zu verwechseln mit `_systemEventLogService` (zweiter Audit-Kanal).
+6. **Group-/Filter-Helfer (CPU)** — `ShouldSyncGroup` (1711), `MatchesGroupPrefix` (1665), `ResolveEffectiveGroupPrefix` (1680), `ParseExplicitGroupIds` (1696), `Normalize` (1691), `NormalizeScope` (1659), `ParseDirectoryEmployeeNumber` (2524). Reine statische CPU-Helfer ohne IO.
+7. **Admin-Read/Write-Methoden** (Status, Groups, Identities, MappingAudit, GroupRoleMapping CRUD, ResponsibilityGaps, PendingImports) — DB-Zugriffe + Mapping-Audit. Gehoeren fachlich zu „Admin-Konfigurations-Sicht", nicht zur Sync-Orchestrierung.
+8. **Import-Pfad** — `ImportIdentitiesAsync` (1104) + `ImportSingleIdentityAsync` (1179). Eigene Achse: erzeugt `app_users`-Datensaetze aus bekannten `directory_identities`. Kein Graph-Zugriff. Findet `FindExistingMappingIdAsync` (1263) und `GetGroupRoleMappingByIdAsync` / `…OrNullAsync` (1295/1343) als Mapping-Lookup-Helfer.
+9. **DepartmentLead-Resolver (toter Pfad in Prod)** — `SyncDepartmentLeadAssignmentsFromDirectory` (2099), `LoadDepartmentLeadSyncStatesAsync` (2242), `EnsureDirectoryManagedPersonRecordAsync` (2307), `UpsertDepartmentLeadAssignmentAsync` (2439), `ClearDepartmentLeadAssignmentAsync` (2470). **Wichtig:** `SyncAllAsync` ruft diese Methoden **nicht** mehr auf (Z. 306-317 schreibt explizit `directory_department_assignments_skipped`); einziger lebender Aufruf ist die **Reflection-Invocation aus dem Test** (siehe unten). `KauthWorkflow/Architektur/Entscheidungen.md` dokumentiert den bewussten Stop. Status: **dead code im Prod-Pfad**, im Test als Black-Box-Subroutine genutzt.
+
+#### Was haengt direkt an Microsoft Graph
+
+- `using Azure.Identity;`, `using Microsoft.Graph;`, `using Microsoft.Graph.Models;` (Z. 1-4).
+- `GraphServiceClient`-Konstruktion (`SyncAllAsync` 61-89).
+- `LoadSecurityGroupsAsync` (395), `LoadGroupMembersAsync` (424).
+- `ResolveGraphCredentialsAsync` (453) — bezieht Credentials aus `IGraphApplicationConfigurationService`; ist nicht selbst Graph-call, gehoert aber in den Adapter, weil sie pure Graph-Bootstrap-Logik ist.
+- Alles andere ist Graph-frei.
+
+#### Was ist DB-Batch / Projection / Audit
+
+- **Batch-Operations (Sync):** `UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`, `ClearGroupMemberships`, `AutoLinkIdentitiesToAppUsers` (Z8-2.3 Hebel). Plus die Single-Row-Pendants `UpsertDirectoryGroup`, `UpsertDirectoryIdentity` (Legacy/dead?), `InsertGroupMembership`.
+- **Projection:** `EnsureDirectoryProjectionUserColumnsAsync`, `EnsureDirectoryDepartmentsExist`, `UpdateExistingAppUsersFromDirectory`, `UpdateDirectoryUserActivationStates`, `EnsureDevelopmentDefaultGroupMappings`.
+- **Audit:** `LogSyncRun`, `LogMappingAuditAsync`, `LogDirectoryAuditEventAsync`, `CreateDepartmentLeadAuditSnapshot` (Audit ueber `directory_*`-Tabellen, nicht `_systemEventLogService`).
+
+#### Was ist `SyncAllAsync`-Orchestrierung (im engeren Sinn)
+
+Genau Z. 34-393. Schritte in dieser Reihenfolge:
+1. Settings/Prefix-Resolution + Connection-Validierung.
+2. Graph-Credential-Aufloesung + Graph-Client-Bau (Fehlerpfade `failed`).
+3. `EnsureDirectoryProjectionUserColumnsAsync`.
+4. `LoadSecurityGroupsAsync` + `ShouldSyncGroup`-Filter + Selection-Eventlog.
+5. Group-Loop: `UpsertDirectoryGroup` → `LoadGroupMembersAsync` → `ClearGroupMemberships` → `UpsertDirectoryIdentitiesBatch` → `InsertGroupMembershipsBatch`. Per-Group Try/Catch → Status `partial`.
+6. `AutoLinkIdentitiesToAppUsers`.
+7. `EnsureDirectoryDepartmentsExist` + Eventlog.
+8. `UpdateExistingAppUsersFromDirectory` + Eventlog.
+9. `EnsureDevelopmentDefaultGroupMappings` (nur DevSim).
+10. `UpdateDirectoryUserActivationStates` + per-Change-Eventlog.
+11. „skipped"-Eventlog fuer DepartmentLead.
+12. Final `LogSyncRun` + Sammel-Eventlog. Rueckgabe `DirectorySyncResult`.
+
+#### Test-Isolations-Hindernisse (aktuell)
+
+- **Reflection-Zugriffe** auf `private`-Methoden in `api/API.Tests/PostgresWorkflowRepositoryAdminConfigIntegrationTests.cs`:
+  - Z. 103-105: `EntraDirectorySyncService.SyncDepartmentLeadAssignmentsFromDirectory` (Instance, NonPublic) — fragil und testet einen Pfad, den `SyncAllAsync` nicht mehr aufruft. Bricht beim Rename/Move.
+  - Z. 177-179: `EntraDirectorySyncService.UpdateExistingAppUsersFromDirectory` (Static, NonPublic) — analog fragil.
+- **Live-Graph-Kopplung in `SyncAllAsync`**: `GraphServiceClient` wird inline gebaut (Z. 61-89). Es gibt **kein** `IGraphClient`/Adapter-Interface, das im Test gestubbt werden koennte. End-to-End-Test gegen `SyncAllAsync` braucht entweder echtes Tenant oder einen Adapter-Schnitt.
+- **DB-Batch-Helfer hinter `SyncAllAsync`-2.4k-Z**: `UpsertDirectoryIdentitiesBatch` / `InsertGroupMembershipsBatch` sind `private static`. Direktes Coverage erfordert Reflection (genau das fragile Pattern oben) oder Sichtbarkeits-Aenderung. In Z8-4.1 wurden sie deshalb explizit nicht abgedeckt.
+- **Verstreute `_systemEventLogService.WriteAsync`-Calls**: `SyncAllAsync` schreibt mehrfach Eventlog-Eintraege im Sync-Pfad. Trennung Orchestrierung ↔ Eventing ist nur durch das DI-Interface (`ISystemEventLogService`) gegeben; Stub `StubSystemEventLogService` existiert bereits in Tests.
+- **Direkte `NpgsqlConnection`-Konstruktion** im Service statt Repository-Interface — End-to-End-Tests brauchen weiterhin Postgres-Fixture; saubere Unit-Tests gegen einen reinen Orchestrator brauchen ein DB-Operations-Interface oder einen Connection-Factory-Stub.
+- **`UpsertDirectoryIdentity`-Single-Row-Helfer (Z. 1469)**: nach Z8-2.3 evtl. ungenutzt (im Hot-Pfad ersetzt durch Batch). Vor dem Split pruefen, ob er noch lebt — wenn nicht, gehoert er nicht in den Split.
+
+#### Versteckte Kopplungen
+
+- `LifecycleRuntimeSettings.DevSimulationEnabled` schaltet `EnsureDevelopmentDefaultGroupMappings` an (Z. 274). Diese Verzweigung ist kein Graph-/DB-Schnitt, sondern eine Dev-Sim-Sonderlogik.
+- `DirectoryExplicitGroupIds`-Setting wird **nur** in `SyncAllAsync` (via `ParseExplicitGroupIds`) genutzt — Filter-Logik gehoert in den CPU-Helfer-Block.
+- Audit-Logs schreiben in **zwei** Kanaele (`directory_*`-Tabellen via `LogDirectoryAuditEventAsync`, plus `system_event_log` via `_systemEventLogService`) — der Split muss klar machen, welcher Kanal beim Orchestrator bleibt und welcher beim DB-Operations-Modul.
+
+#### Was explizit **nicht** in den ersten Split gehoert
+
+- **DepartmentLead-Resolver** (Achse 9): toter Pfad in Prod. Vor dem Split entscheidet Z9-1.2, ob loeschen, in eigene Datei isolieren oder unangetastet lassen — **nicht** in den Sync-Adapter ziehen, sonst zementiert der Split einen ungenutzten Pfad.
+- **Admin-Read/Write-Methoden** (Achse 7) und **Import-Pfad** (Achse 8): logisch eigene Verantwortung („Admin-Sicht / Import"), aber **nicht** Treiber von Z9. Der Trigger ist Test-Isolation der **Sync-Lastpfade** aus Z8-2.3. Admin-Methoden in dieselbe Iteration zu ziehen vergroessert den Slice ohne Z8-Kopplung. → in Folge-Slices oder spaeter, nicht in Z9-2.x.
+- **Single-Row-Helfer** `UpsertDirectoryIdentity` / `InsertGroupMembership` (falls nach Z8-2.3 dead): vor dem Split Lebendigkeit pruefen; wenn dead, in Z9-1.2 als Loesch-Kandidat markieren statt im Split „mitnehmen".
+- **`LifecycleRuntimeSettings`-Auswertung**: bleibt im Service-Konstruktor / Orchestrator. Kein eigenes Modul.
+- **Eventlog-Integration (`ISystemEventLogService`)**: nicht hinter neuen Wrapper. Der bestehende DI-Stub (`StubSystemEventLogService`) reicht fuer Tests.
+- **CPU-Helfer** (Achse 6): koennen in eine `internal static`-Helper-Klasse, **muessen** aber nicht — keine Test-Isolations-Wirkung.
+
+#### Schnittland-Empfehlung (informativ, nicht Plan)
+
+Aus Z8-Kopplung getrieben, mit klarem Test-Nutzen:
+- **Graph-Adapter** (Achse 2) hinter `IEntraGraphClient`-aehnlichem Interface. Bringt `SyncAllAsync` einen Stub-Punkt.
+- **DB-Sync-Operations-Modul** (Achsen 3+4 nur fuer den Sync-Pfad: Batch-Helfer, Projection, Activation). Bringt `UpsertDirectoryIdentitiesBatch` / `InsertGroupMembershipsBatch` aus dem `private`-Schatten und macht sie integration-testbar.
+- **`EntraDirectorySyncOrchestrator`** als duenner `SyncAllAsync`-Treiber gegen Graph- + DB-Interface + `ISystemEventLogService`.
+- Achsen 5 (Sync-Logging) und 6 (CPU-Helfer) folgen passiv im jeweils naechstgelegenen Modul.
+- Achsen 7+8+9 bleiben in dieser Iteration **ausserhalb** des Splits.
+
+Z9-1.2 entscheidet die konkrete Reihenfolge und die Test-Strategie (Graph-Stub vs. echter Client, Coverage-Reihenfolge).
+
 **Reihenfolge / Abhaengigkeiten:**
 - Z9-1.1 → Z9-1.2 sequenziell (Inventur vor Plan).
 - Z9-2.x: 2.1 zuerst (Orchestrierungs-Schnitt), danach 2.2 und 2.3 unabhaengig moeglich, aber sequenziell halten, damit der Tree pro Slice klar bleibt.

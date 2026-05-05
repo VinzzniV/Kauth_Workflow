@@ -34,7 +34,7 @@
 
 - **Aktiver Zyklus:** Z9 — `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3 aktiviert), eroeffnet 2026-05-05.
 - **Trigger:** Z8 hat die Lastpfade in `SyncAllAsync` gehaertet (Z8-2.3 Batch-Helfer). Offene Grenze ist die fehlende Test-Isolation: `UpsertDirectoryIdentitiesBatch` / `InsertGroupMembershipsBatch` sind `private` hinter dem 2.4k-Z. `SyncAllAsync` mit Live-Graph + DB. File-Split bringt sowohl Wartbarkeit als auch testbare Abgrenzung.
-- **Naechster Schritt:** Z9-1.1 Boundary-/Split-Inventur (oeffentliche API, Aufrufer, interne Achsen Graph-Zugriff/DB-Batch/Orchestrierung/DepartmentLead/Import). Reine Inventur, kein Code-Change.
+- **Naechster Schritt:** Z9-1.2 Extract-Plan (File-/Klassen-Schnitt + Reihenfolge + Test-Strategie) auf Basis von `CODE_REVIEW.md` § Z9-1.1. Wichtige Erkenntnisse aus Z9-1.1: `SyncDepartmentLeadAssignmentsFromDirectory` ist im Prod-Pfad **dead code** (von `SyncAllAsync` nicht mehr aufgerufen, nur via Reflection im Test); zwei Reflection-Tests in `PostgresWorkflowRepositoryAdminConfigIntegrationTests.cs` (auf `SyncDepartmentLeadAssignmentsFromDirectory` und `UpdateExistingAppUsersFromDirectory`); Single-Row-Helfer `UpsertDirectoryIdentity`/`InsertGroupMembership` evtl. ungenutzt nach Z8-2.3.
 - **Geplante Slices:** Z9-1.1 Inventur → Z9-1.2 Extract-Plan → Z9-2.1 `SyncAllAsync`-Zuschnitt → Z9-2.2 Graph-Adapter → Z9-2.3 DB-Batch-Modul → Z9-3 Coverage.
 - **Z8 Abschluss-Stand:** #1/#2/#3/#4/#7 gepushed; #5 false positive; #8 deferred; Z8-4 Coverage abgeschlossen; EntraDirectorySync-Batch-Helfer-Coverage formal nach Z9-3 verschoben.
 - **Vorher lesen:** `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `CODE_REVIEW.md`, `TODO.md`, `CODEX_SYNC.md`
