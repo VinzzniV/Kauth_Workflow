@@ -173,6 +173,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IWorkflowEmailNotificationSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<INotificationEmailTestSender, GraphWorkflowEmailNotificationSender>();
         services.AddScoped<API.Services.Directory.IEntraGraphClient, API.Services.Directory.EntraGraphClient>();
+        services.AddScoped<API.Services.Directory.IEntraDirectorySyncOperations, API.Services.Directory.EntraDirectorySyncOperations>();
         services.AddScoped<IDirectorySyncService, EntraDirectorySyncService>();
         services.AddHostedService<DirectorySyncHostedService>();
         services.AddHostedService<WorkflowAutomationHostedService>();

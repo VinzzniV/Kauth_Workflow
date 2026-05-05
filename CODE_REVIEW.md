@@ -90,8 +90,8 @@ LQ2-Z3 (`EntraDirectorySyncService` File-Split, 2591 Zeilen) trifft genau diesen
 | Z9-1.2 | Extract-Plan: konkreter File-/Klassen-Schnitt (Kandidaten z. B. `EntraGraphClient`/-Adapter, `EntraDirectoryBatchOperations`, `EntraDepartmentLeadResolver`, schlanker `EntraDirectorySyncOrchestrator`), Reihenfolge der Extraktionen, Test-Strategie (Graph-Stub vs. echtem Client), explizite Nicht-Ziele | HIGH | high | opus | offen |
 | Z9-2.1 | Pre-Cleanup (Dead-Code raus) + `SyncAllAsync` in Phasen-Methoden zerlegen, ohne Verhaltensaenderung, noch in derselben Datei | HIGH | medium..high | sonnet | done 2026-05-05 — Detail im Sync-Log und in `CODEX_SYNC.md` |
 | Z9-2.2 | Graph-Zugriff hinter Adapter-Interface; Adapter testbar (Stub) machen | HIGH | medium..high | sonnet | done 2026-05-05 — `IEntraGraphClient`/`EntraGraphClient` unter `api/API/Services/Directory/`; `Microsoft.Graph` aus Hauptdatei raus |
-| Z9-2.3 | DB-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) hinter dediziertes, testbares Operations-Modul ziehen | HIGH | medium | sonnet | offen — naechster Schritt |
-| Z9-3 | Coverage nachziehen: Integration-Tests fuer Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests fuer Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — nach Z9-2.x |
+| Z9-2.3 | DB-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) hinter dediziertes, testbares Operations-Modul ziehen | HIGH | medium | sonnet | done 2026-05-05 — `IEntraDirectorySyncOperations` + `EntraDirectorySyncOperations` unter `api/API/Services/Directory/`; Service konsumiert per Konstruktor; Reflection-Test auf direkten Aufruf umgestellt; Detail im Sync-Log |
+| Z9-3 | Coverage nachziehen: Integration-Tests fuer Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests fuer Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — naechster Schritt |
 
 ### Z9-1.1 Boundary-/Split-Inventur (2026-05-05)
 

@@ -1,5 +1,5 @@
+using API.Services.Directory;
 using Npgsql;
-using System.Reflection;
 using Xunit;
 
 namespace API.Tests;
@@ -79,15 +79,12 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             await using (var connection = new NpgsqlConnection(connectionString))
             {
                 await connection.OpenAsync();
-                var method = typeof(EntraDirectorySyncService).GetMethod(
-                    "UpdateExistingAppUsersFromDirectory",
-                    BindingFlags.Static | BindingFlags.NonPublic);
-                Assert.NotNull(method);
-
+                var operations = new EntraDirectorySyncOperations();
                 var startedAt = DateTime.UtcNow.AddMinutes(-1);
-                var task = (Task?)method!.Invoke(null, [connection, startedAt, CancellationToken.None]);
-                Assert.NotNull(task);
-                await task!;
+                await operations.UpdateExistingAppUsersFromDirectoryAsync(
+                    connection,
+                    startedAt,
+                    CancellationToken.None);
             }
 
             await using var verificationConnection = new NpgsqlConnection(connectionString);

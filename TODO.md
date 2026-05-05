@@ -52,10 +52,10 @@ Z9 ist eroeffnet. Thema: LQ2-Z3 als aktiver Hebel — Test-Isolation der in Z8-2
 | Z9-1.2 | Extract-Plan: File-/Klassen-Schnitt + Reihenfolge + Test-Strategie | HIGH | high | opus | done (2026-05-05) — `CODE_REVIEW.md` § Z9-1.2 |
 | Z9-2.1 | Pre-Cleanup (DepartmentLead-Resolver + Single-Row-Helfer loeschen) + `SyncAllAsync`-Phasen-Strukturierung in der Hauptdatei | HIGH | medium..high | sonnet | done (2026-05-05) — Dead-Code geloescht (`SyncDepartmentLeadAssignmentsFromDirectory` + 4 Sub-Helfer + `LogDirectoryAuditEventAsync` + `CreateDepartmentLeadAuditSnapshot` + Records; `UpsertDirectoryIdentity`/`InsertGroupMembership`); Reflection-Test entfernt; `SyncAllAsync` in `RunGroupSyncAsync`/`RunDirectoryProjectionAsync`/`RunActivationAsync` zerlegt |
 | Z9-2.2 | Graph-Adapter (`IEntraGraphClient` + `EntraGraphClient`) unter `Services/Directory/` extrahieren | HIGH | medium..high | sonnet | done (2026-05-05) — Adapter unter `api/API/Services/Directory/`, Microsoft.Graph aus Hauptdatei raus, DI ergaenzt |
-| Z9-2.3 | DB-Sync-Operations-Modul (`IEntraDirectorySyncOperations` + Impl) unter `Services/Directory/` extrahieren | HIGH | medium | sonnet | offen — naechster Schritt |
-| Z9-3 | Coverage: Integration-Tests fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` + Unit-Tests Orchestrator gegen Graph-/Ops-Stubs | MEDIUM | medium | sonnet | offen — nach Z9-2.x |
+| Z9-2.3 | DB-Sync-Operations-Modul (`IEntraDirectorySyncOperations` + Impl) unter `Services/Directory/` extrahieren | HIGH | medium | sonnet | done (2026-05-05) — `IEntraDirectorySyncOperations` + `EntraDirectorySyncOperations` unter `api/API/Services/Directory/`, Service konsumiert per Konstruktor; Reflection-Test auf direkten Aufruf der neuen Operations umgestellt |
+| Z9-3 | Coverage: Integration-Tests fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` + Unit-Tests Orchestrator gegen Graph-/Ops-Stubs | MEDIUM | medium | sonnet | offen — naechster Schritt |
 
-**Naechster Schritt:** Z9-2.3 — DB-Sync-Operations-Modul (`IEntraDirectorySyncOperations` + Impl) unter `api/API/Services/Directory/` extrahieren gemaess `CODE_REVIEW.md` § Z9-1.2.
+**Naechster Schritt:** Z9-3 — Coverage gegen die neuen Interfaces (`IEntraGraphClient` + `IEntraDirectorySyncOperations`).
 
 ---
 
