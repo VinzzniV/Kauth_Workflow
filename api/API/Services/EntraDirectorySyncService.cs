@@ -173,6 +173,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 
                     await ClearGroupMemberships(connection, directoryGroupId, cancellationToken);
 
+                    var validUsers = new List<(Guid EntraObjectId, Microsoft.Graph.Models.User User)>(members.Count);
                     foreach (var member in members)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
@@ -184,15 +185,29 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
                             continue;
                         }
 
-                        var directoryIdentityId = await UpsertDirectoryIdentity(
-                            connection,
-                            userObjectId,
-                            user,
-                            cancellationToken);
-                        identitiesSynced++;
+                        validUsers.Add((userObjectId, user));
+                    }
 
-                        await InsertGroupMembership(connection, directoryGroupId, directoryIdentityId, cancellationToken);
-                        membershipsSynced++;
+                    if (validUsers.Count > 0)
+                    {
+                        var identityIdByEntraId = await UpsertDirectoryIdentitiesBatch(
+                            connection,
+                            validUsers,
+                            cancellationToken);
+
+                        var distinctIdentityIds = validUsers
+                            .Select(v => identityIdByEntraId[v.EntraObjectId])
+                            .Distinct()
+                            .ToArray();
+
+                        await InsertGroupMembershipsBatch(
+                            connection,
+                            directoryGroupId,
+                            distinctIdentityIds,
+                            cancellationToken);
+
+                        identitiesSynced += validUsers.Count;
+                        membershipsSynced += validUsers.Count;
                     }
                 }
                 catch (Exception ex)
@@ -1507,6 +1522,97 @@ ON CONFLICT DO NOTHING;";
         await using var cmd = new NpgsqlCommand(sql, connection);
         cmd.Parameters.AddWithValue("directoryGroupId", directoryGroupId);
         cmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<Dictionary<Guid, long>> UpsertDirectoryIdentitiesBatch(
+        NpgsqlConnection connection,
+        IReadOnlyList<(Guid EntraObjectId, Microsoft.Graph.Models.User User)> validUsers,
+        CancellationToken cancellationToken)
+    {
+        var dedup = new Dictionary<Guid, Microsoft.Graph.Models.User>(validUsers.Count);
+        foreach (var entry in validUsers)
+        {
+            dedup[entry.EntraObjectId] = entry.User;
+        }
+
+        var count = dedup.Count;
+        var entraObjectIds = new Guid[count];
+        var upns = new string[count];
+        var mails = new string?[count];
+        var displayNames = new string[count];
+        var accountEnableds = new bool[count];
+        var departmentNames = new string?[count];
+        var employeeNumbers = new int?[count];
+
+        var i = 0;
+        foreach (var (entraId, user) in dedup)
+        {
+            entraObjectIds[i] = entraId;
+            upns[i] = user.UserPrincipalName ?? user.Id ?? entraId.ToString();
+            mails[i] = user.Mail;
+            displayNames[i] = user.DisplayName ?? user.UserPrincipalName ?? entraId.ToString();
+            accountEnableds[i] = user.AccountEnabled ?? true;
+            departmentNames[i] = Normalize(user.Department);
+            employeeNumbers[i] = ParseDirectoryEmployeeNumber(user.EmployeeId);
+            i++;
+        }
+
+        const string sql = @"
+INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number, last_synced_at)
+SELECT t.entra_object_id, t.user_principal_name, t.mail, t.display_name, t.account_enabled, t.department_name, t.employee_number, NOW()
+FROM unnest(@entraObjectIds::uuid[], @upns::text[], @mails::text[], @displayNames::text[], @accountEnableds::bool[], @departmentNames::text[], @employeeNumbers::int[])
+     AS t(entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number)
+ON CONFLICT (entra_object_id) DO UPDATE SET
+    user_principal_name = EXCLUDED.user_principal_name,
+    mail = EXCLUDED.mail,
+    display_name = EXCLUDED.display_name,
+    account_enabled = EXCLUDED.account_enabled,
+    department_name = EXCLUDED.department_name,
+    employee_number = EXCLUDED.employee_number,
+    last_synced_at = NOW()
+RETURNING id, entra_object_id;";
+
+        var result = new Dictionary<Guid, long>(count);
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.Add("entraObjectIds", NpgsqlDbType.Array | NpgsqlDbType.Uuid).Value = entraObjectIds;
+        cmd.Parameters.Add("upns", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = upns;
+        cmd.Parameters.Add("mails", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = mails;
+        cmd.Parameters.Add("displayNames", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = displayNames;
+        cmd.Parameters.Add("accountEnableds", NpgsqlDbType.Array | NpgsqlDbType.Boolean).Value = accountEnableds;
+        cmd.Parameters.Add("departmentNames", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = departmentNames;
+        cmd.Parameters.Add("employeeNumbers", NpgsqlDbType.Array | NpgsqlDbType.Integer).Value = employeeNumbers;
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var id = reader.GetInt64(0);
+            var entraId = reader.GetGuid(1);
+            result[entraId] = id;
+        }
+        return result;
+    }
+
+    private static async Task InsertGroupMembershipsBatch(
+        NpgsqlConnection connection,
+        int directoryGroupId,
+        long[] directoryIdentityIds,
+        CancellationToken cancellationToken)
+    {
+        if (directoryIdentityIds.Length == 0)
+        {
+            return;
+        }
+
+        const string sql = @"
+INSERT INTO directory_group_members (directory_group_id, directory_identity_id, synced_at)
+SELECT @directoryGroupId, t.identity_id, NOW()
+FROM unnest(@identityIds::bigint[]) AS t(identity_id)
+ON CONFLICT DO NOTHING;";
+
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("directoryGroupId", directoryGroupId);
+        cmd.Parameters.Add("identityIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = directoryIdentityIds;
         await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 
