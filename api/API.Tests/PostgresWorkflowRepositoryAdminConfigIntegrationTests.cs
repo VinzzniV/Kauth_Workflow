@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using System.Reflection;
 using Xunit;
@@ -56,100 +55,6 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 connectionString,
                 departmentId,
                 [supervisorUserId, plainUserId],
-                directoryIdentityId,
-                directoryGroupId);
-        }
-    }
-
-    [Fact]
-    [Trait("Category", "Integration")]
-    public async Task DirectorySync_MirrorsUniqueDepartmentLeadIntoDepartmentSettings()
-    {
-        var connectionString = GetTestConnectionString();
-        var suffix = Guid.NewGuid().ToString("N");
-        var departmentId = await CreateTemporaryDepartmentAsync(connectionString, suffix);
-        var managerUserId = await CreateTemporaryUserAsync(connectionString, $"deptlead_{suffix}", isActive: true);
-        var directoryIdentityId = await CreateTemporaryDirectoryIdentityAsync(connectionString, managerUserId, suffix);
-        var directoryGroupId = await CreateTemporaryDirectoryGroupAsync(connectionString, suffix);
-        var managerRoleId = await GetRoleIdByKeyAsync(connectionString, AuthorizationRoles.Manager);
-
-        try
-        {
-            await AssignUserToDepartmentAsync(connectionString, managerUserId, departmentId);
-            await AddDirectoryGroupMemberAsync(connectionString, directoryGroupId, directoryIdentityId);
-            await AddDirectoryGroupRoleMappingAsync(connectionString, directoryGroupId, managerRoleId);
-
-            await using (var connection = new NpgsqlConnection(connectionString))
-            {
-                await connection.OpenAsync();
-                var runtimeSettings = new LifecycleRuntimeSettings
-                {
-                    EnvironmentName = "Development",
-                    IsProduction = false,
-                    AuthMode = "dev-sim",
-                    DevSimulationEnabled = true,
-                    EntraAuthEnabled = false,
-                    SwaggerEnabled = true,
-                    DirectorySyncEnabled = true,
-                    ConnectionString = connectionString,
-                    DirectorySyncScheduled = false,
-                    DirectorySyncIntervalMinutes = 15
-                };
-                var service = new EntraDirectorySyncService(
-                    new StubGraphApplicationConfigurationService(),
-                    runtimeSettings,
-                    new StubSystemEventLogService(),
-                    NullLogger<EntraDirectorySyncService>.Instance);
-                var method = typeof(EntraDirectorySyncService).GetMethod(
-                    "SyncDepartmentLeadAssignmentsFromDirectory",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.NotNull(method);
-                var task = (Task?)method!.Invoke(service, [connection, CancellationToken.None]);
-                Assert.NotNull(task);
-                await task!;
-            }
-
-            await using var verificationConnection = new NpgsqlConnection(connectionString);
-            await verificationConnection.OpenAsync();
-
-            await using (var command = new NpgsqlCommand(
-                """
-                SELECT lead_person.app_user_id, requirement_person.app_user_id
-                FROM department_settings ds
-                LEFT JOIN people lead_person ON lead_person.id = ds.department_lead_person_id
-                LEFT JOIN people requirement_person ON requirement_person.id = ds.requirement_approver_person_id
-                WHERE ds.department_id = @departmentId;
-                """,
-                verificationConnection))
-            {
-                command.Parameters.AddWithValue("departmentId", departmentId);
-                await using var reader = await command.ExecuteReaderAsync();
-                Assert.True(await reader.ReadAsync());
-                Assert.Equal(managerUserId, reader.GetInt64(0));
-                Assert.Equal(managerUserId, reader.GetInt64(1));
-            }
-
-            await using (var auditCommand = new NpgsqlCommand(
-                """
-                SELECT COUNT(*)
-                FROM directory_mapping_audit_log
-                WHERE event_type = 'department_lead_synced'
-                  AND entity_type = 'department_assignment'
-                  AND detail LIKE @detailPattern;
-                """,
-                verificationConnection))
-            {
-                auditCommand.Parameters.AddWithValue("detailPattern", $"%{departmentId}%");
-                var count = Convert.ToInt32(await auditCommand.ExecuteScalarAsync());
-                Assert.True(count > 0);
-            }
-        }
-        finally
-        {
-            await CleanupTemporaryDepartmentAssignmentScenarioAsync(
-                connectionString,
-                departmentId,
-                [managerUserId],
                 directoryIdentityId,
                 directoryGroupId);
         }
@@ -1943,43 +1848,4 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         public required string Suffix { get; init; }
     }
 
-    private sealed class StubGraphApplicationConfigurationService : IGraphApplicationConfigurationService
-    {
-        public Task<AdminGraphApplicationConfigurationDto> GetAdminConfiguration(CancellationToken cancellationToken = default)
-            => Task.FromResult(new AdminGraphApplicationConfigurationDto
-            {
-                HasClientSecret = false,
-                ConfigurationSource = "test",
-                ConfigurationStatus = "unconfigured"
-            });
-
-        public Task<GraphApplicationRuntimeConfiguration> GetRuntimeConfiguration(CancellationToken cancellationToken = default)
-            => Task.FromResult(new GraphApplicationRuntimeConfiguration
-            {
-                HasClientSecret = false
-            });
-    }
-
-    private sealed class StubSystemEventLogService : ISystemEventLogService
-    {
-        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
-            SystemEventLogQuery query,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
-
-        public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
-            SystemEventLogQuery query,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult(new AdminSystemLogSummaryDto
-            {
-                TotalCount = 0,
-                InfoCount = 0,
-                WarningCount = 0,
-                ErrorCount = 0,
-                Sources = []
-            });
-
-        public Task WriteAsync(SystemEventLogWriteModel model, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-    }
 }

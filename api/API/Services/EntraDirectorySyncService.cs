@@ -111,221 +111,23 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var groupsSynced = 0;
-        var identitiesSynced = 0;
-        var membershipsSynced = 0;
-        string? errorMessage = null;
-        var status = "success";
+        var state = new SyncRunState();
         try
         {
-            await EnsureDirectoryProjectionUserColumnsAsync(connection, cancellationToken);
-
-            var groups = await LoadSecurityGroupsAsync(graphClient, cancellationToken);
-            var matchedGroups = groups
-                .Where(group => ShouldSyncGroup(group.Id, group.DisplayName, effectiveGroupPrefix, explicitGroupIds))
-                .ToList();
-
-            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-            {
-                Severity = "info",
-                Source = "entra",
-                Category = "sync",
-                EventKey = "entra_groups_selected",
-                Message = $"Entra sync selected {matchedGroups.Count} security groups for import.",
-                Details = new
-                {
-                    selectionMode = string.IsNullOrWhiteSpace(effectiveGroupPrefix) ? "all_security_groups" : "prefix_or_explicit_ids",
-                    appliedGroupPrefix = effectiveGroupPrefix,
-                    explicitGroupIds = explicitGroupIds.Select(id => id.ToString()).ToArray(),
-                    selectedGroupCount = matchedGroups.Count,
-                    selectedGroups = matchedGroups
-                        .Take(12)
-                        .Select(group => new
-                        {
-                            groupId = group.Id,
-                            displayName = group.DisplayName,
-                            description = group.Description
-                        })
-                        .ToArray()
-                }
-            }, cancellationToken);
-
-            foreach (var group in matchedGroups)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (string.IsNullOrWhiteSpace(group.Id) || !Guid.TryParse(group.Id, out var externalGroupId))
-                {
-                    continue;
-                }
-
-                var directoryGroupId = await UpsertDirectoryGroup(
-                    connection,
-                    externalGroupId,
-                    group.DisplayName ?? group.Id,
-                    group.Description,
-                    cancellationToken);
-                groupsSynced++;
-
-                try
-                {
-                    var members = await LoadGroupMembersAsync(graphClient, group.Id, cancellationToken);
-
-                    await ClearGroupMemberships(connection, directoryGroupId, cancellationToken);
-
-                    var validUsers = new List<(Guid EntraObjectId, Microsoft.Graph.Models.User User)>(members.Count);
-                    foreach (var member in members)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        if (member is not Microsoft.Graph.Models.User user
-                            || string.IsNullOrWhiteSpace(user.Id)
-                            || !Guid.TryParse(user.Id, out var userObjectId))
-                        {
-                            continue;
-                        }
-
-                        validUsers.Add((userObjectId, user));
-                    }
-
-                    if (validUsers.Count > 0)
-                    {
-                        var identityIdByEntraId = await UpsertDirectoryIdentitiesBatch(
-                            connection,
-                            validUsers,
-                            cancellationToken);
-
-                        var distinctIdentityIds = validUsers
-                            .Select(v => identityIdByEntraId[v.EntraObjectId])
-                            .Distinct()
-                            .ToArray();
-
-                        await InsertGroupMembershipsBatch(
-                            connection,
-                            directoryGroupId,
-                            distinctIdentityIds,
-                            cancellationToken);
-
-                        identitiesSynced += validUsers.Count;
-                        membershipsSynced += validUsers.Count;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to sync members for group {GroupId} ({GroupName}).", group.Id, group.DisplayName);
-                    await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-                    {
-                        Severity = "warning",
-                        Source = "directory",
-                        Category = "sync",
-                        EventKey = "directory_group_member_sync_failed",
-                        Message = $"Failed to sync members for group {group.DisplayName ?? group.Id}: {ex.Message}",
-                        Details = new
-                        {
-                            groupId = group.Id,
-                            groupName = group.DisplayName,
-                            error = ex.Message
-                        }
-                    }, cancellationToken);
-                    status = "partial";
-                    errorMessage ??= $"Some group members could not be synced: {ex.Message}";
-                }
-            }
-
-            await AutoLinkIdentitiesToAppUsers(connection, cancellationToken);
-
-            var departmentSyncResult = await EnsureDirectoryDepartmentsExist(connection, cancellationToken);
-            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-            {
-                Severity = "info",
-                Source = "directory",
-                Category = "department_projection",
-                EventKey = "directory_departments_projected",
-                Message = $"Directory sync projected {departmentSyncResult.ObservedDepartmentCount} department names and created {departmentSyncResult.CreatedDepartmentCount} local departments.",
-                Details = new
-                {
-                    origin = "departments.name is created from directory_identities.department_name",
-                    departmentSyncResult.ObservedDepartmentCount,
-                    departmentSyncResult.CreatedDepartmentCount,
-                    departmentSyncResult.ObservedDepartmentNames,
-                    departmentSyncResult.CreatedDepartmentNames
-                }
-            }, cancellationToken);
-
-            var appUserProjectionResult = await UpdateExistingAppUsersFromDirectory(connection, startedAt, cancellationToken);
-            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-            {
-                Severity = "info",
-                Source = "directory",
-                Category = "user_projection",
-                EventKey = "directory_users_updated",
-                Message = $"Directory sync updated {appUserProjectionResult.TouchedUserCount} existing app users. New identities are not auto-imported — use POST /admin/directory/import.",
-                Details = new
-                {
-                    origin = "Only existing app_users are updated. New directory_identities without app_user_id require explicit admin import.",
-                    appUserProjectionResult.TouchedUserCount,
-                    appUserProjectionResult.DirectoryAssignedUserCount,
-                    appUserProjectionResult.OverrideUserCount,
-                    appUserProjectionResult.UnassignedUserCount,
-                    appUserProjectionResult.LinkedIdentityCount,
-                    sampleUsers = appUserProjectionResult.SampleUsers
-                }
-            }, cancellationToken);
-            if (_runtimeSettings.DevSimulationEnabled)
-            {
-                await EnsureDevelopmentDefaultGroupMappings(connection, cancellationToken);
-            }
-            var activationChanges = await UpdateDirectoryUserActivationStates(connection, cancellationToken);
-            foreach (var change in activationChanges)
-            {
-                await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-                {
-                    Severity = change.IsNowActive ? "info" : "warning",
-                    Source = "directory",
-                    Category = "user_activation",
-                    EventKey = change.IsNowActive ? "directory_user_reactivated" : "directory_user_deactivated",
-                    Message = change.IsNowActive
-                        ? $"Benutzer {change.DisplayName} wurde durch den Verzeichnis-Sync reaktiviert."
-                        : $"Benutzer {change.DisplayName} wurde durch den Verzeichnis-Sync deaktiviert (kein Entra-Zugriff mehr).",
-                    EntityType = "app_user",
-                    EntityId = change.UserId.ToString(),
-                    Details = new
-                    {
-                        change.UserId,
-                        change.DisplayName,
-                        change.Email,
-                        change.WasActive,
-                        change.IsNowActive,
-                        reason = change.IsNowActive
-                            ? "User regained access via Entra group membership or permission override"
-                            : "User lost all Entra group memberships granting app.access, or account was disabled in Entra"
-                    }
-                }, cancellationToken);
-            }
-
-            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-            {
-                Severity = "info",
-                Source = "directory",
-                Category = "department_lead",
-                EventKey = "directory_department_assignments_skipped",
-                Message = "Directory sync skipped automatic department lead assignment. Responsibilities are now managed manually by admins.",
-                Details = new
-                {
-                    reason = "Automatic department lead resolution from Entra group memberships was disabled. Assignments in department_settings are no longer modified by the sync cycle."
-                }
-            }, cancellationToken);
+            await RunGroupSyncAsync(connection, graphClient, effectiveGroupPrefix, explicitGroupIds, state, cancellationToken);
+            await RunDirectoryProjectionAsync(connection, startedAt, cancellationToken);
+            await RunActivationAsync(connection, cancellationToken);
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
-            status = "failed";
-            errorMessage = "Directory tables are missing. Apply migrations db/35_directory_tables.sql and db/38_permission_model.sql first.";
+            state.Status = "failed";
+            state.ErrorMessage = "Directory tables are missing. Apply migrations db/35_directory_tables.sql and db/38_permission_model.sql first.";
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Directory sync failed.");
-            status = "failed";
-            errorMessage = ex.Message;
+            state.Status = "failed";
+            state.ErrorMessage = ex.Message;
             await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
             {
                 Severity = "error",
@@ -342,11 +144,11 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             await LogSyncRun(
                 connection,
                 "full",
-                status,
-                groupsSynced,
-                identitiesSynced,
-                membershipsSynced,
-                errorMessage,
+                state.Status,
+                state.GroupsSynced,
+                state.IdentitiesSynced,
+                state.MembershipsSynced,
+                state.ErrorMessage,
                 startedAt,
                 cancellationToken);
         }
@@ -357,39 +159,268 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 
         await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
         {
-            Severity = string.Equals(status, "failed", StringComparison.OrdinalIgnoreCase)
+            Severity = string.Equals(state.Status, "failed", StringComparison.OrdinalIgnoreCase)
                 ? "error"
-                : string.Equals(status, "partial", StringComparison.OrdinalIgnoreCase)
+                : string.Equals(state.Status, "partial", StringComparison.OrdinalIgnoreCase)
                     ? "warning"
                     : "info",
             Source = "directory",
             Category = "sync",
-            EventKey = string.Equals(status, "success", StringComparison.OrdinalIgnoreCase)
+            EventKey = string.Equals(state.Status, "success", StringComparison.OrdinalIgnoreCase)
                 ? "directory_sync_succeeded"
-                : string.Equals(status, "partial", StringComparison.OrdinalIgnoreCase)
+                : string.Equals(state.Status, "partial", StringComparison.OrdinalIgnoreCase)
                     ? "directory_sync_partial"
                     : "directory_sync_failed",
-            Message = $"Directory sync finished with status {status}.",
+            Message = $"Directory sync finished with status {state.Status}.",
             Details = new
             {
-                status,
-                groupsSynced,
-                identitiesSynced,
-                membershipsSynced,
-                errorMessage,
+                status = state.Status,
+                groupsSynced = state.GroupsSynced,
+                identitiesSynced = state.IdentitiesSynced,
+                membershipsSynced = state.MembershipsSynced,
+                errorMessage = state.ErrorMessage,
                 appliedGroupPrefix = effectiveGroupPrefix
             }
         }, cancellationToken);
 
         return new DirectorySyncResult
         {
-            Status = status,
-            GroupsSynced = groupsSynced,
-            IdentitiesSynced = identitiesSynced,
-            MembershipsSynced = membershipsSynced,
-            ErrorMessage = errorMessage,
+            Status = state.Status,
+            GroupsSynced = state.GroupsSynced,
+            IdentitiesSynced = state.IdentitiesSynced,
+            MembershipsSynced = state.MembershipsSynced,
+            ErrorMessage = state.ErrorMessage,
             AppliedGroupPrefix = effectiveGroupPrefix
         };
+    }
+
+    private async Task RunGroupSyncAsync(
+        NpgsqlConnection connection,
+        GraphServiceClient graphClient,
+        string? effectiveGroupPrefix,
+        IReadOnlySet<Guid> explicitGroupIds,
+        SyncRunState state,
+        CancellationToken cancellationToken)
+    {
+        await EnsureDirectoryProjectionUserColumnsAsync(connection, cancellationToken);
+
+        var groups = await LoadSecurityGroupsAsync(graphClient, cancellationToken);
+        var matchedGroups = groups
+            .Where(group => ShouldSyncGroup(group.Id, group.DisplayName, effectiveGroupPrefix, explicitGroupIds))
+            .ToList();
+
+        await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+        {
+            Severity = "info",
+            Source = "entra",
+            Category = "sync",
+            EventKey = "entra_groups_selected",
+            Message = $"Entra sync selected {matchedGroups.Count} security groups for import.",
+            Details = new
+            {
+                selectionMode = string.IsNullOrWhiteSpace(effectiveGroupPrefix) ? "all_security_groups" : "prefix_or_explicit_ids",
+                appliedGroupPrefix = effectiveGroupPrefix,
+                explicitGroupIds = explicitGroupIds.Select(id => id.ToString()).ToArray(),
+                selectedGroupCount = matchedGroups.Count,
+                selectedGroups = matchedGroups
+                    .Take(12)
+                    .Select(group => new
+                    {
+                        groupId = group.Id,
+                        displayName = group.DisplayName,
+                        description = group.Description
+                    })
+                    .ToArray()
+            }
+        }, cancellationToken);
+
+        foreach (var group in matchedGroups)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(group.Id) || !Guid.TryParse(group.Id, out var externalGroupId))
+            {
+                continue;
+            }
+
+            var directoryGroupId = await UpsertDirectoryGroup(
+                connection,
+                externalGroupId,
+                group.DisplayName ?? group.Id,
+                group.Description,
+                cancellationToken);
+            state.GroupsSynced++;
+
+            try
+            {
+                var members = await LoadGroupMembersAsync(graphClient, group.Id, cancellationToken);
+
+                await ClearGroupMemberships(connection, directoryGroupId, cancellationToken);
+
+                var validUsers = new List<(Guid EntraObjectId, Microsoft.Graph.Models.User User)>(members.Count);
+                foreach (var member in members)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (member is not Microsoft.Graph.Models.User user
+                        || string.IsNullOrWhiteSpace(user.Id)
+                        || !Guid.TryParse(user.Id, out var userObjectId))
+                    {
+                        continue;
+                    }
+
+                    validUsers.Add((userObjectId, user));
+                }
+
+                if (validUsers.Count > 0)
+                {
+                    var identityIdByEntraId = await UpsertDirectoryIdentitiesBatch(
+                        connection,
+                        validUsers,
+                        cancellationToken);
+
+                    var distinctIdentityIds = validUsers
+                        .Select(v => identityIdByEntraId[v.EntraObjectId])
+                        .Distinct()
+                        .ToArray();
+
+                    await InsertGroupMembershipsBatch(
+                        connection,
+                        directoryGroupId,
+                        distinctIdentityIds,
+                        cancellationToken);
+
+                    state.IdentitiesSynced += validUsers.Count;
+                    state.MembershipsSynced += validUsers.Count;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to sync members for group {GroupId} ({GroupName}).", group.Id, group.DisplayName);
+                await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+                {
+                    Severity = "warning",
+                    Source = "directory",
+                    Category = "sync",
+                    EventKey = "directory_group_member_sync_failed",
+                    Message = $"Failed to sync members for group {group.DisplayName ?? group.Id}: {ex.Message}",
+                    Details = new
+                    {
+                        groupId = group.Id,
+                        groupName = group.DisplayName,
+                        error = ex.Message
+                    }
+                }, cancellationToken);
+                state.Status = "partial";
+                state.ErrorMessage ??= $"Some group members could not be synced: {ex.Message}";
+            }
+        }
+    }
+
+    private async Task RunDirectoryProjectionAsync(
+        NpgsqlConnection connection,
+        DateTime startedAt,
+        CancellationToken cancellationToken)
+    {
+        await AutoLinkIdentitiesToAppUsers(connection, cancellationToken);
+
+        var departmentSyncResult = await EnsureDirectoryDepartmentsExist(connection, cancellationToken);
+        await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+        {
+            Severity = "info",
+            Source = "directory",
+            Category = "department_projection",
+            EventKey = "directory_departments_projected",
+            Message = $"Directory sync projected {departmentSyncResult.ObservedDepartmentCount} department names and created {departmentSyncResult.CreatedDepartmentCount} local departments.",
+            Details = new
+            {
+                origin = "departments.name is created from directory_identities.department_name",
+                departmentSyncResult.ObservedDepartmentCount,
+                departmentSyncResult.CreatedDepartmentCount,
+                departmentSyncResult.ObservedDepartmentNames,
+                departmentSyncResult.CreatedDepartmentNames
+            }
+        }, cancellationToken);
+
+        var appUserProjectionResult = await UpdateExistingAppUsersFromDirectory(connection, startedAt, cancellationToken);
+        await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+        {
+            Severity = "info",
+            Source = "directory",
+            Category = "user_projection",
+            EventKey = "directory_users_updated",
+            Message = $"Directory sync updated {appUserProjectionResult.TouchedUserCount} existing app users. New identities are not auto-imported — use POST /admin/directory/import.",
+            Details = new
+            {
+                origin = "Only existing app_users are updated. New directory_identities without app_user_id require explicit admin import.",
+                appUserProjectionResult.TouchedUserCount,
+                appUserProjectionResult.DirectoryAssignedUserCount,
+                appUserProjectionResult.OverrideUserCount,
+                appUserProjectionResult.UnassignedUserCount,
+                appUserProjectionResult.LinkedIdentityCount,
+                sampleUsers = appUserProjectionResult.SampleUsers
+            }
+        }, cancellationToken);
+
+        if (_runtimeSettings.DevSimulationEnabled)
+        {
+            await EnsureDevelopmentDefaultGroupMappings(connection, cancellationToken);
+        }
+    }
+
+    private async Task RunActivationAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        var activationChanges = await UpdateDirectoryUserActivationStates(connection, cancellationToken);
+        foreach (var change in activationChanges)
+        {
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = change.IsNowActive ? "info" : "warning",
+                Source = "directory",
+                Category = "user_activation",
+                EventKey = change.IsNowActive ? "directory_user_reactivated" : "directory_user_deactivated",
+                Message = change.IsNowActive
+                    ? $"Benutzer {change.DisplayName} wurde durch den Verzeichnis-Sync reaktiviert."
+                    : $"Benutzer {change.DisplayName} wurde durch den Verzeichnis-Sync deaktiviert (kein Entra-Zugriff mehr).",
+                EntityType = "app_user",
+                EntityId = change.UserId.ToString(),
+                Details = new
+                {
+                    change.UserId,
+                    change.DisplayName,
+                    change.Email,
+                    change.WasActive,
+                    change.IsNowActive,
+                    reason = change.IsNowActive
+                        ? "User regained access via Entra group membership or permission override"
+                        : "User lost all Entra group memberships granting app.access, or account was disabled in Entra"
+                }
+            }, cancellationToken);
+        }
+
+        await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+        {
+            Severity = "info",
+            Source = "directory",
+            Category = "department_lead",
+            EventKey = "directory_department_assignments_skipped",
+            Message = "Directory sync skipped automatic department lead assignment. Responsibilities are now managed manually by admins.",
+            Details = new
+            {
+                reason = "Automatic department lead resolution from Entra group memberships was disabled. Assignments in department_settings are no longer modified by the sync cycle."
+            }
+        }, cancellationToken);
+    }
+
+    private sealed class SyncRunState
+    {
+        public int GroupsSynced;
+        public int IdentitiesSynced;
+        public int MembershipsSynced;
+        public string Status = "success";
+        public string? ErrorMessage;
     }
 
     private static async Task<List<Group>> LoadSecurityGroupsAsync(
@@ -1387,62 +1418,6 @@ VALUES (@actorUserId, @eventType, @entityType, @detail, CAST(@oldValue AS jsonb)
         }
     }
 
-    private static async Task LogDirectoryAuditEventAsync(
-        NpgsqlConnection connection,
-        long? actorUserId,
-        string eventType,
-        string entityType,
-        string detail,
-        object? oldValue,
-        object? newValue,
-        CancellationToken cancellationToken)
-    {
-        const string sql = @"
-INSERT INTO directory_mapping_audit_log (actor_user_id, event_type, entity_type, detail, old_value, new_value, created_at)
-VALUES (@actorUserId, @eventType, @entityType, @detail, CAST(@oldValue AS jsonb), CAST(@newValue AS jsonb), NOW());";
-
-        await using var cmd = new NpgsqlCommand(sql, connection);
-        var actorParameter = cmd.Parameters.Add("actorUserId", NpgsqlDbType.Bigint);
-        actorParameter.Value = (object?)actorUserId ?? DBNull.Value;
-        cmd.Parameters.AddWithValue("eventType", eventType);
-        cmd.Parameters.AddWithValue("entityType", entityType);
-        cmd.Parameters.AddWithValue("detail", detail);
-        cmd.Parameters.AddWithValue("oldValue", (object?)SerializeJson(oldValue) ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("newValue", (object?)SerializeJson(newValue) ?? DBNull.Value);
-        try
-        {
-            await cmd.ExecuteNonQueryAsync(cancellationToken);
-        }
-        catch (PostgresException ex) when (ex.SqlState == "42P01")
-        {
-            // Audit migration not applied yet.
-        }
-    }
-
-    private static DepartmentLeadAuditSnapshot CreateDepartmentLeadAuditSnapshot(
-        DepartmentLeadSyncState state,
-        long? resolvedPersonId = null,
-        string? resolvedDisplayName = null,
-        string? syncState = null,
-        IReadOnlyList<string>? candidateNames = null)
-    {
-        return new DepartmentLeadAuditSnapshot
-        {
-            DepartmentId = state.DepartmentId,
-            DepartmentName = state.DepartmentName,
-            DepartmentLeadPersonId = resolvedPersonId ?? state.CurrentDepartmentLeadPersonId,
-            RequirementApproverPersonId = resolvedPersonId ?? state.CurrentRequirementApproverPersonId,
-            ResolvedDisplayName = resolvedDisplayName,
-            SyncState = syncState ?? (state.Candidates.Count switch
-            {
-                0 => "missing",
-                1 => "resolved",
-                _ => "conflict"
-            }),
-            CandidateNames = candidateNames ?? state.Candidates.Select(candidate => candidate.DisplayName).ToArray()
-        };
-    }
-
     private static async Task<int> UpsertDirectoryGroup(
         NpgsqlConnection connection,
         Guid externalId,
@@ -1466,37 +1441,6 @@ RETURNING id;";
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken));
     }
 
-    private static async Task<long> UpsertDirectoryIdentity(
-        NpgsqlConnection connection,
-        Guid entraObjectId,
-        Microsoft.Graph.Models.User user,
-        CancellationToken cancellationToken)
-    {
-        const string sql = @"
-INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number, last_synced_at)
-VALUES (@entraObjectId, @userPrincipalName, @mail, @displayName, @accountEnabled, @departmentName, @employeeNumber, NOW())
-ON CONFLICT (entra_object_id) DO UPDATE SET
-    user_principal_name = EXCLUDED.user_principal_name,
-    mail = EXCLUDED.mail,
-    display_name = EXCLUDED.display_name,
-    account_enabled = EXCLUDED.account_enabled,
-    department_name = EXCLUDED.department_name,
-    employee_number = EXCLUDED.employee_number,
-    last_synced_at = NOW()
-RETURNING id;";
-
-        await using var cmd = new NpgsqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("entraObjectId", entraObjectId);
-        cmd.Parameters.AddWithValue("userPrincipalName", user.UserPrincipalName ?? user.Id ?? entraObjectId.ToString());
-        cmd.Parameters.AddWithValue("mail", (object?)user.Mail ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("displayName", user.DisplayName ?? user.UserPrincipalName ?? entraObjectId.ToString());
-        cmd.Parameters.AddWithValue("accountEnabled", user.AccountEnabled ?? true);
-        cmd.Parameters.AddWithValue("departmentName", (object?)Normalize(user.Department) ?? DBNull.Value);
-        cmd.Parameters.Add("employeeNumber", NpgsqlDbType.Integer).Value =
-            (object?)ParseDirectoryEmployeeNumber(user.EmployeeId) ?? DBNull.Value;
-        return Convert.ToInt64(await cmd.ExecuteScalarAsync(cancellationToken));
-    }
-
     private static async Task ClearGroupMemberships(
         NpgsqlConnection connection,
         int directoryGroupId,
@@ -1505,23 +1449,6 @@ RETURNING id;";
         const string sql = "DELETE FROM directory_group_members WHERE directory_group_id = @directoryGroupId;";
         await using var cmd = new NpgsqlCommand(sql, connection);
         cmd.Parameters.AddWithValue("directoryGroupId", directoryGroupId);
-        await cmd.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private static async Task InsertGroupMembership(
-        NpgsqlConnection connection,
-        int directoryGroupId,
-        long directoryIdentityId,
-        CancellationToken cancellationToken)
-    {
-        const string sql = @"
-INSERT INTO directory_group_members (directory_group_id, directory_identity_id, synced_at)
-VALUES (@directoryGroupId, @directoryIdentityId, NOW())
-ON CONFLICT DO NOTHING;";
-
-        await using var cmd = new NpgsqlCommand(sql, connection);
-        cmd.Parameters.AddWithValue("directoryGroupId", directoryGroupId);
-        cmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
         await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -2096,391 +2023,6 @@ WHERE b.is_active IS DISTINCT FROM updated.new_is_active;";
         return changes;
     }
 
-    private async Task<DepartmentLeadSyncSummary> SyncDepartmentLeadAssignmentsFromDirectory(
-        NpgsqlConnection connection,
-        CancellationToken cancellationToken)
-    {
-        var states = await LoadDepartmentLeadSyncStatesAsync(connection, cancellationToken);
-        var resolvedDepartments = new List<string>();
-        var missingDepartments = new List<string>();
-        var conflictDepartments = new List<string>();
-
-        foreach (var state in states)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (state.Candidates.Count == 1)
-            {
-                var candidate = state.Candidates[0];
-                var personId = await EnsureDirectoryManagedPersonRecordAsync(connection, candidate.AppUserId, cancellationToken);
-                var alreadyResolved = state.CurrentDepartmentLeadPersonId == personId
-                    && state.CurrentRequirementApproverPersonId == personId;
-
-                if (alreadyResolved)
-                {
-                    continue;
-                }
-
-                resolvedDepartments.Add($"{state.DepartmentName}: {candidate.DisplayName}");
-                await UpsertDepartmentLeadAssignmentAsync(connection, state.DepartmentId, personId, cancellationToken);
-                await LogDirectoryAuditEventAsync(
-                    connection,
-                    actorUserId: null,
-                    eventType: "department_lead_synced",
-                    entityType: "department_assignment",
-                    detail: $"Abteilung {state.DepartmentName} ({state.DepartmentId}) wurde aus Entra auf {candidate.DisplayName} synchronisiert.",
-                    oldValue: CreateDepartmentLeadAuditSnapshot(state),
-                    newValue: CreateDepartmentLeadAuditSnapshot(state, personId, candidate.DisplayName, "resolved"),
-                    cancellationToken);
-                await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-                {
-                    Severity = "info",
-                    Source = "directory",
-                    Category = "department_lead",
-                    EventKey = "department_lead_synced",
-                    Message = $"Department lead resolved for {state.DepartmentName}: {candidate.DisplayName}.",
-                    EntityType = "department",
-                    EntityId = state.DepartmentId.ToString(),
-                    Details = new
-                    {
-                        state.DepartmentId,
-                        state.DepartmentName,
-                        candidate.AppUserId,
-                        candidate.DisplayName,
-                        origin = "Resolved from active directory-synced app user in the same department with auth_manager assigned via directory group mappings",
-                        currentAssignmentSource = "department_settings.department_lead_person_id and requirement_approver_person_id"
-                    }
-                }, cancellationToken);
-                continue;
-            }
-
-            if (state.Candidates.Count == 0)
-            {
-                if (state.CurrentDepartmentLeadPersonId.HasValue || state.CurrentRequirementApproverPersonId.HasValue)
-                {
-                    missingDepartments.Add(state.DepartmentName);
-                    await ClearDepartmentLeadAssignmentAsync(connection, state.DepartmentId, cancellationToken);
-                    await LogDirectoryAuditEventAsync(
-                        connection,
-                        actorUserId: null,
-                        eventType: "department_lead_cleared",
-                        entityType: "department_assignment",
-                        detail: $"Abteilung {state.DepartmentName} ({state.DepartmentId}) hat keine eindeutige Entra-Abteilungsleitung mehr.",
-                        oldValue: CreateDepartmentLeadAuditSnapshot(state),
-                        newValue: CreateDepartmentLeadAuditSnapshot(state, null, null, "missing"),
-                        cancellationToken);
-                    await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-                    {
-                        Severity = "warning",
-                        Source = "directory",
-                        Category = "department_lead",
-                        EventKey = "department_lead_missing",
-                        Message = $"Department lead missing for {state.DepartmentName}.",
-                        EntityType = "department",
-                        EntityId = state.DepartmentId.ToString(),
-                        Details = new
-                        {
-                            state.DepartmentId,
-                            state.DepartmentName,
-                            origin = "No active directory-synced app user in this department currently resolves to auth_manager via directory group mappings"
-                        }
-                    }, cancellationToken);
-                }
-
-                continue;
-            }
-
-            conflictDepartments.Add($"{state.DepartmentName}: {string.Join(", ", state.Candidates.Select(candidate => candidate.DisplayName))}");
-            if (state.CurrentDepartmentLeadPersonId.HasValue || state.CurrentRequirementApproverPersonId.HasValue)
-            {
-                await ClearDepartmentLeadAssignmentAsync(connection, state.DepartmentId, cancellationToken);
-            }
-
-            await LogDirectoryAuditEventAsync(
-                connection,
-                actorUserId: null,
-                eventType: "department_lead_conflict",
-                entityType: "department_assignment",
-                detail: $"Abteilung {state.DepartmentName} ({state.DepartmentId}) hat mehrere Entra-Abteilungsleitungen: {string.Join(", ", state.Candidates.Select(candidate => candidate.DisplayName))}.",
-                oldValue: CreateDepartmentLeadAuditSnapshot(state),
-                newValue: CreateDepartmentLeadAuditSnapshot(
-                    state,
-                    null,
-                    null,
-                    "conflict",
-                    state.Candidates.Select(candidate => candidate.DisplayName).ToArray()),
-                cancellationToken);
-            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-            {
-                Severity = "warning",
-                Source = "directory",
-                Category = "department_lead",
-                EventKey = "department_lead_conflict",
-                Message = $"Department lead conflict for {state.DepartmentName}.",
-                EntityType = "department",
-                EntityId = state.DepartmentId.ToString(),
-                Details = new
-                {
-                    state.DepartmentId,
-                    state.DepartmentName,
-                    origin = "Multiple active directory-synced app users in the same department resolve to auth_manager via directory group mappings",
-                    candidateNames = state.Candidates.Select(candidate => candidate.DisplayName).ToArray()
-                }
-            }, cancellationToken);
-        }
-
-        return new DepartmentLeadSyncSummary(
-            states.Count,
-            resolvedDepartments.Count,
-            missingDepartments.Count,
-            conflictDepartments.Count,
-            resolvedDepartments,
-            missingDepartments,
-            conflictDepartments);
-    }
-
-    private static async Task<List<DepartmentLeadSyncState>> LoadDepartmentLeadSyncStatesAsync(
-        NpgsqlConnection connection,
-        CancellationToken cancellationToken)
-    {
-        const string sql = @"
-SELECT
-    d.id,
-    d.name,
-    ds.department_lead_person_id,
-    ds.requirement_approver_person_id,
-    candidate.app_user_id,
-    candidate.display_name
-FROM departments d
-LEFT JOIN department_settings ds ON ds.department_id = d.id
-LEFT JOIN (
-    SELECT DISTINCT
-        u.department_id,
-        u.id AS app_user_id,
-        u.display_name
-    FROM app_users u
-    JOIN directory_identities di ON di.app_user_id = u.id
-    JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
-    JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
-    JOIN app_roles ar ON ar.id = dgrm.app_role_id
-    WHERE u.directory_synced = TRUE
-      AND u.is_active = TRUE
-      AND di.account_enabled = TRUE
-      AND u.department_override_active = FALSE
-      AND u.department_id IS NOT NULL
-      AND dgrm.is_active = TRUE
-      AND ar.role_key = 'auth_manager'
-      AND ar.role_kind = 'system'
-) candidate ON candidate.department_id = d.id
-ORDER BY d.id, candidate.display_name, candidate.app_user_id;";
-
-        await using var command = new NpgsqlCommand(sql, connection);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-
-        var states = new List<DepartmentLeadSyncState>();
-        DepartmentLeadSyncState? current = null;
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            var departmentId = reader.GetInt32(0);
-            if (current is null || current.DepartmentId != departmentId)
-            {
-                current = new DepartmentLeadSyncState(
-                    departmentId,
-                    reader.GetString(1),
-                    reader.IsDBNull(2) ? null : reader.GetInt64(2),
-                    reader.IsDBNull(3) ? null : reader.GetInt64(3),
-                    []);
-                states.Add(current);
-            }
-
-            if (!reader.IsDBNull(4))
-            {
-                current.Candidates.Add(new DepartmentLeadSyncCandidate(
-                    reader.GetInt64(4),
-                    reader.GetString(5)));
-            }
-        }
-
-        return states;
-    }
-
-    private static async Task<long> EnsureDirectoryManagedPersonRecordAsync(
-        NpgsqlConnection connection,
-        long userId,
-        CancellationToken cancellationToken)
-    {
-        const string matchExistingSql = @"
-WITH latest_identity AS (
-    SELECT
-        di.id,
-        di.employee_number
-    FROM directory_identities di
-    WHERE di.app_user_id = @userId
-    ORDER BY di.last_synced_at DESC NULLS LAST, di.id DESC
-    LIMIT 1
-),
-matched AS (
-    UPDATE people p
-    SET
-        app_user_id = COALESCE(p.app_user_id, @userId),
-        directory_identity_id = COALESCE(latest_identity.id, p.directory_identity_id),
-        updated_at = NOW()
-    FROM latest_identity
-    WHERE latest_identity.employee_number IS NOT NULL
-      AND p.employee_number = latest_identity.employee_number
-      AND (
-          p.app_user_id IS NULL
-          OR p.app_user_id = @userId
-      )
-      AND (
-          p.directory_identity_id IS NULL
-          OR p.directory_identity_id = latest_identity.id
-      )
-    RETURNING p.id, latest_identity.id AS directory_identity_id, latest_identity.employee_number
-),
-audit AS (
-    INSERT INTO person_match_audit_log (
-        matched_person_id, app_user_id, directory_identity_id, employee_number,
-        match_strategy, match_score, fallback_used, source, detail
-    )
-    SELECT
-        matched.id,
-        @userId,
-        matched.directory_identity_id,
-        matched.employee_number,
-        'employee_number',
-        1.00,
-        false,
-        'directory_sync_per_user',
-        NULL
-    FROM matched
-    RETURNING 1
-)
-SELECT id FROM matched
-LIMIT 1;";
-
-        await using (var matchCommand = new NpgsqlCommand(matchExistingSql, connection))
-        {
-            matchCommand.Parameters.AddWithValue("userId", userId);
-            var matchedId = await matchCommand.ExecuteScalarAsync(cancellationToken);
-            if (matchedId is long longMatch)
-            {
-                return longMatch;
-            }
-
-            if (matchedId is int intMatch)
-            {
-                return intMatch;
-            }
-        }
-
-        const string sql = @"
-WITH inserted AS (
-    INSERT INTO people (app_user_id, department_id, directory_identity_id, updated_at)
-    SELECT
-        u.id,
-        u.department_id,
-        latest_identity.id,
-        NOW()
-    FROM app_users u
-    LEFT JOIN LATERAL (
-        SELECT di.id, di.employee_number
-        FROM directory_identities di
-        WHERE di.app_user_id = u.id
-        ORDER BY di.last_synced_at DESC NULLS LAST, di.id DESC
-        LIMIT 1
-    ) latest_identity ON TRUE
-    WHERE u.id = @userId
-    ON CONFLICT (app_user_id) DO UPDATE
-    SET
-        department_id = EXCLUDED.department_id,
-        directory_identity_id = COALESCE(EXCLUDED.directory_identity_id, people.directory_identity_id),
-        updated_at = NOW()
-    RETURNING id, app_user_id, directory_identity_id, (xmax = 0) AS was_inserted
-),
-latest_identity_for_audit AS (
-    SELECT di.id, di.employee_number
-    FROM directory_identities di
-    WHERE di.app_user_id = @userId
-    ORDER BY di.last_synced_at DESC NULLS LAST, di.id DESC
-    LIMIT 1
-),
-audit AS (
-    INSERT INTO person_match_audit_log (
-        matched_person_id, app_user_id, directory_identity_id, employee_number,
-        match_strategy, match_score, fallback_used, source, detail
-    )
-    SELECT
-        inserted.id,
-        inserted.app_user_id,
-        inserted.directory_identity_id,
-        latest_identity_for_audit.employee_number,
-        CASE WHEN inserted.was_inserted THEN 'created_new' ELSE 'app_user_upsert' END,
-        NULL,
-        true,
-        'directory_sync_per_user',
-        NULL
-    FROM inserted
-    LEFT JOIN latest_identity_for_audit ON TRUE
-    RETURNING 1
-)
-SELECT id FROM inserted;";
-
-        await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("userId", userId);
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        return result is long longId
-            ? longId
-            : result is int intId
-                ? intId
-                : throw new InvalidOperationException($"Person record for app user {userId} could not be synchronized.");
-    }
-
-    private static async Task UpsertDepartmentLeadAssignmentAsync(
-        NpgsqlConnection connection,
-        int departmentId,
-        long personId,
-        CancellationToken cancellationToken)
-    {
-        const string sql = @"
-INSERT INTO department_settings (
-    department_id,
-    department_lead_person_id,
-    requirement_approver_person_id,
-    updated_at
-)
-VALUES (
-    @departmentId,
-    @personId,
-    @personId,
-    NOW()
-)
-ON CONFLICT (department_id) DO UPDATE
-SET
-    department_lead_person_id = EXCLUDED.department_lead_person_id,
-    requirement_approver_person_id = EXCLUDED.requirement_approver_person_id,
-    updated_at = NOW();";
-
-        await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("departmentId", departmentId);
-        command.Parameters.AddWithValue("personId", personId);
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    private static async Task ClearDepartmentLeadAssignmentAsync(
-        NpgsqlConnection connection,
-        int departmentId,
-        CancellationToken cancellationToken)
-    {
-        const string sql = @"
-DELETE FROM department_settings
-WHERE department_id = @departmentId;";
-
-        await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("departmentId", departmentId);
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
     private static async Task EnsureDevelopmentDefaultGroupMappings(
         NpgsqlConnection connection,
         CancellationToken cancellationToken)
@@ -2529,8 +2071,6 @@ DO UPDATE SET is_active = TRUE;";
             : null;
     }
 
-    private sealed record DepartmentLeadSyncCandidate(long AppUserId, string DisplayName);
-
     private sealed record DirectoryDepartmentSyncResult(
         int ObservedDepartmentCount,
         IReadOnlyList<string> ObservedDepartmentNames,
@@ -2554,33 +2094,6 @@ DO UPDATE SET is_active = TRUE;";
         int UnassignedUserCount,
         int LinkedIdentityCount,
         IReadOnlyList<DirectoryUserProjectionSample> SampleUsers);
-
-    private sealed record DepartmentLeadSyncSummary(
-        int TotalDepartments,
-        int ResolvedCount,
-        int MissingCount,
-        int ConflictCount,
-        IReadOnlyList<string> ResolvedDepartments,
-        IReadOnlyList<string> MissingDepartments,
-        IReadOnlyList<string> ConflictDepartments);
-
-    private sealed record DepartmentLeadSyncState(
-        int DepartmentId,
-        string DepartmentName,
-        long? CurrentDepartmentLeadPersonId,
-        long? CurrentRequirementApproverPersonId,
-        List<DepartmentLeadSyncCandidate> Candidates);
-
-    private sealed class DepartmentLeadAuditSnapshot
-    {
-        public required int DepartmentId { get; init; }
-        public required string DepartmentName { get; init; }
-        public long? DepartmentLeadPersonId { get; init; }
-        public long? RequirementApproverPersonId { get; init; }
-        public string? ResolvedDisplayName { get; init; }
-        public required string SyncState { get; init; }
-        public IReadOnlyList<string> CandidateNames { get; init; } = [];
-    }
 
     private sealed record DirectoryUserActivationChange(
         long UserId,
