@@ -42,7 +42,11 @@ Zusaetzlich immer mitlesen:
 
 ---
 
-## Aktiver Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
+## Abgeschlossener Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
+
+Z8 ist geschlossen. Alle priorisierten Hotspots sind entweder gepushed (#1/#2/#3/#4/#7), als false positive verifiziert (#5) oder bewusst deferred (#8). Z8-4 Coverage abgeschlossen; Coverage fuer EntraDirectorySync-Batch-Helfer in LQ2-Z3 verschoben.
+
+
 
 Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWorkflow/Stand/Code-Review-Status.md`.
 
@@ -55,9 +59,9 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 | Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync` Group-Member-Schleifen auf Batch-Upsert/-Insert | HIGH | medium | sonnet | done (2026-05-05) — Bulk-Upsert via `unnest`+RETURNING und Bulk-Insert fuer Memberships statt pro-Member Round-Trips |
 | Z8-3.1 | Hotspot #5 Verifikation + Hotspot #7 Recipient-Bulk-Lookup | HIGH | medium | sonnet | done (2026-05-05) — #5 false positive (CPU-/Policy-Pfad), #7 nutzt jetzt `LoadActiveUserNotificationRecipientsBulk` einmalig (auch im Create-Pfad mitgezogen) |
 | Z8-3.2 | Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` | MEDIUM | medium | sonnet | deferred (2026-05-05) — kein kleiner SQL-/Batch-Hebel ohne breiten Umbau; admin-getriggert. Z8-3 damit geschlossen. Detail: `CODE_REVIEW.md` § Z8-3.2 |
-| Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | in Arbeit — Z8-4.1 done (2026-05-05): Integration-Tests fuer `LoadActiveUserNotificationRecipientsBulk`. EntraDirectorySync-Batch-Helfer als nicht-sauber-isoliert-testbar offen benannt (gehoert zu LQ2-Z3-Split). |
+| Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | done (2026-05-05) — Z8-4.1 Bulk-Recipient-Helper; Z8-2.1/Z8-2.2-Coverage liegt in den Umsetzungs-Slices; EntraDirectorySync-Batch-Helfer-Coverage in LQ2-Z3 verschoben |
 
-**Naechster Schritt:** Z8 abschliessen — entscheiden, ob weitere Coverage (z. B. RotationNotification-Sweep-Batching, EntraDirectorySync ueber LQ2-Z3-Split) noch in Z8 oder erst nach Split-Slice angegangen wird. Reasoning: medium. Modell: sonnet.
+**Naechster Schritt:** neuen Review-Zyklus eroeffnen, sobald ein klarer Hebel feststeht (Kandidaten: LQ2-Z3-Split mit Z8-2.3-Coverage-Mitnahme, #6 Pagination falls Last-Trigger, oder neue Befunde aus laufender Arbeit). Bis dahin keine offene Z-ID.
 
 ---
 
@@ -68,7 +72,7 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 | R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | L7 | offen — Nutzer-Aufgabe |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | L7-Backlog | backlog — kein konkreter Bedarf |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | Zyklus 1 | deferred — wartet auf Produkt-Entscheidung |
-| LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split | Zyklus 3 | deferred — kein Trigger |
+| LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` (aus Z8-4 verschoben) | Zyklus 3 / Z8 | deferred — kein Trigger |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | Zyklus 8 | deferred — admin-getriggert, kein kleiner SQL-Hebel |
 
 ---
@@ -76,6 +80,7 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 ## Abgeschlossene Zyklen
 
 - Zyklus 7 ist abgeschlossen. Kurzfassung in `CODE_REVIEW.md`, Detail in `CODE_REVIEW_ARCHIVE.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
+- Zyklus 8 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 8".
 
 ---
 

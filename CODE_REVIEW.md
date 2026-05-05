@@ -35,7 +35,7 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 
 ---
 
-**Stand**: 2026-05-05 — nach Abschluss von Zyklus 7. Zyklus 8 aktiv.
+**Stand**: 2026-05-05 — nach Abschluss von Zyklus 7 und Zyklus 8.
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 eroeffnet).
 
 ---
@@ -56,7 +56,16 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 
 ---
 
-## Aktiver Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
+## Abgeschlossener Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
+
+**Status:** geschlossen 2026-05-05. Alle priorisierten Hotspots abgearbeitet (#1, #2/#3, #4, #5 verifiziert, #7 Bulk-Lookup) oder mit Begruendung deferred (#8). Coverage-Pflicht-Slices erledigt (Z8-2.1 FactsTest, Z8-2.2 Sweep-Batching-Test, Z8-4.1 Integration-Tests fuer den Bulk-Recipient-Helper). Bewusst deferred bleiben:
+- **#8 / Z8-3.2** — admin-getriggert, kein kleiner SQL-/Batch-Hebel ohne breiten Umbau.
+- **EntraDirectorySync-Batch-Helfer-Coverage** — `private` hinter `SyncAllAsync` im 2.4k-Zeilen-Service; saubere Test-Isolation verlangt LQ2-Z3-File-Split + Graph-Stub. Wandert nach LQ2-Z3.
+- **#6 Departments/Rollen Pagination** — bewusst nicht in Z8 angefasst (FE-Folgen ohne Last-Trigger). Wartet auf konkreten Anlass.
+
+Naechster Zyklus offen — siehe Zyklus-Historie.
+
+### Zyklus-8-Detail (Historie)
 
 **Thema:** Nach Abschluss der Lifecycle- und Validation-Hygiene aus Zyklus 7 ist Skalierbarkeit (Note **B-**) die niedrigste Gesamtbewertung und damit der naechste sinnvolle Hebel. Z2 hat den Workflow-Task-Filter SQL-pre-narrowed, aber an mehreren Stellen laufen Listen, Filter und Sweeps weiter ungebremst durch In-Memory-Pfade. Das ist keine Theorie-Schwaeche, sondern wird bei realer Last sichtbar (Workflow-Liste, MyTasks, RotationOperations, Notification-Dispatch, RotationTask-Sweep).
 
@@ -83,7 +92,7 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 | Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync`: Group-Member-Schleifen auf Batch-Upsert/-Insert umstellen | **done** (2026-05-05) — `UpsertDirectoryIdentitiesBatch` (Bulk-Upsert via `unnest` + RETURNING) und `InsertGroupMembershipsBatch` ersetzen pro-Member Round-Trips |
 | Z8-3.1 | Hotspot #5 verifizieren + Hotspot #7 Recipient-Bulk-Lookup | HIGH | **done** (2026-05-05) — #5 false positive (CPU/Policy-Pfad ohne Repo-Hits); #7 nutzt jetzt `LoadActiveUserNotificationRecipientsBulk` einmalig pro Preview/Create statt pro Recipient |
 | Z8-3.2 | Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` | **deferred** (2026-05-05) — siehe § Z8-3.2 Defer-Begruendung. Z8-3 damit geschlossen. |
-| Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — Z8-4.1 done (2026-05-05) |
+| Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | **done** (2026-05-05) — Z8-4.1 Bulk-Recipient-Helper; Z8-2.1/Z8-2.2-Coverage bereits in den Umsetzungs-Slices enthalten; EntraDirectorySync-Batch-Helfer offen benannt (LQ2-Z3) |
 
 ### Z8-4.1 Coverage `LoadActiveUserNotificationRecipientsBulk` (2026-05-05)
 
@@ -199,7 +208,7 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | offen — Nutzer-Aufgabe, KI kann nicht pruefen | L7 |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | backlog — kein konkreter Bedarf | L7 |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | deferred — wartet auf Produkt-Entscheidung | Zyklus 1 |
-| LQ2-Z3 | `EntraDirectorySyncService.cs` (2485 Z.) Split | deferred ohne Trigger — Risiko niedrig (Timer-Pfad). Refactor erst bei Anlass | Zyklus 3 |
+| LQ2-Z3 | `EntraDirectorySyncService.cs` (2485 Z.) Split — inkl. Coverage fuer `UpsertDirectoryIdentitiesBatch`/`InsertGroupMembershipsBatch` (aus Z8-4 verschoben) | deferred ohne Trigger — Risiko niedrig (Timer-Pfad). Refactor erst bei Anlass; bringt dann auch Test-Isolation fuer die Z8-2.3-Batch-Helfer | Zyklus 3 / Z8 |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein Hot-Path; kein kleiner SQL-/Batch-Hebel ohne breiten Umbau an `SynchronizeRotationGeneratedTasks` | Zyklus 8 |
 
 ---
@@ -215,4 +224,4 @@ Die Detailhistorie von Zyklus 7 liegt in:
 | 5 | 2026-05-02..03 | Legacy-Abbau (LA1–LA5): LegacyWorkflowStatus, setup-Node, definition_key, HasLegacyRolePermission, Specs am Node |
 | 6 | 2026-05-03..04 | Runtime-Lifecycle (Schritt 7): Engine-Extraktion + Lifecycle-Service mit Conn+Tx-Scope |
 | 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung + Validation-Split |
-| 8 | 2026-05-05 (aktiv) | Skalierbarkeits- & Last-Haertung |
+| 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung (Hotspots #1/#2/#3/#4/#7 gepushed; #5 verifiziert; #8 deferred; Z8-4 Coverage) |

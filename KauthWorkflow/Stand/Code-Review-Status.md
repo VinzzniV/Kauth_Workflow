@@ -47,12 +47,13 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 | 5 | 2026-05-02..03 | Legacy-Abbau: LA1 (LegacyWorkflowStatus), LA2 (setup-Node), LA3 (definition_key Filter), LA4 (HasLegacyRolePermission), LA5 (Specs am Node) |
 | 6 | 2026-05-03..04 | Runtime-Lifecycle (Schritt 7): Engine-Extraktion + Lifecycle-Service mit Conn+Tx-Scope; 409 Tests gruen |
 | 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung (Z7-1 in 5 Sub-Slices) + Validation-Service-Split (Z7-3 in 4 Sub-Slices); 416/417 Tests gruen |
+| 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung: #1 Bulk-Lookup, #2/#3 Sweep+Apply Batching, #4 Entra Group/Member Bulk, #7 Recipient-Bulk; #5 false positive; #8 deferred; Z8-4 Coverage |
 
 ---
 
-## Aktiver Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
+## Abgeschlossener Zyklus 8 — Skalierbarkeits- & Last-Haertung (2026-05-05)
 
-Naechster Schwerpunkt nach Abschluss von Zyklus 7. Skalierbarkeit ist mit B- die niedrigste Gesamtnote; Hygiene-Refactors (Lifecycle, Validation) sind erledigt. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 8".
+Geschlossen 2026-05-05. Skalierbarkeit war mit B- die niedrigste Gesamtnote nach Zyklus 7. Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 8".
 
 | Befund | Prio | Status |
 |--------|------|--------|
@@ -63,7 +64,7 @@ Naechster Schwerpunkt nach Abschluss von Zyklus 7. Skalierbarkeit ist mit B- die
 | Z8-2.3 — Hotspot #4 `EntraDirectorySyncService` Group/Member Batch | HIGH | done 2026-05-05 — Bulk-Upsert via `unnest`+RETURNING und Bulk-Insert fuer Memberships ersetzen pro-Member Round-Trips |
 | Z8-3.1 — #5 Verifikation + #7 Recipient-Bulk-Lookup | HIGH | done 2026-05-05 — #5 false positive (CPU/Policy), #7 Bulk-Lookup |
 | Z8-3.2 — Hotspot #8 `RotationTaskGenerationService` | MEDIUM | deferred 2026-05-05 — kein kleiner SQL-/Batch-Hebel ohne breiten Umbau; admin-getriggert. Z8-3 geschlossen |
-| Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | in Arbeit — Z8-4.1 done 2026-05-05: Integration-Tests fuer `LoadActiveUserNotificationRecipientsBulk` (3 Faelle); EntraDirectorySync-Batch-Helfer als nicht sauber isolierbar offen benannt (gehoert zu LQ2-Z3-Split) |
+| Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | done 2026-05-05 — Z8-4.1 Bulk-Recipient-Helper; Z8-2.1/Z8-2.2-Coverage in den Umsetzungs-Slices; EntraDirectorySync-Batch-Helfer-Coverage nach LQ2-Z3 verschoben |
 
 Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehen erst, falls API-Vertraege brechen.
 
@@ -76,7 +77,7 @@ Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehe
 | R8 | Browser-Verifikation Form-Editor | offen — Nutzer-Aufgabe |
 | R10 | Mobile-Layout Form-Editor | backlog |
 | L2 | Datenbereinigung Drafts | deferred — Produkt-Entscheidung |
-| LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split | deferred — kein Trigger |
+| LQ2-Z3 | `EntraDirectorySyncService` (2485 Z.) Split — inkl. Coverage fuer Z8-2.3-Batch-Helfer (aus Z8-4 verschoben) | deferred — kein Trigger |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein kleiner SQL-Hebel |
 | FE-8 | `approval_task_template_key` → `approval_spec_key` Rename | defer ohne Trigger |
 
