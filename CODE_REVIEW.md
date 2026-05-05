@@ -89,8 +89,8 @@ LQ2-Z3 (`EntraDirectorySyncService` File-Split, 2591 Zeilen) trifft genau diesen
 | Z9-1.1 | Boundary-/Split-Inventur: oeffentliche API, Aufrufer (`DirectorySyncHostedService`, Admin-Endpunkte), interne Achsen (Graph-Zugriff, DB-Batch-Helfer, `SyncAllAsync`-Orchestrierung, `SyncDepartmentLeadAssignmentsFromDirectory`, `ImportDirectoryIdentitiesAsync`); pro Achse: Abhaengigkeiten, Test-Isolations-Hindernisse | HIGH | high | opus | offen |
 | Z9-1.2 | Extract-Plan: konkreter File-/Klassen-Schnitt (Kandidaten z. B. `EntraGraphClient`/-Adapter, `EntraDirectoryBatchOperations`, `EntraDepartmentLeadResolver`, schlanker `EntraDirectorySyncOrchestrator`), Reihenfolge der Extraktionen, Test-Strategie (Graph-Stub vs. echtem Client), explizite Nicht-Ziele | HIGH | high | opus | offen |
 | Z9-2.1 | Pre-Cleanup (Dead-Code raus) + `SyncAllAsync` in Phasen-Methoden zerlegen, ohne Verhaltensaenderung, noch in derselben Datei | HIGH | medium..high | sonnet | done 2026-05-05 — Detail im Sync-Log und in `CODEX_SYNC.md` |
-| Z9-2.2 | Graph-Zugriff hinter Adapter-Interface; Adapter testbar (Stub) machen | HIGH | medium..high | sonnet | offen — wartet auf Z9-2.1 |
-| Z9-2.3 | DB-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) hinter dediziertes, testbares Operations-Modul ziehen | HIGH | medium | sonnet | offen — wartet auf Z9-2.1 |
+| Z9-2.2 | Graph-Zugriff hinter Adapter-Interface; Adapter testbar (Stub) machen | HIGH | medium..high | sonnet | done 2026-05-05 — `IEntraGraphClient`/`EntraGraphClient` unter `api/API/Services/Directory/`; `Microsoft.Graph` aus Hauptdatei raus |
+| Z9-2.3 | DB-Batch-Helfer (`UpsertDirectoryIdentitiesBatch`, `InsertGroupMembershipsBatch`) hinter dediziertes, testbares Operations-Modul ziehen | HIGH | medium | sonnet | offen — naechster Schritt |
 | Z9-3 | Coverage nachziehen: Integration-Tests fuer Batch-Helfer (aus Z8-4 verschoben) + Unit-Tests fuer Orchestrator gegen Graph-Stub | MEDIUM | medium | sonnet | offen — nach Z9-2.x |
 
 ### Z9-1.1 Boundary-/Split-Inventur (2026-05-05)
@@ -206,6 +206,25 @@ Z9-1.2 entscheidet die konkrete Reihenfolge und die Test-Strategie (Graph-Stub v
 - Z9-1.1 → Z9-1.2 sequenziell (Inventur vor Plan).
 - Z9-2.x: 2.1 zuerst (Orchestrierungs-Schnitt), danach 2.2 und 2.3 unabhaengig moeglich, aber sequenziell halten, damit der Tree pro Slice klar bleibt.
 - Z9-3 erst, wenn die Batch-/Graph-Schnitte stehen. Coverage darf den Refactor nicht treiben.
+
+### Z9-2.2 Graph-Adapter extrahiert (2026-05-05)
+
+Slice gemaess Z9-1.2 § Z9-2.2 abgeschlossen.
+
+- Neue Files: `api/API/Services/Directory/IEntraGraphClient.cs`, `api/API/Services/Directory/EntraGraphClient.cs` (Namespace `API.Services.Directory`).
+- `IEntraGraphClient` exponiert `InitializeAsync` (Status: `Ready` / `MissingCredentials` / `Failed` plus `ErrorMessage`/`ExceptionType`), `LoadSecurityGroupsAsync`, `LoadGroupMembersAsync`. Rueckgabewerte sind plain DTOs (`EntraSecurityGroup`, `EntraDirectoryUser`), damit `Microsoft.Graph.*` aus der Hauptdatei verschwindet.
+- `EntraGraphClient` kapselt `IGraphApplicationConfigurationService`-Lookup, `ClientSecretCredential`- und `GraphServiceClient`-Bau, Pagination beim Group-/Member-Load. Nicht-User-Members werden bereits hier herausgefiltert (vorher im Orchestrator via `is not Microsoft.Graph.Models.User`); Verhalten unveraendert, da der Orchestrator diese Members ohnehin uebersprang.
+- `EntraDirectorySyncService.cs`:
+  - Konsumiert `IEntraGraphClient` per Konstruktor; `IGraphApplicationConfigurationService` und `_logger` als Graph-Bootstrap-Empfaenger entfallen (Field + Argument geloescht).
+  - `SyncAllAsync` ersetzt den Inline-Credential/Client-Aufbau (vorher Z. 61-89) durch `await _graphClient.InitializeAsync(ct)` mit identischen Eventlog-Eintraegen `directory_sync_missing_graph_credentials` und `directory_sync_graph_client_failed` (inkl. `error`/`exceptionType` aus `EntraGraphInitResult.ExceptionType`).
+  - `RunGroupSyncAsync` verliert den `GraphServiceClient`-Parameter und ruft `_graphClient.LoadSecurityGroupsAsync` / `LoadGroupMembersAsync`.
+  - `validUsers`-Tupel und `UpsertDirectoryIdentitiesBatch`-Signatur tragen jetzt `EntraDirectoryUser` statt `Microsoft.Graph.Models.User` (Property-Mapping unveraendert: `UserPrincipalName`/`Mail`/`DisplayName`/`AccountEnabled`/`Department`/`EmployeeId`).
+  - `LoadSecurityGroupsAsync`/`LoadGroupMembersAsync`/`ResolveGraphCredentialsAsync` aus der Hauptdatei entfernt.
+  - `using Azure.Identity;` / `using Microsoft.Graph;` / `using Microsoft.Graph.Models;` aus der Hauptdatei entfernt; `using API.Services.Directory;` ergaenzt.
+- DI: `services.AddScoped<API.Services.Directory.IEntraGraphClient, API.Services.Directory.EntraGraphClient>()` direkt vor der `IDirectorySyncService`-Registrierung in `LifecycleServiceCollectionExtensions`. Scoped passt zum Per-Run-Scope von `DirectorySyncHostedService`.
+- `PROJECT_STRUCTURE.md` mitgezogen: `api/API/Services/Directory/` als neuer Sub-Namespace eingetragen.
+- Verhaltensgleichheit: gleiche Fehlerpfade fuer fehlende Credentials und Client-Bau, gleiche Eventlog-Eintraege, gleiche per-Group-Try/Catch-Logik mit Status `partial`.
+- Verifikation: `dotnet build API/API.csproj` (0 Warn / 0 Err), `dotnet build API.Tests/API.Tests.csproj` (3 vorhandene CS8602-Warnungen, 0 Err).
 
 ### Z9-1.2 Extract-Plan (2026-05-05)
 

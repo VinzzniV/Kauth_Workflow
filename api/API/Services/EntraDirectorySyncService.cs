@@ -1,7 +1,5 @@
-using Azure.Identity;
+using API.Services.Directory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
-using Microsoft.Graph.Models;
 using Npgsql;
 using NpgsqlTypes;
 using System.Text.Json;
@@ -14,18 +12,18 @@ namespace API;
 /// </summary>
 internal sealed class EntraDirectorySyncService : IDirectorySyncService
 {
-    private readonly IGraphApplicationConfigurationService _graphApplicationConfigurationService;
+    private readonly IEntraGraphClient _graphClient;
     private readonly LifecycleRuntimeSettings _runtimeSettings;
     private readonly ISystemEventLogService _systemEventLogService;
     private readonly ILogger<EntraDirectorySyncService> _logger;
 
     public EntraDirectorySyncService(
-        IGraphApplicationConfigurationService graphApplicationConfigurationService,
+        IEntraGraphClient graphClient,
         LifecycleRuntimeSettings runtimeSettings,
         ISystemEventLogService systemEventLogService,
         ILogger<EntraDirectorySyncService> logger)
     {
-        _graphApplicationConfigurationService = graphApplicationConfigurationService;
+        _graphClient = graphClient;
         _runtimeSettings = runtimeSettings;
         _systemEventLogService = systemEventLogService;
         _logger = logger;
@@ -58,52 +56,42 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
             };
         }
 
-        GraphServiceClient graphClient;
-        try
+        var graphInit = await _graphClient.InitializeAsync(cancellationToken);
+        if (graphInit.Status == EntraGraphInitStatus.MissingCredentials)
         {
-            var credentials = await ResolveGraphCredentialsAsync(cancellationToken);
-            if (credentials is null)
+            await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
             {
-                await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
-                {
-                    Severity = "error",
-                    Source = "entra",
-                    Category = "configuration",
-                    EventKey = "directory_sync_missing_graph_credentials",
-                    Message = "Directory sync failed because Graph credentials are not configured."
-                }, cancellationToken);
-                return new DirectorySyncResult
-                {
-                    Status = "failed",
-                    ErrorMessage =
-                        "Graph credentials not configured. Set ENTRA_TENANT_ID, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET or GRAPH_CLIENT_SECRET via environment variables or your secret store.",
-                    AppliedGroupPrefix = effectiveGroupPrefix
-                };
-            }
-
-            var credential = new ClientSecretCredential(
-                credentials.Value.TenantId,
-                credentials.Value.ClientId,
-                credentials.Value.ClientSecret,
-                new ClientSecretCredentialOptions { AuthorityHost = AzureAuthorityHosts.AzurePublicCloud });
-            graphClient = new GraphServiceClient(credential, ["https://graph.microsoft.com/.default"]);
+                Severity = "error",
+                Source = "entra",
+                Category = "configuration",
+                EventKey = "directory_sync_missing_graph_credentials",
+                Message = "Directory sync failed because Graph credentials are not configured."
+            }, cancellationToken);
+            return new DirectorySyncResult
+            {
+                Status = "failed",
+                ErrorMessage =
+                    "Graph credentials not configured. Set ENTRA_TENANT_ID, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET or GRAPH_CLIENT_SECRET via environment variables or your secret store.",
+                AppliedGroupPrefix = effectiveGroupPrefix
+            };
         }
-        catch (Exception ex)
+
+        if (graphInit.Status == EntraGraphInitStatus.Failed)
         {
-            _logger.LogError(ex, "Failed to create Graph client for directory sync.");
+            _logger.LogError("Failed to create Graph client for directory sync: {Error}", graphInit.ErrorMessage);
             await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
             {
                 Severity = "error",
                 Source = "entra",
                 Category = "graph",
                 EventKey = "directory_sync_graph_client_failed",
-                Message = $"Failed to create Graph client for directory sync: {ex.Message}",
-                Details = new { error = ex.Message, exceptionType = ex.GetType().FullName }
+                Message = $"Failed to create Graph client for directory sync: {graphInit.ErrorMessage}",
+                Details = new { error = graphInit.ErrorMessage, exceptionType = graphInit.ExceptionType }
             }, cancellationToken);
             return new DirectorySyncResult
             {
                 Status = "failed",
-                ErrorMessage = ex.Message,
+                ErrorMessage = graphInit.ErrorMessage,
                 AppliedGroupPrefix = effectiveGroupPrefix
             };
         }
@@ -114,7 +102,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         var state = new SyncRunState();
         try
         {
-            await RunGroupSyncAsync(connection, graphClient, effectiveGroupPrefix, explicitGroupIds, state, cancellationToken);
+            await RunGroupSyncAsync(connection, effectiveGroupPrefix, explicitGroupIds, state, cancellationToken);
             await RunDirectoryProjectionAsync(connection, startedAt, cancellationToken);
             await RunActivationAsync(connection, cancellationToken);
         }
@@ -196,7 +184,6 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 
     private async Task RunGroupSyncAsync(
         NpgsqlConnection connection,
-        GraphServiceClient graphClient,
         string? effectiveGroupPrefix,
         IReadOnlySet<Guid> explicitGroupIds,
         SyncRunState state,
@@ -204,7 +191,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
     {
         await EnsureDirectoryProjectionUserColumnsAsync(connection, cancellationToken);
 
-        var groups = await LoadSecurityGroupsAsync(graphClient, cancellationToken);
+        var groups = await _graphClient.LoadSecurityGroupsAsync(cancellationToken);
         var matchedGroups = groups
             .Where(group => ShouldSyncGroup(group.Id, group.DisplayName, effectiveGroupPrefix, explicitGroupIds))
             .ToList();
@@ -253,17 +240,16 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
 
             try
             {
-                var members = await LoadGroupMembersAsync(graphClient, group.Id, cancellationToken);
+                var members = await _graphClient.LoadGroupMembersAsync(group.Id, cancellationToken);
 
                 await ClearGroupMemberships(connection, directoryGroupId, cancellationToken);
 
-                var validUsers = new List<(Guid EntraObjectId, Microsoft.Graph.Models.User User)>(members.Count);
-                foreach (var member in members)
+                var validUsers = new List<(Guid EntraObjectId, EntraDirectoryUser User)>(members.Count);
+                foreach (var user in members)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (member is not Microsoft.Graph.Models.User user
-                        || string.IsNullOrWhiteSpace(user.Id)
+                    if (string.IsNullOrWhiteSpace(user.Id)
                         || !Guid.TryParse(user.Id, out var userObjectId))
                     {
                         continue;
@@ -421,78 +407,6 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         public int MembershipsSynced;
         public string Status = "success";
         public string? ErrorMessage;
-    }
-
-    private static async Task<List<Group>> LoadSecurityGroupsAsync(
-        GraphServiceClient graphClient,
-        CancellationToken cancellationToken)
-    {
-        var groups = new List<Group>();
-
-        var response = await graphClient.Groups.GetAsync(config =>
-        {
-            config.QueryParameters.Select = ["id", "displayName", "description", "securityEnabled"];
-            config.QueryParameters.Filter = "securityEnabled eq true";
-            config.QueryParameters.Top = 999;
-        }, cancellationToken);
-
-        while (response is not null)
-        {
-            groups.AddRange(response.Value ?? []);
-
-            var nextLink = response.OdataNextLink;
-            if (string.IsNullOrWhiteSpace(nextLink))
-            {
-                break;
-            }
-
-            response = await graphClient.Groups.WithUrl(nextLink).GetAsync(cancellationToken: cancellationToken);
-        }
-
-        return groups;
-    }
-
-    private static async Task<List<DirectoryObject>> LoadGroupMembersAsync(
-        GraphServiceClient graphClient,
-        string groupId,
-        CancellationToken cancellationToken)
-    {
-        var members = new List<DirectoryObject>();
-
-        var response = await graphClient.Groups[groupId].Members.GetAsync(config =>
-        {
-            config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department", "employeeId"];
-            config.QueryParameters.Top = 999;
-        }, cancellationToken);
-
-        while (response is not null)
-        {
-            members.AddRange(response.Value ?? []);
-
-            var nextLink = response.OdataNextLink;
-            if (string.IsNullOrWhiteSpace(nextLink))
-            {
-                break;
-            }
-
-            response = await graphClient.Groups[groupId].Members.WithUrl(nextLink).GetAsync(cancellationToken: cancellationToken);
-        }
-
-        return members;
-    }
-
-    private async Task<(string TenantId, string ClientId, string ClientSecret)?> ResolveGraphCredentialsAsync(
-        CancellationToken cancellationToken)
-    {
-        var configuration = await _graphApplicationConfigurationService.GetRuntimeConfiguration(cancellationToken);
-        if (string.IsNullOrWhiteSpace(configuration.TenantId)
-            || string.IsNullOrWhiteSpace(configuration.ClientId)
-            || string.IsNullOrWhiteSpace(configuration.ClientSecret))
-        {
-            return null;
-        }
-
-        return (configuration.TenantId, configuration.ClientId, configuration.ClientSecret);
     }
 
     public async Task<DirectorySyncStatusDto> GetSyncStatusAsync(CancellationToken cancellationToken = default)
@@ -1454,10 +1368,10 @@ RETURNING id;";
 
     private static async Task<Dictionary<Guid, long>> UpsertDirectoryIdentitiesBatch(
         NpgsqlConnection connection,
-        IReadOnlyList<(Guid EntraObjectId, Microsoft.Graph.Models.User User)> validUsers,
+        IReadOnlyList<(Guid EntraObjectId, EntraDirectoryUser User)> validUsers,
         CancellationToken cancellationToken)
     {
-        var dedup = new Dictionary<Guid, Microsoft.Graph.Models.User>(validUsers.Count);
+        var dedup = new Dictionary<Guid, EntraDirectoryUser>(validUsers.Count);
         foreach (var entry in validUsers)
         {
             dedup[entry.EntraObjectId] = entry.User;

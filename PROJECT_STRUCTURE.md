@@ -171,6 +171,7 @@ Wichtige Bereiche:
 - `Endpoints/`
 - `Repositories/`
 - `Services/`
+- `Services/Directory/` — Adapter-/Operations-Module fuer den Entra-Directory-Sync (Z9-Split). Aktuell: `IEntraGraphClient` + `EntraGraphClient` (Microsoft.Graph-Kapsel).
 - `Contracts/`
 
 Aktuell wichtige technische Schwerpunkte:
