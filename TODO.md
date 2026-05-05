@@ -44,9 +44,9 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
-## Aktiver Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken (2026-05-05)
+## Abgeschlossener Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken (2026-05-05)
 
-Z10 ist inhaltlich abgeschlossen (2026-05-05) — alle drei Planungs-Slices done. Naechster Schritt ausserhalb Z10: Eroeffnung eines Umsetzungszyklus (vorgeschlagen Z11) auf Basis von `CODE_REVIEW.md` § Z10-1.3 (F1 → F2 → F3). Bis dahin bleibt Z10 als reiner Review-/Planungszyklus aktiv. Thema: Admin-/Master-Data-/Directory-Listen werden zu grossen Teilen ohne Pagination, Server-Suche und stabilen Sort-Vertrag bedient — vor weiterem Wachstum werden Vertraege gezogen, statt am Schmerzpunkt nachzuschieben. Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync`) ist nur die sichtbarste Stelle.
+Z10 ist abgeschlossen (2026-05-05) — alle drei Planungs-Slices done, formaler Zyklusabschluss vollzogen. Naechster Schritt: Eroeffnung eines Umsetzungszyklus (vorgeschlagen Z11) auf Basis von `CODE_REVIEW.md` § Z10-1.3 (F1 → F2 → F3). Thema: Admin-/Master-Data-/Directory-Listen werden zu grossen Teilen ohne Pagination, Server-Suche und stabilen Sort-Vertrag bedient — vor weiterem Wachstum werden Vertraege gezogen, statt am Schmerzpunkt nachzuschieben. Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync`) ist nur die sichtbarste Stelle.
 
 **Praktisch:** Listen werden bei wachsendem Bestand spuerbar langsamer, Suche/Filter fuehlen sich unvollstaendig an, weil viele Stellen heute im Browser filtern. **Lohnenswert:** Vertrag jetzt klaeren ist deutlich billiger als Hotfix unter Last; vermeidet halbgaarige Workarounds und API-Brueche fuer das FE. **Nutzen:** stabile Antwortzeiten, vollstaendige Server-Suche, einheitlicher Listen-/Such-/Sort-Vertrag, der wiederverwendbar ist. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 10".
 
@@ -121,7 +121,7 @@ Z8 abgeschlossen; Folge-Zyklus Z9 eroeffnet (siehe oben).
 - Zyklus 7 ist abgeschlossen. Kurzfassung in `CODE_REVIEW.md`, Detail in `CODE_REVIEW_ARCHIVE.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
 - Zyklus 8 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 8".
 - Zyklus 9 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 9".
-- Zyklus 10 ist eroeffnet (2026-05-05). Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 10".
+- Zyklus 10 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 10".
 
 ---
 

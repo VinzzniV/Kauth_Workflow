@@ -49,7 +49,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-05 — Zyklus 10 eroeffnet (Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken). Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit; Z9-3 Coverage).
+**Stand**: 2026-05-05 — Zyklus 10 abgeschlossen (Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — reiner Review-/Planungszyklus, alle Slices done). Kein aktiver Zyklus. Naechster Schritt: Eroeffnung Umsetzungszyklus (vorgeschlagen Z11) auf Basis F1/F2/F3 aus § Z10-1.3. Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit; Z9-3 Coverage).
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 eroeffnet).
 
 ---
@@ -70,9 +70,9 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-## Aktiver Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege und Query-Kontrakt-Risiken (2026-05-05)
+## Abgeschlossener Zyklus 10 — Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege und Query-Kontrakt-Risiken (2026-05-05)
 
-**Status:** eroeffnet 2026-05-05. Reiner Review-/Planungszyklus. Keine Code-Umsetzung in Z10-1.x; Umsetzungs-Slices erst nach Z10-1.3 mit explizitem Folgezyklus.
+**Status:** eroeffnet 2026-05-05, formal abgeschlossen 2026-05-05. Reiner Review-/Planungszyklus. Alle drei Planungs-Slices done. Keine Code-Umsetzung in Z10. Umsetzung ab Folgezyklus (vorgeschlagen Z11) gemaess § Z10-1.3 (F1 → F2 → F3).
 
 **Thema:** Admin- und Master-Data-Listen (z. B. Departments, Rollen, Group-Role-Mappings, Identities, Pending-Imports, Audit-Logs, Workflow-Definitionsbestand) werden derzeit zu grossen Teilen ohne Pagination, ohne Suchparameter und ohne stabilen Sortier-Vertrag gegen Backend-API und Frontend gefahren. Der Hotspot #6 aus Z8-1.2 (`GetDepartmentsAsync`/`GetRolesAsync` ohne Pagination) ist nur die sichtbarste Stelle; das Muster betrifft mehrere Read-Pfade unter Admin-Konfiguration und Directory-Sync.
 
@@ -112,9 +112,9 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 | ID | Aufgabe | Prio | Reasoning | Modell | Status |
 |----|---------|------|-----------|--------|--------|
-| Z10-1.1 | Inventur: alle Admin-/Master-Data-/Directory-Read-Endpunkte und ihre Repository-/Service-Pfade ohne Pagination/Suche/Sort-Vertrag dokumentieren (Datei/Symbol, Rueckgabeform, aktuelle Aufrufer im FE, beobachtete Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | high | opus | offen |
-| Z10-1.2 | Vertrags-Skizze: pro identifiziertem Endpunkt entscheiden — `limit`/`offset` vs. Cursor, Server-`search` ja/nein, stabiler `sort`-Vertrag ja/nein, Antwort-Hull (`items` + `total`/`nextCursor`); jeweils kurz erklaeren, was sich fuer den Nutzer aendert und welche FE-Adaption noetig waere | HIGH | high | opus | offen |
-| Z10-1.3 | Slice-Plan fuer Folgezyklus: erste 2–3 sichere Umsetzungsslices priorisieren (API-Vertrag + minimaler FE-Adaption) inkl. Begruendung, warum gerade die zuerst; Vorschlag, welche Endpunkte in Z10 absichtlich noch nicht angefasst werden und warum | HIGH | medium..high | opus | offen |
+| Z10-1.1 | Inventur: alle Admin-/Master-Data-/Directory-Read-Endpunkte und ihre Repository-/Service-Pfade ohne Pagination/Suche/Sort-Vertrag dokumentieren (Datei/Symbol, Rueckgabeform, aktuelle Aufrufer im FE, beobachtete Kardinalitaet, Spuerbarkeit fuer Nutzer) | HIGH | high | opus | done (2026-05-05) — Ergebnis in § Z10-1.1 |
+| Z10-1.2 | Vertrags-Skizze: pro identifiziertem Endpunkt entscheiden — `limit`/`offset` vs. Cursor, Server-`search` ja/nein, stabiler `sort`-Vertrag ja/nein, Antwort-Hull (`items` + `total`/`nextCursor`); jeweils kurz erklaeren, was sich fuer den Nutzer aendert und welche FE-Adaption noetig waere | HIGH | high | opus | done (2026-05-05) — Ergebnis in § Z10-1.2 (P1/P2/P3, Bloecke A–H) |
+| Z10-1.3 | Slice-Plan fuer Folgezyklus: erste 2–3 sichere Umsetzungsslices priorisieren (API-Vertrag + minimaler FE-Adaption) inkl. Begruendung, warum gerade die zuerst; Vorschlag, welche Endpunkte in Z10 absichtlich noch nicht angefasst werden und warum | HIGH | medium..high | opus | done (2026-05-05) — Ergebnis in § Z10-1.3 (F1 P1+B → F2 P2+Audit → F3 P1+D Builder) |
 
 **Erwartete Ausgaenge aus Z10:**
 - aktualisierte Inventur in `CODE_REVIEW.md` § Z10-1.1
