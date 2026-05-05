@@ -362,7 +362,9 @@ async Task HandleNodeCompletionAsync(workflowId, completedNodeId, actorUserId, .
 - 2026-05-03 — Q6 entschieden: Option (a) Apply-seitige Iteration mit `ApplyResult.ImmediatelyCompletedMeasureNode`-Signal.
 - 2026-05-03 — Slice 1 (1.1–1.8) abgeschlossen: Engine extrahiert, Loop von 340 Z. auf 30 Z. queue-basierte Drainage reduziert, 25 Engine-Unit-Tests gruen, 384 Bestandstests gruen.
 - 2026-05-04 — Slice 2.0 abgeschlossen: Inventur-Refresh (§11). 6 Loop-Eintrittspunkte, 6 Brücken-Aufrufer, 4 Connection-Owners identifiziert. Lifecycle-Service-API skizziert.
-- Nächste Aktion: **Slice 2.1** — `IWorkflowLifecycleService` Skelett + DI (kein Verhaltenswechsel). Gated nur noch auf User-Approval der Sub-Slicing-Tabelle in TODO.md.
+- 2026-05-04 — Slice 2.1–2.x umgesetzt: `IWorkflowLifecycleService` (`api/API/Services/WorkflowLifecycleService.cs`, 79 Z.) live; Endpoint-Pfade für Tasks und Automation auf den Service umgestellt. Conn+Tx-Scope ist für Task-Status, Approval und Automation wirksam; Definition-Runtime-Pfade noch Pass-Through. Eintritt in Zyklus 7 (Konsolidierung).
+- 2026-05-05 — Z7-1.1 Inventur-Refresh angehängt als §12. Naechste Aktion: **Z7-2 vor Z7-1.2 ziehen** (Test-Coverage als Sicherheitsnetz fuer die invasive Definition-Runtime-Migration), danach Z7-1.2.
+- 2026-05-05 — Z7-2 und Z7-1.2 abgeschlossen: `WorkflowLifecycleServiceTests.cs` als Sicherheitsnetz; neuer Scoped-Vertrag `IWorkflowDefinitionRuntimeScopedRepository`; Lifecycle-Service owns Conn+Tx jetzt auch fuer Create/Form/Approval/Task. Naechste Aktion: **Z7-1.3** (statische Runtime-Helfer aus dem Service entkoppeln).
 
 ---
 
@@ -543,3 +545,118 @@ Jede Methode öffnet Conn+Tx, ruft `repository.*InScope(conn, tx, ...)` für die
 ### 11.7 Geplante Sub-Slices
 
 Detaillierte Tabelle in `TODO.md` (S7-Slice2.0 bis S7-Slice2.6).
+
+---
+
+## 12. Z7-1.1 — Lifecycle-Inventur (2026-05-05)
+
+Refresh nach Slice 2.1+: der `IWorkflowLifecycleService` existiert produktiv, ist aber als Commit-Grenze nur teilweise wirksam. Zweck dieser Inventur: festlegen, was Z7-1.2 bis Z7-1.5 mechanisch umbauen muessen.
+
+### 12.1 Ist-Stand pro Lifecycle-Methode
+
+`WorkflowLifecycleService.cs` (79 Z., `IWorkflowLifecycleService` 10 Methoden):
+
+| Methode | Conn+Tx-Owner | Persist-Aufruf | Runtime-Effekt | Anmerkung |
+|---------|---------------|----------------|-----------------|-----------|
+| `UpdateTaskStatusAsync` | **Lifecycle-Service** | `scopedRepository.UpdateTaskStatusInScope` | `PostgresWorkflowRuntimeRepository.CompleteTaskNodeRuntimeSide` *oder* `TryAdvanceSetupNodeIfReady` (statisch) | konsolidiert |
+| `UpdateTaskStatusByRefAsync` | n/a (delegiert) | `workflowRepository.UpdateTaskStatusByRef` (Rotation-Routing) | n/a | Workflow-Task wird auf `UpdateTaskStatusAsync` umgeleitet; Rotation laeuft am Lifecycle vorbei |
+| `DecideTaskApprovalAsync` | **Lifecycle-Service** | `scopedRepository.DecideTaskApprovalInScope` | `PostgresWorkflowRuntimeRepository.ApplyApprovalNodeDecision` (statisch) | konsolidiert |
+| `DecideTaskApprovalByRefAsync` | n/a (delegiert) | `workflowRepository.DecideTaskApprovalByRef` (Rotation-Routing) | n/a | analog Status-Pfad |
+| `OnAutomationJobCompletedAsync` | **Lifecycle-Service** | `scopedRepository.CompleteAutomationJobSuccessInScope` | `AdvanceRuntimeUntilWaitOrTerminal` laeuft *innerhalb* des Scope-Aufrufs (Z. 211 in `AutomationOperations.cs`) | konsolidiert |
+| `CreateWorkflowInstanceAsync` | **Repo** | `definitionRuntimeRepository.CreateWorkflowDefinitionInstance` (Repo oeffnet eigene Conn+Tx) | Loop bei Z. 363 | **Pass-Through** |
+| `CompleteFormNodeAsync` | **Repo** | `definitionRuntimeRepository.CompleteRuntimeFormNode` (Repo Conn+Tx ab Z. 441) | Loop in `CompleteRuntimeFormNodeInternal` Z. 690 | **Pass-Through** |
+| `CompleteApprovalNodeAsync` | **Repo** | `definitionRuntimeRepository.CompleteRuntimeApprovalNode` (Repo Conn+Tx ab Z. 475) | Vor-Code (Task-Status-Sync + Audit Z. 487–512), dann `ApplyApprovalNodeDecision` Z. 514 | **Pass-Through**, Vor-Code muss bei Migration in den Service |
+| `CompleteTaskNodeAsync` | **Repo** | `definitionRuntimeRepository.CompleteRuntimeTaskNode` (Repo Conn+Tx ab Z. 535) | Vor-Code (Task-Status-Sync + Audit Z. 547–572), dann `CompleteTaskNodeRuntimeSide` Z. 574 | **Pass-Through**, Vor-Code muss bei Migration in den Service |
+
+### 12.2 Aufrufer der Pass-Through-Methoden
+
+Einziger Aufrufer aller vier Pass-Throughs ist `WorkflowDefinitionRuntimeService`:
+
+- `WorkflowDefinitionRuntimeService.CreateWorkflowInstanceAsync` (Z. 17) → Notification-Dispatch + Person-Lifecycle-Projection nach Lifecycle-Aufruf (bewusst ausserhalb der Tx).
+- `CompleteFormNodeAsync` (Z. 60), `CompleteApprovalNodeAsync` (Z. 72), `CompleteTaskNodeAsync` (Z. 84) → Notification + Projection in `CompleteAndDispatchAsync` (Z. 88), wieder bewusst ausserhalb der Tx.
+
+**Conn+Tx-Bedarf je Pfad:** Alle vier Pfade brauchen den Single-Tx-Scope (Status + Runtime-Effekt + Audit + Tasks/Automation-Jobs). Heute liegt er im Repo. Bei Z7-1.2-Migration uebernimmt der Lifecycle-Service den Scope; das Repo bekommt `*InScope`-Varianten und der Service-Vor-Code (Task-Sync + Audit fuer Approval/TaskNode) wandert mit.
+
+**Notification-/Projection-Grenze:** bewusst ausserhalb der Tx. Diese Grenze bleibt in `WorkflowDefinitionRuntimeService.CompleteAndDispatchAsync` und in `TaskApplicationService.DispatchWorkflowTaskNotificationsAsync` / `ApplyPersonLifecycleProjectionIfCompletedAsync`. Keine Aenderung im Z7-1-Block.
+
+### 12.3 Statische Repo-Helfer (Service haengt direkt an Repo-Klasse)
+
+Drei statische Aufrufe aus dem Lifecycle-Service in `PostgresWorkflowRuntimeRepository`:
+
+| Aufrufstelle | Statischer Helfer | Aufrufer-Doppel |
+|--------------|-------------------|-----------------|
+| `WorkflowLifecycleService.cs:20` | `CompleteTaskNodeRuntimeSide` (`PostgresWorkflowRuntimeRepository.cs:1749`) | `TaskOperations.cs:84` *und* `PostgresWorkflowRuntimeRepository.cs:574` (Service-Pfad) |
+| `WorkflowLifecycleService.cs:22` | `TryAdvanceSetupNodeIfReady` (`PostgresWorkflowRuntimeRepository.cs:1806`) | `TaskOperations.cs:86` (kein Service-Pfad-Doppel — Bridge `TryAdvanceRuntimeSetupFromTaskStatusUpdate` Z. 1593 ist quasi-identisches Doppel) |
+| `WorkflowLifecycleService.cs:45` | `ApplyApprovalNodeDecision` (`PostgresWorkflowRuntimeRepository.cs:1840`) | `TaskOperations.cs:158` *und* `PostgresWorkflowRuntimeRepository.cs:514` (Service-Pfad) |
+
+**Konsequenz:** Service haengt an konkreter `PostgresWorkflowRuntimeRepository` statt am Interface. Z7-1.3 muss diese drei Methoden entweder als `private`-Service-Methoden oder als Instanzmethoden am `IWorkflowLifecycleScopedRepository` exponieren.
+
+### 12.4 Doppelte Aufrufstelle `TaskOperations.cs:84/86/158`
+
+`PostgresWorkflowRepository.UpdateTaskStatus` (Z. 74–89) und `DecideTaskApproval` (Z. 149–161) replizieren **bitgenau** den Lifecycle-Pfad: eigene Conn+Tx → `*InScope` → derselbe statische Repo-Helfer.
+
+**Aufrufer-Stand heute:**
+- Endpoint-Pfad (`PATCH /tasks/{id}/status`, `POST /tasks/{id}/approval-decision`) geht ueber `TaskApplicationService` → `IWorkflowLifecycleService` (TaskApplicationService.cs:124, 92, 158, 335). **Kein Endpoint ruft `repository.UpdateTaskStatus` / `DecideTaskApproval` mehr direkt.**
+- Verbleibende Aufrufer von `repository.UpdateTaskStatus`:
+  - `api/API.Tests/PostgresWorkflowRepositoryConcurrencyTests.cs:52, 92, 93` (Test-Lock/Concurrency)
+  - `api/API.Tests/PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests.cs:664` (Integrations-Test)
+- `repository.DecideTaskApproval` hat aktuell **keinen** produktiven Aufrufer.
+
+**Implikation Z7-1.4:** Da der Produktionspfad bereits weg ist, ist das Risiko niedrig. Saubere Loesung: Tests auf den Lifecycle-Service umstellen und die beiden Repo-Methoden samt `_InScope`-Bridge im selben Schritt auf `internal` reduzieren oder ganz entfernen. Begruendung "behalten als Legacy-Pfad" gibt es nicht — der Conn+Tx + 3-Helfer-Block waere sonst weiterhin doppelt zu pflegen.
+
+### 12.5 Symmetrisches Bild Automation-Wrapper
+
+`PostgresWorkflowRepository.CompleteAutomationJobSuccess` (Z. 100–110, `AutomationOperations.cs`) ist analog zu `UpdateTaskStatus`/`DecideTaskApproval`: Conn+Tx-Wrapper um `CompleteAutomationJobSuccessInScope`. Produktionspfad (`WorkflowAutomationService.cs:46`) geht ueber `lifecycleService.OnAutomationJobCompletedAsync`; der Wrapper hat **keinen produktiven Aufrufer** mehr (nur Mock-Deklaration in `WorkflowAutomationServiceTests.cs:126`). Wegfall-Kandidat fuer Z7-1.4 oder als Cleanup-Anhang an Z7-1.5.
+
+`CompleteAutomationJobFailure` ist davon unberuehrt — wird weiterhin direkt vom `WorkflowAutomationService` (Z. 78) aufgerufen, kein Lifecycle-Pfad noetig (kein Workflow-Loop, nur Job-Status + Fail).
+
+### 12.6 Verbleibende Aufrufer von `AdvanceRuntimeUntilWaitOrTerminal`
+
+Querverweis zur §11.2-Tabelle, jetzt nach Z7-1-Linse gruppiert:
+
+| Pfad | Conn+Tx-Owner heute | Z7-1-Slice |
+|------|---------------------|------------|
+| `CreateWorkflowDefinitionInstance` Z. 363 | Repo | 1.2 (Lifecycle uebernimmt) + 1.5 (Inhalt zieht in Service) |
+| `CompleteRuntimeFormNodeInternal` Z. 690 | Repo (vom Public-Service-Pfad oder von `CompleteRuntimeSupervisorGatekeeperStep`) | 1.2 + 1.5 |
+| `CompleteTaskNodeRuntimeSide` Z. 1795 | erbt vom Aufrufer (Lifecycle, TaskOps oder Service-Pfad Z. 574) | 1.3 (Helfer-Owner-Wechsel) + 1.4 (TaskOps weg) + 1.5 (Service-Pfad weg) |
+| `ApplyApprovalNodeDecision` Z. 1920 | erbt vom Aufrufer (Lifecycle, TaskOps oder Service-Pfad Z. 514) | analog 1.3/1.4/1.5 |
+| `TryCompleteRuntimeSetupNodeIfReady` Z. 1434 | erbt von Bridge `TryAdvanceSetupNodeIfReady` / `TryAdvanceRuntimeSetupFromTaskStatusUpdate` | 1.3/1.4 |
+| `AutomationOperations.cs:202` | erbt vom Aufrufer (Lifecycle oder Wrapper Z. 105) | Lifecycle-Pfad konsolidiert; Wrapper-Cleanup in 1.4/1.5 |
+
+`CompleteRuntimeSupervisorGatekeeperStep` (Z. 587) ist ein zweiter Aufrufer von `CompleteRuntimeFormNodeInternal` — wird genutzt vom `WorkflowRuntimeService`-Legacy-Pfad. Bei 1.5 mit beruecksichtigen.
+
+### 12.7 Befunde fuer Z7-1.2 bis Z7-1.5 (zusammengefasst)
+
+- **Z7-1.2 — invasiv, scope groesser als urspruenglich.** Nicht nur Conn+Tx-Verschiebung: Vor-Code in `CompleteRuntimeApprovalNode` (Z. 487–512) und `CompleteRuntimeTaskNode` (Z. 547–572) (Task-Status-Sync + Audit) muss in den Lifecycle-Service mitwandern, sonst Doppel-Audit oder verlorenes `task_status_changed`-Event. → **Empfehlung: Z7-2 (Lifecycle-Tests) vor Z7-1.2 ziehen** als Sicherheitsnetz. TODO entsprechend anpassen.
+- **Z7-1.3 — mechanisch.** Drei statische Helfer + die Helper-Wrapper `TryAdvanceRuntimeSetupFromTaskStatusUpdate` (Z. 1593) und `CompleteRuntimeFormNodeInternal` (Z. 619, kein Bridge-Doppel, aber gleiches Owner-Problem) als Instanzmethoden am `IWorkflowLifecycleScopedRepository` anbieten oder direkt in den Service ziehen. Form-Pfad gewinnt durch Instanzform am meisten — heute vier statische Helfer mit `WorkflowDefinitionGraphRecord`-Param.
+- **Z7-1.4 — niedriges Risiko, klarer Cleanup.** Endpoint-Pfade sind weg; nur Tests halten `repository.UpdateTaskStatus` / `DecideTaskApproval` am Leben. Tests auf Lifecycle-Service umstellen, Repo-Methoden + ihre `*InScope`-Bridges zusammenfuehren oder loeschen. **Zusatz:** `PostgresWorkflowRepository.CompleteAutomationJobSuccess` (Wrapper) hat ebenfalls keinen produktiven Aufrufer mehr — Wegfall-Kandidat im selben Slice.
+- **Z7-1.5 wurde 2026-05-05 in 1.5a + 1.5b gesplittet.**
+  - **Z7-1.5a (done 2026-05-05)** — Cleanup-Schritt: public non-scope Wrapper (`CreateWorkflowDefinitionInstance`, `CompleteRuntimeFormNode`, `CompleteRuntimeApprovalNode`, `CompleteRuntimeTaskNode`) aus `IWorkflowDefinitionRuntimeRepository` und `PostgresWorkflowRuntimeRepository` entfernt; `*InScope`-Logik bleibt im Repo. Tests, DI-Stubs und Endpoint-Stubs auf den Lifecycle-Service umgestellt.
+  - **Z7-1.5b (done 2026-05-05)** — eigentlicher Code-Pull, am 2026-05-05 in fünf Sub-Slices zerlegt und alle abgeschlossen:
+    - **b.i (done 2026-05-05)** — `CompleteRuntimeFormNodeInScope` aus `PostgresWorkflowRuntimeRepository` und `IWorkflowDefinitionRuntimeScopedRepository` entfernt; Lifecycle-Service orchestriert Form-Node selbst und ruft `LoadRuntimeWorkflowHeader`/`LoadNodeExecutionForUpdate`/`EnsureActiveRuntimeNode`/`CompleteRuntimeFormNodeInternal`/`GetWorkflowDefinitionRuntimeDetailInternal` direkt (auf `internal static` gehoben).
+    - **b.ii (done 2026-05-05)** — `CompleteRuntimeApprovalNodeInScope` aus `PostgresWorkflowRuntimeRepository` und `IWorkflowDefinitionRuntimeScopedRepository` entfernt; Lifecycle-Service orchestriert Approval-Node selbst (linked-task Status-Sync via injizierter `IWorkflowAuditWriteOperations` + `IWorkflowStatusCalculationService`, dann `ApplyApprovalNodeDecision`); `LoadWorkflowTaskIdByNodeInstanceId` auf `internal static` gehoben.
+    - **b.iii (done 2026-05-05)** — `CompleteRuntimeTaskNodeInScope` aus `PostgresWorkflowRuntimeRepository` und `IWorkflowDefinitionRuntimeScopedRepository` entfernt; Lifecycle-Service orchestriert Task-Node selbst (linked-task Status-Sync via `IWorkflowAuditWriteOperations` + `IWorkflowStatusCalculationService`, dann `CompleteTaskNodeRuntimeSide`). Scoped-Vertrag haelt nur noch `CreateWorkflowDefinitionInstanceInScope`.
+    - **b.iv (done 2026-05-05)** — `CreateWorkflowDefinitionInstanceInScope` aus `PostgresWorkflowRuntimeRepository` und `IWorkflowDefinitionRuntimeScopedRepository` entfernt; Lifecycle-Service injiziert `IWorkflowNotificationDispatchOperations` und orchestriert die Workflow-Erstellung selbst (`LoadPublishedWorkflowDefinitionVersion`/`CreateWorkflowNodeInstance`/`NormalizeRuntimeOptionalText` auf `internal static` gehoben). Scoped-Vertrag ist jetzt leer.
+    - **b.v (done 2026-05-05)** — Leeren Scoped-Vertrag `IWorkflowDefinitionRuntimeScopedRepository` entfernt (Datei + DI-Registrierung + Lifecycle-Service-Ctor-Parameter); `PostgresWorkflowRuntimeRepository` implementiert nur noch `IWorkflowDefinitionRuntimeRepository`; Stub-Klassen aus drei Test-Dateien entfernt. Z7-1.5b ist damit vollstaendig erledigt.
+
+- **Z7-1.5b — groesster Code-Pull, aber rein mechanisch nach 1.2–1.5a (done 2026-05-05).** Original-Bestandsaufnahme der zu ziehenden Methoden:
+  - `CreateWorkflowDefinitionInstance` (~340 Z., mit Bootstrap-Helfern)
+  - `CompleteRuntimeFormNode` + `CompleteRuntimeFormNodeInternal` (~280 Z.) — `CompleteRuntimeSupervisorGatekeeperStep` ist zweiter Aufrufer, ebenfalls auf Lifecycle ziehen oder als Service-Helfer abbilden
+  - `CompleteRuntimeApprovalNode` + `ApplyApprovalNodeDecision` (~150 Z.)
+  - `CompleteRuntimeTaskNode` + `CompleteTaskNodeRuntimeSide` (~110 Z.)
+  - `TryAdvanceSetupNodeIfReady` + `TryAdvanceRuntimeSetupFromTaskStatusUpdate` zusammenfuehren (~70 Z.)
+  - Automation-Wrapper-Cleanup, falls nicht in 1.4 erledigt
+  - Erwartete Reduktion `PostgresWorkflowRuntimeRepository.cs`: 2229 Z. → ~1100–1300 Z. (Engine-Apply, Snapshot-Loader, SQL-Helpers bleiben).
+
+### 12.8 Hinweis zur Reihenfolge
+
+Im TODO bisher: Z7-1.1 → 1.2 → 1.3 → 1.4 → 1.5, Z7-2 parallel. Empfehlung nach dieser Inventur:
+
+1. **Z7-1.1** (done — diese Inventur)
+2. **Z7-2** (Lifecycle-Service-Tests) — vor 1.2 ziehen, Sicherheitsnetz fuer Vor-Code-Migration
+3. **Z7-1.2** (Definition-Runtime-Mutationen via Lifecycle Conn+Tx + Vor-Code-Migration) — done am 2026-05-05
+4. **Z7-1.3** (statische Helfer als Instanzmethoden / Service-private) — done am 2026-05-05
+5. **Z7-1.4** (TaskOps-Doppel + Automation-Wrapper aufloesen) — done am 2026-05-05
+6. **Z7-1.5a** (public non-scope Wrapper aus Repo entfernen, Tests/Stubs auf Lifecycle umstellen) — done am 2026-05-05
+7. **Z7-1.5b** (Service-only-Methoden physisch in den Service ziehen, 5 Sub-Slices b.i–b.v) — done am 2026-05-05 (alle Sub-Slices)
+8. **Z7-3** (`WorkflowDefinitionValidationService.cs`-Split, 2131 Z.) — naechster offener Block, Slice-Plan in `CODE_REVIEW.md` § Z7-3

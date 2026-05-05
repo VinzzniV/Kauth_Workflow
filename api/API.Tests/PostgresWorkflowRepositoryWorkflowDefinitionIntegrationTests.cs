@@ -26,6 +26,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
             var uniqueName = $"Builder Smoke {Guid.NewGuid():N}";
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
@@ -68,6 +69,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
             {
@@ -166,6 +168,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
 
             var definitions = await repository.GetAdminWorkflowDefinitions();
             foreach (var definitionKey in new[] { "onboarding", "offboarding", "department_change", "name_change", "position_change", "role_change" })
@@ -184,7 +187,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 
             targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
 
-            onboardingRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            onboardingRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "onboarding",
@@ -198,7 +201,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 },
                 targetPerson.ActorUserId);
 
-            offboardingRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            offboardingRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "offboarding",
@@ -210,7 +213,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 },
                 targetPerson.ActorUserId);
 
-            departmentChangeRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            departmentChangeRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "department_change",
@@ -222,7 +225,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 },
                 targetPerson.ActorUserId);
 
-            nameChangeRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            nameChangeRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "name_change",
@@ -234,7 +237,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 },
                 targetPerson.ActorUserId);
 
-            positionChangeRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            positionChangeRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "position_change",
@@ -246,7 +249,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                 },
                 targetPerson.ActorUserId);
 
-            roleChangeRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            roleChangeRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "role_change",
@@ -342,6 +345,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
             {
@@ -416,6 +420,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
             {
@@ -555,9 +560,10 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
             targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
 
-            onboardingRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            onboardingRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "onboarding",
@@ -635,9 +641,10 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
             targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
 
-            onboardingRuntime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            onboardingRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = "onboarding",
@@ -661,7 +668,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
 
             foreach (var task in updatedWorkflow.Tasks.Where(task => task.IsRequired))
             {
-                var updateResult = await repository.UpdateTaskStatus(task.Id, "done", targetPerson.ActorUserId);
+                var updateResult = await lifecycleService.UpdateTaskStatusAsync(task.Id, "done", targetPerson.ActorUserId);
                 Assert.NotNull(updateResult);
             }
 
@@ -714,6 +721,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
             targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
@@ -766,7 +774,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             // LA5: task/approval-Nodes brauchen je 1 Eintrag in workflow_node_task_specs.
             await SeedTaskNodeSpecsAsync(connectionString, createdVersion.Id, new[] { "task_a", "task_b" });
 
-            runtime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            runtime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = definition.Key,
@@ -786,7 +794,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             Assert.DoesNotContain(runtime.NodeInstances, node => node.NodeKey == "join");
 
             var taskANodeInstanceId = runtime.NodeInstances.Single(node => node.NodeKey == "task_a").Id;
-            runtime = await runtimeRepository.CompleteRuntimeTaskNode(
+            runtime = await lifecycleService.CompleteTaskNodeAsync(
                 runtime.WorkflowUid,
                 taskANodeInstanceId,
                 new CompleteRuntimeTaskNodeRequest
@@ -801,7 +809,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             Assert.Contains(runtime.NodeInstances, node => node.NodeKey == "task_b" && node.Status == "active");
 
             var taskBNodeInstanceId = runtime.NodeInstances.Single(node => node.NodeKey == "task_b").Id;
-            runtime = await runtimeRepository.CompleteRuntimeTaskNode(
+            runtime = await lifecycleService.CompleteTaskNodeAsync(
                 runtime.WorkflowUid,
                 taskBNodeInstanceId,
                 new CompleteRuntimeTaskNodeRequest

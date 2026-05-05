@@ -4,13 +4,9 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
+    // Rotation-only: WorkflowTaskRef-Pfad besitzt der Lifecycle-Service.
     public async Task<TaskWithWorkflowDto?> UpdateTaskStatusByRef(string taskRef, string status, long actorUserId)
     {
-        if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
-        {
-            return await UpdateTaskStatus(workflowTaskId, status, actorUserId);
-        }
-
         if (RotationTaskRef.TryParse(taskRef, out _))
         {
             return await _rotationRepository.UpdateRotationTaskStatusByRef(taskRef, status, actorUserId);
@@ -24,11 +20,6 @@ internal sealed partial class PostgresWorkflowRepository
         TaskApprovalDecisionRequest request,
         long actorUserId)
     {
-        if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
-        {
-            return await DecideTaskApproval(workflowTaskId, request, actorUserId);
-        }
-
         if (RotationTaskRef.TryParse(taskRef, out _))
         {
             return await _rotationRepository.DecideRotationTaskApprovalByRef(taskRef, request, actorUserId);
@@ -68,24 +59,6 @@ internal sealed partial class PostgresWorkflowRepository
         }
 
         return null;
-    }
-
-    // Statuswechsel aktualisieren Aufgabe, Abhaengigkeiten und daraus abgeleiteten Workflow-Status in einer Transaktion.
-    public async Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId)
-    {
-        var normalizedStatus = TaskStatusRules.NormalizeTaskStatus(status);
-        await using var connection = new NpgsqlConnection(GetConnectionString());
-        await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
-        var result = await UpdateTaskStatusInScope(connection, transaction, taskId, normalizedStatus, actorUserId);
-        if (result is null)
-            return null;
-        if (result.ShouldCompleteRuntimeTaskNode && result.RuntimeNodeInstanceId.HasValue)
-            await PostgresWorkflowRuntimeRepository.CompleteTaskNodeRuntimeSide(connection, transaction, result.WorkflowId, result.WorkflowUid, result.RuntimeNodeInstanceId.Value, actorUserId);
-        else if (result.ShouldTryAdvanceRuntimeSetup)
-            await PostgresWorkflowRuntimeRepository.TryAdvanceSetupNodeIfReady(connection, transaction, result.WorkflowId, result.WorkflowUid, actorUserId);
-        await transaction.CommitAsync();
-        return await GetTaskById(taskId);
     }
 
     public async Task<TaskStatusUpdateScopeResult?> UpdateTaskStatusInScope(
@@ -146,20 +119,6 @@ internal sealed partial class PostgresWorkflowRepository
         }
     }
 
-    public async Task<TaskWithWorkflowDto?> DecideTaskApproval(long taskId, TaskApprovalDecisionRequest request, long actorUserId)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        await using var connection = new NpgsqlConnection(GetConnectionString());
-        await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
-        var result = await DecideTaskApprovalInScope(connection, transaction, taskId, request, actorUserId);
-        if (result is null)
-            return null;
-        await PostgresWorkflowRuntimeRepository.ApplyApprovalNodeDecision(connection, transaction, result.WorkflowId, result.WorkflowUid, result.NodeInstanceId, request.Approved, actorUserId);
-        await transaction.CommitAsync();
-        return await GetTaskById(taskId);
-    }
-
     public async Task<DecideTaskApprovalScopeResult?> DecideTaskApprovalInScope(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
@@ -207,6 +166,53 @@ internal sealed partial class PostgresWorkflowRepository
 
         return new DecideTaskApprovalScopeResult(nodeInstanceId.Value, workflowId, workflowUid);
     }
+
+    public Task CompleteRuntimeTaskNodeInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long nodeInstanceId,
+        long actorUserId,
+        string? comment = null)
+        => PostgresWorkflowRuntimeRepository.CompleteTaskNodeRuntimeSide(
+            connection,
+            transaction,
+            workflowId,
+            workflowUid,
+            nodeInstanceId,
+            actorUserId,
+            comment);
+
+    public Task TryAdvanceRuntimeSetupInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long actorUserId)
+        => PostgresWorkflowRuntimeRepository.TryAdvanceSetupNodeIfReady(
+            connection,
+            transaction,
+            workflowId,
+            workflowUid,
+            actorUserId);
+
+    public Task ApplyApprovalNodeDecisionInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long nodeInstanceId,
+        bool approved,
+        long actorUserId)
+        => PostgresWorkflowRuntimeRepository.ApplyApprovalNodeDecision(
+            connection,
+            transaction,
+            workflowId,
+            workflowUid,
+            nodeInstanceId,
+            approved,
+            actorUserId);
 
     // Zuweisungen werden ebenfalls transaktional aktualisiert, damit Aufgaben- und Workflow-Sicht konsistent bleiben.
     public async Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId)

@@ -97,18 +97,6 @@ LIMIT 1;
         return claimed;
     }
 
-    public async Task CompleteAutomationJobSuccess(
-        ClaimedAutomationJobRecord job,
-        WorkflowAutomationHandlerResult result,
-        CancellationToken cancellationToken = default)
-    {
-        await using var connection = new NpgsqlConnection(GetConnectionString());
-        await connection.OpenAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-        await CompleteAutomationJobSuccessInScope(connection, transaction, job, result, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-    }
-
     public async Task CompleteAutomationJobSuccessInScope(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,

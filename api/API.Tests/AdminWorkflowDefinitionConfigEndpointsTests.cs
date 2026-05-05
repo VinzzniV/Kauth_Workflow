@@ -960,9 +960,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<TaskWithWorkflowDto>> GetTasksForUserNarrowed(long userId, int[] effectiveResponsibilityIds) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskById(long taskId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef) => throw new NotSupportedException();
-        public Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskStatusByRef(string taskRef, string status, long actorUserId) => throw new NotSupportedException();
-        public Task<TaskWithWorkflowDto?> DecideTaskApproval(long taskId, TaskApprovalDecisionRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> DecideTaskApprovalByRef(string taskRef, TaskApprovalDecisionRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskAssignmentByRef(string taskRef, TaskAssignRequest request, long actorUserId) => throw new NotSupportedException();
@@ -1052,31 +1050,9 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
             return Task.FromResult(PublishedVersion);
         }
 
-        public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowDefinitionInstance(
-            CreateWorkflowDefinitionInstanceRequest request,
-            long createdByUserId) => throw new NotSupportedException();
-
         public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetail(Guid workflowUid) => throw new NotSupportedException();
 
         public Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid) => throw new NotSupportedException();
-
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeFormNode(
-            Guid workflowUid,
-            long nodeInstanceId,
-            CompleteRuntimeFormNodeRequest request,
-            long actorUserId) => throw new NotSupportedException();
-
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeApprovalNode(
-            Guid workflowUid,
-            long nodeInstanceId,
-            CompleteRuntimeApprovalNodeRequest request,
-            long actorUserId) => throw new NotSupportedException();
-
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeTaskNode(
-            Guid workflowUid,
-            long nodeInstanceId,
-            CompleteRuntimeTaskNodeRequest request,
-            long actorUserId) => throw new NotSupportedException();
 
         public Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request) => throw new NotSupportedException();

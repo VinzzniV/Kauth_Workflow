@@ -4,7 +4,7 @@ namespace API;
 
 internal sealed class WorkflowRuntimeService(
     IWorkflowRepository repository,
-    IWorkflowDefinitionRuntimeRepository workflowDefinitionRuntimeRepository,
+    IWorkflowLifecycleService workflowLifecycleService,
     IWorkflowAuditReadRepository workflowAuditReadRepository,
     IWorkflowNotificationReadRepository workflowNotificationReadRepository,
     IAuthorizationPolicyService authorizationPolicyService,
@@ -96,7 +96,7 @@ internal sealed class WorkflowRuntimeService(
             throw new InvalidOperationException(requestValidationError);
         }
 
-        var created = await workflowDefinitionRuntimeRepository.CreateWorkflowDefinitionInstance(
+        var created = await workflowLifecycleService.CreateWorkflowInstanceAsync(
             new CreateWorkflowDefinitionInstanceRequest
             {
                 WorkflowDefinitionKey = selectedDefinition.DefinitionKey,

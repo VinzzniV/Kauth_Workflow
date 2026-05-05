@@ -49,9 +49,8 @@ internal interface IWorkflowRepository
     Task<List<TaskWithWorkflowDto>> GetTasksForUserNarrowed(long userId, int[] effectiveResponsibilityIds);
     Task<TaskWithWorkflowDto?> GetTaskById(long taskId);
     Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef);
-    Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId);
+    // Rotation-only routing: WorkflowTaskRef-Pfad laeuft ueber den Lifecycle-Service.
     Task<TaskWithWorkflowDto?> UpdateTaskStatusByRef(string taskRef, string status, long actorUserId);
-    Task<TaskWithWorkflowDto?> DecideTaskApproval(long taskId, TaskApprovalDecisionRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> DecideTaskApprovalByRef(string taskRef, TaskApprovalDecisionRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId);
     Task<TaskWithWorkflowDto?> UpdateTaskAssignmentByRef(string taskRef, TaskAssignRequest request, long actorUserId);

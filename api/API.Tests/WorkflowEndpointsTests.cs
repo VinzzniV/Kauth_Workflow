@@ -915,6 +915,7 @@ public sealed class WorkflowEndpointsTests
         builder.Services.AddSingleton<IWorkflowNotificationDispatchService, WorkflowNotificationDispatchService>();
         builder.Services.AddSingleton<IWorkflowCatalogService, WorkflowCatalogService>();
         builder.Services.AddSingleton<IPersonLifecycleProjectionService, PersonLifecycleProjectionService>();
+        builder.Services.AddSingleton<IWorkflowLifecycleService>(new StubWorkflowLifecycleService(repository));
         builder.Services.AddSingleton<IWorkflowRuntimeService, WorkflowRuntimeService>();
         builder.Services.AddSingleton<ITaskApplicationService, TaskApplicationService>();
         builder.Services.AddSingleton<IGraphApplicationConfigurationService, StubGraphApplicationConfigurationService>();
@@ -1298,6 +1299,22 @@ public sealed class WorkflowEndpointsTests
         }
     }
 
+    // Delegiert Definition-Runtime-Mutationen an die bestehende Stub-Repo-Methode, damit Endpoint-Tests
+    // den Z7-1.2-Lifecycle-Pfad nicht real instanziieren muessen.
+    private sealed class StubWorkflowLifecycleService(StubWorkflowRepository repository) : IWorkflowLifecycleService
+    {
+        public Task<TaskWithWorkflowDto?> UpdateTaskStatusAsync(long taskId, string status, long actorUserId) => throw new NotSupportedException();
+        public Task<TaskWithWorkflowDto?> UpdateTaskStatusByRefAsync(string taskRef, string status, long actorUserId) => throw new NotSupportedException();
+        public Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(long taskId, TaskApprovalDecisionRequest request, long actorUserId) => throw new NotSupportedException();
+        public Task<TaskWithWorkflowDto?> DecideTaskApprovalByRefAsync(string taskRef, TaskApprovalDecisionRequest request, long actorUserId) => throw new NotSupportedException();
+        public Task OnAutomationJobCompletedAsync(ClaimedAutomationJobRecord job, WorkflowAutomationHandlerResult result, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId)
+            => Task.FromResult(repository.RuntimeWorkflowCreationResult);
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteApprovalNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteTaskNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId) => throw new NotSupportedException();
+    }
+
     private sealed class StubWorkflowRepository : IWorkflowRepository, IWorkflowDefinitionRuntimeRepository, IWorkflowAuditReadRepository, IWorkflowNotificationReadRepository
     {
         public WorkflowDetailDto? Workflow { get; set; }
@@ -1482,9 +1499,7 @@ public sealed class WorkflowEndpointsTests
         public Task<List<TaskWithWorkflowDto>> GetTasksForUserNarrowed(long userId, int[] effectiveResponsibilityIds) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskById(long taskId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> GetTaskByRef(string taskRef) => throw new NotSupportedException();
-        public Task<TaskWithWorkflowDto?> UpdateTaskStatus(long taskId, string status, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskStatusByRef(string taskRef, string status, long actorUserId) => throw new NotSupportedException();
-        public Task<TaskWithWorkflowDto?> DecideTaskApproval(long taskId, TaskApprovalDecisionRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> DecideTaskApprovalByRef(string taskRef, TaskApprovalDecisionRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskAssignment(long taskId, TaskAssignRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> UpdateTaskAssignmentByRef(string taskRef, TaskAssignRequest request, long actorUserId) => throw new NotSupportedException();
@@ -1613,18 +1628,8 @@ public sealed class WorkflowEndpointsTests
         public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> PublishWorkflowDefinitionVersion(long versionId) => throw new NotSupportedException();
 
-        public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowDefinitionInstance(
-            CreateWorkflowDefinitionInstanceRequest request,
-            long createdByUserId)
-        {
-            return Task.FromResult(RuntimeWorkflowCreationResult);
-        }
-
         public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetail(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid) => throw new NotSupportedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeFormNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId) => throw new NotSupportedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeApprovalNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId) => throw new NotSupportedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeTaskNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId) => throw new NotSupportedException();
     }
 
     private sealed class StubWorkflowEmailNotificationSender : IWorkflowEmailNotificationSender

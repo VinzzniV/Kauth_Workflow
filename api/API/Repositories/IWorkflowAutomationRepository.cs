@@ -3,10 +3,6 @@ namespace API;
 internal interface IWorkflowAutomationRepository
 {
     Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default);
-    Task CompleteAutomationJobSuccess(
-        ClaimedAutomationJobRecord job,
-        WorkflowAutomationHandlerResult result,
-        CancellationToken cancellationToken = default);
     Task CompleteAutomationJobFailure(
         ClaimedAutomationJobRecord job,
         string errorMessage,

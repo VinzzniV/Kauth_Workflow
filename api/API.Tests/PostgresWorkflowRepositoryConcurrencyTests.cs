@@ -49,7 +49,8 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
             }
 
             var repository = new PostgresWorkflowRepository();
-            var updateTask = repository.UpdateTaskStatus(testData.TaskIds[0], "in_progress", TestActorUserId);
+            var lifecycleService = CreateLifecycleService(repository);
+            var updateTask = lifecycleService.UpdateTaskStatusAsync(testData.TaskIds[0], "in_progress", TestActorUserId);
 
             await Task.Delay(TimeSpan.FromMilliseconds(300));
 
@@ -88,9 +89,10 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
         try
         {
             var repository = new PostgresWorkflowRepository();
+            var lifecycleService = CreateLifecycleService(repository);
 
-            var firstUpdateTask = repository.UpdateTaskStatus(testData.TaskIds[0], "in_progress", TestActorUserId);
-            var secondUpdateTask = repository.UpdateTaskStatus(testData.TaskIds[1], "in_progress", TestActorUserId);
+            var firstUpdateTask = lifecycleService.UpdateTaskStatusAsync(testData.TaskIds[0], "in_progress", TestActorUserId);
+            var secondUpdateTask = lifecycleService.UpdateTaskStatusAsync(testData.TaskIds[1], "in_progress", TestActorUserId);
 
             await Task.WhenAll(firstUpdateTask, secondUpdateTask).WaitAsync(TimeSpan.FromSeconds(10));
 
@@ -321,6 +323,9 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
             return false;
         }
     }
+
+    private static WorkflowLifecycleService CreateLifecycleService(PostgresWorkflowRepository repository)
+        => new(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
 
     private sealed class TestWorkflowData
     {

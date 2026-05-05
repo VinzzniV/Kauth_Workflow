@@ -15,31 +15,30 @@ Verwende sie nur fuer:
 
 ## Current Focus
 
-- **Schritt 7 Slice 2 ist vollstaendig abgeschlossen** (2026-05-04). 2.0–2.6 done. 409 Tests gruen, 0 failed.
-- `WorkflowLifecycleService` besitzt jetzt Conn+Tx fuer alle Mutationspfade: Task-Status, Approval, Automation, Definition-Runtime-Delegierung.
-- `WorkflowAutomationService` und `WorkflowDefinitionRuntimeService` routen durch `IWorkflowLifecycleService`.
-- Naechster Schritt: kein weiterer Schritt 7 offen. Naechster Zyklus aus `CODE_REVIEW.md` lesen.
+- **Zyklus 7 ist aktiv** (2026-05-05). Thema: Lifecycle-Service-Konsolidierung + Validation-Service-Split. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 7" und `TODO.md`.
+- Z7-1.1 (Lifecycle-Inventur) ist **done** — Ergebnis in `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md` § 12.
+- Z7-2 ist **done** — `api/API.Tests/WorkflowLifecycleServiceTests.cs` deckt `wf:`/`rot:`-Routing, Rollback im zweiten Lifecycle-Schritt und den Automation-Scope-Pfad ab.
+- Z7-1.2/1.3/1.4/1.5a sind **done** (2026-05-05) — Lifecycle-Service besitzt Conn+Tx fuer Create/Form/Approval/Task, statische Runtime-Helfer wandern hinter Scoped-Interfaces, Repo-Wrapper-Dupletten und `*ByRef`-Workflow-Pfade entfernt.
+- Z7-1.5b ist **done** (2026-05-05) — alle 5 Sub-Slices (b.i..b.v) erledigt; Inhalte der `*InScope`-Methoden physisch in den Lifecycle-Service gezogen; Scoped-Vertrag `IWorkflowDefinitionRuntimeScopedRepository` komplett entfernt (Datei + DI + Service-Ctor-Parameter + Test-Stubs).
+- **Z7-3 in Arbeit**: 4 Sub-Slices (3.1 Catalog → 3.2 Helpers → 3.3 SnapshotValidator → 3.4 DraftValidator), Slice-Plan in `CODE_REVIEW.md` § Z7-3.
+- **Z7-3.1 done** (2026-05-05): vier Konstanten-Sets in neue interne `WorkflowDefinitionValidationCatalog` extrahiert; Service haelt private Property-Aliase. 416/417 Tests gruen.
+- **Z7-3.2 done** (2026-05-05): pure Helfer (Normalize/TryNormalize-Overloads, HasConfig, CreateIssue, ValidateRequiredStringConfig-/ValidateOptionalObjectConfig-Overloads) in neue `WorkflowDefinitionValidationHelpers` extrahiert; Service haelt private Forwarder. 416/417 Tests gruen.
+- Naechster sinnvoller Schritt: **Z7-3.3** (`WorkflowDefinitionSnapshotValidator` extrahieren). Medium, sonnet.
 - `DOCS_CONTROL.md` bleibt zentraler Einstieg; pro Aufgabe mitdenken, welche Doku im selben Arbeitsgang aktualisiert wird.
-- Frontend-Review vom 2026-05-04 ist als umsetzbare Roadmap in `FRONTEND_TODO.md` abgebildet.
-- `FE-25` bis `FE-29` sind erledigt: Builder-Dialoge sind gehärtet, wiederkehrende Inline-Layouts in gemeinsame CSS-Bausteine überführt, Haupt-Filterflächen sind vereinheitlicht, operative Listen haben Karten-/Tabellenmodus und `Meine Aufgaben`/`Laufende Vorgänge` nutzen Split-Views für weniger Navigationssprünge.
-- `FE-30` ist vollständig done (Slice 1 canvas-first Properties-Panel, Slice 2 Validation am Objekt, Slice 3 Edge-Erzeugung direkt am Graph). Slice 3: „+"-Anker am rechten Rand jedes Schritts startet Connect-Mode (Esc/Background bricht ab); Klick auf Zielschritt legt die Verbindung über bestehenden `addEdge`-Pfad an. Backend-Vertrag unverändert.
-- `FE-31` ist done: `PersonWorkflowHistoryPage` ist 360°-Tab-Workspace (Übersicht / Offene Aufgaben / Benachrichtigungen / Vorgänge) mit Metric-Strip. Aggregation per `usePersonWorkflowAggregates` (`useQueries` über `WorkflowDetail` aller aktiven Vorgänge) — Backend-Vertrag unverändert. Nächster Block-5-Schritt ist `FE-33`.
 
 ## Active Risks / Watchouts
 
-- Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
-- DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432` — relevant fuer Slice 2.3+ (Verhaltens-Paritaets-Beweis nach Brücken-Migration).
-- Repo-Methoden `CompleteRuntimeApprovalNode` / `CompleteRuntimeTaskNode` / `CreateWorkflowDefinitionInstance` / `CompleteRuntimeFormNode` in `PostgresWorkflowRuntimeRepository` existieren noch — sie werden nur noch via `lifecycleService.*` aufgerufen (Slice 2.5 Routing). Vollstaendige Verschiebung der Logik in den Service ist defer.
+- `WorkflowLifecycleService` ist nach Z7-1.5b vollstaendig die Conn+Tx-Grenze fuer Create/Form/Approval/Task und orchestriert die `*InScope`-Logik direkt. `PostgresWorkflowRuntimeRepository` enthaelt nur noch read- und shared-static-Helfer.
 - Rotation-Task-Routing bleibt im Repo (`UpdateTaskStatusByRef` / `DecideTaskApprovalByRef`): RotationTaskRef → `_rotationRepository`, WorkflowTaskRef → Lifecycle-Service.
-- Permission-Schema ist seit Slice 6.3d-iv vollstaendig definitionsgetrieben (`workflows.create.<definition_key>`).
-- LA5 done: Task-Specs liegen am `workflow_node_id`. `workflow_definitions.approval_task_template_key` heisst nominell noch `_template_key` — Naming-Cleanup als FE-8 backlog.
-- FE-9 done: Spec-Carry-Over via `WorkflowDefinitionNodeDto.Specs`. AdminTaskTemplate-Editor schreibt weiter auf published Version — Cross-Version-Leak bleibt Watch-Item (FE-11/13).
+- `WorkflowDefinitionValidationService.cs` (2131 Z.) ist der groesste verbleibende Service-Monolith — Z7-3.
+- DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432`.
+- Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
 
 ## Temporary Notes
 
 - `KauthWorkflow/Architektur/Zielarchitektur.md` beschreibt das stabile Plattform-Zielbild.
 - `PROJECT_STRUCTURE.md` und `web/README.md` muessen bei sichtbaren Admin-/UI-Verschiebungen mitgezogen werden.
-- Diese Datei enthaelt nur noch Hinweise fuer die naechsten Sessions, keine laengere Historie.
+- Frontend-Stand nach FE-25..FE-31 ist stabil; aus Zyklus 7 entstehen keine neuen FE-Items.
 
 ## Cleanup Rule
 

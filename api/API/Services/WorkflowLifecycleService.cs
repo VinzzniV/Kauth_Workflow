@@ -4,8 +4,10 @@ namespace API;
 
 internal sealed class WorkflowLifecycleService(
     IWorkflowRepository workflowRepository,
-    IWorkflowDefinitionRuntimeRepository definitionRuntimeRepository,
-    IWorkflowLifecycleScopedRepository scopedRepository) : IWorkflowLifecycleService
+    IWorkflowLifecycleScopedRepository scopedRepository,
+    IWorkflowAuditWriteOperations auditWrite,
+    IWorkflowStatusCalculationService statusCalculation,
+    IWorkflowNotificationDispatchOperations notificationDispatch) : IWorkflowLifecycleService
 {
     public async Task<TaskWithWorkflowDto?> UpdateTaskStatusAsync(long taskId, string status, long actorUserId)
     {
@@ -17,9 +19,9 @@ internal sealed class WorkflowLifecycleService(
         if (result is null)
             return null;
         if (result.ShouldCompleteRuntimeTaskNode && result.RuntimeNodeInstanceId.HasValue)
-            await PostgresWorkflowRuntimeRepository.CompleteTaskNodeRuntimeSide(connection, transaction, result.WorkflowId, result.WorkflowUid, result.RuntimeNodeInstanceId.Value, actorUserId);
+            await scopedRepository.CompleteRuntimeTaskNodeInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, result.RuntimeNodeInstanceId.Value, actorUserId);
         else if (result.ShouldTryAdvanceRuntimeSetup)
-            await PostgresWorkflowRuntimeRepository.TryAdvanceSetupNodeIfReady(connection, transaction, result.WorkflowId, result.WorkflowUid, actorUserId);
+            await scopedRepository.TryAdvanceRuntimeSetupInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, actorUserId);
         await transaction.CommitAsync();
         return await workflowRepository.GetTaskById(taskId);
     }
@@ -42,7 +44,7 @@ internal sealed class WorkflowLifecycleService(
         var result = await scopedRepository.DecideTaskApprovalInScope(connection, transaction, taskId, request, actorUserId);
         if (result is null)
             return null;
-        await PostgresWorkflowRuntimeRepository.ApplyApprovalNodeDecision(connection, transaction, result.WorkflowId, result.WorkflowUid, result.NodeInstanceId, request.Approved, actorUserId);
+        await scopedRepository.ApplyApprovalNodeDecisionInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, result.NodeInstanceId, request.Approved, actorUserId);
         await transaction.CommitAsync();
         return await workflowRepository.GetTaskById(taskId);
     }
@@ -66,14 +68,389 @@ internal sealed class WorkflowLifecycleService(
     }
 
     public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId)
-        => definitionRuntimeRepository.CreateWorkflowDefinitionInstance(request, actorUserId);
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.WorkflowDefinitionKey))
+        {
+            throw new InvalidOperationException("WorkflowDefinitionKey is required.");
+        }
+
+        return ExecuteDefinitionRuntimeMutationAsync(async (connection, transaction) =>
+        {
+            var publishedVersion = await PostgresWorkflowRuntimeRepository.LoadPublishedWorkflowDefinitionVersion(
+                connection,
+                transaction,
+                request.WorkflowDefinitionKey);
+            if (publishedVersion is null)
+            {
+                throw new InvalidOperationException(
+                    $"No published workflow definition exists for key '{request.WorkflowDefinitionKey.Trim().ToLowerInvariant()}'.");
+            }
+
+            var processType = await PostgresWorkflowRepository.LoadProcessTypeForCreate(connection, transaction, publishedVersion.PrimaryLegacyProcessTypeKey);
+            var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
+
+            var gatekeeperEvaluation = WorkflowRuntimeEngine.EvaluateSupervisorGatekeeper(
+                graph,
+                publishedVersion.PrimaryLegacyProcessTypeKey,
+                processType.RequiresSupervisorStep);
+            if (!gatekeeperEvaluation.IsSatisfied)
+            {
+                throw new InvalidOperationException(
+                    gatekeeperEvaluation.FailureMessage
+                    ?? "Die publizierte Workflow-Definition besitzt keinen gültigen Supervisor-Gatekeeper.");
+            }
+
+            if (request.DeadlineDate.HasValue && request.DeadlineDate.Value < DateOnly.FromDateTime(DateTime.Today))
+            {
+                throw new InvalidOperationException("Die Deadline darf nicht in der Vergangenheit liegen.");
+            }
+
+            if (!request.TargetPersonId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    $"Die publizierte Workflow-Definition '{publishedVersion.WorkflowDefinitionKey}' erfordert eine bestehende Zielperson.");
+            }
+
+            var targetPerson = await PostgresRepositorySharedHelpers.LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
+
+            var effectiveDepartmentId = request.DepartmentId ?? targetPerson.DepartmentId;
+            int? effectiveRoleId = request.RoleId ?? targetPerson.RoleId;
+
+            if (request.RoleId.HasValue)
+            {
+                if (!effectiveDepartmentId.HasValue)
+                {
+                    throw new InvalidOperationException("Die Abteilung ist erforderlich, wenn eine Zielrolle direkt angegeben wird.");
+                }
+
+                await PostgresRepositorySharedHelpers.EnsureValidPositionRole(connection, transaction, request.RoleId.Value, effectiveDepartmentId.Value);
+            }
+
+            if (!effectiveDepartmentId.HasValue)
+            {
+                throw new InvalidOperationException("Die Abteilung ist fuer diese Workflow-Definition erforderlich.");
+            }
+
+            if (!effectiveRoleId.HasValue)
+            {
+                throw new InvalidOperationException("Die Zielrolle ist fuer diese Workflow-Definition erforderlich.");
+            }
+
+            var departmentId = effectiveDepartmentId.Value;
+            var roleId = effectiveRoleId.Value;
+            if (request.RoleId.HasValue)
+            {
+                await PostgresRepositorySharedHelpers.EnsureValidPositionRole(connection, transaction, roleId, departmentId);
+            }
+
+            var firstName = PostgresWorkflowRuntimeRepository.NormalizeRuntimeOptionalText(request.FirstName);
+            var lastName = PostgresWorkflowRuntimeRepository.NormalizeRuntimeOptionalText(request.LastName);
+            if (!processType.RequiresTargetPerson)
+            {
+                var derivedFirstName = targetPerson.FirstName;
+                var derivedLastName = targetPerson.LastName;
+                if (string.IsNullOrWhiteSpace(derivedFirstName) || string.IsNullOrWhiteSpace(derivedLastName))
+                {
+                    (derivedFirstName, derivedLastName) = PostgresWorkflowRepository.SplitDisplayName(targetPerson.DisplayName);
+                }
+
+                firstName ??= derivedFirstName;
+                lastName ??= derivedLastName;
+            }
+
+            if (string.IsNullOrWhiteSpace(firstName))
+            {
+                throw new InvalidOperationException("Der Vorname ist erforderlich.");
+            }
+
+            if (string.IsNullOrWhiteSpace(lastName))
+            {
+                throw new InvalidOperationException("Der Nachname ist erforderlich.");
+            }
+
+            var employeeNumber = request.EmployeeNumber ?? targetPerson?.EmployeeNumber;
+            if (!employeeNumber.HasValue || employeeNumber.Value <= 0)
+            {
+                throw new InvalidOperationException("Die Personalnummer ist erforderlich.");
+            }
+
+            var badgeNumber = request.BadgeNumber ?? targetPerson?.BadgeNumber;
+            if (!badgeNumber.HasValue || badgeNumber.Value <= 0)
+            {
+                throw new InvalidOperationException("Die Ausweisnummer ist erforderlich.");
+            }
+
+            const string insertWorkflowSql = """
+INSERT INTO workflows (
+    workflow_definition_id,
+    workflow_definition_version_id,
+    department_id,
+    position_role_id,
+    created_by_user_id,
+    target_person_id,
+    first_name,
+    last_name,
+    employee_number,
+    badge_number,
+    deadline_date,
+    current_runtime_status,
+    status,
+    started_at
+)
+VALUES (
+    @processTypeId,
+    @workflowDefinitionVersionId,
+    @departmentId,
+    @roleId,
+    @createdByUserId,
+    @targetPersonId,
+    @firstName,
+    @lastName,
+    @employeeNumber,
+    @badgeNumber,
+    @deadlineDate,
+    @currentRuntimeStatus,
+    @legacyStatus,
+    NOW()
+)
+RETURNING id, uid;
+""";
+
+            long workflowId;
+            Guid workflowUid;
+            await using (var insertWorkflowCommand = new NpgsqlCommand(insertWorkflowSql, connection, transaction))
+            {
+                insertWorkflowCommand.Parameters.AddWithValue("processTypeId", publishedVersion.PrimaryLegacyProcessTypeId);
+                insertWorkflowCommand.Parameters.AddWithValue("workflowDefinitionVersionId", publishedVersion.VersionId);
+                insertWorkflowCommand.Parameters.AddWithValue("departmentId", departmentId);
+                insertWorkflowCommand.Parameters.AddWithValue("roleId", roleId);
+                insertWorkflowCommand.Parameters.AddWithValue("createdByUserId", actorUserId);
+                insertWorkflowCommand.Parameters.AddWithValue("targetPersonId", request.TargetPersonId.Value);
+                insertWorkflowCommand.Parameters.AddWithValue("firstName", firstName);
+                insertWorkflowCommand.Parameters.AddWithValue("lastName", lastName);
+                insertWorkflowCommand.Parameters.AddWithValue("employeeNumber", employeeNumber.Value);
+                insertWorkflowCommand.Parameters.AddWithValue("badgeNumber", badgeNumber.Value);
+                insertWorkflowCommand.Parameters.Add("deadlineDate", NpgsqlTypes.NpgsqlDbType.Date).Value =
+                    (object?)request.DeadlineDate ?? DBNull.Value;
+                insertWorkflowCommand.Parameters.AddWithValue("currentRuntimeStatus", "running");
+                insertWorkflowCommand.Parameters.AddWithValue("legacyStatus", "draft");
+
+                await using var reader = await insertWorkflowCommand.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    throw new InvalidOperationException("Workflow runtime instance could not be created.");
+                }
+
+                workflowId = reader.GetInt64(0);
+                workflowUid = reader.GetGuid(1);
+            }
+
+            await PostgresRepositorySharedHelpers.InsertAuditEntry(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                actorUserId,
+                "workflow_definition_runtime_created",
+                null,
+                "running",
+                publishedVersion.WorkflowDefinitionKey);
+
+            var startNode = graph.Nodes.Single(node => string.Equals(node.NodeType, "start", StringComparison.OrdinalIgnoreCase));
+
+            var startNodeInstanceId = await PostgresWorkflowRuntimeRepository.CreateWorkflowNodeInstance(
+                connection,
+                transaction,
+                workflowId,
+                startNode,
+                PostgresWorkflowRuntimeRepository.NodeInstanceStatusDone,
+                PostgresWorkflowRuntimeRepository.CreateJsonbPayload(new { auto = true, reason = "runtime_start" }));
+
+            await PostgresWorkflowRuntimeRepository.InsertWorkflowRuntimeEvent(
+                connection,
+                transaction,
+                workflowId,
+                null,
+                "workflow_started",
+                PostgresWorkflowRuntimeRepository.CreateJsonbPayload(new
+                {
+                    workflowDefinitionKey = publishedVersion.WorkflowDefinitionKey,
+                    workflowDefinitionVersionId = publishedVersion.VersionId
+                }));
+
+            await PostgresWorkflowRuntimeRepository.InsertWorkflowRuntimeEvent(
+                connection,
+                transaction,
+                workflowId,
+                startNodeInstanceId,
+                "node_completed",
+                PostgresWorkflowRuntimeRepository.CreateJsonbPayload(new { nodeKey = startNode.NodeKey, nodeType = startNode.NodeType, auto = true }));
+
+            await PostgresWorkflowRuntimeRepository.AdvanceRuntimeUntilWaitOrTerminal(
+                connection,
+                transaction,
+                workflowId,
+                graph,
+                startNode,
+                await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, workflowId),
+                actorUserId);
+
+            await notificationDispatch.CreateWorkflowNotifications(
+                connection,
+                transaction,
+                workflowId,
+                departmentId,
+                processType.RequiresSupervisorStep,
+                publishedVersion.WorkflowDefinitionKey,
+                publishedVersion.WorkflowDefinitionName);
+
+            return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid)
+                ?? throw new InvalidOperationException("Workflow runtime instance could not be loaded after creation.");
+        });
+    }
 
     public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId)
-        => definitionRuntimeRepository.CompleteRuntimeFormNode(workflowUid, nodeInstanceId, request, actorUserId);
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return ExecuteDefinitionRuntimeMutationAsync(async (connection, transaction) =>
+        {
+            var workflow = await PostgresWorkflowRuntimeRepository.LoadRuntimeWorkflowHeader(connection, transaction, workflowUid);
+            if (workflow is null)
+            {
+                return null;
+            }
+
+            var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, workflow.WorkflowDefinitionVersionId);
+            var nodeExecution = await PostgresWorkflowRuntimeRepository.LoadNodeExecutionForUpdate(connection, transaction, workflow.WorkflowId, nodeInstanceId);
+            PostgresWorkflowRuntimeRepository.EnsureActiveRuntimeNode(nodeExecution, "form");
+            await PostgresWorkflowRuntimeRepository.CompleteRuntimeFormNodeInternal(
+                connection,
+                transaction,
+                workflow,
+                graph,
+                nodeExecution!,
+                request.RequirementSelections ?? [],
+                actorUserId);
+
+            return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid);
+        });
+    }
 
     public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteApprovalNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId)
-        => definitionRuntimeRepository.CompleteRuntimeApprovalNode(workflowUid, nodeInstanceId, request, actorUserId);
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return ExecuteDefinitionRuntimeMutationAsync(async (connection, transaction) =>
+        {
+            var workflow = await PostgresWorkflowRuntimeRepository.LoadRuntimeWorkflowHeader(connection, transaction, workflowUid);
+            if (workflow is null)
+            {
+                return null;
+            }
+
+            var nodeExecution = await PostgresWorkflowRuntimeRepository.LoadNodeExecutionForUpdate(connection, transaction, workflow.WorkflowId, nodeInstanceId);
+            PostgresWorkflowRuntimeRepository.EnsureActiveRuntimeNode(nodeExecution, "approval");
+            var linkedTaskId = await PostgresWorkflowRuntimeRepository.LoadWorkflowTaskIdByNodeInstanceId(connection, transaction, nodeInstanceId);
+            if (linkedTaskId.HasValue)
+            {
+                var taskRecord = await statusCalculation.LoadTaskStateForUpdate(connection, transaction, linkedTaskId.Value);
+                if (!taskRecord.HasValue)
+                {
+                    throw new InvalidOperationException("Approval task could not be loaded.");
+                }
+
+                var (_, _, taskStatus, _, _, _, taskTitle, _, _) = taskRecord.Value;
+                if (!TaskStatusRules.TerminalTaskStatuses.Contains(taskStatus))
+                {
+                    await statusCalculation.PersistTaskStatus(connection, transaction, linkedTaskId.Value, "done");
+                    await auditWrite.InsertAuditEntry(
+                        connection,
+                        transaction,
+                        workflow.WorkflowId,
+                        linkedTaskId.Value,
+                        actorUserId,
+                        "task_status_changed",
+                        taskStatus,
+                        "done",
+                        PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskTitle));
+                    await statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, linkedTaskId.Value, "done");
+                }
+            }
+
+            await PostgresWorkflowRuntimeRepository.ApplyApprovalNodeDecision(
+                connection,
+                transaction,
+                workflow.WorkflowId,
+                workflowUid,
+                nodeInstanceId,
+                request.Approved,
+                actorUserId);
+
+            return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid);
+        });
+    }
 
     public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteTaskNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId)
-        => definitionRuntimeRepository.CompleteRuntimeTaskNode(workflowUid, nodeInstanceId, request, actorUserId);
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return ExecuteDefinitionRuntimeMutationAsync(async (connection, transaction) =>
+        {
+            var workflow = await PostgresWorkflowRuntimeRepository.LoadRuntimeWorkflowHeader(connection, transaction, workflowUid);
+            if (workflow is null)
+            {
+                return null;
+            }
+
+            var nodeExecution = await PostgresWorkflowRuntimeRepository.LoadNodeExecutionForUpdate(connection, transaction, workflow.WorkflowId, nodeInstanceId);
+            PostgresWorkflowRuntimeRepository.EnsureActiveRuntimeNode(nodeExecution, "task");
+            var linkedTaskId = await PostgresWorkflowRuntimeRepository.LoadWorkflowTaskIdByNodeInstanceId(connection, transaction, nodeInstanceId);
+            if (linkedTaskId.HasValue)
+            {
+                var taskRecord = await statusCalculation.LoadTaskStateForUpdate(connection, transaction, linkedTaskId.Value);
+                if (!taskRecord.HasValue)
+                {
+                    throw new InvalidOperationException("Runtime task could not be loaded.");
+                }
+
+                var (_, _, taskStatus, _, _, _, taskTitle, _, _) = taskRecord.Value;
+                if (!TaskStatusRules.TerminalTaskStatuses.Contains(taskStatus))
+                {
+                    await statusCalculation.PersistTaskStatus(connection, transaction, linkedTaskId.Value, "done");
+                    await auditWrite.InsertAuditEntry(
+                        connection,
+                        transaction,
+                        workflow.WorkflowId,
+                        linkedTaskId.Value,
+                        actorUserId,
+                        "task_status_changed",
+                        taskStatus,
+                        "done",
+                        PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskTitle));
+                    await statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, linkedTaskId.Value, "done");
+                }
+            }
+
+            await PostgresWorkflowRuntimeRepository.CompleteTaskNodeRuntimeSide(
+                connection,
+                transaction,
+                workflow.WorkflowId,
+                workflowUid,
+                nodeInstanceId,
+                actorUserId,
+                request.Comment);
+
+            return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid);
+        });
+    }
+
+    private static async Task<T> ExecuteDefinitionRuntimeMutationAsync<T>(
+        Func<NpgsqlConnection, NpgsqlTransaction, Task<T>> mutation)
+    {
+        await using var connection = new NpgsqlConnection(LifecycleRuntimeSettingsResolver.GetRequiredConnectionString());
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var result = await mutation(connection, transaction);
+        await transaction.CommitAsync();
+        return result;
+    }
 }

@@ -29,4 +29,29 @@ internal interface IWorkflowLifecycleScopedRepository
         ClaimedAutomationJobRecord job,
         WorkflowAutomationHandlerResult result,
         CancellationToken cancellationToken = default);
+
+    Task CompleteRuntimeTaskNodeInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long nodeInstanceId,
+        long actorUserId,
+        string? comment = null);
+
+    Task TryAdvanceRuntimeSetupInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long actorUserId);
+
+    Task ApplyApprovalNodeDecisionInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        Guid workflowUid,
+        long nodeInstanceId,
+        bool approved,
+        long actorUserId);
 }

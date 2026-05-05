@@ -123,9 +123,6 @@ public sealed class WorkflowAutomationServiceTests
         public Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default)
             => Task.FromResult(ClaimedJob);
 
-        public Task CompleteAutomationJobSuccess(ClaimedAutomationJobRecord job, WorkflowAutomationHandlerResult result, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-
         public Task CompleteAutomationJobFailure(
             ClaimedAutomationJobRecord job,
             string errorMessage,

@@ -30,6 +30,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
             var automationService = CreateAutomationService(repository);
             var createContext = await LoadOnboardingCreateContextAsync(connectionString);
 
@@ -83,7 +84,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
             Assert.True(published!.CanPublish);
             targetPerson = await CreateTargetPersonAsync(repository, createContext, "Ada", "Lovelace", 123456, 654321);
 
-            runtime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            runtime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = definition.Key,
@@ -163,6 +164,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
             var automationService = CreateAutomationService(repository);
             var createContext = await LoadOnboardingCreateContextAsync(connectionString);
 
@@ -212,7 +214,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
             Assert.NotNull(await runtimeRepository.PublishWorkflowDefinitionVersion(version.Id));
             targetPerson = await CreateTargetPersonAsync(repository, createContext, "Ada", "Lovelace", 223456, 754321);
 
-            runtime = await runtimeRepository.CreateWorkflowDefinitionInstance(
+            runtime = await lifecycleService.CreateWorkflowInstanceAsync(
                 new CreateWorkflowDefinitionInstanceRequest
                 {
                     WorkflowDefinitionKey = definition.Key,
@@ -285,8 +287,10 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
     {
         var lifecycleService = new WorkflowLifecycleService(
             repository,
-            new StubWorkflowDefinitionRuntimeRepository(),
-            repository);
+            repository,
+            new PostgresWorkflowAuditWriteOperations(),
+            new PostgresWorkflowStatusCalculationService(),
+            new PostgresWorkflowNotificationDispatchOperations());
         return new WorkflowAutomationService(
             repository,
             new PostgresWorkflowAutomationReadRepository(),
@@ -302,17 +306,6 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
             lifecycleService,
             new WorkflowAutomationRetrySettings(),
             NullLogger<WorkflowAutomationService>.Instance);
-    }
-
-    private sealed class StubWorkflowDefinitionRuntimeRepository : IWorkflowDefinitionRuntimeRepository
-    {
-        public Task<WorkflowDefinitionVersionDetailDto?> PublishWorkflowDefinitionVersion(long versionId) => throw new NotImplementedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowDefinitionInstance(CreateWorkflowDefinitionInstanceRequest request, long createdByUserId) => throw new NotImplementedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetail(Guid workflowUid) => throw new NotImplementedException();
-        public Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid) => throw new NotImplementedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeFormNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId) => throw new NotImplementedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeApprovalNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId) => throw new NotImplementedException();
-        public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteRuntimeTaskNode(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId) => throw new NotImplementedException();
     }
 
     private sealed class StubSystemEventLogService : ISystemEventLogService
