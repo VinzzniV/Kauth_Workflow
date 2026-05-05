@@ -91,6 +91,20 @@ Wichtige Regeln für Codex:
 
 ---
 
+## Codex als Orchestrator fuer Claude
+
+Wenn Codex Claude steuert, gilt zusaetzlich:
+
+- Codex waehlt den naechsten Slice und begrenzt den Auftrag.
+- Claude arbeitet nur den beauftragten Slice ab.
+- Claude aktualisiert die noetigen Dokus im selben Arbeitsgang.
+- Claude committet nach jedem abgeschlossenen Slice.
+- Wenn ein Block zu gross ist, schlaegt Claude einen kleineren Slice-Plan vor, statt halb umzubauen.
+
+Die operative Regeldatei dafuer ist `CLAUDE_CONTROL.md` im Repo-Root.
+
+---
+
 ## Vault-Pflege
 
 - Vault-Dateien werden nicht bei jeder Session aktualisiert

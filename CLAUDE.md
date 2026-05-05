@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code when working in this repository.
 
+For Codex-orchestrated Claude work, also read `CLAUDE_CONTROL.md`.
+
 ---
 
 ## Collaboration Workflow
@@ -15,6 +17,7 @@ When working on non-trivial tasks, read these first:
 - `DOCS_CONTROL.md`
 - `PROJECT_CONTEXT.md`
 - `MEMORY.md`
+- `CLAUDE_CONTROL.md` when Codex is orchestrating the workflow
 
 For rotation / department-rotation work also read:
 - `CODE_REVIEW.md`

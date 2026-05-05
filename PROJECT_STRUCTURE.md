@@ -29,6 +29,9 @@ Handoff-Protokoll zwischen Claude und Codex.
 `CLAUDE.md`
 Hinweise fuer KI-Zusammenarbeit im Repo.
 
+`CLAUDE_CONTROL.md`
+Operative Steuerungsdatei fuer Claude-Arbeit unter Codex-Orchestrierung: Rollen, Slice-Workflow, Doku-Pflicht und Commit-Regel pro abgeschlossenem Schritt.
+
 `KauthWorkflow/`
 Obsidian Vault mit stabiler Wissensbasis. Einstieg: `KauthWorkflow/00 Start.md`
 Enthaelt: Zielarchitektur, Entscheidungen, Migrationspfad, Domänenkonzepte, Betriebsdoku, Stand.

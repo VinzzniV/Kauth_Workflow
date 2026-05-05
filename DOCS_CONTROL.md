@@ -28,6 +28,7 @@ Vor allen nicht-trivialen Aenderungen:
 - `PROJECT_CONTEXT.md`
 - `MEMORY.md`
 - `CODEX_SYNC.md` — immer lesen, wenn Codex zuletzt am Repo gearbeitet hat (neue Eintraege pruefen)
+- `CLAUDE_CONTROL.md` — wenn Claude im Repo als Worker unter Codex-Orchestrierung arbeitet
 
 Zusaetzlich je nach Aufgabe:
 - `CODE_REVIEW.md` und `TODO.md` bei allen Aufgaben zum Rotations-/Durchlauf-Feature oder bei Review-Nacharbeit
@@ -35,6 +36,7 @@ Zusaetzlich je nach Aufgabe:
 - `KauthWorkflow/Architektur/Zielarchitektur.md` fuer das stabile Sollbild
 - `KauthWorkflow/Architektur/Entscheidungen.md` fuer langfristige Architektur- und Produktentscheidungen
 - `KauthWorkflow/Arbeit/Engineering-Regeln.md` fuer Umsetzungs- und Handoff-Regeln
+- `CLAUDE_CONTROL.md` fuer Rollen, Commit-Regel und Slice-Workflow zwischen Codex und Claude
 - `KauthWorkflow/Betrieb/Setup.md` fuer lokale Entwicklung, Deployment und Laufzeitkonfiguration
 - `web/README.md` fuer Frontend-Orientierung
 
@@ -59,6 +61,7 @@ Verwende diese Dateien bewusst:
 - Repo-/Modulstruktur und wichtige Einstiegspunkte → `PROJECT_STRUCTURE.md`
 - lokale Setup-, Deploy- und Laufzeitdoku → `KauthWorkflow/Betrieb/Setup.md`
 - priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature → `TODO.md`
+- Claude-Steuerung unter Codex-Orchestrierung → `CLAUDE_CONTROL.md`
 - Frontend-spezifische Orientierung → `web/README.md`
 
 ---
@@ -99,7 +102,8 @@ Fuer Backend- oder Full-Stack-Feature-Arbeit:
 2. `PROJECT_CONTEXT.md`
 3. `MEMORY.md`
 4. `PROJECT_STRUCTURE.md`
-5. aufgabenspezifische Dokus
+5. `CLAUDE_CONTROL.md`, falls Claude als Worker unter Codex-Orchestrierung arbeitet
+6. aufgabenspezifische Dokus
 
 Fuer Frontend-Arbeit:
 1. `DOCS_CONTROL.md`
