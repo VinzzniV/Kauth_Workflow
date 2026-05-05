@@ -55,9 +55,9 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 | Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync` Group-Member-Schleifen auf Batch-Upsert/-Insert | HIGH | medium | sonnet | done (2026-05-05) — Bulk-Upsert via `unnest`+RETURNING und Bulk-Insert fuer Memberships statt pro-Member Round-Trips |
 | Z8-3.1 | Hotspot #5 Verifikation + Hotspot #7 Recipient-Bulk-Lookup | HIGH | medium | sonnet | done (2026-05-05) — #5 false positive (CPU-/Policy-Pfad), #7 nutzt jetzt `LoadActiveUserNotificationRecipientsBulk` einmalig (auch im Create-Pfad mitgezogen) |
 | Z8-3.2 | Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` | MEDIUM | medium | sonnet | deferred (2026-05-05) — kein kleiner SQL-/Batch-Hebel ohne breiten Umbau; admin-getriggert. Z8-3 damit geschlossen. Detail: `CODE_REVIEW.md` § Z8-3.2 |
-| Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | offen — Naechster Schritt |
+| Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | in Arbeit — Z8-4.1 done (2026-05-05): Integration-Tests fuer `LoadActiveUserNotificationRecipientsBulk`. EntraDirectorySync-Batch-Helfer als nicht-sauber-isoliert-testbar offen benannt (gehoert zu LQ2-Z3-Split). |
 
-**Naechster Schritt:** Z8-4 (Test-Coverage fuer Z8-2.x/Z8-3.1 gepushte Pfade). Reasoning: medium. Modell: sonnet.
+**Naechster Schritt:** Z8 abschliessen — entscheiden, ob weitere Coverage (z. B. RotationNotification-Sweep-Batching, EntraDirectorySync ueber LQ2-Z3-Split) noch in Z8 oder erst nach Split-Slice angegangen wird. Reasoning: medium. Modell: sonnet.
 
 ---
 

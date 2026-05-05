@@ -83,7 +83,19 @@ Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig
 | Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync`: Group-Member-Schleifen auf Batch-Upsert/-Insert umstellen | **done** (2026-05-05) — `UpsertDirectoryIdentitiesBatch` (Bulk-Upsert via `unnest` + RETURNING) und `InsertGroupMembershipsBatch` ersetzen pro-Member Round-Trips |
 | Z8-3.1 | Hotspot #5 verifizieren + Hotspot #7 Recipient-Bulk-Lookup | HIGH | **done** (2026-05-05) — #5 false positive (CPU/Policy-Pfad ohne Repo-Hits); #7 nutzt jetzt `LoadActiveUserNotificationRecipientsBulk` einmalig pro Preview/Create statt pro Recipient |
 | Z8-3.2 | Hotspot #8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` | **deferred** (2026-05-05) — siehe § Z8-3.2 Defer-Begruendung. Z8-3 damit geschlossen. |
-| Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — Naechster Schritt |
+| Z8-4 | Test-Coverage fuer die neu gepushten Pfade (Integration + Unit) | MEDIUM — Z8-4.1 done (2026-05-05) |
+
+### Z8-4.1 Coverage `LoadActiveUserNotificationRecipientsBulk` (2026-05-05)
+
+Direkte Integration-Coverage fuer den Bulk-Recipient-Helper aus Z8-3.1 ergaenzt. Neuer Test-File `api/API.Tests/PostgresRepositorySharedHelpersIntegrationTests.cs` mit 3 Faellen ueber die bestehende `PostgresWorkflowRepositoryIntegrationCollection`-Fixture:
+
+- `LoadActiveUserNotificationRecipientsBulk_MapsRolesAndSkipsInactive` — drei aktive User (`auth_admin`, `auth_manager`, ohne Rollen) + ein inaktiver + eine unbekannte Id; verifiziert PreferredPath-Mapping (`/workflows`, `/supervisor`, `/tasks/my`), DisplayName/Email/IdentityKey-Treue und das `is_active = TRUE`-Filter.
+- `LoadActiveUserNotificationRecipientsBulk_EmptyInput_ReturnsEmpty` — leere Eingabe → leere Map ohne SQL-Roundtrip-Fehler.
+- `LoadActiveUserNotificationRecipientsBulk_PrefersNotificationEmailAndExternalKey` — `notification_email`/`external_key` mit umgebenden Whitespace werden via `BTRIM`/`COALESCE` korrekt ueberschrieben.
+
+`EntraDirectorySyncService.UpsertDirectoryIdentitiesBatch` / `InsertGroupMembershipsBatch`: bewusst nicht zusaetzlich abgedeckt. Die Helfer sind `private` innerhalb des 2.4k-Zeilen-Service und liegen hinter `SyncAllAsync` (Live-Graph + DB). Reflection-Probing waere fragil und ohne Mehrwert; ein End-to-End-Test ueber `SyncAllAsync` braucht einen Graph-Stub und gehoert zur LQ2-Z3-File-Split-Arbeit. Grenze offen benannt.
+
+**Verifikation:** `dotnet build api/API.Tests` (0 Fehler), `dotnet test --no-build --filter "Category!=Integration&FullyQualifiedName!~Integration&FullyQualifiedName!~Concurrency"` → 364/364 gruen. Die drei neuen Faelle laufen ueber die testcontainers-/Postgres-Fixture und konnten lokal nicht ausgefuehrt werden (kein Docker-Daemon, kein Postgres auf 127.0.0.1:26432); sie folgen exakt dem Pattern der bestehenden `PostgresWorkflowRepository...IntegrationTests` und greifen dieselbe Fixture, also dieselbe CI-Lauf-Erwartung.
 
 **Empfohlener Einstieg:** Z8-1.1 als reine Inventur — opus/high. Output: konkret nummerierte Hotspot-Liste mit Aufrufer-Pfad und Datenkardinalitaet, kein Code-Change. Erst auf dieser Basis entscheidet Z8-1.2, ob Pagination, Sortier-Pushdown oder N+1-Aufloesung den groessten Hebel hat.
 
