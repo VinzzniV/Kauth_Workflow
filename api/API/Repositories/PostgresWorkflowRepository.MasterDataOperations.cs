@@ -87,6 +87,28 @@ LIMIT 1;";
         return scalar is bool allowsManagerCreation && allowsManagerCreation;
     }
 
+    public async Task<IReadOnlySet<string>> GetManagerCreatableDefinitionKeys()
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+SELECT definition_key
+FROM workflow_definitions
+WHERE allows_manager_creation = TRUE;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (await reader.ReadAsync())
+        {
+            keys.Add(reader.GetString(0));
+        }
+
+        return keys;
+    }
+
     public async Task<List<WorkflowTargetPersonDto>> SearchWorkflowTargetPeople(
         string? query,
         int limit = 20,

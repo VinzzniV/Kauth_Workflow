@@ -50,13 +50,13 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 |-------|---------|------|-----------|--------|--------|
 | Z8-1.1 | Inventur: unbegrenztes Laden, In-Memory-Filter/-Sort, N+1 | HIGH | high | opus | done (2026-05-05) — Ergebnis in `CODE_REVIEW.md` § Z8-1.1 |
 | Z8-1.2 | Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | high | opus | done (2026-05-05) — Slice-Plan in `CODE_REVIEW.md` § Z8-1.2 |
-| Z8-2.1 | Hotspot #1 — `WorkflowCatalogService` N+1 fuer `IsManagerCreatableDefinition` aufloesen | HIGH | medium..high | opus | offen — Naechster Schritt |
-| Z8-2.2 | Hotspot #2+#3 (gemeinsamer Slice) — `RotationNotificationService` Daily-Sweep `LIMIT`/Batch + Batch-Update Apply | HIGH | medium..high | sonnet | wartet auf Z8-2.1 |
+| Z8-2.1 | Hotspot #1 — `WorkflowCatalogService` N+1 fuer `IsManagerCreatableDefinition` aufloesen | HIGH | medium..high | opus | done (2026-05-05) — Bulk-Lookup `GetManagerCreatableDefinitionKeys()` |
+| Z8-2.2 | Hotspot #2+#3 (gemeinsamer Slice) — `RotationNotificationService` Daily-Sweep `LIMIT`/Batch + Batch-Update Apply | HIGH | medium..high | sonnet | offen — Naechster Schritt |
 | Z8-2.3 | Hotspot #4 — `EntraDirectorySyncService.SyncAllAsync` Group-Member-Schleifen auf Batch-Upsert/-Insert | HIGH | medium | sonnet | wartet auf Z8-2.2 |
 | Z8-3 | Sweep- und Dispatch-Performance Resthebel (#5/#7/#8) | MEDIUM | medium | sonnet | wartet auf Z8-2 |
 | Z8-4 | Test-Coverage fuer neu gepushte Pfade | MEDIUM | medium | sonnet | wartet auf Z8-2 (Coverage pro Slice mitziehen) |
 
-**Naechster Schritt:** Z8-2.1 (Hotspot #1 — `WorkflowCatalogService.GetStartableWorkflowDefinitionsAsync` N+1-Aufloesung). Reasoning: medium..high. Modell: opus. Basis: Slice-Plan in `CODE_REVIEW.md` § Z8-1.2.
+**Naechster Schritt:** Z8-2.2 (Hotspot #2+#3 — `RotationNotificationService` Daily-Sweep `LIMIT`/Batch + Batch-Update Apply). Reasoning: medium..high. Modell: sonnet. Basis: Slice-Plan in `CODE_REVIEW.md` § Z8-1.2.
 
 ---
 

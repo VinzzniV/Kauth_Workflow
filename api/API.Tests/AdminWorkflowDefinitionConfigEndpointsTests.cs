@@ -945,6 +945,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<RequirementDto>> GetRequirements(string workflowDefinitionKey) => throw new NotSupportedException();
         public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string workflowDefinitionKey) => throw new NotSupportedException();
         public Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey) => throw new NotSupportedException();
+        public Task<IReadOnlySet<string>> GetManagerCreatableDefinitionKeys() => throw new NotSupportedException();
         public Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId) => throw new NotSupportedException();
         public Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId) => throw new NotSupportedException();
         public Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId) => throw new NotSupportedException();

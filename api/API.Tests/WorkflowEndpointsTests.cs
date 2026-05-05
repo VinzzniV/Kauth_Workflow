@@ -483,6 +483,50 @@ public sealed class WorkflowEndpointsTests
     }
 
     [Fact]
+    public async Task StartableWorkflowDefinitionsEndpoint_ManagerUsesBulkLookupWithoutPerDefinitionCalls()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            StartableWorkflowDefinitions =
+            [
+                new WorkflowStartableDefinitionDto
+                {
+                    DefinitionKey = "onboarding",
+                    Name = "Onboarding",
+                    RequiresTargetPerson = false,
+                    LatestPublishedVersionNumber = 1
+                },
+                new WorkflowStartableDefinitionDto
+                {
+                    DefinitionKey = "department_change",
+                    Name = "Abteilungswechsel",
+                    RequiresTargetPerson = true,
+                    LatestPublishedVersionNumber = 1
+                },
+                new WorkflowStartableDefinitionDto
+                {
+                    DefinitionKey = "name_change",
+                    Name = "Namensaenderung",
+                    RequiresTargetPerson = true,
+                    LatestPublishedVersionNumber = 1
+                }
+            ],
+            ManagerCreatableDefinitionKeys = new(StringComparer.OrdinalIgnoreCase) { "department_change", "name_change" }
+        };
+
+        var app = CreateApp(repository, CreateUser(AuthorizationRoles.Manager));
+        var endpoint = GetWorkflowEndpoint(app, "/workflow-definitions/startable", HttpMethods.Get);
+        var context = CreateGetRequestContext(app.Services, endpoint, "/workflow-definitions/startable", "");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetStartableWorkflowDefinitionsCallCount);
+        Assert.Equal(1, repository.GetManagerCreatableDefinitionKeysCallCount);
+        Assert.Equal(0, repository.IsManagerCreatableDefinitionCallCount);
+    }
+
+    [Fact]
     public async Task CreateWorkflowEndpoint_UsesWorkflowDefinitionKey_WhenPublishedDefinitionIsStartable()
     {
         var workflowUid = Guid.NewGuid();
@@ -1431,6 +1475,13 @@ public sealed class WorkflowEndpointsTests
             IsManagerCreatableDefinitionCallCount += 1;
             LastIsManagerCreatableDefinitionKey = workflowDefinitionKey;
             return Task.FromResult(IsManagerCreatableDefinitionResult);
+        }
+        public int GetManagerCreatableDefinitionKeysCallCount { get; private set; }
+        public HashSet<string> ManagerCreatableDefinitionKeys { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Task<IReadOnlySet<string>> GetManagerCreatableDefinitionKeys()
+        {
+            GetManagerCreatableDefinitionKeysCallCount += 1;
+            return Task.FromResult<IReadOnlySet<string>>(ManagerCreatableDefinitionKeys);
         }
         public Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId)
         {

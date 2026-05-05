@@ -20,6 +20,9 @@ internal sealed class WorkflowCatalogService(
             return definitions;
         }
 
+        var isManager = authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Manager);
+        IReadOnlySet<string>? managerCreatableKeys = null;
+
         var result = new List<WorkflowStartableDefinitionDto>();
         foreach (var definition in definitions)
         {
@@ -31,8 +34,13 @@ internal sealed class WorkflowCatalogService(
                 continue;
             }
 
-            var managerCreatable = await repository.IsManagerCreatableDefinition(definition.DefinitionKey);
-            if (managerCreatable && authorizationPolicyService.HasAnyRole(currentUser, AuthorizationRoles.Manager))
+            if (!isManager)
+            {
+                continue;
+            }
+
+            managerCreatableKeys ??= await repository.GetManagerCreatableDefinitionKeys();
+            if (managerCreatableKeys.Contains(definition.DefinitionKey))
             {
                 result.Add(definition);
             }

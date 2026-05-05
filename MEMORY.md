@@ -33,8 +33,9 @@
 ## Current Focus
 
 - **Aktiver Zyklus:** Z8 — Skalierbarkeits- & Last-Haertung
-- **Naechster Schritt:** Z8-2.1 — `WorkflowCatalogService.GetStartableWorkflowDefinitionsAsync` N+1 fuer `IsManagerCreatableDefinition` aufloesen (Bulk-/SQL-Pushdown). Top-3-Bestaetigung + Slice-Plan in `CODE_REVIEW.md` § Z8-1.2.
-- **Folgeschnitt:** Z8-2.2 (Rotation-Notification Sweep + Apply gemeinsam), dann Z8-2.3 (Entra-Sync Group/Member Batch).
+- **Naechster Schritt:** Z8-2.2 — `RotationNotificationService` Daily-Sweep `LIMIT`/Batch + Batch-Update Apply (gemeinsamer Slice).
+- **Folgeschnitt:** Z8-2.3 (Entra-Sync Group/Member Batch), dann Z8-3 / Z8-4.
+- **Z8-2.1 done (2026-05-05):** `WorkflowCatalogService` ruft jetzt `repository.GetManagerCreatableDefinitionKeys()` einmalig (lazy) statt N×`IsManagerCreatableDefinition`. `WorkflowRuntimeService` nutzt `IsManagerCreatableDefinition` weiter unveraendert.
 - **Vorher lesen:** `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `CODE_REVIEW.md`, `TODO.md`, `CODEX_SYNC.md`
 
 ## Active Risks / Watchouts

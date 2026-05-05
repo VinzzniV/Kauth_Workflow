@@ -30,6 +30,7 @@ internal interface IWorkflowRepository
     Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey);
     Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey);
     Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey);
+    Task<IReadOnlySet<string>> GetManagerCreatableDefinitionKeys();
     Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId);
     Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId);
     Task<WorkflowDetailDto?> CompleteSupervisorStep(Guid workflowUid, IReadOnlyList<RequirementSelectionInputDto> selections, long actorUserId);

@@ -58,8 +58,8 @@ Naechster Schwerpunkt nach Abschluss von Zyklus 7. Skalierbarkeit ist mit B- die
 |--------|------|--------|
 | Z8-1.1 — Inventur unbegrenztes Laden / In-Memory-Filter / N+1 | HIGH | done 2026-05-05 — Hotspot-Liste in `CODE_REVIEW.md` § Z8-1.1 |
 | Z8-1.2 — Top-3-Hotspot-Auswahl + Slice-Plan | HIGH | done 2026-05-05 — Slice-Plan in `CODE_REVIEW.md` § Z8-1.2 |
-| Z8-2.1 — Hotspot #1 `WorkflowCatalogService` N+1-Aufloesung | HIGH | offen — Naechster Schritt |
-| Z8-2.2 — Hotspot #2+#3 `RotationNotificationService` Sweep+Apply (gemeinsamer Slice) | HIGH | wartet auf Z8-2.1 |
+| Z8-2.1 — Hotspot #1 `WorkflowCatalogService` N+1-Aufloesung | HIGH | done 2026-05-05 — Bulk-Lookup `GetManagerCreatableDefinitionKeys()` |
+| Z8-2.2 — Hotspot #2+#3 `RotationNotificationService` Sweep+Apply (gemeinsamer Slice) | HIGH | offen — Naechster Schritt |
 | Z8-2.3 — Hotspot #4 `EntraDirectorySyncService` Group/Member Batch | HIGH | wartet auf Z8-2.2 |
 | Z8-3 — Sweep-/Dispatch-Resthebel (#5/#7/#8) | MEDIUM | wartet auf Z8-2 |
 | Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | wartet auf Z8-2 |
