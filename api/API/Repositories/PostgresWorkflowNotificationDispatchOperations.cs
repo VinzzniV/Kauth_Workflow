@@ -277,6 +277,11 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
             return [];
         }
 
+        var recipients = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipientsBulk(
+            connection,
+            transaction,
+            taskTitlesByRecipient.Keys.ToArray());
+
         var targets = new List<WorkflowNotificationDispatchTarget>();
         foreach (var recipientUserId in taskTitlesByRecipient.Keys.OrderBy(id => id))
         {
@@ -285,8 +290,7 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
                 continue;
             }
 
-            var recipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, recipientUserId);
-            if (!recipient.HasValue)
+            if (!recipients.TryGetValue(recipientUserId, out var recipient))
             {
                 continue;
             }
@@ -301,11 +305,11 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
                     LegacyProcessTypeKey = processTypeKey,
                     ProcessTypeName = processTypeName,
                     RecipientUserId = recipientUserId,
-                    RecipientIdentityKey = recipient.Value.IdentityKey,
-                    TargetName = recipient.Value.DisplayName,
-                    TargetEmail = recipient.Value.Email,
+                    RecipientIdentityKey = recipient.IdentityKey,
+                    TargetName = recipient.DisplayName,
+                    TargetEmail = recipient.Email,
                     TaskTitle = recipientTask.TaskTitle,
-                    PreferredPath = recipient.Value.PreferredPath
+                    PreferredPath = recipient.PreferredPath
                 });
             }
         }
@@ -433,6 +437,11 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
             return [];
         }
 
+        var recipients = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipientsBulk(
+            connection,
+            transaction,
+            taskTitlesByRecipient.Keys.ToArray());
+
         var targets = new List<WorkflowNotificationDispatchTarget>();
         foreach (var recipientUserId in taskTitlesByRecipient.Keys.OrderBy(id => id))
         {
@@ -441,8 +450,7 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
                 continue;
             }
 
-            var recipient = await PostgresRepositorySharedHelpers.LoadActiveUserNotificationRecipient(connection, transaction, recipientUserId);
-            if (!recipient.HasValue)
+            if (!recipients.TryGetValue(recipientUserId, out var recipient))
             {
                 continue;
             }
@@ -455,8 +463,8 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
                     workflowId,
                     recipientTask.WorkflowTaskId,
                     recipientUserId,
-                    recipient.Value.DisplayName,
-                    recipient.Value.Email,
+                    recipient.DisplayName,
+                    recipient.Email,
                     "task_ready");
 
                 targets.Add(new WorkflowNotificationDispatchTarget
@@ -467,11 +475,11 @@ ORDER BY ta.assignee_user_id, wt.sort_order, wt.id;";
                     LegacyProcessTypeKey = processTypeKey,
                     ProcessTypeName = processTypeName,
                     RecipientUserId = recipientUserId,
-                    RecipientIdentityKey = recipient.Value.IdentityKey,
-                    TargetName = recipient.Value.DisplayName,
-                    TargetEmail = recipient.Value.Email,
+                    RecipientIdentityKey = recipient.IdentityKey,
+                    TargetName = recipient.DisplayName,
+                    TargetEmail = recipient.Email,
                     TaskTitle = recipientTask.TaskTitle,
-                    PreferredPath = recipient.Value.PreferredPath
+                    PreferredPath = recipient.PreferredPath
                 });
             }
         }

@@ -701,6 +701,82 @@ LIMIT 1;";
         return (reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), preferredPath);
     }
 
+    public static async Task<Dictionary<long, (string DisplayName, string Email, string IdentityKey, string PreferredPath)>> LoadActiveUserNotificationRecipientsBulk(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        IReadOnlyCollection<long> userIds)
+    {
+        var result = new Dictionary<long, (string DisplayName, string Email, string IdentityKey, string PreferredPath)>();
+        if (userIds.Count == 0)
+        {
+            return result;
+        }
+
+        const string sql = @"
+WITH targets AS (
+    SELECT id FROM app_users WHERE id = ANY(@userIds) AND is_active = TRUE
+),
+effective_roles AS (
+    SELECT ur.app_user_id, r.role_key
+    FROM app_user_roles ur
+    JOIN app_roles r ON r.id = ur.app_role_id
+    WHERE ur.app_user_id IN (SELECT id FROM targets)
+      AND r.is_active = TRUE
+      AND r.role_kind = 'system'
+    UNION
+    SELECT ug.app_user_id, r.role_key
+    FROM app_user_groups ug
+    JOIN app_groups g ON g.id = ug.app_group_id
+    JOIN app_group_roles gr ON gr.app_group_id = ug.app_group_id
+    JOIN app_roles r ON r.id = gr.app_role_id
+    WHERE ug.app_user_id IN (SELECT id FROM targets)
+      AND g.is_active = TRUE
+      AND r.is_active = TRUE
+      AND r.role_kind = 'system'
+)
+SELECT
+    u.id,
+    u.display_name,
+    COALESCE(NULLIF(BTRIM(u.notification_email), ''), u.email) AS target_email,
+    COALESCE(NULLIF(BTRIM(u.external_key), ''), u.email) AS identity_key,
+    EXISTS (
+        SELECT 1 FROM effective_roles er
+        WHERE er.app_user_id = u.id
+          AND er.role_key IN ('auth_hr', 'auth_admin', 'auth_reader')
+    ) AS can_access_workflow_overview,
+    EXISTS (
+        SELECT 1 FROM effective_roles er
+        WHERE er.app_user_id = u.id
+          AND er.role_key = 'auth_manager'
+    ) AS can_access_supervisor
+FROM app_users u
+WHERE u.id IN (SELECT id FROM targets);";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.Add("userIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = userIds.ToArray();
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var userId = reader.GetInt64(0);
+            var displayName = reader.GetString(1);
+            var email = reader.GetString(2);
+            var identityKey = reader.GetString(3);
+            var canAccessWorkflowOverview = reader.GetBoolean(4);
+            var canAccessSupervisor = reader.GetBoolean(5);
+
+            var preferredPath = canAccessWorkflowOverview
+                ? "/workflows"
+                : canAccessSupervisor
+                    ? "/supervisor"
+                    : "/tasks/my";
+
+            result[userId] = (displayName, email, identityKey, preferredPath);
+        }
+
+        return result;
+    }
+
     public static async Task<int?> LoadDepartmentLeadResponsibilityId(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,

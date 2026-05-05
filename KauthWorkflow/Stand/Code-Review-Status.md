@@ -61,7 +61,8 @@ Naechster Schwerpunkt nach Abschluss von Zyklus 7. Skalierbarkeit ist mit B- die
 | Z8-2.1 — Hotspot #1 `WorkflowCatalogService` N+1-Aufloesung | HIGH | done 2026-05-05 — Bulk-Lookup `GetManagerCreatableDefinitionKeys()` |
 | Z8-2.2 — Hotspot #2+#3 `RotationNotificationService` Sweep+Apply (gemeinsamer Slice) | HIGH | done 2026-05-05 — Sweep batched (200), Apply Bulk-Metadata+Bulk-UPDATE |
 | Z8-2.3 — Hotspot #4 `EntraDirectorySyncService` Group/Member Batch | HIGH | done 2026-05-05 — Bulk-Upsert via `unnest`+RETURNING und Bulk-Insert fuer Memberships ersetzen pro-Member Round-Trips |
-| Z8-3 — Sweep-/Dispatch-Resthebel (#5/#7/#8) | MEDIUM | offen — Naechster Schritt |
+| Z8-3.1 — #5 Verifikation + #7 Recipient-Bulk-Lookup | HIGH | done 2026-05-05 — #5 false positive (CPU/Policy), #7 Bulk-Lookup |
+| Z8-3 — Sweep-/Dispatch-Resthebel (#8 `RotationTaskGenerationService`) | MEDIUM | offen — Naechster Schritt |
 | Z8-4 — Test-Coverage fuer neu gepushte Pfade | MEDIUM | wartet auf Z8-3 |
 
 Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehen erst, falls API-Vertraege brechen.
