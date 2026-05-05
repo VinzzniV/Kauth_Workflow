@@ -14,7 +14,7 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
-| Backend-Architektur | A- | Repo-Monolith aufgespalten + Lifecycle-Service nach S7 wirksam, aber als Commit-Grenze noch nicht voll konsolidiert |
+| Backend-Architektur | A- | Repo-Monolith reduziert; Lifecycle-Service nach Z7 zentrale Commit-Grenze fuer Runtime-/Task-Mutationen; Resthebel jetzt vor allem Skalierbarkeit |
 | Datenbankdesign | A- | Solides Schema, gute Constraints |
 | Auth & Berechtigungen | B+ | Permission-Audit hat Reason-Feld; Person-Matching-Audit live |
 | Rotation-Feature | B+ | Engine als Domain-Service + HQ5-Hooks getestet; Sweep-Timeout |
@@ -22,7 +22,7 @@ Primärquelle im Repo: `CODE_REVIEW.md`
 | Testbarkeit | B | Testcontainers + Integration-Tests; Lifecycle-Service hat jetzt einen eigenen Service-Test fuer Routing, Rollback und Automation-Scope |
 | Skalierbarkeit | B- | Workflow-Task-Filter SQL-pre-narrowed |
 | Sicherheit | B+ | `/client/log-events` rate-limited; dev-sim-Guard verifiziert |
-| Lesbarkeit | B+ | Konventionen durchgaengig; Validation-Service als groesster Monolith offen |
+| Lesbarkeit | B+ | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen eher bei Lastpfaden als bei Strukturhygiene |
 
 ---
 

@@ -54,3 +54,9 @@ Dafuer brauchst du:
 - neuen Button im Frontend
 
 Das ist klein genug fuer einen Lernschritt und nah genug an der echten Projektarchitektur.
+
+## Danach im echten Repo weiter
+
+Wenn das Mini-Projekt verstanden ist, geht der sinnvolle naechste Schritt nicht direkt in grosse Produktiv-Refactors, sondern in den gefuehrten Einarbeitungspfad:
+
+- [[07-Einarbeitungsplan-im-echten-Repo]]

@@ -15,20 +15,16 @@ Verwende sie nur fuer:
 
 ## Current Focus
 
-- **Zyklus 7 ist abgeschlossen** (2026-05-05). Thema: Lifecycle-Service-Konsolidierung + Validation-Service-Split. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 7" und `TODO.md`.
-- Z7-1.1 (Lifecycle-Inventur) ist **done** — Ergebnis in `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md` § 12.
-- Z7-2 ist **done** — `api/API.Tests/WorkflowLifecycleServiceTests.cs` deckt `wf:`/`rot:`-Routing, Rollback im zweiten Lifecycle-Schritt und den Automation-Scope-Pfad ab.
-- Z7-1.2/1.3/1.4/1.5a sind **done** (2026-05-05) — Lifecycle-Service besitzt Conn+Tx fuer Create/Form/Approval/Task, statische Runtime-Helfer wandern hinter Scoped-Interfaces, Repo-Wrapper-Dupletten und `*ByRef`-Workflow-Pfade entfernt.
-- Z7-1.5b ist **done** (2026-05-05) — alle 5 Sub-Slices (b.i..b.v) erledigt; Inhalte der `*InScope`-Methoden physisch in den Lifecycle-Service gezogen; Scoped-Vertrag `IWorkflowDefinitionRuntimeScopedRepository` komplett entfernt (Datei + DI + Service-Ctor-Parameter + Test-Stubs).
-- Z7-3 ist **done** (2026-05-05) — `WorkflowDefinitionValidationService` in `WorkflowDefinitionValidationCatalog`, `WorkflowDefinitionValidationHelpers`, `WorkflowDefinitionSnapshotValidator` und `WorkflowDefinitionDraftValidator` geschnitten; Service ist jetzt duenne Facade.
-- Naechster sinnvoller Schritt: neuen Review-Block aus `CODE_REVIEW.md` ziehen, sobald ein neuer Zyklus festgelegt ist.
+- **Zyklus 8 ist aktiv** (2026-05-05). Thema: Skalierbarkeits- & Last-Haertung. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und `TODO.md`.
+- Zyklus 7 ist abgeschlossen — Lifecycle-Service ist Commit-Grenze fuer Create/Form/Approval/Task; Validation-Service ist in Draft-/Snapshot-/Helper-/Catalog-Slices aufgeteilt.
+- Naechster sinnvoller Schritt: **Z8-1.1 Inventur** (unbegrenztes Laden, In-Memory-Filter/-Sort, N+1) als reiner Analyse-Slice ohne Code-Aenderung.
 - `DOCS_CONTROL.md` bleibt zentraler Einstieg; pro Aufgabe mitdenken, welche Doku im selben Arbeitsgang aktualisiert wird.
 
 ## Active Risks / Watchouts
 
 - `WorkflowLifecycleService` ist nach Z7-1.5b vollstaendig die Conn+Tx-Grenze fuer Create/Form/Approval/Task und orchestriert die `*InScope`-Logik direkt. `PostgresWorkflowRuntimeRepository` enthaelt nur noch read- und shared-static-Helfer.
 - Rotation-Task-Routing bleibt im Repo (`UpdateTaskStatusByRef` / `DecideTaskApprovalByRef`): RotationTaskRef → `_rotationRepository`, WorkflowTaskRef → Lifecycle-Service.
-- `WorkflowDefinitionValidationService.cs` ist kein aktiver Monolith-Posten mehr; Zyklus 7 hat den Split abgeschlossen.
+- Haupt-Risiko fuer den naechsten Zyklus sind Lastpfade mit unbeschraenktem Laden, In-Memory-Filter/-Sortierung oder N+1, nicht weitere reine Hygiene-Splits.
 - DB-getriebene Integrations- und End-to-End-Tests haengen lokal weiter an einer verfuegbaren PostgreSQL-Instanz auf `127.0.0.1:26432`.
 - Laufende `dotnet run`- oder `dotnet watch`-Prozesse koennen lokale Builds und Tests blockieren.
 
@@ -36,7 +32,7 @@ Verwende sie nur fuer:
 
 - `KauthWorkflow/Architektur/Zielarchitektur.md` beschreibt das stabile Plattform-Zielbild.
 - `PROJECT_STRUCTURE.md` und `web/README.md` muessen bei sichtbaren Admin-/UI-Verschiebungen mitgezogen werden.
-- Frontend-Stand nach FE-25..FE-31 ist stabil; aus Zyklus 7 entstehen keine neuen FE-Items.
+- Frontend-Stand nach FE-25..FE-31 ist stabil; aus Zyklus 8 entstehen erst dann FE-Items, wenn API-Vertraege fuer Pagination/Sortierung brechen.
 
 ## Cleanup Rule
 

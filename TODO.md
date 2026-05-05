@@ -51,6 +51,8 @@ Detail und Begruendung in `CODE_REVIEW.md` § "Aktiver Zyklus 8" und in `KauthWo
 
 Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 7" und in `KauthWorkflow/Stand/Code-Review-Status.md`.
 
+Ergebnis: Lifecycle-Service ist Commit-Grenze fuer Create/Form/Approval/Task; Validation-Service ist in Draft-/Snapshot-/Helper-/Catalog-Slices aufgeteilt.
+
 ---
 
 ## Watch-Items / Defer

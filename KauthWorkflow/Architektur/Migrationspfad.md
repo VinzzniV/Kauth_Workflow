@@ -43,7 +43,7 @@ Primärquelle im Repo: `PROJECT_CONTEXT.md`
 | 4 | Definition Layer einführen | ✓ teilweise |
 | 5 | Runtime parallel einführen | in Arbeit |
 | 6 | Bestehende Workflows mappen | ✓ für Kern-3 |
-| 7 | Task-System an Node-Runtime anbinden | in Arbeit (Skizze + Slice 0 Inventur done 2026-05-03; Slice 1 + 2 pending) |
+| 7 | Task-System an Node-Runtime anbinden | ✓ erledigt (Zyklus 7, 2026-05-05: Lifecycle-Service als Commit-Grenze + Validation-Split abgeschlossen) |
 | 8 | Generische Validierung einführen | ✓ erledigt (CLA-4, DAG-Erreichbarkeitscheck + Publish-Guard) |
 | 9 | Automation Layer bauen | Basis da, echte Handler fehlen |
 | 10 | Guided Builder ausbauen | Basis da |
@@ -81,7 +81,7 @@ Der Rotation-Slice wurde aus dem Monolithen herausgeschnitten:
 - `PostgresRepositorySharedHelpers` (neu) ← geteilte Helfer (Assignment/Audit/Notification/MapTargetPerson)
 - `PostgresWorkflowRepository` delegiert Rotation-Task-Routing über ctor-injiziertes `IRotationRepository`
 
-Noch ausstehend: `WorkflowRuntimeRepository`, `AutomationRepository`, `AuditRepository`, `NotificationRepository` — `PostgresWorkflowRepository` ist weiterhin groß, aber Rotation-Bloat ist weg.
+Noch ausstehend: weitere fachlich motivierte Schnitte um `PostgresWorkflowRepository` bzw. verbleibende große Partials. Reine Split-Arbeit ohne Last-, Runtime- oder Wartbarkeits-Trigger ist derzeit nicht der naechste Hebel.
 
 ---
 

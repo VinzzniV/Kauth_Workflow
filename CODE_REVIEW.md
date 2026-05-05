@@ -9,7 +9,7 @@
 
 | Bereich | Note | Hauptbegruendung |
 |---------|------|------------------|
-| Backend-Architektur | **A-** | Repository-Monolith aufgespalten; TaskTemplate 3-fach; GraphMapping ausgelagert; Lifecycle-Service nach S7 wirksam, aber als reine Commit-Grenze noch unvollstaendig |
+| Backend-Architektur | **A-** | Repository-Monolith weiter reduziert; Lifecycle-Service nach Z7 echte Commit-Grenze fuer zentrale Runtime-Mutationen; groesste Resthebel liegen jetzt bei Skalierbarkeit und Lastpfaden |
 | Datenbankdesign | **A-** | Solides Schema, gute Constraints |
 | Auth & Berechtigungen | **B+** | Permission-Audit hat Reason-Feld; Person-Matching-Audit live |
 | Rotation-Feature | **B+** | RotationTaskRegenerationEngine als pure Domain-Engine; HQ5-Hooks getestet; Sweep-Timeout |
@@ -17,7 +17,7 @@
 | Testbarkeit | **B** | Testcontainers + Integration-Tests; Lifecycle-Service hat jetzt eine eigene Service-Testdatei fuer Routing, Rollback und Automation-Scope |
 | Skalierbarkeit | **B-** | Workflow-Task-Filter SQL-pre-narrowed |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
-| Lesbarkeit | **B+** | Konventionen durchgaengig; Validation-Service als groesster Monolith ausstehend |
+| Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen weiter reduziert, groesste Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
 
 ---
 
@@ -55,7 +55,7 @@
 
 ## Abgeschlossener Zyklus 7 — Lifecycle-Service-Konsolidierung (2026-05-05)
 
-**Thema:** Folgearbeit aus Zyklus 6 (Schritt 7). Der Lifecycle-Service existiert nominell, ist als zentrale Commit-Grenze fuer Runtime- und Task-Mutationen aber noch nicht vollstaendig wirksam. Zusaetzlich bleibt `WorkflowDefinitionValidationService` der groesste verbleibende Service-Monolith.
+**Thema:** Folgearbeit aus Zyklus 6 (Schritt 7). Der damalige Mid-State: Lifecycle-Service noch nicht vollstaendig als Commit-Grenze wirksam, Validation-Service noch groesster Monolith. Beide Punkte sind mit Zyklus 7 abgeschlossen worden.
 
 **Fokus:**
 1. Lifecycle-Service als echte Schreibgrenze konsolidieren (Pass-Through-Routen + statische Repo-Aufrufe + parallele Aufrufstellen).
@@ -114,7 +114,7 @@
 
 ### Z7-3 WorkflowDefinitionValidationService Split (MEDIUM)
 
-**Befund.** `api/API/Services/WorkflowDefinitionValidationService.cs` (2131 Z.) ist nach den Z3/Z4-Splits der groesste verbleibende Service-Monolith. Zwei klar separierbare Pfade:
+**Ausgangsbefund.** `api/API/Services/WorkflowDefinitionValidationService.cs` (2131 Z.) war nach den Z3/Z4-Splits der groesste verbleibende Service-Monolith. Zwei klar separierbare Pfade:
 - **Draft-Validation** (`NormalizeDefinitionKey`, `ValidateAndNormalize` fuer `ReplaceWorkflowDefinitionVersionRequest`): Pre-Save Normalisierung von Builder-Eingaben.
 - **Snapshot-Validation** (`ValidateSnapshot` ueber `WorkflowDefinitionValidationContext`): Validierung gespeicherter Versionen, separate Helper-Sets.
 
@@ -163,7 +163,7 @@ Detail-Reports zu Zyklus 1–6 sind aus dieser Datei entfernt — Detail im `git
 ## Verwandte Dokumente
 
 - `TODO.md` — aktuelle Priorisierung + Aufgabenstatus (Backend / Full-Stack)
-- `FRONTEND_TODO.md` — Frontend-spezifischer Backlog (Zyklus 7 ist backend-fokussiert)
+- `FRONTEND_TODO.md` — Frontend-spezifischer Backlog (Zyklus 8 ist aktuell backend-fokussiert)
 - `KauthWorkflow/Architektur/Migrationspfad.md` — Gesamtbild der Migration
 - `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md` — Architekturarbeit aus Zyklus 6
 - `KauthWorkflow/Stand/Code-Review-Status.md` — Vault-Spiegel dieses Status
