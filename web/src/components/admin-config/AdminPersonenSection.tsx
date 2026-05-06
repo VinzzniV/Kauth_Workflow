@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import AdminOrganizationRelationsPanel from "./AdminOrganizationRelationsPanel";
 import { AdminOrganizationUserEditor } from "./AdminOrganizationUserEditor";
 import { useAdminOrganizationWorkspaceView } from "./useAdminOrganizationWorkspaceView";
@@ -72,15 +72,7 @@ export function AdminPersonenSection(props: AdminPersonenSectionProps) {
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [departmentFilter, setDepartmentFilter] = useState<string>("");
   const [includeTechnical, setIncludeTechnical] = useState(false);
-
-  const initialDrawerMode: DrawerMode = props.workspaceSelectedUser ? "edit" : null;
-  const [drawerMode, setDrawerMode] = useState<DrawerMode>(initialDrawerMode);
-
-  useEffect(() => {
-    if (props.workspaceSelectedUser) {
-      setDrawerMode("edit");
-    }
-  }, [props.workspaceSelectedUser]);
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
 
   const filteredUsers = useMemo(
     () =>
@@ -121,7 +113,7 @@ export function AdminPersonenSection(props: AdminPersonenSectionProps) {
   });
 
   const closeDrawer = () => {
-    setDrawerMode(null);
+    setIsCreateDrawerOpen(false);
     if (props.selectedEntityId) {
       props.onSelectOrganizationEntity("user", null);
     }
@@ -131,15 +123,16 @@ export function AdminPersonenSection(props: AdminPersonenSectionProps) {
     if (props.selectedEntityId) {
       props.onSelectOrganizationEntity("user", null);
     }
-    setDrawerMode("create");
+    setIsCreateDrawerOpen(true);
   };
 
   const openEdit = (user: AdminUser) => {
+    setIsCreateDrawerOpen(false);
     props.onSelectOrganizationEntity("user", user.userId);
     props.onSelectUser(user);
-    setDrawerMode("edit");
   };
 
+  const drawerMode: DrawerMode = isCreateDrawerOpen ? "create" : props.workspaceSelectedUser ? "edit" : null;
   const drawerSelectedUser = drawerMode === "edit" ? props.workspaceSelectedUser : null;
 
   return (

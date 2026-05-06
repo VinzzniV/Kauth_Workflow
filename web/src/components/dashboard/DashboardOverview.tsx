@@ -1,6 +1,6 @@
 // Rollenspezifisches Dashboard mit Kennzahlen und dem naechsten sinnvollen Arbeitsschritt.
 // Struktur: Zone 1 (Focus/Naechster Schritt), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit).
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
 import { useStartableWorkflowDefinitions } from "../../services/queries/workflowDefinitionQueries";
@@ -40,11 +40,7 @@ export default function DashboardOverview() {
     selectedWorkflowDefinition
   );
 
-  const lastInsightsRef = useRef(insights);
-  if (insights !== null) {
-    lastInsightsRef.current = insights;
-  }
-  const displayInsights = insights ?? lastInsightsRef.current;
+  const displayInsights = insights;
   const isInitialLoading = (isInsightsLoading || isDefinitionsLoading) && displayInsights === null;
   const isRefreshing = (isInsightsLoading || isDefinitionsLoading) && displayInsights !== null;
 

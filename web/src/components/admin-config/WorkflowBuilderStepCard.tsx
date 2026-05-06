@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { createElement, useMemo, useState } from "react";
 import { ArrowRight, ChevronDown, ChevronRight, ChevronUp, Copy, GripVertical, Plus, X } from "lucide-react";
 import type {
   WorkflowBuilderActionDraft,
@@ -17,9 +17,7 @@ import type {
 } from "../../types/auth";
 import type { AdminAutomationPropertyCatalog } from "../../services/adminConfigApi";
 import {
-  getWorkflowBuilderNodeCategory,
-  getWorkflowBuilderNodeIcon,
-  getWorkflowBuilderNodeTypeLabel,
+  getWorkflowBuilderNodeMeta,
 } from "./workflowBuilderLabels";
 import { summarizeCondition } from "./workflowBuilderEditorHelpers";
 import { WorkflowBuilderMeasurePreview } from "./WorkflowBuilderMeasurePreview";
@@ -62,9 +60,7 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
   const { node, index, totalCount, onUpdate, onMoveUp, onMoveDown, onRemove, onDragStart, onDragEnd, isDragging } = props;
   const [techOpen, setTechOpen] = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
-  const typeLabel = getWorkflowBuilderNodeTypeLabel(node.nodeType);
-  const NodeIcon = getWorkflowBuilderNodeIcon(node.nodeType);
-  const category = getWorkflowBuilderNodeCategory(node.nodeType);
+  const { label: typeLabel, icon: nodeIcon, category } = getWorkflowBuilderNodeMeta(node.nodeType);
   const isFirst = index === 0;
   const isLast = index === totalCount - 1;
   const trimmedKey = node.nodeKey.trim();
@@ -96,7 +92,7 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
         ) : null}
         <span className="wf-step-card-num">#{index + 1}</span>
         <span className={`wf-step-card-type wf-step-card-type--${category}`} aria-label={`Schritt-Typ: ${typeLabel}`}>
-          <NodeIcon size={14} aria-hidden="true" />
+          {createElement(nodeIcon, { size: 14, "aria-hidden": "true" })}
           <span>{typeLabel}</span>
         </span>
         <input

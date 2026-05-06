@@ -12,6 +12,7 @@ export function useDashboardInsightsQuery(
   return useQuery({
     queryKey: queryKeys.dashboard.insights(dashboardPersona, workflowDefinitionKey),
     queryFn: () => loadDashboardInsights(dashboardPersona, { workflowDefinitionKey, selectedWorkflowDefinition }),
+    placeholderData: (previousData) => previousData,
     staleTime: 30 * 1000,
   });
 }

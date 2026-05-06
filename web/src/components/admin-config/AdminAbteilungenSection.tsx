@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import AdminOrganizationRelationsPanel from "./AdminOrganizationRelationsPanel";
 import { AdminOrganizationDepartmentEditor } from "./AdminOrganizationDepartmentEditor";
 import { useAdminOrganizationWorkspaceView } from "./useAdminOrganizationWorkspaceView";
@@ -54,15 +54,7 @@ export function AdminAbteilungenSection(props: AdminAbteilungenSectionProps) {
   const [search, setSearch] = useState("");
   const [leadFilter, setLeadFilter] = useState<ValidityFilter>("all");
   const [ownerFilter, setOwnerFilter] = useState<ValidityFilter>("all");
-
-  const initialMode: DrawerMode = props.selectedEntityId ? "edit" : null;
-  const [drawerMode, setDrawerMode] = useState<DrawerMode>(initialMode);
-
-  useEffect(() => {
-    if (props.selectedEntityId) {
-      setDrawerMode("edit");
-    }
-  }, [props.selectedEntityId]);
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
 
   const filteredDepartments = useMemo(
     () =>
@@ -111,7 +103,7 @@ export function AdminAbteilungenSection(props: AdminAbteilungenSectionProps) {
   });
 
   const closeDrawer = () => {
-    setDrawerMode(null);
+    setIsCreateDrawerOpen(false);
     if (props.selectedEntityId) {
       props.onSelectOrganizationEntity("department", null);
     }
@@ -121,14 +113,15 @@ export function AdminAbteilungenSection(props: AdminAbteilungenSectionProps) {
     if (props.selectedEntityId) {
       props.onSelectOrganizationEntity("department", null);
     }
-    setDrawerMode("create");
+    setIsCreateDrawerOpen(true);
   };
 
   const openEdit = (department: AdminDepartmentAssignment) => {
+    setIsCreateDrawerOpen(false);
     props.onSelectOrganizationEntity("department", department.departmentId);
-    setDrawerMode("edit");
   };
 
+  const drawerMode: DrawerMode = isCreateDrawerOpen ? "create" : props.selectedEntityId ? "edit" : null;
   const drawerDepartment = drawerMode === "edit" ? view.selectedDepartment : null;
 
   const departmentMemberCounts = useMemo(() => {

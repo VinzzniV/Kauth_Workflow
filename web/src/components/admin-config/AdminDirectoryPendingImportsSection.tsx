@@ -1,5 +1,5 @@
 import type { DirectoryPendingImports } from "../../types/auth";
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import LoadingState from "../feedback/LoadingState";
 
 type Props = {
@@ -23,16 +23,17 @@ export function AdminDirectoryPendingImportsSection({ pendingImports, isLoading,
 
   const items = pendingImports?.pendingImports ?? [];
   const total = pendingImports?.totalCount ?? 0;
-
-  if (!isLoading && total === 0) {
-    return null;
-  }
-
   const allSelected = items.length > 0 && selectedIds.size === items.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < items.length;
 
-  if (selectAllRef.current) {
-    selectAllRef.current.indeterminate = someSelected;
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
+
+  if (!isLoading && total === 0) {
+    return null;
   }
 
   function toggleAll() {
