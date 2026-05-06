@@ -54,7 +54,7 @@ Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Run
 |-------|---------|------|-----------|--------|--------|
 | Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health (heutige Signale, fehlende Signale, App vs. Container vs. Host) | HIGH | high | opus | done (2026-05-06) — Inventur in `CODE_REVIEW.md` § Z12-1.1 (heutige Signale, fehlende App-/Runtime-Signale, App-/Container-/Host-Trennung, UI-Begriffsempfehlung) |
 | Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host | HIGH | high | opus | done (2026-05-06) — Vertrags-Skizze in `CODE_REVIEW.md` § Z12-1.2 (`GET /admin/runtime-health` admin-only; `AdminRuntimeHealthDto` mit `application`/`dependencies`/`directory`/`storage[]`; Severity `ok/warning/critical/unknown`; Schwellwerte deklarativ; FE-Andock im bestehenden `admin-health-panel`; Z12-2.x-Abgrenzung gegen Host-/VM-Metrik / Prometheus / Trends / Alerts) |
-| Z12-2.1 | Backend Runtime-Health Endpoint + Service (App-/Runtime-Signale, kein Host-/VM-Metrik-Code) | HIGH | medium..high | sonnet | offen |
+| Z12-2.1 | Backend Runtime-Health Endpoint + Service (App-/Runtime-Signale, kein Host-/VM-Metrik-Code) | HIGH | medium..high | sonnet | done (2026-05-06) — `GET /admin/runtime-health` admin-only; `AdminRuntimeHealthService`; DTO-Familie + Severity-Logik + Storage via `RUNTIME_HEALTH_STORAGE_PATHS`; 42 neue Tests gruen |
 | Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock (andockend an `admin-health-panel`) | HIGH | medium..high | sonnet | offen |
 | *(Folgeschritt)* | Optionaler Host-/VM-Metrik-Ausbau (CPU/RAM/Disk Server) — eigener Zyklus nach Z12-2.2, nur bei konkretem Bedarf | — | — | — | bewusst ausserhalb Z12 |
 
@@ -68,7 +68,7 @@ Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Run
 - Schreibregel anwenden: pro Slice kurze Bedeutung-/Nutzen-Erklaerung.
 - Nach jedem Slice Commit + Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass.
 
-**Naechster konkreter Schritt:** Z12-2.1 beauftragen — Backend Runtime-Health Endpoint + Service entlang der in Z12-1.2 verabschiedeten Vertrags-Skizze. `GET /admin/runtime-health` admin-only mit `AdminRuntimeHealthDto` (`application`/`dependencies`/`directory`/`storage[]`); Severity `ok/warning/critical/unknown` und Schwellwerte 1:1 aus § Z12-1.2 uebernehmen, **nicht** frei waehlen. Modell `sonnet`, Effort `medium..high`. Kein Host-/VM-Metrik-Code; bestehende `/health/*`-Endpunkte unangetastet.
+**Naechster konkreter Schritt:** Z12-2.2 beauftragen — Frontend Admin-Dashboard-Betriebsblock, der innerhalb des bestehenden `admin-health-panel` neue Runtime-Health-Kacheln (Anwendung, Abhaengigkeiten, Schreibpfade) andockt und `GET /admin/runtime-health` konsumiert. Modell `sonnet`, Effort `medium..high`.
 
 ---
 

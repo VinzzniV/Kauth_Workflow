@@ -52,6 +52,7 @@ Das lokale Launch-Profil setzt:
 - `DIRECTORY_GROUP_PREFIX=Onboarding-App-`
 - `DIRECTORY_SYNC_SCHEDULED=true`
 - `SWAGGER_ENABLED=true`
+- `RUNTIME_HEALTH_STORAGE_PATHS` — optional; Format `label1=/pfad/1;label2=/pfad/2`; leer = keine Storage-Kacheln im Admin-Runtime-Health-Block
 
 Hinweise:
 - `automation`-Jobs werden von der API selbst gepollt
