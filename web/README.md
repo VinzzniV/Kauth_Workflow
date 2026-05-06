@@ -161,6 +161,7 @@ VITE_ENTRA_REDIRECT_URI=https://workflow-test.example.local
 Wichtig:
 - `dev-sim` zeigt keine kuenstlichen Demo-Benutzer.
 - Die Simulations-Login-Seite basiert auf synchronisierten Verzeichnisidentitaeten.
+- Auf frischer lokaler DB importiert der Dev-Directory-Sync Identitaeten aus bereits gemappten Entra-Gruppen automatisch in lokale `app_users`.
 - Bei `authMode=entra` muessen alle Entra-Runtime-Werte explizit gesetzt sein.
 
 ## Befehle

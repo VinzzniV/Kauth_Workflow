@@ -58,6 +58,8 @@ Hinweise:
 - Rotation-Benachrichtigungen werden von der API selbst täglich erzeugt
 - Frontend-Fehler werden automatisch an `POST /client/log-events` gemeldet
 - Erste Actions sind simuliert — kein externer Adapter nötig
+- `dev-sim` zeigt keine kuenstlichen Demo-Benutzer
+- im Dev-Modus importiert der Directory-Sync deshalb neue Identitaeten aus bereits gemappten Entra-Gruppen automatisch in lokale `app_users`, damit die Simulations-Login-Seite auf frischer DB nutzbar ist
 
 ### Schritt 3 — Web starten
 

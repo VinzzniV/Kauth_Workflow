@@ -354,6 +354,7 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         if (_runtimeSettings.DevSimulationEnabled)
         {
             await _operations.EnsureDevelopmentDefaultGroupMappingsAsync(connection, cancellationToken);
+            await AutoImportPendingDevelopmentIdentitiesAsync(connection, cancellationToken);
         }
     }
 
@@ -410,6 +411,87 @@ internal sealed class EntraDirectorySyncService : IDirectorySyncService
         public int MembershipsSynced;
         public string Status = "success";
         public string? ErrorMessage;
+    }
+
+    private async Task AutoImportPendingDevelopmentIdentitiesAsync(
+        NpgsqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string sql = @"
+SELECT DISTINCT di.id
+FROM directory_identities di
+JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
+JOIN directory_group_role_mappings dgrm ON dgrm.directory_group_id = dgm.directory_group_id
+WHERE di.app_user_id IS NULL
+  AND di.account_enabled = TRUE
+  AND dgrm.is_active = TRUE
+ORDER BY di.id;";
+
+        var pendingIdentityIds = new List<long>();
+
+        await using (var command = new NpgsqlCommand(sql, connection))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                pendingIdentityIds.Add(reader.GetInt64(0));
+            }
+        }
+
+        var imported = new List<DirectoryImportSuccessEntry>();
+        var failed = new List<DirectoryImportFailureEntry>();
+
+        foreach (var directoryIdentityId in pendingIdentityIds)
+        {
+            try
+            {
+                var entry = await ImportSingleIdentityAsync(connection, directoryIdentityId, cancellationToken);
+                if (entry is not null)
+                {
+                    imported.Add(entry);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Development directory auto-import failed for identity {DirectoryIdentityId}.",
+                    directoryIdentityId);
+
+                failed.Add(new DirectoryImportFailureEntry
+                {
+                    DirectoryIdentityId = directoryIdentityId,
+                    Reason = ex.Message
+                });
+            }
+        }
+
+        if (imported.Count == 0 && failed.Count == 0)
+        {
+            return;
+        }
+
+        await _systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+        {
+            Severity = failed.Count > 0 ? "warning" : "info",
+            Source = "directory",
+            Category = "dev_bootstrap",
+            EventKey = "development_directory_identities_auto_imported",
+            Message = $"Development simulation auto-imported {imported.Count} pending directory identities.",
+            Details = new
+            {
+                importedCount = imported.Count,
+                failedCount = failed.Count,
+                reason = "dev-sim bootstrap imports pending identities in mapped groups so the simulation login is usable on a fresh local database.",
+                imported = imported.Select(entry => new
+                {
+                    entry.DirectoryIdentityId,
+                    entry.AppUserId,
+                    entry.DisplayName
+                }).ToArray(),
+                failed
+            }
+        }, cancellationToken);
     }
 
     public async Task<DirectorySyncStatusDto> GetSyncStatusAsync(CancellationToken cancellationToken = default)
