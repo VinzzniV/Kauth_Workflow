@@ -37,7 +37,7 @@ function createAdminInsights(): DashboardInsights {
     queueItems: [],
     emptyQueueText: "Keine offenen Admin-Aufgaben.",
     adminSummary: {
-      statusKicker: "Governance-Status",
+      statusKicker: "Governance",
       statusTitle: "3 offene Governance-Lücken priorisieren.",
       statusDetail: "Stammdaten-Lücken zuerst prüfen. 3 offene Warnungen sind gruppiert sichtbar.",
       action: {
@@ -88,7 +88,7 @@ function createManagerInsights(): DashboardInsights {
     heading: "Vorgänge meiner Mitarbeitenden",
     nextStep: "Offene Freigaben zuerst bearbeiten.",
     stats: [{ label: "Aktive Vorgänge", value: 2, note: "laufend", tone: "progress" }],
-    queueTitle: "Danach relevant",
+    queueTitle: "Weitere Themen",
     queueItems: [
       {
         key: "manager-priority",
@@ -135,8 +135,7 @@ describe("DashboardOverview", () => {
     renderWithApp(<DashboardOverview />, { roleKeys: ["auth_admin"] });
 
     expect(screen.queryByText("Prozesstyp")).toBeNull();
-    expect(screen.getByText("Governance-Status")).toBeTruthy();
-    expect(screen.getByText("Aufmerksamkeit jetzt")).toBeTruthy();
+    expect(screen.getByText("Offene Themen")).toBeTruthy();
     expect(screen.getByText("Stammdaten-Lücken")).toBeTruthy();
     expect(screen.getByText("Abteilungen ohne gültige Leitung")).toBeTruthy();
     expect(screen.getByText("Betriebsstatus Runtime Block")).toBeTruthy();
@@ -183,8 +182,7 @@ describe("DashboardOverview", () => {
     renderWithApp(<DashboardOverview />, { roleKeys: ["auth_manager"] });
 
     expect(screen.getByText("Prozesstyp")).toBeTruthy();
-    expect(screen.getByText("Nächster Schritt")).toBeTruthy();
-    expect(screen.queryByText("Governance-Status")).toBeNull();
+    expect(screen.getByText("Empfohlene Aktion")).toBeTruthy();
     expect(screen.queryByText("Betriebsstatus Runtime Block")).toBeNull();
   });
 });

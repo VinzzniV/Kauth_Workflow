@@ -1,5 +1,5 @@
-// Rollenspezifisches Dashboard mit Kennzahlen und dem naechsten sinnvollen Arbeitsschritt.
-// Struktur: Zone 1 (Focus/Naechster Schritt), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit), Zone 4 (Admin: Betriebsstatus).
+// Rollenspezifisches Dashboard mit Kennzahlen und den wichtigsten offenen Themen.
+// Struktur: Zone 1 (Focus/Status), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit), Zone 4 (Admin: Betriebsstatus).
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardAdminOverview from "./DashboardAdminOverview";
@@ -89,7 +89,7 @@ export default function DashboardOverview() {
 
           {!isAdminDashboard ? (
             <>
-          {/* ─── Zone 1: Focus — nächster Schritt + Filter + Aktualisieren ─── */}
+          {/* ─── Zone 1: Focus — Status + Filter + Aktualisieren ─── */}
           <section className="panel dashboard-focus">
             <div className="dashboard-focus__head">
               <h2>{dashboardContext.title}</h2>
@@ -125,7 +125,7 @@ export default function DashboardOverview() {
             {priorityItem ? (
               <Link to={priorityItem.to} className="dashboard-next-step dashboard-next-step--action">
                 <div>
-                  <p className="dashboard-next-step__kicker">Nächster Schritt</p>
+                  <p className="dashboard-next-step__kicker">Empfohlene Aktion</p>
                   <p className="dashboard-next-step__title">{displayInsights.nextStep}</p>
                   <p className="dashboard-next-step__detail">{priorityItem.title}</p>
                 </div>
@@ -133,7 +133,7 @@ export default function DashboardOverview() {
               </Link>
             ) : (
               <div className="dashboard-next-step">
-                <p className="dashboard-next-step__kicker">Aktueller Stand</p>
+                <p className="dashboard-next-step__kicker">Status</p>
                 <p className="dashboard-next-step__title">{displayInsights.nextStep}</p>
                 <p className="dashboard-next-step__detail">{displayInsights.emptyQueueText}</p>
               </div>

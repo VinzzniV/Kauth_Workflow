@@ -62,7 +62,7 @@ export function getWorkflowBuilderNodeCategory(nodeType: WorkflowBuilderNodeKind
 
 export const WORKFLOW_BUILDER_TECHNICAL_LABELS = {
   sourceNode: "Ausgangsschritt",
-  targetNode: "Nächster Schritt",
+  targetNode: "Zielknoten",
   priority: "Pfad-Reihenfolge",
   conditionExpression: "Bedingung",
   processTypeKey: "Prozessbezug",

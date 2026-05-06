@@ -24,30 +24,23 @@ export default function DashboardAdminOverview(props: DashboardAdminOverviewProp
 
   return (
     <div className="dashboard-admin">
-      <section className="panel dashboard-admin-hero">
-        <div className="dashboard-admin-hero__content">
-          <p className="dashboard-admin-hero__kicker">{adminSummary.statusKicker}</p>
-          <h2 className="dashboard-admin-hero__title">{adminSummary.statusTitle}</h2>
-          <p className="dashboard-admin-hero__detail">{adminSummary.statusDetail}</p>
-        </div>
-        <div className="dashboard-admin-hero__controls">
-          {adminSummary.action ? (
-            <Link to={adminSummary.action.to} className="btn btn-primary">
-              {adminSummary.action.label}
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => {
-              void onRefresh();
-            }}
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
-          </button>
-        </div>
-      </section>
+      <div className="dashboard-admin-toolbar">
+        {adminSummary.action ? (
+          <Link to={adminSummary.action.to} className="btn btn-primary">
+            {adminSummary.action.label}
+          </Link>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => {
+            void onRefresh();
+          }}
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? "Aktualisiere..." : "Aktualisieren"}
+        </button>
+      </div>
 
       <section className="dashboard-admin-kpis" aria-label="Admin-Kennzahlen">
         {adminSummary.stats.map((stat) => (
@@ -69,7 +62,7 @@ export default function DashboardAdminOverview(props: DashboardAdminOverviewProp
         >
           <div className="dashboard-admin-panel__head">
             <div>
-              <h2 id="dashboard-admin-attention">Aufmerksamkeit jetzt</h2>
+              <h2 id="dashboard-admin-attention">Offene Themen</h2>
               <p>Governance-Lücken sind nach Themen gruppiert und priorisiert.</p>
             </div>
           </div>

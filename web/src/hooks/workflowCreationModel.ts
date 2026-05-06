@@ -217,5 +217,5 @@ export function buildWorkflowCreationSuccessMessage({
     ? " Bestehende Person wurde direkt verknüpft."
     : " Person-Stammsatz wurde erstellt und direkt verknüpft.";
 
-  return `${workflowName} ${createdWorkflowUid} angelegt.${linkageMessage} Nächster Schritt: Der zuständige Prozessschritt kann jetzt im Tool weiterbearbeitet werden.`;
+  return `${workflowName} ${createdWorkflowUid} angelegt.${linkageMessage} Weiterbearbeitung: Der zuständige Prozessschritt kann jetzt im Tool weiterbearbeitet werden.`;
 }

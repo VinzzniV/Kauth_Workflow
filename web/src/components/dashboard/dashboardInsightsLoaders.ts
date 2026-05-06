@@ -534,7 +534,7 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
             : "System läuft. Keine offenen Admin-Aufgaben.",
     stats: [...summaryStats],
     adminSummary: {
-      statusKicker: "Governance-Status",
+      statusKicker: "Governance",
       statusTitle: adminWarningCount > 0
         ? `${adminWarningCount} offene Governance-Lücken priorisieren.`
         : stuckWorkflows.length > 0
@@ -621,7 +621,7 @@ export function loadGenericInsights(): DashboardInsights {
     heading: "Übersicht",
     nextStep: "Freigegebenen Bereich wählen.",
     stats: [],
-    queueTitle: "Danach relevant",
+    queueTitle: "Weitere Themen",
     queueItems: [],
     emptyQueueText: "Keine rollenspezifischen Aufgaben vorhanden.",
   };
