@@ -1,9 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import type {
   AdminDirectorySyncStatus,
   AdminNotificationEmailConfiguration,
-  AuthDependencyRuntimeHealth,
-  DependenciesRuntimeHealth,
   DirectoryPendingImports,
 } from "../../types/auth";
 import { formatTimestamp, notificationConfigurationStatusLabel, notificationModeLabel } from "./adminConfigHelpers";
@@ -17,8 +14,6 @@ import {
   groupAdminOverviewWarnings,
 } from "./adminWorkspaceModel";
 import SectionHeader from "../ui/SectionHeader";
-import { getAdminRuntimeHealth } from "../../services/adminApi";
-import { queryKeys } from "../../services/queryKeys";
 
 type HealthTone = "neutral" | "success" | "warning" | "danger";
 
@@ -80,64 +75,6 @@ function getWarningTone(warningCount: number): HealthTone {
   return "warning";
 }
 
-function severityToTone(severity: string): HealthTone {
-  switch (severity) {
-    case "ok": return "success";
-    case "warning": return "warning";
-    case "critical": return "danger";
-    default: return "neutral";
-  }
-}
-
-function severityLabel(severity: string): string {
-  switch (severity) {
-    case "ok": return "OK";
-    case "warning": return "Warnung";
-    case "critical": return "Kritisch";
-    default: return "Unbekannt";
-  }
-}
-
-function formatUptime(seconds: number): string {
-  if (seconds < 3600) {
-    const m = Math.floor(seconds / 60);
-    return m > 0 ? `${m}min` : "<1min";
-  }
-  if (seconds < 86400) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    return m > 0 ? `${h}h ${m}min` : `${h}h`;
-  }
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  return h > 0 ? `${d}d ${h}h` : `${d}d`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${Math.round(bytes / 1024 / 1024)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
-
-function dependenciesSummaryLabel(deps: DependenciesRuntimeHealth): string {
-  switch (deps.severity) {
-    case "ok": return "Alles erreichbar";
-    case "warning": return "Teilweise verfügbar";
-    case "critical": return "Kritisch";
-    default: return "Unbekannt";
-  }
-}
-
-function authShortLabel(auth: AuthDependencyRuntimeHealth): string {
-  if (auth.mode === "dev-sim") return "dev-sim";
-  if (auth.mode === "none") return "deaktiviert";
-  if (auth.reachability === "reachable") {
-    return auth.latencyMs != null ? `${auth.latencyMs}ms` : "OK";
-  }
-  if (auth.reachability === "unreachable") return "Fehler";
-  return auth.reachability;
-}
-
 export function AdminOverviewWorkspaceSection({
   warningCount,
   notificationEmailConfiguration,
@@ -172,79 +109,14 @@ export function AdminOverviewWorkspaceSection({
     ? "Aktuell gibt es keine Admin-Warnungen in Stammdaten, Zuständigkeiten oder Mail-Konfiguration."
     : "Die Problemgruppen sind unten nach Bereichen gebündelt.";
 
-  const runtimeHealthQuery = useQuery({
-    queryKey: queryKeys.admin.runtimeHealth(),
-    queryFn: getAdminRuntimeHealth,
-    staleTime: 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
-  });
-  const runtimeHealth = runtimeHealthQuery.data ?? null;
-
-  const overallSeverity = runtimeHealth?.overallSeverity ?? null;
-  const hasRuntimeConcern = overallSeverity === "warning" || overallSeverity === "critical";
-  const panelModifier = overallSeverity === "critical" && warningCount === 0
-    ? "admin-health-panel--critical"
-    : (warningCount > 0 || hasRuntimeConcern)
-      ? "admin-health-panel--warning"
-      : "admin-health-panel--clear";
-
   return (
     <div className="content-stack">
-      <section className={`panel admin-health-panel ${panelModifier}`}>
-        <div className="admin-health-head-row">
-          <SectionHeader
-            title="Betriebsstatus"
-            description="Betriebssignale für API-Prozess, Abhängigkeiten sowie Verzeichnis-Sync, Mailversand und Admin-Warnungen."
-            className="admin-health-head"
-          />
-          {overallSeverity ? (
-            <span className={`admin-health-severity-badge admin-health-severity-badge--${severityToTone(overallSeverity)}`}>
-              {severityLabel(overallSeverity)}
-            </span>
-          ) : null}
-        </div>
-
-        {runtimeHealth ? (
-          <div className="admin-health-meta admin-health-meta--runtime">
-            <div className={`admin-health-metric admin-health-metric--${severityToTone(runtimeHealth.application.severity)}`}>
-              <span>API-Prozess</span>
-              <strong>{formatUptime(runtimeHealth.application.uptimeSeconds)}</strong>
-              <p className="admin-health-metric-detail">
-                Managed Heap: {formatBytes(runtimeHealth.application.managedHeapBytes)}
-                {runtimeHealth.application.managedHeapHighThresholdBytes
-                  ? ` / ${formatBytes(runtimeHealth.application.managedHeapHighThresholdBytes)}`
-                  : ""}
-              </p>
-            </div>
-
-            <div className={`admin-health-metric admin-health-metric--${severityToTone(runtimeHealth.dependencies.severity)}`}>
-              <span>Abhängigkeiten</span>
-              <strong>{dependenciesSummaryLabel(runtimeHealth.dependencies)}</strong>
-              <p className="admin-health-metric-detail">
-                DB:{" "}
-                {runtimeHealth.dependencies.database.reachable
-                  ? runtimeHealth.dependencies.database.latencyMs != null
-                    ? `${runtimeHealth.dependencies.database.latencyMs}ms`
-                    : "OK"
-                  : "Fehler"}
-                {" · "}
-                Auth: {authShortLabel(runtimeHealth.dependencies.auth)}
-              </p>
-            </div>
-
-            {runtimeHealth.storage.map((s) => (
-              <div key={s.path} className={`admin-health-metric admin-health-metric--${severityToTone(s.severity)}`}>
-                <span>Schreibpfad: {s.label}</span>
-                <strong>{s.usedPercent.toFixed(0)}% belegt</strong>
-                <p className="admin-health-metric-detail">
-                  {formatBytes(s.totalBytes - s.freeBytes)} / {formatBytes(s.totalBytes)}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : runtimeHealthQuery.isError ? (
-          <p className="panel-note admin-health-load-notice">Runtime Health konnte nicht geladen werden.</p>
-        ) : null}
+      <section className={`panel admin-health-panel ${warningCount === 0 ? "admin-health-panel--clear" : "admin-health-panel--warning"}`}>
+        <SectionHeader
+          title="Systemstatus"
+          description="Direkte Health-Signale für Verzeichnis-Sync, Mailversand und offene Admin-Warnungen."
+          className="admin-health-head"
+        />
 
         <div className="admin-health-summary">
           <div className="admin-health-status">

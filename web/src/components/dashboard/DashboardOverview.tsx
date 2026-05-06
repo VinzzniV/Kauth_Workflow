@@ -1,7 +1,8 @@
 // Rollenspezifisches Dashboard mit Kennzahlen und dem naechsten sinnvollen Arbeitsschritt.
-// Struktur: Zone 1 (Focus/Naechster Schritt), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit).
+// Struktur: Zone 1 (Focus/Naechster Schritt), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit), Zone 4 (Admin: Betriebsstatus).
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import DashboardAdminRuntimeHealthBlock from "./DashboardAdminRuntimeHealthBlock";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
 import { useStartableWorkflowDefinitions } from "../../services/queries/workflowDefinitionQueries";
 import {
@@ -203,6 +204,9 @@ export default function DashboardOverview() {
               </ul>
             </section>
           ) : null}
+
+          {/* ─── Zone 4: Betriebsstatus — nur Admin ─── */}
+          {dashboardPersona === "admin" ? <DashboardAdminRuntimeHealthBlock /> : null}
         </div>
       ) : null}
     </div>
