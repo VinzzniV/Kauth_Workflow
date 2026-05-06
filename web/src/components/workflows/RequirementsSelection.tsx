@@ -247,7 +247,7 @@ export default function RequirementsSelection({
   title = "Bedarf festlegen",
   description = "Wählen Sie aus, welche Zugänge und welche Ausstattung für den Vorgang benötigt werden.",
 }: Props) {
-  const effectiveSelections = mode === "edit" ? selections : undefined;
+  const effectiveSelections = selections;
   const visibleRequirements = useMemo(() => {
     const workflowRequirements = requirements.every(isWorkflowRequirementSnapshotEntry)
       ? requirements
@@ -257,12 +257,8 @@ export default function RequirementsSelection({
       return workflowRequirements.filter((requirement) => requirement.isVisible);
     }
 
-    if (mode === "view") {
-      return requirements.filter((requirement) => ("isVisible" in requirement ? requirement.isVisible : true));
-    }
-
     return getRequirementEditorVisibleRequirements(requirements, effectiveSelections);
-  }, [effectiveSelections, mode, requirements]);
+  }, [effectiveSelections, requirements]);
 
   const groupedRequirements = useMemo<RequirementGroup[]>(() => {
     const groups = new Map<string, RequirementEntry[]>();

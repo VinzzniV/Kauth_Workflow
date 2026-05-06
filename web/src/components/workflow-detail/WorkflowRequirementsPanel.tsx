@@ -60,7 +60,7 @@ export default function WorkflowRequirementsPanel({
       <RequirementsSelection
         requirements={workflow.requirements}
         mode={canEditSupervisorRequirements ? "edit" : "view"}
-        selections={canEditSupervisorRequirements ? requirementSelections : undefined}
+        selections={requirementSelections}
         onToggleBoolean={canEditSupervisorRequirements ? onToggleBoolean : undefined}
         onTextChange={canEditSupervisorRequirements ? onTextChange : undefined}
         onSelectOption={canEditSupervisorRequirements ? onSelectOption : undefined}
