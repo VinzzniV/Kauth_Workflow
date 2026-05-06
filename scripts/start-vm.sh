@@ -37,6 +37,22 @@ require_command() {
     command -v "$name" >/dev/null 2>&1 || fail "'$name' wurde nicht gefunden."
 }
 
+sha256_file() {
+    local path="$1"
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$path" | awk '{print $1}'
+        return 0
+    fi
+
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$path" | awk '{print $1}'
+        return 0
+    fi
+
+    fail "Weder sha256sum noch shasum ist verfuegbar. package-lock-Pruefung ist nicht moeglich."
+}
+
 version_ge() {
     local left="$1"
     local right="$2"
@@ -319,15 +335,31 @@ ensure_dev_database_ready() {
 
 ensure_web_dependencies() {
     ensure_supported_node_version
+    local web_dir="$REPO_ROOT/web"
+    local node_modules_dir="$web_dir/node_modules"
+    local package_lock_file="$web_dir/package-lock.json"
+    local lock_hash_file="$node_modules_dir/.package-lock.sha256"
+    local expected_lock_hash
+    expected_lock_hash="$(sha256_file "$package_lock_file")"
 
-    if [[ -d "$REPO_ROOT/web/node_modules" ]]; then
-        return 0
+    if [[ -d "$node_modules_dir" && -f "$lock_hash_file" ]]; then
+        local installed_lock_hash
+        installed_lock_hash="$(tr -d '[:space:]' < "$lock_hash_file")"
+        if [[ "$installed_lock_hash" == "$expected_lock_hash" ]]; then
+            return 0
+        fi
     fi
 
-    echo "web/node_modules fehlt. Fuehre npm ci aus ..."
+    if [[ -d "$node_modules_dir" ]]; then
+        echo "web/package-lock.json hat sich geaendert oder node_modules ist nicht verifiziert. Fuehre npm ci aus ..."
+    else
+        echo "web/node_modules fehlt. Fuehre npm ci aus ..."
+    fi
+
     (
-        cd "$REPO_ROOT/web"
+        cd "$web_dir"
         npm ci
+        printf '%s\n' "$expected_lock_hash" > "$lock_hash_file"
     )
 }
 
@@ -443,13 +475,17 @@ start_dev_web() {
     assert_port_free 5173 "Web"
     ensure_web_dependencies
 
+    if [[ -d "$REPO_ROOT/web/node_modules/.vite" ]]; then
+        rm -rf "$REPO_ROOT/web/node_modules/.vite"
+    fi
+
     echo "Starte Vite-Webserver im Hintergrund ..."
     (
         cd "$REPO_ROOT/web"
         exec nohup env \
             VITE_API_PROXY_TARGET=http://127.0.0.1:5001 \
             VITE_AUTH_MODE=dev-sim \
-            npm run dev -- --host 0.0.0.0
+            npm run dev -- --host 0.0.0.0 --force
     ) >>"$DEV_WEB_LOG_FILE" 2>&1 &
     echo "$!" > "$DEV_WEB_PID_FILE"
 
