@@ -415,6 +415,7 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         long rootFsTotalBytes = 0;
         long rootFsFreeBytes = 0;
         double rootFsUsedPercent = 0.0;
+        var zombieProcessCount = await CountZombieProcessesAsync(procfsPath, cancellationToken);
 
         try
         {
@@ -436,7 +437,8 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
 
         var memSeverity = ComputeHostMemorySeverity(memUsedPercent);
         var fsSeverity = rootFsTotalBytes > 0 ? ComputeStorageSeverity(rootFsUsedPercent) : "unknown";
-        var severity = AggregateSeverities(memSeverity, fsSeverity);
+        var zombieSeverity = ComputeHostZombieSeverity(zombieProcessCount);
+        var severity = AggregateSeverities(memSeverity, fsSeverity, zombieSeverity);
 
         return new HostHealthDto
         {
@@ -448,8 +450,46 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
             MemUsedPercent = Math.Round(memUsedPercent, 2),
             RootFsTotalBytes = rootFsTotalBytes,
             RootFsFreeBytes = rootFsFreeBytes,
-            RootFsUsedPercent = Math.Round(rootFsUsedPercent, 2)
+            RootFsUsedPercent = Math.Round(rootFsUsedPercent, 2),
+            ZombieProcessCount = zombieProcessCount
         };
+    }
+
+    private static async Task<int> CountZombieProcessesAsync(string procfsPath, CancellationToken cancellationToken)
+    {
+        var zombieCount = 0;
+        foreach (var entry in Directory.EnumerateDirectories(procfsPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var pid = Path.GetFileName(entry);
+            if (string.IsNullOrWhiteSpace(pid) || !pid.All(char.IsDigit))
+            {
+                continue;
+            }
+
+            try
+            {
+                var statText = await File.ReadAllTextAsync(Path.Combine(entry, "stat"), cancellationToken);
+                var closingParenIndex = statText.LastIndexOf(')');
+                if (closingParenIndex < 0 || closingParenIndex + 2 >= statText.Length)
+                {
+                    continue;
+                }
+
+                var state = statText[closingParenIndex + 2];
+                if (state == 'Z')
+                {
+                    zombieCount++;
+                }
+            }
+            catch
+            {
+                // Prozess kann zwischen Enumerierung und Read verschwinden oder unlesbar sein.
+            }
+        }
+
+        return zombieCount;
     }
 
     private static long ParseMemInfoKb(string line)
@@ -468,6 +508,13 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
     {
         if (usedPercent > 95.0) return "critical";
         if (usedPercent >= 85.0) return "warning";
+        return "ok";
+    }
+
+    internal static string ComputeHostZombieSeverity(int zombieProcessCount)
+    {
+        if (zombieProcessCount >= 5) return "critical";
+        if (zombieProcessCount > 0) return "warning";
         return "ok";
     }
 

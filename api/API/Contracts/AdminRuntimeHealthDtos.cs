@@ -99,4 +99,5 @@ public sealed class HostHealthDto
     public required long RootFsTotalBytes { get; init; }
     public required long RootFsFreeBytes { get; init; }
     public required double RootFsUsedPercent { get; init; }
+    public required int ZombieProcessCount { get; init; }
 }

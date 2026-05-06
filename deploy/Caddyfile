@@ -10,3 +10,13 @@
     reverse_proxy web:80
   }
 }
+
+http://127.0.0.1 {
+  handle_path /__proxy-health/* {
+    reverse_proxy api:8080
+  }
+
+  handle {
+    respond 200
+  }
+}

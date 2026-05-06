@@ -406,6 +406,18 @@ public sealed class AdminRuntimeHealthEndpointsTests
         Assert.Equal(expected, severity);
     }
 
+    [Theory]
+    [InlineData(0, "ok")]
+    [InlineData(1, "warning")]
+    [InlineData(4, "warning")]
+    [InlineData(5, "critical")]
+    [InlineData(12, "critical")]
+    public void ComputeHostZombieSeverity_MatchesThresholds(int zombieProcessCount, string expected)
+    {
+        var severity = AdminRuntimeHealthService.ComputeHostZombieSeverity(zombieProcessCount);
+        Assert.Equal(expected, severity);
+    }
+
     [Fact]
     public void ComputeOverallSeverity_WithNullHost_ExcludesHost()
     {
@@ -426,7 +438,8 @@ public sealed class AdminRuntimeHealthEndpointsTests
             MemUsedPercent = 97.5,
             RootFsTotalBytes = 100_000_000_000L,
             RootFsFreeBytes = 5_000_000_000L,
-            RootFsUsedPercent = 95.0
+            RootFsUsedPercent = 95.0,
+            ZombieProcessCount = 8
         };
 
         var result = AdminRuntimeHealthService.ComputeOverallSeverity("ok", "ok", "ok", [], "entra", host);
@@ -446,7 +459,8 @@ public sealed class AdminRuntimeHealthEndpointsTests
             MemUsedPercent = 88.0,
             RootFsTotalBytes = 100_000_000_000L,
             RootFsFreeBytes = 30_000_000_000L,
-            RootFsUsedPercent = 70.0
+            RootFsUsedPercent = 70.0,
+            ZombieProcessCount = 1
         };
 
         var result = AdminRuntimeHealthService.ComputeOverallSeverity("ok", "ok", "ok", [], "entra", host);

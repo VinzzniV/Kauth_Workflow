@@ -158,6 +158,8 @@ export default function DashboardAdminRuntimeHealthBlock() {
                 {" · "}
                 Root-FS: {health.host.rootFsUsedPercent.toFixed(0)}% belegt
                 {" · "}
+                Zombies: {health.host.zombieProcessCount}
+                {" · "}
                 Last: {health.host.loadAverage1m.toFixed(2)}
               </p>
             </div>

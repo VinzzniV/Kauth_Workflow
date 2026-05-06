@@ -531,6 +531,7 @@ export type HostRuntimeHealth = {
   rootFsTotalBytes: number;
   rootFsFreeBytes: number;
   rootFsUsedPercent: number;
+  zombieProcessCount: number;
 };
 export type AdminTaskSpec = {
   id: number;
