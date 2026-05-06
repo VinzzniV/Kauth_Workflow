@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-06 — Zyklus 11 abgeschlossen (Admin-/Master-Data-Listen-Vertraege umgesetzt; F1 + F2 + F3 done). Slice-Reihenfolge wie geplant: F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Kein aktiver Zyklus. Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen).
+**Stand**: 2026-05-06 — **Aktiver Zyklus 12** eroeffnet: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health-Signale. Z12 adressiert zuerst App-/Runtime-Health (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage), nicht vollwertige Host-/VM-Metrik. Slice-Reihenfolge: Z12-1.1 Begriffs-/Vertragsinventur → Z12-1.2 Vertrags-Skizze (DTO + Schwellwerte + Abgrenzung App/Container/Host) → Z12-2.1 Backend Runtime-Health Endpoint + Service → Z12-2.2 Frontend Admin-Dashboard-Betriebsblock. Echte Host-/VM-Metrik bleibt bewusst optionaler Folgeschritt nach Z12. Zyklus 11 abgeschlossen (Admin-/Master-Data-Listen-Vertraege; F1 + F2 + F3 done); Zyklus 10/9/8 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet).
 
 ---
 
@@ -67,6 +67,80 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | Skalierbarkeit | **B-** | Mehrere Listen-, Sweep- und Dispatch-Pfade sind noch Kandidaten fuer SQL-Pushdown, Pagination oder N+1-Abbau |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
+
+---
+
+## Aktiver Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health (eroeffnet 2026-05-06)
+
+**Status:** eroeffnet 2026-05-06 als aktiver Zyklus. Reine Zykluseroeffnung in diesem Slice (Z12-1) — kein Code-Change in der Eroeffnung, nur Doku.
+
+**Thema:** Das Admin-Dashboard soll fuer `admin` kuenftig Signale aus dem laufenden System sichtbar machen, die heute nur vereinzelt im UI auftauchen oder nur als Backend-Health-Endpunkt existieren. Der bestehende Admin-Health-Begriff (`admin-health-panel` in `web/src/components/admin-config/AdminOverviewWorkspaceSection.tsx`, plus `/health/live`, `/health/ready`, `/health` aus `api/API/Extensions/LifecycleApplicationExtensions.cs`) bleibt die Hauptachse — Z12 erweitert ihn, statt eine konkurrierende zweite Betriebslogik zu erfinden.
+
+**Wichtige Produkt-/Scope-Entscheidung:**
+- Z12 adressiert zuerst **App-/Runtime-Health** (API erreichbar, DB erreichbar, Directory-Sync-Status, Mail-Konfiguration, einfache Runtime-Metriken wie Prozess-Speicher, Prozess-Uptime, Storage-Auslastung der App-Schreibpfade).
+- **Echte Host-/VM-Metrik** (CPU/RAM/Disk des ganzen Servers, Lastdurchschnitt, Container-Health) bleibt bewusst ein **spaeterer optionaler Ausbau** nach Z12. Sie wird in Z12-1 nur als klar abgegrenzter Folgeschritt dokumentiert und bewusst nicht umgesetzt.
+- Z12 erfindet keinen zweiten Health-Begriff. Es nutzt den bestehenden Admin-Health-Block (`admin-health-panel` plus `/health`-Endpunkte) als Anker.
+
+**Was bedeutet das praktisch?**
+- Admins sehen ohne Server-Login direkt im Dashboard, ob API, DB, Directory-Sync und Mail laufen — heute muss man dafuer mehrere Stellen kombinieren oder auf den Server.
+- Einfache Runtime-Signale (Prozess-Speicher, Uptime, Storage-Auslastung der App-Schreibpfade) machen sichtbar, ob die App selbst gesund laeuft, nicht nur ob der Server an ist.
+- Die Trennung zwischen App-/Container-/Host-Sicht wird sichtbar: Admins verstehen, ob ein Engpass die App betrifft (relevant fuer Z12) oder den Host (Folgeschritt).
+
+**Warum lohnt es sich, das anzugehen?**
+- Heute existieren `/health/live`, `/health/ready`, `/health` als Backend-Endpunkte und es gibt einen `admin-health-panel` im UI — beide Welten sind aber nicht systematisch verbunden. Operative Health-Signale leben verstreut.
+- App-/Runtime-Health ist die Stufe mit dem groessten praktischen Hebel pro Zeitaufwand: keine zusaetzliche Infrastruktur, keine OS-/Container-Hooks, keine Privilegien-Diskussion.
+- Wenn die Trennung App vs. Host jetzt klar gezogen wird, kann ein spaeterer Host-Metrik-Ausbau sauber andocken, statt App-Signale zu ueberbauen.
+
+**Was wird dadurch besser, sicherer, schneller oder wartbarer?**
+- **Besser:** ein konsolidierter Betriebsblock fuer Admins, statt verstreuter Indikatoren in mehreren Sektionen.
+- **Sicherer:** sichtbare Health-Signale in Production reduzieren das Risiko stiller Fehlzustaende (Mailversand inaktiv, Directory-Sync laenger nicht gelaufen, Prozess-Speicher faellt unter Schwelle).
+- **Wartbarer:** ein expliziter Runtime-Health-Vertrag (DTO + Schwellwerte + klar benannte Domaenen App/Container/Host) verhindert, dass jede Sektion ihren eigenen Mini-Healthcheck baut.
+- **Anschlussfaehig:** spaeterer Host-/VM-Metrik-Ausbau bekommt einen sauberen Anker, weil Z12 die App-/Container-/Host-Semantik bereits getrennt hat.
+
+**Begruendung gegen alternative Zuschnitte:**
+- *Direkt mit voller Host-Metrik starten*: erzwingt OS-/Container-Hooks (z. B. `cgroup`, `procfs`, Docker-Stats), Privilegien-Klaerung und Plattform-Forks (Linux-VM vs. Dev-Windows). Hoher Aufwand, geringer sichtbarer Nutzen vor App-Health.
+- *Nur Backend-Endpoint ohne UI-Block*: bestehende Admins koennen heute `/health/ready` aufrufen — das hat den Schmerzpunkt nicht geloest. Sichtbarkeit im Dashboard ist der eigentliche Hebel.
+- *Nur UI-Block ohne neuen Vertrag*: das `admin-health-panel` zeigt heute Directory-Sync, Mail und Warnungen — Runtime-Metriken (Speicher, Uptime, Storage) fehlen ohne neuen Endpoint, weil sie weder im Directory-Status noch im Mail-Config-Endpoint enthalten sind.
+- *Beides in einem Slice statt vier*: zu breit fuer einen sauberen Slice; Begriffsklaerung und Vertrag muessen vor der Backend-Implementierung stehen, sonst entsteht ein DTO, das spaeter wieder umgebaut wird.
+
+**Fokus / Slice-Reihenfolge:**
+1. **Z12-1.1** Begriffsklaerung / Vertragsinventur Runtime Health — was existiert heute (`/health`-Endpunkte, `admin-health-panel`, Directory-Status, Mail-Konfig, Warnungen)? Welche App-/Runtime-Signale fehlen? Wie heisst was, und wie verhaelt es sich zu Container-/Host-Sicht?
+2. **Z12-1.2** Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host — Skizze des neuen Runtime-Health-DTO, klare Schwellwerte (z. B. Speicher ok/warn/crit), explizite Trennung App vs. Container vs. Host. Kein Code-Change.
+3. **Z12-2.1** Backend Runtime-Health Endpoint + Service — Implementierung gemaess Z12-1.2.
+4. **Z12-2.2** Frontend Admin-Dashboard-Betriebsblock — sichtbarer Block im Admin-Dashboard, andockend an den bestehenden `admin-health-panel`.
+5. *(Folgeschritt nach Z12)* **Optionaler Host-/VM-Metrik-Ausbau** (CPU/RAM/Disk des gesamten Servers) — bewusst klar **ausserhalb** der ersten Umsetzung; eigener Zyklus oder Slice nach Z12-2.2, nur wenn ein konkreter Bedarf entsteht und die Privilegien-/Plattform-Frage geklaert ist.
+
+**Leitplanken Z12:**
+- Z12 redet zuerst von App-/Runtime-Health, nicht von Host-/VM-Metrik. Wer im Slice „Host-CPU/Disk/RAM" mitnimmt, weicht den Zuschnitt auf.
+- Bestehende `admin-health-panel`-Logik und `/health/*`-Endpunkte bleiben Anker. Keine zweite parallele Betriebslogik.
+- Begriffstrennung App vs. Container vs. Host ist Pflicht in Z12-1.1/Z12-1.2 — sonst rutschen Host-Metriken still in den App-Vertrag.
+- Reihenfolge streng sequenziell: Z12-1.1 → Z12-1.2 → Z12-2.1 → Z12-2.2.
+- Z12-1.x sind reine Doku-Slices (kein Code, kein API-Vertrag, keine DB-Aenderung).
+- Schwellwerte und Severity-Begriffe (z. B. ok/warn/crit) werden in Z12-1.2 deklarativ skizziert, nicht in Z12-2.1 frei erfunden.
+- Schreibregel anwenden: jedes Slice-Ergebnis erklaert auch fuer normale Leser, was sich praktisch aendert, warum es sich gelohnt hat und welcher Nutzen entsteht.
+- Nach jedem Slice: Commit mit klarem Slice-Bezug; Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass nachziehen.
+- Keine stillen Mitnahme-Refactors ausserhalb des beauftragten Slices (`CLAUDE_CONTROL.md`).
+
+**Geplante Slices:**
+
+| ID | Aufgabe | Prio | Reasoning | Modell | Status |
+|----|---------|------|-----------|--------|--------|
+| Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health: bestehende Health-Signale (Backend-Endpunkte, UI-Block, Directory-Status, Mail-Konfig, Warnungen) inventarisieren; benennen, welche App-/Runtime-Signale heute **fehlen**; klar trennen App / Container / Host | HIGH | high | opus | offen |
+| Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host: neuen Runtime-Health-Antwortvertrag (Felder, Severity-Stufen, Schwellwerte, Domaenen-Tags) auf Papier ziehen; klar markieren, was App ist und was Host bleibt; FE-Andockpunkt am bestehenden `admin-health-panel` benennen | HIGH | high | opus | offen |
+| Z12-2.1 | Backend Runtime-Health Endpoint + Service: Implementierung gemaess Z12-1.2 (App-/Runtime-Signale: API/DB/Directory/Mail-Status + einfache Runtime-Metriken Prozess-Speicher/Uptime/Storage); kein Host-/VM-Metrik-Code | HIGH | medium..high | sonnet | offen |
+| Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock: Erweiterung des bestehenden `admin-health-panel` um die neuen Runtime-Signale; Severity-Anzeige gemaess Z12-1.2; keine konkurrierende zweite Betriebslogik | HIGH | medium..high | sonnet | offen |
+| *(Folgeschritt nach Z12)* | Optionaler Host-/VM-Metrik-Ausbau (CPU/RAM/Disk Server, Container-Health) — eigener Zyklus oder Slice nach Z12-2.2; nur bei konkretem Bedarf und nach Privilegien-/Plattform-Klaerung | — | — | — | bewusst ausserhalb Z12 |
+
+**Erwartete Ausgaenge aus Z12:**
+- Z12-1.1: Inventur in `CODE_REVIEW.md` § Z12-1.1 (heutige Signale, fehlende Signale, App vs. Container vs. Host).
+- Z12-1.2: Vertrags-Skizze in `CODE_REVIEW.md` § Z12-1.2 (DTO-Felder, Schwellwerte, Severity, Domaenen-Tags, FE-Andockpunkt).
+- Z12-2.1: neuer Runtime-Health-Endpoint + Service entlang Z12-1.2.
+- Z12-2.2: sichtbarer Betriebsblock im Admin-Dashboard, andockend an `admin-health-panel`.
+- Pro Slice: aktualisierte Doku (Status, Erkenntnisse, Folgeentscheidungen); Tests fuer den jeweiligen Slice angepasst/ergaenzt (ab Z12-2.x).
+
+**Reihenfolge / Abhaengigkeiten:**
+- Z12-1.1 → Z12-1.2 → Z12-2.1 → Z12-2.2 streng sequenziell. Z12-2.1 setzt den in Z12-1.2 verabschiedeten Vertrag voraus; Z12-2.2 setzt den in Z12-2.1 implementierten Endpoint voraus.
+- Optionaler Host-/VM-Metrik-Ausbau ist explizit kein Z12-Slice und folgt erst nach Z12-2.2.
 
 ---
 

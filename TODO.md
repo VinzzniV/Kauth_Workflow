@@ -44,6 +44,34 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
+## Aktiver Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health (eroeffnet 2026-05-06)
+
+Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Runtime-/System-Health-Signale (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage). Echte Host-/VM-Metrik bleibt bewusst ein optionaler Folgeschritt. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 12".
+
+**Praktisch:** Admins sehen ohne Server-Login direkt im Dashboard, ob die App und ihre Abhaengigkeiten gesund laufen. **Lohnenswert:** App-/Runtime-Health hat den groessten Hebel pro Aufwand und schafft den Anker, an dem ein spaeterer Host-Metrik-Ausbau sauber andocken kann. **Nutzen:** ein konsolidierter Betriebsblock statt verstreuter Indikatoren; klare Begriffstrennung App vs. Container vs. Host; ein expliziter Runtime-Health-Vertrag.
+
+| Block | Aufgabe | Prio | Reasoning | Modell | Status |
+|-------|---------|------|-----------|--------|--------|
+| Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health (heutige Signale, fehlende Signale, App vs. Container vs. Host) | HIGH | high | opus | offen |
+| Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host | HIGH | high | opus | offen |
+| Z12-2.1 | Backend Runtime-Health Endpoint + Service (App-/Runtime-Signale, kein Host-/VM-Metrik-Code) | HIGH | medium..high | sonnet | offen |
+| Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock (andockend an `admin-health-panel`) | HIGH | medium..high | sonnet | offen |
+| *(Folgeschritt)* | Optionaler Host-/VM-Metrik-Ausbau (CPU/RAM/Disk Server) — eigener Zyklus nach Z12-2.2, nur bei konkretem Bedarf | — | — | — | bewusst ausserhalb Z12 |
+
+**Leitplanken Z12:**
+- App-/Runtime-Health zuerst, **nicht** Host-/VM-Metrik. Wer im Slice Host-CPU/Disk/RAM mitnimmt, weicht den Zuschnitt auf.
+- Bestehender Admin-Health-Begriff (`admin-health-panel` + `/health/*`) bleibt Anker; keine zweite parallele Betriebslogik.
+- Begriffstrennung App vs. Container vs. Host ist Pflicht in Z12-1.1/Z12-1.2.
+- Strenge Reihenfolge: Z12-1.1 → Z12-1.2 → Z12-2.1 → Z12-2.2.
+- Z12-1.x sind reine Doku-Slices (kein Code, kein API-Vertrag, keine DB-Aenderung).
+- Schwellwerte und Severity-Stufen werden in Z12-1.2 deklarativ skizziert, nicht in Z12-2.1 frei erfunden.
+- Schreibregel anwenden: pro Slice kurze Bedeutung-/Nutzen-Erklaerung.
+- Nach jedem Slice Commit + Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass.
+
+**Naechster konkreter Schritt:** Z12-1.1 beauftragen — Inventur der heute existierenden Health-Signale (Backend-Endpunkte, UI-Block, Directory-Status, Mail-Konfig, Warnungen), benennen welche App-/Runtime-Signale fehlen, und App vs. Container vs. Host klar trennen. Modell `opus`, Effort `high`.
+
+---
+
 ## Abgeschlossener Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05..06)
 
 Z11 ist abgeschlossen (2026-05-06). Reiner Umsetzungszyklus auf Basis von Z10-1.3. Alle drei Slices F1 → F2 → F3 done. Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 11".
