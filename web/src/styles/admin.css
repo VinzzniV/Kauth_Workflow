@@ -325,6 +325,10 @@
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
 
+.dashboard-admin-runtime .admin-health-meta--runtime {
+  grid-template-columns: 1fr;
+}
+
 .admin-health-load-notice {
   color: var(--text-secondary);
 }

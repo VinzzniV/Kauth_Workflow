@@ -403,6 +403,10 @@
   height: 100%;
 }
 
+.dashboard-admin-runtime .admin-health-meta--runtime {
+  grid-template-columns: 1fr;
+}
+
 .dashboard-admin-panel__head {
   display: flex;
   align-items: start;
