@@ -10,7 +10,7 @@ internal interface IDirectorySyncService
     Task<DirectorySyncStatusDto> GetSyncStatusAsync(CancellationToken cancellationToken = default);
     Task<List<AdminDirectoryGroupDto>> GetGroupsAsync(CancellationToken cancellationToken = default);
     Task<List<AdminDirectoryIdentityDto>> GetIdentitiesAsync(int limit = 100, int offset = 0, CancellationToken cancellationToken = default);
-    Task<List<AdminDirectoryMappingAuditEntryDto>> GetMappingAuditAsync(int limit = 50, CancellationToken cancellationToken = default);
+    Task<CursorPageDto<AdminDirectoryMappingAuditEntryDto>> GetMappingAuditAsync(CursorPageQuery query, CancellationToken cancellationToken = default);
     Task<AdminDirectoryGroupRoleMappingDto> UpsertGroupRoleMappingAsync(
         AdminDirectoryGroupRoleMappingUpsertRequest request,
         long? actorUserId = null,

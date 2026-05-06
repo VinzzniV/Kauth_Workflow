@@ -44,7 +44,7 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 ## Naechster sinnvoller Schritt
 
-Z11-F1 ist abgeschlossen: der FE-Service-Layer versteht jetzt die P1-Huelle `AdminListPage<T>` fuer `/departments`, `/roles` und die drei Master-Data-Listen, und die betroffenen Screens lesen aktuell bewusst `page.items`. Der naechste sinnvolle FE-Trigger ist **Z11-F2** (P2-Hull fuer Audit-Streams) oder spaeter **Z11-F3** fuer sichtbare Builder-Listenvertraege und URL-Filterzustand.
+Z11-F1 und Z11-F2 sind abgeschlossen. Der naechste sinnvolle FE-Trigger ist **Z11-F3** (P1-Hull fuer die sieben scoped Builder-Endpunkte): sichtbare Paging-/Filter-UI im Builder-Inspector, Filterzustand wandert in URL-Query. Bis dahin lesen aktuelle FE-Consumer die P1-Hull pragmatisch ueber `page.items`.
 
 ---
 
@@ -60,6 +60,7 @@ Z11-F1 ist abgeschlossen: der FE-Service-Layer versteht jetzt die P1-Huelle `Adm
 ## Abgeschlossene Zyklen
 
 - `2026-05-05` `Z11-F1` P1-Hull fuer Master-Data/Lookups im FE aufgenommen: neuer typed Wrapper `web/src/services/api/adminList.ts`, `lookupApi.ts`/`adminApi.ts` auf `AdminListPage<T>` umgestellt, betroffene Consumer vorerst pragmatisch auf `page.items` + `limit: 200` adaptiert. UX-Prinzip: Vertrag zuerst vereinheitlichen, sichtbare Paging-UI erst im passenden Folgeslice statt halb fertiger Mischloesung.
+- `2026-05-06` `Z11-F2` P2-Hull fuer Audit-Streams im FE aufgenommen: neuer typed Wrapper `web/src/services/api/cursorPage.ts`; `adminApi.ts`/`adminConfigApi.ts` auf `CursorPage<T>` umgestellt; `useAdminConfigData` akkumuliert bei „Mehr laden" (append), resettet bei Neuladen; beide Audit-Tabs (`AdminPermissionsSection`, `AdminDirectorySyncSection`) haben „Mehr laden"-Knopf. UX-Prinzip: kein stiller Cap mehr — Knopf erscheint nur wenn `hasMore=true`.
 
 ---
 

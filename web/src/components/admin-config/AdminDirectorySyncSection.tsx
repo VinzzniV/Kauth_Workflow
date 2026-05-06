@@ -13,6 +13,9 @@ type AdminDirectorySyncSectionProps = {
   status: AdminDirectorySyncStatus | null;
   identities: AdminDirectoryIdentity[];
   auditEntries: AdminDirectoryMappingAuditEntry[];
+  hasMoreAudit: boolean;
+  isLoadingMoreAudit: boolean;
+  onLoadMoreAudit: () => void | Promise<void>;
   responsibilityGaps: DirectoryResponsibilityGaps | null;
   isLoading: boolean;
   isSyncing: boolean;
@@ -49,6 +52,9 @@ export function AdminDirectorySyncSection({
   status,
   identities,
   auditEntries,
+  hasMoreAudit,
+  isLoadingMoreAudit,
+  onLoadMoreAudit,
   responsibilityGaps,
   isLoading,
   isSyncing,
@@ -280,6 +286,17 @@ export function AdminDirectorySyncSection({
               ))}
             </tbody>
           </table>
+          {hasMoreAudit ? (
+            <div style={{ padding: "0.75rem 0" }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => void onLoadMoreAudit()}
+                disabled={isLoadingMoreAudit}
+              >
+                {isLoadingMoreAudit ? "Wird geladen…" : "Mehr laden"}
+              </button>
+            </div>
+          ) : null}
         </>
       ) : null}
     </section>

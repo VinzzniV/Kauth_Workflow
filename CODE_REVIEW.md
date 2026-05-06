@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-05 — Aktiver Zyklus 11 (Admin-/Master-Data-Listen-Vertraege in Umsetzung; F1 abgeschlossen, F2 als naechster aktiver Slice). Slice-Reihenfolge bleibt F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit).
+**Stand**: 2026-05-06 — Aktiver Zyklus 11 (Admin-/Master-Data-Listen-Vertraege in Umsetzung; F1 abgeschlossen, F2 abgeschlossen, F3 naechster aktiver Slice). Slice-Reihenfolge bleibt F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss).
 
 ---
 
@@ -121,7 +121,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | ID | Aufgabe | Hull | Endpunkte | Prio | Reasoning | Modell | Status |
 |----|---------|------|-----------|------|-----------|--------|--------|
 | Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups; Server-`search`/`sort`-Whitelist pro Endpunkt; typed Wrapper im FE; bestehende Aufrufer zunaechst auf `items` adaptieren | P1 | `/departments`, `/roles`, `/admin/master-data/departments`, `/admin/master-data/positions`, `/admin/master-data/responsibilities` | HIGH | high | opus | done (2026-05-05) — `AdminListPageDto<T>` eingefuehrt, fuenf Endpunkte auf P1 umgestellt, FE-Service-Layer und aktuelle Consumer auf Page-Huelle adaptiert |
-| Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams; opaque Base64-Cursor ueber `(occurredAt, id)`; FE-Wrapper plus „Mehr laden"-Knopf in beiden Audit-Tabs | P2 | `/admin/auth/audit`, `/admin/directory/audit` | HIGH | medium..high | sonnet | offen |
+| Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams; opaque Base64-Cursor ueber `(occurredAt, id)`; FE-Wrapper plus „Mehr laden"-Knopf in beiden Audit-Tabs | P2 | `/admin/auth/audit`, `/admin/directory/audit` | HIGH | medium..high | sonnet | done (2026-05-06) — `CursorPageDto<T>` eingefuehrt, zwei Audit-Endpunkte auf P2 umgestellt, typed FE-Wrapper + Akkumulations-Hook + „Mehr laden"-Knopf in beiden Audit-Tabs |
 | Z11-F3 | P1 ausrollen + D Builder-Tabs (scoped); Pflicht-Scope (`workflowDefinitionId` bzw. `task-template-id`) als Whitelist-Bedingung; Filterzustand im FE in URL-Query verschieben | P1 (wiederverwendet aus F1) | `/admin/config/workflow-definitions`, `/admin/config/action-definitions`, `/admin/config/task-templates`, `/admin/config/task-templates/{id}/conditions`, `/admin/config/task-templates/{id}/dependencies`, `/admin/config/answer-definitions`, `/admin/config/role-answer-defaults` | HIGH | medium..high | opus | offen |
 
 **Erwartete Ausgaenge aus Z11:**
@@ -156,6 +156,30 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 **Restgrenzen von F1:** Die heutigen FE-Consumer nutzen den neuen Vertrag noch pragmatisch ueber `page.items` und `limit: 200`; echte sichtbare Paging-/Search-UI folgt erst, wenn ein eigener UI-Slice oder F3/Folgeslices sie explizit ziehen. `GET /workflow-definitions/startable` bleibt bewusst draussen.
 
 **Naechster Schritt:** Z11-F2 beauftragen — Codex setzt fuer Claude explizit `--model sonnet --effort medium..high`; Thema nur P2-Hull + Audit-Streams, kein P1-Mischslice.
+
+### Z11-F2 — P2-Hull fuer Audit-Streams (2026-05-06)
+
+**Was passiert ist:** `CursorPageDto<T>` plus `CursorPageQuery` wurden als gemeinsame P2-Huelle eingefuehrt. Die Endpunkte `GET /admin/auth/audit` und `GET /admin/directory/audit` liefern jetzt `items`, `nextCursor`, `hasMore` statt nackter Arrays. Der Cursor ist opaque (Base64 ueber JSON `{occurredAt, id}`) — FE darf ihn nie zerlegen. Das Backend implementiert echtes Keyset-Pagination (`WHERE (created_at < @cursorTs OR (created_at = @cursorTs AND id < @cursorId)) ORDER BY created_at DESC, id DESC LIMIT @limit+1`). Im Frontend gibt es einen typed Wrapper (`web/src/services/api/cursorPage.ts`), den Hook `useAdminConfigData` akkumuliert bei „Mehr laden" statt zu ersetzen, und beide Audit-Tabs haben einen „Mehr laden"-Knopf.
+
+**Was bedeutet das praktisch?**
+- Wer im Audit „meine Aenderung von letzter Woche" sucht, kann jetzt zurueckblaettern. Heute schneidet der stille `limit=100`/`limit=50`-Cap die Historie ab, ohne dass das im UI sichtbar ist.
+- Der „Mehr laden"-Knopf erscheint nur, wenn wirklich mehr Eintraege existieren — kein blinder Endlosscroll, kein stiller Cut.
+
+**Warum lohnt es sich?**
+- F2 ist eigenstaendige Hull-Familie (P2, Cursor-Stream ohne `total`), die F1 nicht beruehrt und F3 nicht blockiert. Der Audit-Stream passt semantisch zu P2: kein `total`, unbegrenzt rueckwaerts scrollbar, ohne COUNT-Query-Overhead.
+- Der heutige stille Cap ist ein versteckter Informationsverlust — sicherheitsrelevante Audit-Eintraege koennen nach hinten fallen und fehlen dann im UI ohne Hinweis.
+
+**Was wird dadurch besser, sicherer, schneller oder wartbarer?**
+- **Sicherer:** vollstaendige Audit-Historie ist nun vollstaendig durchsuchbar; kein stiller Cap mehr.
+- **Schneller:** keine COUNT-Query; der `limit+1`-Trick reicht zum HasMore-Check; Keyset-Pagination ist stabiler als OFFSET bei wachsendem Bestand.
+- **Wartbarer:** ein zentraler `CursorPageDto<T>`-Hull-Typ fuer alle zukuenftigen Cursor-Streams (G Runtime-Sub-Resources, spaetere Audit-Endpunkte); FE-Akkumulations-Muster einmal etabliert, wiederverwendbar.
+- **FE-Stabilitaet:** `useAdminConfigData`-Hook akkumuliert sauber auf „Mehr laden" und resettet auf Reload — keine doppelten Eintraege, kein Zustandskonflikt.
+
+**Verifikation:** `dotnet build api/API.Tests/API.Tests.csproj` gruen (3 vorbestehende CS8602-Warnungen, 0 Fehler), `npm run build` unter `web/` gruen (`built in 5.00s`, nur vorbestehende Chunk-Size-Warnung).
+
+**Restgrenzen von F2:** FE-Consumer-Hookfunktionen fuer Permission-Audit und Directory-Audit im `useAdminPermissionManagement`-Hook wurden auf die neue Signatur angepasst. Kein sichtbarer Filterzustand in der URL — das ist F3-Thema. `GET /admin/auth/audit` hat noch keinen `search`-Parameter — bewusst draussen (P2-Hull sieht `search` vor, war aber nicht im F2-Scope).
+
+**Naechster Schritt:** Z11-F3 beauftragen — P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte); Modell opus/medium..high.
 
 ---
 

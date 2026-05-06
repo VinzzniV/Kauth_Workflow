@@ -86,7 +86,7 @@ internal static class AdminOrgEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/auth/audit", async (
-            [FromQuery] int? limit,
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -100,8 +100,9 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminPermissionAudit(limit ?? 100));
-        }).Produces<List<AdminPermissionAuditEntryDto>>(StatusCodes.Status200OK)
+            var query = CursorPageQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminPermissionAudit(query));
+        }).Produces<CursorPageDto<AdminPermissionAuditEntryDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

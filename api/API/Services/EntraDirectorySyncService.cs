@@ -671,24 +671,30 @@ LIMIT @limit OFFSET @offset;";
         }
     }
 
-    public async Task<List<AdminDirectoryMappingAuditEntryDto>> GetMappingAuditAsync(
-        int limit = 50,
+    public async Task<CursorPageDto<AdminDirectoryMappingAuditEntryDto>> GetMappingAuditAsync(
+        CursorPageQuery query,
         CancellationToken cancellationToken = default)
     {
         var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            return [];
+            return new CursorPageDto<AdminDirectoryMappingAuditEntryDto>
+            {
+                Items = [],
+                NextCursor = null,
+                HasMore = false
+            };
         }
 
-        limit = Math.Clamp(limit, 1, 200);
+        var decoded = query.DecodedCursor;
+        var hasCursor = decoded.HasValue;
+        var fetchLimit = query.Limit + 1;
 
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        var cursorClause = hasCursor
+            ? "AND (audit.created_at < @cursorTs OR (audit.created_at = @cursorTs AND audit.id < @cursorId))"
+            : "";
 
-        try
-        {
-            const string sql = @"
+        var sql = $@"
 SELECT
     audit.id,
     audit.actor_user_id,
@@ -701,11 +707,22 @@ SELECT
     audit.created_at
 FROM directory_mapping_audit_log audit
 LEFT JOIN app_users actor ON actor.id = audit.actor_user_id
+WHERE TRUE {cursorClause}
 ORDER BY audit.created_at DESC, audit.id DESC
 LIMIT @limit;";
 
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        try
+        {
             await using var cmd = new NpgsqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("limit", limit);
+            cmd.Parameters.AddWithValue("limit", fetchLimit);
+            if (hasCursor)
+            {
+                cmd.Parameters.Add("cursorTs", NpgsqlTypes.NpgsqlDbType.TimestampTz).Value = decoded!.Value.CreatedAt;
+                cmd.Parameters.AddWithValue("cursorId", decoded!.Value.Id);
+            }
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
             var entries = new List<AdminDirectoryMappingAuditEntryDto>();
@@ -725,11 +742,32 @@ LIMIT @limit;";
                 });
             }
 
-            return entries;
+            var hasMore = entries.Count > query.Limit;
+            if (hasMore)
+            {
+                entries.RemoveAt(entries.Count - 1);
+            }
+
+            var lastEntry = entries.Count > 0 ? entries[^1] : null;
+            var nextCursor = hasMore && lastEntry is not null
+                ? CursorPageQuery.EncodeCursor(lastEntry.CreatedAt, lastEntry.AuditEntryId)
+                : null;
+
+            return new CursorPageDto<AdminDirectoryMappingAuditEntryDto>
+            {
+                Items = entries,
+                NextCursor = nextCursor,
+                HasMore = hasMore
+            };
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
-            return [];
+            return new CursorPageDto<AdminDirectoryMappingAuditEntryDto>
+            {
+                Items = [],
+                NextCursor = null,
+                HasMore = false
+            };
         }
     }
 

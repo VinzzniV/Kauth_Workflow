@@ -142,6 +142,9 @@ export type AdminConfigAccessBundle = {
   groups: AdminGroup[];
   permissions: AdminPermission[];
   permissionAuditEntries: AdminPermissionAuditEntry[];
+  hasMorePermissionAudit: boolean;
+  isLoadingMorePermissionAudit: boolean;
+  onLoadMorePermissionAudit: () => void | Promise<void>;
   selectedUserRoleIds: number[];
   selectedUserGroupIds: number[];
   selectedGroupId: number | null;
@@ -177,6 +180,9 @@ export type AdminConfigDirectoryBundle = {
   directoryGroups: AdminDirectoryGroup[];
   directoryIdentities: AdminDirectoryIdentity[];
   directoryAuditEntries: AdminDirectoryMappingAuditEntry[];
+  hasMoreDirectoryAudit: boolean;
+  isLoadingMoreDirectoryAudit: boolean;
+  onLoadMoreDirectoryAudit: () => void | Promise<void>;
   directoryStatus: AdminDirectorySyncStatus | null;
   directoryResponsibilityGaps: DirectoryResponsibilityGaps | null;
   directoryPendingImports: DirectoryPendingImports | null;

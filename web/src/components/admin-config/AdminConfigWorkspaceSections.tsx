@@ -171,6 +171,9 @@ export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps
         status={directory.directoryStatus}
         identities={directory.directoryIdentities}
         auditEntries={directory.directoryAuditEntries}
+        hasMoreAudit={directory.hasMoreDirectoryAudit}
+        isLoadingMoreAudit={directory.isLoadingMoreDirectoryAudit}
+        onLoadMoreAudit={directory.onLoadMoreDirectoryAudit}
         responsibilityGaps={directory.directoryResponsibilityGaps}
         isLoading={directory.isLoadingDirectory}
         isSyncing={directory.isSyncingDirectory}

@@ -9,7 +9,7 @@ internal interface IUserAuthorizationRepository
     Task<List<AdminRoleDto>> GetAdminRoles(CancellationToken cancellationToken = default);
     Task<List<AdminGroupDto>> GetAdminGroups(CancellationToken cancellationToken = default);
     Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default);
-    Task<List<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(int limit = 100, CancellationToken cancellationToken = default);
+    Task<CursorPageDto<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(CursorPageQuery query, CancellationToken cancellationToken = default);
     Task<AdminListPageDto<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<AdminListPageDto<AdminRoleDto>> GetAdminDepartmentPositions(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<AdminListPageDto<AdminResponsibilityOwnerDto>> GetAdminResponsibilityOwners(AdminListQuery query, CancellationToken cancellationToken = default);

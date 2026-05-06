@@ -20,6 +20,7 @@ import type {
   AdminWorkflowDefinitionVersionSummary,
 } from "../types/auth";
 import { encodeId, requestJson } from "./api/client";
+import { buildCursorPageQuery, type CursorPage, type CursorPageQueryOptions } from "./api/cursorPage";
 import {
   mapAdminDependencyGraph,
   mapAdminTaskSpec,
@@ -32,7 +33,6 @@ import type {
   BackendAdminDirectoryGroupDto,
   BackendAdminDirectoryGroupRoleMappingDto,
   BackendAdminDirectoryIdentityDto,
-  BackendAdminDirectoryMappingAuditEntryDto,
   BackendAdminDirectorySyncResultDto,
   BackendAdminDirectorySyncStatusDto,
   BackendDirectoryImportResultDto,
@@ -91,9 +91,9 @@ export async function postAdminDirectoryImport(directoryIdentityIds: number[]): 
   });
 }
 
-export async function getAdminDirectoryAudit(limit = 50): Promise<AdminDirectoryMappingAuditEntry[]> {
-  const params = new URLSearchParams({ limit: String(limit) });
-  return requestJson<BackendAdminDirectoryMappingAuditEntryDto[]>(`/admin/directory/audit?${params.toString()}`);
+export async function getAdminDirectoryAudit(options: CursorPageQueryOptions = {}): Promise<CursorPage<AdminDirectoryMappingAuditEntry>> {
+  const qs = buildCursorPageQuery(options);
+  return requestJson<CursorPage<AdminDirectoryMappingAuditEntry>>(`/admin/directory/audit${qs}`);
 }
 
 export async function createAdminDirectoryGroupRoleMapping(payload: {

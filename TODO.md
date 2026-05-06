@@ -53,7 +53,7 @@ Z11 ist eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|
 | Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups (`/departments`, `/roles`, `/admin/master-data/departments|positions|responsibilities`); Server-`search`/`sort`-Whitelist pro Endpunkt; FE: typed Wrapper + Aufrufer-Refactor | HIGH | high | opus | done (2026-05-05) — P1-Hull live, fuenf Endpunkte umgestellt, aktuelle FE-Consumer auf `items` adaptiert |
-| Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams (`/admin/auth/audit`, `/admin/directory/audit`); opaque Base64-Cursor ueber `(occurredAt, id)`; FE: typed Wrapper + „Mehr laden"-Knopf in beiden Audit-Tabs | HIGH | medium..high | sonnet | offen |
+| Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams (`/admin/auth/audit`, `/admin/directory/audit`); opaque Base64-Cursor ueber `(occurredAt, id)`; FE: typed Wrapper + „Mehr laden"-Knopf in beiden Audit-Tabs | HIGH | medium..high | sonnet | done (2026-05-06) — `CursorPageDto<T>` + Keyset-Pagination fuer beide Audit-Endpunkte; typed FE-Wrapper + Akkumulations-Hook + „Mehr laden"-Knopf in beiden Tabs |
 | Z11-F3 | P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte: `workflow-definitions`, `action-definitions`, `task-templates` + `…/conditions` + `…/dependencies`, `answer-definitions`, `role-answer-defaults`); Pflicht-Scope; Filterzustand im FE in URL-Query | HIGH | medium..high | opus | offen |
 
 **Leitplanken Z11:**
@@ -65,7 +65,7 @@ Z11 ist eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. 
 - Schreibregel anwenden: zu jedem Slice-Ergebnis kurze Bedeutung-/Nutzen-Erklaerung.
 - Nach jedem Slice Commit + Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass.
 
-**Naechster konkreter Schritt:** `Z11-F2` starten. Nur P2-Hull + Audit-Streams; kein Mischen mit weiteren P1-Endpunkten.
+**Naechster konkreter Schritt:** `Z11-F3` starten. Nur P1-Hull ausrollen + D Builder-Tabs (sieben scoped Endpunkte); kein Mischen mit P2-Pfaden.
 
 **Nicht in Z11 (Begruendung in `CODE_REVIEW.md` § Z10-1.3):** A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation Action-Templates, G Runtime-Sub-Resources, H `/workflow-definitions/startable`. Diese werden nach Z11 als billige Mitnahmeschnitte mit dem dann etablierten P1-/P2-Adapter geplant — der Composite-Split fuer C Gaps/Pending bleibt eigener vorbereiteter Slice.
 

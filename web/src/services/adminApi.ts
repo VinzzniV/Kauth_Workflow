@@ -19,6 +19,7 @@ import type {
 import type { WorkflowConfig } from "../types/workflow";
 import { encodeId, requestJson } from "./api/client";
 import { buildAdminListQuery, type AdminListPage, type AdminListQueryOptions } from "./api/adminList";
+import { buildCursorPageQuery, type CursorPage, type CursorPageQueryOptions } from "./api/cursorPage";
 import type {
   BackendAdminDepartmentAssignmentDto,
   BackendAdminGraphApplicationConfigurationDto,
@@ -29,7 +30,6 @@ import type {
   BackendAdminNotificationTemplatePreviewResponseDto,
   BackendAdminNotificationTemplateRotationPlanPreviewTargetDto,
   BackendAdminNotificationTemplateWorkflowPreviewTargetDto,
-  BackendAdminPermissionAuditEntryDto,
   BackendAdminPermissionDto,
   BackendAdminResponsibilityOwnerDto,
   BackendAdminRoleDto,
@@ -230,9 +230,9 @@ export async function getAdminPermissions(): Promise<AdminPermission[]> {
   return requestJson<BackendAdminPermissionDto[]>("/admin/auth/permissions");
 }
 
-export async function getAdminPermissionAudit(limit = 100): Promise<AdminPermissionAuditEntry[]> {
-  const params = new URLSearchParams({ limit: String(limit) });
-  return requestJson<BackendAdminPermissionAuditEntryDto[]>(`/admin/auth/audit?${params.toString()}`);
+export async function getAdminPermissionAudit(options: CursorPageQueryOptions = {}): Promise<CursorPage<AdminPermissionAuditEntry>> {
+  const qs = buildCursorPageQuery(options);
+  return requestJson<CursorPage<AdminPermissionAuditEntry>>(`/admin/auth/audit${qs}`);
 }
 
 export async function getAdminDepartmentAssignments(

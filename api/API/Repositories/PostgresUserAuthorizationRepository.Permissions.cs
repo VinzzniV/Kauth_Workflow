@@ -22,13 +22,13 @@ internal sealed partial class PostgresUserAuthorizationRepository
         return await LoadAdminPermissions(connection, null, cancellationToken);
     }
 
-    public async Task<List<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(
-        int limit = 100,
+    public async Task<CursorPageDto<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(
+        CursorPageQuery query,
         CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
-        return await LoadAdminPermissionAudit(connection, null, Math.Clamp(limit, 1, 200), cancellationToken);
+        return await LoadAdminPermissionAuditCursor(connection, null, query, cancellationToken);
     }
 
     public async Task<AdminRoleDto?> UpdateRolePermissions(
@@ -482,13 +482,21 @@ ORDER BY category, name, id;";
         }
     }
 
-    private static async Task<List<AdminPermissionAuditEntryDto>> LoadAdminPermissionAudit(
+    private static async Task<CursorPageDto<AdminPermissionAuditEntryDto>> LoadAdminPermissionAuditCursor(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
-        int limit,
+        CursorPageQuery query,
         CancellationToken cancellationToken)
     {
-        const string sql = @"
+        var decoded = query.DecodedCursor;
+        var hasCursor = decoded.HasValue;
+        var fetchLimit = query.Limit + 1;
+
+        var cursorClause = hasCursor
+            ? "AND (audit.created_at < @cursorTs OR (audit.created_at = @cursorTs AND audit.id < @cursorId))"
+            : "";
+
+        var sql = $@"
 SELECT
     audit.id,
     audit.actor_user_id,
@@ -502,13 +510,20 @@ SELECT
     audit.created_at
 FROM auth_permission_audit_log audit
 LEFT JOIN app_users actor ON actor.id = audit.actor_user_id
+WHERE TRUE {cursorClause}
 ORDER BY audit.created_at DESC, audit.id DESC
 LIMIT @limit;";
 
         try
         {
             await using var command = new NpgsqlCommand(sql, connection, transaction);
-            command.Parameters.AddWithValue("limit", limit);
+            command.Parameters.AddWithValue("limit", fetchLimit);
+            if (hasCursor)
+            {
+                command.Parameters.Add("cursorTs", NpgsqlTypes.NpgsqlDbType.TimestampTz).Value = decoded!.Value.CreatedAt;
+                command.Parameters.AddWithValue("cursorId", decoded!.Value.Id);
+            }
+
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var entries = new List<AdminPermissionAuditEntryDto>();
             while (await reader.ReadAsync(cancellationToken))
@@ -528,11 +543,32 @@ LIMIT @limit;";
                 });
             }
 
-            return entries;
+            var hasMore = entries.Count > query.Limit;
+            if (hasMore)
+            {
+                entries.RemoveAt(entries.Count - 1);
+            }
+
+            var lastEntry = entries.Count > 0 ? entries[^1] : null;
+            var nextCursor = hasMore && lastEntry is not null
+                ? CursorPageQuery.EncodeCursor(lastEntry.CreatedAt, lastEntry.AuditEntryId)
+                : null;
+
+            return new CursorPageDto<AdminPermissionAuditEntryDto>
+            {
+                Items = entries,
+                NextCursor = nextCursor,
+                HasMore = hasMore
+            };
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
-            return [];
+            return new CursorPageDto<AdminPermissionAuditEntryDto>
+            {
+                Items = [],
+                NextCursor = null,
+                HasMore = false
+            };
         }
     }
 

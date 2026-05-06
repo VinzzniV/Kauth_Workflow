@@ -21,6 +21,9 @@ type AdminPermissionsSectionProps = {
   roles: AdminRole[];
   permissions: AdminPermission[];
   auditEntries: AdminPermissionAuditEntry[];
+  hasMoreAudit: boolean;
+  isLoadingMoreAudit: boolean;
+  onLoadMoreAudit: () => void | Promise<void>;
   departments: AdminDepartmentAssignment[];
   selectedRoleId: number | null;
   selectedRolePermissionIds: number[];
@@ -45,6 +48,9 @@ export function AdminPermissionsSection({
   roles,
   permissions,
   auditEntries,
+  hasMoreAudit,
+  isLoadingMoreAudit,
+  onLoadMoreAudit,
   departments,
   selectedRoleId,
   selectedRolePermissionIds,
@@ -335,6 +341,17 @@ export function AdminPermissionsSection({
                 ))}
               </tbody>
             </table>
+            {hasMoreAudit ? (
+              <div style={{ padding: "0.75rem 1rem" }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => void onLoadMoreAudit()}
+                  disabled={isLoadingMoreAudit}
+                >
+                  {isLoadingMoreAudit ? "Wird geladen…" : "Mehr laden"}
+                </button>
+              </div>
+            ) : null}
           </section>
         ) : null}
       </div>

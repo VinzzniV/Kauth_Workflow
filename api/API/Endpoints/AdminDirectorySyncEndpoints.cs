@@ -181,7 +181,7 @@ internal static class AdminDirectorySyncEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/directory/audit", async (
-            [FromQuery] int? limit,
+            HttpRequest request,
             [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -195,8 +195,9 @@ internal static class AdminDirectorySyncEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await directorySyncService.GetMappingAuditAsync(limit ?? 50));
-        }).Produces<List<AdminDirectoryMappingAuditEntryDto>>(StatusCodes.Status200OK)
+            var query = CursorPageQuery.From(request);
+            return Results.Ok(await directorySyncService.GetMappingAuditAsync(query));
+        }).Produces<CursorPageDto<AdminDirectoryMappingAuditEntryDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

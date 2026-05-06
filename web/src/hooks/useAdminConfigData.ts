@@ -62,9 +62,15 @@ export function useAdminConfigData({
   const [groups, setGroups] = useState<AdminGroup[]>([]);
   const [permissions, setPermissions] = useState<AdminPermission[]>([]);
   const [permissionAuditEntries, setPermissionAuditEntries] = useState<AdminPermissionAuditEntry[]>([]);
+  const [permissionAuditNextCursor, setPermissionAuditNextCursor] = useState<string | null>(null);
+  const [hasMorePermissionAudit, setHasMorePermissionAudit] = useState(false);
+  const [isLoadingMorePermissionAudit, setIsLoadingMorePermissionAudit] = useState(false);
   const [directoryGroups, setDirectoryGroups] = useState<AdminDirectoryGroup[]>([]);
   const [directoryIdentities, setDirectoryIdentities] = useState<AdminDirectoryIdentity[]>([]);
   const [directoryAuditEntries, setDirectoryAuditEntries] = useState<AdminDirectoryMappingAuditEntry[]>([]);
+  const [directoryAuditNextCursor, setDirectoryAuditNextCursor] = useState<string | null>(null);
+  const [hasMoreDirectoryAudit, setHasMoreDirectoryAudit] = useState(false);
+  const [isLoadingMoreDirectoryAudit, setIsLoadingMoreDirectoryAudit] = useState(false);
   const [directoryStatus, setDirectoryStatus] = useState<AdminDirectorySyncStatus | null>(null);
   const [directoryResponsibilityGaps, setDirectoryResponsibilityGaps] = useState<DirectoryResponsibilityGaps | null>(null);
   const [directoryPendingImports, setDirectoryPendingImports] = useState<DirectoryPendingImports | null>(null);
@@ -96,16 +102,18 @@ export function useAdminConfigData({
     setError(null);
 
     try {
-      const [rolesData, groupsData, permissionsData, permissionAuditData] = await Promise.all([
+      const [rolesData, groupsData, permissionsData, permissionAuditPage] = await Promise.all([
         getAdminRoles(),
         getAdminGroups(),
         getAdminPermissions(),
-        getAdminPermissionAudit(50),
+        getAdminPermissionAudit({ limit: 50 }),
       ]);
       setRoles(rolesData);
       setGroups(groupsData);
       setPermissions(permissionsData);
-      setPermissionAuditEntries(permissionAuditData);
+      setPermissionAuditEntries(permissionAuditPage.items);
+      setPermissionAuditNextCursor(permissionAuditPage.nextCursor);
+      setHasMorePermissionAudit(permissionAuditPage.hasMore);
       setHasLoadedTechnicalAccess(true);
     } catch (err) {
       const message =
@@ -115,6 +123,8 @@ export function useAdminConfigData({
       setGroups([]);
       setPermissions([]);
       setPermissionAuditEntries([]);
+      setPermissionAuditNextCursor(null);
+      setHasMorePermissionAudit(false);
     } finally {
       setIsLoadingTechnicalAccess(false);
     }
@@ -125,11 +135,11 @@ export function useAdminConfigData({
     setError(null);
 
     try {
-      const [statusData, groupsData, identitiesData, auditData, rolesData, responsibilityGapsData, pendingImportsData] = await Promise.all([
+      const [statusData, groupsData, identitiesData, auditPage, rolesData, responsibilityGapsData, pendingImportsData] = await Promise.all([
         getAdminDirectoryStatus(),
         getAdminDirectoryGroups(),
         getAdminDirectoryIdentities(25, 0),
-        getAdminDirectoryAudit(20),
+        getAdminDirectoryAudit({ limit: 20 }),
         getAdminRoles(),
         getAdminDirectoryResponsibilityGaps(),
         getAdminDirectoryPendingImports(),
@@ -138,7 +148,9 @@ export function useAdminConfigData({
       setDirectoryStatus(statusData);
       setDirectoryGroups(groupsData);
       setDirectoryIdentities(identitiesData);
-      setDirectoryAuditEntries(auditData);
+      setDirectoryAuditEntries(auditPage.items);
+      setDirectoryAuditNextCursor(auditPage.nextCursor);
+      setHasMoreDirectoryAudit(auditPage.hasMore);
       setRoles(rolesData);
       setDirectoryResponsibilityGaps(responsibilityGapsData);
       setDirectoryPendingImports(pendingImportsData);
@@ -150,12 +162,46 @@ export function useAdminConfigData({
       setDirectoryGroups([]);
       setDirectoryIdentities([]);
       setDirectoryAuditEntries([]);
+      setDirectoryAuditNextCursor(null);
+      setHasMoreDirectoryAudit(false);
       setDirectoryResponsibilityGaps(null);
       setDirectoryPendingImports(null);
     } finally {
       setIsLoadingDirectory(false);
     }
   }, [setError]);
+
+  const handleLoadMorePermissionAudit = useCallback(async () => {
+    if (!permissionAuditNextCursor || isLoadingMorePermissionAudit) return;
+    setIsLoadingMorePermissionAudit(true);
+    try {
+      const page = await getAdminPermissionAudit({ limit: 50, cursor: permissionAuditNextCursor });
+      setPermissionAuditEntries((prev) => [...prev, ...page.items]);
+      setPermissionAuditNextCursor(page.nextCursor);
+      setHasMorePermissionAudit(page.hasMore);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Weitere Eintraege konnten nicht geladen werden.";
+      setError(message);
+    } finally {
+      setIsLoadingMorePermissionAudit(false);
+    }
+  }, [permissionAuditNextCursor, isLoadingMorePermissionAudit, setError]);
+
+  const handleLoadMoreDirectoryAudit = useCallback(async () => {
+    if (!directoryAuditNextCursor || isLoadingMoreDirectoryAudit) return;
+    setIsLoadingMoreDirectoryAudit(true);
+    try {
+      const page = await getAdminDirectoryAudit({ limit: 50, cursor: directoryAuditNextCursor });
+      setDirectoryAuditEntries((prev) => [...prev, ...page.items]);
+      setDirectoryAuditNextCursor(page.nextCursor);
+      setHasMoreDirectoryAudit(page.hasMore);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Weitere Eintraege konnten nicht geladen werden.";
+      setError(message);
+    } finally {
+      setIsLoadingMoreDirectoryAudit(false);
+    }
+  }, [directoryAuditNextCursor, isLoadingMoreDirectoryAudit, setError]);
 
   const reload = useCallback(async () => {
     setIsLoading(true);
@@ -342,9 +388,15 @@ export function useAdminConfigData({
     permissions,
     permissionAuditEntries,
     setPermissionAuditEntries,
+    hasMorePermissionAudit,
+    isLoadingMorePermissionAudit,
+    handleLoadMorePermissionAudit,
     directoryGroups,
     directoryIdentities,
     directoryAuditEntries,
+    hasMoreDirectoryAudit,
+    isLoadingMoreDirectoryAudit,
+    handleLoadMoreDirectoryAudit,
     directoryStatus,
     directoryResponsibilityGaps,
     directoryPendingImports,

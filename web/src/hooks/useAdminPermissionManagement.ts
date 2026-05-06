@@ -85,10 +85,10 @@ export function useAdminPermissionManagement({
 
     try {
       const updatedRole = await updateAdminRolePermissions(selectedRoleId, selectedRolePermissionIds);
-      const [freshUsers, auditData] = await Promise.all([getAdminUsers(), getAdminPermissionAudit(50)]);
+      const [freshUsers, auditPage] = await Promise.all([getAdminUsers(), getAdminPermissionAudit({ limit: 50 })]);
       setRoles((current) => current.map((role) => (role.roleId === updatedRole.roleId ? updatedRole : role)));
       setUsers(freshUsers);
-      setPermissionAuditEntries(auditData);
+      setPermissionAuditEntries(auditPage.items);
       await refreshCurrentUser();
       onNotice(`Permission-Bundle für ${updatedRole.roleName} wurde aktualisiert.`);
     } catch (err) {
@@ -110,9 +110,9 @@ export function useAdminPermissionManagement({
 
     try {
       const updatedUser = await updateAdminUserPermissionOverrides(selectedUser.userId, userOverrideDrafts);
-      const auditData = await getAdminPermissionAudit(50);
+      const auditPage = await getAdminPermissionAudit({ limit: 50 });
       setUsers((current) => current.map((user) => (user.userId === updatedUser.userId ? updatedUser : user)));
-      setPermissionAuditEntries(auditData);
+      setPermissionAuditEntries(auditPage.items);
       await refreshCurrentUser();
       onNotice(`Lokale Permission-Overrides für ${updatedUser.displayName} wurden gespeichert.`);
     } catch (err) {

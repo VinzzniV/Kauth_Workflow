@@ -63,6 +63,9 @@ export function AdminAccessWorkspaceContent({ props }: { props: AdminConfigWorks
             roles={access.sortedRoles}
             permissions={access.permissions}
             auditEntries={access.permissionAuditEntries}
+            hasMoreAudit={access.hasMorePermissionAudit}
+            isLoadingMoreAudit={access.isLoadingMorePermissionAudit}
+            onLoadMoreAudit={access.onLoadMorePermissionAudit}
             departments={organization.sortedDepartments}
             selectedRoleId={access.selectedRoleId}
             selectedRolePermissionIds={access.selectedRolePermissionIds}
@@ -84,6 +87,9 @@ export function AdminAccessWorkspaceContent({ props }: { props: AdminConfigWorks
           roles={access.sortedRoles}
           permissions={access.permissions}
           auditEntries={access.permissionAuditEntries}
+          hasMoreAudit={access.hasMorePermissionAudit}
+          isLoadingMoreAudit={access.isLoadingMorePermissionAudit}
+          onLoadMoreAudit={access.onLoadMorePermissionAudit}
           departments={organization.sortedDepartments}
           selectedRoleId={access.selectedRoleId}
           selectedRolePermissionIds={access.selectedRolePermissionIds}
