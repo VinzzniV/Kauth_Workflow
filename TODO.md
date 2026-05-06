@@ -44,6 +44,21 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
+## Aktiver Zyklus 13 — Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block (2026-05-06)
+
+Z13 ist der aktive Zyklus. Ziel: bestehender `GET /admin/runtime-health` bekommt einen optionalen `host`-Block mit echten Linux-Metriken (Uptime, Load Average 1m, RAM, Root-FS). Kein neuer Endpoint, kein Windows-Support, kein Docker-Stats. Aktivierung explizit ueber `HOST_RUNTIME_HEALTH_ENABLED`. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 13".
+
+**Praktisch:** Admins sehen im Dashboard direkt RAM- und Disk-Auslastung der VM. **Lohnenswert:** Proaktive Kapazitaetserkennung ohne Server-Login, sauber von App-Health getrennt. **Nutzen:** ein Betriebsblock fuer App und Host; graceful fallback auf Windows-Dev-Lokal.
+
+| Block | Aufgabe | Prio | Reasoning | Modell | Status |
+|-------|---------|------|-----------|--------|--------|
+| Z13-1 | Zykluseroeffnung + Scope + Slice-Plan (Doku only) | HIGH | high | sonnet | done (2026-05-06) |
+| Z13-2 | Implementierung: HostHealthDto + AdminRuntimeHealthService-Erweiterung + FE-Block + Konfiguration + Compose + Scripts + Tests | HIGH | medium..high | sonnet | offen |
+
+**Naechster konkreter Schritt:** Z13-2 Implementierung.
+
+---
+
 ## Abgeschlossener Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health (2026-05-06)
 
 Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Runtime-/System-Health-Signale (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage). Echte Host-/VM-Metrik bleibt bewusst ein optionaler Folgeschritt. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 12".

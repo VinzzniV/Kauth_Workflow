@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-06 — **Zyklus 12 abgeschlossen**: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health-Signale. Alle vier Slices done: Z12-1.1 (Inventur) + Z12-1.2 (Vertrags-Skizze) + Z12-2.1 (Backend Runtime-Health Endpoint) + Z12-2.2 (Frontend Betriebsblock). `GET /admin/runtime-health` backend-seitig implementiert; `AdminOverviewWorkspaceSection` zeigt neuen Betriebsblock (API-Prozess, Abhaengigkeiten, Schreibpfade) mit Severity-Badge + `overallSeverity`. Host-/VM-Metrik bleibt bewusst optionaler Folgeschritt. Zyklus 11/10/9/8 abgeschlossen. Kein aktiver Zyklus.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet; 2026-05-06 Z12-1.1 Abschluss; 2026-05-06 Z12-1.2 Abschluss; 2026-05-06 Z12-2.1 Abschluss; 2026-05-06 Z12-2.2 Abschluss = Z12 vollstaendig geschlossen).
+**Stand**: 2026-05-06 — **Zyklus 13 aktiv**: Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block. Z13-1 (Zykluseroeffnung/Scope) done. Z13-2 (Implementierung) offen. Zyklus 12 abgeschlossen (Admin-Dashboard-Betriebsblock). Zyklus 11/10/9/8 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet).
 
 ---
 
@@ -67,6 +67,42 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | Skalierbarkeit | **B-** | Mehrere Listen-, Sweep- und Dispatch-Pfade sind noch Kandidaten fuer SQL-Pushdown, Pagination oder N+1-Abbau |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
+
+---
+
+## Aktiver Zyklus 13 — Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block (2026-05-06)
+
+**Status:** Z13-1 done (2026-05-06 — Zykluseroeffnung/Scope/Slice-Plan). Z13-2 offen (Implementierung).
+
+**Thema:** Der bestehende `GET /admin/runtime-health`-Block liefert bisher nur App-/Runtime-Signale (API-Prozess, Abhaengigkeiten, App-Schreibpfade). Z13 erweitert ihn um einen optionalen Host-/VM-Bereich mit echten Linux-Metriken — sauber getrennt vom App-Block, nur wenn explizit aktiviert.
+
+**Praktisch:** Admins sehen im Dashboard — ohne Server-Login — ob der Gastgeber (VM/Server) noch ausreichend RAM und Festplattenplatz hat. Bisher muss man dafuer auf den Server oder ein separates Monitoring-Tool. **Lohnenswert:** Die App-Health und die Host-Health liegen im selben Betriebsblock — ein klares Gesamtbild statt zwei getrennter Stellen. Das Host-Signal ist ausfuehrbar: kritische RAM- oder Disk-Werte sind sofort sichtbar, bevor sie die App betreffen. **Nutzen:** proaktive Kapazitaetserkennung im Admin-Dashboard; klare Host-vs.-App-Trennung (kein Semantik-Durcheinander); graceful fallback auf Windows-Dev-Lokal (Block bleibt einfach leer).
+
+**Scope-Entscheidung (bewusst eng):**
+- Kein neuer Endpoint — Erweiterung des bestehenden `GET /admin/runtime-health`
+- Nur Linux-Host-Metriken: Uptime, Load Average 1m, RAM-Auslastung, Root-FS-Auslastung
+- CPU: kein `cpuPercent`-Fake — stattdessen Load Average 1m aus `/proc/loadavg` (ehrlich benannt)
+- Windows/non-Linux: graceful fallback — `host: null` statt Fehler
+- Kein Docker-Stats, keine Container-Counts, kein Prometheus, keine Historisierung, keine Alerts
+- Aktivierung explizit ueber `HOST_RUNTIME_HEALTH_ENABLED` (kein Raten/Heuristik)
+
+**Schwellwerte Z13:**
+- RAM: warn ≥85%, critical >95% (server-level, bewusst toleranter als App-Heap)
+- Root-FS: warn ≥80%, critical >90% (identisch zu Storage-Schwellwerten aus Z12-1.2)
+- Host-Severity = max(ramSeverity, rootFsSeverity)
+- Load Average: informativ, kein Schwellwert (ohne CPU-Anzahl kein sinnvoller Vergleichswert)
+
+**Konfiguration:**
+- `HOST_RUNTIME_HEALTH_ENABLED=true` — expliziter Toggle, Default: nicht aktiviert
+- `HOST_RUNTIME_PROCFS_PATH` — Pfad zu /proc, Default `/proc` (auf VM direkt) oder `/host-proc` (in Docker mit Volume-Mount)
+- `HOST_RUNTIME_ROOT_PATH` — Pfad fuer Root-FS-Messung, Default `/` (VM) oder `/host-root` (Docker)
+
+| Block | Aufgabe | Prio | Status |
+|-------|---------|------|--------|
+| Z13-1 | Zykluseroeffnung + Scope + Slice-Plan (diese Doku) | HIGH | done (2026-05-06) |
+| Z13-2 | Implementierung: HostHealthDto, AdminRuntimeHealthService, FE-Block, Konfiguration, Compose, Scripts, Tests | HIGH | offen |
+
+**Naechster Schritt:** Z13-2 Implementierung beauftragen.
 
 ---
 

@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-06 — Zyklus 12 abgeschlossen: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health; alle Slices done (Z12-1.1 + Z12-1.2 + Z12-2.1 + Z12-2.2); Zyklus 11/10/9/8 abgeschlossen; kein aktiver Zyklus)
+## Gesamtbewertung (Stand 2026-05-06 — Zyklus 13 aktiv: Echte Linux-Host-/VM-Metriken; Z13-1 done; Z13-2 offen. Zyklus 12 abgeschlossen (Admin-Dashboard-Betriebsblock); Zyklus 11/10/9/8 abgeschlossen)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -58,6 +58,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 10 | 2026-05-05 | Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — abgeschlossen (Review-/Planungszyklus, alle Slices done) |
 | 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege in Umsetzung — abgeschlossen (F1 P1+B Master-Data, F2 P2+Audit, F3 P1+D Builder, alle Slices done) |
 | 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — abgeschlossen (Z12-1.1 done; Z12-1.2 done; Z12-2.1 done: `GET /admin/runtime-health` + `AdminRuntimeHealthService` + 42 Tests; Z12-2.2 done: Frontend Betriebsblock mit Severity-Badge, API-Prozess/Abhaengigkeiten/Storage-Kacheln) |
+| 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — Z13-1 done (Zykluseroeffnung/Scope); Z13-2 offen (Implementierung) |
 
 ---
 
