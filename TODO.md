@@ -52,7 +52,7 @@ Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Run
 
 | Block | Aufgabe | Prio | Reasoning | Modell | Status |
 |-------|---------|------|-----------|--------|--------|
-| Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health (heutige Signale, fehlende Signale, App vs. Container vs. Host) | HIGH | high | opus | offen |
+| Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health (heutige Signale, fehlende Signale, App vs. Container vs. Host) | HIGH | high | opus | done (2026-05-06) — Inventur in `CODE_REVIEW.md` § Z12-1.1 (heutige Signale, fehlende App-/Runtime-Signale, App-/Container-/Host-Trennung, UI-Begriffsempfehlung) |
 | Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host | HIGH | high | opus | offen |
 | Z12-2.1 | Backend Runtime-Health Endpoint + Service (App-/Runtime-Signale, kein Host-/VM-Metrik-Code) | HIGH | medium..high | sonnet | offen |
 | Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock (andockend an `admin-health-panel`) | HIGH | medium..high | sonnet | offen |
@@ -68,7 +68,7 @@ Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Run
 - Schreibregel anwenden: pro Slice kurze Bedeutung-/Nutzen-Erklaerung.
 - Nach jedem Slice Commit + Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass.
 
-**Naechster konkreter Schritt:** Z12-1.1 beauftragen — Inventur der heute existierenden Health-Signale (Backend-Endpunkte, UI-Block, Directory-Status, Mail-Konfig, Warnungen), benennen welche App-/Runtime-Signale fehlen, und App vs. Container vs. Host klar trennen. Modell `opus`, Effort `high`.
+**Naechster konkreter Schritt:** Z12-1.2 beauftragen — Vertrags-Skizze fuer das neue Runtime-Health-DTO auf Basis der in Z12-1.1 fixierten Inventur und Begriffstrennung (App / Container / Host). Felder, Severity-Stufen, Schwellwerte und FE-Andockpunkt am bestehenden `admin-health-panel` deklarativ skizzieren. Modell `opus`, Effort `high`. Reine Doku-Slice, kein Code, kein API-Vertrags-Commit.
 
 ---
 

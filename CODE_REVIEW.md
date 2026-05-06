@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-06 — **Aktiver Zyklus 12** eroeffnet: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health-Signale. Z12 adressiert zuerst App-/Runtime-Health (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage), nicht vollwertige Host-/VM-Metrik. Slice-Reihenfolge: Z12-1.1 Begriffs-/Vertragsinventur → Z12-1.2 Vertrags-Skizze (DTO + Schwellwerte + Abgrenzung App/Container/Host) → Z12-2.1 Backend Runtime-Health Endpoint + Service → Z12-2.2 Frontend Admin-Dashboard-Betriebsblock. Echte Host-/VM-Metrik bleibt bewusst optionaler Folgeschritt nach Z12. Zyklus 11 abgeschlossen (Admin-/Master-Data-Listen-Vertraege; F1 + F2 + F3 done); Zyklus 10/9/8 abgeschlossen.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet).
+**Stand**: 2026-05-06 — **Aktiver Zyklus 12** in Arbeit: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health-Signale. **Z12-1.1 done** (Inventur heutige Health-Signale, fehlende App-/Runtime-Signale, Begriffstrennung App / Container / Host). Z12 adressiert zuerst App-/Runtime-Health (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage), nicht vollwertige Host-/VM-Metrik. Slice-Reihenfolge: ✅ Z12-1.1 → Z12-1.2 Vertrags-Skizze (DTO + Schwellwerte + Abgrenzung App/Container/Host) → Z12-2.1 Backend Runtime-Health Endpoint + Service → Z12-2.2 Frontend Admin-Dashboard-Betriebsblock. Echte Host-/VM-Metrik bleibt bewusst optionaler Folgeschritt nach Z12. Zyklus 11 abgeschlossen (Admin-/Master-Data-Listen-Vertraege; F1 + F2 + F3 done); Zyklus 10/9/8 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet; 2026-05-06 Z12-1.1 Abschluss).
 
 ---
 
@@ -125,7 +125,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 | ID | Aufgabe | Prio | Reasoning | Modell | Status |
 |----|---------|------|-----------|--------|--------|
-| Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health: bestehende Health-Signale (Backend-Endpunkte, UI-Block, Directory-Status, Mail-Konfig, Warnungen) inventarisieren; benennen, welche App-/Runtime-Signale heute **fehlen**; klar trennen App / Container / Host | HIGH | high | opus | offen |
+| Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health: bestehende Health-Signale (Backend-Endpunkte, UI-Block, Directory-Status, Mail-Konfig, Warnungen) inventarisieren; benennen, welche App-/Runtime-Signale heute **fehlen**; klar trennen App / Container / Host | HIGH | high | opus | done (2026-05-06) — Inventur in `CODE_REVIEW.md` § Z12-1.1 (heutige Signale, fehlende App-/Runtime-Signale, App-/Container-/Host-Trennung, UI-Begriffsempfehlung) |
 | Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host: neuen Runtime-Health-Antwortvertrag (Felder, Severity-Stufen, Schwellwerte, Domaenen-Tags) auf Papier ziehen; klar markieren, was App ist und was Host bleibt; FE-Andockpunkt am bestehenden `admin-health-panel` benennen | HIGH | high | opus | offen |
 | Z12-2.1 | Backend Runtime-Health Endpoint + Service: Implementierung gemaess Z12-1.2 (App-/Runtime-Signale: API/DB/Directory/Mail-Status + einfache Runtime-Metriken Prozess-Speicher/Uptime/Storage); kein Host-/VM-Metrik-Code | HIGH | medium..high | sonnet | offen |
 | Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock: Erweiterung des bestehenden `admin-health-panel` um die neuen Runtime-Signale; Severity-Anzeige gemaess Z12-1.2; keine konkurrierende zweite Betriebslogik | HIGH | medium..high | sonnet | offen |
@@ -141,6 +141,102 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 **Reihenfolge / Abhaengigkeiten:**
 - Z12-1.1 → Z12-1.2 → Z12-2.1 → Z12-2.2 streng sequenziell. Z12-2.1 setzt den in Z12-1.2 verabschiedeten Vertrag voraus; Z12-2.2 setzt den in Z12-2.1 implementierten Endpoint voraus.
 - Optionaler Host-/VM-Metrik-Ausbau ist explizit kein Z12-Slice und folgt erst nach Z12-2.2.
+
+### § Z12-1.1 Inventur Runtime Health (done 2026-05-06)
+
+**Auftrag:** heutige Health-Signale im Repo benennen, fehlende App-/Runtime-Signale fuer den Admin-Dashboard-Betriebsblock auflisten, sauber zwischen App-/Runtime-, Container- und Host-/VM-Sicht trennen, UI-Begriffsempfehlung fuer Z12 ableiten. Reine Doku, kein Code.
+
+**Was bedeutet das praktisch?**
+- Es gibt heute zwei getrennte Health-Welten: Backend-Endpunkte (`/health/live`, `/health/ready`, `/health`) und ein Admin-UI-Panel (`admin-health-panel`). Ein Admin sieht im Dashboard den DB- oder Auth-Zustand des `/health`-Endpoints **nicht** — und ein Operator sieht aus `/health` nicht den Verzeichnis-/Mail-/Warnungen-Block.
+- Echte App-/Runtime-Signale (Prozess-Uptime, Managed-Heap-Druck, Storage-Auslastung der App-Schreibpfade) fehlen komplett — weder Backend noch UI.
+- Z12 baut deshalb keinen zweiten Healthcheck, sondern verbindet die zwei bestehenden Welten und ergaenzt die fehlenden App-/Runtime-Signale — bewusst ohne Host-/VM-Metrik.
+
+**Warum lohnt es sich, das anzugehen?**
+- Operative Health-Signale sind heute fragmentiert. Ein Admin muss kombinieren: `/health` per curl, `admin-health-panel` im UI, plus „App laeuft eigentlich noch?" per Server-Login. Das ist genau der Schmerzpunkt, den Z12 adressieren soll.
+- Ohne saubere Trennung App / Container / Host rutschen spaeter Host-Metriken (Disk-Free der ganzen VM, RAM frei der VM) still in den App-Vertrag, weil sie technisch oft aus denselben APIs (`DriveInfo`, `Process`) kommen — am Ende behauptet das UI „Server: ok", obwohl es nur den Container gemessen hat.
+- Begriffsfestlegung jetzt ist billiger als spaeterer Umbau. Sobald Z12-2.2 ein Label „RAM frei" zeigt, ist es schwer zurueckzunehmen.
+
+**Was wird dadurch besser, sicherer oder wartbarer?**
+- **Klare Inventur** der heutigen Signale macht sichtbar, was Z12 wirklich neu schaffen muss vs. was nur konsolidiert wird.
+- **Begriffstrennung** (App-/Runtime-Health, Container-Sicht, Host-/VM-Metrik) verhindert Etikettenschwindel im UI und gibt Z12-1.2 ein klares Geruest fuer das DTO.
+- **Anschluss-Anker** fuer einen spaeteren Host-/VM-Metrik-Ausbau: er bekommt einen eigenen Block mit eigenem Wording, statt App-Signale zu ueberbauen.
+
+#### Heute existierende Health-Signale
+
+**Backend (`api/API/Extensions/LifecycleApplicationExtensions.cs`, `MapLifecycleHealthEndpoints`):**
+- `GET /health/live` — `{ status: "ok" }`. Reines Process-Liveness-Signal: API-Prozess antwortet ueberhaupt. Unauthentifiziert. Praktischer Anwendungsfall: Container-Healthcheck, Caddy-Probe.
+- `GET /health/ready` — `{ status, database }`. DB-Reachability via `SELECT 1` gegen `LifecycleRuntimeSettings.ConnectionString`. Status `ok`/`degraded`, HTTP 200/503. Unauthentifiziert.
+- `GET /health` — `{ status, database, auth: { mode, status, reachability, devSimulationActive } }`. DB-Ping plus Entra-OIDC-Discovery-URL-Check (`https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration`). Auth-Mode unterscheidet `entra` / `dev-sim` / `none`. Unauthentifiziert.
+
+**Admin-UI-Block (`web/src/components/admin-config/AdminOverviewWorkspaceSection.tsx`, CSS-Klasse `admin-health-panel`):**
+- Verzeichnis-Sync-Kachel — Quelle: `GET /admin/directory/status` (`DirectorySyncStatusDto` aus `api/API/Services/IDirectorySyncService.cs:58`) plus `GET /admin/directory/pending-imports`. Felder: `lastSyncAt`, `lastSyncStatus` (`success`/`partial`/`failed`), `lastError`, `totalGroups`, `totalIdentities`, `totalMappings`, `configuredGroupPrefix`. Tone-Mapping in FE: `getDirectorySyncTone`.
+- Mail-Versand-Kachel — Quelle: `GET /admin/config/notification-email` (`AdminNotificationEmailConfigurationDto` ueber `INotificationEmailConfigurationService.GetAdminConfiguration`). Felder im FE: `mode` (`enabled`/`sandbox`/`disabled`), `configurationStatus` (`complete`/`incomplete`). Tone-Mapping: `getMailTone`.
+- Offene-Warnungen-Kachel — kein eigener Endpoint, sondern FE-seitige Aggregation in `adminWorkspaceModel.ts` (`AdminWorkspaceWarningCategory`: `department_lead`, `department_owner`, `responsibility_user`, `responsibility_department`, `mail_configuration`). Tone-Mapping: `getWarningTone`.
+
+**Weitere bereits existierende Signale, die noch nicht im `admin-health-panel` haengen:**
+- Auth-/Entra-Reachability liegt heute nur in `/health` (Endpoint-Antwort), nicht im UI.
+- DB-Reachability liegt heute nur in `/health/ready` und `/health`, nicht im UI.
+- Hosted Sync (`EntraDirectorySyncService`): geplante Sync-Frequenz steckt in `LifecycleRuntimeSettings`/`SchedulingOptions`, ist aber nicht als „naechster geplanter Lauf" sichtbar — nur „letzter Lauf" via `lastSyncAt`.
+
+#### Was fehlt fuer einen Admin-Dashboard-Betriebsblock?
+
+App-/Runtime-Signale, die heute weder Backend noch UI liefern:
+- **Prozess-Uptime** (wann ist der API-Prozess gestartet, wie lange laeuft er) — wichtigstes „Hat sich gerade etwas neu gestartet?"-Signal fuer Admins.
+- **Prozess-Speicher** im laufenden API-Prozess: Working Set, Managed Heap (`GC.GetTotalMemory`), GC-Druck (`GC.GetGCMemoryInfo`).
+- **Storage-Auslastung der App-Schreibpfade** (z. B. Volume, das die API beschreibt — Logs, ggf. Uploads). Bewusst eng auf von der App genutzte Pfade, nicht auf „Disk-Free der ganzen VM".
+- **DB-Reachability als sichtbarer UI-Eintrag** (heute nur per Endpoint-Aufruf).
+- **Entra-/Auth-Reachability als sichtbarer UI-Eintrag** (heute nur per Endpoint-Aufruf, nicht differenziert nach `disabled`/`enabled`/`misconfigured`/`unreachable`).
+- **Letzter Sync-Lauf vs. erwarteter naechster Lauf** als ein-Blick-Signal — heute nur „letzter Lauf" plus Frequenz-Setting.
+- **Mail-Probe-Resultat** als Health-Signal: es gibt zwar `POST /admin/config/notification-email/test`, das Resultat haengt aber nicht im `admin-health-panel`.
+
+#### Was ist sauber aus der API heraus lieferbar (ohne Host-Agent)?
+
+Aus dem laufenden ASP.NET-Core-Prozess problemlos verfuegbar:
+- Prozess-Uptime via `IHostApplicationLifetime` / `Process.GetCurrentProcess().StartTime`.
+- Managed Heap via `GC.GetTotalMemory(false)` und `GC.GetGCMemoryInfo()`.
+- Working Set via `Process.GetCurrentProcess().WorkingSet64` — Achtung: nur des API-Prozesses, **nicht** des Hosts.
+- Thread-/Worker-Pool-Stats via `ThreadPool.GetAvailableThreads`.
+- DB-Reachability — bereits via `CheckDatabaseStatusAsync`.
+- Entra-OIDC-Reachability — bereits via Discovery-URL-Probe in `/health`.
+- Mail-Konfig-Vollstaendigkeit — bereits via `INotificationEmailConfigurationService`.
+- Directory-Sync-Status (`lastSyncAt`, `lastSyncStatus`, `lastError`) — bereits via `IDirectorySyncService.GetSyncStatusAsync`.
+- Storage-Auslastung definierter App-Schreibpfade via `DriveInfo` **fuer diese explizit benannten Pfade** (z. B. Logs-Volume, Uploads-Volume) — nicht generisch „alle Drives".
+
+#### Was ist nur Container-/Process-Sicht und darf nicht als „Server"-Metrik verkauft werden?
+
+Diese Werte sind aus dem API-Prozess messbar, aber nur fuer den Prozess/Container — **niemals** als Host-/VM-Metrik kommuniziert:
+- Working Set / Managed Heap / GC-Stats: nur des API-Prozesses.
+- Prozess-Uptime: nur des Prozesses, sagt nichts ueber Host-Reboot.
+- `DriveInfo` der API-Mount-Punkte: zeigt den Container-/Volume-View, nicht „Disk Free der VM".
+- Thread-Pool-Saturation: nur des API-Prozesses.
+
+Echte Host-/VM-Metrik (CPU-Last des ganzen Servers, RAM frei der VM, Disk-Free aller Volumes, Load-Average, Container-Runtime-Stats wie `docker stats`/`cgroup`) ist aus dem API-Prozess heraus **nicht zuverlaessig** lieferbar — braeuchte Host-Agent, OS-Privilegien, oder Compose-Stats-Sidecar. Bleibt bewusst ausserhalb Z12.
+
+#### Drei-Domaenen-Modell als Pflicht-Begriffsraster fuer Z12
+
+Z12-1.2 muss jedes Feld im neuen DTO klar einer dieser drei Domaenen zuordnen — und das UI in Z12-2.2 muss die Domaene benennen, statt sie zu verwischen:
+
+| Domaene | Inhalt | Z12-Scope | Wording-Empfehlung |
+|---------|--------|-----------|--------------------|
+| **App-/Runtime-Health** | API-Prozess-Uptime, Managed Heap, DB-Reachability, Entra-Reachability, Directory-Sync-Status, Mail-Konfig-/Probe-Status, App-Warnungen | **Z12 (in Scope)** | „Anwendung", „API-Prozess", „Abhaengigkeiten" |
+| **Container-/Volume-Sicht** | Working Set, App-Mount-Punkte (`DriveInfo` fuer App-Schreibpfade), Thread-Pool | **Z12 (in Scope, aber explizit als App-Container labeln)** | „API-Container", „Schreibpfad der Anwendung" — **nicht** „Server", **nicht** „RAM frei", **nicht** „Disk frei" |
+| **Host-/VM-Metrik** | Host-CPU/RAM/Disk gesamt, Load-Average, Container-Runtime-Stats, OS-Patches | **bewusst ausserhalb Z12** | spaeter eigener Block „Server" / „VM" / „Host" — nie als Teil des App-Health-Blocks darstellen |
+
+#### UI-Begriffsempfehlung fuer Z12 (Eingang in Z12-1.2/Z12-2.2)
+
+- Dashboard-Block heisst **„Betriebsstatus"** oder **„Runtime Health der Anwendung"**, nicht „Server-Status" oder „Systemzustand".
+- Untergliederung in „Anwendung" (Prozess-Uptime, Speicher), „Abhaengigkeiten" (DB, Entra/Auth, Mail), „Verzeichnis" (Sync-Status, pending imports), „Warnungen" (bestehender Aggregator).
+- Speicher-Werte explizit als **„API-Prozess: Managed Heap"** oder **„API-Prozess: Working Set"** labeln, nicht als „RAM" oder „RAM frei".
+- Storage-Werte explizit als **„Schreibpfad der Anwendung"** mit Pfadangabe labeln, nicht als „Disk frei".
+- Severity-Stufen werden in Z12-1.2 verbindlich festgelegt; in Z12-1.1 noch keine Schwellwerte fixieren.
+- Bestehende Kacheln (Verzeichnis-Sync, Mail, Warnungen) bleiben semantisch wo sie sind — Z12 fuegt App-/Abhaengigkeits-Kacheln davor/daneben hinzu, statt sie zu ersetzen.
+
+#### Folgeentscheidungen fuer Z12-1.2
+
+- DTO-Skizze in Z12-1.2 muss pro Feld die Domaenen-Zuordnung (App / Container / Host) explizit tragen, nicht implizit.
+- Schwellwerte/Severity (`ok`/`warn`/`crit`) werden in Z12-1.2 **deklarativ** definiert — Z12-2.1 darf sie nicht im Code frei waehlen.
+- Bestehender `admin-health-panel`-Aufbau (`directory`-Kachel, `mail`-Kachel, `warnings`-Kachel) bleibt Anker; neuer Block ergaenzt Anwendung/Abhaengigkeiten, ersetzt nichts.
+- Host-/VM-Metrik wird in Z12-1.2 nur als ausgegrenzter Folgeschritt benannt, nicht als Feld geschrieben.
 
 ---
 
