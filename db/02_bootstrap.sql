@@ -121,111 +121,9 @@ INSERT INTO public.app_permissions OVERRIDING SYSTEM VALUE VALUES
 
 
 --
--- Data for Name: workflow_answer_definitions; Type: TABLE DATA; Schema: public; Owner: -
---
-
-INSERT INTO public.workflow_answer_definitions OVERRIDING SYSTEM VALUE VALUES
-	(1, 1, 'ad_user_requested', 'AD-Konto', 'Zugänge', 'Soll für die neue Person ein AD-Konto eingerichtet werden?', 'ad_user', 'boolean', true, 1, true),
-	(2, 1, 'comparison_user_available', 'Vergleichsuser vorhanden?', 'Zugänge', 'Gibt es eine Vergleichsperson für die Übernahme der AD-Berechtigungen?', 'berechtigungen', 'boolean', false, 2, true),
-	(3, 1, 'comparison_user_name', 'Referenzuser', 'Zugänge', 'Welcher Referenzuser soll für die Übernahme der AD-Berechtigungen verwendet werden?', 'berechtigungen', 'text', false, 3, true),
-	(4, 1, 'mailbox_requested', 'Mailbox', 'Zugänge', 'Soll optional eine Mailbox für die neue Person eingerichtet werden?', 'mailbox', 'boolean', false, 4, true),
-	(5, 1, 'internet_requested', 'Internetzugang', 'Zugänge', 'Wird für die neue Person ein Internetzugang benötigt?', 'internetzugang', 'boolean', false, 5, true),
-	(6, 1, 'microsoft_office_requested', 'Microsoft Office', 'Programme und Systeme', 'Soll Microsoft Office für die neue Person bereitgestellt werden?', 'microsoft_office', 'boolean', false, 6, true),
-	(7, 1, 'habel_user_requested', 'Habel', 'Programme und Systeme', 'Soll ein Habel-User für die neue Person angelegt werden?', 'habel', 'boolean', false, 7, true),
-	(8, 1, 'ln_user_requested', 'InforLN', 'Programme und Systeme', 'Soll ein InforLN-User für die neue Person angelegt werden?', 'inforln', 'boolean', false, 8, true),
-	(9, 1, 'hardware_requested', 'Hardware benötigt?', 'Ausstattung', 'Wird für die neue Person überhaupt Hardware benötigt?', 'pc', 'boolean', true, 9, true),
-	(10, 1, 'hardware_available', 'Hardware vorhanden?', 'Ausstattung', 'Ist für die neue Person bereits passende Hardware vorhanden?', 'pc', 'boolean', false, 10, true),
-	(12, 1, 'phone_requested', 'Tragbares Telefon', 'Ausstattung', 'Wird für die neue Person ein tragbares Telefon benötigt?', 'phone', 'boolean', false, 13, true),
-	(13, 1, 'hardware_type', 'Hardware', 'Ausstattung', 'Welche Hardware soll bereitgestellt werden?', 'pc', 'select', false, 11, true),
-	(14, 1, 'laptop_vpn_type', 'Laptop', 'Ausstattung', 'Soll der Laptop mit VPN oder ohne VPN bereitgestellt werden?', 'vpn', 'select', false, 12, true),
-	(15, 1, 'laptop_with_vpn_requested', 'Laptop mit VPN', 'Ausstattung', 'Legacy-Feld für bisherige Laptop-Auswahl mit VPN.', 'vpn', 'boolean', false, 111, false),
-	(16, 1, 'laptop_without_vpn_requested', 'Laptop ohne VPN', 'Ausstattung', 'Legacy-Feld für bisherige Laptop-Auswahl ohne VPN.', 'laptop', 'boolean', false, 112, false),
-	(17, 1, 'desktop_pc_requested', 'Rechner fest', 'Ausstattung', 'Legacy-Feld für bisherige Auswahl eines festen Rechners.', 'pc', 'boolean', false, 113, false),
-	(18, 1, 'babtec_requested', 'Babtec', 'Programme und Systeme', 'Soll ein User in Babtec für die neue Person angelegt werden?', 'babtec', 'boolean', false, 14, true),
-	(19, 1, 'catia_requested', 'Catia', 'Programme und Systeme', 'Soll Catia für die neue Person bereitgestellt werden?', 'catia', 'boolean', false, 15, true),
-	(20, 1, 'datev_requested', 'DATEV', 'Programme und Systeme', 'Soll DATEV für die neue Person bereitgestellt werden?', 'datev', 'boolean', false, 16, true),
-	(21, 1, 'tiso_requested', 'Tisoware', 'Programme und Systeme', 'Soll Tisoware für die neue Person bereitgestellt werden?', 'tiso', 'boolean', false, 17, true),
-	(22, 1, 'gewatec_requested', 'Gewatec', 'Programme und Systeme', 'Soll ein Gewatec-User für die neue Person angelegt werden?', 'gewatec', 'boolean', false, 18, true),
-	(23, 1, 'provis_requested', 'Provis', 'Programme und Systeme', 'Soll ein Provis-User für die neue Person angelegt werden?', 'provis', 'boolean', false, 19, true),
-	(25, 1, 'internal_drive_access_requested', 'Zugangsrechte internes Laufwerk', 'Zugangsrechte', 'Sollen Zugangsrechte für ein internes Laufwerk vergeben werden?', 'berechtigungen', 'boolean', false, 21, true),
-	(26, 1, 'internal_drive_access_roles', 'Funktion für Laufwerksrechte', 'Zugangsrechte', 'Welche Funktion soll für die Laufwerksrechte berücksichtigt werden?', 'berechtigungen', 'multi_select', false, 22, true),
-	(27, 1, 'special_notes', 'Besondere Hinweise', 'Dokumentation', 'Freitext für wichtige Hinweise im Onboarding.', 'identitat', 'text', false, 92, false),
-	(28, 2, 'ob_has_ad_account', 'AD-Konto vorhanden?', 'Zugänge', 'Hat die Person ein aktives AD-Konto, das deaktiviert werden muss?', 'ad_user', 'boolean', true, 1, true),
-	(29, 2, 'ob_has_mailbox', 'Mailbox vorhanden?', 'Zugänge', 'Hat die Person eine Mailbox, die deaktiviert werden muss?', 'mailbox', 'boolean', false, 2, true),
-	(30, 2, 'ob_has_hardware', 'Hardware zurückzugeben?', 'Ausstattung', 'Hat die Person Hardware (Laptop, Workstation, etc.), die eingezogen werden muss?', 'pc', 'boolean', true, 3, true),
-	(31, 2, 'ob_has_phone', 'Telefon zurückzugeben?', 'Ausstattung', 'Hat die Person ein tragbares Telefon, das eingezogen werden muss?', 'phone', 'boolean', false, 4, true),
-	(32, 2, 'ob_has_habel', 'Habel-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Habel-User?', 'habel', 'boolean', false, 5, true),
-	(33, 2, 'ob_has_ln', 'InforLN-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven InforLN-User?', 'inforln', 'boolean', false, 6, true),
-	(34, 2, 'ob_has_babtec', 'Babtec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Babtec-User?', 'babtec', 'boolean', false, 7, true),
-	(35, 2, 'ob_has_gewatec', 'Gewatec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Gewatec-User?', 'gewatec', 'boolean', false, 8, true),
-	(36, 2, 'ob_has_provis', 'Provis-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Provis-User?', 'berechtigungen', 'boolean', false, 9, true),
-	(38, 2, 'ob_exit_interview', 'Austrittsgespräch führen?', 'Abschluss', 'Soll ein Austrittsgespräch mit der ausscheidenden Person geführt werden?', 'identitat', 'boolean', true, 11, true),
-	(39, 2, 'ob_knowledge_transfer', 'Wissenstransfer notwendig?', 'Abschluss', 'Muss vor dem Austritt ein strukturierter Wissenstransfer stattfinden?', 'identitat', 'boolean', false, 12, true),
-	(40, 3, 'dc_new_department', 'Neue Abteilung', 'Wechseldetails', 'Name der Zielabteilung, in die der Mitarbeiter wechselt.', 'identitat', 'text', true, 1, true),
-	(41, 3, 'dc_change_date', 'Wechseldatum', 'Wechseldetails', 'Geplanter Termin des Abteilungswechsels (z. B. 2025-07-01).', 'identitat', 'text', true, 2, true),
-	(42, 3, 'dc_ad_group_change', 'AD-Gruppen anpassen?', 'Zugänge', 'Müssen AD-Gruppen und Berechtigungen an die neue Abteilung angepasst werden?', 'ad_user', 'boolean', true, 3, true),
-	(43, 3, 'dc_drive_access_change', 'Laufwerk-Zugänge anpassen?', 'Zugänge', 'Müssen Netzlaufwerk-Zugriffsrechte für die neue Abteilung geändert werden?', 'pc', 'boolean', true, 4, true),
-	(44, 3, 'dc_email_alias_change', 'E-Mail Alias anpassen?', 'Zugänge', 'Muss der E-Mail Alias wegen Abteilungsbezug im Mailnamen geändert werden?', 'mailbox', 'boolean', false, 5, true),
-	(45, 3, 'dc_hardware_change', 'Hardware-Tausch notwendig?', 'Ausstattung', 'Muss die Hardware (z. B. stationär ↔ mobil) aufgrund der neuen Abteilung getauscht werden?', 'pc', 'boolean', false, 6, true),
-	(37, 2, 'ob_has_consense', 'Consense-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Consense-User?', 'consense', 'boolean', false, 10, true),
-	(11, 1, 'hardware_takeover_details', 'Zu übernehmende Hardware', 'Ausstattung', 'Welche vorhandene Hardware wird übernommen? Bitte z. B. Rechnernummer, Asset-ID oder kurzen Hinweis angeben.', 'pc', 'text', false, 10, true),
-	(46, 3, 'dc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muss der Habel-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'habel', 'boolean', false, 7, true),
-	(47, 3, 'dc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muss der InforLN-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'inforln', 'boolean', false, 8, true),
-	(48, 3, 'dc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Babtec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'babtec', 'boolean', false, 9, true),
-	(49, 3, 'dc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Gewatec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'gewatec', 'boolean', false, 10, true),
-	(50, 3, 'dc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muss der Provis-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'berechtigungen', 'boolean', false, 11, true),
-	(52, 7, 'nc_new_first_name', 'Neuer Vorname', 'Namensaenderung', 'Neuer gueltiger Vorname der betroffenen Person.', 'identitat', 'text', true, 1, true);
-INSERT INTO public.workflow_answer_definitions OVERRIDING SYSTEM VALUE VALUES
-	(53, 7, 'nc_new_last_name', 'Neuer Nachname', 'Namensaenderung', 'Neuer gueltiger Nachname der betroffenen Person.', 'identitat', 'text', true, 2, true),
-	(54, 7, 'nc_effective_date', 'Wirksamkeitsdatum', 'Namensaenderung', 'Datum, ab dem der neue Name in allen Systemen gelten soll.', 'identitat', 'text', true, 3, true),
-	(55, 8, 'pc_new_position', 'Neue Position / Rolle', 'Wechseldetails', 'Neue Position oder Rolle, die die Person kuenftig ausueben soll.', 'identitat', 'text', true, 1, true),
-	(56, 8, 'pc_change_date', 'Wechseldatum', 'Wechseldetails', 'Datum, ab dem die neue Position wirksam wird.', 'identitat', 'text', true, 2, true),
-	(57, 8, 'pc_permission_change', 'Berechtigungen anpassen?', 'Berechtigungen', 'Muessen allgemeine Berechtigungen und Zugriffsprofile wegen der neuen Position angepasst werden?', 'ad_user', 'boolean', true, 3, true),
-	(58, 8, 'pc_training_required', 'Neue Schulungen erforderlich?', 'Qualifizierung', 'Sind fuer die neue Position neue Schulungen oder Einweisungen notwendig?', 'identitat', 'boolean', false, 4, true),
-	(59, 8, 'pc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Rollen fuer die neue Position geaendert werden?', 'ad_user', 'boolean', false, 5, true),
-	(60, 8, 'pc_drive_access_change', 'Laufwerk-Zugaenge anpassen?', 'Zugaenge', 'Muessen Laufwerks- und Datei-Zugriffe an die neue Position angepasst werden?', 'pc', 'boolean', false, 6, true),
-	(61, 8, 'pc_mail_alias_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen Mailbox-bezogene Sichtbarkeit oder Aliasdaten geaendert werden?', 'mailbox', 'boolean', false, 7, true),
-	(62, 8, 'pc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Berechtigungen wegen der neuen Position angepasst werden?', 'habel', 'boolean', false, 8, true),
-	(63, 8, 'pc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Berechtigungen wegen der neuen Position angepasst werden?', 'inforln', 'boolean', false, 9, true),
-	(64, 8, 'pc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Berechtigungen wegen der neuen Position angepasst werden?', 'babtec', 'boolean', false, 10, true),
-	(65, 8, 'pc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Berechtigungen wegen der neuen Position angepasst werden?', 'gewatec', 'boolean', false, 11, true),
-	(66, 8, 'pc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Berechtigungen wegen der neuen Position angepasst werden?', 'berechtigungen', 'boolean', false, 12, true),
-	(68, 9, 'rc_new_role', 'Neue Rolle', 'Rollendetails', 'Neue Rolle oder Berechtigungsfunktion, die die Person kuenftig erhalten soll.', 'identitat', 'text', true, 1, true),
-	(69, 9, 'rc_effective_date', 'Wirksamkeitsdatum', 'Rollendetails', 'Datum, ab dem die neue Rolle wirksam wird.', 'identitat', 'text', true, 2, true),
-	(70, 9, 'rc_role_assignment_change', 'Rollen-Zuweisung anpassen?', 'Berechtigungen', 'Muessen fachliche oder technische Rollen explizit neu zugewiesen oder entzogen werden?', 'ad_user', 'boolean', true, 3, true),
-	(71, 9, 'rc_permission_change', 'Weitere Berechtigungen anpassen?', 'Berechtigungen', 'Muessen zusaetzliche Berechtigungen oder Profile an die neue Rolle angepasst werden?', 'berechtigungen', 'boolean', false, 4, true),
-	(72, 9, 'rc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Verzeichnisrollen an die neue Rolle angepasst werden?', 'ad_user', 'boolean', false, 5, true),
-	(73, 9, 'rc_mailbox_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen mailboxbezogene Sichtbarkeit oder Aliasrechte geaendert werden?', 'mailbox', 'boolean', false, 6, true),
-	(74, 9, 'rc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'habel', 'boolean', false, 7, true),
-	(75, 9, 'rc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'inforln', 'boolean', false, 8, true),
-	(76, 9, 'rc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'babtec', 'boolean', false, 9, true),
-	(77, 9, 'rc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'gewatec', 'boolean', false, 10, true),
-	(78, 9, 'rc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'berechtigungen', 'boolean', false, 11, true),
-	(24, 1, 'consense_requested', 'Consense-User anlegen?', 'Programme und Systeme', 'Soll fuer die neue Person ein Consense-User angelegt werden?', 'consense', 'boolean', false, 20, true),
-	(51, 3, 'dc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muss der Consense-Zugang fuer die neue Abteilung angepasst oder neu eingerichtet werden?', 'consense', 'boolean', false, 12, true),
-	(67, 8, 'pc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Berechtigungen wegen der neuen Position angepasst werden?', 'consense', 'boolean', false, 13, true),
-	(79, 9, 'rc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'consense', 'boolean', false, 12, true);
-
-
---
 -- Data for Name: app_role_answer_defaults; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-
-
---
--- Data for Name: workflow_answer_options; Type: TABLE DATA; Schema: public; Owner: -
---
-
-INSERT INTO public.workflow_answer_options OVERRIDING SYSTEM VALUE VALUES
-	(1, 13, 'workstation', 'workstation', 'Workstation', 2),
-	(2, 13, 'laptop', 'laptop', 'Laptop', 1),
-	(3, 14, 'without_vpn', 'without_vpn', 'Ohne VPN', 2),
-	(4, 14, 'with_vpn', 'with_vpn', 'Mit VPN', 1),
-	(5, 26, 'stellvertretende_abteilungsleitung', 'stellvertretende_abteilungsleitung', 'stv. Abtlg.', 4),
-	(6, 26, 'abteilungsleitung', 'abteilungsleitung', 'Abtlg. Ltg.', 3),
-	(7, 26, 'bereichsleitung', 'bereichsleitung', 'Bereichsleitung', 2),
-	(8, 26, 'leitung', 'leitung', 'Leitung', 1);
 
 
 --
@@ -378,6 +276,108 @@ INSERT INTO public.workflow_nodes OVERRIDING SYSTEM VALUE VALUES
 	(40, 1, 'collect_requirements', 'form', 'Anforderungen erfassen', 10, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
 	(41, 1, 'department_setup', 'measure_provision', 'Bereitstellungsmaßnahmen erzeugen', 20, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
 	(42, 1, 'end', 'end', 'Abschluss', 30, NULL, NULL, '2026-04-27 07:05:52.043926+00');
+
+
+--
+-- Data for Name: workflow_answer_definitions; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.workflow_answer_definitions OVERRIDING SYSTEM VALUE VALUES
+	(1, 1, 'ad_user_requested', 'AD-Konto', 'Zugänge', 'Soll für die neue Person ein AD-Konto eingerichtet werden?', 'ad_user', 'boolean', true, 1, true),
+	(2, 1, 'comparison_user_available', 'Vergleichsuser vorhanden?', 'Zugänge', 'Gibt es eine Vergleichsperson für die Übernahme der AD-Berechtigungen?', 'berechtigungen', 'boolean', false, 2, true),
+	(3, 1, 'comparison_user_name', 'Referenzuser', 'Zugänge', 'Welcher Referenzuser soll für die Übernahme der AD-Berechtigungen verwendet werden?', 'berechtigungen', 'text', false, 3, true),
+	(4, 1, 'mailbox_requested', 'Mailbox', 'Zugänge', 'Soll optional eine Mailbox für die neue Person eingerichtet werden?', 'mailbox', 'boolean', false, 4, true),
+	(5, 1, 'internet_requested', 'Internetzugang', 'Zugänge', 'Wird für die neue Person ein Internetzugang benötigt?', 'internetzugang', 'boolean', false, 5, true),
+	(6, 1, 'microsoft_office_requested', 'Microsoft Office', 'Programme und Systeme', 'Soll Microsoft Office für die neue Person bereitgestellt werden?', 'microsoft_office', 'boolean', false, 6, true),
+	(7, 1, 'habel_user_requested', 'Habel', 'Programme und Systeme', 'Soll ein Habel-User für die neue Person angelegt werden?', 'habel', 'boolean', false, 7, true),
+	(8, 1, 'ln_user_requested', 'InforLN', 'Programme und Systeme', 'Soll ein InforLN-User für die neue Person angelegt werden?', 'inforln', 'boolean', false, 8, true),
+	(9, 1, 'hardware_requested', 'Hardware benötigt?', 'Ausstattung', 'Wird für die neue Person überhaupt Hardware benötigt?', 'pc', 'boolean', true, 9, true),
+	(10, 1, 'hardware_available', 'Hardware vorhanden?', 'Ausstattung', 'Ist für die neue Person bereits passende Hardware vorhanden?', 'pc', 'boolean', false, 10, true),
+	(12, 1, 'phone_requested', 'Tragbares Telefon', 'Ausstattung', 'Wird für die neue Person ein tragbares Telefon benötigt?', 'phone', 'boolean', false, 13, true),
+	(13, 1, 'hardware_type', 'Hardware', 'Ausstattung', 'Welche Hardware soll bereitgestellt werden?', 'pc', 'select', false, 11, true),
+	(14, 1, 'laptop_vpn_type', 'Laptop', 'Ausstattung', 'Soll der Laptop mit VPN oder ohne VPN bereitgestellt werden?', 'vpn', 'select', false, 12, true),
+	(15, 1, 'laptop_with_vpn_requested', 'Laptop mit VPN', 'Ausstattung', 'Legacy-Feld für bisherige Laptop-Auswahl mit VPN.', 'vpn', 'boolean', false, 111, false),
+	(16, 1, 'laptop_without_vpn_requested', 'Laptop ohne VPN', 'Ausstattung', 'Legacy-Feld für bisherige Laptop-Auswahl ohne VPN.', 'laptop', 'boolean', false, 112, false),
+	(17, 1, 'desktop_pc_requested', 'Rechner fest', 'Ausstattung', 'Legacy-Feld für bisherige Auswahl eines festen Rechners.', 'pc', 'boolean', false, 113, false),
+	(18, 1, 'babtec_requested', 'Babtec', 'Programme und Systeme', 'Soll ein User in Babtec für die neue Person angelegt werden?', 'babtec', 'boolean', false, 14, true),
+	(19, 1, 'catia_requested', 'Catia', 'Programme und Systeme', 'Soll Catia für die neue Person bereitgestellt werden?', 'catia', 'boolean', false, 15, true),
+	(20, 1, 'datev_requested', 'DATEV', 'Programme und Systeme', 'Soll DATEV für die neue Person bereitgestellt werden?', 'datev', 'boolean', false, 16, true),
+	(21, 1, 'tiso_requested', 'Tisoware', 'Programme und Systeme', 'Soll Tisoware für die neue Person bereitgestellt werden?', 'tiso', 'boolean', false, 17, true),
+	(22, 1, 'gewatec_requested', 'Gewatec', 'Programme und Systeme', 'Soll ein Gewatec-User für die neue Person angelegt werden?', 'gewatec', 'boolean', false, 18, true),
+	(23, 1, 'provis_requested', 'Provis', 'Programme und Systeme', 'Soll ein Provis-User für die neue Person angelegt werden?', 'provis', 'boolean', false, 19, true),
+	(25, 1, 'internal_drive_access_requested', 'Zugangsrechte internes Laufwerk', 'Zugangsrechte', 'Sollen Zugangsrechte für ein internes Laufwerk vergeben werden?', 'berechtigungen', 'boolean', false, 21, true),
+	(26, 1, 'internal_drive_access_roles', 'Funktion für Laufwerksrechte', 'Zugangsrechte', 'Welche Funktion soll für die Laufwerksrechte berücksichtigt werden?', 'berechtigungen', 'multi_select', false, 22, true),
+	(27, 1, 'special_notes', 'Besondere Hinweise', 'Dokumentation', 'Freitext für wichtige Hinweise im Onboarding.', 'identitat', 'text', false, 92, false),
+	(28, 2, 'ob_has_ad_account', 'AD-Konto vorhanden?', 'Zugänge', 'Hat die Person ein aktives AD-Konto, das deaktiviert werden muss?', 'ad_user', 'boolean', true, 1, true),
+	(29, 2, 'ob_has_mailbox', 'Mailbox vorhanden?', 'Zugänge', 'Hat die Person eine Mailbox, die deaktiviert werden muss?', 'mailbox', 'boolean', false, 2, true),
+	(30, 2, 'ob_has_hardware', 'Hardware zurückzugeben?', 'Ausstattung', 'Hat die Person Hardware (Laptop, Workstation, etc.), die eingezogen werden muss?', 'pc', 'boolean', true, 3, true),
+	(31, 2, 'ob_has_phone', 'Telefon zurückzugeben?', 'Ausstattung', 'Hat die Person ein tragbares Telefon, das eingezogen werden muss?', 'phone', 'boolean', false, 4, true),
+	(32, 2, 'ob_has_habel', 'Habel-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Habel-User?', 'habel', 'boolean', false, 5, true),
+	(33, 2, 'ob_has_ln', 'InforLN-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven InforLN-User?', 'inforln', 'boolean', false, 6, true),
+	(34, 2, 'ob_has_babtec', 'Babtec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Babtec-User?', 'babtec', 'boolean', false, 7, true),
+	(35, 2, 'ob_has_gewatec', 'Gewatec-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Gewatec-User?', 'gewatec', 'boolean', false, 8, true),
+	(36, 2, 'ob_has_provis', 'Provis-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Provis-User?', 'berechtigungen', 'boolean', false, 9, true),
+	(38, 2, 'ob_exit_interview', 'Austrittsgespräch führen?', 'Abschluss', 'Soll ein Austrittsgespräch mit der ausscheidenden Person geführt werden?', 'identitat', 'boolean', true, 11, true),
+	(39, 2, 'ob_knowledge_transfer', 'Wissenstransfer notwendig?', 'Abschluss', 'Muss vor dem Austritt ein strukturierter Wissenstransfer stattfinden?', 'identitat', 'boolean', false, 12, true),
+	(40, 3, 'dc_new_department', 'Neue Abteilung', 'Wechseldetails', 'Name der Zielabteilung, in die der Mitarbeiter wechselt.', 'identitat', 'text', true, 1, true),
+	(41, 3, 'dc_change_date', 'Wechseldatum', 'Wechseldetails', 'Geplanter Termin des Abteilungswechsels (z. B. 2025-07-01).', 'identitat', 'text', true, 2, true),
+	(42, 3, 'dc_ad_group_change', 'AD-Gruppen anpassen?', 'Zugänge', 'Müssen AD-Gruppen und Berechtigungen an die neue Abteilung angepasst werden?', 'ad_user', 'boolean', true, 3, true),
+	(43, 3, 'dc_drive_access_change', 'Laufwerk-Zugänge anpassen?', 'Zugänge', 'Müssen Netzlaufwerk-Zugriffsrechte für die neue Abteilung geändert werden?', 'pc', 'boolean', true, 4, true),
+	(44, 3, 'dc_email_alias_change', 'E-Mail Alias anpassen?', 'Zugänge', 'Muss der E-Mail Alias wegen Abteilungsbezug im Mailnamen geändert werden?', 'mailbox', 'boolean', false, 5, true),
+	(45, 3, 'dc_hardware_change', 'Hardware-Tausch notwendig?', 'Ausstattung', 'Muss die Hardware (z. B. stationär ↔ mobil) aufgrund der neuen Abteilung getauscht werden?', 'pc', 'boolean', false, 6, true),
+	(37, 2, 'ob_has_consense', 'Consense-Zugang vorhanden?', 'Programme und Systeme', 'Hat die Person einen aktiven Consense-User?', 'consense', 'boolean', false, 10, true),
+	(11, 1, 'hardware_takeover_details', 'Zu übernehmende Hardware', 'Ausstattung', 'Welche vorhandene Hardware wird übernommen? Bitte z. B. Rechnernummer, Asset-ID oder kurzen Hinweis angeben.', 'pc', 'text', false, 10, true),
+	(46, 3, 'dc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muss der Habel-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'habel', 'boolean', false, 7, true),
+	(47, 3, 'dc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muss der InforLN-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'inforln', 'boolean', false, 8, true),
+	(48, 3, 'dc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Babtec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'babtec', 'boolean', false, 9, true),
+	(49, 3, 'dc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muss der Gewatec-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'gewatec', 'boolean', false, 10, true),
+	(50, 3, 'dc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muss der Provis-Zugang für die neue Abteilung angepasst oder neu eingerichtet werden?', 'berechtigungen', 'boolean', false, 11, true),
+	(52, 7, 'nc_new_first_name', 'Neuer Vorname', 'Namensaenderung', 'Neuer gueltiger Vorname der betroffenen Person.', 'identitat', 'text', true, 1, true);
+INSERT INTO public.workflow_answer_definitions OVERRIDING SYSTEM VALUE VALUES
+	(53, 7, 'nc_new_last_name', 'Neuer Nachname', 'Namensaenderung', 'Neuer gueltiger Nachname der betroffenen Person.', 'identitat', 'text', true, 2, true),
+	(54, 7, 'nc_effective_date', 'Wirksamkeitsdatum', 'Namensaenderung', 'Datum, ab dem der neue Name in allen Systemen gelten soll.', 'identitat', 'text', true, 3, true),
+	(55, 8, 'pc_new_position', 'Neue Position / Rolle', 'Wechseldetails', 'Neue Position oder Rolle, die die Person kuenftig ausueben soll.', 'identitat', 'text', true, 1, true),
+	(56, 8, 'pc_change_date', 'Wechseldatum', 'Wechseldetails', 'Datum, ab dem die neue Position wirksam wird.', 'identitat', 'text', true, 2, true),
+	(57, 8, 'pc_permission_change', 'Berechtigungen anpassen?', 'Berechtigungen', 'Muessen allgemeine Berechtigungen und Zugriffsprofile wegen der neuen Position angepasst werden?', 'ad_user', 'boolean', true, 3, true),
+	(58, 8, 'pc_training_required', 'Neue Schulungen erforderlich?', 'Qualifizierung', 'Sind fuer die neue Position neue Schulungen oder Einweisungen notwendig?', 'identitat', 'boolean', false, 4, true),
+	(59, 8, 'pc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Rollen fuer die neue Position geaendert werden?', 'ad_user', 'boolean', false, 5, true),
+	(60, 8, 'pc_drive_access_change', 'Laufwerk-Zugaenge anpassen?', 'Zugaenge', 'Muessen Laufwerks- und Datei-Zugriffe an die neue Position angepasst werden?', 'pc', 'boolean', false, 6, true),
+	(61, 8, 'pc_mail_alias_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen Mailbox-bezogene Sichtbarkeit oder Aliasdaten geaendert werden?', 'mailbox', 'boolean', false, 7, true),
+	(62, 8, 'pc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Berechtigungen wegen der neuen Position angepasst werden?', 'habel', 'boolean', false, 8, true),
+	(63, 8, 'pc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Berechtigungen wegen der neuen Position angepasst werden?', 'inforln', 'boolean', false, 9, true),
+	(64, 8, 'pc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Berechtigungen wegen der neuen Position angepasst werden?', 'babtec', 'boolean', false, 10, true),
+	(65, 8, 'pc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Berechtigungen wegen der neuen Position angepasst werden?', 'gewatec', 'boolean', false, 11, true),
+	(66, 8, 'pc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Berechtigungen wegen der neuen Position angepasst werden?', 'berechtigungen', 'boolean', false, 12, true),
+	(68, 9, 'rc_new_role', 'Neue Rolle', 'Rollendetails', 'Neue Rolle oder Berechtigungsfunktion, die die Person kuenftig erhalten soll.', 'identitat', 'text', true, 1, true),
+	(69, 9, 'rc_effective_date', 'Wirksamkeitsdatum', 'Rollendetails', 'Datum, ab dem die neue Rolle wirksam wird.', 'identitat', 'text', true, 2, true),
+	(70, 9, 'rc_role_assignment_change', 'Rollen-Zuweisung anpassen?', 'Berechtigungen', 'Muessen fachliche oder technische Rollen explizit neu zugewiesen oder entzogen werden?', 'ad_user', 'boolean', true, 3, true),
+	(71, 9, 'rc_permission_change', 'Weitere Berechtigungen anpassen?', 'Berechtigungen', 'Muessen zusaetzliche Berechtigungen oder Profile an die neue Rolle angepasst werden?', 'berechtigungen', 'boolean', false, 4, true),
+	(72, 9, 'rc_ad_groups_change', 'AD-Gruppen anpassen?', 'Zugaenge', 'Muessen AD-Gruppen und Verzeichnisrollen an die neue Rolle angepasst werden?', 'ad_user', 'boolean', false, 5, true),
+	(73, 9, 'rc_mailbox_change', 'Mailbox oder Alias anpassen?', 'Zugaenge', 'Muessen mailboxbezogene Sichtbarkeit oder Aliasrechte geaendert werden?', 'mailbox', 'boolean', false, 6, true),
+	(74, 9, 'rc_has_habel', 'Habel-Zugang anpassen?', 'Programme und Systeme', 'Muessen Habel-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'habel', 'boolean', false, 7, true),
+	(75, 9, 'rc_has_ln', 'InforLN-Zugang anpassen?', 'Programme und Systeme', 'Muessen InforLN-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'inforln', 'boolean', false, 8, true),
+	(76, 9, 'rc_has_babtec', 'Babtec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Babtec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'babtec', 'boolean', false, 9, true),
+	(77, 9, 'rc_has_gewatec', 'Gewatec-Zugang anpassen?', 'Programme und Systeme', 'Muessen Gewatec-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'gewatec', 'boolean', false, 10, true),
+	(78, 9, 'rc_has_provis', 'Provis-Zugang anpassen?', 'Programme und Systeme', 'Muessen Provis-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'berechtigungen', 'boolean', false, 11, true),
+	(24, 1, 'consense_requested', 'Consense-User anlegen?', 'Programme und Systeme', 'Soll fuer die neue Person ein Consense-User angelegt werden?', 'consense', 'boolean', false, 20, true),
+	(51, 3, 'dc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muss der Consense-Zugang fuer die neue Abteilung angepasst oder neu eingerichtet werden?', 'consense', 'boolean', false, 12, true),
+	(67, 8, 'pc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Berechtigungen wegen der neuen Position angepasst werden?', 'consense', 'boolean', false, 13, true),
+	(79, 9, 'rc_has_consense', 'Consense-Zugang anpassen?', 'Programme und Systeme', 'Muessen Consense-Rollen oder Berechtigungen wegen des Rollenwechsels angepasst werden?', 'consense', 'boolean', false, 12, true);
+
+
+--
+-- Data for Name: workflow_answer_options; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+INSERT INTO public.workflow_answer_options OVERRIDING SYSTEM VALUE VALUES
+	(1, 13, 'workstation', 'workstation', 'Workstation', 2),
+	(2, 13, 'laptop', 'laptop', 'Laptop', 1),
+	(3, 14, 'without_vpn', 'without_vpn', 'Ohne VPN', 2),
+	(4, 14, 'with_vpn', 'with_vpn', 'Mit VPN', 1),
+	(5, 26, 'stellvertretende_abteilungsleitung', 'stellvertretende_abteilungsleitung', 'stv. Abtlg.', 4),
+	(6, 26, 'abteilungsleitung', 'abteilungsleitung', 'Abtlg. Ltg.', 3),
+	(7, 26, 'bereichsleitung', 'bereichsleitung', 'Bereichsleitung', 2),
+	(8, 26, 'leitung', 'leitung', 'Leitung', 1);
 
 
 --
