@@ -278,8 +278,8 @@ export function useRoleAwareNavigation() {
 
     if (capabilities.dashboardPersona === "admin") {
       return {
-        title: "Verwaltung",
-        description: "Hier pflegen Sie Organisation, Zuständigkeiten, Berechtigungen und Systemeinstellungen.",
+        title: "Offene Admin-Aufgaben",
+        description: "Warnungen bereinigen, Engpässe prüfen und Systemstatus im Blick behalten.",
       };
     }
 

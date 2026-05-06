@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadDashboardInsights } from "../src/components/dashboard/dashboardInsights";
+import * as adminApi from "../src/services/adminApi";
 import * as workflowApi from "../src/services/workflowApi";
-import { createWorkflowSummary } from "./testUtils";
+import { createAdminDepartmentAssignment, createWorkflowSummary } from "./testUtils";
 
 vi.mock("../src/services/workflowApi", async () => {
   const actual = await vi.importActual<typeof import("../src/services/workflowApi")>("../src/services/workflowApi");
@@ -12,13 +13,32 @@ vi.mock("../src/services/workflowApi", async () => {
   };
 });
 
+vi.mock("../src/services/adminApi", async () => {
+  const actual = await vi.importActual<typeof import("../src/services/adminApi")>("../src/services/adminApi");
+  return {
+    ...actual,
+    getAdminUsers: vi.fn(),
+    getAdminDepartmentAssignments: vi.fn(),
+    getAdminResponsibilityOwners: vi.fn(),
+    getAdminNotificationEmailConfiguration: vi.fn(),
+  };
+});
+
 const mockedGetWorkflows = vi.mocked(workflowApi.getWorkflows);
 const mockedGetSupervisorStepWorkflows = vi.mocked(workflowApi.getSupervisorStepWorkflows);
+const mockedGetAdminUsers = vi.mocked(adminApi.getAdminUsers);
+const mockedGetAdminDepartmentAssignments = vi.mocked(adminApi.getAdminDepartmentAssignments);
+const mockedGetAdminResponsibilityOwners = vi.mocked(adminApi.getAdminResponsibilityOwners);
+const mockedGetAdminNotificationEmailConfiguration = vi.mocked(adminApi.getAdminNotificationEmailConfiguration);
 
 describe("dashboardInsights", () => {
   beforeEach(() => {
     mockedGetWorkflows.mockReset();
     mockedGetSupervisorStepWorkflows.mockReset();
+    mockedGetAdminUsers.mockReset();
+    mockedGetAdminDepartmentAssignments.mockReset();
+    mockedGetAdminResponsibilityOwners.mockReset();
+    mockedGetAdminNotificationEmailConfiguration.mockReset();
   });
 
   it("summarizes manager insights from the visible workflow list", async () => {
@@ -194,5 +214,84 @@ describe("dashboardInsights", () => {
     expect(insights.queueItems).toHaveLength(1);
     expect(insights.queueItems[0]?.title).toContain("1 Vorgänge warten auf Ihre Rückmeldung");
     expect(insights.employeeItems).toHaveLength(2);
+  });
+
+  it("structures admin insights into governance warnings, operations and summary cards", async () => {
+    mockedGetWorkflows.mockResolvedValue([
+      createWorkflowSummary({
+        uid: "wf-stuck",
+        createdAt: "2026-04-20T10:00:00.000Z",
+        workflowStatus: "waiting_for_department",
+      }),
+      createWorkflowSummary({
+        uid: "wf-bottleneck",
+        createdAt: "2026-05-05T10:00:00.000Z",
+        workflowStatus: "waiting_for_supervisor",
+      }),
+    ]);
+    mockedGetAdminUsers.mockResolvedValue([]);
+    mockedGetAdminDepartmentAssignments.mockResolvedValue({
+      items: [
+        createAdminDepartmentAssignment({
+          departmentId: 1,
+          departmentName: "IT",
+          departmentLeadUserId: null,
+          requirementOwnerUserId: null,
+        }),
+      ],
+      totalCount: 1,
+      page: 1,
+      pageSize: 200,
+      totalPages: 1,
+    });
+    mockedGetAdminResponsibilityOwners.mockResolvedValue({
+      items: [
+        {
+          responsibilityId: 10,
+          responsibilityKey: "it-access",
+          systemKey: null,
+          responsibilityName: "IT-Zugriffe",
+          responsibilityType: "process",
+          departmentId: null,
+          departmentName: null,
+          appUserId: null,
+          appUserDisplayName: null,
+          updatedAt: "2026-05-01T08:00:00.000Z",
+        },
+      ],
+      totalCount: 1,
+      page: 1,
+      pageSize: 200,
+      totalPages: 1,
+    });
+    mockedGetAdminNotificationEmailConfiguration.mockResolvedValue({
+      enabled: false,
+      mode: "disabled",
+      senderEmail: null,
+      frontendBaseUrl: "http://localhost:5173",
+      testRecipientEmail: null,
+      sandboxRedirectEmail: null,
+      notifyOnWorkflowCreated: false,
+      notifyOnTaskReady: false,
+      notifyOnWorkflowCompleted: false,
+      lastTestStatus: "disabled",
+      lastTestAt: null,
+      lastError: null,
+      updatedAt: null,
+      hasClientSecret: false,
+      configurationStatus: "incomplete",
+      configurationMessage: "Mail-Konfiguration unvollständig",
+    });
+
+    const insights = await loadDashboardInsights("admin");
+
+    expect(insights.adminSummary?.stats).toHaveLength(4);
+    expect(insights.adminSummary?.statusTitle).toContain("Governance");
+    expect(insights.adminWarnings).toHaveLength(3);
+    expect(insights.adminWarnings?.[0]?.title).toBe("Stammdaten-Lücken");
+    expect(insights.adminWarnings?.[0]?.groups[0]?.title).toBe("Abteilungen ohne gültige Leitung");
+    expect(insights.adminOperations?.[0]?.key).toBe("stuck-wf-stuck");
+    expect(insights.adminOperations?.some((item) => item.key === "workflow-bottlenecks")).toBe(true);
+    expect(insights.queueItems.some((item) => item.key.startsWith("admin-warning-"))).toBe(false);
   });
 });

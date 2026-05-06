@@ -2,7 +2,7 @@
 // Struktur: Zone 1 (Focus/Naechster Schritt), Zone 2 (Kennzahlen), Zone 3 (Offene Arbeit), Zone 4 (Admin: Betriebsstatus).
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import DashboardAdminRuntimeHealthBlock from "./DashboardAdminRuntimeHealthBlock";
+import DashboardAdminOverview from "./DashboardAdminOverview";
 import { useRoleAwareNavigation } from "../../navigation/useRoleAwareNavigation";
 import { useStartableWorkflowDefinitions } from "../../services/queries/workflowDefinitionQueries";
 import {
@@ -15,13 +15,13 @@ import { useDashboardInsights } from "./useDashboardInsights";
 
 export default function DashboardOverview() {
   const { dashboardActions, dashboardContext, dashboardPersona } = useRoleAwareNavigation();
+  const isAdminDashboard = dashboardPersona === "admin";
   const supportsProcessTypeFilter =
-    dashboardPersona === "admin" ||
     dashboardPersona === "hr" ||
     dashboardPersona === "manager" ||
     dashboardPersona === "reader";
   const [selectedDefinitionKey, setSelectedDefinitionKey] = useState<string>("all");
-  const workflowDefinitionsQuery = useStartableWorkflowDefinitions();
+  const workflowDefinitionsQuery = useStartableWorkflowDefinitions({ enabled: supportsProcessTypeFilter });
   const workflowDefinitions = useMemo(
     () => (supportsProcessTypeFilter ? workflowDefinitionsQuery.data ?? [] : []),
     [workflowDefinitionsQuery.data, supportsProcessTypeFilter]
@@ -79,6 +79,16 @@ export default function DashboardOverview() {
 
       {!isInitialLoading && !insightsError && displayInsights ? (
         <div style={isRefreshing ? { opacity: 0.55, pointerEvents: "none", transition: "opacity 120ms ease" } : undefined}>
+          {isAdminDashboard ? (
+            <DashboardAdminOverview
+              insights={displayInsights}
+              isRefreshing={isInsightsLoading || isDefinitionsLoading}
+              onRefresh={() => reloadInsights()}
+            />
+          ) : null}
+
+          {!isAdminDashboard ? (
+            <>
           {/* ─── Zone 1: Focus — nächster Schritt + Filter + Aktualisieren ─── */}
           <section className="panel dashboard-focus">
             <div className="dashboard-focus__head">
@@ -204,9 +214,8 @@ export default function DashboardOverview() {
               </ul>
             </section>
           ) : null}
-
-          {/* ─── Zone 4: Betriebsstatus — nur Admin ─── */}
-          {dashboardPersona === "admin" ? <DashboardAdminRuntimeHealthBlock /> : null}
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>

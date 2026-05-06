@@ -1,4 +1,5 @@
 import type { StartableWorkflowDefinition, WorkflowSummary, WorkflowTask } from "../../types/workflow";
+import type { DashboardAction } from "../../navigation/useRoleAwareNavigation";
 import { formatDate } from "../../utils/dateFormat";
 import { getWorkflowRuntimeStatusLabel, isWorkflowTerminalStatus } from "../../utils/workflowStatus";
 
@@ -32,6 +33,35 @@ export type DashboardEmployeeItem = {
   actionLabel: string;
 };
 
+export type DashboardAdminWarningItem = {
+  key: string;
+  title: string;
+  detail: string;
+  count: number;
+  affectedLabels: string[];
+  actionLabel: string;
+  to: string;
+};
+
+export type DashboardAdminWarningCluster = {
+  key: string;
+  title: string;
+  totalCount: number;
+  groups: DashboardAdminWarningItem[];
+};
+
+export type DashboardAdminOperationItem = DashboardQueueItem & {
+  tone?: "neutral" | "attention" | "progress" | "success";
+};
+
+export type DashboardAdminSummary = {
+  statusKicker: string;
+  statusTitle: string;
+  statusDetail: string;
+  action?: DashboardAction | null;
+  stats: DashboardStat[];
+};
+
 export type DashboardInsights = {
   heading: string;
   nextStep: string;
@@ -39,6 +69,9 @@ export type DashboardInsights = {
   queueTitle: string;
   queueItems: DashboardQueueItem[];
   emptyQueueText: string;
+  adminSummary?: DashboardAdminSummary;
+  adminWarnings?: DashboardAdminWarningCluster[];
+  adminOperations?: DashboardAdminOperationItem[];
   employeeListTitle?: string;
   employeeListDescription?: string;
   employeeItems?: DashboardEmployeeItem[];

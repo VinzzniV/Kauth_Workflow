@@ -15,7 +15,13 @@ import type { WorkflowSummary, WorkflowTask } from "../../types/workflow";
 import { formatDate } from "../../utils/dateFormat";
 import { getTaskStatusLabel } from "../../utils/taskStatus";
 import { getWorkflowRuntimeStatusLabel, isWorkflowTerminalStatus } from "../../utils/workflowStatus";
-import type { DashboardInsights, DashboardInsightsOptions, DashboardQueueItem } from "./dashboardInsights.shared";
+import type {
+  DashboardAdminOperationItem,
+  DashboardAdminWarningCluster,
+  DashboardInsights,
+  DashboardInsightsOptions,
+  DashboardQueueItem,
+} from "./dashboardInsights.shared";
 import {
   COMPLETION_THIS_WEEK_DAYS,
   getManagerWorkflowAction,
@@ -386,7 +392,6 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
   const metrics = summarizeWorkflows(workflows);
   const bottleneckCount = metrics.waitingSupervisor + metrics.waitingDepartment;
   const stuckWorkflows = workflows.filter((workflow) => isStuckWorkflow(workflow, nowEpoch));
-  const completedThisWeek = workflows.filter((workflow) => isCompletedThisWeek(workflow, nowEpoch)).length;
 
   const eligibleSupervisorUsers = users.filter(
     (user) => user.isActive && Boolean(user.canAccessSupervisorStep ?? user.hasManagerAccess)
@@ -407,44 +412,114 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
     mail: "system_configuration",
   };
 
-  const queueItems: DashboardQueueItem[] = [];
+  const mapAdminTargetSection = (section: string | undefined): string =>
+    `/admin/config?section=${section ?? "overview"}`;
+
+  const adminWarningsByCluster: DashboardAdminWarningCluster[] = warningClusters.map((cluster) => ({
+    key: cluster.cluster,
+    title: cluster.title,
+    totalCount: cluster.totalCount,
+    groups: cluster.groups.map((group) => ({
+      key: `${cluster.cluster}-${group.category}`,
+      title: group.title,
+      detail: group.detail,
+      count: group.count,
+      affectedLabels: group.affectedLabels,
+      actionLabel: group.actionLabel,
+      to: mapAdminTargetSection(group.targetSection ?? clusterTargetSection[cluster.cluster]),
+    })),
+  }));
+
+  const adminOperations: DashboardAdminOperationItem[] = [];
 
   if (stuckWorkflows.length > 0) {
     const sorted = stuckWorkflows
       .slice()
       .sort((left, right) => toEpoch(left.createdAt) - toEpoch(right.createdAt))
-      .slice(0, 3);
+      .slice(0, 4);
     for (const workflow of sorted) {
       const employeeName = `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender";
-      queueItems.push({
+      adminOperations.push({
         key: `stuck-${workflow.uid}`,
         title: `Steckt fest: ${employeeName}`,
         detail: `${getWorkflowRuntimeStatusLabel(workflow.workflowStatus, "action")} – seit ${formatDate(workflow.createdAt)}`,
         to: `/workflows/${workflow.uid}`,
         actionLabel: "Öffnen",
+        tone: "attention",
       });
     }
   }
 
-  if (bottleneckCount > 0 && stuckWorkflows.length === 0) {
-    queueItems.push({
+  if (bottleneckCount > 0) {
+    adminOperations.push({
       key: "workflow-bottlenecks",
       title: "Prozess-Engpässe verfolgen",
       detail: `${bottleneckCount} ${bottleneckCount === 1 ? "Vorgang wartet" : "Vorgänge warten"}`,
       to: "/workflows",
       actionLabel: "Übersicht",
+      tone: "attention",
     });
   }
 
-  for (const cluster of warningClusters) {
-    queueItems.push({
-      key: `admin-warning-${cluster.cluster}`,
-      title: cluster.title,
-      detail: `${cluster.totalCount} ${cluster.totalCount === 1 ? "offene Warnung" : "offene Warnungen"}`,
-      to: `/admin/config?section=${clusterTargetSection[cluster.cluster] ?? "overview"}`,
-      actionLabel: "Prüfen",
-    });
-  }
+  const primaryWarningCluster = adminWarningsByCluster[0] ?? null;
+  const statusDetail = primaryWarningCluster
+    ? `${primaryWarningCluster.title} zuerst prüfen. ${primaryWarningCluster.totalCount} ${primaryWarningCluster.totalCount === 1 ? "offene Warnung" : "offene Warnungen"} sind aktuell gruppiert sichtbar.`
+    : stuckWorkflows.length > 0
+      ? `${stuckWorkflows.length} ${stuckWorkflows.length === 1 ? "Vorgang ist seit mindestens" : "Vorgänge sind seit mindestens"} ${STUCK_WORKFLOW_THRESHOLD_DAYS} Tagen blockiert.`
+      : bottleneckCount > 0
+        ? `${bottleneckCount} ${bottleneckCount === 1 ? "Vorgang wartet" : "Vorgänge warten"} aktuell auf Freigabe oder Fachbereich.`
+        : "Aktuell gibt es keine Governance-Lücken oder Betriebsengpässe mit direktem Handlungsbedarf.";
+  const statusAction = primaryWarningCluster
+    ? {
+        to: primaryWarningCluster.groups[0]?.to ?? mapAdminTargetSection(clusterTargetSection[primaryWarningCluster.key]),
+        label: "Warnungen prüfen",
+        description: "Öffnet die kritischsten Governance-Lücken in der Administration.",
+      }
+    : stuckWorkflows.length > 0
+      ? {
+          to: "/workflows",
+          label: "Festhängende prüfen",
+          description: "Öffnet die betroffenen Vorgänge in der Übersicht.",
+        }
+      : bottleneckCount > 0
+        ? {
+            to: "/workflows",
+            label: "Engpässe prüfen",
+            description: "Öffnet die laufenden Vorgänge mit Rückstau.",
+          }
+        : {
+            to: "/admin/config",
+            label: "Administration öffnen",
+            description: "Öffnet die zentrale Konfigurationsübersicht.",
+          };
+  const summaryStats = [
+    {
+      label: "Admin-Warnungen",
+      value: adminWarningCount,
+      note: warningClusters.length > 0
+        ? warningClusters.map((cluster) => cluster.title).join(", ")
+        : "Stammdaten, Zuständigkeiten, Mail",
+      tone: adminWarningCount === 0 ? "neutral" : "attention",
+    },
+    {
+      label: "Festhängende Vorgänge",
+      value: stuckWorkflows.length,
+      note: `seit ≥ ${STUCK_WORKFLOW_THRESHOLD_DAYS} Tagen`,
+      tone: stuckWorkflows.length > 0 ? "attention" : "neutral",
+    },
+    {
+      label: "Wartet auf Freigabe / Fachbereich",
+      value: bottleneckCount,
+      note: "aktuelle Engpässe",
+      tone: bottleneckCount > 0 ? "attention" : "neutral",
+    },
+    {
+      label: "Aktive Vorgänge",
+      value: metrics.open,
+      note: "laufend",
+      tone: "progress",
+    },
+  ] as const;
 
   return {
     heading: "Administration",
@@ -457,42 +532,24 @@ export async function loadAdminInsights(options: DashboardInsightsOptions = {}):
           : adminWarningCount > 0
             ? `${adminWarningCount} offene Admin-Warnung${adminWarningCount === 1 ? "" : "en"} bereinigen.`
             : "System läuft. Keine offenen Admin-Aufgaben.",
-    stats: [
-      {
-        label: "Admin-Warnungen",
-        value: adminWarningCount,
-        note: warningClusters.length > 0
-          ? warningClusters.map((cluster) => cluster.title).join(", ")
-          : "Stammdaten, Zuständigkeiten, Mail",
-        tone: adminWarningCount === 0 ? "neutral" : adminWarningCount >= 10 ? "attention" : "attention",
-      },
-      {
-        label: "Festhängend",
-        value: stuckWorkflows.length,
-        note: `seit ≥ ${STUCK_WORKFLOW_THRESHOLD_DAYS} Tagen`,
-        tone: stuckWorkflows.length > 0 ? "attention" : "neutral",
-      },
-      {
-        label: "Wartet auf Freigabe / Fachbereich",
-        value: bottleneckCount,
-        note: "aktuelle Engpässe",
-        tone: bottleneckCount > 0 ? "attention" : "neutral",
-      },
-      {
-        label: "Aktive Vorgänge",
-        value: metrics.open,
-        note: "laufend",
-        tone: "progress",
-      },
-      {
-        label: "Abgeschlossen (7 Tage)",
-        value: completedThisWeek,
-        note: `letzte ${COMPLETION_THIS_WEEK_DAYS} Tage`,
-        tone: "success",
-      },
-    ],
-    queueTitle: stuckWorkflows.length > 0 ? "Festhängende Vorgänge" : "Aufmerksamkeit erforderlich",
-    queueItems,
+    stats: [...summaryStats],
+    adminSummary: {
+      statusKicker: "Governance-Status",
+      statusTitle: adminWarningCount > 0
+        ? `${adminWarningCount} offene Governance-Lücken priorisieren.`
+        : stuckWorkflows.length > 0
+          ? "Festhängende Vorgänge entlasten."
+          : bottleneckCount > 0
+            ? "Operative Engpässe aktiv steuern."
+            : "Administration und Betrieb sind aktuell stabil.",
+      statusDetail,
+      action: statusAction,
+      stats: [...summaryStats],
+    },
+    adminWarnings: adminWarningsByCluster,
+    adminOperations,
+    queueTitle: "Operative Risiken",
+    queueItems: adminOperations,
     emptyQueueText: adminWarningCount === 0 && bottleneckCount === 0
       ? "Aktuell sind keine offenen Admin-Aufgaben oder Engpässe sichtbar."
       : "Keine festhängenden Vorgänge — die Übersicht zeigt aktuelle Engpässe und Warnungen.",

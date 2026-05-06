@@ -10,6 +10,10 @@ import {
 import type { DashboardInsights, DashboardInsightsOptions } from "./dashboardInsights.shared";
 
 export type {
+  DashboardAdminOperationItem,
+  DashboardAdminSummary,
+  DashboardAdminWarningCluster,
+  DashboardAdminWarningItem,
   DashboardEmployeeItem,
   DashboardInsights,
   DashboardInsightsOptions,
