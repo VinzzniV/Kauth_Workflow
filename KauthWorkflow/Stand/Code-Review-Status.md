@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-06 — Aktiver Zyklus 12 in Arbeit: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health; Z12-1.1 + Z12-1.2 + Z12-2.1 done; Zyklus 11/10/9/8 abgeschlossen)
+## Gesamtbewertung (Stand 2026-05-06 — Zyklus 12 abgeschlossen: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health; alle Slices done (Z12-1.1 + Z12-1.2 + Z12-2.1 + Z12-2.2); Zyklus 11/10/9/8 abgeschlossen; kein aktiver Zyklus)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -57,11 +57,11 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3) — abgeschlossen (Split + Coverage) |
 | 10 | 2026-05-05 | Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — abgeschlossen (Review-/Planungszyklus, alle Slices done) |
 | 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege in Umsetzung — abgeschlossen (F1 P1+B Master-Data, F2 P2+Audit, F3 P1+D Builder, alle Slices done) |
-| 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — in Arbeit (Z12-1.1 done; Z12-1.2 done; Z12-2.1 done: `GET /admin/runtime-health` + `AdminRuntimeHealthService` + 42 Tests; Z12-2.2 offen) |
+| 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — abgeschlossen (Z12-1.1 done; Z12-1.2 done; Z12-2.1 done: `GET /admin/runtime-health` + `AdminRuntimeHealthService` + 42 Tests; Z12-2.2 done: Frontend Betriebsblock mit Severity-Badge, API-Prozess/Abhaengigkeiten/Storage-Kacheln) |
 
 ---
 
-## Aktiver Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health (eroeffnet 2026-05-06)
+## Abgeschlossener Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health (2026-05-06)
 
 Eroeffnet 2026-05-06. Thema: das Admin-Dashboard soll fuer `admin` Signale aus dem laufenden System sichtbar machen — API/DB/Directory/Mail-Status plus einfache Runtime-Metriken (Prozess-Speicher, Uptime, Storage der App-Schreibpfade). Bestehender Admin-Health-Begriff (`admin-health-panel` + `/health/*`-Endpunkte) bleibt Anker; keine konkurrierende zweite Betriebslogik.
 
@@ -74,14 +74,14 @@ Eroeffnet 2026-05-06. Thema: das Admin-Dashboard soll fuer `admin` Signale aus d
 | Z12-1.1 — Begriffsklaerung / Vertragsinventur Runtime Health (heutige Signale, fehlende Signale, App vs. Container vs. Host) | HIGH | done 2026-05-06 — Inventur in `CODE_REVIEW.md` § Z12-1.1 (heutige Signale `/health/*` + `admin-health-panel`; fehlende App-Signale Prozess-Uptime/Managed Heap/Working Set/Storage; Drei-Domaenen-Modell App/Container/Host; UI-Wording-Empfehlung „Betriebsstatus") |
 | Z12-1.2 — Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host | HIGH | done 2026-05-06 — Vertrags-Skizze in `CODE_REVIEW.md` § Z12-1.2 (`GET /admin/runtime-health` admin-only; `AdminRuntimeHealthDto` mit `application`/`dependencies`/`directory`/`storage[]`; Severity vier Stufen + `overallSeverity`-Aggregation mit `unknown`-Neutralisierung; Schwellwerte deklarativ; FE-Andock im bestehenden `admin-health-panel`; Abgrenzung gegen Host-/VM-Metrik / Prometheus / Trends / Alerts / Mail-Send-Probe / `/health/*`-Aenderungen) |
 | Z12-2.1 — Backend Runtime-Health Endpoint + Service (App-/Runtime-Signale, kein Host-/VM-Metrik-Code) | HIGH | done 2026-05-06 — `GET /admin/runtime-health` + `AdminRuntimeHealthService` + DTO-Familie + Severity-Logik deklarativ; 42 neue Tests; Storage via `RUNTIME_HEALTH_STORAGE_PATHS` |
-| Z12-2.2 — Frontend Admin-Dashboard-Betriebsblock (andockend an `admin-health-panel`) | HIGH | offen |
+| Z12-2.2 — Frontend Admin-Dashboard-Betriebsblock (andockend an `admin-health-panel`) | HIGH | done 2026-05-06 — Betriebsblock in `AdminOverviewWorkspaceSection`: Severity-Badge, API-Prozess-Kachel (Uptime, Managed Heap), Abhaengigkeiten-Kachel (DB/Auth/Mail), Storage-Kacheln (nur wenn `storage[]` nicht leer); Polling 60s/120s; Wording „Betriebsstatus" |
 | *(Folgeschritt nach Z12)* — Optionaler Host-/VM-Metrik-Ausbau (CPU/RAM/Disk Server) — eigener Zyklus oder Slice nach Z12-2.2, nur bei konkretem Bedarf | — | bewusst ausserhalb Z12 |
 
 **Z12-1.1 Kernergebnis:** Heute existieren zwei getrennte Health-Welten — Backend-Endpunkte (`/health/live`, `/health/ready`, `/health` in `api/API/Extensions/LifecycleApplicationExtensions.cs`) und ein Admin-UI-Block (`admin-health-panel` in `web/src/components/admin-config/AdminOverviewWorkspaceSection.tsx` mit Verzeichnis-Sync, Mail, offene Warnungen). Sie sind nicht verbunden. App-/Runtime-Signale (Prozess-Uptime, Managed Heap, Working Set, Storage-Auslastung App-Schreibpfade) fehlen komplett. Drei-Domaenen-Modell als Pflicht-Begriffsraster fuer Z12-1.2: **App-/Runtime-Health** (im Z12-Scope), **Container-/Volume-Sicht** (im Z12-Scope, aber als „API-Container" / „Schreibpfad der Anwendung" labeln), **Host-/VM-Metrik** (ausserhalb Z12). UI-Wording-Empfehlung: „Betriebsstatus" / „Runtime Health der Anwendung", „API-Prozess: Managed Heap", „Schreibpfad der Anwendung" — **nicht** „Server", „RAM frei", „Disk frei".
 
 **Leitplanken Z12:** App-/Runtime-Health zuerst (kein Host-/VM-Metrik-Code in Z12); bestehender Admin-Health-Begriff bleibt Anker; Begriffstrennung App vs. Container vs. Host Pflicht; Reihenfolge streng sequenziell Z12-1.1 → Z12-1.2 → Z12-2.1 → Z12-2.2; Z12-1.x sind reine Doku-Slices; Schwellwerte/Severity in Z12-1.2 deklarativ skizzieren.
 
-**Naechster Schritt:** Z12-2.2 beauftragen — Frontend Admin-Dashboard-Betriebsblock innerhalb des bestehenden `admin-health-panel`, der `GET /admin/runtime-health` konsumiert und neue Kacheln (Anwendung, Abhaengigkeiten, optional Schreibpfade) ergaenzt. Modell `sonnet`, Effort `medium..high`.
+**Naechster Schritt:** Zyklus 12 vollstaendig abgeschlossen (2026-05-06). Kein aktiver Zyklus. Optionaler Host-/VM-Metrik-Ausbau bleibt bewusst als eigenstaendiger Folgeschritt dokumentiert; Codex entscheidet ueber den naechsten aktiven Zyklus.
 
 ---
 

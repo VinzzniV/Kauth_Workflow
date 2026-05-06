@@ -441,6 +441,83 @@ export type ClientLogEventRequest = {
 // + Mapper in services/api/mappers.ts). Spaltennamen im Backend-Schema sind bereits
 // `workflow_node_task_specs`; nur die Wire-DTOs bewahren die alten Property-Namen
 // fuer API-Kompatibilitaet.
+
+// Z12-2.2: Admin Runtime Health (GET /admin/runtime-health)
+export type RuntimeHealthSeverity = "ok" | "warning" | "critical" | "unknown";
+
+export type AdminRuntimeHealth = {
+  generatedAt: string;
+  overallSeverity: RuntimeHealthSeverity;
+  application: ApplicationRuntimeHealth;
+  dependencies: DependenciesRuntimeHealth;
+  directory: DirectoryRuntimeHealth;
+  storage: StorageRuntimeHealth[];
+};
+
+export type ApplicationRuntimeHealth = {
+  severity: RuntimeHealthSeverity;
+  processStartedAt: string;
+  uptimeSeconds: number;
+  managedHeapBytes: number;
+  managedHeapHighThresholdBytes: number | null;
+  workingSetBytes: number;
+  threadPool: ThreadPoolRuntimeHealth | null;
+};
+
+export type ThreadPoolRuntimeHealth = {
+  workerThreadsAvailable: number;
+  completionPortThreadsAvailable: number;
+};
+
+export type DependenciesRuntimeHealth = {
+  severity: RuntimeHealthSeverity;
+  database: DependencyRuntimeHealth;
+  auth: AuthDependencyRuntimeHealth;
+  mail: MailDependencyRuntimeHealth;
+};
+
+export type DependencyRuntimeHealth = {
+  severity: RuntimeHealthSeverity;
+  reachable: boolean;
+  lastCheckedAt: string;
+  latencyMs: number | null;
+  lastError: string | null;
+};
+
+export type AuthDependencyRuntimeHealth = {
+  severity: RuntimeHealthSeverity;
+  mode: string;
+  reachability: string;
+  lastCheckedAt: string;
+  latencyMs: number | null;
+  lastError: string | null;
+};
+
+export type MailDependencyRuntimeHealth = {
+  severity: RuntimeHealthSeverity;
+  mode: string;
+  configurationStatus: string;
+  lastProbeAt: string | null;
+  lastProbeStatus: string;
+};
+
+export type DirectoryRuntimeHealth = {
+  severity: RuntimeHealthSeverity;
+  lastSyncAt: string | null;
+  lastSyncStatus: string;
+  lastError: string | null;
+  nextScheduledSyncAt: string | null;
+  pendingImportsCount: number;
+};
+
+export type StorageRuntimeHealth = {
+  label: string;
+  path: string;
+  totalBytes: number;
+  freeBytes: number;
+  usedPercent: number;
+  severity: RuntimeHealthSeverity;
+};
 export type AdminTaskSpec = {
   id: number;
   workflowDefinitionId: number;

@@ -269,12 +269,64 @@
   border-color: color-mix(in srgb, var(--border-caution) 70%, var(--surface-panel-border));
 }
 
+.admin-health-panel--critical {
+  border-color: color-mix(in srgb, var(--border-danger) 70%, var(--surface-panel-border));
+}
+
 .admin-health-panel--clear {
   border-color: color-mix(in srgb, var(--border-success) 72%, var(--surface-panel-border));
 }
 
 .admin-health-head {
   margin-bottom: 0;
+}
+
+.admin-health-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-health-severity-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.admin-health-severity-badge--success {
+  background: var(--bg-card-success);
+  color: var(--text-success);
+}
+
+.admin-health-severity-badge--warning {
+  background: var(--bg-card-warning);
+  color: var(--text-warning);
+}
+
+.admin-health-severity-badge--danger {
+  background: var(--bg-card-error);
+  color: var(--text-danger);
+}
+
+.admin-health-severity-badge--neutral {
+  background: var(--surface-card-subtle);
+  color: var(--text-secondary);
+}
+
+.admin-health-meta--runtime {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.admin-health-load-notice {
+  color: var(--text-secondary);
 }
 
 .admin-health-summary {

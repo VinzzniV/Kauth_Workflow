@@ -61,5 +61,6 @@ export const queryKeys = {
     responsibilityOwners: () => ["admin", "responsibility-owners"] as const,
     notificationEmail: () => ["admin", "notification-email"] as const,
     workflowConfig: () => ["admin", "workflow-config"] as const,
+    runtimeHealth: () => ["admin", "runtime-health"] as const,
   },
 };

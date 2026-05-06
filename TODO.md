@@ -44,7 +44,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
-## Aktiver Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health (eroeffnet 2026-05-06)
+## Abgeschlossener Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health (2026-05-06)
 
 Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Runtime-/System-Health-Signale (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage). Echte Host-/VM-Metrik bleibt bewusst ein optionaler Folgeschritt. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 12".
 
@@ -55,7 +55,7 @@ Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Run
 | Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health (heutige Signale, fehlende Signale, App vs. Container vs. Host) | HIGH | high | opus | done (2026-05-06) — Inventur in `CODE_REVIEW.md` § Z12-1.1 (heutige Signale, fehlende App-/Runtime-Signale, App-/Container-/Host-Trennung, UI-Begriffsempfehlung) |
 | Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host | HIGH | high | opus | done (2026-05-06) — Vertrags-Skizze in `CODE_REVIEW.md` § Z12-1.2 (`GET /admin/runtime-health` admin-only; `AdminRuntimeHealthDto` mit `application`/`dependencies`/`directory`/`storage[]`; Severity `ok/warning/critical/unknown`; Schwellwerte deklarativ; FE-Andock im bestehenden `admin-health-panel`; Z12-2.x-Abgrenzung gegen Host-/VM-Metrik / Prometheus / Trends / Alerts) |
 | Z12-2.1 | Backend Runtime-Health Endpoint + Service (App-/Runtime-Signale, kein Host-/VM-Metrik-Code) | HIGH | medium..high | sonnet | done (2026-05-06) — `GET /admin/runtime-health` admin-only; `AdminRuntimeHealthService`; DTO-Familie + Severity-Logik + Storage via `RUNTIME_HEALTH_STORAGE_PATHS`; 42 neue Tests gruen |
-| Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock (andockend an `admin-health-panel`) | HIGH | medium..high | sonnet | offen |
+| Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock (andockend an `admin-health-panel`) | HIGH | medium..high | sonnet | done (2026-05-06) — Betriebsblock in `AdminOverviewWorkspaceSection` mit Severity-Badge, API-Prozess-Kachel, Abhaengigkeiten-Kachel, Storage-Kacheln (optional); Polling 60s/120s |
 | *(Folgeschritt)* | Optionaler Host-/VM-Metrik-Ausbau (CPU/RAM/Disk Server) — eigener Zyklus nach Z12-2.2, nur bei konkretem Bedarf | — | — | — | bewusst ausserhalb Z12 |
 
 **Leitplanken Z12:**
@@ -68,7 +68,7 @@ Z12 ist der naechste aktive Zyklus. Ziel: Admin-Dashboard zeigt fuer `admin` Run
 - Schreibregel anwenden: pro Slice kurze Bedeutung-/Nutzen-Erklaerung.
 - Nach jedem Slice Commit + Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass.
 
-**Naechster konkreter Schritt:** Z12-2.2 beauftragen — Frontend Admin-Dashboard-Betriebsblock, der innerhalb des bestehenden `admin-health-panel` neue Runtime-Health-Kacheln (Anwendung, Abhaengigkeiten, Schreibpfade) andockt und `GET /admin/runtime-health` konsumiert. Modell `sonnet`, Effort `medium..high`.
+**Naechster konkreter Schritt:** Z12 vollstaendig abgeschlossen (2026-05-06). Kein aktiver Zyklus. Codex entscheidet, welcher Folgekandidat (optionaler Host-/VM-Metrik-Ausbau als eigener Zyklus, oder anderes offenes Thema) als naechster aktiver Zyklus eroeffnet wird.
 
 ---
 
@@ -177,6 +177,8 @@ Z8 abgeschlossen; Folge-Zyklus Z9 eroeffnet (siehe oben).
 - Zyklus 8 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 8".
 - Zyklus 9 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 9".
 - Zyklus 10 ist abgeschlossen (2026-05-05). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 10".
+- Zyklus 11 ist abgeschlossen (2026-05-06). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 11".
+- Zyklus 12 ist abgeschlossen (2026-05-06). Detail in `CODE_REVIEW.md` § "Abgeschlossener Zyklus 12".
 
 ---
 

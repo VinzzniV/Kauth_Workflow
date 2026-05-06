@@ -12,6 +12,7 @@ import type {
   AdminPermissionAuditEntry,
   AdminResponsibilityOwner,
   AdminRole,
+  AdminRuntimeHealth,
   AdminSystemLogEntry,
   AdminSystemLogSummary,
   AdminUser,
@@ -425,4 +426,8 @@ export async function updateAdminResponsibilityOwner(
       body: { appUserId, departmentId },
     }
   );
+}
+
+export async function getAdminRuntimeHealth(): Promise<AdminRuntimeHealth> {
+  return requestJson<AdminRuntimeHealth>("/admin/runtime-health");
 }
