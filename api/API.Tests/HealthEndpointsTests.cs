@@ -130,7 +130,8 @@ public sealed class HealthEndpointsTests
             DirectoryExplicitGroupIds = null,
             DirectorySyncScheduled = true,
             DirectorySyncIntervalMinutes = 15,
-            AutoProvisionDefaultRoleKey = null
+            AutoProvisionDefaultRoleKey = null,
+            HostRuntimeHealthEnabled = false
         };
     }
 

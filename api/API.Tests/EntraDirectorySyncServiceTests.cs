@@ -101,7 +101,8 @@ public sealed class EntraDirectorySyncServiceTests
             DirectorySyncEnabled = true,
             ConnectionString = connectionString,
             DirectorySyncScheduled = false,
-            DirectorySyncIntervalMinutes = 60
+            DirectorySyncIntervalMinutes = 60,
+            HostRuntimeHealthEnabled = false
         };
     }
 

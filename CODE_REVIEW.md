@@ -49,7 +49,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-06 — **Zyklus 13 aktiv**: Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block. Z13-1 (Zykluseroeffnung/Scope) done. Z13-2 (Implementierung) offen. Zyklus 12 abgeschlossen (Admin-Dashboard-Betriebsblock). Zyklus 11/10/9/8 abgeschlossen.
+**Stand**: 2026-05-06 — **Zyklus 13 abgeschlossen**: Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block. Beide Slices done: Z13-1 (Zykluseroeffnung/Scope) + Z13-2 (Implementierung). Zyklus 12 abgeschlossen (Admin-Dashboard-Betriebsblock). Zyklus 11/10/9/8 abgeschlossen. Kein aktiver Zyklus.
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet).
 
 ---
@@ -70,9 +70,9 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-## Aktiver Zyklus 13 — Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block (2026-05-06)
+## Abgeschlossener Zyklus 13 — Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block (2026-05-06)
 
-**Status:** Z13-1 done (2026-05-06 — Zykluseroeffnung/Scope/Slice-Plan). Z13-2 offen (Implementierung).
+**Status:** abgeschlossen 2026-05-06. Beide Slices done: Z13-1 (Zykluseroeffnung/Scope/Slice-Plan), Z13-2 (Implementierung).
 
 **Thema:** Der bestehende `GET /admin/runtime-health`-Block liefert bisher nur App-/Runtime-Signale (API-Prozess, Abhaengigkeiten, App-Schreibpfade). Z13 erweitert ihn um einen optionalen Host-/VM-Bereich mit echten Linux-Metriken — sauber getrennt vom App-Block, nur wenn explizit aktiviert.
 
@@ -99,10 +99,12 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 | Block | Aufgabe | Prio | Status |
 |-------|---------|------|--------|
-| Z13-1 | Zykluseroeffnung + Scope + Slice-Plan (diese Doku) | HIGH | done (2026-05-06) |
-| Z13-2 | Implementierung: HostHealthDto, AdminRuntimeHealthService, FE-Block, Konfiguration, Compose, Scripts, Tests | HIGH | offen |
+| Z13-1 | Zykluseroeffnung + Scope + Slice-Plan (Doku only) | HIGH | done (2026-05-06) |
+| Z13-2 | Implementierung: HostHealthDto, AdminRuntimeHealthService-Erweiterung, FE-Host-Kachel, LifecycleRuntimeSettings (3 Env-Vars), compose.prod.yml, scripts/start-vm.sh dev, Tests | HIGH | done (2026-05-06) |
 
-**Naechster Schritt:** Z13-2 Implementierung beauftragen.
+**Z13-2 Kernergebnis:** `HostHealthDto` (uptimeSeconds, loadAverage1m, memTotalBytes, memAvailableBytes, memUsedPercent, rootFsTotalBytes, rootFsFreeBytes, rootFsUsedPercent, severity) als optionales Feld in `AdminRuntimeHealthDto`. `AdminRuntimeHealthService` liest auf Linux `/proc/uptime`, `/proc/loadavg`, `/proc/meminfo` und misst Root-FS via `DriveInfo`. Konfiguration: `HOST_RUNTIME_HEALTH_ENABLED` (Default false), `HOST_RUNTIME_PROCFS_PATH` (Default `/proc`), `HOST_RUNTIME_ROOT_PATH` (Default `/`). `scripts/start-vm.sh dev` aktiviert automatisch mit `HOST_RUNTIME_HEALTH_ENABLED=true`. `compose.prod.yml` setzt Env-Vars und readonly Mounts `/proc:/host-proc` + `/:/host-root`. Windows-Dev-Lokal bleibt unangetastet (Env-Var nicht gesetzt = `null` im Block). FE: `DashboardAdminRuntimeHealthBlock` rendert „Host / VM"-Kachel nur wenn `health.host != null`. Schwellwerte: RAM warn ≥85%/critical >95%; Root-FS identisch zu Storage 80%/90%. Load Average als `loadAverage1m` (kein cpuPercent-Fake). 50 Tests gruen (8 neue fuer `ComputeHostMemorySeverity` + `ComputeOverallSeverity` mit/ohne Host); Build gruen; Lint exit 0; Build FE 4.45s gruen.
+
+**Naechster Schritt:** Zyklus 13 vollstaendig abgeschlossen. Kein aktiver Zyklus. Codex entscheidet ueber naechsten Folgekandidaten.
 
 ---
 

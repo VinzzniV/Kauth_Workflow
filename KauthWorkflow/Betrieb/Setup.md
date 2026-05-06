@@ -53,6 +53,9 @@ Das lokale Launch-Profil setzt:
 - `DIRECTORY_SYNC_SCHEDULED=true`
 - `SWAGGER_ENABLED=true`
 - `RUNTIME_HEALTH_STORAGE_PATHS` — optional; Format `label1=/pfad/1;label2=/pfad/2`; leer = keine Storage-Kacheln im Admin-Runtime-Health-Block
+- `HOST_RUNTIME_HEALTH_ENABLED` — optional (Default: false); `true` aktiviert den Host-/VM-Block im Admin-Dashboard (nur Linux; `scripts/start-vm.sh dev` setzt ihn automatisch auf `true`)
+- `HOST_RUNTIME_PROCFS_PATH` — optional (Default: `/proc`); Pfad zum procfs; auf Docker-VM typisch `/host-proc` (per `compose.prod.yml` gemoountet)
+- `HOST_RUNTIME_ROOT_PATH` — optional (Default: `/`); Pfad fuer Root-FS-Messung; auf Docker-VM typisch `/host-root`
 
 Hinweise:
 - `automation`-Jobs werden von der API selbst gepollt

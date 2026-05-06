@@ -24,6 +24,9 @@ internal sealed class LifecycleRuntimeSettings
     public required int DirectorySyncIntervalMinutes { get; init; }
     public string? AutoProvisionDefaultRoleKey { get; init; }
     public string? RuntimeHealthStoragePaths { get; init; }
+    public required bool HostRuntimeHealthEnabled { get; init; }
+    public string? HostRuntimeProcfsPath { get; init; }
+    public string? HostRuntimeRootPath { get; init; }
 }
 
 internal static class LifecycleRuntimeSettingsResolver
@@ -61,7 +64,10 @@ internal static class LifecycleRuntimeSettingsResolver
             DirectorySyncScheduled = GetBoolean(configuration["DIRECTORY_SYNC_SCHEDULED"], defaultValue: true),
             DirectorySyncIntervalMinutes = GetPositiveInt(configuration["DIRECTORY_SYNC_INTERVAL_MINUTES"], defaultValue: 60),
             AutoProvisionDefaultRoleKey = Normalize(configuration["AUTO_PROVISION_DEFAULT_ROLE_KEY"]),
-            RuntimeHealthStoragePaths = Normalize(configuration["RUNTIME_HEALTH_STORAGE_PATHS"])
+            RuntimeHealthStoragePaths = Normalize(configuration["RUNTIME_HEALTH_STORAGE_PATHS"]),
+            HostRuntimeHealthEnabled = GetBoolean(configuration["HOST_RUNTIME_HEALTH_ENABLED"], defaultValue: false),
+            HostRuntimeProcfsPath = Normalize(configuration["HOST_RUNTIME_PROCFS_PATH"]),
+            HostRuntimeRootPath = Normalize(configuration["HOST_RUNTIME_ROOT_PATH"])
         };
     }
 

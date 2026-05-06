@@ -326,7 +326,8 @@ public sealed class AdminRuntimeHealthEndpointsTests
             Application = application,
             Dependencies = dependencies,
             Directory = directory,
-            Storage = []
+            Storage = [],
+            Host = null
         };
     }
 
@@ -389,6 +390,67 @@ public sealed class AdminRuntimeHealthEndpointsTests
     {
         public Task<CurrentUser?> GetCurrentUser(CancellationToken cancellationToken = default)
             => Task.FromResult(user);
+    }
+
+    // --- Host memory severity unit tests ---
+
+    [Theory]
+    [InlineData(0.0, "ok")]
+    [InlineData(84.9, "ok")]
+    [InlineData(85.0, "warning")]
+    [InlineData(95.0, "warning")]
+    [InlineData(95.1, "critical")]
+    public void ComputeHostMemorySeverity_MatchesThresholds(double usedPercent, string expected)
+    {
+        var severity = AdminRuntimeHealthService.ComputeHostMemorySeverity(usedPercent);
+        Assert.Equal(expected, severity);
+    }
+
+    [Fact]
+    public void ComputeOverallSeverity_WithNullHost_ExcludesHost()
+    {
+        var result = AdminRuntimeHealthService.ComputeOverallSeverity("ok", "ok", "ok", [], "dev-sim", null);
+        Assert.Equal("ok", result);
+    }
+
+    [Fact]
+    public void ComputeOverallSeverity_WithCriticalHost_ReturnsCritical()
+    {
+        var host = new HostHealthDto
+        {
+            Severity = "critical",
+            UptimeSeconds = 3600,
+            LoadAverage1m = 2.0,
+            MemTotalBytes = 8_000_000_000L,
+            MemAvailableBytes = 200_000_000L,
+            MemUsedPercent = 97.5,
+            RootFsTotalBytes = 100_000_000_000L,
+            RootFsFreeBytes = 5_000_000_000L,
+            RootFsUsedPercent = 95.0
+        };
+
+        var result = AdminRuntimeHealthService.ComputeOverallSeverity("ok", "ok", "ok", [], "entra", host);
+        Assert.Equal("critical", result);
+    }
+
+    [Fact]
+    public void ComputeOverallSeverity_WithWarningHost_ReturnsWarning()
+    {
+        var host = new HostHealthDto
+        {
+            Severity = "warning",
+            UptimeSeconds = 3600,
+            LoadAverage1m = 1.5,
+            MemTotalBytes = 8_000_000_000L,
+            MemAvailableBytes = 900_000_000L,
+            MemUsedPercent = 88.0,
+            RootFsTotalBytes = 100_000_000_000L,
+            RootFsFreeBytes = 30_000_000_000L,
+            RootFsUsedPercent = 70.0
+        };
+
+        var result = AdminRuntimeHealthService.ComputeOverallSeverity("ok", "ok", "ok", [], "entra", host);
+        Assert.Equal("warning", result);
     }
 
     private sealed class StubAdminRuntimeHealthService : IAdminRuntimeHealthService

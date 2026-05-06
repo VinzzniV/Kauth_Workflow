@@ -450,6 +450,9 @@ start_dev_api() {
             DIRECTORY_GROUP_PREFIX="${DIRECTORY_GROUP_PREFIX:-Onboarding-App-}" \
             DIRECTORY_SYNC_SCHEDULED="${DIRECTORY_SYNC_SCHEDULED:-true}" \
             SWAGGER_ENABLED="${SWAGGER_ENABLED:-true}" \
+            HOST_RUNTIME_HEALTH_ENABLED=true \
+            HOST_RUNTIME_PROCFS_PATH=/proc \
+            HOST_RUNTIME_ROOT_PATH=/ \
             dotnet run --project api/API/API.csproj
     ) >>"$DEV_API_LOG_FILE" 2>&1 &
     echo "$!" > "$DEV_API_PID_FILE"

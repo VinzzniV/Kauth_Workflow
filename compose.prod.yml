@@ -22,6 +22,12 @@ services:
       DIRECTORY_EXPLICIT_GROUP_IDS: ${DIRECTORY_EXPLICIT_GROUP_IDS:-}
       DIRECTORY_SYNC_SCHEDULED: ${DIRECTORY_SYNC_SCHEDULED:-true}
       DIRECTORY_SYNC_INTERVAL_MINUTES: ${DIRECTORY_SYNC_INTERVAL_MINUTES:-15}
+      HOST_RUNTIME_HEALTH_ENABLED: ${HOST_RUNTIME_HEALTH_ENABLED:-false}
+      HOST_RUNTIME_PROCFS_PATH: ${HOST_RUNTIME_PROCFS_PATH:-/host-proc}
+      HOST_RUNTIME_ROOT_PATH: ${HOST_RUNTIME_ROOT_PATH:-/host-root}
+    volumes:
+      - /proc:/host-proc:ro
+      - /:/host-root:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready > /dev/null"]
       interval: 10s

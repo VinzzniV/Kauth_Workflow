@@ -8,6 +8,8 @@ public sealed class AdminRuntimeHealthDto
     public required DependenciesHealthDto Dependencies { get; init; }
     public required DirectoryHealthDto Directory { get; init; }
     public required List<StorageHealthDto> Storage { get; init; }
+    // null when HOST_RUNTIME_HEALTH_ENABLED is false, not Linux, or metrics unreadable
+    public HostHealthDto? Host { get; init; }
 }
 
 public sealed class ApplicationHealthDto
@@ -81,4 +83,20 @@ public sealed class StorageHealthDto
     public required long FreeBytes { get; init; }
     public required double UsedPercent { get; init; }
     public required string Severity { get; init; }
+}
+
+// Host-/VM-Metriken: nur befuellt wenn HOST_RUNTIME_HEALTH_ENABLED=true und Plattform Linux.
+// Bewusst getrennt vom Application-Block (App-Prozess vs. Gastgeber-VM).
+public sealed class HostHealthDto
+{
+    public required string Severity { get; init; }
+    public required long UptimeSeconds { get; init; }
+    // Load Average 1 Minute aus /proc/loadavg — bewusst kein cpuPercent (zwei /proc/stat-Snapshots noetig).
+    public required double LoadAverage1m { get; init; }
+    public required long MemTotalBytes { get; init; }
+    public required long MemAvailableBytes { get; init; }
+    public required double MemUsedPercent { get; init; }
+    public required long RootFsTotalBytes { get; init; }
+    public required long RootFsFreeBytes { get; init; }
+    public required double RootFsUsedPercent { get; init; }
 }

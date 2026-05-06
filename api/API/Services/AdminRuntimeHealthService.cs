@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.InteropServices;
 using Npgsql;
 
 namespace API;
@@ -34,6 +36,10 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
 
         await Task.WhenAll(dbCheckTask, authCheckTask, mailConfigTask, syncStatusTask, pendingImportsTask);
 
+        var hostTask = BuildHostHealthAsync(cancellationToken);
+
+        await Task.WhenAll(dbCheckTask, authCheckTask, mailConfigTask, syncStatusTask, pendingImportsTask, hostTask);
+
         var application = BuildApplicationHealth();
         var database = BuildDatabaseHealth(await dbCheckTask);
         var auth = BuildAuthHealth(await authCheckTask);
@@ -41,8 +47,9 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         var dependencies = BuildDependenciesHealth(database, auth, mail);
         var directory = BuildDirectoryHealth(await syncStatusTask, (await pendingImportsTask).TotalCount);
         var storage = BuildStorageHealth();
+        var host = await hostTask;
 
-        var overallSeverity = ComputeOverallSeverity(application.Severity, dependencies.Severity, directory.Severity, storage, auth.Mode);
+        var overallSeverity = ComputeOverallSeverity(application.Severity, dependencies.Severity, directory.Severity, storage, auth.Mode, host);
 
         return new AdminRuntimeHealthDto
         {
@@ -51,7 +58,8 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
             Application = application,
             Dependencies = dependencies,
             Directory = directory,
-            Storage = storage
+            Storage = storage,
+            Host = host
         };
     }
 
@@ -337,17 +345,149 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         }
     }
 
+    private async Task<HostHealthDto?> BuildHostHealthAsync(CancellationToken cancellationToken)
+    {
+        if (!_runtimeSettings.HostRuntimeHealthEnabled)
+        {
+            return null;
+        }
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await ReadLinuxHostHealthAsync(cancellationToken);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<HostHealthDto?> ReadLinuxHostHealthAsync(CancellationToken cancellationToken)
+    {
+        var procfsPath = _runtimeSettings.HostRuntimeProcfsPath ?? "/proc";
+        var rootPath = _runtimeSettings.HostRuntimeRootPath ?? "/";
+
+        var uptimeText = await File.ReadAllTextAsync(Path.Combine(procfsPath, "uptime"), cancellationToken);
+        var loadavgText = await File.ReadAllTextAsync(Path.Combine(procfsPath, "loadavg"), cancellationToken);
+        var meminfoText = await File.ReadAllTextAsync(Path.Combine(procfsPath, "meminfo"), cancellationToken);
+
+        var uptimeParts = uptimeText.Trim().Split(' ');
+        if (!double.TryParse(uptimeParts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var uptimeSecs))
+        {
+            return null;
+        }
+
+        var loadavgParts = loadavgText.Trim().Split(' ');
+        if (!double.TryParse(loadavgParts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var loadAvg1m))
+        {
+            return null;
+        }
+
+        long memTotalKb = 0;
+        long memAvailableKb = 0;
+        foreach (var line in meminfoText.Split('\n'))
+        {
+            if (line.StartsWith("MemTotal:", StringComparison.Ordinal))
+            {
+                memTotalKb = ParseMemInfoKb(line);
+            }
+            else if (line.StartsWith("MemAvailable:", StringComparison.Ordinal))
+            {
+                memAvailableKb = ParseMemInfoKb(line);
+            }
+        }
+
+        if (memTotalKb == 0)
+        {
+            return null;
+        }
+
+        var memTotalBytes = memTotalKb * 1024L;
+        var memAvailableBytes = memAvailableKb * 1024L;
+        var memUsedBytes = memTotalBytes - memAvailableBytes;
+        var memUsedPercent = memTotalBytes > 0 ? (double)memUsedBytes / memTotalBytes * 100.0 : 0.0;
+
+        long rootFsTotalBytes = 0;
+        long rootFsFreeBytes = 0;
+        double rootFsUsedPercent = 0.0;
+
+        try
+        {
+            var drive = new System.IO.DriveInfo(rootPath);
+            if (drive.IsReady)
+            {
+                rootFsTotalBytes = drive.TotalSize;
+                rootFsFreeBytes = drive.AvailableFreeSpace;
+                var rootFsUsedBytes = rootFsTotalBytes - rootFsFreeBytes;
+                rootFsUsedPercent = rootFsTotalBytes > 0
+                    ? (double)rootFsUsedBytes / rootFsTotalBytes * 100.0
+                    : 0.0;
+            }
+        }
+        catch
+        {
+            // Root FS not measurable — still return other metrics with severity based on mem only
+        }
+
+        var memSeverity = ComputeHostMemorySeverity(memUsedPercent);
+        var fsSeverity = rootFsTotalBytes > 0 ? ComputeStorageSeverity(rootFsUsedPercent) : "unknown";
+        var severity = AggregateSeverities(memSeverity, fsSeverity);
+
+        return new HostHealthDto
+        {
+            Severity = severity,
+            UptimeSeconds = (long)uptimeSecs,
+            LoadAverage1m = Math.Round(loadAvg1m, 2),
+            MemTotalBytes = memTotalBytes,
+            MemAvailableBytes = memAvailableBytes,
+            MemUsedPercent = Math.Round(memUsedPercent, 2),
+            RootFsTotalBytes = rootFsTotalBytes,
+            RootFsFreeBytes = rootFsFreeBytes,
+            RootFsUsedPercent = Math.Round(rootFsUsedPercent, 2)
+        };
+    }
+
+    private static long ParseMemInfoKb(string line)
+    {
+        var colonIdx = line.IndexOf(':', StringComparison.Ordinal);
+        if (colonIdx < 0)
+        {
+            return 0;
+        }
+
+        var valueStr = line[(colonIdx + 1)..].Trim().Split(' ')[0];
+        return long.TryParse(valueStr, out var value) ? value : 0;
+    }
+
+    internal static string ComputeHostMemorySeverity(double usedPercent)
+    {
+        if (usedPercent > 95.0) return "critical";
+        if (usedPercent >= 85.0) return "warning";
+        return "ok";
+    }
+
     internal static string ComputeOverallSeverity(
         string applicationSeverity,
         string dependenciesSeverity,
         string directorySeverity,
         IReadOnlyList<StorageHealthDto> storage,
-        string authMode)
+        string authMode,
+        HostHealthDto? host = null)
     {
         var severities = new List<string> { applicationSeverity, dependenciesSeverity, directorySeverity };
         foreach (var s in storage)
         {
             severities.Add(s.Severity);
+        }
+
+        if (host != null)
+        {
+            severities.Add(host.Severity);
         }
 
         return AggregateSeverities([.. severities]);

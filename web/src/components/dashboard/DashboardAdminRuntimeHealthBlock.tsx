@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { AuthDependencyRuntimeHealth, DependenciesRuntimeHealth } from "../../types/auth";
+import type { AuthDependencyRuntimeHealth, DependenciesRuntimeHealth, HostRuntimeHealth } from "../../types/auth";
 import { getAdminRuntimeHealth } from "../../services/adminApi";
 import { queryKeys } from "../../services/queryKeys";
 
@@ -42,6 +42,15 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${Math.round(bytes / 1024 / 1024)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
+
+function hostSummaryLabel(host: HostRuntimeHealth): string {
+  switch (host.severity) {
+    case "ok": return "OK";
+    case "warning": return "Warnung";
+    case "critical": return "Kritisch";
+    default: return "Unbekannt";
+  }
 }
 
 function dependenciesSummaryLabel(deps: DependenciesRuntimeHealth): string {
@@ -137,6 +146,22 @@ export default function DashboardAdminRuntimeHealthBlock() {
               </p>
             </div>
           ))}
+
+          {health.host ? (
+            <div className={`admin-health-metric admin-health-metric--${severityToTone(health.host.severity)}`}>
+              <span>Host / VM</span>
+              <strong>{hostSummaryLabel(health.host)}</strong>
+              <p className="admin-health-metric-detail">
+                Uptime: {formatUptime(health.host.uptimeSeconds)}
+                {" · "}
+                RAM: {health.host.memUsedPercent.toFixed(0)}% belegt
+                {" · "}
+                Root-FS: {health.host.rootFsUsedPercent.toFixed(0)}% belegt
+                {" · "}
+                Last: {health.host.loadAverage1m.toFixed(2)}
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

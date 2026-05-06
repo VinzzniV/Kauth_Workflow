@@ -452,6 +452,7 @@ export type AdminRuntimeHealth = {
   dependencies: DependenciesRuntimeHealth;
   directory: DirectoryRuntimeHealth;
   storage: StorageRuntimeHealth[];
+  host: HostRuntimeHealth | null;
 };
 
 export type ApplicationRuntimeHealth = {
@@ -517,6 +518,19 @@ export type StorageRuntimeHealth = {
   freeBytes: number;
   usedPercent: number;
   severity: RuntimeHealthSeverity;
+};
+
+// null wenn HOST_RUNTIME_HEALTH_ENABLED=false, nicht Linux, oder Metriken nicht lesbar
+export type HostRuntimeHealth = {
+  severity: RuntimeHealthSeverity;
+  uptimeSeconds: number;
+  loadAverage1m: number;
+  memTotalBytes: number;
+  memAvailableBytes: number;
+  memUsedPercent: number;
+  rootFsTotalBytes: number;
+  rootFsFreeBytes: number;
+  rootFsUsedPercent: number;
 };
 export type AdminTaskSpec = {
   id: number;
