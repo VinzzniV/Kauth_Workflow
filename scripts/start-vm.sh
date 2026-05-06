@@ -23,6 +23,7 @@ Examples:
   ./scripts/start-vm.sh dev logs
   ./scripts/start-vm.sh prod
   ./scripts/start-vm.sh prod status
+  ./scripts/start-vm.sh prod logs
 EOF
 }
 
