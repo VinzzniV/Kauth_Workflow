@@ -4,12 +4,24 @@ namespace API;
 
 internal sealed class PostgresWorkflowAutomationReadRepository : IWorkflowAutomationReadRepository
 {
-    public async Task<IReadOnlyList<ActionDefinitionDto>> GetAdminActionDefinitions(CancellationToken cancellationToken = default)
+    public async Task<AdminListPageDto<ActionDefinitionDto>> GetAdminActionDefinitions(AdminListQuery query, CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(LifecycleRuntimeSettingsResolver.GetRequiredConnectionString());
         await connection.OpenAsync(cancellationToken);
 
-        const string sql = """
+        // P1-Hull (Z11-F3): Suche ueber action_key/name, optionale Kategorie-Filterung via ?category
+        // (semantisch handler_type), Sort-Whitelist mit Default name asc.
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "name_desc" => "name DESC, action_key, id",
+            "category" => "handler_type ASC, name ASC, id",
+            "category_desc" => "handler_type DESC, name ASC, id",
+            "id" => "id ASC",
+            "id_desc" => "id DESC",
+            _ => "name ASC, action_key, id"
+        };
+
+        var sql = $@"
 SELECT
     id,
     action_key,
@@ -21,16 +33,23 @@ SELECT
     requires_approval,
     is_idempotent,
     created_at,
-    updated_at
+    updated_at,
+    COUNT(*) OVER() AS total_count
 FROM action_definitions
-ORDER BY name, action_key, id;
-""";
+WHERE (@search = '' OR action_key ILIKE @pattern OR name ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         var results = new List<ActionDefinitionDto>();
+        var total = 0;
 
         try
         {
             await using var command = new NpgsqlCommand(sql, connection);
+            command.Parameters.AddWithValue("search", query.NormalizedSearch);
+            command.Parameters.AddWithValue("pattern", query.SearchPattern);
+            command.Parameters.AddWithValue("limit", query.Limit);
+            command.Parameters.AddWithValue("offset", query.Offset);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
@@ -48,14 +67,27 @@ ORDER BY name, action_key, id;
                     CreatedAt = reader.GetDateTime(9),
                     UpdatedAt = reader.GetDateTime(10)
                 });
+                total = reader.GetInt32(11);
             }
         }
         catch (PostgresException ex) when (PostgresWorkflowAutomationOperations.IsMissingWorkflowBuilderAutomationSchema(ex))
         {
-            return [];
+            return new AdminListPageDto<ActionDefinitionDto>
+            {
+                Items = [],
+                Total = 0,
+                Limit = query.Limit,
+                Offset = query.Offset
+            };
         }
 
-        return results;
+        return new AdminListPageDto<ActionDefinitionDto>
+        {
+            Items = results,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<IReadOnlyList<AutomationJobDetailDto>> GetAutomationJobs(

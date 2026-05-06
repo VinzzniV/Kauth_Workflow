@@ -20,6 +20,11 @@ import type {
   AdminWorkflowDefinitionVersionSummary,
 } from "../types/auth";
 import { encodeId, requestJson } from "./api/client";
+import {
+  buildAdminListQuery,
+  type AdminListPage,
+  type AdminListQueryOptions,
+} from "./api/adminList";
 import { buildCursorPageQuery, type CursorPage, type CursorPageQueryOptions } from "./api/cursorPage";
 import {
   mapAdminDependencyGraph,
@@ -115,12 +120,20 @@ export async function deleteAdminDirectoryGroupRoleMapping(mappingId: number): P
   });
 }
 
-export async function getAdminTaskTemplates(workflowDefinitionId: number): Promise<AdminTaskSpec[]> {
-  const params = new URLSearchParams({ workflowDefinitionId: String(workflowDefinitionId) });
-  const dtos = await requestJson<BackendAdminTaskTemplateDto[]>(
-    `/admin/config/task-templates?${params.toString()}`
-  );
-  return dtos.map(mapAdminTaskSpec);
+export async function getAdminTaskTemplates(
+  workflowDefinitionId: number,
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminTaskSpec>> {
+  const baseQuery = buildAdminListQuery(options);
+  const separator = baseQuery ? "&" : "?";
+  const url = `/admin/config/task-templates${baseQuery}${separator}workflowDefinitionId=${encodeURIComponent(String(workflowDefinitionId))}`;
+  const page = await requestJson<AdminListPage<BackendAdminTaskTemplateDto>>(url);
+  return {
+    items: page.items.map(mapAdminTaskSpec),
+    total: page.total,
+    limit: page.limit,
+    offset: page.offset,
+  };
 }
 
 export async function getAdminDependencyGraph(workflowDefinitionId: number): Promise<AdminDependencyGraph> {
@@ -191,11 +204,19 @@ export async function deleteAdminTaskTemplate(templateId: number): Promise<void>
   });
 }
 
-export async function getAdminTaskTemplateConditions(templateId: number): Promise<AdminTaskSpecCondition[]> {
-  const dtos = await requestJson<BackendAdminTaskTemplateConditionDto[]>(
-    `/admin/config/task-templates/${encodeId(templateId)}/conditions`
+export async function getAdminTaskTemplateConditions(
+  templateId: number,
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminTaskSpecCondition>> {
+  const page = await requestJson<AdminListPage<BackendAdminTaskTemplateConditionDto>>(
+    `/admin/config/task-templates/${encodeId(templateId)}/conditions${buildAdminListQuery(options)}`
   );
-  return dtos.map(mapAdminTaskSpecCondition);
+  return {
+    items: page.items.map(mapAdminTaskSpecCondition),
+    total: page.total,
+    limit: page.limit,
+    offset: page.offset,
+  };
 }
 
 export async function createAdminTaskTemplateCondition(
@@ -228,11 +249,19 @@ export async function deleteAdminTaskTemplateCondition(templateId: number, condi
   );
 }
 
-export async function getAdminTaskTemplateDependencies(templateId: number): Promise<AdminTaskSpecDependency[]> {
-  const dtos = await requestJson<BackendAdminTaskTemplateDependencyDto[]>(
-    `/admin/config/task-templates/${encodeId(templateId)}/dependencies`
+export async function getAdminTaskTemplateDependencies(
+  templateId: number,
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminTaskSpecDependency>> {
+  const page = await requestJson<AdminListPage<BackendAdminTaskTemplateDependencyDto>>(
+    `/admin/config/task-templates/${encodeId(templateId)}/dependencies${buildAdminListQuery(options)}`
   );
-  return dtos.map(mapAdminTaskSpecDependency);
+  return {
+    items: page.items.map(mapAdminTaskSpecDependency),
+    total: page.total,
+    limit: page.limit,
+    offset: page.offset,
+  };
 }
 
 export async function createAdminTaskTemplateDependency(
@@ -265,9 +294,14 @@ export async function deleteAdminTaskTemplateDependency(templateId: number, depe
   );
 }
 
-export async function getAdminAnswerDefinitions(workflowDefinitionId: number): Promise<AdminAnswerDefinition[]> {
-  const params = new URLSearchParams({ workflowDefinitionId: String(workflowDefinitionId) });
-  return requestJson<BackendAdminAnswerDefinitionDto[]>(`/admin/config/answer-definitions?${params.toString()}`);
+export async function getAdminAnswerDefinitions(
+  workflowDefinitionId: number,
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminAnswerDefinition>> {
+  const baseQuery = buildAdminListQuery(options);
+  const separator = baseQuery ? "&" : "?";
+  const url = `/admin/config/answer-definitions${baseQuery}${separator}workflowDefinitionId=${encodeURIComponent(String(workflowDefinitionId))}`;
+  return requestJson<AdminListPage<BackendAdminAnswerDefinitionDto>>(url);
 }
 
 export async function createAdminAnswerDefinition(payload: {
@@ -318,9 +352,14 @@ export async function deleteAdminAnswerDefinition(definitionId: number): Promise
   });
 }
 
-export async function getAdminRoleAnswerDefaults(workflowDefinitionId: number): Promise<AdminRoleAnswerDefault[]> {
-  const params = new URLSearchParams({ workflowDefinitionId: String(workflowDefinitionId) });
-  return requestJson<BackendAdminRoleAnswerDefaultDto[]>(`/admin/config/role-answer-defaults?${params.toString()}`);
+export async function getAdminRoleAnswerDefaults(
+  workflowDefinitionId: number,
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminRoleAnswerDefault>> {
+  const baseQuery = buildAdminListQuery(options);
+  const separator = baseQuery ? "&" : "?";
+  const url = `/admin/config/role-answer-defaults${baseQuery}${separator}workflowDefinitionId=${encodeURIComponent(String(workflowDefinitionId))}`;
+  return requestJson<AdminListPage<BackendAdminRoleAnswerDefaultDto>>(url);
 }
 
 export async function updateAdminRoleAnswerDefaults(payload: {
@@ -338,8 +377,12 @@ export async function updateAdminRoleAnswerDefaults(payload: {
   });
 }
 
-export async function getAdminWorkflowDefinitions(): Promise<AdminWorkflowDefinitionSummary[]> {
-  return requestJson<BackendAdminWorkflowDefinitionSummaryDto[]>("/admin/config/workflow-definitions");
+export async function getAdminWorkflowDefinitions(
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminWorkflowDefinitionSummary>> {
+  return requestJson<AdminListPage<BackendAdminWorkflowDefinitionSummaryDto>>(
+    `/admin/config/workflow-definitions${buildAdminListQuery(options)}`
+  );
 }
 
 export async function createAdminWorkflowDefinition(payload: {
@@ -498,19 +541,28 @@ export async function publishAdminWorkflowDefinitionVersion(
   );
 }
 
-export async function getAdminWorkflowActionDefinitions(): Promise<AdminWorkflowActionDefinition[]> {
-  const definitions = await requestJson<BackendAdminWorkflowActionDefinitionDto[]>("/admin/config/action-definitions");
-  return definitions.map((definition) => ({
-    id: definition.id,
-    actionKey: definition.key,
-    displayName: definition.name,
-    description: definition.description,
-    handlerKey: definition.handlerType,
-    isIdempotent: definition.isIdempotent,
-    isActive: definition.isActive,
-    requiresApproval: definition.requiresApproval,
-    inputSchema: definition.parameterSchema,
-  }));
+export async function getAdminWorkflowActionDefinitions(
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<AdminWorkflowActionDefinition>> {
+  const page = await requestJson<AdminListPage<BackendAdminWorkflowActionDefinitionDto>>(
+    `/admin/config/action-definitions${buildAdminListQuery(options)}`
+  );
+  return {
+    items: page.items.map((definition) => ({
+      id: definition.id,
+      actionKey: definition.key,
+      displayName: definition.name,
+      description: definition.description,
+      handlerKey: definition.handlerType,
+      isIdempotent: definition.isIdempotent,
+      isActive: definition.isActive,
+      requiresApproval: definition.requiresApproval,
+      inputSchema: definition.parameterSchema,
+    })),
+    total: page.total,
+    limit: page.limit,
+    offset: page.offset,
+  };
 }
 
 export type AdminAutomationPropertyCatalogSource = {

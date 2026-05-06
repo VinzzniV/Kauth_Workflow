@@ -5,7 +5,7 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    public async Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId)
+    public async Task<AdminListPageDto<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId, AdminListQuery query)
     {
         if (workflowDefinitionId <= 0)
         {
@@ -19,10 +19,27 @@ internal sealed partial class PostgresWorkflowRepository
         var measureNodeId = await ResolveMeasureNodeIdForDefinition(connection, null, workflowDefinitionId);
         if (measureNodeId is null)
         {
-            return new List<AdminTaskTemplateDto>();
+            return new AdminListPageDto<AdminTaskTemplateDto>
+            {
+                Items = [],
+                Total = 0,
+                Limit = query.Limit,
+                Offset = query.Offset
+            };
         }
 
-        const string sql = @"
+        // P1-Hull (Z11-F3): Suche ueber spec_key/title, Sort-Whitelist mit Default sortOrder asc.
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "title" => "tt.title ASC, tt.id",
+            "title_desc" => "tt.title DESC, tt.id",
+            "sortorder_desc" => "tt.sort_order DESC, tt.title, tt.id",
+            "id" => "tt.id ASC",
+            "id_desc" => "tt.id DESC",
+            _ => "tt.sort_order ASC, tt.title, tt.id"
+        };
+
+        var sql = $@"
 SELECT
     tt.id,
     tt.spec_key,
@@ -38,7 +55,8 @@ SELECT
     tt.sort_order,
     tt.created_at,
     COALESCE(cond.condition_count, 0) AS condition_count,
-    COALESCE(dep.dependency_count, 0) AS dependency_count
+    COALESCE(dep.dependency_count, 0) AS dependency_count,
+    COUNT(*) OVER() AS total_count
 FROM workflow_node_task_specs tt
 LEFT JOIN LATERAL (
     SELECT COUNT(*)::int AS condition_count
@@ -51,19 +69,33 @@ LEFT JOIN LATERAL (
     WHERE d.workflow_node_task_spec_id = tt.id
 ) dep ON TRUE
 WHERE tt.workflow_node_id = @measureNodeId
-ORDER BY tt.sort_order, tt.title, tt.id;";
+  AND (@search = '' OR tt.spec_key ILIKE @pattern OR tt.title ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("measureNodeId", measureNodeId.Value);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
         await using var reader = await command.ExecuteReaderAsync();
 
         var templates = new List<AdminTaskTemplateDto>();
+        var total = 0;
         while (await reader.ReadAsync())
         {
             templates.Add(MapAdminTaskTemplate(reader, workflowDefinitionId));
+            total = reader.GetInt32(15);
         }
 
-        return templates;
+        return new AdminListPageDto<AdminTaskTemplateDto>
+        {
+            Items = templates,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request)

@@ -48,17 +48,78 @@ ORDER BY effective_name, d.definition_key, v.version_number DESC;
         return definitions;
     }
 
-    public async Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions()
+    public async Task<AdminListPageDto<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions(AdminListQuery query)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        const string sql = """
+        // P1-Hull (Z11-F3): paginiere zuerst auf Definition-Ebene (sonst zerschneiden
+        // LIMIT/OFFSET die per-Version-Zeilen). Suche ueber definition_key/name,
+        // Sort-Whitelist mit Default name asc.
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "name_desc" => "d.name DESC, d.definition_key, d.id",
+            "key" => "d.definition_key ASC, d.id",
+            "key_desc" => "d.definition_key DESC, d.id",
+            "updatedat" => "d.updated_at ASC NULLS FIRST, d.id",
+            "updatedat_desc" => "d.updated_at DESC NULLS LAST, d.id",
+            "id" => "d.id ASC",
+            "id_desc" => "d.id DESC",
+            _ => "d.name ASC, d.definition_key, d.id"
+        };
+
+        var pageSql = $@"
 SELECT
     d.id,
     d.definition_key,
     d.name,
     d.description,
+    COUNT(*) OVER() AS total_count
+FROM workflow_definitions d
+WHERE (@search = '' OR d.definition_key ILIKE @pattern OR d.name ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
+
+        var definitions = new List<WorkflowDefinitionSummaryDto>();
+        var definitionIds = new List<int>();
+        var total = 0;
+
+        await using (var pageCommand = new NpgsqlCommand(pageSql, connection))
+        {
+            pageCommand.Parameters.AddWithValue("search", query.NormalizedSearch);
+            pageCommand.Parameters.AddWithValue("pattern", query.SearchPattern);
+            pageCommand.Parameters.AddWithValue("limit", query.Limit);
+            pageCommand.Parameters.AddWithValue("offset", query.Offset);
+            await using var reader = await pageCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var definitionId = reader.GetInt32(0);
+                definitions.Add(new WorkflowDefinitionSummaryDto
+                {
+                    Id = definitionId,
+                    Key = reader.GetString(1),
+                    Name = reader.GetString(2),
+                    Description = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Versions = new List<WorkflowDefinitionVersionSummaryDto>()
+                });
+                definitionIds.Add(definitionId);
+                total = reader.GetInt32(4);
+            }
+        }
+
+        if (definitions.Count == 0)
+        {
+            return new AdminListPageDto<WorkflowDefinitionSummaryDto>
+            {
+                Items = definitions,
+                Total = total,
+                Limit = query.Limit,
+                Offset = query.Offset
+            };
+        }
+
+        const string versionsSql = @"
+SELECT
     v.id,
     v.workflow_definition_id,
     v.version_number,
@@ -68,43 +129,25 @@ SELECT
     v.created_at,
     v.updated_at,
     v.published_at
-FROM workflow_definitions d
-LEFT JOIN workflow_definition_versions v
-    ON v.workflow_definition_id = d.id
-ORDER BY d.definition_key, v.version_number DESC, v.id DESC;
-""";
+FROM workflow_definition_versions v
+WHERE v.workflow_definition_id = ANY(@definitionIds)
+ORDER BY v.workflow_definition_id, v.version_number DESC, v.id DESC;";
 
-        await using var command = new NpgsqlCommand(sql, connection);
-        await using var reader = await command.ExecuteReaderAsync();
-
-        var definitions = new List<WorkflowDefinitionSummaryDto>();
-        var definitionById = new Dictionary<int, WorkflowDefinitionSummaryDto>();
-
-        while (await reader.ReadAsync())
+        var definitionById = definitions.ToDictionary(d => d.Id);
+        await using (var versionsCommand = new NpgsqlCommand(versionsSql, connection))
         {
-            var definitionId = reader.GetInt32(0);
-            if (!definitionById.TryGetValue(definitionId, out var definition))
+            versionsCommand.Parameters.AddWithValue("definitionIds", definitionIds.ToArray());
+            await using var reader = await versionsCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                definition = new WorkflowDefinitionSummaryDto
+                var summary = MapWorkflowDefinitionVersionSummary(reader, 0);
+                if (definitionById.TryGetValue(summary.WorkflowDefinitionId, out var def))
                 {
-                    Id = definitionId,
-                    Key = reader.GetString(1),
-                    Name = reader.GetString(2),
-                    Description = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    Versions = new List<WorkflowDefinitionVersionSummaryDto>()
-                };
-
-                definitionById.Add(definitionId, definition);
-                definitions.Add(definition);
-            }
-
-            if (!reader.IsDBNull(4))
-            {
-                definition.Versions.Add(MapWorkflowDefinitionVersionSummary(reader, 4));
+                    def.Versions.Add(summary);
+                }
             }
         }
 
-        await reader.CloseAsync();
         foreach (var version in definitions.SelectMany(definition => definition.Versions))
         {
             var detail = await GetAdminWorkflowDefinitionVersionDetailById(connection, null, version.Id, _automation, _workflowDefinitionValidationService);
@@ -117,7 +160,13 @@ ORDER BY d.definition_key, v.version_number DESC, v.id DESC;
             version.ValidationIssues = detail.ValidationIssues;
         }
 
-        return definitions;
+        return new AdminListPageDto<WorkflowDefinitionSummaryDto>
+        {
+            Items = definitions,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request)

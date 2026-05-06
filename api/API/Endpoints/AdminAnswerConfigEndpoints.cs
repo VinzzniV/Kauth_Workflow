@@ -10,6 +10,7 @@ internal static class AdminAnswerConfigEndpoints
     public static IEndpointRouteBuilder MapAdminAnswerConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/answer-definitions", async (
+            HttpRequest httpRequest,
             [FromQuery] int workflowDefinitionId,
             IWorkflowRepository repository,
             IUserContext userContext,
@@ -26,13 +27,14 @@ internal static class AdminAnswerConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminAnswerDefinitions(workflowDefinitionId));
+                var query = AdminListQuery.From(httpRequest);
+                return Results.Ok(await repository.GetAdminAnswerDefinitions(workflowDefinitionId, query));
             }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
-        }).Produces<List<AdminAnswerDefinitionDto>>(StatusCodes.Status200OK)
+        }).Produces<AdminListPageDto<AdminAnswerDefinitionDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
@@ -129,6 +131,7 @@ internal static class AdminAnswerConfigEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/config/role-answer-defaults", async (
+            HttpRequest httpRequest,
             [FromQuery] int workflowDefinitionId,
             IWorkflowRepository repository,
             IUserContext userContext,
@@ -145,13 +148,14 @@ internal static class AdminAnswerConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminRoleAnswerDefaults(workflowDefinitionId));
+                var query = AdminListQuery.From(httpRequest);
+                return Results.Ok(await repository.GetAdminRoleAnswerDefaults(workflowDefinitionId, query));
             }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
-        }).Produces<List<AdminRoleAnswerDefaultDto>>(StatusCodes.Status200OK)
+        }).Produces<AdminListPageDto<AdminRoleAnswerDefaultDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);

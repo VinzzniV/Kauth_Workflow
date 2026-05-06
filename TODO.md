@@ -44,9 +44,9 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
-## Aktiver Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05)
+## Abgeschlossener Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05..06)
 
-Z11 ist eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. Die in Z10 entworfenen Hull-Typen (P1 `AdminListPageDto<T>`, P2 `CursorPageDto<T>`) werden in drei Slices F1 → F2 → F3 implementiert. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 11".
+Z11 ist abgeschlossen (2026-05-06). Reiner Umsetzungszyklus auf Basis von Z10-1.3. Alle drei Slices F1 → F2 → F3 done. Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 11".
 
 **Praktisch:** F1 macht Erfassungseinstieg und Master-Data-Pflege schnell und konsistent; F2 macht Audit-Verlauf vollstaendig durchsuchbar (heute schneidet ein stiller `limit`-Cap die Historie ab); F3 macht den Builder schnell, auch wenn Definitionen wachsen. **Lohnenswert:** Vertrag jetzt bauen, statt unter Last halbgaarig nachzuruesten — drei kontrollierte Slices statt N parallele Mini-Vertraege. **Nutzen:** zwei zentrale Hull-Typen, zwei typed FE-Adapter, eine wiederverwendbare Refactor-Achse fuer alle spaeter folgenden Listen.
 
@@ -54,7 +54,7 @@ Z11 ist eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. 
 |-------|---------|------|-----------|--------|--------|
 | Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups (`/departments`, `/roles`, `/admin/master-data/departments|positions|responsibilities`); Server-`search`/`sort`-Whitelist pro Endpunkt; FE: typed Wrapper + Aufrufer-Refactor | HIGH | high | opus | done (2026-05-05) — P1-Hull live, fuenf Endpunkte umgestellt, aktuelle FE-Consumer auf `items` adaptiert |
 | Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams (`/admin/auth/audit`, `/admin/directory/audit`); opaque Base64-Cursor ueber `(occurredAt, id)`; FE: typed Wrapper + „Mehr laden"-Knopf in beiden Audit-Tabs | HIGH | medium..high | sonnet | done (2026-05-06) — `CursorPageDto<T>` + Keyset-Pagination fuer beide Audit-Endpunkte; typed FE-Wrapper + Akkumulations-Hook + „Mehr laden"-Knopf in beiden Tabs |
-| Z11-F3 | P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte: `workflow-definitions`, `action-definitions`, `task-templates` + `…/conditions` + `…/dependencies`, `answer-definitions`, `role-answer-defaults`); Pflicht-Scope; Filterzustand im FE in URL-Query | HIGH | medium..high | opus | offen |
+| Z11-F3 | P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte: `workflow-definitions`, `action-definitions`, `task-templates` + `…/conditions` + `…/dependencies`, `answer-definitions`, `role-answer-defaults`); Pflicht-Scope; Filterzustand im FE in URL-Query als separater UI-Slice ausgelagert | HIGH | medium..high | opus | done (2026-05-06) — sieben scoped Builder-Endpunkte auf P1, FE-Service-Wrapper + alle Builder-Hooks auf `page.items` adaptiert |
 
 **Leitplanken Z11:**
 - Strenge Reihenfolge F1 → F2 → F3. F3 setzt P1 aus F1 voraus.
@@ -65,9 +65,9 @@ Z11 ist eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. 
 - Schreibregel anwenden: zu jedem Slice-Ergebnis kurze Bedeutung-/Nutzen-Erklaerung.
 - Nach jedem Slice Commit + Doku (`CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`) im selben Pass.
 
-**Naechster konkreter Schritt:** `Z11-F3` starten. Nur P1-Hull ausrollen + D Builder-Tabs (sieben scoped Endpunkte); kein Mischen mit P2-Pfaden.
+**Naechster konkreter Schritt:** Z11 ist mit F3 vollstaendig geschlossen — kein offener Slice in Z11 mehr. Codex entscheidet, welcher der nach Z11 vorgesehenen Folgekandidaten als naechster aktiver Zyklus eroeffnet wird.
 
-**Nicht in Z11 (Begruendung in `CODE_REVIEW.md` § Z10-1.3):** A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation Action-Templates, G Runtime-Sub-Resources, H `/workflow-definitions/startable`. Diese werden nach Z11 als billige Mitnahmeschnitte mit dem dann etablierten P1-/P2-Adapter geplant — der Composite-Split fuer C Gaps/Pending bleibt eigener vorbereiteter Slice.
+**Nicht in Z11 (Begruendung in `CODE_REVIEW.md` § Z10-1.3):** A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation Action-Templates, G Runtime-Sub-Resources, H `/workflow-definitions/startable`. Diese werden nach Z11 als billige Mitnahmeschnitte mit dem jetzt etablierten P1-/P2-Adapter geplant — der Composite-Split fuer C Gaps/Pending bleibt eigener vorbereiteter Slice. Sichtbare Builder-Inspector-Paging-/Filter-UI mit URL-Query bleibt eigenstaendiger UI-Slice ausserhalb Z11.
 
 ---
 

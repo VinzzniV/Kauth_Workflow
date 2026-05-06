@@ -150,7 +150,8 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     selectedVersionId?: number | null;
     keepSelection?: boolean;
   }) => {
-    const loadedDefinitions = await getAdminWorkflowDefinitions();
+    const definitionsPage = await getAdminWorkflowDefinitions({ limit: 200 });
+    const loadedDefinitions = definitionsPage.items;
     let loadedActionDefinitions: AdminWorkflowActionDefinition[] = [];
     let loadedResponsibilityOwners: AdminResponsibilityOwner[] = [];
     let actionCatalogError: string | null = null;
@@ -159,7 +160,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
     if (canManageAdvanced) {
       try {
-        loadedActionDefinitions = await getAdminWorkflowActionDefinitions();
+        loadedActionDefinitions = (await getAdminWorkflowActionDefinitions({ limit: 200 })).items;
       } catch (err) {
         actionCatalogError = err instanceof Error
           ? err.message

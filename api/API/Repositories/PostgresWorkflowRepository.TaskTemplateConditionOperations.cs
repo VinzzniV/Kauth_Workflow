@@ -14,7 +14,7 @@ internal sealed partial class PostgresWorkflowRepository
         "is_not_null"
     };
 
-    public async Task<List<AdminTaskTemplateConditionDto>> GetAdminTaskTemplateConditions(int templateId)
+    public async Task<AdminListPageDto<AdminTaskTemplateConditionDto>> GetAdminTaskTemplateConditions(int templateId, AdminListQuery query)
     {
         if (templateId <= 0)
         {
@@ -30,7 +30,17 @@ internal sealed partial class PostgresWorkflowRepository
             throw new InvalidOperationException("Task template not found.");
         }
 
-        const string sql = @"
+        // P1-Hull (Z11-F3): Conditions sind klein und scoped. Optionale Suche
+        // ueber answer_key (sinnvoll wenn viele Conditions). Sort default id asc.
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "answerkey" => "answer_key ASC, id",
+            "answerkey_desc" => "answer_key DESC, id",
+            "id_desc" => "id DESC",
+            _ => "id ASC"
+        };
+
+        var sql = $@"
 SELECT
     id,
     workflow_node_task_spec_id,
@@ -38,22 +48,37 @@ SELECT
     operator,
     expected_value_text,
     expected_value_boolean,
-    expected_value_number
+    expected_value_number,
+    COUNT(*) OVER() AS total_count
 FROM workflow_node_task_spec_conditions
 WHERE workflow_node_task_spec_id = @templateId
-ORDER BY id;";
+  AND (@search = '' OR answer_key ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("templateId", (long)templateId);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
         await using var reader = await command.ExecuteReaderAsync();
 
         var conditions = new List<AdminTaskTemplateConditionDto>();
+        var total = 0;
         while (await reader.ReadAsync())
         {
             conditions.Add(MapAdminTaskTemplateCondition(reader));
+            total = reader.GetInt32(7);
         }
 
-        return conditions;
+        return new AdminListPageDto<AdminTaskTemplateConditionDto>
+        {
+            Items = conditions,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<AdminTaskTemplateConditionDto> CreateAdminTaskTemplateCondition(

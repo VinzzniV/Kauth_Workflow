@@ -4,7 +4,7 @@ namespace API;
 
 internal sealed partial class PostgresWorkflowRepository
 {
-    public async Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId)
+    public async Task<AdminListPageDto<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId, AdminListQuery query)
     {
         if (workflowDefinitionId <= 0)
         {
@@ -16,23 +16,43 @@ internal sealed partial class PostgresWorkflowRepository
 
         var processTypeId = await EnsureProcessTypeExists(connection, null, workflowDefinitionId);
 
-        const string sql = @"
+        // P1-Hull (Z11-F3): Suche ueber answer_key bzw. role_key (via app_roles).
+        // Sort default app_role_id asc, answer_key asc — entspricht Bisheriger Stable-Order.
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "answerkey" => "d.answer_key ASC, ard.app_role_id",
+            "answerkey_desc" => "d.answer_key DESC, ard.app_role_id",
+            "rolekey" => "ar.role_key ASC, d.answer_key",
+            "rolekey_desc" => "ar.role_key DESC, d.answer_key",
+            _ => "ard.app_role_id ASC, d.answer_key ASC"
+        };
+
+        var sql = $@"
 SELECT
     ard.workflow_definition_id,
     ard.app_role_id,
     d.answer_key,
     ard.default_value_text,
-    ard.default_value_boolean
+    ard.default_value_boolean,
+    COUNT(*) OVER() AS total_count
 FROM app_role_answer_defaults ard
 JOIN workflow_answer_definitions d ON d.id = ard.answer_definition_id
+JOIN app_roles ar ON ar.id = ard.app_role_id
 WHERE ard.workflow_definition_id = @processTypeId
-ORDER BY ard.app_role_id, d.answer_key;";
+  AND (@search = '' OR d.answer_key ILIKE @pattern OR ar.role_key ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("processTypeId", processTypeId);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
         await using var reader = await command.ExecuteReaderAsync();
 
         var defaults = new List<AdminRoleAnswerDefaultDto>();
+        var total = 0;
         while (await reader.ReadAsync())
         {
             defaults.Add(new AdminRoleAnswerDefaultDto
@@ -43,9 +63,16 @@ ORDER BY ard.app_role_id, d.answer_key;";
                 DefaultValueText = reader.IsDBNull(3) ? null : reader.GetString(3),
                 DefaultValueBoolean = reader.IsDBNull(4) ? null : reader.GetBoolean(4)
             });
+            total = reader.GetInt32(5);
         }
 
-        return defaults;
+        return new AdminListPageDto<AdminRoleAnswerDefaultDto>
+        {
+            Items = defaults,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request)
@@ -119,7 +146,14 @@ DO UPDATE SET
         }
 
         await transaction.CommitAsync();
-        return await GetAdminRoleAnswerDefaults(normalizedProcessTypeId);
+        // P1-Hull liefert nun AdminListPageDto. Upsert ist Schreibpfad und gibt die volle
+        // Liste zurueck (Builder-UX erwartet alle gespeicherten Defaults). MaxLimit=200 ist
+        // bewusste Obergrenze: realistische Anzahl Role/Answer-Kombinationen liegt deutlich
+        // darunter; sollte sie wachsen, muss der Upsert-Vertrag neu geschnitten werden.
+        var defaultsPage = await GetAdminRoleAnswerDefaults(
+            normalizedProcessTypeId,
+            new AdminListQuery { Limit = AdminListQuery.MaxLimit, Offset = 0 });
+        return defaultsPage.Items.ToList();
     }
 
     private static void ValidateAdminRoleAnswerDefaultsBulkUpsertRequest(AdminRoleAnswerDefaultsBulkUpsertRequest request)

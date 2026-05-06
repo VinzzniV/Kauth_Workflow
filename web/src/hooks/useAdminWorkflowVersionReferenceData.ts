@@ -90,8 +90,8 @@ export function useAdminWorkflowVersionReferenceData(
     void Promise.all(
       [...workflowDefinitionIdsToLoad].map(async (workflowDefinitionId) =>
         Promise.all([
-          getAdminTaskTemplates(workflowDefinitionId),
-          getAdminAnswerDefinitions(workflowDefinitionId),
+          getAdminTaskTemplates(workflowDefinitionId, { limit: 200 }),
+          getAdminAnswerDefinitions(workflowDefinitionId, { limit: 200 }),
         ])
       )
     )
@@ -102,7 +102,9 @@ export function useAdminWorkflowVersionReferenceData(
 
         const templatesByKey = new Map<string, AdminTaskSpec>();
         const answerDefinitionsByCompositeKey = new Map<string, AdminAnswerDefinition>();
-        for (const [loadedTemplates, loadedAnswerDefinitions] of loadedGroups) {
+        for (const [templatesPage, answerDefinitionsPage] of loadedGroups) {
+          const loadedTemplates = templatesPage.items;
+          const loadedAnswerDefinitions = answerDefinitionsPage.items;
           for (const template of loadedTemplates) {
             const normalizedKey = template.specKey.trim().toLowerCase();
             if (normalizedKey && !templatesByKey.has(normalizedKey)) {
@@ -123,8 +125,8 @@ export function useAdminWorkflowVersionReferenceData(
         const templatesWithDependencies = dedupedTemplates.filter((template) => template.dependencyCount > 0);
 
         const [loadedConditions, loadedDependencies] = await Promise.all([
-          Promise.all(templatesWithConditions.map((template) => getAdminTaskTemplateConditions(template.id))),
-          Promise.all(templatesWithDependencies.map((template) => getAdminTaskTemplateDependencies(template.id))),
+          Promise.all(templatesWithConditions.map((template) => getAdminTaskTemplateConditions(template.id, { limit: 200 }))),
+          Promise.all(templatesWithDependencies.map((template) => getAdminTaskTemplateDependencies(template.id, { limit: 200 }))),
         ]);
 
         if (cancelled) {
@@ -134,8 +136,8 @@ export function useAdminWorkflowVersionReferenceData(
         setData({
           taskTemplates: dedupedTemplates,
           answerDefinitions: [...answerDefinitionsByCompositeKey.values()],
-          taskTemplateConditions: loadedConditions.flat(),
-          taskTemplateDependencies: loadedDependencies.flat(),
+          taskTemplateConditions: loadedConditions.flatMap((page) => page.items),
+          taskTemplateDependencies: loadedDependencies.flatMap((page) => page.items),
         });
       })
       .catch(() => {

@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-05 — Aktiver Zyklus 11; Zyklus 8/9/10 abgeschlossen)
+## Gesamtbewertung (Stand 2026-05-06 — Zyklus 11 abgeschlossen, kein aktiver Zyklus; Zyklus 8/9/10 abgeschlossen)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -56,13 +56,13 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung: #1 Bulk-Lookup, #2/#3 Sweep+Apply Batching, #4 Entra Group/Member Bulk, #7 Recipient-Bulk; #5 false positive; #8 deferred; Z8-4 Coverage |
 | 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit (LQ2-Z3) — abgeschlossen (Split + Coverage) |
 | 10 | 2026-05-05 | Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege, Query-Kontrakt-Risiken — abgeschlossen (Review-/Planungszyklus, alle Slices done) |
-| 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege in Umsetzung — F1 abgeschlossen (P1+B Master-Data), F2 abgeschlossen (P2+Audit), F3 naechster Slice (P1+D Builder) |
+| 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege in Umsetzung — abgeschlossen (F1 P1+B Master-Data, F2 P2+Audit, F3 P1+D Builder, alle Slices done) |
 
 ---
 
-## Aktiver Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05)
+## Abgeschlossener Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05..06)
 
-Eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. Reihenfolge F1 → F2 → F3 streng sequenziell. **Z11-F1 und Z11-F2 abgeschlossen**, F3 ist der naechste aktive Slice. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 11".
+Eroeffnet 2026-05-05, abgeschlossen 2026-05-06 als reiner Umsetzungszyklus auf Basis von Z10-1.3. Reihenfolge F1 → F2 → F3 streng sequenziell durchgespielt. **Alle drei Slices done.** Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 11".
 
 **Praktisch:** F1 macht Erfassungseinstieg und Master-Data-Pflege spuerbar schnell und konsistent; F2 macht Audit-Verlauf vollstaendig durchsuchbar (heute schneidet ein stiller `limit`-Cap die Historie ab); F3 macht den Builder schnell, auch wenn Definitionen wachsen. **Lohnenswert:** Vertrag jetzt sauber bauen, statt unter Last halbgaarig nachzuruesten — drei kontrollierte Slices statt N parallele Mini-Vertraege. **Nutzen:** zwei zentrale Hull-Typen (`AdminListPageDto<T>`, `CursorPageDto<T>`), zwei typed FE-Adapter, eine wiederverwendbare Refactor-Achse fuer alle spaeter folgenden Listen.
 
@@ -70,11 +70,11 @@ Eroeffnet 2026-05-05 als reiner Umsetzungszyklus auf Basis von Z10-1.3. Reihenfo
 |--------|------|--------|
 | Z11-F1 — P1-Hull einfuehren + B Master-Data/Lookups (`/departments`, `/roles`, `/admin/master-data/{departments,positions,responsibilities}`); Server-`search`/`sort`-Whitelist; FE: typed Wrapper + Aufrufer-Refactor | HIGH | done 2026-05-05 — P1-Hull live fuer 5 Endpunkte, FE-Adapter aktiv, aktuelle Consumer auf `items` adaptiert |
 | Z11-F2 — P2-Hull einfuehren + Audit-Streams (`/admin/auth/audit`, `/admin/directory/audit`); opaque Base64-Cursor; FE: typed Wrapper + „Mehr laden"-Knopf | HIGH | done 2026-05-06 — `CursorPageDto<T>` + Keyset-Pagination, typed FE-Wrapper, Akkumulations-Hook, „Mehr laden"-Knopf in beiden Audit-Tabs |
-| Z11-F3 — P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte: `workflow-definitions`, `action-definitions`, `task-templates` + `…/conditions` + `…/dependencies`, `answer-definitions`, `role-answer-defaults`); Pflicht-Scope; Filterzustand im FE in URL-Query | HIGH | offen |
+| Z11-F3 — P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte: `workflow-definitions`, `action-definitions`, `task-templates` + `…/conditions` + `…/dependencies`, `answer-definitions`, `role-answer-defaults`); Pflicht-Scope; Filterzustand im FE in URL-Query als separater UI-Slice ausgelagert | HIGH | done 2026-05-06 — sieben scoped Builder-Endpunkte auf P1, FE-Service-Wrapper + alle Builder-Hooks auf `page.items` adaptiert |
 
 **Nicht in Z11 (Begruendung in `CODE_REVIEW.md` § Z10-1.3):** A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation Action-Templates, G Runtime-Sub-Resources, H `/workflow-definitions/startable`. Diese werden nach Z11 als billige Mitnahmeschnitte mit dem dann etablierten P1-/P2-Adapter geplant; der Composite-Split fuer C Gaps/Pending bleibt eigener vorbereiteter Slice.
 
-Frontend-Folgen Z11-Fx: Konsequenz pro Slice, kein praeventives Sammeleintrag — Z11-F1 ist in `FRONTEND_TODO.md` als abgeschlossener Trigger vermerkt; F2/F3 folgen erst beim jeweiligen Slice.
+Frontend-Folgen Z11-Fx: Konsequenz pro Slice, kein praeventiver Sammeleintrag — Z11-F1, Z11-F2 und Z11-F3 sind in `FRONTEND_TODO.md` als abgeschlossene Trigger vermerkt.
 
 ---
 

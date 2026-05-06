@@ -11,6 +11,7 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
     public static IEndpointRouteBuilder MapAdminWorkflowDefinitionConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/workflow-definitions", async (
+            HttpRequest request,
             [FromServices] IWorkflowRepository repository,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
@@ -24,12 +25,14 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await repository.GetAdminWorkflowDefinitions());
-        }).Produces<List<WorkflowDefinitionSummaryDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await repository.GetAdminWorkflowDefinitions(query));
+        }).Produces<AdminListPageDto<WorkflowDefinitionSummaryDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/config/action-definitions", async (
+            HttpRequest request,
             [FromServices] IWorkflowAutomationService automationService,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
@@ -43,8 +46,9 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await automationService.GetActionDefinitionsAsync());
-        }).Produces<List<ActionDefinitionDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await automationService.GetActionDefinitionsAsync(query));
+        }).Produces<AdminListPageDto<ActionDefinitionDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

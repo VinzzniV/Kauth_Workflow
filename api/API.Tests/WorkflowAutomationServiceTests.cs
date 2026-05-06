@@ -114,8 +114,14 @@ public sealed class WorkflowAutomationServiceTests
         public bool LastFailureShouldRetry { get; private set; }
         public DateTime? LastFailureRetryAvailableAt { get; private set; }
 
-        public Task<IReadOnlyList<ActionDefinitionDto>> GetAdminActionDefinitions(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<ActionDefinitionDto>>([]);
+        public Task<AdminListPageDto<ActionDefinitionDto>> GetAdminActionDefinitions(AdminListQuery query, CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminListPageDto<ActionDefinitionDto>
+            {
+                Items = [],
+                Total = 0,
+                Limit = query.Limit,
+                Offset = query.Offset
+            });
 
         public Task<IReadOnlyList<AutomationJobDetailDto>> GetAutomationJobs(Guid workflowUid, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<AutomationJobDetailDto>>([]);

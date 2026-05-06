@@ -44,7 +44,7 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 ## Naechster sinnvoller Schritt
 
-Z11-F1 und Z11-F2 sind abgeschlossen. Der naechste sinnvolle FE-Trigger ist **Z11-F3** (P1-Hull fuer die sieben scoped Builder-Endpunkte): sichtbare Paging-/Filter-UI im Builder-Inspector, Filterzustand wandert in URL-Query. Bis dahin lesen aktuelle FE-Consumer die P1-Hull pragmatisch ueber `page.items`.
+Z11 ist mit F3 vollstaendig abgeschlossen — kein offener Z11-Trigger mehr. Der naechste FE-Trigger waere ein eigenstaendiger UI-Slice fuer den Builder-Inspector (sichtbare Paging-/Filter-UI mit Filterzustand in der URL-Query) — bewusst ausserhalb Z11 verschoben, weil Z11 nur die API-/Vertrags-Achse abdeckt. Solange dieser UI-Slice nicht beauftragt ist, lesen alle Z11-FE-Consumer die P1-Hull pragmatisch ueber `page.items` mit `limit: 200`.
 
 ---
 
@@ -61,6 +61,7 @@ Z11-F1 und Z11-F2 sind abgeschlossen. Der naechste sinnvolle FE-Trigger ist **Z1
 
 - `2026-05-05` `Z11-F1` P1-Hull fuer Master-Data/Lookups im FE aufgenommen: neuer typed Wrapper `web/src/services/api/adminList.ts`, `lookupApi.ts`/`adminApi.ts` auf `AdminListPage<T>` umgestellt, betroffene Consumer vorerst pragmatisch auf `page.items` + `limit: 200` adaptiert. UX-Prinzip: Vertrag zuerst vereinheitlichen, sichtbare Paging-UI erst im passenden Folgeslice statt halb fertiger Mischloesung.
 - `2026-05-06` `Z11-F2` P2-Hull fuer Audit-Streams im FE aufgenommen: neuer typed Wrapper `web/src/services/api/cursorPage.ts`; `adminApi.ts`/`adminConfigApi.ts` auf `CursorPage<T>` umgestellt; `useAdminConfigData` akkumuliert bei „Mehr laden" (append), resettet bei Neuladen; beide Audit-Tabs (`AdminPermissionsSection`, `AdminDirectorySyncSection`) haben „Mehr laden"-Knopf. UX-Prinzip: kein stiller Cap mehr — Knopf erscheint nur wenn `hasMore=true`.
+- `2026-05-06` `Z11-F3` P1-Hull fuer sieben scoped Builder-Endpunkte im FE aufgenommen: `services/adminConfigApi.ts`-Wrapper (`getAdminTaskTemplates`, `…Conditions`, `…Dependencies`, `getAdminAnswerDefinitions`, `getAdminRoleAnswerDefaults`, `getAdminWorkflowDefinitions`, `getAdminWorkflowActionDefinitions`) liefern jetzt `Promise<AdminListPage<T>>`; alle Builder-Hooks (`useAdminTaskTemplateData`, `useAdminAnswerDefinitionManagement`, `useAdminRoleAnswerDefaults`, `useAdminWorkflowVersionReferenceData`, `useAdminWorkflowBuilder`) lesen pragmatisch `page.items` mit `limit: 200`. UX-Prinzip: Vertrag zuerst vereinheitlichen — sichtbare Paging-/Filter-UI mit URL-Query-Filterzustand bleibt eigenstaendiger UI-Slice ausserhalb Z11 (bewusste Restgrenze).
 
 ---
 

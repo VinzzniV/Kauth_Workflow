@@ -10,6 +10,7 @@ internal static class AdminProcessConfigEndpoints
     public static IEndpointRouteBuilder MapAdminProcessConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/config/task-templates", async (
+            HttpRequest httpRequest,
             [FromQuery] int workflowDefinitionId,
             IWorkflowRepository repository,
             IUserContext userContext,
@@ -26,13 +27,14 @@ internal static class AdminProcessConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminTaskTemplates(workflowDefinitionId));
+                var query = AdminListQuery.From(httpRequest);
+                return Results.Ok(await repository.GetAdminTaskTemplates(workflowDefinitionId, query));
             }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
-        }).Produces<List<AdminTaskTemplateDto>>(StatusCodes.Status200OK)
+        }).Produces<AdminListPageDto<AdminTaskTemplateDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
@@ -130,6 +132,7 @@ internal static class AdminProcessConfigEndpoints
 
         app.MapGet("/admin/config/task-templates/{templateId:int}/conditions", async (
             int templateId,
+            HttpRequest httpRequest,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -145,13 +148,14 @@ internal static class AdminProcessConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminTaskTemplateConditions(templateId));
+                var query = AdminListQuery.From(httpRequest);
+                return Results.Ok(await repository.GetAdminTaskTemplateConditions(templateId, query));
             }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
-        }).Produces<List<AdminTaskTemplateConditionDto>>(StatusCodes.Status200OK)
+        }).Produces<AdminListPageDto<AdminTaskTemplateConditionDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
@@ -218,6 +222,7 @@ internal static class AdminProcessConfigEndpoints
 
         app.MapGet("/admin/config/task-templates/{templateId:int}/dependencies", async (
             int templateId,
+            HttpRequest httpRequest,
             IWorkflowRepository repository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -233,13 +238,14 @@ internal static class AdminProcessConfigEndpoints
 
             try
             {
-                return Results.Ok(await repository.GetAdminTaskTemplateDependencies(templateId));
+                var query = AdminListQuery.From(httpRequest);
+                return Results.Ok(await repository.GetAdminTaskTemplateDependencies(templateId, query));
             }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
-        }).Produces<List<AdminTaskTemplateDependencyDto>>(StatusCodes.Status200OK)
+        }).Produces<AdminListPageDto<AdminTaskTemplateDependencyDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);

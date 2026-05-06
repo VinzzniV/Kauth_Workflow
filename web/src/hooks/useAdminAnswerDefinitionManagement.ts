@@ -93,7 +93,8 @@ export function useAdminAnswerDefinitionManagement({
     updateOperationState({ isLoadingDefinitions: true });
 
     try {
-      const loadedDefinitions = await getAdminAnswerDefinitions(workflowDefinitionId);
+      const page = await getAdminAnswerDefinitions(workflowDefinitionId, { limit: 200 });
+      const loadedDefinitions = page.items;
       setDefinitions(loadedDefinitions);
 
       if (typeof definitionIdToSelect === "number") {
@@ -121,8 +122,9 @@ export function useAdminAnswerDefinitionManagement({
 
   useEffect(() => {
     updateOperationState({ isLoadingProcessTypes: true });
-    getAdminWorkflowDefinitions()
-      .then((loadedDefinitions) => {
+    getAdminWorkflowDefinitions({ limit: 200 })
+      .then((page) => {
+        const loadedDefinitions = page.items;
         setWorkflowDefinitions(loadedDefinitions);
         setSelectedWorkflowDefinitionId((current) => current ?? loadedDefinitions[0]?.id ?? null);
       })

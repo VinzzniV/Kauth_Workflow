@@ -94,7 +94,7 @@ ORDER BY d.id;";
         };
     }
 
-    public async Task<List<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId)
+    public async Task<AdminListPageDto<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId, AdminListQuery query)
     {
         if (templateId <= 0)
         {
@@ -110,28 +110,54 @@ ORDER BY d.id;";
             throw new InvalidOperationException("Task template not found.");
         }
 
-        const string sql = @"
+        // P1-Hull (Z11-F3): Suche ueber Titel des abhaengigen Specs. Sort default
+        // sortOrder asc (entspricht physikalischer Builder-Reihenfolge).
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "title" => "dep.title ASC, d.id",
+            "title_desc" => "dep.title DESC, d.id",
+            "id" => "d.id ASC",
+            "id_desc" => "d.id DESC",
+            _ => "dep.sort_order ASC, dep.title, d.id"
+        };
+
+        var sql = $@"
 SELECT
     d.id,
     d.workflow_node_task_spec_id,
     d.depends_on_workflow_node_task_spec_id,
-    dep.title
+    dep.title,
+    COUNT(*) OVER() AS total_count
 FROM workflow_node_task_spec_dependencies d
 JOIN workflow_node_task_specs dep ON dep.id = d.depends_on_workflow_node_task_spec_id
 WHERE d.workflow_node_task_spec_id = @templateId
-ORDER BY dep.sort_order, dep.title, d.id;";
+  AND (@search = '' OR dep.title ILIKE @pattern OR dep.spec_key ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("templateId", (long)templateId);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
         await using var reader = await command.ExecuteReaderAsync();
 
         var dependencies = new List<AdminTaskTemplateDependencyDto>();
+        var total = 0;
         while (await reader.ReadAsync())
         {
             dependencies.Add(MapAdminTaskTemplateDependency(reader));
+            total = reader.GetInt32(4);
         }
 
-        return dependencies;
+        return new AdminListPageDto<AdminTaskTemplateDependencyDto>
+        {
+            Items = dependencies,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<AdminTaskTemplateDependencyDto> CreateAdminTaskTemplateDependency(

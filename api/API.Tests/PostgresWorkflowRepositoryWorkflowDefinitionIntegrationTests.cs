@@ -170,7 +170,8 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
             var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
 
-            var definitions = await repository.GetAdminWorkflowDefinitions();
+            var definitionsPage = await repository.GetAdminWorkflowDefinitions(new AdminListQuery { Limit = AdminListQuery.MaxLimit });
+            var definitions = definitionsPage.Items;
             foreach (var definitionKey in new[] { "onboarding", "offboarding", "department_change", "name_change", "position_change", "role_change" })
             {
                 var definition = definitions.SingleOrDefault(item =>

@@ -82,11 +82,14 @@ export function useAdminRoleAnswerDefaults({
     updateOperationState({ isLoadingMatrix: true });
 
     try {
-      const [loadedRoles, loadedDefinitions, loadedDefaults] = await Promise.all([
+      const [loadedRoles, definitionsPage, defaultsPage] = await Promise.all([
         getAdminRoles(),
-        getAdminAnswerDefinitions(workflowDefinitionId),
-        getAdminRoleAnswerDefaults(workflowDefinitionId),
+        getAdminAnswerDefinitions(workflowDefinitionId, { limit: 200 }),
+        getAdminRoleAnswerDefaults(workflowDefinitionId, { limit: 200 }),
       ]);
+
+      const loadedDefinitions = definitionsPage.items;
+      const loadedDefaults = defaultsPage.items;
 
       setRoles(loadedRoles);
       setDefinitions(loadedDefinitions);
@@ -115,8 +118,9 @@ export function useAdminRoleAnswerDefaults({
 
   useEffect(() => {
     updateOperationState({ isLoadingProcessTypes: true });
-    getAdminWorkflowDefinitions()
-      .then((loadedDefinitions) => {
+    getAdminWorkflowDefinitions({ limit: 200 })
+      .then((page) => {
+        const loadedDefinitions = page.items;
         setWorkflowDefinitions(loadedDefinitions);
         setSelectedWorkflowDefinitionId((current) => current ?? loadedDefinitions[0]?.id ?? null);
       })

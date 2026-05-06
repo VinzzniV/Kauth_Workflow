@@ -11,9 +11,9 @@ internal sealed class WorkflowAutomationService(
     WorkflowAutomationRetrySettings retrySettings,
     ILogger<WorkflowAutomationService> logger) : IWorkflowAutomationService
 {
-    public Task<IReadOnlyList<ActionDefinitionDto>> GetActionDefinitionsAsync(CancellationToken cancellationToken = default)
+    public Task<AdminListPageDto<ActionDefinitionDto>> GetActionDefinitionsAsync(AdminListQuery query, CancellationToken cancellationToken = default)
     {
-        return readRepository.GetAdminActionDefinitions(cancellationToken);
+        return readRepository.GetAdminActionDefinitions(query, cancellationToken);
     }
 
     public Task<IReadOnlyList<AutomationJobDetailDto>> GetWorkflowAutomationJobsAsync(

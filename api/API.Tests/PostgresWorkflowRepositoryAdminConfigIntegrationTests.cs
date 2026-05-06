@@ -249,8 +249,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             // LA5: is_active wurde mit Tabellen-Cut entfernt — DTO meldet immer true.
             Assert.True(updated.IsActive);
 
-            var list = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplates(processType.Id));
+            var listPage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminTaskTemplates(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var list = listPage.Items;
 
             Assert.Single(list);
             Assert.Equal("Updated Task", list[0].Title);
@@ -260,8 +261,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
 
             Assert.True(deleted);
 
-            var listAfterDelete = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplates(processType.Id));
+            var listAfterDeletePage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminTaskTemplates(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var listAfterDelete = listAfterDeletePage.Items;
 
             Assert.Empty(listAfterDelete);
         }
@@ -392,8 +394,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.Equal("eq", condition.Operator);
             Assert.True(condition.ExpectedValueBoolean);
 
-            var conditions = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplateConditions(template.Id));
+            var conditionsPage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminTaskTemplateConditions(template.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var conditions = conditionsPage.Items;
 
             Assert.Single(conditions);
 
@@ -402,8 +405,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
 
             Assert.True(deleted);
 
-            var conditionsAfterDelete = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplateConditions(template.Id));
+            var conditionsAfterDeletePage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminTaskTemplateConditions(template.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var conditionsAfterDelete = conditionsAfterDeletePage.Items;
 
             Assert.Empty(conditionsAfterDelete);
         }
@@ -553,8 +557,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.Equal("Task A", dependency.DependsOnTemplateTitle);
             Assert.Equal("done", dependency.RequiredStatus);
 
-            var dependencies = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplateDependencies(templateB.Id));
+            var dependenciesPage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminTaskTemplateDependencies(templateB.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var dependencies = dependenciesPage.Items;
 
             Assert.Single(dependencies);
 
@@ -852,8 +857,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.Equal("Updated Answer", updated!.Title);
             Assert.Equal("text", updated.InputType);
 
-            var list = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminAnswerDefinitions(processType.Id));
+            var listPage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminAnswerDefinitions(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var list = listPage.Items;
 
             Assert.Single(list);
 
@@ -1037,8 +1043,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.Equal(answerKey, result[0].AnswerKey);
             Assert.True(result[0].DefaultValueBoolean);
 
-            var readBack = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminRoleAnswerDefaults(processType.Id));
+            var readBackPage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminRoleAnswerDefaults(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var readBack = readBackPage.Items;
 
             Assert.Single(readBack);
             Assert.Equal(roleId, readBack[0].AppRoleId);
@@ -1151,8 +1158,9 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                     Operator = "is_false"
                 }));
 
-            var templates = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplates(processType.Id));
+            var templatesPage = await WithRepositoryAsync(connectionString, repo =>
+                repo.GetAdminTaskTemplates(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+            var templates = templatesPage.Items;
 
             Assert.Single(templates);
             Assert.Equal(2, templates[0].ConditionCount);

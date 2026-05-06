@@ -79,7 +79,7 @@ internal interface IWorkflowRepository
     Task ApplyPersonLifecycleProjection(Guid workflowUid, long? actorUserId = null);
     Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null);
     Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetWorkflowDefinitionKey);
-    Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions();
+    Task<AdminListPageDto<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions(AdminListQuery query);
     Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request);
     Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request);
     Task<bool> DeleteAdminWorkflowDefinition(int definitionId);
@@ -91,21 +91,21 @@ internal interface IWorkflowRepository
     Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(
         long versionId,
         ReplaceWorkflowDefinitionVersionRequest request);
-    Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId);
+    Task<AdminListPageDto<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId, AdminListQuery query);
     Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request);
     Task<AdminTaskTemplateDto?> UpdateAdminTaskTemplate(int templateId, AdminTaskTemplateUpsertRequest request);
     Task<bool> DeleteAdminTaskTemplate(int templateId);
-    Task<List<AdminTaskTemplateConditionDto>> GetAdminTaskTemplateConditions(int templateId);
+    Task<AdminListPageDto<AdminTaskTemplateConditionDto>> GetAdminTaskTemplateConditions(int templateId, AdminListQuery query);
     Task<AdminTaskTemplateConditionDto> CreateAdminTaskTemplateCondition(int templateId, AdminTaskTemplateConditionCreateRequest request);
     Task<bool> DeleteAdminTaskTemplateCondition(int templateId, long conditionId);
-    Task<List<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId);
+    Task<AdminListPageDto<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId, AdminListQuery query);
     Task<AdminTaskTemplateDependencyDto> CreateAdminTaskTemplateDependency(int templateId, AdminTaskTemplateDependencyCreateRequest request);
     Task<bool> DeleteAdminTaskTemplateDependency(int templateId, long dependencyId);
-    Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId);
+    Task<AdminListPageDto<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId, AdminListQuery query);
     Task<AdminAnswerDefinitionDto> CreateAdminAnswerDefinition(AdminAnswerDefinitionUpsertRequest request);
     Task<AdminAnswerDefinitionDto?> UpdateAdminAnswerDefinition(int definitionId, AdminAnswerDefinitionUpsertRequest request);
     Task<bool> DeleteAdminAnswerDefinition(int definitionId);
-    Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId);
+    Task<AdminListPageDto<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId, AdminListQuery query);
     Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request);
     Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId);
 }

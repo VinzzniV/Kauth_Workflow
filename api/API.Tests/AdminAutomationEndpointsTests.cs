@@ -197,10 +197,16 @@ public sealed class AdminAutomationEndpointsTests
         public int GetActionDefinitionsCallCount { get; private set; }
         public Guid? LastWorkflowUid { get; private set; }
 
-        public Task<IReadOnlyList<ActionDefinitionDto>> GetActionDefinitionsAsync(CancellationToken cancellationToken = default)
+        public Task<AdminListPageDto<ActionDefinitionDto>> GetActionDefinitionsAsync(AdminListQuery query, CancellationToken cancellationToken = default)
         {
             GetActionDefinitionsCallCount += 1;
-            return Task.FromResult(ActionDefinitions);
+            return Task.FromResult(new AdminListPageDto<ActionDefinitionDto>
+            {
+                Items = ActionDefinitions,
+                Total = ActionDefinitions.Count,
+                Limit = query.Limit,
+                Offset = query.Offset
+            });
         }
 
         public Task<IReadOnlyList<AutomationJobDetailDto>> GetWorkflowAutomationJobsAsync(Guid workflowUid, CancellationToken cancellationToken = default)

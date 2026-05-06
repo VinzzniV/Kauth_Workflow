@@ -109,7 +109,8 @@ export function useAdminTaskTemplateData({
     updateOperationState({ isLoadingConditions: true });
 
     try {
-      const loadedConditions = await getAdminTaskTemplateConditions(templateId);
+      const conditionsPage = await getAdminTaskTemplateConditions(templateId, { limit: 200 });
+      const loadedConditions = conditionsPage.items;
       setConditions(loadedConditions);
 
       const maxGroup = loadedConditions.reduce((current, item) => Math.max(current, item.conditionGroup), 0);
@@ -129,7 +130,8 @@ export function useAdminTaskTemplateData({
     updateOperationState({ isLoadingDependencies: true });
 
     try {
-      const loadedDependencies = await getAdminTaskTemplateDependencies(templateId);
+      const dependenciesPage = await getAdminTaskTemplateDependencies(templateId, { limit: 200 });
+      const loadedDependencies = dependenciesPage.items;
       setDependencies(loadedDependencies);
     } catch (err) {
       setDependencies([]);
@@ -158,11 +160,13 @@ export function useAdminTaskTemplateData({
     updateOperationState({ isLoadingTemplates: true });
 
     try {
-      const [loadedTemplates, loadedAnswerDefinitions, loadedGraph] = await Promise.all([
-        getAdminTaskTemplates(workflowDefinitionId),
-        getAdminAnswerDefinitions(workflowDefinitionId),
+      const [templatesPage, answerDefinitionsPage, loadedGraph] = await Promise.all([
+        getAdminTaskTemplates(workflowDefinitionId, { limit: 200 }),
+        getAdminAnswerDefinitions(workflowDefinitionId, { limit: 200 }),
         loadDependencyGraph(workflowDefinitionId),
       ]);
+      const loadedTemplates = templatesPage.items;
+      const loadedAnswerDefinitions = answerDefinitionsPage.items;
       setTemplates(loadedTemplates);
       setAnswerDefinitions(loadedAnswerDefinitions);
       setDependencyGraph(loadedGraph);
@@ -198,8 +202,9 @@ export function useAdminTaskTemplateData({
 
   useEffect(() => {
     updateOperationState({ isLoadingProcessTypes: true });
-    getAdminWorkflowDefinitions()
-      .then((loadedDefinitions) => {
+    getAdminWorkflowDefinitions({ limit: 200 })
+      .then((page) => {
+        const loadedDefinitions = page.items;
         setWorkflowDefinitions(loadedDefinitions);
         setSelectedWorkflowDefinitionId((current) => current ?? loadedDefinitions[0]?.id ?? null);
       })

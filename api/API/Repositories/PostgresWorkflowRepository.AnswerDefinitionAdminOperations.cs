@@ -13,7 +13,7 @@ internal sealed partial class PostgresWorkflowRepository
         "multi_select"
     };
 
-    public async Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId)
+    public async Task<AdminListPageDto<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId, AdminListQuery query)
     {
         if (workflowDefinitionId <= 0)
         {
@@ -25,7 +25,19 @@ internal sealed partial class PostgresWorkflowRepository
 
         var processTypeId = await EnsureProcessTypeExists(connection, null, workflowDefinitionId);
 
-        const string sql = @"
+        // P1-Hull (Z11-F3): Suche ueber answer_key/title, Sort-Whitelist mit Default sortOrder asc.
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "answerkey" => "d.answer_key ASC, d.id",
+            "answerkey_desc" => "d.answer_key DESC, d.id",
+            "title" => "d.title ASC, d.id",
+            "title_desc" => "d.title DESC, d.id",
+            "id" => "d.id ASC",
+            "id_desc" => "d.id DESC",
+            _ => "d.sort_order ASC, d.title, d.id"
+        };
+
+        var sql = $@"
 SELECT
     d.id,
     d.workflow_definition_id,
@@ -37,22 +49,37 @@ SELECT
     d.input_type,
     d.is_required,
     d.sort_order,
-    d.is_active
+    d.is_active,
+    COUNT(*) OVER() AS total_count
 FROM workflow_answer_definitions d
 WHERE d.workflow_definition_id = @processTypeId
-ORDER BY d.sort_order, d.title, d.id;";
+  AND (@search = '' OR d.answer_key ILIKE @pattern OR d.title ILIKE @pattern)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("processTypeId", processTypeId);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
         await using var reader = await command.ExecuteReaderAsync();
 
         var definitions = new List<AdminAnswerDefinitionDto>();
+        var total = 0;
         while (await reader.ReadAsync())
         {
             definitions.Add(MapAdminAnswerDefinition(reader));
+            total = reader.GetInt32(11);
         }
 
-        return definitions;
+        return new AdminListPageDto<AdminAnswerDefinitionDto>
+        {
+            Items = definitions,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
     }
 
     public async Task<AdminAnswerDefinitionDto> CreateAdminAnswerDefinition(AdminAnswerDefinitionUpsertRequest request)

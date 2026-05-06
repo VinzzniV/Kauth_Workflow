@@ -665,7 +665,7 @@ public sealed class WorkflowLifecycleServiceTests
         public Task ApplyPersonLifecycleProjection(Guid workflowUid, long? actorUserId = null) => throw new NotSupportedException();
         public Task<List<LinkableWorkflowDto>> FindLinkableWorkflows(int employeeNumber, Guid? excludeWorkflowUid = null) => throw new NotSupportedException();
         public Task<List<DerivedAnswerDto>> GetDerivedAnswers(Guid sourceWorkflowUid, string targetWorkflowDefinitionKey) => throw new NotSupportedException();
-        public Task<List<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions() => throw new NotSupportedException();
+        public Task<AdminListPageDto<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions(AdminListQuery query) => throw new NotSupportedException();
         public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
         public Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminWorkflowDefinition(int definitionId) => throw new NotSupportedException();
@@ -673,21 +673,21 @@ public sealed class WorkflowLifecycleServiceTests
         public Task<WorkflowDefinitionVersionDetailDto?> EnsureAdminWorkflowDefinitionWorkingDraft(int definitionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> GetAdminWorkflowDefinitionVersion(long versionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> ReplaceAdminWorkflowDefinitionVersion(long versionId, ReplaceWorkflowDefinitionVersionRequest request) => throw new NotSupportedException();
-        public Task<List<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminTaskTemplateDto>> GetAdminTaskTemplates(int workflowDefinitionId, AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDto> CreateAdminTaskTemplate(AdminTaskTemplateUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDto?> UpdateAdminTaskTemplate(int templateId, AdminTaskTemplateUpsertRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminTaskTemplate(int templateId) => throw new NotSupportedException();
-        public Task<List<AdminTaskTemplateConditionDto>> GetAdminTaskTemplateConditions(int templateId) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminTaskTemplateConditionDto>> GetAdminTaskTemplateConditions(int templateId, AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminTaskTemplateConditionDto> CreateAdminTaskTemplateCondition(int templateId, AdminTaskTemplateConditionCreateRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminTaskTemplateCondition(int templateId, long conditionId) => throw new NotSupportedException();
-        public Task<List<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminTaskTemplateDependencyDto>> GetAdminTaskTemplateDependencies(int templateId, AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminTaskTemplateDependencyDto> CreateAdminTaskTemplateDependency(int templateId, AdminTaskTemplateDependencyCreateRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminTaskTemplateDependency(int templateId, long dependencyId) => throw new NotSupportedException();
-        public Task<List<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminAnswerDefinitionDto>> GetAdminAnswerDefinitions(int workflowDefinitionId, AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminAnswerDefinitionDto> CreateAdminAnswerDefinition(AdminAnswerDefinitionUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminAnswerDefinitionDto?> UpdateAdminAnswerDefinition(int definitionId, AdminAnswerDefinitionUpsertRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminAnswerDefinition(int definitionId) => throw new NotSupportedException();
-        public Task<List<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId, AdminListQuery query) => throw new NotSupportedException();
         public Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId) => throw new NotSupportedException();
     }

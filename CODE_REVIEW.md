@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-06 — Aktiver Zyklus 11 (Admin-/Master-Data-Listen-Vertraege in Umsetzung; F1 abgeschlossen, F2 abgeschlossen, F3 naechster aktiver Slice). Slice-Reihenfolge bleibt F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss).
+**Stand**: 2026-05-06 — Zyklus 11 abgeschlossen (Admin-/Master-Data-Listen-Vertraege umgesetzt; F1 + F2 + F3 done). Slice-Reihenfolge wie geplant: F1 P1-Hull + B Master-Data/Lookups → F2 P2-Hull + Audit-Streams → F3 P1-Ausrollen + D Builder-Tabs (gemaess § Z10-1.3). Kein aktiver Zyklus. Zyklus 10 abgeschlossen (Vertrags-Planungszyklus); Zyklus 9 abgeschlossen (`EntraDirectorySyncService`-Split / Testbarkeit).
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen).
 
 ---
 
@@ -70,9 +70,9 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-## Aktiver Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05)
+## Abgeschlossener Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung (2026-05-05..06)
 
-**Status:** eroeffnet 2026-05-05. Reiner Umsetzungszyklus auf Basis des in Z10-1.3 verabschiedeten Slice-Plans. **Z11-F1 ist abgeschlossen**, F2 ist der naechste aktive Slice, F3 bleibt nachgelagert.
+**Status:** eroeffnet 2026-05-05, formal abgeschlossen 2026-05-06. Reiner Umsetzungszyklus auf Basis des in Z10-1.3 verabschiedeten Slice-Plans. **Alle drei Slices done** (F1 2026-05-05, F2 2026-05-06, F3 2026-05-06). Kein aktiver Folgezyklus eroeffnet.
 
 **Thema:** die in Zyklus 10 definierten Antwort-Hulls **P1** (`AdminListPageDto<T>` — `?limit&offset&search&sort` mit `total`) und **P2** (`CursorPageDto<T>` — Cursor-Stream ohne `total`) werden in Z11 in drei sauber getrennten Slices umgesetzt: **F1** fuehrt P1 ein und wendet sie auf Master-Data/Lookups an, **F2** fuehrt P2 ein und wendet sie auf die zwei Audit-Streams an, **F3** rollt die in F1 etablierte P1-Hull auf die sieben scoped Builder-Lese-Endpunkte aus.
 
@@ -122,7 +122,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 |----|---------|------|-----------|------|-----------|--------|--------|
 | Z11-F1 | P1 (`AdminListPageDto<T>`) zentral einfuehren + B Master-Data/Lookups; Server-`search`/`sort`-Whitelist pro Endpunkt; typed Wrapper im FE; bestehende Aufrufer zunaechst auf `items` adaptieren | P1 | `/departments`, `/roles`, `/admin/master-data/departments`, `/admin/master-data/positions`, `/admin/master-data/responsibilities` | HIGH | high | opus | done (2026-05-05) — `AdminListPageDto<T>` eingefuehrt, fuenf Endpunkte auf P1 umgestellt, FE-Service-Layer und aktuelle Consumer auf Page-Huelle adaptiert |
 | Z11-F2 | P2 (`CursorPageDto<T>`) zentral einfuehren + Audit-Streams; opaque Base64-Cursor ueber `(occurredAt, id)`; FE-Wrapper plus „Mehr laden"-Knopf in beiden Audit-Tabs | P2 | `/admin/auth/audit`, `/admin/directory/audit` | HIGH | medium..high | sonnet | done (2026-05-06) — `CursorPageDto<T>` eingefuehrt, zwei Audit-Endpunkte auf P2 umgestellt, typed FE-Wrapper + Akkumulations-Hook + „Mehr laden"-Knopf in beiden Audit-Tabs |
-| Z11-F3 | P1 ausrollen + D Builder-Tabs (scoped); Pflicht-Scope (`workflowDefinitionId` bzw. `task-template-id`) als Whitelist-Bedingung; Filterzustand im FE in URL-Query verschieben | P1 (wiederverwendet aus F1) | `/admin/config/workflow-definitions`, `/admin/config/action-definitions`, `/admin/config/task-templates`, `/admin/config/task-templates/{id}/conditions`, `/admin/config/task-templates/{id}/dependencies`, `/admin/config/answer-definitions`, `/admin/config/role-answer-defaults` | HIGH | medium..high | opus | offen |
+| Z11-F3 | P1 ausrollen + D Builder-Tabs (scoped); Pflicht-Scope (`workflowDefinitionId` bzw. `task-template-id`) als Whitelist-Bedingung; Filterzustand im FE noch nicht in URL-Query verschoben (bewusst Restgrenze fuer separaten UI-Slice) | P1 (wiederverwendet aus F1) | `/admin/config/workflow-definitions`, `/admin/config/action-definitions`, `/admin/config/task-templates`, `/admin/config/task-templates/{id}/conditions`, `/admin/config/task-templates/{id}/dependencies`, `/admin/config/answer-definitions`, `/admin/config/role-answer-defaults` | HIGH | medium..high | opus | done (2026-05-06) — sieben scoped Builder-Endpunkte auf P1, FE-Service-Wrapper und alle Builder-Hooks auf `page.items` adaptiert |
 
 **Erwartete Ausgaenge aus Z11:**
 - F1 abgeschlossen: zentraler `AdminListPageDto<T>`-Hull-Typ im Backend, fuenf Master-Data/Lookup-Endpunkte auf P1, ein typed FE-Wrapper plus Aufrufer-Refactor, in `FRONTEND_TODO.md` als abgeschlossener Trigger F1 dokumentiert.
@@ -180,6 +180,32 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 **Restgrenzen von F2:** FE-Consumer-Hookfunktionen fuer Permission-Audit und Directory-Audit im `useAdminPermissionManagement`-Hook wurden auf die neue Signatur angepasst. Kein sichtbarer Filterzustand in der URL — das ist F3-Thema. `GET /admin/auth/audit` hat noch keinen `search`-Parameter — bewusst draussen (P2-Hull sieht `search` vor, war aber nicht im F2-Scope).
 
 **Naechster Schritt:** Z11-F3 beauftragen — P1 ausrollen + D Builder-Tabs (sieben scoped Endpunkte); Modell opus/medium..high.
+
+### Z11-F3 — P1-Ausrollen fuer Builder-Tabs (2026-05-06)
+
+**Was passiert ist:** Die in F1 etablierte P1-Hull (`AdminListPageDto<T>` + `AdminListQuery`) wurde ohne neue Hull-Definition auf die sieben scoped Builder-Lese-Endpunkte ausgerollt. Betroffen: `GET /admin/config/workflow-definitions`, `/admin/config/action-definitions`, `/admin/config/task-templates`, `/admin/config/task-templates/{id}/conditions`, `/admin/config/task-templates/{id}/dependencies`, `/admin/config/answer-definitions`, `/admin/config/role-answer-defaults`. Repository- und Service-Signaturen entlang derselben Kette umgestellt; SQL mit `COUNT(*) OVER()`, `LIMIT/OFFSET`, ILIKE-`search` und festen Sort-Whitelists pro Endpunkt; `workflowDefinitionId` bzw. `templateId` bleiben Pflicht-Scope und sind nicht durch `search` ersetzbar. FE-Service-Wrapper (`getAdminTaskTemplates`, `…Conditions`, `…Dependencies`, `getAdminAnswerDefinitions`, `getAdminRoleAnswerDefaults`, `getAdminWorkflowDefinitions`, `getAdminWorkflowActionDefinitions`) liefern jetzt `Promise<AdminListPage<T>>`; alle Builder-Hooks (`useAdminTaskTemplateData`, `useAdminAnswerDefinitionManagement`, `useAdminRoleAnswerDefaults`, `useAdminWorkflowVersionReferenceData`, `useAdminWorkflowBuilder`) lesen pragmatisch `page.items` mit `limit: 200`. Schreibpfade, Versionierungs-/Publish-Pfade und der Dependency-Graph-Endpunkt blieben bewusst unangetastet.
+
+**Was bedeutet das praktisch?**
+- Der Builder bleibt schnell, auch wenn eine Definition Dutzende Aufgabenvorlagen, Antwortfelder oder Rollen-Defaults haelt — das Backend rechnet pro Tab nur einen Ausschnitt und kann gezielt suchen, statt blind den gesamten Bestand zu liefern.
+- Suche und Sortierung sind jetzt fuer alle Builder-Listen serverseitig vorbereitet. Die heutige Inspector-UI nutzt noch `limit: 200`, aber der Vertrag ist nicht mehr auf einen Voll-Load festgenagelt.
+- Der Vertrag der sieben Endpunkte sieht jetzt ueberall identisch aus wie F1, statt pro Tab eigene Mini-Antwortformen zu haben.
+
+**Warum lohnt es sich?**
+- F3 war der breiteste Slice von Z11 und der einzige, der die in F1 etablierte Hull voraussetzt. Ohne F3 waeren die Builder-Tabs als letzte grosse Insel mit nacktem Array-Vertrag stehengeblieben.
+- Sieben Endpunkte in einem Pass umzustellen verhindert, dass sich pro Tab eine eigene Mini-Pagination einschleicht; F1/F2 haben das Muster bereits durchgespielt, F3 bringt es ans Ziel.
+- Der Pflicht-Scope (`workflowDefinitionId` bzw. `templateId`) bleibt im Vertrag verankert — die Hull-Generalisierung schwaecht den Sicherheits-Boundary nicht auf.
+
+**Was wird dadurch besser, sicherer, schneller oder wartbarer?**
+- **Schneller:** Builder-Listen liefern bei wachsenden Definitionen stabile Antwortzeiten; Server-`COUNT(*) OVER()` plus `LIMIT/OFFSET` statt unbegrenzter Voll-Loads.
+- **Wartbarer:** ein einziger Hull-Typ fuer alle Admin-Listen (Master-Data + Builder); FE bekommt einen einzigen typed Adapter (`AdminListPage<T>`) statt sieben Mini-Antwortformen.
+- **Sicherer:** Pflicht-Scope bleibt zwingend, Sort-Felder sind Whitelist (kein freier `ORDER BY`-Injection-Vektor); ILIKE-`search` ueber im Endpunkt fest deklarierte Felder.
+- **Konsistenter:** alle drei Z11-Slices nutzen am Ende dieselbe P1-Hull bzw. die schwesterliche P2-Hull — keine Mischvertraege, kein Drift.
+
+**Verifikation:** `dotnet build api/API/API.csproj` gruen, `dotnet build api/API.Tests/API.Tests.csproj` gruen (3 vorbestehende CS8602-Warnungen, 0 Fehler), `npm run build` unter `web/` gruen (`built in 6.13s`, nur vorbestehende Chunk-Size-Warnung). `dotnet test` Unit-Tests 369/369 gruen; AdminConfig-Integration-Tests 22/22 gruen; WorkflowDefinition-Integration-Tests 9/9 gruen.
+
+**Restgrenzen von F3:** Die Builder-Inspector-UI nutzt weiterhin `limit: 200` und liest `page.items`; sichtbare Paging-/Filter-UI mit Filterzustand in der URL-Query wurde bewusst nicht in F3 mitgenommen — das ist ein eigenstaendiger UI-Slice, der nicht mehr unter Z11 faellt. Der Dependency-Graph-Endpunkt (`GET /admin/config/dependency-graph`) bleibt strukturell ein Graph, kein Listen-Endpunkt — gehoert nicht in eine P1-Hull. Schreibpfade und Versionierungs-/Publish-Endpunkte sind weiterhin nackte JSON-Antworten ohne Hull.
+
+**Naechster Schritt:** Z11 ist mit F3 vollstaendig geschlossen. Kein neuer Zyklus aus diesem Slice heraus eroeffnet — Codex entscheidet, welcher der nach Z11 vorgesehenen Folgekandidaten (A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation, G Runtime-Sub-Resources, H Startable, oder ein eigenstaendiger Builder-UI-Slice fuer URL-Filterzustand) der naechste aktive Zyklus wird.
 
 ---
 
