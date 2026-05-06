@@ -1064,6 +1064,17 @@
   transform: translateY(-1px);
 }
 
+.requirement-toggle-card--readonly {
+  cursor: default;
+}
+
+.requirement-toggle-card--readonly:hover {
+  border-color: var(--surface-card-border);
+  background: var(--surface-list-background);
+  box-shadow: none;
+  transform: none;
+}
+
 .requirement-toggle-card:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
@@ -1169,6 +1180,19 @@
 .chip-action.active:hover {
   border-color: var(--brand);
   filter: brightness(1.05);
+}
+
+.requirement-readonly-value {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--surface-card-border);
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface-card-subtle);
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 }
 

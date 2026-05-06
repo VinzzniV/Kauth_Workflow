@@ -9,6 +9,9 @@ export function useAdminSharedQueryInvalidation() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.roles() }),
       queryClient.invalidateQueries({ queryKey: queryKeys.departments() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.departmentAssignments() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.responsibilityOwners() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() }),
     ]);
   }, [queryClient]);
 

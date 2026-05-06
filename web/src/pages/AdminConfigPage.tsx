@@ -284,6 +284,7 @@ export default function AdminConfigPage() {
     onRemoveDepartmentPosition: orgMgmt.removeDepartmentPosition,
     onRemoveResponsibility: orgMgmt.removeResponsibility,
     onSaveResponsibilityAssignment: orgMgmt.saveResponsibilityAssignment,
+    onReloadOrganizationData: data.reload,
   };
 
   const accessBundle: AdminConfigAccessBundle = {

@@ -163,4 +163,64 @@ describe("RequirementsSelection", () => {
 
     expect(screen.getByText("Zu übernehmende Hardware")).toBeTruthy();
   });
+
+  it("renders read-only requirements with the supervisor-style state instead of saved-value text", () => {
+    const requirements = [
+      createRequirementSnapshot({
+        id: 1,
+        workflowRequirementId: 1,
+        key: "ad_user_requested",
+        title: "AD-Konto",
+        description: "Soll ein AD-Konto angelegt werden?",
+        inputType: "boolean",
+        category: "zugaenge",
+        value: {
+          valueBoolean: true,
+          valueText: null,
+          valueNumber: null,
+          selectedOptionId: null,
+          selectedOptionKey: null,
+          selectedOptionValue: null,
+          selectedOptionLabel: null,
+          selectedOptions: [],
+        },
+      }),
+      createRequirementSnapshot({
+        id: 2,
+        workflowRequirementId: 2,
+        key: "hardware_type",
+        title: "Hardware",
+        description: "Welche Hardware soll bereitgestellt werden?",
+        inputType: "select",
+        category: "ausstattung",
+        options: [
+          { id: 10, key: "laptop", value: "laptop", label: "Laptop" },
+          { id: 11, key: "desktop", value: "desktop", label: "Desktop-PC" },
+        ],
+        value: {
+          valueBoolean: null,
+          valueText: null,
+          valueNumber: null,
+          selectedOptionId: 10,
+          selectedOptionKey: "laptop",
+          selectedOptionValue: "laptop",
+          selectedOptionLabel: "Laptop",
+          selectedOptions: [],
+        },
+      }),
+    ];
+
+    render(
+      <RequirementsSelection
+        requirements={requirements}
+        mode="view"
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    expect(screen.getByLabelText("AD-Konto: Ja")).toBeTruthy();
+    expect(screen.getByText("Laptop")).toBeTruthy();
+    expect(screen.queryByText(/Gespeicherter Wert:/i)).toBeNull();
+  });
 });

@@ -15,37 +15,47 @@ describe("adminConfigApi.getAdminWorkflowActionDefinitions", () => {
   });
 
   it("maps backend action definitions into the frontend action catalog shape", async () => {
-    mockedRequestJson.mockResolvedValueOnce([
-      {
-        id: 10,
-        key: "CreateAdUser",
-        name: "Create AD User",
-        description: "Legt ein AD-Konto an.",
-        handlerType: "create-ad-user",
-        parameterSchema: { type: "object" },
-        isActive: true,
-        requiresApproval: false,
-        isIdempotent: true,
-        createdAt: "2026-04-08T10:00:00Z",
-        updatedAt: "2026-04-08T10:00:00Z",
-      },
-    ]);
+    mockedRequestJson.mockResolvedValueOnce({
+      items: [
+        {
+          id: 10,
+          key: "CreateAdUser",
+          name: "Create AD User",
+          description: "Legt ein AD-Konto an.",
+          handlerType: "create-ad-user",
+          parameterSchema: { type: "object" },
+          isActive: true,
+          requiresApproval: false,
+          isIdempotent: true,
+          createdAt: "2026-04-08T10:00:00Z",
+          updatedAt: "2026-04-08T10:00:00Z",
+        },
+      ],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
 
     const result = await getAdminWorkflowActionDefinitions();
 
     expect(mockedRequestJson).toHaveBeenCalledWith("/admin/config/action-definitions");
-    expect(result).toEqual([
-      {
-        id: 10,
-        actionKey: "CreateAdUser",
-        displayName: "Create AD User",
-        description: "Legt ein AD-Konto an.",
-        handlerKey: "create-ad-user",
-        isIdempotent: true,
-        isActive: true,
-        requiresApproval: false,
-        inputSchema: { type: "object" },
-      },
-    ]);
+    expect(result).toEqual({
+      items: [
+        {
+          id: 10,
+          actionKey: "CreateAdUser",
+          displayName: "Create AD User",
+          description: "Legt ein AD-Konto an.",
+          handlerKey: "create-ad-user",
+          isIdempotent: true,
+          isActive: true,
+          requiresApproval: false,
+          inputSchema: { type: "object" },
+        },
+      ],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
   });
 });

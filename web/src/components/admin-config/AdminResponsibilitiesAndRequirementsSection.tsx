@@ -51,7 +51,13 @@ function isResponsibilityUnconfigured(responsibility: AdminResponsibilityOwner):
   return !responsibility.appUserDisplayName && !responsibility.departmentName;
 }
 
-export function FachlicheZustaendigkeitenPanel() {
+type FachlicheZustaendigkeitenPanelProps = {
+  onAfterChange?: () => void | Promise<void>;
+};
+
+export function FachlicheZustaendigkeitenPanel({
+  onAfterChange,
+}: FachlicheZustaendigkeitenPanelProps = {}) {
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useToast();
 
@@ -118,6 +124,7 @@ export function FachlicheZustaendigkeitenPanel() {
       setNewName("");
       setNewDepartmentId("");
       await invalidate();
+      await onAfterChange?.();
     } catch (error) {
       showError(error instanceof Error ? error.message : "Fehler beim Anlegen.");
     } finally {
@@ -145,6 +152,7 @@ export function FachlicheZustaendigkeitenPanel() {
       showSuccess("Zuweisung gespeichert.");
       setEditingId(null);
       await invalidate();
+      await onAfterChange?.();
     } catch (error) {
       showError(error instanceof Error ? error.message : "Fehler beim Speichern.");
     } finally {
@@ -159,6 +167,7 @@ export function FachlicheZustaendigkeitenPanel() {
       showSuccess("Zuständigkeit gelöscht.");
       if (editingId === r.responsibilityId) setEditingId(null);
       await invalidate();
+      await onAfterChange?.();
     } catch (error) {
       showError(error instanceof Error ? error.message : "Fehler beim Löschen.");
     } finally {

@@ -200,6 +200,7 @@ export function useAdminOrganizationManagement({
           })
       );
       setNewResponsibilityDraft({ responsibilityName: "", departmentId: "" });
+      await invalidateOrganizationLookups();
       onNotice(`Zuständigkeit ${createdResponsibility.responsibilityName} wurde angelegt.`);
       return createdResponsibility;
     } catch (err) {
@@ -209,7 +210,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setIsCreatingResponsibility(false);
     }
-  }, [newResponsibilityDraft, onError, onNotice, setResponsibilityOwners]);
+  }, [invalidateOrganizationLookups, newResponsibilityDraft, onError, onNotice, setResponsibilityOwners]);
 
   const removeDepartment = useCallback(async (department: AdminDepartmentAssignment) => {
     const shouldDelete = await confirm({
@@ -297,6 +298,7 @@ export function useAdminOrganizationManagement({
         delete nextDrafts[responsibility.responsibilityId];
         return nextDrafts;
       });
+      await invalidateOrganizationLookups();
       onNotice(`Zuständigkeit ${responsibility.responsibilityName} wurde gelöscht.`);
       return true;
     } catch (err) {
@@ -306,7 +308,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setDeletingResponsibilityId(null);
     }
-  }, [confirm, onError, onNotice, setResponsibilityOwners]);
+  }, [confirm, invalidateOrganizationLookups, onError, onNotice, setResponsibilityOwners]);
 
   const saveDepartmentAssignment = useCallback(async (departmentId: number) => {
     const draft = departmentDrafts[departmentId];
@@ -327,6 +329,7 @@ export function useAdminOrganizationManagement({
       setDepartmentAssignments((current) =>
         current.map((item) => (item.departmentId === updatedAssignment.departmentId ? updatedAssignment : item))
       );
+      await invalidateOrganizationLookups();
       onNotice(`Zuständigkeiten für ${updatedAssignment.departmentName} wurden gespeichert.`);
     } catch (err) {
       const message =
@@ -335,7 +338,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setSavingDepartmentId(null);
     }
-  }, [departmentDrafts, onError, onNotice, setDepartmentAssignments]);
+  }, [departmentDrafts, invalidateOrganizationLookups, onError, onNotice, setDepartmentAssignments]);
 
   const saveDepartmentPosition = useCallback(async (positionId: number) => {
     const draft = positionDrafts[positionId];
@@ -391,6 +394,7 @@ export function useAdminOrganizationManagement({
           item.responsibilityId === updatedAssignment.responsibilityId ? updatedAssignment : item
         )
       );
+      await invalidateOrganizationLookups();
       onNotice(`Zuständigkeit für ${updatedAssignment.responsibilityName} wurde gespeichert.`);
     } catch (err) {
       const message =
@@ -399,7 +403,7 @@ export function useAdminOrganizationManagement({
     } finally {
       setSavingResponsibilityId(null);
     }
-  }, [onError, onNotice, responsibilityDrafts, setResponsibilityOwners]);
+  }, [invalidateOrganizationLookups, onError, onNotice, responsibilityDrafts, setResponsibilityOwners]);
 
   return {
     newDepartmentNameDraft,

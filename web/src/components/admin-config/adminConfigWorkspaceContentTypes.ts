@@ -133,6 +133,7 @@ export type AdminConfigOrganizationBundle = {
     responsibility: AdminResponsibilityOwner
   ) => void | Promise<boolean> | boolean;
   onSaveResponsibilityAssignment: (responsibilityId: number) => void | Promise<void>;
+  onReloadOrganizationData: () => void | Promise<void>;
 };
 
 // ─── Access bundle: roles, groups, permissions ───────────────────────────────

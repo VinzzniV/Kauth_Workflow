@@ -204,13 +204,32 @@ function mockSuccessfulLoad() {
       email: "mia.manager@demo.local",
     }),
   ]);
-  mockedGetAdminDepartmentAssignments.mockResolvedValue([createAdminDepartmentAssignment()]);
-  mockedGetAdminDepartmentPositions.mockResolvedValue([]);
-  mockedGetAdminResponsibilityOwners.mockResolvedValue([createResponsibility()]);
+  mockedGetAdminDepartmentAssignments.mockResolvedValue({
+    items: [createAdminDepartmentAssignment()],
+    total: 1,
+    limit: 200,
+    offset: 0,
+  });
+  mockedGetAdminDepartmentPositions.mockResolvedValue({
+    items: [],
+    total: 0,
+    limit: 200,
+    offset: 0,
+  });
+  mockedGetAdminResponsibilityOwners.mockResolvedValue({
+    items: [createResponsibility()],
+    total: 1,
+    limit: 200,
+    offset: 0,
+  });
   mockedGetAdminGraphApplicationConfiguration.mockResolvedValue(createGraphConfiguration());
   mockedGetAdminNotificationEmailConfiguration.mockResolvedValue(createNotificationConfiguration());
   mockedGetAdminNotificationTemplates.mockResolvedValue([createNotificationTemplate()]);
-  mockedGetAdminPermissionAudit.mockResolvedValue([]);
+  mockedGetAdminPermissionAudit.mockResolvedValue({
+    items: [],
+    nextCursor: null,
+    hasMore: false,
+  });
   mockedGetAdminPermissions.mockResolvedValue([]);
   mockedGetAdminRoles.mockResolvedValue([createRole()]);
   mockedGetAdminGroups.mockResolvedValue([createGroup()]);

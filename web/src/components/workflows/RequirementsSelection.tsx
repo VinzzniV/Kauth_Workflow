@@ -107,6 +107,62 @@ function formatSelectionValue(requirement: RequirementEntry, selection: Requirem
   return labels.join(", ") || "-";
 }
 
+function renderReadOnlyRequirementField(
+  requirement: RequirementEntry,
+  selection: RequirementSelectionState
+) {
+  if (requirement.inputType === "text") {
+    const textValue = selection.valueText.trim();
+    return (
+      <div className="field">
+        <span>Antwort</span>
+        <div className="requirement-readonly-value">
+          {textValue || "Keine Angabe"}
+        </div>
+      </div>
+    );
+  }
+
+  if (requirement.inputType === "select") {
+    const label = findOptionLabel(requirement, selection.selectedOptionId);
+    return (
+      <div className="field">
+        <span>Auswahl</span>
+        <div className="chips-row" aria-label={`Auswahl für ${requirement.title}`}>
+          <span className={`chip${label !== "-" ? " chip-action active" : ""}`}>
+            {label !== "-" ? label : "Nicht ausgewählt"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (requirement.inputType === "multi_select") {
+    const selectedLabels = selection.selectedOptionIds
+      .map((optionId) => findOptionLabel(requirement, optionId))
+      .filter((label) => label !== "-");
+
+    return (
+      <div className="field">
+        <span>Auswahl</span>
+        <div className="chips-row" aria-label={`Auswahl für ${requirement.title}`}>
+          {selectedLabels.length > 0 ? (
+            selectedLabels.map((label) => (
+              <span key={label} className="chip chip-action active">
+                {label}
+              </span>
+            ))
+          ) : (
+            <span className="chip">Nicht ausgewählt</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function renderEditableRequirementField(
   requirement: RequirementEntry,
   selection: RequirementSelectionState,
@@ -338,34 +394,75 @@ export default function RequirementsSelection({
                     ) : null}
                   </>
                 ) : (
-                  <ul className="requirements-list" aria-label={`Auswahlpunkte in ${group.categoryLabel}`}>
-                    {group.items.map((requirement) => {
-                      const selection = getRequirementSelection(requirement, effectiveSelections);
-                      const requirementId = getRequirementId(requirement);
-                      const selectionValue = formatSelectionValue(requirement, selection);
+                  <>
+                    {booleanRequirements.length > 0 ? (
+                      <div className="requirement-toggle-grid" aria-label={`Auswahl in ${group.categoryLabel}`}>
+                        {booleanRequirements.map((requirement) => {
+                          const selection = getRequirementSelection(requirement, effectiveSelections);
+                          const requirementId = getRequirementId(requirement);
+                          const isActive = selection.valueBoolean === true;
+                          const stateLabel = selection.valueBoolean === null
+                            ? "Nicht ausgewählt"
+                            : isActive
+                              ? "Ja"
+                              : "Nein";
 
-                      return (
-                        <li key={requirementId} className="requirement-item requirement-card">
-                          <div className="requirement-layout">
-                            <div className="requirement-content">
-                              <div className="panel-head">
-                                <div className="requirement-title-row">
-                                  <h4>{requirement.title}</h4>
-                                </div>
-                                <p>{requirement.description}</p>
+                          return (
+                            <div
+                              key={requirementId}
+                              className={`requirement-toggle-card requirement-toggle-card--readonly ${isActive ? "is-active" : ""}`}
+                              aria-label={`${requirement.title}: ${stateLabel}`}
+                            >
+                              <div className="requirement-toggle-card__icon">
+                                <RequirementIcon
+                                  iconKey={getIconKey(requirement)}
+                                  title={requirement.title}
+                                  size="md"
+                                />
                               </div>
-
-                              <p className="panel-note">Gespeicherter Wert: {selectionValue}</p>
+                              <div className="requirement-toggle-card__body">
+                                <span className="requirement-toggle-card__title">{requirement.title}</span>
+                                <span className="requirement-toggle-card__description">{requirement.description}</span>
+                              </div>
+                              <span className="requirement-toggle-card__state">{stateLabel}</span>
                             </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
 
-                            <div className="requirement-icon-side">
-                              <RequirementIcon iconKey={getIconKey(requirement)} title={requirement.title} />
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                    {detailRequirements.length > 0 ? (
+                      <ul className="requirements-list requirement-details-list" aria-label={`Detailfelder in ${group.categoryLabel}`}>
+                        {detailRequirements.map((requirement) => {
+                          const selection = getRequirementSelection(requirement, effectiveSelections);
+                          const requirementId = getRequirementId(requirement);
+
+                          return (
+                            <li key={requirementId} className="requirement-item requirement-card">
+                              <div className="requirement-layout">
+                                <div className="requirement-content">
+                                  <div className="panel-head">
+                                    <div className="requirement-title-row">
+                                      <h4>{requirement.title}</h4>
+                                    </div>
+                                    <p>{requirement.description}</p>
+                                  </div>
+
+                                  {renderReadOnlyRequirementField(requirement, selection) ?? (
+                                    <p className="panel-note">{formatSelectionValue(requirement, selection)}</p>
+                                  )}
+                                </div>
+
+                                <div className="requirement-icon-side">
+                                  <RequirementIcon iconKey={getIconKey(requirement)} title={requirement.title} />
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </>
                 )}
               </section>
             );

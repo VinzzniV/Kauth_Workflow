@@ -61,10 +61,21 @@ describe("WorkflowSearchPage", () => {
       { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, primaryLegacyProcessTypeKey: "onboarding", latestPublishedVersionNumber: 1 },
       { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
     ]);
-    mockedGetDepartments.mockResolvedValue([
-      { id: 10, name: "IT" },
-      { id: 20, name: "Finance" },
-    ]);
+    mockedGetDepartments.mockResolvedValue({
+      items: [
+        {
+          id: 10,
+          name: "IT",
+        },
+        {
+          id: 20,
+          name: "Finance",
+        },
+      ],
+      total: 2,
+      limit: 200,
+      offset: 0,
+    });
   });
 
   it("keeps other departments selectable after a department filter is applied", async () => {

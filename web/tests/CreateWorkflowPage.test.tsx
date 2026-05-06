@@ -121,26 +121,36 @@ describe("CreateWorkflowPage", () => {
         pendingNotifications: 0,
       },
     });
-    mockedGetDepartments.mockResolvedValue([
-      { id: 10, name: "IT" },
-      { id: 20, name: "HR" },
-    ]);
-    mockedGetRoles.mockResolvedValue([
-      {
-        id: 7,
-        departmentId: 10,
-        departmentName: "IT",
-        name: "Engineer",
-        isActive: true,
-      },
-      {
-        id: 8,
-        departmentId: 20,
-        departmentName: "HR",
-        name: "Recruiter",
-        isActive: true,
-      },
-    ]);
+    mockedGetDepartments.mockResolvedValue({
+      items: [
+        { id: 10, name: "IT" },
+        { id: 20, name: "HR" },
+      ],
+      total: 2,
+      limit: 200,
+      offset: 0,
+    });
+    mockedGetRoles.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          departmentId: 10,
+          departmentName: "IT",
+          name: "Engineer",
+          isActive: true,
+        },
+        {
+          id: 8,
+          departmentId: 20,
+          departmentName: "HR",
+          name: "Recruiter",
+          isActive: true,
+        },
+      ],
+      total: 2,
+      limit: 200,
+      offset: 0,
+    });
   });
 
   it("starts with an explicit workflow step even when only one definition is available", async () => {

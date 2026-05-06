@@ -25,7 +25,7 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
     case "abteilungen":
       return renderAbteilungenWorkspace(props);
     case "zustaendigkeiten":
-      return renderZustaendigkeitenWorkspace();
+      return renderZustaendigkeitenWorkspace(props);
     case "massnahmenvorlagen":
       return renderMassnahmenvorlagenWorkspace();
     case "access":

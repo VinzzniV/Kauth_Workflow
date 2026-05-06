@@ -203,10 +203,15 @@ describe("RotationPlanDetailPage", () => {
       refetch: vi.fn().mockResolvedValue(undefined),
     } as never);
     mockedUseDepartments.mockReturnValue({
-      data: [
-        { id: 3, name: "BS" },
-        { id: 9, name: "IT" },
-      ],
+      data: {
+        items: [
+          { id: 3, name: "BS" },
+          { id: 9, name: "IT" },
+        ],
+        total: 2,
+        limit: 200,
+        offset: 0,
+      },
       isLoading: false,
       error: null,
     } as never);

@@ -63,8 +63,12 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
 
             var updatedTask = await updateTask.WaitAsync(TimeSpan.FromSeconds(10));
             Assert.NotNull(updatedTask);
-            Assert.Equal("in_progress", updatedTask!.Task.Status);
-            Assert.Equal("in_progress", updatedTask.Workflow.WorkflowStatus);
+            var updatedTaskValue = updatedTask!;
+            Assert.NotNull(updatedTaskValue.Workflow);
+            var updatedWorkflow = updatedTaskValue.Workflow!;
+
+            Assert.Equal("in_progress", updatedTaskValue.Task.Status);
+            Assert.Equal("in_progress", updatedWorkflow.WorkflowStatus);
         }
         finally
         {
@@ -101,10 +105,17 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
 
             Assert.NotNull(firstUpdatedTask);
             Assert.NotNull(secondUpdatedTask);
-            Assert.Equal("in_progress", firstUpdatedTask!.Task.Status);
-            Assert.Equal("in_progress", secondUpdatedTask!.Task.Status);
-            Assert.Equal("in_progress", firstUpdatedTask.Workflow.WorkflowStatus);
-            Assert.Equal("in_progress", secondUpdatedTask.Workflow.WorkflowStatus);
+            var firstUpdatedTaskValue = firstUpdatedTask!;
+            var secondUpdatedTaskValue = secondUpdatedTask!;
+            Assert.NotNull(firstUpdatedTaskValue.Workflow);
+            Assert.NotNull(secondUpdatedTaskValue.Workflow);
+            var firstUpdatedWorkflow = firstUpdatedTaskValue.Workflow!;
+            var secondUpdatedWorkflow = secondUpdatedTaskValue.Workflow!;
+
+            Assert.Equal("in_progress", firstUpdatedTaskValue.Task.Status);
+            Assert.Equal("in_progress", secondUpdatedTaskValue.Task.Status);
+            Assert.Equal("in_progress", firstUpdatedWorkflow.WorkflowStatus);
+            Assert.Equal("in_progress", secondUpdatedWorkflow.WorkflowStatus);
         }
         finally
         {

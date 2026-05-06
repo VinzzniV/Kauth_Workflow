@@ -144,8 +144,12 @@ export function renderAbteilungenWorkspace(props: AdminConfigWorkspaceContentPro
   );
 }
 
-export function renderZustaendigkeitenWorkspace() {
-  return renderWorkspaceWithIntro("zustaendigkeiten", <FachlicheZustaendigkeitenPanel />);
+export function renderZustaendigkeitenWorkspace(props: AdminConfigWorkspaceContentProps) {
+  const { organization } = props;
+  return renderWorkspaceWithIntro(
+    "zustaendigkeiten",
+    <FachlicheZustaendigkeitenPanel onAfterChange={organization.onReloadOrganizationData} />
+  );
 }
 
 export function renderMassnahmenvorlagenWorkspace() {

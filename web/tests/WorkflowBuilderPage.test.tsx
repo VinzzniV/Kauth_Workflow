@@ -75,8 +75,18 @@ describe("WorkflowBuilderPage (Form-Editor)", () => {
     mockedEnsureAdminWorkflowDefinitionWorkingDraft.mockReset();
     mockedGetAdminWorkflowDefinitions.mockReset();
 
-    mockedGetAdminWorkflowDefinitions.mockResolvedValue([sampleDefinition]);
-    mockedGetAdminWorkflowActionDefinitions.mockResolvedValue([]);
+    mockedGetAdminWorkflowDefinitions.mockResolvedValue({
+      items: [sampleDefinition],
+      total: 1,
+      limit: 200,
+      offset: 0,
+    });
+    mockedGetAdminWorkflowActionDefinitions.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+    });
     mockedGetAdminWorkflowDefinitionVersion.mockResolvedValue(sampleVersionDetail);
     mockedEnsureAdminWorkflowDefinitionWorkingDraft.mockResolvedValue(sampleVersionDetail);
   });
