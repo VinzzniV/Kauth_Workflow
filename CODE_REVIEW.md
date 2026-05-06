@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-06 — **Aktiver Zyklus 12** in Arbeit: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health-Signale. **Z12-1.1 done** (Inventur heutige Health-Signale, fehlende App-/Runtime-Signale, Begriffstrennung App / Container / Host). Z12 adressiert zuerst App-/Runtime-Health (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage), nicht vollwertige Host-/VM-Metrik. Slice-Reihenfolge: ✅ Z12-1.1 → Z12-1.2 Vertrags-Skizze (DTO + Schwellwerte + Abgrenzung App/Container/Host) → Z12-2.1 Backend Runtime-Health Endpoint + Service → Z12-2.2 Frontend Admin-Dashboard-Betriebsblock. Echte Host-/VM-Metrik bleibt bewusst optionaler Folgeschritt nach Z12. Zyklus 11 abgeschlossen (Admin-/Master-Data-Listen-Vertraege; F1 + F2 + F3 done); Zyklus 10/9/8 abgeschlossen.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet; 2026-05-06 Z12-1.1 Abschluss).
+**Stand**: 2026-05-06 — **Aktiver Zyklus 12** in Arbeit: Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health-Signale. **Z12-1.1 + Z12-1.2 done** (Inventur heutige Health-Signale + Drei-Domaenen-Trennung App/Container/Host + Vertrags-Skizze `AdminRuntimeHealthDto` mit Severity-Modell und deklarativen Schwellwerten). Z12 adressiert zuerst App-/Runtime-Health (API/DB/Directory/Mail + einfache Runtime-Metriken wie Prozess-Speicher, Uptime, Storage), nicht vollwertige Host-/VM-Metrik. Slice-Reihenfolge: ✅ Z12-1.1 → ✅ Z12-1.2 → Z12-2.1 Backend Runtime-Health Endpoint + Service → Z12-2.2 Frontend Admin-Dashboard-Betriebsblock. Echte Host-/VM-Metrik bleibt bewusst optionaler Folgeschritt nach Z12. Zyklus 11 abgeschlossen (Admin-/Master-Data-Listen-Vertraege; F1 + F2 + F3 done); Zyklus 10/9/8 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet; 2026-05-06 Z12-1.1 Abschluss; 2026-05-06 Z12-1.2 Abschluss).
 
 ---
 
@@ -126,7 +126,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | ID | Aufgabe | Prio | Reasoning | Modell | Status |
 |----|---------|------|-----------|--------|--------|
 | Z12-1.1 | Begriffsklaerung / Vertragsinventur Runtime Health: bestehende Health-Signale (Backend-Endpunkte, UI-Block, Directory-Status, Mail-Konfig, Warnungen) inventarisieren; benennen, welche App-/Runtime-Signale heute **fehlen**; klar trennen App / Container / Host | HIGH | high | opus | done (2026-05-06) — Inventur in `CODE_REVIEW.md` § Z12-1.1 (heutige Signale, fehlende App-/Runtime-Signale, App-/Container-/Host-Trennung, UI-Begriffsempfehlung) |
-| Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host: neuen Runtime-Health-Antwortvertrag (Felder, Severity-Stufen, Schwellwerte, Domaenen-Tags) auf Papier ziehen; klar markieren, was App ist und was Host bleibt; FE-Andockpunkt am bestehenden `admin-health-panel` benennen | HIGH | high | opus | offen |
+| Z12-1.2 | Vertrags-Skizze DTO + Schwellwerte + Begriffsabgrenzung App/Container/Host: neuen Runtime-Health-Antwortvertrag (Felder, Severity-Stufen, Schwellwerte, Domaenen-Tags) auf Papier ziehen; klar markieren, was App ist und was Host bleibt; FE-Andockpunkt am bestehenden `admin-health-panel` benennen | HIGH | high | opus | done (2026-05-06) — Vertrags-Skizze in `CODE_REVIEW.md` § Z12-1.2 (`GET /admin/runtime-health` admin-only; `AdminRuntimeHealthDto` mit `application`/`dependencies`/`directory`/`storage[]`; Severity `ok/warning/critical/unknown`; Schwellwerte deklarativ; FE-Andock im bestehenden `admin-health-panel`; Z12-2.x-Abgrenzung gegen Host-/VM-Metrik / Prometheus / Trends / Alerts) |
 | Z12-2.1 | Backend Runtime-Health Endpoint + Service: Implementierung gemaess Z12-1.2 (App-/Runtime-Signale: API/DB/Directory/Mail-Status + einfache Runtime-Metriken Prozess-Speicher/Uptime/Storage); kein Host-/VM-Metrik-Code | HIGH | medium..high | sonnet | offen |
 | Z12-2.2 | Frontend Admin-Dashboard-Betriebsblock: Erweiterung des bestehenden `admin-health-panel` um die neuen Runtime-Signale; Severity-Anzeige gemaess Z12-1.2; keine konkurrierende zweite Betriebslogik | HIGH | medium..high | sonnet | offen |
 | *(Folgeschritt nach Z12)* | Optionaler Host-/VM-Metrik-Ausbau (CPU/RAM/Disk Server, Container-Health) — eigener Zyklus oder Slice nach Z12-2.2; nur bei konkretem Bedarf und nach Privilegien-/Plattform-Klaerung | — | — | — | bewusst ausserhalb Z12 |
@@ -237,6 +237,197 @@ Z12-1.2 muss jedes Feld im neuen DTO klar einer dieser drei Domaenen zuordnen �
 - Schwellwerte/Severity (`ok`/`warn`/`crit`) werden in Z12-1.2 **deklarativ** definiert — Z12-2.1 darf sie nicht im Code frei waehlen.
 - Bestehender `admin-health-panel`-Aufbau (`directory`-Kachel, `mail`-Kachel, `warnings`-Kachel) bleibt Anker; neuer Block ergaenzt Anwendung/Abhaengigkeiten, ersetzt nichts.
 - Host-/VM-Metrik wird in Z12-1.2 nur als ausgegrenzter Folgeschritt benannt, nicht als Feld geschrieben.
+
+### § Z12-1.2 Vertrags-Skizze Admin Runtime Health (done 2026-05-06)
+
+**Auftrag:** auf Basis der in Z12-1.1 fixierten Inventur und Drei-Domaenen-Trennung (App / Container / Host) den geplanten Backend-Vertrag fuer den ersten Z12-Umsetzungspfad skizzieren — ein einziger Admin-Runtime-Health-Endpoint, klar geschnittene DTO-Familie, pro Feld eine Domaenen-Zuordnung, deklarative Severity-Stufen und Schwellwerte sowie der FE-Andockpunkt am bestehenden `admin-health-panel`. Reine Doku-Slice, kein Code, kein API-Vertrags-Commit, keine DB-Aenderung.
+
+**Was bedeutet das praktisch?**
+- Z12-2.1 hat eine eindeutige Vorlage, die festlegt, welche Felder geliefert werden, was sie heissen, in welcher Domaene sie sind und welche Severity sie ab welchem Wert haben — niemand erfindet beim Implementieren still einen weiteren Healthcheck.
+- Z12-2.2 weiss vorab, an welcher Stelle im `admin-health-panel` der Block einsteigt, und welche Begriffe sichtbar sind (`„API-Prozess: Managed Heap"`, `„Schreibpfad der Anwendung"`) — kein zweiter Health-UI-Block, keine konkurrierende Sprache.
+- Schwellwerte sind hier deklarativ festgehalten; Z12-2.1 darf sie nur 1:1 uebernehmen, nicht erfinden.
+
+**Warum lohnt es sich, das anzugehen?**
+- Ohne festen Vertrag baut Z12-2.1 unweigerlich einen Endpoint, der spaeter umgebaut wird, sobald Z12-2.2 die UI-Etikettierung anders braucht. Die Doku-Slice ist die billigste Stelle, App-/Container-/Host-Semantik festzunageln.
+- Ein einzelner Endpoint mit klar geschnittenen Sub-DTOs verhindert, dass Health-Felder ueber drei verschiedene Endpunkte (Directory, Mail, neuer Runtime) verteilt landen — der `admin-health-panel` haette sonst weiter inkonsistente Quellen.
+
+**Was wird dadurch besser, sicherer oder wartbarer?**
+- **Besser:** ein einziger Vertrag fuer alle App-/Container-Health-Felder; eine einzige Stelle, an der Schwellwerte gelesen werden.
+- **Sicherer:** explizite Domaenen-Tags machen Etikettenschwindel im UI strukturell schwer — eine `host`-Markierung wuerde dort sofort auffallen und Z12-2.2 wuerde sie ablehnen.
+- **Wartbarer:** Severity-Logik ist deklarativ (`ok`/`warning`/`critical`/`unknown`) statt freihaendig im Service-Code; spaetere Schwellwert-Anpassungen passieren in einer Tabelle, nicht in if-Ketten.
+- **Anschlussfaehig:** der spaetere optionale Host-/VM-Metrik-Block bekommt einen klar abgegrenzten Eigenraum mit eigener `host`-Domaene; die App-Felder muessen nicht umbenannt werden.
+
+#### 1) Backend-Vertrag — geplanter Runtime-Health-Endpoint
+
+Genau **ein** neuer Admin-Read-Endpoint:
+
+- `GET /admin/runtime-health`
+- AuthN/AuthZ: gleiche Pflicht wie der bestehende Admin-Workspace (admin-only; nicht offen wie `/health/*`).
+- Cache-Verhalten: keine Aggregation auf Server-Seite; jede Anfrage berechnet den aktuellen Snapshot. Empfehlung: serverseitig billiger In-Memory-Cache (z. B. 5–10 s) gegen versehentliches Hammern, aber kein Pflichtfeld der Vertrags-Skizze.
+- Antwort: `AdminRuntimeHealthDto` (siehe unten).
+- Dieser Endpoint **ersetzt** die bestehenden offenen `/health/live`/`/health/ready`/`/health` **nicht** — die bleiben unveraendert fuer Container-/Caddy-Probes. Z12 bedient ausschliesslich den Admin-UI-Pfad.
+
+##### 1.1 DTO-Familie (Felder + Domaenen-Tags)
+
+`Domain` ist ein deklarativer Tag pro Feld. Erlaubt: `app` (App-/Runtime-Health, App-Sicht der Abhaengigkeiten), `container` (Prozess-/Container-/App-Volume-Sicht), `host` (Host-/VM-Metrik — in Z12 **nicht belegt**, nur als ausgegrenzte Reservierung dokumentiert), `external` (externer Dienst gesehen aus Sicht der App, z. B. Entra-Discovery).
+
+```
+AdminRuntimeHealthDto
+├── generatedAt              ISO timestamp        domain: app
+├── overallSeverity          ok|warning|critical|unknown
+├── application              ApplicationHealthDto domain: app
+├── dependencies             DependenciesHealthDto
+├── directory                DirectoryHealthDto   domain: app
+└── storage                  StorageHealthDto[]   domain: container
+```
+
+`ApplicationHealthDto` (App-Prozess; alle Werte gelten **nur** fuer den API-Prozess/Container, nie fuer den Host):
+
+```
+ApplicationHealthDto
+├── severity                 ok|warning|critical|unknown
+├── processStartedAt         ISO timestamp        domain: app
+├── uptimeSeconds            number               domain: app
+├── managedHeapBytes         number               domain: container
+├── managedHeapHighThresholdBytes  number?        domain: container   (aus GC.GetGCMemoryInfo)
+├── workingSetBytes          number               domain: container
+└── threadPool               { workerThreadsAvailable, completionPortThreadsAvailable }?  domain: container
+```
+
+`DependenciesHealthDto` (Sicht der App auf ihre Abhaengigkeiten; bewusst pro Abhaengigkeit eigenes Sub-DTO mit eigener `severity`, damit das UI pro Kachel entscheiden kann):
+
+```
+DependenciesHealthDto
+├── severity                 ok|warning|critical|unknown
+├── database                 DependencyHealthDto       domain: app
+│   ├── severity
+│   ├── reachable            boolean
+│   ├── lastCheckedAt        ISO timestamp
+│   ├── latencyMs            number?
+│   └── lastError            string?
+├── auth                     AuthDependencyHealthDto   domain: app + external
+│   ├── severity
+│   ├── mode                 entra|dev-sim|none
+│   ├── reachability         reachable|unreachable|not_applicable
+│   ├── lastCheckedAt        ISO timestamp
+│   ├── latencyMs            number?
+│   └── lastError            string?
+└── mail                     MailDependencyHealthDto   domain: app
+    ├── severity
+    ├── mode                 enabled|sandbox|disabled
+    ├── configurationStatus  complete|incomplete
+    ├── lastProbeAt          ISO timestamp?
+    └── lastProbeStatus      success|failure|never_run
+```
+
+`DirectoryHealthDto` (Verzeichnis-Sync; konsumiert intern `IDirectorySyncService.GetSyncStatusAsync` + `GetPendingImportsCountAsync`, aber **stabilisiert die Felder im Vertrag** — keine 1:1-Pass-Through-Abhaengigkeit):
+
+```
+DirectoryHealthDto
+├── severity                 ok|warning|critical|unknown
+├── lastSyncAt               ISO timestamp?       domain: app
+├── lastSyncStatus           success|partial|failed|never_run    domain: app
+├── lastError                string?              domain: app
+├── nextScheduledSyncAt      ISO timestamp?       domain: app    (abgeleitet aus SchedulingOptions)
+└── pendingImportsCount      number               domain: app
+```
+
+`StorageHealthDto[]` (genau die App-Schreibpfade, nie generisch alle Drives — Pfadliste wird in Z12-2.1 in Konfiguration explizit benannt; leere Liste ist erlaubt):
+
+```
+StorageHealthDto
+├── label                    "logs"|"uploads"|... (deklarativer Bezeichner) domain: container
+├── path                     string                                          domain: container
+├── totalBytes               number                                          domain: container
+├── freeBytes                number                                          domain: container
+├── usedPercent              number                                          domain: container
+└── severity                 ok|warning|critical|unknown
+```
+
+##### 1.2 Domaenen-Tags Zusammenfassung
+
+- **`app`:** `generatedAt`, `processStartedAt`, `uptimeSeconds`, gesamter `directory`-Block, `database`-Block, `mail`-Block, `auth.mode`/`auth.reachability` aus App-Sicht.
+- **`container`:** `managedHeapBytes`, `managedHeapHighThresholdBytes`, `workingSetBytes`, `threadPool.*`, gesamter `storage[]`-Block.
+- **`external`:** `auth` zusaetzlich, weil die Reachability-Probe gegen einen externen Dienst (Entra OIDC Discovery) laeuft. Tag dokumentiert, dass eine `unreachable`-Antwort nicht zwingend ein App-Problem ist.
+- **`host`:** in Z12 **nicht belegt**. Reservierter Tag fuer einen spaeteren optionalen Host-/VM-Metrik-Block (CPU/RAM/Disk Server, Load-Average) — bleibt explizit ausserhalb Z12.
+
+#### 2) Severity-Modell
+
+Vier Stufen, pro Sub-DTO und auf Top-Ebene:
+
+- **`ok`** — Signal vorhanden, alle Schwellwerte unterschritten.
+- **`warning`** — Signal vorhanden, ein Schwellwert ueberschritten, aber nicht kritisch.
+- **`critical`** — Signal vorhanden und ueber kritischem Schwellwert; oder Pflicht-Abhaengigkeit nicht erreichbar.
+- **`unknown`** — Signal aktuell nicht ermittelbar (z. B. Mail-Probe nie gelaufen, dev-sim-Auth nicht anwendbar, Storage-Pfad noch nicht konfiguriert). `unknown` ist **nicht** dasselbe wie `ok`.
+
+**Aggregation `overallSeverity`:**
+
+- `critical`, sobald **irgendein** Sub-DTO `critical` ist.
+- sonst `warning`, sobald **irgendein** Sub-DTO `warning` ist.
+- sonst `ok`, falls **alle** Sub-DTOs `ok` oder ein Mix aus `ok` und neutralisierten `unknown` sind (siehe unten).
+- sonst `unknown`, falls kein `ok`/`warning`/`critical` ermittelbar war.
+
+**Sonderfall `unknown` neutralisiert:** `auth.severity = unknown` darf den Gesamtstatus nicht auf `unknown` ziehen, wenn `auth.mode = dev-sim` oder `none` ist (dann ist `unknown` = bewusst nicht anwendbar). Genauso fuer leere `storage[]`-Liste — zaehlt nicht ins Aggregat.
+
+**Aggregation pro Sub-DTO (z. B. `dependencies.severity`):** identische Regel ueber alle Felder mit eigener `severity`.
+
+#### 3) Erste Schwellwerte / Heuristik (deklarativ, fuer Z12-2.1 1:1 zu uebernehmen)
+
+| Feld | Domaene | `ok` | `warning` | `critical` | `unknown` |
+|------|---------|------|-----------|------------|-----------|
+| `database.reachable` | app | `SELECT 1` < 1000 ms | 1000–3000 ms | unreachable / Timeout / >3000 ms | nie geprueft |
+| `auth.reachability` (mode=`entra`) | app+external | OIDC-Discovery < 2000 ms | 2000–5000 ms | unreachable / Timeout / >5000 ms | nie geprueft |
+| `auth.reachability` (mode=`dev-sim`) | app | n/a (immer `ok` mit Hinweis) | — | — | — |
+| `auth.reachability` (mode=`none`) | app | — | — | — | immer `unknown` |
+| `mail` (`mode`+`configurationStatus`) | app | `enabled`+`complete`, oder `disabled` | `sandbox`, oder `enabled`+`incomplete` mit nur Detail-Luecken | `enabled`+`incomplete` mit Pflicht-Luecke (keine sinnvolle Versendung moeglich) | `mode` nicht ermittelbar |
+| `directory.lastSyncAt` | app | letzter Lauf < 2 × `SchedulingOptions.Interval` her | 2–5 × Intervall her, oder `partial` | > 5 × Intervall her, oder `failed` | noch nie gelaufen |
+| `application.uptimeSeconds` | app | rein informativ — immer `ok` (kein Schwellwert in Z12) | — | — | — |
+| `application.managedHeapBytes` vs. `managedHeapHighThresholdBytes` | container | < 75 % | 75–90 % | > 90 % | Threshold nicht verfuegbar |
+| `storage[].usedPercent` | container | < 80 % | 80–90 % | > 90 % | Pfad nicht erreichbar |
+
+Hinweise:
+- `application.workingSetBytes` und `threadPool.*` werden in Z12 **nur informativ** angezeigt, ohne Schwellwert. Begruendung: aussagekraeftige Schwellwerte haengen stark vom Container-Sizing ab; ohne Host-Wissen koennen wir keine seriose Heuristik liefern. Severity bleibt `ok` (oder `unknown` falls nicht messbar).
+- Die Schwellwerte sind absichtlich konservativ. Sie sollen in Production typischerweise `ok` zeigen; jeder Wechsel auf `warning` ist ein bewusst sichtbares Signal.
+- Aenderungen der Schwellwerte sind ein Doku-/Vertrags-Schritt (Update dieses Abschnitts), nicht ein Service-Code-Schritt.
+
+#### 4) FE-Andockpunkt
+
+- **Anker:** der bestehende `admin-health-panel` in `web/src/components/admin-config/AdminOverviewWorkspaceSection.tsx` (CSS-Klasse `panel admin-health-panel`).
+- **Kein zweiter Block:** Z12-2.2 baut **innerhalb** dieses Panels, nicht daneben oder darueber. Es gibt nicht „den alten Admin-Health-Block plus den neuen Runtime-Health-Block".
+- **Sichtbarer Titel:** der bestehende SectionHeader-Titel `„Systemstatus"` darf in Z12-2.2 zu `„Betriebsstatus"` oder `„Runtime Health der Anwendung"` umbenannt werden, damit der Begriffshorizont passt; der Anker bleibt aber dasselbe Panel.
+- **Kachel-Reihenfolge in Z12-2.2 (Empfehlung, nicht Vertrag):**
+  1. **Anwendung** (neu, aus `application`) — Uptime, Managed Heap (% von Threshold), Severity. Begriffe wie `„API-Prozess: Managed Heap"` strikt einhalten.
+  2. **Abhaengigkeiten** (neu, aus `dependencies.database` + `dependencies.auth`) — DB- und Auth-Reachability mit Severity. Mail bleibt **nicht** hier, sondern in seiner bestehenden Kachel.
+  3. **Verzeichnis-Sync** (vorhanden, jetzt aus `directory`) — die heutige Kachel kann ihre Werte aus dem neuen Endpoint beziehen, ihre Position bleibt; Felder bleiben semantisch gleich.
+  4. **Mail-Versand** (vorhanden, jetzt aus `dependencies.mail`) — Position und Wording unveraendert.
+  5. **Offene Warnungen** (vorhanden, FE-seitiger Aggregator) — bleibt unveraendert; **nicht** Teil von `AdminRuntimeHealthDto`.
+  6. **Schreibpfade der Anwendung** (neu, aus `storage[]`, nur falls Liste nicht leer) — kompakte Kachelreihe pro Pfad mit Label und `usedPercent`.
+- **Severity-Anzeige:** der Header des Panels kann den `overallSeverity` als Badge zeigen (`ok`/`warning`/`critical`/`unknown`); bestehende Tone-Helpers (`getDirectorySyncTone`, `getMailTone`, `getWarningTone`) bleiben fuer die Bestandskacheln. Fuer die neuen Kacheln kommt eine eigene Tone-Map analog dazu, gespeist aus dem Vertrags-Severity-Feld.
+- **Kein duplizierter State:** das FE konsumiert pro neuer Kachel **nur** Felder aus `AdminRuntimeHealthDto`. Verzeichnis-Sync und Mail behalten zur Migration ihre bisherigen Endpoint-Quellen, koennen aber spaeter ohne Vertragsbruch auf den neuen Endpoint umgestellt werden — Z12-2.2 entscheidet pragmatisch, welcher Weg billiger ist (empfohlen: in Z12-2.2 zuerst nur die neuen App-/Abhaengigkeits-/Storage-Kacheln rendern, Verzeichnis/Mail bleiben an ihren heutigen Quellen).
+
+#### 5) Was explizit **nicht** in Z12-2.1 / Z12-2.2 faellt
+
+Bewusst ausserhalb dieses Vertrags:
+
+- **Echte Host-/VM-Metrik:** Host-CPU, Host-RAM frei, Disk-Free aller Volumes, Load-Average, Boot-Zeit der VM, Container-Runtime-Stats (`docker stats`, `cgroup`).
+- **Prometheus / Grafana / `node_exporter` / `cAdvisor` / OTLP-Exporter:** keinerlei Telemetry-Pipeline, kein neues Metrik-Backend, kein Scrape-Endpoint. Z12 ist ausschliesslich ein Admin-UI-Snapshot.
+- **Tiefes Infra-Monitoring:** keine Service-Mesh-Hooks, keine Tracing-Integration, keine zentrale Log-Aggregation.
+- **Aktiver Mail-Probe (echter Send-Test) als Pflicht-Bestandteil:** bestehender `POST /admin/config/notification-email/test` bleibt manuell; sein Resultat darf optional ueber `mail.lastProbeAt`/`lastProbeStatus` einfliessen, wird aber in Z12-2.1 nicht aktiv ausgeloest.
+- **Historisierung / Trends / Sparklines:** kein Persistieren der Snapshots; keine Charts ueber Zeit.
+- **Alerts / Notifications bei Severity-Wechsel:** kein automatisches Mail-/Webhook-Versenden bei `critical`. Der Block ist Anzeige, nicht Eskalationspfad.
+- **Server-Logs / Log-Ingest:** der bestehende `Administration > System` Log-Konsole-Bereich ist nicht betroffen; Z12 baut keinen Log-Stream.
+- **`/health/*`-Aenderungen:** die offenen Container-/Caddy-Probes bleiben stabil und unveraendert.
+
+Diese Abgrenzung ist zwingend — wer in Z12-2.1 oder Z12-2.2 einen dieser Punkte „mit reinnimmt", weicht den Slice-Zuschnitt auf und muss zurueckgewiesen werden.
+
+#### Folgeentscheidungen fuer Z12-2.1
+
+- Endpoint-Pfad und Auth-Pflicht stehen (`GET /admin/runtime-health`, admin-only).
+- DTO-Familie und Domaenen-Tags sind verbindlich — keine zusaetzlichen Felder ohne Vertragsupdate hier.
+- Schwellwerte aus § 3 sind 1:1 zu uebernehmen.
+- Storage-Pfade kommen aus expliziter Konfiguration (z. B. Settings oder Env), nicht aus generischer Drive-Enumeration.
+- Mail-Probe wird in Z12-2.1 nicht aktiv getriggert; nur bestehende Probe-Resultate werden wiedergegeben (oder `never_run`).
+- Bestehende `/health/*`-Endpunkte werden nicht beruehrt.
 
 ---
 
