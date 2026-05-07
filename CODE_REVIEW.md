@@ -131,9 +131,69 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus. Ziel: Problem sauber ero
 
 | Befund | Prio | Status |
 |--------|------|--------|
-| Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen: alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` die Sicht/Aktionen/Navigation/Insights veraendern oder kollabieren; betroffene Bereiche (Dashboard-Overview, Navigation, Aktionen, Insights, Admin-Betriebsblock, ggf. Sub-Pages); Auflistung der heutigen `generic`-Faelle und ihrer Konsequenzen fuer den Nutzer | HIGH | offen |
+| Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen: alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` die Sicht/Aktionen/Navigation/Insights veraendern oder kollabieren; betroffene Bereiche (Dashboard-Overview, Navigation, Aktionen, Insights, Admin-Betriebsblock, ggf. Sub-Pages); Auflistung der heutigen `generic`-Faelle und ihrer Konsequenzen fuer den Nutzer | HIGH | done 2026-05-07 — Inventur in `CODE_REVIEW.md` § Z14-1.1 (Override-Punkt in `useRoleAwareNavigation.ts:253`; zweiter Override im Login-Routing `roleModel.ts:210`; vier Sicht-Konsumenten kollabieren auf `generic`; Header/Aktionen/Routen-Guards bleiben capability-getrieben und sind nicht betroffen) |
 | Z14-1.2 — Vertrags-/UX-Entscheidung: Begriffsklaerung Rolle vs. Persona vs. aktive Ansicht; Optionen fuer Mehrrollen-Behandlung skizzieren (z. B. Persona-Switcher mit Default + Persistenz; Aggregations-Persona statt `generic`; Admin-Vorrang fuer Admin+X; explizite Login-Auswahl); Pro/Contra je Option, ohne Festlegung; Vorgabe, was der Vertrag liefern muss (sichtbarer Schalter, Persistenz, Default-Regel, Fallback) | HIGH | offen |
 | Z14-1.3 — Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung (typisch: Vertrag/Datenmodell zuerst, dann FE-Switcher, dann Aufraeumen der `generic`-Faelle in den abhaengigen Bloecken); ausdruecklich kein Code | HIGH | offen |
+
+### Z14-1.1 Kernergebnis — Inventur Persona-/Mehrrollen-Kollisionen
+
+**Praktisch:** Wer mehrere Rollen hat, sieht heute weder die Admin-Betriebsuebersicht noch die HR-/Manager-/Worker-spezifischen Bloecke. Stattdessen erscheint eine leere Generic-Seite mit dem Hinweis „Freigegebenen Bereich waehlen.". Das trifft genau die Power-User. Die Header-Navigation und die Schnellaktionen funktionieren weiter, weil sie auf Capabilities basieren — der Effekt sitzt in der **Sicht**, nicht in den **Rechten**.
+
+**Lohnenswert:** Die Falle sitzt in zwei einzelnen Codezeilen mit kaskadierender Wirkung auf vier Sicht-Konsumenten und einen Routing-Pfad. Inventur jetzt sauber zu schneiden vermeidet, dass kuenftige Persona- und Insight-Erweiterungen jedes Mal die gleiche generic-Falle mitschleppen.
+
+**Nutzen:** klare Abgrenzung Rolle vs. Persona vs. aktive Ansicht; benannte Einzeloverrides als zukuenftige Eingriffspunkte fuer Switcher/Aggregat/Vorrang; sichtbarer Beleg, dass Header/Aktionen/Routen-Guards nicht angefasst werden muessen.
+
+#### Heutige Persona-Ableitungskette
+
+1. `web/src/auth/roleModel.ts:151-161` — `dashboardPersona` aus Vorrangskette `admin > hr > manager > worker > reader > generic`. Auch bei Mehrfachrollen fuehrt das **nicht** zu `generic`; ein Admin+HR-User waere hier formal `admin`. **Praktisch:** die hier gewaehlte Persona ist nicht das, was der Nutzer am Ende auf dem Dashboard sieht.
+2. `web/src/auth/roleModel.ts:132` — `hasMultipleRoles = roleSet.size > 1`. Zaehlt **jede** zweite Rolle, auch unkritische Kombinationen wie reader+worker. **Praktisch:** das Flag triggert den Kollaps schon bei jeder zweiten Rolle.
+3. `web/src/navigation/useRoleAwareNavigation.ts:252-254` — die exportierte effektive Persona wird auf `"generic"` umgebogen, sobald `hasMultipleRoles === true`. **Das ist der eigentliche Kollisionspunkt.** Der Vorrang aus Schritt 1 wird hier verworfen. **Praktisch:** alle Konsumenten unterhalb sehen `"generic"`, nicht die echte Vorrangs-Persona.
+4. `web/src/auth/roleModel.ts:209-249` — `getDefaultRoute` hat einen zweiten, eigenstaendigen Mehrrollen-Override: bei `hasMultipleRoles` wird zwingend `/` gewaehlt; persona-spezifische Default-Routen (admin → `/admin/config`, manager → `/supervisor`, worker → `/tasks/my`) entfallen. **Praktisch:** der Login landet immer auf der Dashboard-Seite, die danach durch Schritt 3 leer ist.
+
+#### Sicht-Konsumenten der `generic`-Persona
+
+| Stelle | heutige Verzweigung auf Persona | was bei `generic` ausfaellt |
+| --- | --- | --- |
+| `web/src/components/dashboard/DashboardOverview.tsx:17-23, 82-218` | `isAdminDashboard = persona === "admin"`; `supportsProcessTypeFilter = persona ∈ {hr, manager, reader}`; Manager-Mitarbeitendenliste an `persona === "manager"` | gesamter `DashboardAdminOverview`-Block (Zone 1–4 inkl. Admin-Warnungen, Operations, Runtime-Health-Block); Prozesstyp-Filter in Zone 1; Manager-Mitarbeitendenliste; Stats/Queue ohnehin leer (siehe Insights-Lader) |
+| `web/src/components/dashboard/dashboardInsights.ts:24-42` und `dashboardInsightsLoaders.ts:619-628` (`loadGenericInsights`) | `switch (persona)` in `loadDashboardInsights`; `default` ruft `loadGenericInsights` | komplett leerer Insights-Datensatz: keine Stats, keine Queue, kein NextStep ausser „Freigegebenen Bereich waehlen.". Es findet **keine Aggregation** ueber HR/Manager/Worker statt — das ist eine bewusste Leerstelle, kein Bug |
+| `web/src/pages/DashboardPage.tsx:11-31` | `dashboardPersona === "admin"` schaltet `pageDescription` und blendet den Top-Right-Button „Neuen Vorgang anlegen" aus | bei Mehrrollen wird die Nicht-Admin-Beschreibung gezeigt und der Anlege-Button erscheint, sobald `canCreateWorkflow` true ist — die Seitenkopf-Aussage ist dann fachlich falsch fuer einen Admin+X-User |
+| `web/src/services/queries/dashboardQueries.ts:7-18` und `web/src/services/queryKeys.ts:50-54` | Query-Key enthaelt die effektive Persona | bei Mehrrollen-Login wird der Cache-Schluessel `["dashboard", "insights", "generic", null]` gesetzt; der Query-Layer transportiert also weiter die effektive Persona. **Wichtig fuer Z14-1.2:** der Key ist persona-, nicht rollen-getrieben — sobald Z14-1.x einen Persona-Switcher einfuehrt, kommt jede Sicht in einen eigenen Cache-Eintrag, ohne dass der Key umgebaut werden muss |
+
+#### Generic-Faelle und ihre Nutzerfolge
+
+| Rollen-Konstellation | Persona aus `roleModel.ts` | effektive Persona im Dashboard | spuerbarer Effekt fuer den Nutzer |
+| --- | --- | --- | --- |
+| nur admin | `admin` | `admin` | Admin-Betriebsblock sichtbar |
+| nur hr | `hr` | `hr` | HR-Engpaesse, aktive Vorgaenge, Prozesstyp-Filter sichtbar |
+| nur manager | `manager` | `manager` | Freigaben + Mitarbeitendenliste + Filter sichtbar |
+| nur worker | `worker` | `worker` | offene eigene Aufgaben sichtbar |
+| nur reader | `reader` | `reader` | Erfolgsquote / Lesemodus sichtbar |
+| admin + hr/manager/worker/reader | `admin` | **`generic`** | Admin-Betriebsblock weg, kein Insight-Datensatz, keine Filter; auf der Startseite sieht der Power-User nur die Generic-Leerseite |
+| hr + manager | `hr` | **`generic`** | weder HR-Engpaesse noch Manager-Freigaben sichtbar; Filter weg; statt dessen Generic-Leerseite |
+| manager + worker | `manager` | **`generic`** | weder offene Freigaben als Manager noch eigene Aufgaben als Worker sichtbar |
+| worker + reader | `worker` | **`generic`** | Worker-Aufgaben weg; Reader-Stats weg |
+
+#### Was nicht kollabiert (wichtige Abgrenzung)
+
+- `headerNavItems` und `dashboardActions` (`useRoleAwareNavigation.ts:212-247`) werden direkt aus den Capabilities (`hasHrRole`, `hasManagerRole`, `canManageAdminConfiguration`, …) gebaut — sie zeigen das **Vereinigungs-Set** der Aktionen, fuer die der Nutzer Rechte hat. Header und Schnellaktionen sind also **nicht** vom `generic`-Effekt betroffen.
+- Routen-Guards in `App.tsx` und Feature-Checks via `canAccessFeature` arbeiten ebenfalls auf Capabilities, nicht auf Persona. Wer Rechte hat, kommt weiter durch — nur die Uebersicht ist leer.
+- Rollen, Permissions und Capability-Flags selbst sind unabhaengig von der Persona-Ableitung. Z14 fasst keine Berechtigungen an.
+
+#### Wo die Persona im Datenfluss weiter mitlaeuft (Vertragsanker fuer Z14-1.2)
+
+- `dashboardInsights.ts:loadDashboardInsights(persona, options)` ist die zentrale Persona-Vertragsstelle: alle persona-spezifischen Loader (`loadAdminInsights`, `loadHrInsights`, `loadManagerInsights`, `loadWorkerInsights`, `loadViewerInsights`, `loadGenericInsights`) haengen hier dran. **Ein Persona-Switcher wuerde an genau diesem Vertrag andocken**, ohne die Loader zu beruehren.
+- Der Query-Key (`queryKeys.dashboard.insights(persona, definitionKey)`) cached bereits pro Persona — eine Umschaltung wuerde automatisch verschiedene Eintraege halten und nicht ueber Bord werfen.
+- `DashboardOverview` verwendet `dashboardPersona` an drei sichtbaren Stellen (Admin-Schalter, Filter-Schalter, Manager-Liste). Diese drei Schalter sind die kuenftigen Eingriffspunkte fuer einen Persona-Switcher; sie sind aktuell die einzigen persona-getriebenen Verzweigungen im Dashboard-Body.
+- `DashboardPage` haengt nur an der Persona fuer Texte und einen optionalen Top-Right-Button — kein eigenes Datenmodell.
+
+#### Zusammenfassung der Hebelstellen fuer Folgezyklen
+
+- **Ein** Override-Punkt fuer die Sicht: `useRoleAwareNavigation.ts:253`.
+- **Ein** Override-Punkt fuer das Login-Routing: `roleModel.ts:210`.
+- **Vier** Sicht-Konsumenten der effektiven Persona: `DashboardOverview`, `DashboardPage`, `useDashboardInsights`/Query, Insight-Lader-Switch.
+- **Null** Aktions-/Berechtigungs-Konsumenten — Header und Capabilities sind sauber getrennt.
+
+Das ist der Anker fuer Z14-1.2: die Vertrags-/UX-Entscheidung muss fuer genau diese zwei Overrides eine Regel angeben, ohne die vier Sicht-Konsumenten umzubauen, und ohne die capability-getriebenen Aktionen zu beruehren.
 
 **Nicht in Z14:**
 - Backend-Aenderungen am Berechtigungsmodell — Rollen/Permissions bleiben unveraendert; Z14 betrifft die Ableitung der **Sicht**, nicht der **Rechte**.

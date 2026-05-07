@@ -59,7 +59,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege in Umsetzung — abgeschlossen (F1 P1+B Master-Data, F2 P2+Audit, F3 P1+D Builder, alle Slices done) |
 | 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — abgeschlossen (Z12-1.1 done; Z12-1.2 done; Z12-2.1 done: `GET /admin/runtime-health` + `AdminRuntimeHealthService` + 42 Tests; Z12-2.2 done: Frontend Betriebsblock mit Severity-Badge, API-Prozess/Abhaengigkeiten/Storage-Kacheln) |
 | 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen (Z13-1 Zykluseroeffnung/Scope; Z13-2 Implementierung done: HostHealthDto + procfs-Leser + FE-Kachel + compose.prod.yml + start-vm.sh dev + 50 Tests gruen) |
-| 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — aktiv (Z14-1.1 Inventur offen; Z14-1.2 Vertrags-/UX-Entscheidung offen; Z14-1.3 Slice-Plan offen) |
+| 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — aktiv (Z14-1.1 Inventur done; Z14-1.2 Vertrags-/UX-Entscheidung offen; Z14-1.3 Slice-Plan offen) |
 
 ---
 
@@ -75,13 +75,15 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus. **Keine Implementierung 
 
 | Befund | Prio | Status |
 |--------|------|--------|
-| Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen (alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` Sicht/Aktionen/Navigation/Insights kollabieren; betroffene Bereiche Dashboard-Overview, Navigation, Aktionen, Insights, Admin-Betriebsblock; Auflistung der heutigen `generic`-Faelle und ihrer Konsequenzen fuer den Nutzer) | HIGH | offen |
+| Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen (alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` Sicht/Aktionen/Navigation/Insights kollabieren; betroffene Bereiche Dashboard-Overview, Navigation, Aktionen, Insights, Admin-Betriebsblock; Auflistung der heutigen `generic`-Faelle und ihrer Konsequenzen fuer den Nutzer) | HIGH | done 2026-05-07 — Inventur in `CODE_REVIEW.md` § Z14-1.1 (Override `useRoleAwareNavigation.ts:253` + Routing-Override `roleModel.ts:210`; vier Sicht-Konsumenten kollabieren auf `generic`; Header/Aktionen/Routen-Guards bleiben capability-getrieben und sind nicht betroffen) |
 | Z14-1.2 — Vertrags-/UX-Entscheidung: Begriffsklaerung Rolle vs. Persona vs. aktive Ansicht; Optionen fuer Mehrrollen-Behandlung skizzieren (Switcher mit Default + Persistenz; Aggregations-Persona statt `generic`; Admin-Vorrang fuer Admin+X; explizite Login-Auswahl); Pro/Contra je Option, ohne Festlegung | HIGH | offen |
 | Z14-1.3 — Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung (typisch: Vertrag/Datenmodell zuerst, dann FE-Switcher, dann Aufraeumen der `generic`-Faelle in den abhaengigen Bloecken) | HIGH | offen |
 
+**Z14-1.1 Kernergebnis:** zwei Override-Punkte tragen die Falle — `web/src/navigation/useRoleAwareNavigation.ts:253` (Sicht-Kollaps auf `generic`) und `web/src/auth/roleModel.ts:210` (Login-Routing zwingt auf `/`). Vier Sicht-Konsumenten haengen direkt an der effektiven Persona: `DashboardOverview` (Admin-Block, Filter, Manager-Liste), `DashboardPage` (Seitenkopf + optionaler Anlege-Button), `useDashboardInsights`/`useDashboardInsightsQuery` (Cache-Schluessel persona-getrieben), Insight-Lader-Switch (`loadDashboardInsights` ruft `loadGenericInsights` mit leerem Datensatz). Header-Navigation und Schnellaktionen bauen direkt auf Capabilities und sind **nicht** betroffen — der Effekt ist eine **Sicht**-Falle, keine **Aktions**-Falle. Generic-Faelle und ihre Nutzerfolge: Admin+X verliert den Admin-Betriebsblock; HR+Manager verliert HR-Engpaesse + Manager-Freigaben; Manager+Worker verliert Freigaben + eigene Aufgaben; jeder Mehrrollen-Login landet auf einer leeren Generic-Seite mit „Freigegebenen Bereich waehlen.". Vertragsanker fuer Z14-1.2: `loadDashboardInsights(persona, options)` ist die zentrale Persona-Vertragsstelle; der Query-Key cached bereits pro Persona; ein kuenftiger Switcher dockt hier an, ohne die Loader oder die Capability-Schicht zu beruehren.
+
 **Nicht in Z14:** Backend-Aenderungen am Berechtigungsmodell (Rollen/Permissions bleiben unveraendert; Z14 betrifft die Ableitung der **Sicht**, nicht der **Rechte**); neue Personas oder Spezialrollen einfuehren; Mobile-/Tablet-Layout (R10 bleibt eigenstaendig); UI-Polish ausserhalb der Persona-/Sicht-Logik.
 
-**Naechster Schritt:** Z14-1.1 Inventur. Codex entscheidet ueber Modell/Effort.
+**Naechster Schritt:** Z14-1.2 Vertrags-/UX-Entscheidung. Codex entscheidet ueber Modell/Effort.
 
 ---
 
