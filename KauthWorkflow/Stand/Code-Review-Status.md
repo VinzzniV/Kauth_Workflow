@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-06 — Zyklus 13 abgeschlossen: Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block (Z13-1 + Z13-2 done); Zyklus 12 abgeschlossen; Zyklus 11/10/9/8 abgeschlossen; kein aktiver Zyklus)
+## Gesamtbewertung (Stand 2026-05-07 — Zyklus 14 aktiv (Mehrrollen-Persona-Kollisionen, reiner Review-/Planungszyklus); Zyklus 13 abgeschlossen: Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block (Z13-1 + Z13-2 done); Zyklus 12 abgeschlossen; Zyklus 11/10/9/8 abgeschlossen)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -59,6 +59,29 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege in Umsetzung — abgeschlossen (F1 P1+B Master-Data, F2 P2+Audit, F3 P1+D Builder, alle Slices done) |
 | 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — abgeschlossen (Z12-1.1 done; Z12-1.2 done; Z12-2.1 done: `GET /admin/runtime-health` + `AdminRuntimeHealthService` + 42 Tests; Z12-2.2 done: Frontend Betriebsblock mit Severity-Badge, API-Prozess/Abhaengigkeiten/Storage-Kacheln) |
 | 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen (Z13-1 Zykluseroeffnung/Scope; Z13-2 Implementierung done: HostHealthDto + procfs-Leser + FE-Kachel + compose.prod.yml + start-vm.sh dev + 50 Tests gruen) |
+| 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — aktiv (Z14-1.1 Inventur offen; Z14-1.2 Vertrags-/UX-Entscheidung offen; Z14-1.3 Slice-Plan offen) |
+
+---
+
+## Aktiver Zyklus 14 — Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung (2026-05-07)
+
+Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus. **Keine Implementierung in Z14.** Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 14".
+
+**Praktisch:** Ein Benutzer mit mehreren Rollen (z. B. Admin + Fachbereich, Admin + Manager, Admin + HR) landet im Dashboard und in der Navigation auf einer generischen Sammelansicht und verliert dabei die fachlich erwartete Sicht. Wer als Admin arbeiten will, sieht den Admin-Betriebsblock nicht; wer als Manager arbeiten will, verliert die Manager-Aktionen. Die Wahl der Ansicht ist heute implizit, nicht steuerbar, und greift bereits bei zwei Rollen.
+
+**Lohnenswert:** Genau die Personen mit den meisten Rollen sind die Power-User des Systems. Der Effekt trifft also den Alltag der Schluesselnutzer, nicht Randfaelle. Die Logik liegt zentral an wenigen Stellen (`web/src/auth/roleModel.ts`, `web/src/navigation/useRoleAwareNavigation.ts`, Dashboard- und Insights-Schichten), d. h. der Hebel pro Aufwand ist hoch und ein sauberer Vertrag laesst sich definieren, bevor weitere Persona-Verzweigungen entstehen.
+
+**Nutzen:** klare Begriffstrennung Rolle vs. Persona vs. aktive Ansicht; vorhersagbares Verhalten beim Login mit mehreren Rollen; ein dokumentierter Vertrag als Andockpunkt fuer kuenftige Personas, statt jedes Mal die `generic`-Falle zu erweitern.
+
+| Befund | Prio | Status |
+|--------|------|--------|
+| Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen (alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` Sicht/Aktionen/Navigation/Insights kollabieren; betroffene Bereiche Dashboard-Overview, Navigation, Aktionen, Insights, Admin-Betriebsblock; Auflistung der heutigen `generic`-Faelle und ihrer Konsequenzen fuer den Nutzer) | HIGH | offen |
+| Z14-1.2 — Vertrags-/UX-Entscheidung: Begriffsklaerung Rolle vs. Persona vs. aktive Ansicht; Optionen fuer Mehrrollen-Behandlung skizzieren (Switcher mit Default + Persistenz; Aggregations-Persona statt `generic`; Admin-Vorrang fuer Admin+X; explizite Login-Auswahl); Pro/Contra je Option, ohne Festlegung | HIGH | offen |
+| Z14-1.3 — Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung (typisch: Vertrag/Datenmodell zuerst, dann FE-Switcher, dann Aufraeumen der `generic`-Faelle in den abhaengigen Bloecken) | HIGH | offen |
+
+**Nicht in Z14:** Backend-Aenderungen am Berechtigungsmodell (Rollen/Permissions bleiben unveraendert; Z14 betrifft die Ableitung der **Sicht**, nicht der **Rechte**); neue Personas oder Spezialrollen einfuehren; Mobile-/Tablet-Layout (R10 bleibt eigenstaendig); UI-Polish ausserhalb der Persona-/Sicht-Logik.
+
+**Naechster Schritt:** Z14-1.1 Inventur. Codex entscheidet ueber Modell/Effort.
 
 ---
 

@@ -44,6 +44,22 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
+## Aktiver Zyklus 14 — Mehrrollen-Persona-Kollisionen
+
+Reiner Review-/Planungszyklus. Keine Implementierung. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 14".
+
+**Praktisch:** Nutzer mit mehreren Rollen (Admin + Fachbereich/Manager/HR) verlieren ihre fachlich erwartete Ansicht, weil die Persona-Ableitung sie auf `generic` zwingt. **Lohnenswert:** trifft genau die Power-User; Logik liegt zentral, Hebel pro Aufwand hoch. **Nutzen:** klarer Vertrag Rolle vs. Persona vs. aktive Ansicht, vorhersagbares Login-Verhalten, sauberer Andockpunkt fuer kuenftige Personas.
+
+| ID | Aufgabe | Prio | Status |
+|----|---------|------|--------|
+| Z14-1.1 | Inventur Persona-/Mehrrollen-Kollisionen (alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` Sicht/Aktionen/Navigation/Insights kollabieren) | HIGH | offen |
+| Z14-1.2 | Vertrags-/UX-Entscheidung: Begriffsklaerung + Optionen-Skizze fuer Mehrrollen-Behandlung (Switcher / Aggregat / Vorrang / Login-Auswahl) | HIGH | offen |
+| Z14-1.3 | Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung | HIGH | offen |
+
+**Naechster Schritt:** Z14-1.1.
+
+---
+
 ## Zyklusuebergreifend offen
 
 | ID | Aufgabe | Quelle | Status |

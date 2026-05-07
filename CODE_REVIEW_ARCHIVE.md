@@ -19,6 +19,52 @@ Die aktive Primaerquelle fuer den aktuellen Review-Fokus bleibt `CODE_REVIEW.md`
 
 ---
 
+## Zyklen 8 bis 13 — aus der aktiven Review-Datei ausgelagert (2026-05-07)
+
+### Zyklus 13 — Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block
+
+- Status: abgeschlossen am 2026-05-06.
+- Ergebnis: `GET /admin/runtime-health` wurde um optionale Linux-Host-/VM-Metriken erweitert; sichtbarer Host-/VM-Block im Admin-Dashboard.
+- Praktisch: Admins sehen RAM-, Root-FS- und Load-Signale direkt im Dashboard statt erst nach Server-Login.
+- Wichtige Leitplanken: nur Linux-Host-Sicht, kein Docker-/Prometheus-Ausbau, explizite Aktivierung ueber `HOST_RUNTIME_HEALTH_ENABLED`.
+
+### Zyklus 12 — Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health
+
+- Status: abgeschlossen am 2026-05-06.
+- Ergebnis: neuer Admin-Runtime-Health-Vertrag und sichtbarer Betriebsstatus-Block fuer App-/Runtime-Signale.
+- Praktisch: API-, DB-, Directory-, Mail- und Storage-Signale sind fuer Admins im Dashboard gebuendelt sichtbar.
+- Wichtige Leitplanken: klare Trennung App/Runtime vs. Host/VM; Host-Metriken waren bewusst noch nicht Teil von Z12.
+
+### Zyklus 11 — Admin-/Master-Data-Listen-Vertraege in Umsetzung
+
+- Status: abgeschlossen am 2026-05-06.
+- Ergebnis: gemeinsame P1-/P2-Huellen fuer Master-Data-, Audit- und Builder-Lesepfade ausgerollt.
+- Praktisch: Listen-, Audit- und Builder-Reads wachsen jetzt ueber konsistente Antwortformen statt ueber ad-hoc Arrays.
+- Wichtige Leitplanken: Reihenfolge F1 → F2 → F3; keine parallele Vertragsvielfalt fuer dieselbe Listenklasse.
+
+### Zyklus 10 — Master-Data-/Admin-Listen-Wachstum und Query-Kontrakt-Risiken
+
+- Status: abgeschlossen am 2026-05-05.
+- Ergebnis: Inventur, Vertrags-Skizze und Slice-Plan fuer die spaetere Umsetzung in Z11.
+- Praktisch: die systematische Read-Vertragsgrenze wurde sauber beschrieben, bevor neue Pagination-/Search-Huellen gebaut wurden.
+- Wichtige Leitplanken: P1 fuer offset/limit-Listen, P2 fuer Cursor-/Audit-Streams, keine Write-Pfad-Umbauten.
+
+### Zyklus 9 — `EntraDirectorySyncService`-Split / Testbarkeit
+
+- Status: abgeschlossen am 2026-05-05.
+- Ergebnis: Graph-, Orchestrierungs- und Batch-Grenzen aus dem grossen Sync-Service extrahiert und testseitig abgesichert.
+- Praktisch: Directory-Sync-Aenderungen sind besser isolierbar und billiger zu testen.
+- Wichtige Leitplanken: kein reiner Clean-Code-Split, sondern Testbarkeits- und Wartbarkeitsarbeit an einem kritischen Timer-Pfad.
+
+### Zyklus 8 — Skalierbarkeits- und Last-Haertung
+
+- Status: abgeschlossen am 2026-05-05.
+- Ergebnis: priorisierte Hotspots in Workflow-Katalog, Notification-Sweep, Recipient-Bulk-Lookup und Directory-Sync gebatcht oder verifiziert; `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` bewusst deferred.
+- Praktisch: mehrere Lastpfade skalieren besser und verursachen weniger N+1- oder Sweep-Backlog-Risiko.
+- Wichtige Leitplanken: Fokus lag auf echten Lasthebeln; kein breiter Strukturumbau ohne klaren Runtime-Nutzen.
+
+---
+
 ## Zyklus 7 — Lifecycle-Service-Konsolidierung (Detailarchiv)
 
 ### Z7-1 Lifecycle-Service-Konsolidierung (HIGH)
