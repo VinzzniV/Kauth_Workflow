@@ -132,7 +132,7 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus. Ziel: Problem sauber ero
 | Befund | Prio | Status |
 |--------|------|--------|
 | Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen: alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` die Sicht/Aktionen/Navigation/Insights veraendern oder kollabieren; betroffene Bereiche (Dashboard-Overview, Navigation, Aktionen, Insights, Admin-Betriebsblock, ggf. Sub-Pages); Auflistung der heutigen `generic`-Faelle und ihrer Konsequenzen fuer den Nutzer | HIGH | done 2026-05-07 — Inventur in `CODE_REVIEW.md` § Z14-1.1 (Override-Punkt in `useRoleAwareNavigation.ts:253`; zweiter Override im Login-Routing `roleModel.ts:210`; vier Sicht-Konsumenten kollabieren auf `generic`; Header/Aktionen/Routen-Guards bleiben capability-getrieben und sind nicht betroffen) |
-| Z14-1.2 — Vertrags-/UX-Entscheidung: Begriffsklaerung Rolle vs. Persona vs. aktive Ansicht; Optionen fuer Mehrrollen-Behandlung skizzieren (z. B. Persona-Switcher mit Default + Persistenz; Aggregations-Persona statt `generic`; Admin-Vorrang fuer Admin+X; explizite Login-Auswahl); Pro/Contra je Option, ohne Festlegung; Vorgabe, was der Vertrag liefern muss (sichtbarer Schalter, Persistenz, Default-Regel, Fallback) | HIGH | offen |
+| Z14-1.2 — Vertrags-/UX-Entscheidung: Begriffsklaerung Rolle vs. Persona vs. aktive Ansicht; Optionen fuer Mehrrollen-Behandlung skizzieren (z. B. Persona-Switcher mit Default + Persistenz; Aggregations-Persona statt `generic`; Admin-Vorrang fuer Admin+X; explizite Login-Auswahl); Pro/Contra je Option, ohne Festlegung; Vorgabe, was der Vertrag liefern muss (sichtbarer Schalter, Persistenz, Default-Regel, Fallback) | HIGH | done 2026-05-07 — Vertrag in `CODE_REVIEW.md` § Z14-1.2 (Begriffsraster Rolle/Persona/aktive Ansicht; vier Optionen mit Pro/Contra; Vorzugsrichtung „Persona-Switcher mit Vorrangs-Default + Persistenz, Admin-Vorrang fuer Admin+X als Default-Regel, Fallback `generic`"; Vertragspflichten Default/Persistenz/Fallback/Schalter/Login-Routing getrennt; Capability-Schicht und Routen-Guards explizit unberuehrt; Andock an `loadDashboardInsights`/Query-Key/`DashboardOverview`-Schalter beschrieben, ohne Implementierungsslice) |
 | Z14-1.3 — Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung (typisch: Vertrag/Datenmodell zuerst, dann FE-Switcher, dann Aufraeumen der `generic`-Faelle in den abhaengigen Bloecken); ausdruecklich kein Code | HIGH | offen |
 
 ### Z14-1.1 Kernergebnis — Inventur Persona-/Mehrrollen-Kollisionen
@@ -195,10 +195,96 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus. Ziel: Problem sauber ero
 
 Das ist der Anker fuer Z14-1.2: die Vertrags-/UX-Entscheidung muss fuer genau diese zwei Overrides eine Regel angeben, ohne die vier Sicht-Konsumenten umzubauen, und ohne die capability-getriebenen Aktionen zu beruehren.
 
+### Z14-1.2 Kernergebnis — Vertrags-/UX-Entscheidung Mehrrollen-Behandlung
+
+**Praktisch:** Z14-1.2 fixiert, **was** der kuenftige Mehrrollen-Vertrag im Frontend leisten muss, ohne ihn zu implementieren. Ein Power-User mit mehreren Rollen soll am Ende eine fachlich erwartete Standard-Ansicht sehen (z. B. Admin+HR landet auf Admin), bei Bedarf bewusst auf eine andere Sicht umschalten koennen, und diese Auswahl soll ihn ueber Logins hinweg begleiten — alles ohne dass die Berechtigungen, der Header oder die Schnellaktionen sich aendern.
+
+**Lohnenswert:** Der Vertrag wird jetzt sauber definiert, weil die zwei Override-Punkte aus Z14-1.1 (`useRoleAwareNavigation.ts:253` Sicht-Kollaps; `roleModel.ts:210` Login-Routing) sonst gegenlaeufig leben und jede Persona-Erweiterung die `generic`-Falle vergroessert. Begriff und Vorgaben ein einziges Mal niederzuschreiben verhindert Doppel-Logik und macht den Folgeslice (Z14-1.3) sicher schneidbar.
+
+**Nutzen:** klare Begriffstrennung Rolle / Persona / aktive Ansicht; eine bewusst gewaehlte Vorzugsrichtung als Vertragsentscheidung, nicht als Code-Vorgriff; benannte Andockpunkte (`loadDashboardInsights`, `queryKeys.dashboard.insights`, die drei `DashboardOverview`-Schalter), die in Z14-1.3 ohne neuen Vertragsdurchlauf benutzt werden koennen.
+
+#### Begriffsraster (verbindlich fuer Folgezyklen)
+
+- **Rolle**: persistente Berechtigungs-Zuordnung im Backend (`admin`, `hr`, `manager`, `worker`, `reader`). Liefert die **Capabilities**. Mehrere Rollen sind erlaubt und werden additiv zu einem Vereinigungs-Set an Capabilities verarbeitet (Header/Aktionen/Routen-Guards laufen direkt darauf). **Rollen sind nicht der Schalter, sondern das Recht.**
+- **Persona**: aus den Rollen ableitbare **Standard-Sicht** fuer das Dashboard und persona-spezifische Insights. Heute bereits ueber die Vorrangskette `admin > hr > manager > worker > reader > generic` modelliert (`web/src/auth/roleModel.ts:151-161`). Eine Persona ist **kein** Recht, sondern eine voreingestellte Sicht-Auswahl. Mehrfachrollen erzeugen heute genau die `generic`-Kollision, weil die Vorrangsableitung im Sicht-Pfad ueberschrieben wird.
+- **Aktive Ansicht**: das, was der Nutzer **gerade** sehen will. Sie ist von der Persona getrennt, weil sie pro Session vom Nutzer ueberschrieben werden koennen muss (Persona = Default, aktive Ansicht = aktuelle Wahl). Die aktive Ansicht steuert ausschliesslich Sicht-Konsumenten (Dashboard-Body, Insight-Lader, Cache-Schluessel, Seitenkopf-Texte), niemals Rechte oder Routen-Guards.
+
+**Warum die drei Begriffe getrennt sein muessen:** Heute kollabieren Persona und aktive Ansicht in einer Variable (`dashboardPersona`), und die Mehrrollen-Regel ueberschreibt beide gleichzeitig auf `generic`. Solange die drei Konzepte nicht getrennt sind, kann ein Power-User nicht „Persona = admin, aktive Ansicht = manager" haben, ohne entweder seine Capabilities zu verlieren oder die Standard-Sicht aller anderen Mehrrollen-Nutzer mit zu veraendern. Die Trennung erlaubt: Capabilities bleiben rein rollen-/permissiongetrieben; Persona bleibt deterministisch aus Rollen ableitbar; aktive Ansicht ist eine **vom Nutzer beeinflussbare**, persistierte Praeferenz, die auf einem Default basiert und auf bekannte Werte begrenzt ist.
+
+#### Optionen fuer die Mehrrollen-Behandlung
+
+##### Option A — Persona-Switcher mit Default + Persistenz
+
+Ein sichtbarer Schalter im Dashboard (z. B. Tab-Leiste oder Dropdown im Seitenkopf), mit dem der Nutzer aus den fuer ihn gueltigen Personas waehlen kann. Default kommt aus der bestehenden Vorrangskette (admin > hr > manager > worker > reader). Auswahl wird in `localStorage` (oder serverseitig in einer User-Setting-Spalte) persistiert und beim naechsten Login wiederverwendet, solange der Nutzer die zugehoerige Rolle weiterhin hat.
+
+- **Pro:** loest die Mehrrollen-Falle ohne Berechtigungsumbau; macht die Persona explizit und nutzerseitig steuerbar; baut auf bestehenden Persona-Andockpunkten (`loadDashboardInsights(persona)`, persona-getriebene Query-Keys, drei `DashboardOverview`-Schalter); jede neue Persona dockt automatisch an, sobald sie in die Loader-Tabelle eingetragen wird; trennt sauber Persona (Default) und aktive Ansicht (Auswahl).
+- **Contra:** zusaetzliche UI-Flaeche; Persistenz-Edgefaelle (Rolle wird entzogen → Auswahl nicht mehr gueltig → Fallback noetig); Risiko, dass Nutzer die Auswahl vergessen und „falsche Sicht" als Bug melden; Persistenzort (Client vs. Server) ist eine separate Vertragsentscheidung.
+
+##### Option B — Aggregations-Persona statt `generic`
+
+Anstatt bei Mehrrollen auf `generic` zu kollabieren, wird eine **kombinierte** Sicht ausgeliefert, die die Insight-Bloecke aller relevanten Rollen zusammenfuehrt (z. B. Admin+HR sieht Admin-Betriebsblock + HR-Engpaesse untereinander). Die `loadGenericInsights`-Leerstelle wird durch einen Aggregations-Loader ersetzt, der die einzelnen Persona-Loader aufruft und ihre Datensaetze zu einem grossen Datensatz zusammensetzt.
+
+- **Pro:** kein zusaetzlicher UI-Schalter notwendig; Power-User sehen *alle* fuer sie relevanten Bloecke; Persistenz entfaellt; semantisch ehrlichste Sicht („Du hast alle diese Zustaendigkeiten, also siehst Du sie alle").
+- **Contra:** lange, ueberfrachtete Dashboards bei drei oder vier Rollen; Insight-Bloecke wurden nicht fuer Co-Existenz entworfen (Stats-Kacheln, Filter, Manager-Mitarbeitendenliste konkurrieren um den Seitenkopf); jede neue Persona zwingt den Aggregations-Loader zu einer neuen Reihenfolge-/Gewichtungs-Entscheidung; loest das Login-Routing-Problem nicht (Fallback bleibt notwendig); macht das Mental Model wieder unklar — der Nutzer hat *eine* Seite, aber keine *eine* Sicht.
+
+##### Option C — Admin-Vorrang fuer Admin+X
+
+Der Sicht-Kollaps auf `generic` wird gezielt fuer Admin+X aufgehoben: hat der Nutzer die Admin-Rolle, gewinnt sie unabhaengig von weiteren Rollen, und sowohl Sicht (`useRoleAwareNavigation.ts:253`) als auch Login-Routing (`roleModel.ts:210`) liefern `admin`. Andere Mehrrollen-Konstellationen (HR+Manager, Manager+Worker, …) bleiben heute wie heute (oder fallen kontrolliert auf die hoechste Vorrangs-Persona zurueck).
+
+- **Pro:** kleinster denkbarer Eingriff; trifft die haeufigste reale Konstellation (Admin, der nebenbei Fachzustaendigkeit hat); braucht keine UI-Aenderung und keine Persistenz; entspricht dem heutigen Mental Model „Admin ist erstrangig".
+- **Contra:** lost nur Admin+X, nicht HR+Manager oder Manager+Worker; ein HR+Manager-User bleibt auf der Generic-Leerseite; verlagert das Problem statt es vertraglich zu loesen; macht die Persona-Ableitung asymmetrisch (Vorrang ja, aber nur fuer Admin); verschiebt den Tag, an dem Optionen A oder B trotzdem gebaut werden muessen.
+
+##### Option D — Explizite Login-Auswahl
+
+Der Nutzer waehlt beim Login (oder beim ersten Dashboard-Aufruf einer Session) explizit die gewuenschte Persona aus. Die Auswahl gilt nur fuer die Session und wird nicht persistiert (oder optional ueber „Diese Auswahl merken").
+
+- **Pro:** maximale Klarheit, Nutzer trifft die Entscheidung bewusst; macht die Mehrrollen-Situation als solche sichtbar; vermeidet stille Defaults.
+- **Contra:** Reibung bei jedem Login; nervt Single-Role-Nutzer, falls die Auswahl auch dort erscheint (Sonderfall noetig); ohne Persistenz unbequem fuer Power-User; mit Persistenz liegt die UX praktisch wieder bei Option A; fuer Login-Routing (`roleModel.ts:210`) braucht es trotzdem eine Default-Regel, falls die Auswahl noch nicht passiert ist.
+
+#### Vorzugsrichtung (Vertragsentscheidung, kein Code-Slice)
+
+Vorzugsrichtung fuer den Folgezyklus: **Option A (Persona-Switcher mit Vorrangs-Default + Persistenz)** als tragende Entscheidung, ergaenzt um **Option C (Admin-Vorrang fuer Admin+X) als Default-Regel** und einer harten **Fallback-Regel auf `generic`** fuer den Fall, dass eine persistierte Auswahl nicht mehr zu den aktuellen Rollen passt.
+
+Begruendung: Die zwei Override-Punkte aus Z14-1.1 koennen nur sauber aufgehoben werden, wenn Persona (Default) und aktive Ansicht (Auswahl) getrennt sind — das leistet Option A als einzige der vier. Option B ueberlaedt das Dashboard und loest das Routing-Problem nicht. Option C deckt die haeufigste Konstellation ab und passt natuerlich als Default-Regel in einen Switcher. Option D bringt ohne Persistenz mehr Reibung als Nutzen und kollabiert mit Persistenz auf Option A.
+
+**Diese Vorzugsrichtung ist eine Vertragsentscheidung, kein Implementierungsfreigabe.** Die Umsetzung wird in Z14-1.3 als Slice-Plan geschnitten. Codex kann die Vorzugsrichtung dort nochmal bestaetigen oder kippen, ohne dass der Vertrag selbst neu geschrieben werden muss.
+
+#### Was der Vertrag liefern muss
+
+Unabhaengig von der finalen Implementierung muss der Mehrrollen-Vertrag folgende Punkte beantworten — und zwar **getrennt** fuer die zwei Override-Punkte aus Z14-1.1:
+
+1. **Sichtbarer Schalter vs. bewusste Nicht-Sichtbarkeit:** Der Vertrag muss explizit benennen, ob ein UI-Element zur Auswahl der aktiven Ansicht existiert. Vorzugsrichtung A: ja, sichtbar im Dashboard-Bereich, nur fuer Nutzer mit `hasMultipleRoles === true`. Single-Role-Nutzer sehen keinen Schalter (kein Bedarf, keine Reibung).
+2. **Default-Regel (Standard-Persona):** Welche Persona ist die Standard-Sicht beim ersten Login eines Mehrrollen-Nutzers? Vorzugsrichtung: Vorrangskette aus `roleModel.ts:151-161` bleibt die Quelle des Defaults; `admin > hr > manager > worker > reader > generic`. Damit erbt Admin+X automatisch Admin als Default (Option C als Default-Regel).
+3. **Persistenz-Regel:** Wo wird die zuletzt aktive Ansicht gespeichert, und wie lange gilt sie?
+   - Speicherort: `localStorage` als erste Stufe (kein Backend-Aenderungsbedarf, kein Auth-/Sync-Risiko); spaeter optional in eine User-Setting-Spalte heben, wenn ein Cross-Device-Bedarf entsteht. Diese Hebung ist explizit **nicht** Teil von Z14, sondern bewusst spaeter.
+   - Schluessel: per Person-/User-ID gebunden (`kauth.activeView.<personId>`), damit Shared-Browser-Faelle nicht ueber Nutzer hinweg lecken.
+   - Lebensdauer: bis aktiv geaendert oder bis Fallback greift (siehe naechster Punkt).
+4. **Fallback-Regel:** Was passiert, wenn eine persistierte Auswahl nicht mehr gueltig ist (Rolle entzogen, Persona umbenannt, Fremd-Wert)? Vorzugsrichtung: harter Fallback auf den **aktuellen Default** aus der Vorrangskette; falls auch der nicht gueltig ist, harter Fallback auf `generic`. `generic` bleibt im Vertrag erhalten als **letzter Notnagel**, nicht als regulaerer Mehrrollen-Zustand. Ein einmal-Logging-Hinweis im FE ist optional (kein Toast, kein Modal — Z14 fasst keine UI-Polish-Themen an).
+5. **Verhalten Login-Routing vs. Dashboard-Sicht (getrennt!):** Beide Override-Punkte aus Z14-1.1 muessen unabhaengig versorgt werden:
+   - **Dashboard-Sicht** (`useRoleAwareNavigation.ts:253`): liest die *aktive Ansicht* (Persistenz → Default → Fallback) statt heute hart `generic` zu erzwingen.
+   - **Login-Routing** (`roleModel.ts:210`): liest dieselbe *aktive Ansicht*, um die persona-spezifische Default-Route (admin → `/admin/config`, manager → `/supervisor`, worker → `/tasks/my`) auch fuer Mehrrollen-Nutzer zu liefern. Wenn aktiv = `generic`, faellt das Routing weiterhin auf `/`. Der Vertrag muss explizit sagen: ein Persona-Switcher reicht **nicht automatisch** auch fuer das Routing — das Routing muss aus derselben Quelle lesen, nicht aus der eigenen Vorrangskette zweiter Ordnung.
+6. **Was der Vertrag *nicht* anfasst (verbindlich):**
+   - **Rechte/Capabilities**: `permissions`, `capabilities`, `hasHrRole`, `hasManagerRole`, `canManageAdminConfiguration`, `canAccessFeature` etc. bleiben unveraendert. Das Vereinigungs-Set bleibt das Vereinigungs-Set.
+   - **Header-Navigation und Schnellaktionen** (`headerNavItems`, `dashboardActions`): bleiben capability-getrieben. Der Switcher veraendert keine Aktion und blendet keine Aktion aus.
+   - **Routen-Guards** in `App.tsx` und Feature-Checks: bleiben capability-getrieben. Wer keine Admin-Rolle hat, kommt nicht in den Admin-Bereich, auch wenn er „aktive Ansicht = admin" persistiert haette — diesen Pfad gibt es per Vertrag nicht (siehe Persistenz: nur Personas, fuer die der Nutzer die Rolle besitzt).
+   - **Backend-Berechtigungsmodell**: Z14 ist Frontend-Vertrag. Keine API-, Repo-, Service- oder DB-Aenderungen.
+
+#### Andocken an die bestehenden Persona-Anker (Vertrag, nicht Implementierung)
+
+Der Vertrag muss sich an genau drei bekannten Stellen anbinden, ohne sie zu zerlegen — dieser Abschnitt ist die Vorgabe fuer den Implementierungs-Slice (Z14-1.3) und **nicht** dessen Umsetzung:
+
+- **`loadDashboardInsights(persona, options)`** (`web/src/components/dashboard/dashboardInsights.ts:24-42`): bleibt die **zentrale Persona-Vertragsstelle**. Aufrufer uebergeben statt der heutigen effektiven Persona die *aktive Ansicht*. Die Loader (`loadAdminInsights`, `loadHrInsights`, `loadManagerInsights`, `loadWorkerInsights`, `loadViewerInsights`, `loadGenericInsights`) bleiben **unveraendert**. `loadGenericInsights` bleibt als Fallback-Pfad erhalten (siehe Punkt 4).
+- **`queryKeys.dashboard.insights(persona, definitionKey)`** (`web/src/services/queryKeys.ts:50-54`) **+** `useDashboardInsightsQuery` (`web/src/services/queries/dashboardQueries.ts:7-18`): der Query-Key ist heute schon persona-getrieben. Vertraglich uebergibt der Aufrufer die *aktive Ansicht* an den Hook; jede Sicht behaelt einen eigenen Cache-Eintrag, und ein Wechsel der aktiven Ansicht zieht keinen Cache-Reset nach sich, sondern haelt mehrere Sichten parallel warm. **Wichtig:** der Key-Aufbau aendert sich nicht — Z14-1.3 darf hier nichts umbauen.
+- **Drei `DashboardOverview`-Schalter** (`web/src/components/dashboard/DashboardOverview.tsx:17-23, 82-218`): `isAdminDashboard = persona === "admin"`, `supportsProcessTypeFilter = persona ∈ {hr, manager, reader}`, Manager-Mitarbeitendenliste an `persona === "manager"`. Vertraglich werden diese drei Schalter mit der *aktiven Ansicht* gespeist statt mit der heutigen effektiven Persona. **Keine Logik-Aenderung in diesen drei Schaltern.** Der Vertrag verbietet ausdruecklich, die drei Bedingungen zu vereinheitlichen oder zu generalisieren — sie bleiben drei einzelne Verzweigungen, der einzige Wechsel ist die Quelle (aktive Ansicht statt persona).
+
+`DashboardPage` (`web/src/pages/DashboardPage.tsx:11-31`) liest die aktive Ansicht ebenfalls fuer die zwei textgetriebenen Stellen (Seitenkopf-Beschreibung, optionaler „Neuen Vorgang anlegen"-Button). Hier ist nichts neu — nur die Quelle wechselt.
+
+**Was Z14-1.3 daraus konkret zu schneiden hat (Vertrag, nicht Vorgriff):** zuerst das Datenmodell der aktiven Ansicht (Hook + Persistenz + Fallback) bauen, ohne Sicht-Konsumenten zu beruehren; dann die zwei Override-Stellen aus Z14-1.1 von `generic` auf die neue Quelle umstellen; dann den sichtbaren Switcher anbinden. Der genaue Schnitt entscheidet Z14-1.3.
+
 **Nicht in Z14:**
 - Backend-Aenderungen am Berechtigungsmodell — Rollen/Permissions bleiben unveraendert; Z14 betrifft die Ableitung der **Sicht**, nicht der **Rechte**.
 - Neue Personas oder Spezialrollen einfuehren.
 - Mobile-/Tablet-Layout fuer das Dashboard (R10 bleibt eigener Backlog-Eintrag).
 - UI-Polish ausserhalb der Persona-/Sicht-Logik.
 
-**Naechster Schritt:** Z14-1.1 — Inventur. Codex entscheidet ueber Modell/Effort und Reihenfolge.
+**Naechster Schritt:** Z14-1.3 — Slice-Plan Folgezyklus. Codex entscheidet ueber Modell/Effort und Reihenfolge.
