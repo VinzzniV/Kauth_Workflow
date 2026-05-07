@@ -46,7 +46,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Abgeschlossener Zyklus 14 — Mehrrollen-Persona-Kollisionen
 
-Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus, abgeschlossen 2026-05-07. **Keine Implementierung in Z14.** Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 14".
+Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus, abgeschlossen 2026-05-07. **Keine Implementierung in Z14.** Detail jetzt in `CODE_REVIEW_ARCHIVE.md` (Zyklus 14); `CODE_REVIEW.md` bleibt die kompakte aktive Steuerdatei.
 
 **Praktisch:** Nutzer mit mehreren Rollen (Admin + Fachbereich/Manager/HR) verlieren ihre fachlich erwartete Ansicht, weil die Persona-Ableitung sie auf `generic` zwingt. **Lohnenswert:** trifft genau die Power-User; Logik liegt zentral, Hebel pro Aufwand hoch. **Nutzen:** klarer Vertrag Rolle vs. Persona vs. aktive Ansicht, vorhersagbares Login-Verhalten, sauberer Andockpunkt fuer kuenftige Personas.
 

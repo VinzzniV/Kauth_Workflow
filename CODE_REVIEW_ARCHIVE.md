@@ -19,7 +19,39 @@ Die aktive Primaerquelle fuer den aktuellen Review-Fokus bleibt `CODE_REVIEW.md`
 
 ---
 
-## Zyklen 8 bis 13 — aus der aktiven Review-Datei ausgelagert (2026-05-07)
+## Zyklen 8 bis 14 — aus der aktiven Review-Datei ausgelagert (2026-05-07)
+
+### Zyklus 14 — Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung
+
+- Status: abgeschlossen am 2026-05-07.
+- Ergebnis: Problem sauber inventarisiert, Persona-/Sicht-Vertrag fuer Mehrrollen definiert und Folge-Slice-Plan fuer die Implementierung geschnitten.
+- Praktisch: Mehrrollen-Nutzer wie Admin+HR oder Manager+Worker verlieren heute ihre fachlich erwartete Sicht, obwohl Rechte und Navigation weiter vorhanden sind; der Folgezyklus hat jetzt einen klaren Plan, wie diese `generic`-Falle ohne Berechtigungsumbau entfernt wird.
+- Wichtige Leitplanken: Z14 war Doku-only; Rechte, Capabilities, Header-Navigation und Routen-Guards bleiben unberuehrt; es geht nur um die Ableitung der **Sicht**.
+
+#### Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen
+
+- Override-Punkte: `web/src/navigation/useRoleAwareNavigation.ts:253` kollabiert Mehrrollen-Sicht auf `generic`; `web/src/auth/roleModel.ts:210` zwingt Mehrrollen-Login auf `/`.
+- Betroffene Sicht-Konsumenten: `DashboardOverview`, `DashboardPage`, `useDashboardInsights`/Query-Key und der Insight-Lader-Switch.
+- Praktisch: Admin-Betriebsblock, HR-/Manager-/Worker-spezifische Insight-Bloecke und passende Seitenkopf-Texte fallen bei Mehrrollen weg; der Nutzer landet auf einer leeren Generic-Seite.
+- Wichtig: Header-Navigation, Schnellaktionen und Rechte sind **nicht** betroffen; das Problem sitzt in der Sicht, nicht in den Capabilities.
+
+#### Z14-1.2 — Vertrags-/UX-Entscheidung
+
+- Verbindliche Begriffstrennung:
+  - **Rolle** = Berechtigung / Capability-Quelle
+  - **Persona** = deterministischer Default aus der Vorrangskette `admin > hr > manager > worker > reader > generic`
+  - **aktive Ansicht** = vom Nutzer beeinflussbare, persistierte Sicht-Praeferenz
+- Optionen geschnitten: Persona-Switcher mit Persistenz, Aggregations-Persona, Admin-Vorrang fuer Admin+X, explizite Login-Auswahl.
+- Vorzugsrichtung: Persona-Switcher mit Vorrangs-Default + Persistenz; Admin-Vorrang fuer Admin+X als Default-Regel; harter Fallback auf `generic`.
+- Vertragspflichten: sichtbarer Schalter nur fuer Mehrrollen-Nutzer; Persistenz per `localStorage` mit person-/user-gebundenem Schluessel; Fallback-Kaskade aktive Ansicht -> Default -> `generic`; Login-Routing und Dashboard-Sicht muessen beide aus derselben Quelle lesen.
+
+#### Z14-1.3 — Slice-Plan Folgezyklus
+
+- **Slice I**: neues Datenmodell fuer `aktive Ansicht` als Hook mit Persistenz und Fallback; keine Sicht-Konsumenten anfassen.
+- **Slice II**: die zwei Override-Stellen aus Z14-1.1 gemeinsam auf die neue Quelle umstellen, damit Sicht und Login-Routing wieder zusammenlaufen.
+- **Slice III**: sichtbarer Persona-Switcher nur fuer `hasMultipleRoles === true`.
+- Reihenfolge-Begruendung: Datenmodell zuerst, dann Routing/Sicht, dann UI. Das ist sicherer als ein grosser UI-Umbau, weil Persistenz, Routing-Regression und UI-/A11y-Risiken getrennt verifiziert werden koennen.
+- Empfohlenes Modell/Effort fuer die Implementierung: `claude-sonnet-4-6` mit `--effort medium` pro Slice; Slice III darf bei breiterer UX-Abwaegung auf Opus eskalieren.
 
 ### Zyklus 13 — Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block
 
