@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-07 — Aktiver Zyklus 14 (Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung). Die abgeschlossenen Detailzyklen 8 bis 13 wurden in `CODE_REVIEW_ARCHIVE.md` ausgelagert; diese Datei bleibt die kompakte aktive Steuerdatei.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet).
+**Stand**: 2026-05-07 — Zyklus 14 abgeschlossen (Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung; Z14-1.1 Inventur done, Z14-1.2 Vertrags-/UX-Entscheidung done, Z14-1.3 Slice-Plan Folgezyklus done). Kein aktiver Zyklus. Naechster Folgezyklus: Codex entscheidet ueber Eroeffnung des Implementierungszyklus auf Basis von Z14-1.3. Die abgeschlossenen Detailzyklen 8 bis 13 wurden in `CODE_REVIEW_ARCHIVE.md` ausgelagert; diese Datei bleibt die kompakte aktive Steuerdatei.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen).
 
 ---
 
@@ -106,13 +106,13 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege in Umsetzung — abgeschlossen |
 | 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — abgeschlossen |
 | 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen |
-| 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — aktiv |
+| 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — abgeschlossen |
 
 ---
 
-## Aktiver Zyklus 14 — Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung
+## Abgeschlossener Zyklus 14 — Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung
 
-Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus. Ziel: Problem sauber eroeffnen und schneiden, **keine Umsetzung**.
+Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus, abgeschlossen 2026-05-07. Ziel war: Problem sauber eroeffnen und schneiden, **keine Umsetzung**. Alle drei Slices done. Z14-1.3 liefert den Slice-Plan fuer den Folgezyklus; Codex entscheidet ueber dessen Eroeffnung.
 
 **Praktisch:** Ein Benutzer mit mehreren Rollen — typisch Admin + Fachbereich, Admin + Manager, Admin + HR — landet im Dashboard und in der Navigation auf einer generischen Sammelansicht und verliert dabei die fachlich erwartete Sicht. Wer sich als „Admin" einloggen will, sieht den Admin-Betriebsblock nicht, weil die Mehrfachrolle die Persona auf `generic` zwingt; wer als Manager arbeiten will, verliert die Manager-Aktionen aus demselben Grund. Die Wahl der Ansicht ist heute implizit, nicht steuerbar, und greift bereits bei zwei Rollen.
 
@@ -133,7 +133,7 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus. Ziel: Problem sauber ero
 |--------|------|--------|
 | Z14-1.1 — Inventur Persona-/Mehrrollen-Kollisionen: alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` die Sicht/Aktionen/Navigation/Insights veraendern oder kollabieren; betroffene Bereiche (Dashboard-Overview, Navigation, Aktionen, Insights, Admin-Betriebsblock, ggf. Sub-Pages); Auflistung der heutigen `generic`-Faelle und ihrer Konsequenzen fuer den Nutzer | HIGH | done 2026-05-07 — Inventur in `CODE_REVIEW.md` § Z14-1.1 (Override-Punkt in `useRoleAwareNavigation.ts:253`; zweiter Override im Login-Routing `roleModel.ts:210`; vier Sicht-Konsumenten kollabieren auf `generic`; Header/Aktionen/Routen-Guards bleiben capability-getrieben und sind nicht betroffen) |
 | Z14-1.2 — Vertrags-/UX-Entscheidung: Begriffsklaerung Rolle vs. Persona vs. aktive Ansicht; Optionen fuer Mehrrollen-Behandlung skizzieren (z. B. Persona-Switcher mit Default + Persistenz; Aggregations-Persona statt `generic`; Admin-Vorrang fuer Admin+X; explizite Login-Auswahl); Pro/Contra je Option, ohne Festlegung; Vorgabe, was der Vertrag liefern muss (sichtbarer Schalter, Persistenz, Default-Regel, Fallback) | HIGH | done 2026-05-07 — Vertrag in `CODE_REVIEW.md` § Z14-1.2 (Begriffsraster Rolle/Persona/aktive Ansicht; vier Optionen mit Pro/Contra; Vorzugsrichtung „Persona-Switcher mit Vorrangs-Default + Persistenz, Admin-Vorrang fuer Admin+X als Default-Regel, Fallback `generic`"; Vertragspflichten Default/Persistenz/Fallback/Schalter/Login-Routing getrennt; Capability-Schicht und Routen-Guards explizit unberuehrt; Andock an `loadDashboardInsights`/Query-Key/`DashboardOverview`-Schalter beschrieben, ohne Implementierungsslice) |
-| Z14-1.3 — Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung (typisch: Vertrag/Datenmodell zuerst, dann FE-Switcher, dann Aufraeumen der `generic`-Faelle in den abhaengigen Bloecken); ausdruecklich kein Code | HIGH | offen |
+| Z14-1.3 — Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung (typisch: Vertrag/Datenmodell zuerst, dann FE-Switcher, dann Aufraeumen der `generic`-Faelle in den abhaengigen Bloecken); ausdruecklich kein Code | HIGH | done 2026-05-07 — Slice-Plan in `CODE_REVIEW.md` § Z14-1.3 (drei Umsetzungsslices: I „aktive Ansicht" als reines Datenmodell + Persistenz + Fallback ohne Sicht-Konsumenten; II zwei Override-Stellen aus Z14-1.1 auf die neue Quelle umstellen; III sichtbarer Persona-Switcher nur fuer `hasMultipleRoles === true`; Reihenfolge Datenmodell → Routing/Sicht → UI-Polish; Modell/Effort pro Slice; Loader und drei `DashboardOverview`-Schalter bleiben unangetastet) |
 
 ### Z14-1.1 Kernergebnis — Inventur Persona-/Mehrrollen-Kollisionen
 
@@ -287,4 +287,89 @@ Der Vertrag muss sich an genau drei bekannten Stellen anbinden, ohne sie zu zerl
 - Mobile-/Tablet-Layout fuer das Dashboard (R10 bleibt eigener Backlog-Eintrag).
 - UI-Polish ausserhalb der Persona-/Sicht-Logik.
 
-**Naechster Schritt:** Z14-1.3 — Slice-Plan Folgezyklus. Codex entscheidet ueber Modell/Effort und Reihenfolge.
+### Z14-1.3 Kernergebnis — Slice-Plan Folgezyklus
+
+**Praktisch:** Z14-1.3 schneidet den Vertrag aus Z14-1.2 in drei kleine, unabhaengig verifizierbare Umsetzungsschritte. Ein Mehrrollen-Nutzer sieht nach Slice II bereits seine fachlich erwartete Default-Sicht zurueck; Slice III hebt die Auswahl in Nutzerhand. Slice I ist reine Datenmodell-/Persistenz-Arbeit ohne Sicht-Auswirkung — der erste Slice ist also sicher kommittierbar, ohne dass das UI sich aendert.
+
+**Lohnenswert:** Drei kleine Slices statt ein grosser UI-Umbau halten den Tree zu jedem Zeitpunkt freigabefaehig. Wenn Slice III aus Kapazitaetsgruenden verschoben werden muss, hat der Nutzer trotzdem schon die korrekte Default-Sicht aus Slice I + II — der Power-User-Effekt der `generic`-Falle ist dann bereits weg, der Switcher ist Komfort. Das ist genau die Trennung Persona (Default) vs. aktive Ansicht (Auswahl) aus Z14-1.2: Slice I + II versorgen den Default, Slice III die Auswahl.
+
+**Nutzen:** klarer Reihenfolge-Vertrag fuer den Folgezyklus; explizite Andockpunkte je Slice ohne neuen Vertragsdurchlauf; pro Slice ein eigenes Modell-/Effort-Profil, sodass Codex die Slices einzeln per CLI mit `--model`/`--effort` erzwingen kann.
+
+#### Reihenfolge-Begruendung (Datenmodell → Routing/Sicht → UI)
+
+- **Datenmodell zuerst.** Wer das Datenmodell zuletzt baut, biegt entweder den Switcher um oder Override-Stellen mehrfach an. Der Hook fuer die *aktive Ansicht* ist die einzige Quelle, die danach beide Override-Stellen aus Z14-1.1 (`useRoleAwareNavigation.ts:253` Sicht-Kollaps, `roleModel.ts:210` Login-Routing) versorgt — wenn er existiert, sind die zwei Folge-Slices reine Adapter-Arbeit. Z14-1.2 verbietet ausdruecklich Logik-Aenderungen an Loadern und an den drei `DashboardOverview`-Schaltern; ein Datenmodell-only-Slice respektiert das natuerlich.
+- **Routing/Sicht in der Mitte.** Sobald der Hook steht, wechseln genau zwei Codestellen ihre Quelle: der Mehrrollen-Override im Navigation-Hook und der Mehrrollen-Override in `getDefaultRoute`. Beide muessen aus derselben Quelle lesen — Z14-1.2 hat das als Vertragspflicht festgehalten, weil ein Persona-Switcher allein das Login-Routing nicht heilt. Diese zwei Stellen zusammen in einem Slice zu machen verhindert, dass Sicht und Routing auseinanderlaufen.
+- **UI zuletzt.** Der Switcher bedeutet sichtbare UX-Entscheidungen (Dropdown vs. Tabs, Wording, Position im Seitenkopf, Accessibility). Wenn Slice III spaeter kommt, kann der UX-Teil isoliert getestet werden, ohne Routing- oder Persistenz-Risiken zu schultern. Vor dem Switcher ist das System bereits korrekt — der Switcher ist Komfort, kein Korrekturpfad.
+
+**Warum sicherer als ein grosser UI-Umbau:** Ein Komplett-Slice „Persona-Switcher mit Persistenz, Routing und Sicht in einem" kombiniert vier Risikoachsen (Persistenz, SSR-/Hydration-Verhalten, Routing-Regression, UI-/A11y-Polish) in einem Pull-Request, und jeder Fehler in einer Achse zieht das ganze Paket zurueck. Der hier vorgeschlagene Schnitt isoliert jede Achse: Slice I hat **null** Sicht-Konsumenten (purer Hook + Tests), Slice II hat **null** UI-Aenderungen (nur Quellen-Wechsel an zwei Codezeilen), Slice III hat **null** Routing-/Persistenz-Aenderungen (UI plus Schreibpfad in den bestehenden Hook). Jeder Slice ist fuer sich allein freigabefaehig und reversibel.
+
+#### Slice I — „Aktive Ansicht" als reines Datenmodell + Persistenz + Fallback
+
+**Praktisch passiert:** Ein neuer FE-Hook (Arbeitstitel `useActiveView`) liefert die *aktive Ansicht* aus drei Quellen in dieser Kaskade: persistierter Wert aus `localStorage` (Schluessel `kauth.activeView.<personId>`) → Default aus der bestehenden Vorrangskette `admin > hr > manager > worker > reader > generic` (`web/src/auth/roleModel.ts:151-161`) → harter Fallback `generic`. Der Hook validiert die persistierte Auswahl gegen die aktuell vorhandenen Capabilities (Persona ist nur waehlbar, wenn der Nutzer die zugehoerige Rolle hat). Er stellt zusaetzlich die Liste der gueltigen Optionen und einen Setter (`setActiveView`) bereit. **Keine Sicht-Konsumenten werden umgestellt; weder `useRoleAwareNavigation.ts:253` noch `roleModel.ts:210` werden in diesem Slice angefasst.**
+
+**Warum der Zuschnitt sinnvoll ist:** Reine Datenmodell-Arbeit ohne sichtbare Wirkung. Der Tree bleibt nach Commit unauffaellig, der Hook ist allein per Vitest verifizierbar, und der naechste Slice findet eine fertige, getestete Quelle vor.
+
+**Was dadurch besser wird:** ein einziger, dokumentierter Vertrags-Adapter zwischen Persona (Default) und aktiver Ansicht (Auswahl); klare Persistenz-Grenzen mit person-/user-gebundenem Schluessel; vorhersagbarer Fallback in allen Edge-Cases (Rolle entzogen, Fremdwert, fehlender Storage).
+
+**Betroffene Dateien / Bereiche:** neuer Hook unter `web/src/auth/` oder `web/src/navigation/` (genaue Platzierung Implementer-Entscheidung im Slice); zugehoerige Vitest-Datei. **Nicht angefasst:** `useRoleAwareNavigation.ts`, `roleModel.ts:209-249`, `DashboardOverview.tsx`, `DashboardPage.tsx`, `dashboardInsights.ts`, `dashboardInsightsLoaders.ts`, `dashboardQueries.ts`, `queryKeys.ts`.
+
+**Testfokus:** Vitest-Unit fuer (1) Default aus Vorrangskette bei leerem Storage, (2) persistierter Wert wird gelesen, wenn er zu aktuellen Capabilities passt, (3) Fallback auf Default, wenn persistierter Wert nicht mehr zu Rollen passt, (4) Fallback auf `generic`, wenn auch Default nicht gueltig ist, (5) Setter persistiert und liefert beim naechsten Render den neuen Wert, (6) Single-Role-Nutzer bekommt deterministisch genau eine Option (kein Schalter-Bedarf), (7) `personId`-Wechsel liest aus dem neuen Schluessel. Keine Integrations-/E2E-Tests notwendig.
+
+**Doku-Folgen:** `MEMORY.md` (aktiver Zyklus / naechster Schritt aktualisieren), `CODEX_SYNC.md` (Eintrag), `KauthWorkflow/Stand/Code-Review-Status.md` (spiegeln). Kein `web/README.md` (kein UI-Effekt). Kein Vault-Begriffseintrag noetig — Begriffsraster steht bereits in Z14-1.2.
+
+**Was bewusst NICHT in Slice I gehoert:**
+- **kein UI-Element** (kein Dropdown, keine Tab-Leiste, kein Toast).
+- **keine** Aenderung an den zwei Override-Stellen aus Z14-1.1 — Slice I darf den `generic`-Kollaps nicht entfernen, sonst aendert sich die Sicht ohne dass Slice II die Quelle versorgt.
+- **keine** Aenderung an Loadern (`loadAdminInsights`, `loadHrInsights`, …) oder am Insight-Lader-Switch.
+- **keine** Aenderung an `queryKeys.dashboard.insights` oder `useDashboardInsightsQuery` — der Query-Key bleibt persona-getrieben.
+- **keine** Aenderung an den drei `DashboardOverview`-Schaltern (`isAdminDashboard`, `supportsProcessTypeFilter`, Manager-Liste).
+- **kein** Backend, **keine** API-Erweiterung, **keine** Server-Persistenz. Cross-Device-Hebung bleibt explizit ausserhalb Z14.
+- **keine** Telemetrie/Logs fuer Persona-Wechsel — das ist ein eigenstaendiger Folgepunkt, nicht Teil des Vertrages.
+
+**Empfohlenes Modell/Effort:** `claude-sonnet-4-6` mit `--effort medium`. Begruendung: kleiner, klar abgegrenzter Hook mit engem Vertrag und vollstaendig per Unit-Tests verifizierbar; keine Architekturentscheidung mehr offen; kein UI; keine breite Code-Streuung. Opus-Reasoning ist hier Overhead.
+
+#### Slice II — Zwei Override-Stellen aus Z14-1.1 auf die neue Quelle umstellen
+
+**Praktisch passiert:** Genau zwei Codezeilen wechseln ihre Quelle. (1) `web/src/navigation/useRoleAwareNavigation.ts:253` liest die *aktive Ansicht* aus Slice I statt bei `hasMultipleRoles === true` hart `generic` zu setzen. (2) `web/src/auth/roleModel.ts:210` liest dieselbe Quelle, sodass Login-Routing fuer Mehrrollen-Nutzer auf die persona-spezifische Default-Route faellt (admin → `/admin/config`, manager → `/supervisor`, worker → `/tasks/my`); aktiv = `generic` faellt weiter sauber auf `/`. Die vier Sicht-Konsumenten (`DashboardOverview`, `DashboardPage`, `useDashboardInsights`/Query, Insight-Lader-Switch) bekommen automatisch ueber den vorhandenen Persona-Pfad die richtige Quelle; ihre Schalter-Logik wird **nicht** angefasst. `loadGenericInsights` bleibt als Fallback-Pfad erhalten.
+
+**Warum der Zuschnitt sinnvoll ist:** Beide Override-Stellen aus Z14-1.1 muessen aus derselben Quelle gespeist werden — Z14-1.2 hat das als Vertragspflicht festgehalten, weil ein Switcher allein das Login-Routing nicht heilt. Sie zusammen in einem Slice umzustellen verhindert, dass Sicht und Routing auseinanderlaufen, und macht den Power-User-Effekt sichtbar: nach diesem Slice landet ein Admin+HR-Login wieder auf `/admin/config` mit dem Admin-Betriebsblock, ein HR+Manager-Login auf `/` mit der HR-Sicht.
+
+**Was dadurch besser wird:** Mehrrollen-Nutzer sehen die fachlich erwartete Default-Sicht. Die Falle aus Z14-1.1 ist beseitigt, ohne dass eine UI-Flaeche dafuer existieren muss. Die Vertragspflicht „beide Overrides lesen aus derselben Quelle" ist nachweisbar erfuellt.
+
+**Betroffene Dateien / Bereiche:** `web/src/navigation/useRoleAwareNavigation.ts:252-254`, `web/src/auth/roleModel.ts:208-249`, evtl. eine kleine Adapter-Stelle in `useCurrentUser` oder Aequivalent, falls der Hook aus Slice I dort konsumiert werden muss. Tests: `web/tests/roleModel.test.ts` (vorhanden) erweitern; ggf. neue `useRoleAwareNavigation.test.ts` ergaenzen.
+
+**Testfokus:** Vitest-Unit fuer (1) `getDefaultRoute` mit Mehrrollen-Konstellationen — admin+hr → `/admin/config`, hr+manager → `/`, manager+worker → `/`, persistiertes `manager` fuer admin+manager → `/supervisor`, persistiertes `admin` ohne Admin-Rolle → Fallback auf Default-Route der hoechsten verfuegbaren Persona; (2) `useRoleAwareNavigation` — bei Mehrrollen wird die Default-Persona aus der Vorrangskette zurueckgegeben statt `generic`, persistierter Wert wird respektiert, ungueltiger persistierter Wert faellt zurueck. Browser-Smoke-Test optional fuer Login als Admin+HR und Login als HR+Manager.
+
+**Doku-Folgen:** `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md` spiegeln. `web/README.md` falls dort die Mehrrollen-Erwartung beschrieben ist (Codex pruefen).
+
+**Empfohlenes Modell/Effort:** `claude-sonnet-4-6` mit `--effort medium`. Begruendung: kleiner Touch in zwei Codestellen, klares Vertragsergebnis, Tests gegen `roleModel`-Pfade gut isoliert. Opus nur dann sinnvoll, wenn Codex zusaetzlich den Single-Source-Adapter (Hook-Konsum) breiter durchziehen will.
+
+#### Slice III — Sichtbarer Persona-Switcher fuer Mehrrollen-Nutzer
+
+**Praktisch passiert:** Eine sichtbare Auswahlkomponente (Dropdown oder kleine Tab-Leiste, Detail Implementer-Entscheidung) wird im Dashboard-Body — bzw. an einem in der UX-Skizze festgelegten Anker im Seitenkopf — fuer Nutzer mit `hasMultipleRoles === true` gerendert. Die Komponente listet die fuer den Nutzer gueltigen Personas (aus Slice I) und schreibt die Auswahl ueber `setActiveView` in den Hook. Single-Role-Nutzer sehen den Schalter nicht.
+
+**Warum der Zuschnitt sinnvoll ist:** Reines UI-Polish nach abgeschlossenem Datenmodell + Routing. Wenn Slice III verschoben werden muss, ist das System nach Slice I + II trotzdem korrekt — der Nutzer sieht den richtigen Default, kann ihn nur noch nicht selbst wechseln. Der Slice ist isoliert auf eine Komponente plus Styles/A11y und ohne Routing- oder Persistenz-Risiko.
+
+**Was dadurch besser wird:** der Mehrrollen-Nutzer kann die Sicht bewusst wechseln, ohne den Default zu verlieren; Persistenz wirkt fuer ihn jetzt nutzbar; das Mental Model „Persona = Default, aktive Ansicht = Auswahl" wird sichtbar.
+
+**Betroffene Dateien / Bereiche:** neue Komponente unter `web/src/components/dashboard/` (z. B. `DashboardActiveViewSwitcher.tsx`); Einbindung in `DashboardOverview.tsx` und/oder `DashboardPage.tsx` an einem klar abgegrenzten Anker — **ohne** die drei `DashboardOverview`-Schalter zu beruehren. Tests: neue Vitest-Komponententests.
+
+**Testfokus:** Komponententest fuer (1) Schalter erscheint nur bei Mehrfachrollen, (2) Optionen entsprechen den Capabilities, (3) Auswahl persistiert und triggert die Neu-Renderung der Sicht-Konsumenten via Slice I, (4) Fallback bei entzogener Rolle (Auswahl fliegt aus den Optionen, Default greift), (5) Tastatur-Erreichbarkeit. Browser-Smoke-Test fuer Schalter-Roundtrip empfohlen.
+
+**Doku-Folgen:** `web/README.md` (neuer Dashboard-Schalter), `MEMORY.md`, `CODEX_SYNC.md`, `KauthWorkflow/Stand/Code-Review-Status.md`. Falls UX-Wording „Sicht" / „aktive Ansicht" stabilisiert wird, Vault-Eintrag in `KauthWorkflow/Domäne/` erwaegen.
+
+**Empfohlenes Modell/Effort:** `claude-sonnet-4-6` mit `--effort medium`. Begruendung: UI-Slice mit klaren Vertrags-Andockpunkten und engen Tests; keine Architekturentscheidung. Wenn Codex eine breite UX-Skizze (Wording, Position, Tabs vs. Dropdown, A11y-Pattern) gemeinsam entscheiden will, Eskalation auf `claude-opus-4-7` mit `--effort medium` rechtfertigbar — als Default reicht Sonnet.
+
+#### Risiken pro Slice (knapp)
+
+- **Slice I:** SSR-/Hydration-Mismatch durch synchrones `localStorage`-Lesen. Mitigation: Persistenz-Lesen Client-only, Default beim Erststand, dann nachladen. Edge-Case Shared-Browser ist durch person-/user-gebundenen Schluessel abgedeckt.
+- **Slice II:** Login-Routing-Test fuer Single-Role-Nutzer darf nicht regressieren — bestehende `roleModel.test.ts` muss um die Mehrrollen-Pfade erweitert werden, nicht ersetzt. Risiko, dass `useRoleAwareNavigation` ohne Provider bei Tests den Hook nicht aufloesen kann; Mitigation: Wrapper im Test-Setup.
+- **Slice III:** A11y-Pattern und Wording sind UX-Entscheidungen, kein Architekturthema; Codex sollte vor dem Start kurz das Layout (Dropdown vs. Tab-Leiste) und das Wording festziehen, damit Slice III nicht in Iterationen abrutscht.
+
+#### Zusammenspiel mit zyklusuebergreifenden offenen Punkten
+
+- R10 (Mobile-/Tablet-Layout fuer Form-Editor) bleibt eigenstaendig — der Switcher in Slice III ist Dashboard-Layout, nicht Form-Editor.
+- Z8-3.2/#8 bleibt deferred und ist von Z14 unabhaengig.
+- Persistenz-Hebung in eine Backend-Spalte (Cross-Device-Sicht) bleibt explizit ausserhalb des Folgezyklus — wird erst geplant, wenn ein konkreter Bedarf entsteht.
+
+**Naechster Schritt:** Zyklus 14 vollstaendig abgeschlossen (Z14-1.1 + Z14-1.2 + Z14-1.3 done, kein Code-Change in Z14). Codex eroeffnet im Folgezyklus (Arbeitstitel Zyklus 15) Slice I auf Basis dieses Plans und erzwingt Modell/Effort per CLI-Flag.

@@ -44,9 +44,9 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ---
 
-## Aktiver Zyklus 14 — Mehrrollen-Persona-Kollisionen
+## Abgeschlossener Zyklus 14 — Mehrrollen-Persona-Kollisionen
 
-Reiner Review-/Planungszyklus. Keine Implementierung. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 14".
+Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus, abgeschlossen 2026-05-07. **Keine Implementierung in Z14.** Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 14".
 
 **Praktisch:** Nutzer mit mehreren Rollen (Admin + Fachbereich/Manager/HR) verlieren ihre fachlich erwartete Ansicht, weil die Persona-Ableitung sie auf `generic` zwingt. **Lohnenswert:** trifft genau die Power-User; Logik liegt zentral, Hebel pro Aufwand hoch. **Nutzen:** klarer Vertrag Rolle vs. Persona vs. aktive Ansicht, vorhersagbares Login-Verhalten, sauberer Andockpunkt fuer kuenftige Personas.
 
@@ -54,9 +54,11 @@ Reiner Review-/Planungszyklus. Keine Implementierung. Detail in `CODE_REVIEW.md`
 |----|---------|------|--------|
 | Z14-1.1 | Inventur Persona-/Mehrrollen-Kollisionen (alle Stellen, an denen `dashboardPersona` / `hasMultipleRoles` Sicht/Aktionen/Navigation/Insights kollabieren) | HIGH | done 2026-05-07 — Inventur in `CODE_REVIEW.md` § Z14-1.1 (Override `useRoleAwareNavigation.ts:253` + Routing-Override `roleModel.ts:210`; vier Sicht-Konsumenten kollabieren auf `generic`; Header/Aktionen/Routen-Guards bleiben capability-getrieben und sind nicht betroffen) |
 | Z14-1.2 | Vertrags-/UX-Entscheidung: Begriffsklaerung + Optionen-Skizze fuer Mehrrollen-Behandlung (Switcher / Aggregat / Vorrang / Login-Auswahl) | HIGH | done 2026-05-07 — Vertrag in `CODE_REVIEW.md` § Z14-1.2 (Begriffsraster Rolle/Persona/aktive Ansicht; vier Optionen mit Pro/Contra; Vorzugsrichtung Persona-Switcher mit Vorrangs-Default + Persistenz, Admin-Vorrang als Default-Regel, Fallback `generic`; Vertragspflichten Default/Persistenz/Fallback/Schalter/Login-Routing getrennt; Capability-Schicht und Routen-Guards explizit unberuehrt; Andock an `loadDashboardInsights`/Query-Key/`DashboardOverview`-Schalter beschrieben) |
-| Z14-1.3 | Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung | HIGH | offen |
+| Z14-1.3 | Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung | HIGH | done 2026-05-07 — Slice-Plan in `CODE_REVIEW.md` § Z14-1.3 (drei Slices: I „aktive Ansicht" als reines Datenmodell + Persistenz + Fallback ohne Sicht-Konsumenten; II zwei Override-Stellen aus Z14-1.1 zusammen auf die neue Quelle umstellen; III sichtbarer Persona-Switcher nur fuer `hasMultipleRoles === true`; Reihenfolge Datenmodell → Routing/Sicht → UI; pro Slice Modell `claude-sonnet-4-6` + `--effort medium`; Loader und drei `DashboardOverview`-Schalter bleiben unangetastet) |
 
-**Naechster Schritt:** Z14-1.3 Slice-Plan Folgezyklus.
+**Zyklus 14 vollstaendig abgeschlossen (2026-05-07).** Kein aktiver Zyklus.
+
+**Naechster Schritt:** Codex eroeffnet den Folgezyklus (Arbeitstitel Zyklus 15) auf Basis Z14-1.3 Slice I (Datenmodell „aktive Ansicht") und erzwingt `--model claude-sonnet-4-6` + `--effort medium` per CLI.
 
 ---
 
@@ -74,7 +76,7 @@ Reiner Review-/Planungszyklus. Keine Implementierung. Detail in `CODE_REVIEW.md`
 
 ## Abgeschlossene Zyklen
 
-- Zyklen 7 bis 13 sind abgeschlossen.
+- Zyklen 7 bis 14 sind abgeschlossen.
 - Kurzfassungen und Begruendungen stehen in `CODE_REVIEW.md`.
 - Detailspiegel stehen in `CODEX_SYNC.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
 
