@@ -1,5 +1,4 @@
 import { useId } from "react";
-import { Link } from "react-router-dom";
 import type { StartableWorkflowDefinition, WorkflowResponsibilityOption, WorkflowRuntimeStatus } from "../types/workflow";
 
 function FilterChip({ label, value }: { label: string; value: string }) {
@@ -98,12 +97,6 @@ export function WorkflowListFilters({
       <div className="panel-head">
         <h2>Laufende Vorgänge filtern</h2>
       </div>
-      <div className="action-row">
-        <Link className="btn btn-secondary" to="/search">
-          Zur gezielten Suche
-        </Link>
-      </div>
-
       <div className="toolbar-row toolbar-row-filters workflow-filter-bar">
         <div className="field compact grow">
           <label htmlFor={searchId}>Suche im Überblick</label>

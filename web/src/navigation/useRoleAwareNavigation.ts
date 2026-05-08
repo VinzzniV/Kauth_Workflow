@@ -65,10 +65,6 @@ const listBulletIcon = createIcon(
   createElement("circle", { cx: "4.5", cy: "12", r: "1", fill: "currentColor", stroke: "none" }),
   createElement("circle", { cx: "4.5", cy: "17.25", r: "1", fill: "currentColor", stroke: "none" })
 );
-const magnifyingGlassIcon = createIcon(
-  createElement("circle", { cx: "11", cy: "11", r: "5.5" }),
-  createElement("path", { d: "m15 15 4.25 4.25" })
-);
 const checkBadgeIcon = createIcon(
   createElement("path", { d: "m9.1 11.9 1.8 1.8 4-4" }),
   createElement("path", {
@@ -150,13 +146,6 @@ const ACTIONS = {
     feature: "workflowOverview",
     icon: listBulletIcon,
   },
-  workflowSearch: {
-    to: "/search",
-    label: "Vorgänge suchen",
-    description: "Vorgänge gezielt über Namen, IDs und Filter finden.",
-    feature: "workflowSearch",
-    icon: magnifyingGlassIcon,
-  },
   supervisorInbox: {
     to: "/supervisor",
     label: "Anforderungen der Abteilungsleitung",
@@ -223,11 +212,10 @@ function toHeaderNavItem(actionKey: ActionKey): HeaderNavItem {
 }
 
 function collectActionKeys(args: {
-  surface: "dashboard" | "header";
   capabilities: RoleCapabilities;
   canAccessFeature: (feature: AppFeature) => boolean;
 }): ActionKey[] {
-  const { surface, capabilities, canAccessFeature } = args;
+  const { capabilities, canAccessFeature } = args;
   const keys: ActionKey[] = [];
   const addKey = (actionKey: ActionKey, isAllowed: boolean) => {
     if (!isAllowed || keys.includes(actionKey)) {
@@ -248,10 +236,6 @@ function collectActionKeys(args: {
     canAccessFeature("rotationPlanning")
   );
   addKey("rotationOperations", canAccessFeature("technicalTasks"));
-
-  if (surface === "header") {
-    addKey("workflowSearch", canAccessFeature("workflowSearch"));
-  }
 
   addKey("supervisorInbox", capabilities.hasManagerRole && canAccessFeature("supervisorStep"));
   addKey("departmentTasks", canAccessFeature("technicalTasks"));
@@ -303,7 +287,6 @@ export function useRoleAwareNavigation() {
   // Primaere Aktionen zeigen den naechsten sinnvollen Schritt fuer die jeweilige Rolle.
   const dashboardActions = useMemo<DashboardAction[]>(() => {
     return collectActionKeys({
-      surface: "dashboard",
       capabilities,
       canAccessFeature,
     }).map(toAction);
@@ -323,7 +306,6 @@ export function useRoleAwareNavigation() {
   // Die Kopf-Navigation bleibt bewusst kompakt und zeigt nur freigegebene Hauptbereiche.
   const headerNavItems = useMemo<HeaderNavItem[]>(() => {
     return collectActionKeys({
-      surface: "header",
       capabilities,
       canAccessFeature,
     }).map(toHeaderNavItem);

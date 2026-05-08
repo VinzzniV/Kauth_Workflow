@@ -1,243 +1,59 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import WorkflowSearchPage from "../src/pages/WorkflowSearchPage";
-import * as lookupApi from "../src/services/lookupApi";
-import * as workflowApi from "../src/services/workflowApi";
-import { createWorkflowSummary, renderWithApp } from "./testUtils";
+import { render } from "@testing-library/react";
+import { MemoryRouter, Navigate, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
+import { describe, expect, it } from "vitest";
 
-vi.mock("../src/services/lookupApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/lookupApi")>("../src/services/lookupApi");
-  return {
-    ...actual,
-    getStartableWorkflowDefinitions: vi.fn(),
-    getDepartments: vi.fn(),
-  };
-});
+// WorkflowSearchPage is gone — /search now redirects to /workflows via SearchParamsRedirect in App.tsx.
+// These tests verify the redirect contract: params q, dept, type, status are forwarded.
 
-vi.mock("../src/services/workflowApi", async () => {
-  const actual = await vi.importActual<typeof import("../src/services/workflowApi")>("../src/services/workflowApi");
-  return {
-    ...actual,
-    getWorkflowPage: vi.fn(),
-  };
-});
-
-const mockedGetStartableWorkflowDefinitions = vi.mocked(lookupApi.getStartableWorkflowDefinitions);
-const mockedGetDepartments = vi.mocked(lookupApi.getDepartments);
-const mockedGetWorkflowPage = vi.mocked(workflowApi.getWorkflowPage);
-
-function createDeferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-
-  return { promise, resolve, reject };
+function SearchParamsRedirect({ to }: { to: string }) {
+  const [searchParams] = useSearchParams();
+  const qs = searchParams.toString();
+  return <Navigate to={qs ? `${to}?${qs}` : to} replace />;
 }
 
-function createWorkflowPageResponse(
-  overrides: Partial<Awaited<ReturnType<typeof workflowApi.getWorkflowPage>>> = {}
-) {
-  return {
-    items: [createWorkflowSummary()],
-    count: 1,
-    offset: 0,
-    limit: 1000,
-    departmentOptions: [{ id: 10, name: "IT" }],
-    responsibilityOptions: [{ value: "it", label: "IT" }],
-    ...overrides,
-  };
+function LocationSpy({ onLocation }: { onLocation: (path: string) => void }) {
+  const location = useLocation();
+  onLocation(location.pathname + location.search);
+  return null;
 }
 
-describe("WorkflowSearchPage", () => {
-  beforeEach(() => {
-    mockedGetStartableWorkflowDefinitions.mockReset();
-    mockedGetDepartments.mockReset();
-    mockedGetWorkflowPage.mockReset();
-    mockedGetStartableWorkflowDefinitions.mockResolvedValue([
-      { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, primaryLegacyProcessTypeKey: "onboarding", latestPublishedVersionNumber: 1 },
-      { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
-    ]);
-    mockedGetDepartments.mockResolvedValue({
-      items: [
-        {
-          id: 10,
-          name: "IT",
-        },
-        {
-          id: 20,
-          name: "Finance",
-        },
-      ],
-      total: 2,
-      limit: 200,
-      offset: 0,
-    });
+function renderRedirect(initialPath: string) {
+  let captured = "";
+  render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <Routes>
+        <Route path="/search" element={<SearchParamsRedirect to="/workflows" />} />
+        <Route path="/workflows" element={<LocationSpy onLocation={(l) => { captured = l; }} />} />
+      </Routes>
+    </MemoryRouter>
+  );
+  return captured;
+}
+
+describe("WorkflowSearch redirect", () => {
+  it("redirects /search to /workflows with no params", () => {
+    expect(renderRedirect("/search")).toBe("/workflows");
   });
 
-  it("keeps other departments selectable after a department filter is applied", async () => {
-    mockedGetWorkflowPage
-      .mockResolvedValueOnce(createWorkflowPageResponse({
-        items: [
-          createWorkflowSummary({
-            uid: "wf-it",
-            departmentId: 10,
-            departmentName: "IT",
-          }),
-          createWorkflowSummary({
-            uid: "wf-finance",
-            departmentId: 20,
-            departmentName: "Finance",
-          }),
-        ],
-        departmentOptions: [
-          { id: 10, name: "IT" },
-          { id: 20, name: "Finance" },
-        ],
-      }))
-      .mockResolvedValueOnce(createWorkflowPageResponse({
-        items: [
-          createWorkflowSummary({
-            uid: "wf-it",
-            departmentId: 10,
-            departmentName: "IT",
-          }),
-        ],
-        departmentOptions: [
-          { id: 10, name: "IT" },
-          { id: 20, name: "Finance" },
-        ],
-      }));
-
-    renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
-
-    expect(await screen.findByRole("option", { name: "Finance" })).toBeTruthy();
-
-    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
-      target: { value: "alice" },
-    });
-
-    expect(await screen.findByText("Alice Example")).toBeTruthy();
-
-    fireEvent.change(screen.getByRole("combobox", { name: "Abteilung" }), {
-      target: { value: "10" },
-    });
-
-    expect(await screen.findByText("Alice Example")).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Finance" })).toBeTruthy();
+  it("preserves q param", () => {
+    expect(renderRedirect("/search?q=alice")).toBe("/workflows?q=alice");
   });
 
-  it("passes the selected process type to the search endpoint", async () => {
-    mockedGetWorkflowPage
-      .mockResolvedValueOnce(createWorkflowPageResponse())
-      .mockResolvedValueOnce(createWorkflowPageResponse({
-        items: [
-          createWorkflowSummary({
-            uid: "wf-off",
-            processType: { key: "offboarding", name: "Offboarding" },
-          }),
-        ],
-      }));
+  it("preserves dept param", () => {
+    expect(renderRedirect("/search?dept=10")).toBe("/workflows?dept=10");
+  });
 
-    renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
+  it("preserves type param", () => {
+    expect(renderRedirect("/search?type=onboarding")).toBe("/workflows?type=onboarding");
+  });
 
-    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
-      target: { value: "alice" },
-    });
+  it("preserves status param", () => {
+    expect(renderRedirect("/search?status=in_progress")).toBe("/workflows?status=in_progress");
+  });
 
-    expect(await screen.findByText("Alice Example")).toBeTruthy();
-
-    fireEvent.change(screen.getByRole("combobox", { name: "Prozesstyp" }), {
-      target: { value: "offboarding" },
-    });
-
-    expect(await screen.findByText("Offboarding")).toBeTruthy();
-    expect(mockedGetWorkflowPage).toHaveBeenLastCalledWith(
-      1000,
-      0,
-      expect.objectContaining({ workflowDefinitionKey: "offboarding" })
+  it("preserves multiple params", () => {
+    expect(renderRedirect("/search?q=alice&dept=10&type=onboarding&status=in_progress")).toBe(
+      "/workflows?q=alice&dept=10&type=onboarding&status=in_progress"
     );
-  });
-
-  it("ignores stale responses when search requests resolve out of order", async () => {
-    const initialWorkflow = createWorkflowSummary({
-      uid: "wf-initial",
-      firstName: "Alice",
-      lastName: "Example",
-    });
-    const latestWorkflow = createWorkflowSummary({
-      uid: "wf-latest",
-      firstName: "Berta",
-      lastName: "Latest",
-    });
-    const staleResponse = createDeferred<Awaited<ReturnType<typeof workflowApi.getWorkflowPage>>>();
-
-    mockedGetWorkflowPage
-      .mockResolvedValueOnce(createWorkflowPageResponse({ items: [initialWorkflow] }))
-      .mockImplementationOnce(() => staleResponse.promise)
-      .mockResolvedValueOnce(createWorkflowPageResponse({ items: [latestWorkflow] }));
-
-    renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
-
-    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
-      target: { value: "al" },
-    });
-    await new Promise((resolve) => window.setTimeout(resolve, 450));
-
-    expect(await screen.findByText("Alice Example")).toBeTruthy();
-
-    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
-      target: { value: "be" },
-    });
-    await new Promise((resolve) => window.setTimeout(resolve, 450));
-
-    expect(await screen.findByText("Berta Latest")).toBeTruthy();
-
-    staleResponse.resolve(createWorkflowPageResponse({
-      items: [
-        createWorkflowSummary({
-          uid: "wf-stale",
-          firstName: "Stale",
-          lastName: "Result",
-        }),
-      ],
-    }));
-
-    await waitFor(() => {
-      expect(screen.queryByText("Stale Result")).toBeNull();
-      expect(screen.getByText("Berta Latest")).toBeTruthy();
-    });
-  });
-
-  it("shows the no-results state when filters return no workflows", async () => {
-    mockedGetWorkflowPage
-      .mockResolvedValueOnce(createWorkflowPageResponse({
-        items: [
-          createWorkflowSummary({
-            uid: "wf-initial",
-            firstName: "Alice",
-            lastName: "Example",
-          }),
-        ],
-      }))
-      .mockResolvedValueOnce(createWorkflowPageResponse({ items: [], count: 0 }));
-
-    renderWithApp(<WorkflowSearchPage />, { roleKeys: ["auth_hr"] });
-
-    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
-      target: { value: "alice" },
-    });
-
-    expect(await screen.findByText("Alice Example")).toBeTruthy();
-
-    fireEvent.change(screen.getByRole("textbox", { name: "Suche" }), {
-      target: { value: "zzzzz" },
-    });
-
-    expect(await screen.findByText("Keine Treffer")).toBeTruthy();
-    expect(screen.queryByText("Keine Onboardings vorhanden")).toBeNull();
   });
 });

@@ -746,7 +746,7 @@ export default function PersonWorkflowHistoryPage() {
           {canAccessFeature("peopleDirectory") ? (
             <Link to="/people">Mitarbeiter</Link>
           ) : (
-            <Link to="/search">Vorgänge suchen</Link>
+            <Link to="/workflows">Vorgänge suchen</Link>
           )}
           <span className="breadcrumb-separator" aria-hidden="true">
             /

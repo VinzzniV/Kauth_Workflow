@@ -1,6 +1,6 @@
 // Zentrale App-Huelle fuer Auth-Status, Layout und geschuetzte Routen.
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "./auth/useAuth";
 import { useCurrentUser } from "./auth/useCurrentUser";
 import { isEntraMode } from "./auth/IdentityProvider";
@@ -17,7 +17,6 @@ const SupervisorStepPage = lazy(() => import("./pages/SupervisorStepPage"));
 const MyTasksPage = lazy(() => import("./pages/MyTasksPage"));
 const WorkflowListPage = lazy(() => import("./pages/WorkflowListPage"));
 const WorkflowDetailPage = lazy(() => import("./pages/WorkflowDetailPage"));
-const WorkflowSearchPage = lazy(() => import("./pages/WorkflowSearchPage"));
 const PersonWorkflowHistoryPage = lazy(() => import("./pages/PersonWorkflowHistoryPage"));
 const PeopleDirectoryPage = lazy(() => import("./pages/PeopleDirectoryPage"));
 const AdminConfigPage = lazy(() => import("./pages/AdminConfigPage"));
@@ -27,6 +26,12 @@ const RotationPlanDetailPage = lazy(() => import("./pages/RotationPlanDetailPage
 const RotationOperationsPage = lazy(() => import("./pages/RotationOperationsPage"));
 const RotationTaskDetailPage = lazy(() => import("./pages/RotationTaskDetailPage"));
 const AdminRotationConfigPage = lazy(() => import("./pages/AdminRotationConfigPage"));
+
+function SearchParamsRedirect({ to }: { to: string }) {
+  const [searchParams] = useSearchParams();
+  const qs = searchParams.toString();
+  return <Navigate to={qs ? `${to}?${qs}` : to} replace />;
+}
 
 function RouteLoadingFallback() {
   return (
@@ -134,16 +139,7 @@ function RoutesWithErrorBoundary({ defaultRoute }: { defaultRoute: string }) {
             </RouteGuard>
           }
         />
-        <Route
-          path="/search"
-          element={
-            <RouteGuard feature="workflowSearch">
-              <LazyRoute>
-                <WorkflowSearchPage />
-              </LazyRoute>
-            </RouteGuard>
-          }
-        />
+        <Route path="/search" element={<SearchParamsRedirect to="/workflows" />} />
         <Route
           path="/people"
           element={

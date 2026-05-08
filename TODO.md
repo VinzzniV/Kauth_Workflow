@@ -47,7 +47,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Z18 aktiv (Frontend Full Review).** Z18-S1 done; Z18-S2 (Batch A: F1/F2/F3/F5/F8/F9) done; Z18-S3 (Batch B: F6/F7) done 2026-05-08. Offen: Z18-F4 (HIGH — WorkflowSearchPage Pagination). Naechster Schritt: Codex priorisiert Z18-F4.
+**Z18 abgeschlossen (2026-05-08).** Alle 9 Findings erledigt. Kein aktiver Zyklus offen. Naechster Schritt: Codex priorisiert neuen Zyklus.
 
 ## Zyklusuebergreifend offen
 

@@ -63,20 +63,20 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — **vollstaendig abgeschlossen** (Z15-S1 done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done; 274/274 Tests gruen) |
 | 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
-| 18 | 2026-05-08 | Frontend Full Review — Z18-S1 done; Z18-S2 (Batch A) done; Z18-S3 (Batch B: F6/F7) done; offen: F4 |
+| 18 | 2026-05-08 | Frontend Full Review — **vollstaendig abgeschlossen** (alle 9 Findings: S2 Batch A, S3 Batch B, S4 F4 Redirect) |
 
 ---
 
-## Aktiver Zyklus 18 — Frontend Full Review (2026-05-08)
+## Abgeschlossener Zyklus 18 — Frontend Full Review (2026-05-08)
 
-**Praktisch:** Erster umfassender Review des gesamten Frontends. Z18-S2 hat 6 von 9 Findings bereinigt.
+**Praktisch:** Erster umfassender Review des gesamten Frontends. Alle 9 Findings bereinigt.
 
 | Befund | Bereich | Prio | Status |
 |--------|---------|------|--------|
 | Z18-F1 — `dashboard-card cursor: pointer` auf Formular-Containern | CSS / TSX | MEDIUM | **done Z18-S2** |
 | Z18-F2 — `rotation-form-card` Ghost-Klasse | CSS / TSX | LOW | **done Z18-S2** |
 | Z18-F3 — `formatEmploymentStatus` + `formatDirectoryLinkStatus` dupliziert | `web/src/utils/` | MEDIUM | **done Z18-S2** |
-| Z18-F4 — `WorkflowSearchPage` 1000er-Cap ohne Pagination | `WorkflowSearchPage.tsx` | HIGH | **offen** |
+| Z18-F4 — `WorkflowSearchPage` 1000er-Cap ohne Pagination | `WorkflowSearchPage.tsx` → Redirect | HIGH | **done Z18-S4** — `/search` leitet auf `/workflows` um (Params erhalten); `WorkflowSearchPage.tsx` entfernt |
 | Z18-F5 — `PeopleDirectoryPage` ohne `scope="col"` auf `<th>` | `PeopleDirectoryPage.tsx` | MEDIUM | **done Z18-S2** |
 | Z18-F6 — `SupervisorStepPage` manuelles async statt React Query | `SupervisorStepPage.tsx` | MEDIUM | **done Z18-S3** |
 | Z18-F7 — Split-Workspace auto-selektiert ersten Eintrag | `WorkflowListResults.tsx` | MEDIUM | **done Z18-S3** |

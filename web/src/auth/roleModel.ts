@@ -17,7 +17,6 @@ export type AppFeature =
   | "rotationPlanning"
   | "workflowBuilder"
   | "workflowOverview"
-  | "workflowSearch"
   | "technicalTasks"
   | "supervisorStep"
   | "adminConfig"
@@ -193,7 +192,6 @@ export function canAccessFeature(capabilities: RoleCapabilities, feature: AppFea
     case "workflowBuilder":
       return capabilities.hasAdminRole;
     case "workflowOverview":
-    case "workflowSearch":
       return capabilities.canAccessWorkflowOverview;
     case "technicalTasks":
       return capabilities.canAccessTechnicalTasks;
