@@ -32,7 +32,7 @@
 
 ## Current Focus
 
-- **Kein aktiver Zyklus.** Z16 vollstaendig abgeschlossen 2026-05-08 (Z16-S4 deferred — Produkt-Entscheidung Snapshot-Persistenz ausstehend). Naechster Zyklus: Z17 — Codex priorisiert.
+- **Z18 aktiv (Frontend Full Review).** Z18-S1 (Review + Doku) ist am 2026-05-08 abgeschlossen worden. Der Zyklus ist jetzt der aktive Review-Anker fuer Frontend-Nacharbeit; die 9 priorisierten Findings stehen in `FRONTEND_TODO.md`. Naechster Schritt: Codex priorisiert die ersten Z18-Umsetzungsslices.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts
