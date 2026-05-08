@@ -207,6 +207,24 @@ Hinweise:
 
 Solange das System nicht produktiv läuft, werden Schema- und Seed-Änderungen direkt in `01_schema.sql` / `02_bootstrap.sql` / `02_dev_seed.sql` gepflegt — nicht als neue Migrationen. Die ursprünglichen 60+ Migrationen liegen unter `db/_archive/` als Referenz. Sobald die Plattform live geht, sind diese drei Dateien einzufrieren und neue Änderungen kommen nur noch additiv über Migrationen.
 
+### Bestehende Datenbanken bei Schema-Renames
+
+Wenn eine bestehende DB bereits mit einem älteren Schema läuft, reicht ein Container-/API-Neustart nicht. In dem Fall muss die vorhandene Datenbank einmalig inplace angepasst werden; ein Volume-Löschen ist nur für wegwerfbare Dev-Daten sinnvoll.
+
+Beispiel 2026-05-08:
+- `workflow_definitions.approval_task_template_key` wurde zu `approval_spec_key` umbenannt.
+- Frische DBs bekommen das automatisch über `db/01_schema.sql`.
+- Bestehende DBs brauchen einmalig:
+
+```bash
+psql "$DATABASE_URL" -f db/manual/2026-05-08_rename_approval_task_template_key_to_approval_spec_key.sql
+```
+
+Für produktionsnahe oder bereits befüllte Umgebungen gilt daher:
+- keine Volumes löschen
+- keine DB „neu starten“ in der Hoffnung, dass sich das Schema mitändert
+- stattdessen gezielte SQL-Änderung auf der bestehenden Datenbank ausführen und danach API neu starten
+
 ---
 
 ## Handoff / Release-ZIP
