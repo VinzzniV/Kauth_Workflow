@@ -8,6 +8,7 @@ import {
   toRoleLabel,
   type AppFeature,
 } from "./roleModel";
+import { useActiveView } from "../hooks/useActiveView";
 import { CurrentUserContext } from "./useCurrentUser";
 
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
@@ -21,7 +22,8 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     () => deriveRoleCapabilities(roles, permissions, { canAccessSupervisorStep: currentUser?.canAccessSupervisorStep }),
     [currentUser?.canAccessSupervisorStep, permissions, roles]
   );
-  const defaultRoute = useMemo(() => getDefaultRoute(capabilities), [capabilities]);
+  const { activeView, setActiveView } = useActiveView(currentUser?.username ?? null, capabilities);
+  const defaultRoute = useMemo(() => getDefaultRoute(capabilities, activeView), [capabilities, activeView]);
 
   const canAccessFeatureSafe = useCallback(
     (feature: AppFeature) => canAccessFeature(capabilities, feature),
@@ -42,6 +44,8 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
       permissions,
       capabilities,
       defaultRoute,
+      activeView,
+      setActiveView,
       canAccessFeature: canAccessFeatureSafe,
       refreshCurrentUser: refreshMe,
     }),
@@ -54,6 +58,8 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
       permissions,
       capabilities,
       defaultRoute,
+      activeView,
+      setActiveView,
       canAccessFeatureSafe,
       refreshMe,
     ]

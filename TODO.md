@@ -69,10 +69,10 @@ Eroeffnet 2026-05-08 auf Basis Z14-1.3. Implementierungszyklus in drei Slices.
 | ID | Aufgabe | Prio | Status |
 |----|---------|------|--------|
 | Z15-S1 | Datenmodell: `useActiveView`-Hook + Fallback-Kaskade + Persistenz + Tests | HIGH | **done 2026-05-08** |
-| Z15-S2 | Override-Stellen: `useRoleAwareNavigation.ts:253` + `roleModel.ts:210` auf `useActiveView` umstellen | HIGH | offen — naechster Schritt |
-| Z15-S3 | Persona-Switcher fuer `hasMultipleRoles === true` | MEDIUM | offen — nach S2 |
+| Z15-S2 | Override-Stellen: `useRoleAwareNavigation.ts:253` + `roleModel.ts:210` auf `useActiveView` umstellen | HIGH | **done 2026-05-08** — fachlicher Fehler (Mehrrollen → `generic`) behoben; 255/255 Tests gruen |
+| Z15-S3 | Persona-Switcher fuer `hasMultipleRoles === true` | MEDIUM | offen — naechster Schritt |
 
-**Naechster Schritt:** Z15-S2 beauftragen (`--model claude-sonnet-4-6` + `--effort medium`).
+**Naechster Schritt:** Z15-S3 beauftragen (`--model claude-sonnet-4-6` + `--effort medium`). Nach S2 ist das System korrekt; S3 ist reiner Komfort.
 
 ---
 

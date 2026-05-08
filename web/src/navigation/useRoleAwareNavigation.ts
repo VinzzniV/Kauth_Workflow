@@ -247,11 +247,9 @@ function collectActionKeys(args: {
 }
 
 export function useRoleAwareNavigation() {
-  const { canAccessFeature, capabilities } = useCurrentUser();
+  const { canAccessFeature, capabilities, activeView } = useCurrentUser();
 
-  const dashboardPersona = useMemo<DashboardPersona>(() => {
-    return capabilities.hasMultipleRoles ? "generic" : capabilities.dashboardPersona;
-  }, [capabilities.dashboardPersona, capabilities.hasMultipleRoles]);
+  const dashboardPersona = activeView;
 
   // Primaere Aktionen zeigen den naechsten sinnvollen Schritt fuer die jeweilige Rolle.
   const dashboardActions = useMemo<DashboardAction[]>(() => {

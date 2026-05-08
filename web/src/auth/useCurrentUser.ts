@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { AppFeature, RoleCapabilities } from "./roleModel";
+import type { AppFeature, DashboardPersona, RoleCapabilities } from "./roleModel";
 import type { AuthStatus } from "./useAuth";
 import type { Me } from "../types/auth";
 
@@ -13,6 +13,8 @@ type CurrentUserContextValue = {
   permissions: string[];
   capabilities: RoleCapabilities;
   defaultRoute: string;
+  activeView: DashboardPersona;
+  setActiveView: (persona: DashboardPersona) => void;
   canAccessFeature: (feature: AppFeature) => boolean;
   refreshCurrentUser: () => Promise<void>;
 };

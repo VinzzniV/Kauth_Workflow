@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-08 — Zyklus 15 aktiv (Implementierungszyklus Mehrrollen-Persona auf Basis Z14-1.3; Z15-S1 Datenmodell/Hook done, Z15-S2 Override-Stellen offen, Z15-S3 Persona-Switcher offen). Die abgeschlossenen Detailzyklen 8 bis 14 wurden in `CODE_REVIEW_ARCHIVE.md` ausgelagert; diese Datei bleibt die kompakte aktive Steuerdatei.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen; 2026-05-08 Z15 eroeffnet + Z15-S1 done).
+**Stand**: 2026-05-08 — Zyklus 15 aktiv (Implementierungszyklus Mehrrollen-Persona auf Basis Z14-1.3; Z15-S1 Datenmodell/Hook done, Z15-S2 Override-Stellen done, Z15-S3 Persona-Switcher offen). Die abgeschlossenen Detailzyklen 8 bis 14 wurden in `CODE_REVIEW_ARCHIVE.md` ausgelagert; diese Datei bleibt die kompakte aktive Steuerdatei.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen; 2026-05-08 Z15 eroeffnet + Z15-S1 done + Z15-S2 done).
 
 ---
 
@@ -63,7 +63,7 @@ Eroeffnet 2026-05-08 als Implementierungszyklus auf Basis Z14-1.3. Drei Umsetzun
 | ID | Aufgabe | Prio | Status |
 |----|---------|------|--------|
 | Z15-S1 | Datenmodell „aktive Ansicht": neuer Hook `useActiveView`, Fallback-Kaskade `localStorage → Default-Persona → generic`, Setter, Validierung gegen Capabilities; null Sicht-Konsumenten | HIGH | **done 2026-05-08** — `web/src/hooks/useActiveView.ts` + 24 Vitest-Tests gruen; `useRoleAwareNavigation.ts` + `roleModel.ts` NICHT angefasst |
-| Z15-S2 | Zwei Override-Stellen aus Z14-1.1 gemeinsam auf `useActiveView` umstellen (`useRoleAwareNavigation.ts:253` + `roleModel.ts:210`); Mehrrollen-Nutzer sehen Default-Persona statt `generic` | HIGH | offen — naechster Schritt |
+| Z15-S2 | Zwei Override-Stellen aus Z14-1.1 gemeinsam auf `useActiveView` umstellen (`useRoleAwareNavigation.ts:253` + `roleModel.ts:210`); Mehrrollen-Nutzer sehen Default-Persona statt `generic` | HIGH | **done 2026-05-08** — `useRoleAwareNavigation.ts:252` liest `activeView` aus Context; `roleModel.ts:210` `getDefaultRoute` nimmt optionales `activePersona`-Param; `CurrentUserContext.tsx` verdrahtet `useActiveView(username, caps)` und reicht `activeView`/`setActiveView` durch; `testUtils.tsx` erhaelt `activeView`/`setActiveView`; 8 neue Tests (roleModel + useRoleAwareNavigation), 255/255 gruen. Fachlicher Fehler (Mehrrollen-Nutzer auf `generic`) behoben. **Nach S2 ist das System korrekt; S3 ist reiner Komfort (Switcher).** |
 | Z15-S3 | Sichtbarer Persona-Switcher nur fuer `hasMultipleRoles === true`; schreibt ueber `useActiveView`; Single-Role-Nutzer sehen nichts | MEDIUM | offen — nach S2 |
 
 ---

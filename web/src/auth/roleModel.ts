@@ -206,12 +206,11 @@ export function canAccessFeature(capabilities: RoleCapabilities, feature: AppFea
 }
 
 // Legt fest, wohin Benutzer nach Login oder fehlender Berechtigung geleitet werden.
-export function getDefaultRoute(capabilities: RoleCapabilities): string {
-  if (capabilities.hasMultipleRoles && canAccessFeature(capabilities, "dashboard")) {
-    return "/";
-  }
+// activePersona bestimmt die Zielroute; ohne Angabe wird capabilities.dashboardPersona verwendet.
+export function getDefaultRoute(capabilities: RoleCapabilities, activePersona?: DashboardPersona): string {
+  const persona = activePersona ?? capabilities.dashboardPersona;
 
-  switch (capabilities.dashboardPersona) {
+  switch (persona) {
     case "admin":
       if (canAccessFeature(capabilities, "adminConfig")) {
         return "/admin/config";

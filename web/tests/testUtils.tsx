@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { CurrentUserContext } from "../src/auth/useCurrentUser";
 import { canAccessFeature, deriveRoleCapabilities, toRoleLabel } from "../src/auth/roleModel";
+import { deriveDefaultPersona } from "../src/hooks/useActiveView";
 import { ConfirmationDialogProvider } from "../src/components/feedback/ConfirmationDialogProvider";
 import { ToastProvider } from "../src/components/feedback/ToastProvider";
 import type { AdminDepartmentAssignment, AdminUser } from "../src/types/auth";
@@ -58,6 +59,8 @@ export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
                 permissions: currentUser.permissions,
                 capabilities,
                 defaultRoute: "/",
+                activeView: deriveDefaultPersona(capabilities),
+                setActiveView: () => undefined,
                 canAccessFeature: (feature) => canAccessFeature(capabilities, feature),
                 refreshCurrentUser: async () => undefined,
               }}
