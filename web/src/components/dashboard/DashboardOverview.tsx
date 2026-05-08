@@ -12,6 +12,7 @@ import {
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
 import { useDashboardInsights } from "./useDashboardInsights";
+import PersonaSwitcher from "./PersonaSwitcher";
 
 export default function DashboardOverview() {
   const { dashboardActions, dashboardContext, dashboardPersona } = useRoleAwareNavigation();
@@ -64,6 +65,8 @@ export default function DashboardOverview() {
 
   return (
     <div className="content-stack">
+      <PersonaSwitcher />
+
       {isInitialLoading ? <LoadingState title="Übersicht wird geladen..." /> : null}
 
       {!isInitialLoading && insightsError ? (

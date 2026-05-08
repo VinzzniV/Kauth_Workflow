@@ -60,7 +60,7 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus, abgeschlossen 2026-05-07
 
 ---
 
-## Aktiver Zyklus 15 — Implementierung Mehrrollen-Persona (2026-05-08)
+## Abgeschlossener Zyklus 15 — Implementierung Mehrrollen-Persona (2026-05-08)
 
 Eroeffnet 2026-05-08 auf Basis Z14-1.3. Implementierungszyklus in drei Slices.
 
@@ -70,9 +70,9 @@ Eroeffnet 2026-05-08 auf Basis Z14-1.3. Implementierungszyklus in drei Slices.
 |----|---------|------|--------|
 | Z15-S1 | Datenmodell: `useActiveView`-Hook + Fallback-Kaskade + Persistenz + Tests | HIGH | **done 2026-05-08** |
 | Z15-S2 | Override-Stellen: `useRoleAwareNavigation.ts:253` + `roleModel.ts:210` auf `useActiveView` umstellen | HIGH | **done 2026-05-08** — fachlicher Fehler (Mehrrollen → `generic`) behoben; 255/255 Tests gruen |
-| Z15-S3 | Persona-Switcher fuer `hasMultipleRoles === true` | MEDIUM | offen — naechster Schritt |
+| Z15-S3 | Persona-Switcher fuer `hasMultipleRoles === true` | MEDIUM | **done 2026-05-08** — `PersonaSwitcher.tsx` neu; 274/274 Tests gruen |
 
-**Naechster Schritt:** Z15-S3 beauftragen (`--model claude-sonnet-4-6` + `--effort medium`). Nach S2 ist das System korrekt; S3 ist reiner Komfort.
+**Zyklus 15 vollstaendig abgeschlossen (2026-05-08).** Kein aktiver Folgezyklus offen.
 
 ---
 

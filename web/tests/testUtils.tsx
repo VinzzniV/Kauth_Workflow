@@ -3,7 +3,7 @@ import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { CurrentUserContext } from "../src/auth/useCurrentUser";
-import { canAccessFeature, deriveRoleCapabilities, toRoleLabel } from "../src/auth/roleModel";
+import { canAccessFeature, deriveRoleCapabilities, toRoleLabel, type DashboardPersona } from "../src/auth/roleModel";
 import { deriveDefaultPersona } from "../src/hooks/useActiveView";
 import { ConfirmationDialogProvider } from "../src/components/feedback/ConfirmationDialogProvider";
 import { ToastProvider } from "../src/components/feedback/ToastProvider";
@@ -14,12 +14,16 @@ type RenderOptions = {
   roleKeys?: string[];
   permissionKeys?: string[];
   route?: string;
+  activeView?: DashboardPersona;
+  setActiveView?: (persona: DashboardPersona) => void;
 };
 
 export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
   const roleKeys = options.roleKeys ?? ["auth_hr"];
   const permissionKeys = options.permissionKeys ?? [];
   const capabilities = deriveRoleCapabilities(roleKeys, permissionKeys);
+  const resolvedActiveView = options.activeView ?? deriveDefaultPersona(capabilities);
+  const resolvedSetActiveView = options.setActiveView ?? (() => undefined);
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -59,8 +63,8 @@ export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
                 permissions: currentUser.permissions,
                 capabilities,
                 defaultRoute: "/",
-                activeView: deriveDefaultPersona(capabilities),
-                setActiveView: () => undefined,
+                activeView: resolvedActiveView,
+                setActiveView: resolvedSetActiveView,
                 canAccessFeature: (feature) => canAccessFeature(capabilities, feature),
                 refreshCurrentUser: async () => undefined,
               }}
