@@ -225,6 +225,15 @@ Für produktionsnahe oder bereits befüllte Umgebungen gilt daher:
 - keine DB „neu starten“ in der Hoffnung, dass sich das Schema mitändert
 - stattdessen gezielte SQL-Änderung auf der bestehenden Datenbank ausführen und danach API neu starten
 
+Weiteres Beispiel 2026-05-08:
+- `directory_identities.job_title` wurde für den Entra-Stellenimport ergänzt.
+- Wenn eine bestehende DB diese Spalte noch nicht hat, scheitert der Directory-Sync mit `column "job_title" of relation "directory_identities" does not exist`.
+- Inplace-Fix:
+
+```bash
+psql "$DATABASE_URL" -f db/manual/2026-05-08_add_directory_identities_job_title.sql
+```
+
 ---
 
 ## Handoff / Release-ZIP
