@@ -12,7 +12,7 @@
 
 Oder kurz: `.\start.ps1 dev`
 
-Browser → `http://localhost:5173/`
+Browser → `http://localhost:8080/` oder den naechsten freien Vite-Port
 
 ### Wenn was nicht läuft
 - Backend startet nicht → DB nicht da, oder Port belegt

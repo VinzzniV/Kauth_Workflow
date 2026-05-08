@@ -57,6 +57,37 @@ function Test-TcpPortInUse {
     return $listeners.Port -contains $Port
 }
 
+function Test-TcpPortUsable {
+    param([Parameter(Mandatory = $true)][int]$Port)
+
+    $listener = $null
+    try {
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $Port)
+        $listener.Start()
+        return $true
+    }
+    catch {
+        return $false
+    }
+    finally {
+        if ($null -ne $listener) {
+            $listener.Stop()
+        }
+    }
+}
+
+function Get-AvailableDevWebPort {
+    $preferredPorts = @(8080, 8081, 4174, 4175, 9000, 9001)
+
+    foreach ($port in $preferredPorts) {
+        if (-not (Test-TcpPortInUse -Port $port) -and (Test-TcpPortUsable -Port $port)) {
+            return $port
+        }
+    }
+
+    throw "Es konnte kein freier Web-Port aus der bevorzugten Liste ($($preferredPorts -join ', ')) gefunden werden."
+}
+
 function Get-ComposeDbContainerId {
     $containerId = & docker compose -f compose.yml -f compose.dev-db.yml ps -q db
     if ($LASTEXITCODE -ne 0) {
@@ -184,8 +215,9 @@ function Start-DevEnvironment {
         Write-Warning "web/.env.local fehlt. Vite kann ohne diese Datei falsch konfiguriert sein."
     }
 
+    $webPort = Get-AvailableDevWebPort
     $apiCommand = "Set-Location '$repoRoot'; dotnet run --project api/API/API.csproj --launch-profile API"
-    $webCommand = "Set-Location '$repoRoot/web'; npm run dev"
+    $webCommand = "Set-Location '$repoRoot/web'; `$env:VITE_PORT='$webPort'; npm run dev -- --host 127.0.0.1 --port $webPort"
 
     Write-Host "Oeffne API-Fenster ..."
     Start-PowershellWindow -WindowTitle "kauth_workflow API" -Command $apiCommand
@@ -196,7 +228,7 @@ function Start-DevEnvironment {
     Write-Host ""
     Write-Host "Dev-Start angestossen."
     Write-Host "API: http://127.0.0.1:5001"
-    Write-Host "Web: http://127.0.0.1:5173"
+    Write-Host "Web: http://127.0.0.1:$webPort"
     Write-Host "DB:  localhost:26432"
 }
 

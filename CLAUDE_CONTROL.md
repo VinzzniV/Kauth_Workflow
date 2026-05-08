@@ -99,6 +99,7 @@ Bei zyklusuebergreifend offenen / deferred Befunden reicht ein kurzer Hinweis, w
 6. Claude zieht notwendige Doku im selben Arbeitsgang mit.
 7. Claude benennt offen, wenn ein Slice zu gross ist, und schlaegt einen kleineren Zuschnitt vor.
 8. Claude committet **nach jedem abgeschlossenen Slice**.
+9. Wenn unter Codex-Orchestrierung ein Slice oder ganzer Zyklus abgeschlossen ist, entfernt Claude die erledigten Detailbloecke aus den aktiven Steuerdateien (`TODO.md`, `CODE_REVIEW.md`, `MEMORY.md`) und verschiebt die Langfassung bei Bedarf ins Archiv oder in den passenden Statusspiegel.
 
 ## Standard-Workflow
 
@@ -131,6 +132,7 @@ Claude:
 - passt Tests an
 - aktualisiert die betroffenen Dokus
 - bereinigt veraltete Hinweise direkt mit
+- entfernt abgeschlossene Altbloecke aus aktiven Markdown-Steuerdateien, statt sie dort stehen zu lassen
 
 ### 4. Verifikation
 
@@ -185,6 +187,7 @@ Typische Dateien:
 - weitere Architektur- oder Strukturdateien, falls der Slice das rechtfertigt
 
 `MEMORY.md` bleibt kurzlebig. Veraltete Zwischenstaende muessen entfernt werden.
+`TODO.md` und `CODE_REVIEW.md` bleiben aktive Steuerdateien. Abgeschlossene Slices oder Zyklen duerfen dort nur als knappe Statusnotiz stehen; die Detailfassung gehoert ins Archiv oder in den Statusspiegel.
 
 ## Nicht erlaubt fuer Claude
 

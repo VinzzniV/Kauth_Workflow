@@ -35,7 +35,7 @@ kauth_workflow/
 | Ordner | Sprache | Was läuft das? | Wer startet es? |
 |---|---|---|---|
 | `api/` | C# | ASP.NET Core Web-Server | `dotnet run` |
-| `web/` | TypeScript + React | Vite Dev-Server (Port 5173) | `npm run dev` |
+| `web/` | TypeScript + React | Vite Dev-Server (ab Port 8080, mit Fallback) | `npm run dev` |
 | `db/` | SQL | PostgreSQL-Datenbank | Docker / lokal installiert |
 
 Lokal entwickeln = **3 Prozesse parallel**: Backend, Frontend, Datenbank.

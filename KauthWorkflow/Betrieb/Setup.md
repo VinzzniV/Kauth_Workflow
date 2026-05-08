@@ -48,7 +48,7 @@ Das lokale Launch-Profil setzt:
 - `ASPNETCORE_ENVIRONMENT=Development`
 - `AUTH_MODE=dev-sim`
 - `ConnectionStrings__Default=Host=localhost;Port=26432;...;GSS Encryption Mode=Disable;SSL Mode=Disable`
-- `PUBLIC_BASE_URL=http://localhost:5173`
+- `PUBLIC_BASE_URL=http://localhost:8080`
 - `DIRECTORY_GROUP_PREFIX=Onboarding-App-`
 - `DIRECTORY_SYNC_SCHEDULED=true`
 - `SWAGGER_ENABLED=true`
@@ -64,6 +64,7 @@ Hinweise:
 - Erste Actions sind simuliert — kein externer Adapter nötig
 - `dev-sim` zeigt keine kuenstlichen Demo-Benutzer
 - im Dev-Modus importiert der Directory-Sync deshalb neue Identitaeten aus bereits gemappten Entra-Gruppen automatisch in lokale `app_users`, damit die Simulations-Login-Seite auf frischer DB nutzbar ist
+- der Vite-Dev-Server startet lokal ab Port `8080` und weicht bei belegtem Port automatisch auf den naechsten freien Port aus
 
 ### Schritt 3 — Web starten
 
@@ -176,7 +177,7 @@ chmod +x scripts/start-vm.sh
 Der Dev-Modus startet:
 - PostgreSQL über `docker compose -f compose.yml -f compose.dev-db.yml`
 - API als Hintergrundprozess auf `0.0.0.0:5001`
-- Vite-Webserver als Hintergrundprozess auf `0.0.0.0:5173`
+- Vite-Webserver als Hintergrundprozess auf einem freien Port ab `8080`
 
 Nützliche Kommandos:
 
@@ -191,8 +192,8 @@ Hinweise:
 - Laufzeitdateien und Logs landen unter `.tmp-vm-dev/`
 - Der Vite-Dev-Server braucht `node >= 20.19.0` (Node 18 reicht nicht)
 - Das Script meldet `dev` erst als erfolgreich, wenn API (`/health/ready`) und Web wirklich erreichbar sind
-- `dev stop` bereinigt auch haengengebliebene Port-Prozesse auf `5001` und `5173`
-- Falls die öffentliche Dev-URL nicht automatisch passt: `export DEV_PUBLIC_BASE_URL=http://<vm-host>:5173`
+- `dev stop` bereinigt auch haengengebliebene Port-Prozesse auf `5001` und dem aktuell genutzten Vite-Port
+- Falls die öffentliche Dev-URL nicht automatisch passt: `export DEV_PUBLIC_BASE_URL=http://<vm-host>:8080`
 - Für `dev` müssen auf der VM zusätzlich `dotnet` und `npm` installiert sein
 
 ---

@@ -50,6 +50,7 @@ Pflicht nach dem Lesen:
 - `MEMORY.md` muss immer aufgeraeumt werden, sobald Inhalte nicht mehr gebraucht werden.
 - Dokumentationsdateien muessen auf dem aktuellen Ist-Stand gehalten werden; veraltete Hinweise sind im selben Arbeitsgang zu bereinigen.
 - Wenn Codex Claude ueber die CLI orchestriert, muessen das vorgesehene Modell und der vorgesehene Reasoning-/Effort-Level nicht nur in `TODO.md`/`CODE_REVIEW.md` stehen, sondern bei jedem Lauf explizit per CLI-Parametern gesetzt werden.
+- Wenn Codex Claude als Orchestrator steuert und ein Slice oder Zyklus abgeschlossen ist, muessen Claude und Codex die aktiven Steuerdateien (`TODO.md`, `CODE_REVIEW.md`, `MEMORY.md`, ggf. `CODEX_SYNC.md`) im selben Arbeitsgang entschlacken: abgeschlossene Detailbloecke entfernen, nur in Archiv-/Statusdateien stehen lassen und keine erledigten Altstaende in aktiven Dateien liegen lassen.
 
 ---
 
@@ -137,3 +138,4 @@ Fuer Infra, Auth oder Deployment:
 - Wenn eine Datei ihren Zweck nicht mehr trifft, Inhalt verschieben oder Beschreibung anpassen.
 - `MEMORY.md` darf nur aktive, kurzfristig relevante Hinweise enthalten und muss bei veralteten Eintraegen sofort bereinigt werden.
 - Markdown-Dokumente sind keine Ablage fuer veraltete Zwischenstaende; wenn sich der Ist-Stand aendert, muessen die betroffenen Dateien direkt mitgezogen werden.
+- Aktive Steuerdateien bleiben absichtlich kurz; abgeschlossene Zyklen, Slices und Detailtabellen gehoeren nach Abschluss in `CODE_REVIEW_ARCHIVE.md`, `CODEX_SYNC_ARCHIVE.md` oder einen passenden Statusspiegel, nicht dauerhaft in `TODO.md` oder `CODE_REVIEW.md`.
