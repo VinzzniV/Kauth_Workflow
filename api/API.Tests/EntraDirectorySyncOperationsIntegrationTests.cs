@@ -26,8 +26,8 @@ public sealed class EntraDirectorySyncOperationsIntegrationTests
         var entraIdB = Guid.NewGuid();
         var input = new List<(Guid EntraObjectId, EntraDirectoryUser User)>
         {
-            (entraIdA, new EntraDirectoryUser(entraIdA.ToString(), $"upsert.a.{entraIdA:N}@dir.local", $"a.{entraIdA:N}@mail.local", "User A", true, "Sync-Dept-Alpha", "12345")),
-            (entraIdB, new EntraDirectoryUser(entraIdB.ToString(), $"upsert.b.{entraIdB:N}@dir.local", null, "User B", false, null, null)),
+            (entraIdA, new EntraDirectoryUser(entraIdA.ToString(), $"upsert.a.{entraIdA:N}@dir.local", $"a.{entraIdA:N}@mail.local", "User A", true, "Sync-Dept-Alpha", "12345", null)),
+            (entraIdB, new EntraDirectoryUser(entraIdB.ToString(), $"upsert.b.{entraIdB:N}@dir.local", null, "User B", false, null, null, null)),
         };
 
         try
@@ -69,7 +69,7 @@ public sealed class EntraDirectorySyncOperationsIntegrationTests
         var entraId = Guid.NewGuid();
         var input1 = new List<(Guid EntraObjectId, EntraDirectoryUser User)>
         {
-            (entraId, new EntraDirectoryUser(entraId.ToString(), "first@dir.local", "first@mail.local", "First Name", true, "Initial-Dept", "1")),
+            (entraId, new EntraDirectoryUser(entraId.ToString(), "first@dir.local", "first@mail.local", "First Name", true, "Initial-Dept", "1", null)),
         };
 
         try
@@ -81,8 +81,8 @@ public sealed class EntraDirectorySyncOperationsIntegrationTests
             // Last entry must win (dedup-last-wins semantic of the dictionary in the implementation).
             var input2 = new List<(Guid EntraObjectId, EntraDirectoryUser User)>
             {
-                (entraId, new EntraDirectoryUser(entraId.ToString(), "ignored@dir.local", "ignored@mail.local", "Ignored", true, "Ignored-Dept", "9")),
-                (entraId, new EntraDirectoryUser(entraId.ToString(), "winning@dir.local", "winning@mail.local", "Winning Name", false, "Winning-Dept", "42")),
+                (entraId, new EntraDirectoryUser(entraId.ToString(), "ignored@dir.local", "ignored@mail.local", "Ignored", true, "Ignored-Dept", "9", null)),
+                (entraId, new EntraDirectoryUser(entraId.ToString(), "winning@dir.local", "winning@mail.local", "Winning Name", false, "Winning-Dept", "42", null)),
             };
 
             var second = await operations.UpsertDirectoryIdentitiesBatchAsync(connection, input2, CancellationToken.None);
@@ -123,8 +123,8 @@ public sealed class EntraDirectorySyncOperationsIntegrationTests
         var entraIdB = Guid.NewGuid();
         var input = new List<(Guid EntraObjectId, EntraDirectoryUser User)>
         {
-            (entraIdA, new EntraDirectoryUser(entraIdA.ToString(), $"m.a.{entraIdA:N}@dir.local", null, "Member A", true, null, null)),
-            (entraIdB, new EntraDirectoryUser(entraIdB.ToString(), $"m.b.{entraIdB:N}@dir.local", null, "Member B", true, null, null)),
+            (entraIdA, new EntraDirectoryUser(entraIdA.ToString(), $"m.a.{entraIdA:N}@dir.local", null, "Member A", true, null, null, null)),
+            (entraIdB, new EntraDirectoryUser(entraIdB.ToString(), $"m.b.{entraIdB:N}@dir.local", null, "Member B", true, null, null, null)),
         };
 
         var directoryGroupId = await CreateDirectoryGroupAsync(connection);

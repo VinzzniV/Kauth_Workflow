@@ -1,10 +1,12 @@
 namespace API;
 
-// Z16-S2: Listenvertrag fuer den kuenftigen Personenbereich (/people, HR + Admin).
-// Kompaktes DTO ohne Workflow-History — nur Identifikation und Statusfelder fuer die Liste.
+// Z16-S2 + C: Listenvertrag fuer den kuenftigen Personenbereich (/people, HR + Admin).
+// PersonId ist null fuer directory_only-Eintraege (Entra-Identitaeten ohne people-Record).
+// DirectoryIdentityId ist nur bei directory_only gesetzt; fuer echte people-Records null.
 public sealed class PersonDirectoryItemDto
 {
-    public required long PersonId { get; init; }
+    public long? PersonId { get; init; }
+    public long? DirectoryIdentityId { get; init; }
     public required string DisplayName { get; init; }
     public int? DepartmentId { get; init; }
     public string? DepartmentName { get; init; }

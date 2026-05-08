@@ -8,6 +8,8 @@ export function formatEmploymentStatus(status: string | null): string {
       return "Inaktiv";
     case "exited":
       return "Ausgetreten";
+    case "directory_only":
+      return "Nur in Entra";
     default:
       return "–";
   }
@@ -21,6 +23,8 @@ export function formatDirectoryLinkStatus(status: string | null): string {
       return "Nur App-Benutzer verknüpft";
     case "unlinked":
       return "Noch nicht verknüpft";
+    case "directory_only":
+      return "Nur im Verzeichnis vorhanden";
     default:
       return "–";
   }
@@ -34,6 +38,8 @@ export function formatDirectoryLinkStatusShort(status: string | null): string {
       return "Nur App";
     case "unlinked":
       return "Nicht verknüpft";
+    case "directory_only":
+      return "Nur Verzeichnis";
     default:
       return "–";
   }
@@ -44,6 +50,7 @@ export function getEmploymentStatusClass(status: string | null): string {
     case "active":
       return "status-pill running";
     case "planned":
+    case "directory_only":
       return "status-pill open";
     case "inactive":
     case "exited":

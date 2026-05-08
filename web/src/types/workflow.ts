@@ -604,7 +604,8 @@ export type PersonWorkflowHistory = {
 
 // Z16-S3: Kompakter Listen-Eintrag im Personenverzeichnis (HR + Admin).
 export type PersonDirectoryItem = {
-  personId: number;
+  personId: number | null;
+  directoryIdentityId: number | null;
   displayName: string;
   departmentId: number | null;
   departmentName: string | null;

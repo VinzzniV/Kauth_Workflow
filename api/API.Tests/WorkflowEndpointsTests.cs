@@ -1688,6 +1688,9 @@ public sealed class WorkflowEndpointsTests
 
         public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetail(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid) => throw new NotSupportedException();
+        public Task<bool> UpdatePersonCoreFields(long personId, DateOnly? entryDate, int? badgeNumber) => throw new NotSupportedException();
+        public Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentities(string? departmentFilter, bool? onlyEnabled, int limit, int offset) => throw new NotSupportedException();
+        public Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectory(List<long> directoryIdentityIds, long? actorUserId) => throw new NotSupportedException();
     }
 
     private sealed class StubWorkflowEmailNotificationSender : IWorkflowEmailNotificationSender
@@ -1872,6 +1875,8 @@ public sealed class WorkflowEndpointsTests
         public Task<AdminUserDto?> UpdateUserPermissionOverrides(long userId, IReadOnlyList<AdminUserPermissionOverrideUpsertRequest> overrides, long? actorUserId = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminDepartmentAssignmentDto?> UpdateDepartmentAssignment(int departmentId, long? departmentLeadUserId, long? requirementOwnerUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminResponsibilityOwnerDto?> UpdateResponsibilityOwner(int responsibilityId, long? appUserId, int? departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<List<EntraJobTitleDto>> GetDepartmentEntraJobTitles(int departmentId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ImportPositionsFromEntraResult> ImportDepartmentPositionsFromEntra(int departmentId, IReadOnlyList<string> jobTitles, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class StubSupervisorStepService : ISupervisorStepService

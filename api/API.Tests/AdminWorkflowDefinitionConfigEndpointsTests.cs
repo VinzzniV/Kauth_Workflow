@@ -1079,5 +1079,8 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<AdminListPageDto<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId, AdminListQuery query) => throw new NotSupportedException();
         public Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request) => throw new NotSupportedException();
         public Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId) => throw new NotSupportedException();
+        public Task<bool> UpdatePersonCoreFields(long personId, DateOnly? entryDate, int? badgeNumber) => throw new NotSupportedException();
+        public Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentities(string? departmentFilter, bool? onlyEnabled, int limit, int offset) => throw new NotSupportedException();
+        public Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectory(List<long> directoryIdentityIds, long? actorUserId) => throw new NotSupportedException();
     }
 }

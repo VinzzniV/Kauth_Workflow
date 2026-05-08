@@ -62,7 +62,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Geplante Features (Z19-Kandidaten)
 
-Analysiert 2026-05-08. Noch kein aktiver Zyklus gestartet. Reihenfolge ist Empfehlung, nicht fest.
+Analysiert und umgesetzt am 2026-05-08. Der Feature-Block A1-A3/B/C ist abgeschlossen.
 
 ---
 
@@ -124,18 +124,10 @@ Neue Admin-Sektion „Aus Entra importieren" unter `personen_zugriff`. Selbstst�
 
 ---
 
-### Feature C – Mitarbeiter-Verzeichnis: Entra-only-Personen sichtbar machen
+### Feature C – Mitarbeiter-Verzeichnis: Entra-only-Personen sichtbar machen ✅ abgeschlossen (2026-05-08)
 
-**Kontext:** `GetPeopleDirectory` zeigt nur `people`-Records. Entra-Mitarbeitende ohne Import bleiben unsichtbar. Als Übergangslösung (vor oder statt Feature A) sollen diese über einen UNION sichtbar sein — mit Inline-Import-Button pro Person.
-
-| Feld | Wert |
-|------|------|
-| **Was** | `GetPeopleDirectory`-SQL um `UNION ALL` auf `directory_identities` (ohne people-Record, `account_enabled = true`) erweitern. Status `directory_only` einführen. Kein `personId` → statt Karten-Link ein Inline-„Importieren"-Button der `POST /admin/people/import-from-directory` für genau diese Identity aufruft. |
-| **Warum** | Sofortige Sichtbarkeit ohne Schema-Eingriff. Nützlich als Schnelllösung oder als Ergänzung zu A2. |
-| **Effort** | `medium` — UNION ändert Abfrage-Semantik (Ordinal-Verschiebung, nullable personId), Frontend muss zwei Record-Typen unterscheiden |
-| **Modell** | `claude-sonnet-4-6` |
-| **CLI** | `--model claude-sonnet-4-6 --effort medium` |
-| **Abhängigkeit** | Setzt A1 voraus (Import-Endpoint muss existieren) |
+`GetPeopleDirectory` liefert jetzt per `UNION ALL` auch aktive `directory_identities` ohne `people`-Record. Diese Einträge erscheinen als `directory_only` mit `personId = null` und `directoryIdentityId`.
+`PeopleDirectoryPage` unterscheidet echte Mitarbeiterkarten von Verzeichnis-only-Einträgen sauber: kein Karten-Link ohne `personId`, stattdessen Inline-Import-Button pro Zeile/Karte via `POST /admin/people/import-from-directory`. Build: 0 BE-Fehler, 0 FE-Fehler. Backend-Tests: 494/494 grün. FE-Build: grün. Voller FE-Testlauf: 1 vorliegender Fehler in `tests/MyTasksPage.test.tsx`, außerhalb des C-Slices.
 
 ---
 

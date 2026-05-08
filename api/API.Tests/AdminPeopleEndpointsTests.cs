@@ -213,5 +213,8 @@ public sealed class AdminPeopleEndpointsTests
         public Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchRotationEligiblePeopleAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<RequirementDto>> GetRequirementsAsync(string? workflowDefinitionKey, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<WorkflowConfigDto?> GetWorkflowConfigAsync(int? roleId, string? workflowDefinitionKey, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentitiesAsync(string? departmentFilter, bool? onlyEnabled, int limit, int offset, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectoryAsync(ImportPeopleFromDirectoryRequest request, long? actorUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> UpdatePersonAsync(long personId, UpdatePersonRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }

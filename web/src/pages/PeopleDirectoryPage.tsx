@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
+import { useToast } from "../components/feedback/useToast";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
+import { importPeopleFromDirectory } from "../services/peopleApi";
+import { queryKeys } from "../services/queryKeys";
 import { usePeopleDirectory } from "../services/queries/peopleQueries";
 import type { PersonDirectoryItem } from "../types/workflow";
 import { formatDate } from "../utils/dateFormat";
@@ -15,8 +19,6 @@ import {
 const SEARCH_DEBOUNCE_MS = 400;
 const PAGE_SIZE = 50;
 const NO_DEPT_KEY = "Ohne Abteilung";
-
-// --- Avatar helpers ---
 
 const AVATAR_COLORS: { bg: string; text: string }[] = [
   { bg: "#2563eb", text: "#ffffff" },
@@ -46,25 +48,36 @@ function getInitials(displayName: string): string {
   return displayName.slice(0, 2).toUpperCase();
 }
 
-// --- Grouping ---
+function getDirectoryEntryKey(person: PersonDirectoryItem): string {
+  if (person.personId !== null) {
+    return `person-${person.personId}`;
+  }
 
-function groupByDepartment(
-  items: PersonDirectoryItem[],
-): [string, PersonDirectoryItem[]][] {
+  if (person.directoryIdentityId !== null) {
+    return `directory-${person.directoryIdentityId}`;
+  }
+
+  return `entry-${person.displayName}`;
+}
+
+function isDirectoryOnlyEntry(person: PersonDirectoryItem): boolean {
+  return person.personId === null && person.directoryIdentityId !== null;
+}
+
+function groupByDepartment(items: PersonDirectoryItem[]): [string, PersonDirectoryItem[]][] {
   const map = new Map<string, PersonDirectoryItem[]>();
   for (const item of items) {
     const key = item.departmentName ?? NO_DEPT_KEY;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(item);
   }
+
   return Array.from(map.entries()).sort(([a], [b]) => {
     if (a === NO_DEPT_KEY) return 1;
     if (b === NO_DEPT_KEY) return -1;
     return a.localeCompare(b, "de");
   });
 }
-
-// --- Icons ---
 
 function GridIcon() {
   return (
@@ -126,8 +139,6 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
-// --- Sub-components ---
-
 function PersonAvatar({ name, size = 36 }: { name: string; size?: number }) {
   const { bg, text } = getAvatarColor(name);
   return (
@@ -154,25 +165,48 @@ function PersonAvatar({ name, size = 36 }: { name: string; size?: number }) {
   );
 }
 
-function PersonCard({ person }: { person: PersonDirectoryItem }) {
+function ImportDirectoryButton({
+  directoryIdentityId,
+  isImporting,
+  onImport,
+}: {
+  directoryIdentityId: number | null;
+  isImporting: boolean;
+  onImport: (directoryIdentityId: number) => void;
+}) {
+  if (directoryIdentityId === null) {
+    return null;
+  }
+
   return (
-    <Link
-      to={`/people/${person.personId}`}
-      className="card-list"
-      style={{
-        textDecoration: "none",
-        color: "inherit",
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.625rem",
-        padding: "0.875rem",
-      }}
+    <button
+      type="button"
+      className="btn btn-secondary"
+      onClick={() => onImport(directoryIdentityId)}
+      disabled={isImporting}
     >
+      {isImporting ? "Importiere..." : "Importieren"}
+    </button>
+  );
+}
+
+function PersonCard({
+  person,
+  onImport,
+  isImporting,
+}: {
+  person: PersonDirectoryItem;
+  onImport: (directoryIdentityId: number) => void;
+  isImporting: boolean;
+}) {
+  const directoryOnly = isDirectoryOnlyEntry(person);
+  const content = (
+    <>
       <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
         <PersonAvatar name={person.displayName} size={38} />
         <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "0.1rem" }}>
           <span
-            className="table-link"
+            className={directoryOnly ? undefined : "table-link"}
             style={{
               fontWeight: 600,
               fontSize: "0.875rem",
@@ -214,23 +248,94 @@ function PersonCard({ person }: { person: PersonDirectoryItem }) {
         <span className={getEmploymentStatusClass(person.employmentStatus)}>
           {formatEmploymentStatus(person.employmentStatus)}
         </span>
-        {person.entryDate && (
+        {person.entryDate ? (
           <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", flexShrink: 0 }}>
             ab {formatDate(person.entryDate)}
           </span>
-        )}
+        ) : directoryOnly ? (
+          <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", flexShrink: 0 }}>
+            Noch nicht importiert
+          </span>
+        ) : null}
       </div>
-    </Link>
+
+      {directoryOnly ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "0.75rem",
+          }}
+        >
+          <span className="panel-note" style={{ margin: 0 }}>
+            Nur im Verzeichnis sichtbar
+          </span>
+          <ImportDirectoryButton
+            directoryIdentityId={person.directoryIdentityId}
+            isImporting={isImporting}
+            onImport={onImport}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (person.personId !== null) {
+    return (
+      <Link
+        to={`/people/${person.personId}`}
+        className="card-list"
+        style={{
+          textDecoration: "none",
+          color: "inherit",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.625rem",
+          padding: "0.875rem",
+        }}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <article
+      className="card-list"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.625rem",
+        padding: "0.875rem",
+      }}
+    >
+      {content}
+    </article>
   );
 }
 
-function PersonRow({ person }: { person: PersonDirectoryItem }) {
+function PersonRow({
+  person,
+  onImport,
+  isImporting,
+}: {
+  person: PersonDirectoryItem;
+  onImport: (directoryIdentityId: number) => void;
+  isImporting: boolean;
+}) {
+  const directoryOnly = isDirectoryOnlyEntry(person);
+
   return (
     <tr>
       <td>
-        <Link to={`/people/${person.personId}`} className="table-link">
-          {person.displayName}
-        </Link>
+        {person.personId !== null ? (
+          <Link to={`/people/${person.personId}`} className="table-link">
+            {person.displayName}
+          </Link>
+        ) : (
+          <span>{person.displayName}</span>
+        )}
       </td>
       <td>{person.jobTitle ?? "–"}</td>
       <td>
@@ -240,6 +345,17 @@ function PersonRow({ person }: { person: PersonDirectoryItem }) {
       </td>
       <td>{person.entryDate ? formatDate(person.entryDate) : "–"}</td>
       <td>{formatDirectoryLinkStatusShort(person.directoryLinkStatus)}</td>
+      <td>
+        {directoryOnly ? (
+          <ImportDirectoryButton
+            directoryIdentityId={person.directoryIdentityId}
+            isImporting={isImporting}
+            onImport={onImport}
+          />
+        ) : (
+          "–"
+        )}
+      </td>
     </tr>
   );
 }
@@ -248,10 +364,14 @@ function DepartmentSection({
   name,
   people,
   viewMode,
+  onImport,
+  importingDirectoryIdentityId,
 }: {
   name: string;
   people: PersonDirectoryItem[];
   viewMode: "cards" | "table";
+  onImport: (directoryIdentityId: number) => void;
+  importingDirectoryIdentityId: number | null;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -291,7 +411,7 @@ function DepartmentSection({
         <ChevronIcon expanded={expanded} />
       </button>
 
-      {expanded && (
+      {expanded ? (
         <div style={{ marginTop: "1rem" }}>
           {viewMode === "cards" ? (
             <div
@@ -301,8 +421,13 @@ function DepartmentSection({
                 gap: "0.625rem",
               }}
             >
-              {people.map((p) => (
-                <PersonCard key={p.personId} person={p} />
+              {people.map((person) => (
+                <PersonCard
+                  key={getDirectoryEntryKey(person)}
+                  person={person}
+                  onImport={onImport}
+                  isImporting={importingDirectoryIdentityId === person.directoryIdentityId}
+                />
               ))}
             </div>
           ) : (
@@ -315,25 +440,31 @@ function DepartmentSection({
                     <th scope="col">Status</th>
                     <th scope="col">Eintrittsdatum</th>
                     <th scope="col">Verzeichnis</th>
+                    <th scope="col">Aktion</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {people.map((p) => (
-                    <PersonRow key={p.personId} person={p} />
+                  {people.map((person) => (
+                    <PersonRow
+                      key={getDirectoryEntryKey(person)}
+                      person={person}
+                      onImport={onImport}
+                      isImporting={importingDirectoryIdentityId === person.directoryIdentityId}
+                    />
                   ))}
                 </tbody>
               </table>
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
 
-// --- Page ---
-
 export default function PeopleDirectoryPage() {
+  const queryClient = useQueryClient();
+  const { showError, showInfo, showSuccess } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get("q") ?? "";
   const initialPage = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
@@ -361,6 +492,29 @@ export default function PeopleDirectoryPage() {
   }, [search, offset, searchParams, setSearchParams]);
 
   const directoryQuery = usePeopleDirectory(debouncedSearch, offset, PAGE_SIZE);
+  const importMutation = useMutation({
+    mutationFn: (directoryIdentityId: number) =>
+      importPeopleFromDirectory([directoryIdentityId]),
+    onSuccess: (result) => {
+      const importedCount = result.createdCount + result.linkedCount;
+      if (importedCount > 0) {
+        showSuccess(
+          importedCount === 1
+            ? "Entra-Person wurde importiert."
+            : `${importedCount} Entra-Personen wurden importiert.`,
+        );
+      } else {
+        showInfo("Eintrag wurde uebersprungen oder war bereits verknuepft.");
+      }
+
+      void queryClient.invalidateQueries({ queryKey: queryKeys.people.directory("", 0).slice(0, 2) });
+      void queryClient.invalidateQueries({ queryKey: ["admin", "unlinked-identities"] });
+    },
+    onError: () => {
+      showError("Entra-Person konnte nicht importiert werden.");
+    },
+  });
+
   const items: PersonDirectoryItem[] = directoryQuery.data?.items ?? [];
   const total: number = directoryQuery.data?.total ?? 0;
   const isLoading = directoryQuery.isLoading;
@@ -376,9 +530,14 @@ export default function PeopleDirectoryPage() {
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const hasPrev = offset > 0;
   const hasNext = offset + PAGE_SIZE < total;
-
   const grouped = groupByDepartment(items);
-  const departmentCount = grouped.filter(([k]) => k !== NO_DEPT_KEY).length;
+  const departmentCount = grouped.filter(([department]) => department !== NO_DEPT_KEY).length;
+  const directoryOnlyCount = items.filter(isDirectoryOnlyEntry).length;
+  const importingDirectoryIdentityId = importMutation.isPending ? importMutation.variables ?? null : null;
+
+  function handleImport(directoryIdentityId: number) {
+    importMutation.mutate(directoryIdentityId);
+  }
 
   return (
     <main className="app-shell">
@@ -421,7 +580,7 @@ export default function PeopleDirectoryPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="z. B. Mustermann, IT, Vertrieb"
                 autoFocus
               />
@@ -448,10 +607,10 @@ export default function PeopleDirectoryPage() {
           />
         ) : items.length === 0 ? (
           <EmptyState
-            title="Keine Einträge gefunden."
+            title="Keine Eintraege gefunden."
             description={
               debouncedSearch.trim()
-                ? `Für „${debouncedSearch}" wurden keine Mitarbeitenden gefunden.`
+                ? `Fuer "${debouncedSearch}" wurden keine Mitarbeitenden gefunden.`
                 : "Es sind noch keine Mitarbeitenden im Verzeichnis erfasst."
             }
           />
@@ -466,46 +625,53 @@ export default function PeopleDirectoryPage() {
                 fontSize: "0.8rem",
               }}
             >
-              <span>
-                {total === 1 ? "1 Mitarbeitende·r" : `${total} Mitarbeitende`}
-              </span>
-              {departmentCount > 0 && (
+              <span>{total === 1 ? "1 Mitarbeitende*r" : `${total} Mitarbeitende`}</span>
+              {departmentCount > 0 ? (
                 <>
                   <span aria-hidden="true">·</span>
                   <span>
-                    {departmentCount}{" "}
-                    {departmentCount === 1 ? "Abteilung" : "Abteilungen"}
+                    {departmentCount} {departmentCount === 1 ? "Abteilung" : "Abteilungen"}
                   </span>
                 </>
-              )}
-              {isRefreshing && (
+              ) : null}
+              {directoryOnlyCount > 0 ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    {directoryOnlyCount} {directoryOnlyCount === 1 ? "nur in Entra" : "nur in Entra"}
+                  </span>
+                </>
+              ) : null}
+              {isRefreshing ? (
                 <>
                   <span aria-hidden="true">·</span>
                   <span>Wird aktualisiert…</span>
                 </>
-              )}
-              {totalPages > 1 && (
+              ) : null}
+              {totalPages > 1 ? (
                 <>
                   <span aria-hidden="true">·</span>
                   <span>
                     Seite {currentPage} von {totalPages}
                   </span>
                 </>
-              )}
+              ) : null}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {grouped.map(([deptName, people]) => (
+              {grouped.map(([departmentName, people]) => (
                 <DepartmentSection
-                  key={deptName}
-                  name={deptName}
+                  key={departmentName}
+                  name={departmentName}
                   people={people}
                   viewMode={viewMode}
+                  onImport={handleImport}
+                  importingDirectoryIdentityId={importingDirectoryIdentityId}
                 />
               ))}
             </div>
 
-            {totalPages > 1 && (
+            {totalPages > 1 ? (
               <div className="pagination-row">
                 <button
                   type="button"
@@ -513,7 +679,7 @@ export default function PeopleDirectoryPage() {
                   onClick={() => setOffset(offset - PAGE_SIZE)}
                   disabled={!hasPrev}
                 >
-                  Zurück
+                  Zurueck
                 </button>
                 <span className="pagination-info">
                   {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} von {total}
@@ -527,7 +693,7 @@ export default function PeopleDirectoryPage() {
                   Weiter
                 </button>
               </div>
-            )}
+            ) : null}
           </>
         )}
       </div>

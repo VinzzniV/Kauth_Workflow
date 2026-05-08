@@ -32,7 +32,7 @@
 
 ## Current Focus
 
-- **Kein aktiver Zyklus offen.** Z18 (Frontend Full Review) ist am 2026-05-08 vollstaendig abgeschlossen worden; alle 9 Findings sind umgesetzt. FE-8 (`approval_task_template_key` → `approval_spec_key`) ist ebenfalls abgeschlossen. `FRONTEND_TODO.md` hat aktuell keine offenen Items mehr. Naechster Schritt: Codex priorisiert den naechsten Zyklus aus den verbleibenden repo-weiten Review-/Architekturthemen.
+- **Kein aktiver Zyklus offen.** Z18, FE-8 und der komplette Entra-Retrofit-Block aus `TODO.md` (A1, A2, A3, B, C) sind am 2026-05-08 abgeschlossen worden. Praktisch bedeutet das: bestehende Entra-Mitarbeitende lassen sich jetzt retroaktiv importieren, direkt im Verzeichnis sehen, auf der Mitarbeiterkarte nachpflegen und mit Entra-Stellen sauber in Abteilungen uebernehmen. Naechster Schritt: Codex priorisiert den naechsten Zyklus aus den verbleibenden repo-weiten Review-/Architekturthemen.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

@@ -121,60 +121,106 @@ LIMIT @limit OFFSET @offset;";
 
         var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
         {
-            "name_desc" => "display_name DESC, p.id DESC",
-            "department" => "d.name ASC, display_name ASC, p.id ASC",
-            "department_desc" => "d.name DESC, display_name DESC, p.id DESC",
-            "status" => "employment_status ASC, display_name ASC, p.id ASC",
-            "status_desc" => "employment_status DESC, display_name DESC, p.id DESC",
-            "id" => "p.id ASC",
-            "id_desc" => "p.id DESC",
-            _ => "display_name ASC, p.id ASC"
+            "name_desc" => "display_name DESC",
+            "department" => "department_name ASC NULLS LAST, display_name ASC",
+            "department_desc" => "department_name DESC NULLS FIRST, display_name DESC",
+            "status" => "employment_status ASC, display_name ASC",
+            "status_desc" => "employment_status DESC, display_name DESC",
+            _ => "display_name ASC"
         };
 
+        // C: UNION ALL ergaenzt directory_identities ohne people-Record (account_enabled = true).
+        // directory_only-Eintraege haben PersonId = NULL und DirectoryIdentityId gesetzt.
         var sql = $@"
 SELECT
-    p.id,
-    COALESCE(
-        NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
-        u.display_name,
-        di.display_name,
-        'Person #' || p.id::text
-    ) AS display_name,
-    p.department_id,
-    d.name AS department_name,
-    p.current_position_role_id AS role_id,
-    r.name AS role_name,
-    p.employee_number,
-    p.badge_number,
-    COALESCE(
-        NULLIF(BTRIM(p.employment_status), ''),
-        CASE
-            WHEN p.exit_date IS NOT NULL THEN 'exited'
-            WHEN p.app_user_id IS NOT NULL THEN 'active'
-            ELSE 'planned'
-        END
-    ) AS employment_status,
-    p.entry_date,
-    p.exit_date,
-    CASE
-        WHEN p.directory_identity_id IS NOT NULL THEN 'linked'
-        WHEN p.app_user_id IS NOT NULL THEN 'user_only'
-        ELSE 'unlinked'
-    END AS directory_link_status,
-    di.job_title,
+    person_id,
+    directory_identity_id,
+    display_name,
+    department_id,
+    department_name,
+    role_id,
+    role_name,
+    employee_number,
+    badge_number,
+    employment_status,
+    entry_date,
+    exit_date,
+    directory_link_status,
+    job_title,
     COUNT(*) OVER() AS total_count
-FROM people p
-LEFT JOIN app_users u ON u.id = p.app_user_id
-LEFT JOIN directory_identities di ON di.id = p.directory_identity_id
-LEFT JOIN departments d ON d.id = p.department_id
-LEFT JOIN app_roles r ON r.id = p.current_position_role_id
-WHERE (
-    @search = ''
-    OR COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''), u.display_name, di.display_name, 'Person #' || p.id::text) ILIKE @pattern
-    OR COALESCE(d.name, '') ILIKE @pattern
-    OR COALESCE(r.name, '') ILIKE @pattern
-    OR CAST(COALESCE(p.employee_number, 0) AS TEXT) ILIKE @pattern
-)
+FROM (
+    SELECT
+        p.id::bigint AS person_id,
+        NULL::bigint AS directory_identity_id,
+        COALESCE(
+            NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+            u.display_name,
+            di.display_name,
+            'Person #' || p.id::text
+        ) AS display_name,
+        p.department_id,
+        d.name AS department_name,
+        p.current_position_role_id AS role_id,
+        r.name AS role_name,
+        p.employee_number,
+        p.badge_number,
+        COALESCE(
+            NULLIF(BTRIM(p.employment_status), ''),
+            CASE
+                WHEN p.exit_date IS NOT NULL THEN 'exited'
+                WHEN p.app_user_id IS NOT NULL THEN 'active'
+                ELSE 'planned'
+            END
+        ) AS employment_status,
+        p.entry_date,
+        p.exit_date,
+        CASE
+            WHEN p.directory_identity_id IS NOT NULL THEN 'linked'
+            WHEN p.app_user_id IS NOT NULL THEN 'user_only'
+            ELSE 'unlinked'
+        END AS directory_link_status,
+        di.job_title
+    FROM people p
+    LEFT JOIN app_users u ON u.id = p.app_user_id
+    LEFT JOIN directory_identities di ON di.id = p.directory_identity_id
+    LEFT JOIN departments d ON d.id = p.department_id
+    LEFT JOIN app_roles r ON r.id = p.current_position_role_id
+    WHERE (
+        @search = ''
+        OR COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''), u.display_name, di.display_name, 'Person #' || p.id::text) ILIKE @pattern
+        OR COALESCE(d.name, '') ILIKE @pattern
+        OR COALESCE(r.name, '') ILIKE @pattern
+        OR CAST(COALESCE(p.employee_number, 0) AS TEXT) ILIKE @pattern
+    )
+
+    UNION ALL
+
+    SELECT
+        NULL::bigint AS person_id,
+        dir.id::bigint AS directory_identity_id,
+        dir.display_name,
+        dep.id AS department_id,
+        dep.name AS department_name,
+        NULL::integer AS role_id,
+        NULL::text AS role_name,
+        NULL::integer AS employee_number,
+        NULL::integer AS badge_number,
+        'directory_only' AS employment_status,
+        NULL::date AS entry_date,
+        NULL::date AS exit_date,
+        'directory_only' AS directory_link_status,
+        dir.job_title
+    FROM directory_identities dir
+    LEFT JOIN departments dep ON dep.name ILIKE dir.department_name
+    WHERE dir.account_enabled = true
+        AND NOT EXISTS (SELECT 1 FROM people p2 WHERE p2.directory_identity_id = dir.id)
+        AND (
+            @search = ''
+            OR dir.display_name ILIKE @pattern
+            OR COALESCE(dep.name, '') ILIKE @pattern
+            OR COALESCE(dir.department_name, '') ILIKE @pattern
+        )
+) combined
 ORDER BY {orderBy}
 LIMIT @limit OFFSET @offset;";
 
@@ -192,21 +238,22 @@ LIMIT @limit OFFSET @offset;";
         {
             people.Add(new PersonDirectoryItemDto
             {
-                PersonId = reader.GetInt64(0),
-                DisplayName = reader.GetString(1),
-                DepartmentId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
-                DepartmentName = reader.IsDBNull(3) ? null : reader.GetString(3),
-                RoleId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                RoleName = reader.IsDBNull(5) ? null : reader.GetString(5),
-                EmployeeNumber = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-                BadgeNumber = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-                EmploymentStatus = reader.IsDBNull(8) ? null : reader.GetString(8),
-                EntryDate = reader.IsDBNull(9) ? null : DateOnly.FromDateTime(reader.GetDateTime(9)),
-                ExitDate = reader.IsDBNull(10) ? null : DateOnly.FromDateTime(reader.GetDateTime(10)),
-                DirectoryLinkStatus = reader.GetString(11),
-                JobTitle = reader.IsDBNull(12) ? null : reader.GetString(12)
+                PersonId = reader.IsDBNull(0) ? null : reader.GetInt64(0),
+                DirectoryIdentityId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
+                DisplayName = reader.GetString(2),
+                DepartmentId = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                DepartmentName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                RoleId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                RoleName = reader.IsDBNull(6) ? null : reader.GetString(6),
+                EmployeeNumber = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                BadgeNumber = reader.IsDBNull(8) ? null : reader.GetInt32(8),
+                EmploymentStatus = reader.IsDBNull(9) ? null : reader.GetString(9),
+                EntryDate = reader.IsDBNull(10) ? null : DateOnly.FromDateTime(reader.GetDateTime(10)),
+                ExitDate = reader.IsDBNull(11) ? null : DateOnly.FromDateTime(reader.GetDateTime(11)),
+                DirectoryLinkStatus = reader.IsDBNull(12) ? null : reader.GetString(12),
+                JobTitle = reader.IsDBNull(13) ? null : reader.GetString(13)
             });
-            total = reader.GetInt32(13);
+            total = reader.GetInt32(14);
         }
 
         return new AdminListPageDto<PersonDirectoryItemDto>
