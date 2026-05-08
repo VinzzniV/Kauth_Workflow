@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-08 — Z16 abgeschlossen; Z17-S1 (Theme-Leak) done. Zyklen 8–17 (S1) abgeschlossen.)
+## Gesamtbewertung (Stand 2026-05-08 — Z17-S1 done; Z18-S1 (Frontend Full Review) done. Zyklen 8–18 (S1) abgeschlossen.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -63,21 +63,42 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — **vollstaendig abgeschlossen** (Z15-S1 done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done; 274/274 Tests gruen) |
 | 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
+| 18 | 2026-05-08 | Frontend Full Review — Z18-S1 done; 9 Findings (Z18-F1 bis Z18-F9) in `FRONTEND_TODO.md` |
 
 ---
 
-## Aktiver Zyklus 17 — Light/Dark-Mode Theme-Leaks (2026-05-08)
+## Aktiver Zyklus 18 — Frontend Full Review (2026-05-08)
 
-**Praktisch:** Im Light Mode sahen Formular-Karten in Rotation- und Admin-Bereichen dunkel-/kraeftig blau aus — wie Hero-Banner statt wie neutrale Formulare. Der Grund: `.card-primary` war auf `--surface-hero-background` (dunkler Verlauf `#103a8a → #2563eb → #3b82f6`) gesetzt, der sich im Light und Dark Mode optisch identisch als kraeftiges Dunkelblau zeigte. **Lohnenswert:** Nutzer, die das UI im Hell-Modus verwenden, sehen falsche visuelle Hierarchie — Formulare wirken wie prominente Aktionsflächen, was die Lesbarkeit stoert und das Theme-System untergräbt. **Nutzen:** klarer Token-Vertrag (`--surface-hero-background` = nur fuer Banner), konsistentes Light/Dark-Verhalten ohne hartes Forking, ein CSS-Fix fuer alle 5 betroffenen Stellen.
+**Praktisch:** Erster umfassender Review des gesamten Frontends unter Enterprise-/Admin-Frontend-Leitplanken (data-dense dashboard, Kontrast, Labels, Submit-Feedback, Listen-zu-Detail-Klarheit, Responsive, Light/Dark-Konsistenz). Keine Implementierung — nur Review + Befunddokumentation.
+
+**Lohnenswert:** Seit Z11 haben sich viele neue Bereiche ergeben (Personenverzeichnis, Split-Views, Persona-Switcher, Saved Views). Ein kurzer Review-Stopp hält technische Schuld klein bevor weitere Features aufgebaut werden.
+
+**Nutzen:** 9 konkrete Findings mit klarer Priorisierung, bereit zur Einzelumsetzung.
+
+| Befund | Bereich | Prio | Status |
+|--------|---------|------|--------|
+| Z18-F1 — `dashboard-card cursor: pointer` auf 4 Formular-Containern (semantisch falsch, irreführender Zeiger) | CSS / 4 TSX-Dateien | MEDIUM | offen |
+| Z18-F2 — `rotation-form-card` Ghost-Klasse ohne CSS-Regeln (3 Verwendungen, 0 Definitionen) | CSS / 3 TSX-Dateien | LOW | offen |
+| Z18-F3 — `formatEmploymentStatus` + `formatDirectoryLinkStatus` in 3–4 Dateien dupliziert | `web/src/pages/` | MEDIUM | offen |
+| Z18-F4 — `WorkflowSearchPage` lädt bis zu 1000 Vorgänge ohne Pagination | `WorkflowSearchPage.tsx` | HIGH | offen |
+| Z18-F5 — `PeopleDirectoryPage`-Tabelle ohne `scope="col"` auf `<th>` (Accessibility) | `PeopleDirectoryPage.tsx` | MEDIUM | offen |
+| Z18-F6 — `SupervisorStepPage` nutzt manuelles async/await statt React Query (kein Retry, kein Caching) | `SupervisorStepPage.tsx` | MEDIUM | offen |
+| Z18-F7 — Split-Workspace auto-selektiert ersten Eintrag ohne Nutzer-Geste (WorkflowListResults) | `WorkflowListResults.tsx` | MEDIUM | offen |
+| Z18-F8 — `PeopleDirectoryPage` Pagination: `offset` nicht in URL persistiert | `PeopleDirectoryPage.tsx` | LOW | offen |
+| Z18-F9 — Admin-Workspace-Nav: `aria-expanded` ohne `aria-controls` auf Area-Tabs | `AdminWorkspaceNavigation.tsx` | LOW | offen |
+
+Alle Findings detailliert mit Begründung und Lösungsvorschlag in `FRONTEND_TODO.md`.
+
+---
+
+## Abgeschlossener Zyklus 17 — Light/Dark-Mode Theme-Leaks (2026-05-08)
+
+**Praktisch:** Im Light Mode sahen Formular-Karten in Rotation- und Admin-Bereichen dunkel-/kraeftig blau aus — wie Hero-Banner statt wie neutrale Formulare. **Lohnenswert:** Falsche visuelle Hierarchie stoert Lesbarkeit und untergräbt das Theme-System. **Nutzen:** klarer Token-Vertrag, konsistentes Light/Dark-Verhalten, ein CSS-Fix fuer alle 5 betroffenen Stellen.
 
 | Befund | Prio | Status |
 |--------|------|--------|
-| Z17-S1 — `.card-primary` nutzt `--surface-hero-background` (dunkelblau) — alle 5 Stellen: Rotation-Form, Admin-Departments, Admin-Users, Admin-Responsibilities | HIGH | done 2026-05-08 — Fix: `background: var(--surface-focus-background)`. Token-Vertrag in Page-Grammar-Kommentar dokumentiert. Build gruen. |
-| Z17-S2 — `dashboard-card cursor: pointer` auf Formular-Containern (semantisch falsch) | LOW | offen — eigener Slice bei Bedarf |
-
-**Vertragsentscheidung Z17:**
-- `--surface-hero-background` = ausschliesslich fuer Top-of-Page Hero/Banner-Sections
-- `.card-primary` = focus-tinted Surface (`--surface-focus-background`) — soft brand tint, theme-konsistent
+| Z17-S1 — `.card-primary` nutzt `--surface-hero-background` — alle 5 Stellen behoben | HIGH | done 2026-05-08 |
+| Z17-S2 — `dashboard-card cursor: pointer` auf Formular-Containern | LOW | → Z18-F1 (offen, eigener Slice) |
 
 ---
 
