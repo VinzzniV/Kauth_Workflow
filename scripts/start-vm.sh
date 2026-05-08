@@ -10,6 +10,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEV_STATE_DIR="$REPO_ROOT/.tmp-vm-dev"
 DEV_API_PID_FILE="$DEV_STATE_DIR/api.pid"
 DEV_WEB_PID_FILE="$DEV_STATE_DIR/web.pid"
+DEV_WEB_PORT_FILE="$DEV_STATE_DIR/web.port"
 DEV_API_LOG_FILE="$DEV_STATE_DIR/api.log"
 DEV_WEB_LOG_FILE="$DEV_STATE_DIR/web.log"
 
@@ -233,6 +234,54 @@ port_is_listening() {
     return 1
 }
 
+get_requested_dev_web_port() {
+    local configured_port="${VITE_PORT:-8080}"
+
+    if [[ "$configured_port" =~ ^[0-9]+$ ]] && (( configured_port > 0 )) && (( configured_port <= 65535 )); then
+        printf '%s\n' "$configured_port"
+        return 0
+    fi
+
+    fail "VITE_PORT='$configured_port' ist ungueltig. Erwartet wird ein TCP-Port zwischen 1 und 65535."
+}
+
+get_available_dev_web_port() {
+    local requested_port
+    requested_port="$(get_requested_dev_web_port)"
+
+    if ! port_is_listening "$requested_port"; then
+        printf '%s\n' "$requested_port"
+        return 0
+    fi
+
+    if [[ -n "${VITE_PORT:-}" ]]; then
+        fail "Der angeforderte Web-Port $requested_port ist bereits belegt."
+    fi
+
+    local fallback_port
+    for fallback_port in 8081 4174 4175 9000 9001; do
+        if ! port_is_listening "$fallback_port"; then
+            printf '%s\n' "$fallback_port"
+            return 0
+        fi
+    done
+
+    fail "Es konnte kein freier Dev-Web-Port gefunden werden. Geprueft wurden: $requested_port, 8081, 4174, 4175, 9000, 9001."
+}
+
+read_dev_web_port() {
+    if [[ -f "$DEV_WEB_PORT_FILE" ]]; then
+        local stored_port
+        stored_port="$(tr -d '[:space:]' < "$DEV_WEB_PORT_FILE")"
+        if [[ "$stored_port" =~ ^[0-9]+$ ]] && (( stored_port > 0 )) && (( stored_port <= 65535 )); then
+            printf '%s\n' "$stored_port"
+            return 0
+        fi
+    fi
+
+    get_requested_dev_web_port
+}
+
 assert_port_free() {
     local port="$1"
     local description="$2"
@@ -364,6 +413,9 @@ ensure_web_dependencies() {
 }
 
 resolve_dev_public_base_url() {
+    local web_port
+    web_port="$(read_dev_web_port)"
+
     if [[ -n "${DEV_PUBLIC_BASE_URL:-}" ]]; then
         printf '%s\n' "$DEV_PUBLIC_BASE_URL"
         return 0
@@ -379,7 +431,7 @@ resolve_dev_public_base_url() {
         detected_host="localhost"
     fi
 
-    printf 'http://%s:5173\n' "$detected_host"
+    printf 'http://%s:%s\n' "$detected_host" "$web_port"
 }
 
 wait_for_dev_api_ready() {
@@ -407,6 +459,8 @@ wait_for_dev_web_ready() {
     local timeout_seconds="${1:-60}"
     local deadline
     deadline=$((SECONDS + timeout_seconds))
+    local web_port
+    web_port="$(read_dev_web_port)"
 
     while (( SECONDS < deadline )); do
         local web_pid
@@ -414,7 +468,7 @@ wait_for_dev_web_ready() {
             fail "Web-Prozess ist vorzeitig beendet. Details: $DEV_WEB_LOG_FILE"
         fi
 
-        if http_ok "http://127.0.0.1:5173"; then
+        if http_ok "http://127.0.0.1:$web_port"; then
             return 0
         fi
 
@@ -475,12 +529,17 @@ start_dev_web() {
         return 0
     fi
 
-    assert_port_free 5173 "Web"
+    local web_port
+    web_port="$(get_available_dev_web_port)"
+
+    assert_port_free "$web_port" "Web"
     ensure_web_dependencies
 
     if [[ -d "$REPO_ROOT/web/node_modules/.vite" ]]; then
         rm -rf "$REPO_ROOT/web/node_modules/.vite"
     fi
+
+    printf '%s\n' "$web_port" > "$DEV_WEB_PORT_FILE"
 
     echo "Starte Vite-Webserver im Hintergrund ..."
     (
@@ -488,7 +547,8 @@ start_dev_web() {
         exec nohup env \
             VITE_API_PROXY_TARGET=http://127.0.0.1:5001 \
             VITE_AUTH_MODE=dev-sim \
-            npm run dev -- --host 0.0.0.0 --force
+            VITE_PORT="$web_port" \
+            npm run dev -- --host 0.0.0.0 --port "$web_port" --force
     ) >>"$DEV_WEB_LOG_FILE" 2>&1 &
     echo "$!" > "$DEV_WEB_PID_FILE"
 
@@ -539,6 +599,10 @@ stop_dev_process() {
                 kill_pid_tree "$stray_pid" KILL
             fi
         done
+    fi
+
+    if [[ "$pid_file" == "$DEV_WEB_PID_FILE" ]]; then
+        rm -f "$DEV_WEB_PORT_FILE"
     fi
 }
 
@@ -592,7 +656,7 @@ start_dev_environment() {
 
 stop_dev_environment() {
     ensure_dev_state_dir
-    stop_dev_process "$DEV_WEB_PID_FILE" "Web" "5173"
+    stop_dev_process "$DEV_WEB_PID_FILE" "Web" "$(read_dev_web_port)"
     stop_dev_process "$DEV_API_PID_FILE" "API" "5001"
     echo "Stoppe Dev-Datenbank ..."
     dev_compose down
