@@ -85,6 +85,16 @@ Wichtig:
 - keine Business-Regeln duplizieren
 - keine onboarding-spezifischen Kernannahmen weiter zementieren
 
+## Theme-Vertrag (Design-Token-Regeln)
+
+Verbindliche Token-Regeln fuer neue Komponenten und Karten:
+
+- `--surface-hero-background` (dunkler Navy-to-Blue-Verlauf) ist **ausschliesslich** fuer Hero-/Banner-Sections an der Seitenspitze reserviert (z. B. Dashboard-Hero). Niemals fuer Karten oder Formular-Container verwenden.
+- `.card-primary` nutzt `--surface-focus-background` (soft brand tint, theme-konsistent): helles Blau im Light Mode, dunkel mit Brand-Toenung im Dark Mode. Geeignet fuer prominente Formular- oder Aktionskarten innerhalb von Panels.
+- `.admin-system-config-card` nutzt `--surface-list-background` (neutral weiss/dunkel): geeignet fuer Standard-Admin-Config-Karten ohne besonderen Akzent.
+- Formular-Container in Panels sollen `.panel` oder `.panel-muted` als aeussere Struktur nutzen; innere Karten `.card-primary` oder `.card-list` je nach Akzent-Bedarf.
+- Kein hartes Hell/Dunkel-Forking (separate Styles per Theme) ausser wenn das Verhalten im CSS-Variable-System nicht abbildbar ist.
+
 ## Service-Schnitt
 
 Wichtige Service-Bereiche:

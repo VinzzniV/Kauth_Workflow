@@ -31,11 +31,15 @@
  *   .panel-error inline
  *     -> persistent error inside an active form
  *
- * CARD TYPES  (inside grids, not standalone sections)
- *   Primary Card:   .card-primary
+ * CARD TYPES  (inside grids or as primary form containers)
+ *   Primary Card:   .card-primary  -> focus-tinted surface (--surface-focus-background),
+ *                                     NOT a hero/banner card; no dark-blue styling
  *   List Card:      .card-list
  *   Stat Card:      .card-stat
  *   Selection item: .selection-list-item   interactive choice, title + meta
+ *
+ * HERO / BRAND SURFACES  (reserved for top-of-page banner sections only)
+ *   --surface-hero-background  -> dark navy gradient; never for cards or form containers
  *
  * BUTTONS
  *   .btn-primary    -> primary action, one per section maximum
@@ -72,7 +76,8 @@
 
 .card-primary {
   padding: 1rem;
-  background: var(--surface-hero-background);
+  /* --surface-hero-background (dark navy gradient) is reserved for hero banners only */
+  background: var(--surface-focus-background);
   border-color: var(--surface-focus-border);
   box-shadow: var(--surface-focus-shadow);
 }
