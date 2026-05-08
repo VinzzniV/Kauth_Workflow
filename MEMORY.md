@@ -32,12 +32,11 @@
 
 ## Current Focus
 
-- **Zyklus 16 aktiv** (Stand 2026-05-08) — Z16-S1 Inventur + Vertragsentscheidung Mitarbeiterakte abgeschlossen. Naechster Schritt: Z16-S2 BE-Permission-Vertrag mit `--model claude-sonnet-4-6 --effort medium`.
+- **Zyklus 16 aktiv** (Stand 2026-05-08) — Z16-S1 + Z16-S2 abgeschlossen. Naechster Schritt: Z16-S3 FE-Navigation mit `--model claude-sonnet-4-6 --effort medium`.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts
 
-- **Z16-S2 Breaking-Risk:** `/people/search` von `CanCreateWorkflow` auf `CanAccessWorkflowOverview` umstellen koennte Nutzer ausschliessen, die `CanCreateWorkflow` (via workflow.create-Permission) haben, aber nicht `CanAccessWorkflowOverview`. Praxis: Manager mit department-scope workflow.create ohne ViewAll/ViewDepartment — trifft dieser Fall zu? Vor S2 pruefen.
 - **Begriffstrennung verbindlich:** Person = fachlicher Anker, `directoryIdentityId` = Entra-technische Identity — nie vermischen (Z16-Guardrail).
 - **Rolle ≠ Persona ≠ aktive Ansicht** (aus Z15): bleibt verbindlich; Z16 ergaenzt `peopleDirectory`-Feature ohne das Z15-Modell zu beruehren.
 - `WorkflowLifecycleService` bleibt Commit-Grenze fuer Create/Form/Approval/Task — nicht aufweichen.

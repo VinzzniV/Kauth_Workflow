@@ -1458,6 +1458,7 @@ public sealed class WorkflowEndpointsTests
         public Dictionary<Guid, List<WorkflowNotificationDispatchTarget>> WorkflowCreatedNotificationTargetsByUid { get; } = new();
 
         public Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query) => throw new NotSupportedException();
+        public Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query)
         {
             GetRolesCallCount += 1;

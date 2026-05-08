@@ -15,6 +15,7 @@ internal interface IAuthorizationPolicyService
     bool CanAccessSupervisorStep(CurrentUser user);
     bool CanAccessTechnicalTasks(CurrentUser user);
     bool CanAccessTaskStatusUpdates(CurrentUser user);
+    bool CanAccessPeopleDirectory(CurrentUser user);
     bool CanAccessWorkflowBuilder(CurrentUser user);
     bool CanManageWorkflowBuilderAdvanced(CurrentUser user);
     bool CanManageAdminConfiguration(CurrentUser user);

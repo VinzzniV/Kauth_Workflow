@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-08 — Zyklus 16 eroeffnet: Z16-S1 Inventur + Vertragsentscheidung Mitarbeiterakte done. Zyklus 15 vollstaendig abgeschlossen. Zyklen 8–15 abgeschlossen.)
+## Gesamtbewertung (Stand 2026-05-08 — Zyklus 16 aktiv: Z16-S1 + Z16-S2 done. Z16-S3 FE-Navigation offen. Zyklus 15 vollstaendig abgeschlossen. Zyklen 8–15 abgeschlossen.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|

@@ -26,6 +26,7 @@ internal interface IWorkflowRepository
 {
     Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query);
     Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query);
+    Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query);
     Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions();
     Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey);
     Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey);

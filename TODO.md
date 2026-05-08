@@ -54,11 +54,11 @@ Z16-S1 (Inventur + Vertragsentscheidung) abgeschlossen 2026-05-08.
 | Slice | Inhalt | Status |
 |-------|--------|--------|
 | Z16-S1 | Inventur + Vertragsentscheidung | done 2026-05-08 |
-| Z16-S2 | BE-Permission-Vertrag: `CanAccessPeopleDirectory` + `/people/search`-Fix + `GET /admin/people` | offen — naechster Schritt |
+| Z16-S2 | BE-Permission-Vertrag: `CanAccessPeopleDirectory` + `/people/search`-Fix + `GET /admin/people` | done 2026-05-08 |
 | Z16-S3 | FE-Navigation: `peopleDirectory`-Feature + `PersonSearchPage` + Nav-Eintrag HR/Admin | offen |
 | Z16-S4 | Automation-Snapshot-Vertrag formal (optional) | deferred — Produkt-Entscheidung Snapshot-Persistenz |
 
-Empfehlung Naechster Schritt: Z16-S2 mit `--model claude-sonnet-4-6 --effort medium`.
+Empfehlung Naechster Schritt: Z16-S3 mit `--model claude-sonnet-4-6 --effort medium`.
 
 ## Zyklusuebergreifend offen
 

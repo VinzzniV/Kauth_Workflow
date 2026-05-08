@@ -49,7 +49,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-08 — Zyklus 16 eroeffnet (Z16-S1 Review-/Vertragsschnitt Mitarbeiterakte abgeschlossen). Aktiver Zyklus: Z16 (Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag).
+**Stand**: 2026-05-08 — Zyklus 16 aktiv (Z16-S1 + Z16-S2 abgeschlossen). Aktiver Zyklus: Z16 (Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag).
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen; 2026-05-08 Z15 eroeffnet + abgeschlossen; 2026-05-08 Z16 eroeffnet).
 
 ---
@@ -135,6 +135,8 @@ Eroeffnet 2026-05-08. Thema: Die 360°-Mitarbeiterakte (`/people/:personId`) exi
 | Person vs. Identity fuer Automationen | Trennung **bleibt bestehen**: `personId` = fachlicher Anker, `directoryIdentityId` = Entra-Objekt-Anker | Wie in `KauthWorkflow/Domäne/Identity.md` und `Entscheidungen.md` verankert; Automation-Snapshot muss beide Felder plus `snapshotAt` enthalten |
 | Mindestdaten Automation-Snapshot | `personId`, `appUserId`, `directoryIdentityId`, `directoryUserPrincipalName`, **`snapshotAt`** (neu) | Ohne Zeitstempel ist nicht nachvollziehbar, welcher Identity-Stand bei einer Automation gallt — ein spaerent gelinkter Entra-Account wuerde retroaktiv alle alten Automation-Logs betreffen |
 
+**Breaking-Risk-Klaerung Z16-S2 (explizit geprueft):** Der Switch `/people/search` von `CanCreateWorkflow` auf `CanAccessWorkflowOverview` betrifft in der Theorie User, die NUR eine `workflows.create.*`-Permission haben (keine Rolle). Dieser User-Typ ist ueber das Admin-Permission-Modell erzeugbar, kommt im normalen Anlege-Flow aber nicht vor. Der Switch erweitert gleichzeitig den Zugriff fuer Reader und `WorkflowsViewDepartment`-User — semantisch korrekt, da Personensuche ein Lesevorgang ist. Entscheidung: Switch erfolgt wie in Z16-S1 beschlossen.
+
 **Slice-Plan Z16:**
 
 | Slice | Inhalt | Reihenfolge-Begruendung | Modell/Effort |
@@ -147,7 +149,7 @@ Eroeffnet 2026-05-08. Thema: Die 360°-Mitarbeiterakte (`/people/:personId`) exi
 | Befund | Prio | Status |
 |--------|------|--------|
 | Z16-S1 — Inventur + Vertragsentscheidung Mitarbeiterakte | HIGH | done 2026-05-08 |
-| Z16-S2 — BE-Permission-Vertrag + Admin-People-Endpunkt | HIGH | offen |
+| Z16-S2 — BE-Permission-Vertrag + Admin-People-Endpunkt | HIGH | done 2026-05-08 |
 | Z16-S3 — FE-Navigation: peopleDirectory-Feature + PersonSearchPage + Nav-Eintrag | HIGH | offen |
 | Z16-S4 — Automation-Snapshot-Vertrag formal (optional) | MEDIUM | deferred — wartet auf Produkt-Entscheidung Snapshot-Persistenz |
 

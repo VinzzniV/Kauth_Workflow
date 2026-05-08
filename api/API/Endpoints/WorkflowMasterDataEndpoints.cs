@@ -119,8 +119,8 @@ internal static class WorkflowMasterDataEndpoints
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
-                authorizationPolicy.CanCreateWorkflow,
-                "HR, Abteilungsleitung oder Admin role is required.");
+                authorizationPolicy.CanAccessWorkflowOverview,
+                "HR, Abteilungsleitung, Admin oder Reader role is required.");
             if (access.Error is not null)
             {
                 return access.Error;

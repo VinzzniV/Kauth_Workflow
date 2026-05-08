@@ -114,6 +114,108 @@ LIMIT @limit OFFSET @offset;";
         };
     }
 
+    public async Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+        {
+            "name_desc" => "display_name DESC, p.id DESC",
+            "department" => "d.name ASC, display_name ASC, p.id ASC",
+            "department_desc" => "d.name DESC, display_name DESC, p.id DESC",
+            "status" => "employment_status ASC, display_name ASC, p.id ASC",
+            "status_desc" => "employment_status DESC, display_name DESC, p.id DESC",
+            "id" => "p.id ASC",
+            "id_desc" => "p.id DESC",
+            _ => "display_name ASC, p.id ASC"
+        };
+
+        var sql = $@"
+SELECT
+    p.id,
+    COALESCE(
+        NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''),
+        u.display_name,
+        di.display_name,
+        'Person #' || p.id::text
+    ) AS display_name,
+    p.department_id,
+    d.name AS department_name,
+    p.current_position_role_id AS role_id,
+    r.name AS role_name,
+    p.employee_number,
+    p.badge_number,
+    COALESCE(
+        NULLIF(BTRIM(p.employment_status), ''),
+        CASE
+            WHEN p.exit_date IS NOT NULL THEN 'exited'
+            WHEN p.app_user_id IS NOT NULL THEN 'active'
+            ELSE 'planned'
+        END
+    ) AS employment_status,
+    p.entry_date,
+    p.exit_date,
+    CASE
+        WHEN p.directory_identity_id IS NOT NULL THEN 'linked'
+        WHEN p.app_user_id IS NOT NULL THEN 'user_only'
+        ELSE 'unlinked'
+    END AS directory_link_status,
+    COUNT(*) OVER() AS total_count
+FROM people p
+LEFT JOIN app_users u ON u.id = p.app_user_id
+LEFT JOIN directory_identities di ON di.id = p.directory_identity_id
+LEFT JOIN departments d ON d.id = p.department_id
+LEFT JOIN app_roles r ON r.id = p.current_position_role_id
+WHERE (
+    @search = ''
+    OR COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), ''), u.display_name, di.display_name, 'Person #' || p.id::text) ILIKE @pattern
+    OR COALESCE(d.name, '') ILIKE @pattern
+    OR COALESCE(r.name, '') ILIKE @pattern
+    OR CAST(COALESCE(p.employee_number, 0) AS TEXT) ILIKE @pattern
+)
+ORDER BY {orderBy}
+LIMIT @limit OFFSET @offset;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("search", query.NormalizedSearch);
+        command.Parameters.AddWithValue("pattern", query.SearchPattern);
+        command.Parameters.AddWithValue("limit", query.Limit);
+        command.Parameters.AddWithValue("offset", query.Offset);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var people = new List<PersonDirectoryItemDto>();
+        var total = 0;
+        while (await reader.ReadAsync())
+        {
+            people.Add(new PersonDirectoryItemDto
+            {
+                PersonId = reader.GetInt64(0),
+                DisplayName = reader.GetString(1),
+                DepartmentId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                DepartmentName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                RoleId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                RoleName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                EmployeeNumber = reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                BadgeNumber = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                EmploymentStatus = reader.IsDBNull(8) ? null : reader.GetString(8),
+                EntryDate = reader.IsDBNull(9) ? null : DateOnly.FromDateTime(reader.GetDateTime(9)),
+                ExitDate = reader.IsDBNull(10) ? null : DateOnly.FromDateTime(reader.GetDateTime(10)),
+                DirectoryLinkStatus = reader.GetString(11)
+            });
+            total = reader.GetInt32(12);
+        }
+
+        return new AdminListPageDto<PersonDirectoryItemDto>
+        {
+            Items = people,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
+    }
+
     public async Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey)
     {
         if (string.IsNullOrWhiteSpace(workflowDefinitionKey))

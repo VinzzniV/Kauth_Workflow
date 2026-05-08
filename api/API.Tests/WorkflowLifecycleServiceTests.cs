@@ -615,6 +615,7 @@ public sealed class WorkflowLifecycleServiceTests
 
         public Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query) => throw new NotSupportedException();
+        public Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query) => throw new NotSupportedException();
         public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions() => throw new NotSupportedException();
         public Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey) => throw new NotSupportedException();
         public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey) => throw new NotSupportedException();

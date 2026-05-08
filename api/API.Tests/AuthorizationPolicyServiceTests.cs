@@ -56,6 +56,27 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.False(_sut.CanAccessWorkflowOverview(user));
     }
 
+    // --- CanAccessPeopleDirectory ---
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Hr)]
+    [InlineData(AuthorizationRoles.Admin)]
+    public void CanAccessPeopleDirectory_ReturnsTrue_ForHrAndAdmin(string role)
+    {
+        var user = CreateUser(role);
+        Assert.True(_sut.CanAccessPeopleDirectory(user));
+    }
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Reader)]
+    [InlineData(AuthorizationRoles.Manager)]
+    [InlineData(AuthorizationRoles.Worker)]
+    public void CanAccessPeopleDirectory_ReturnsFalse_ForOtherRoles(string role)
+    {
+        var user = CreateUser(role);
+        Assert.False(_sut.CanAccessPeopleDirectory(user));
+    }
+
     // --- CanReadWorkflow ---
 
     [Theory]
