@@ -81,7 +81,7 @@ internal sealed class EntraGraphClient : IEntraGraphClient
 
         var response = await client.Groups[groupId].Members.GetAsync(config =>
         {
-            config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department", "employeeId"];
+            config.QueryParameters.Select = ["id", "displayName", "mail", "userPrincipalName", "accountEnabled", "department", "employeeId", "jobTitle"];
             config.QueryParameters.Top = 999;
         }, cancellationToken);
 
@@ -100,7 +100,8 @@ internal sealed class EntraGraphClient : IEntraGraphClient
                             user.DisplayName,
                             user.AccountEnabled,
                             user.Department,
-                            user.EmployeeId));
+                            user.EmployeeId,
+                            user.JobTitle));
                     }
                 }
             }

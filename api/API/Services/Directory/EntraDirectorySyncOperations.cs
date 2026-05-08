@@ -46,6 +46,7 @@ ALTER TABLE app_users
         var accountEnableds = new bool[count];
         var departmentNames = new string?[count];
         var employeeNumbers = new int?[count];
+        var jobTitles = new string?[count];
 
         var i = 0;
         foreach (var (entraId, user) in dedup)
@@ -57,14 +58,15 @@ ALTER TABLE app_users
             accountEnableds[i] = user.AccountEnabled ?? true;
             departmentNames[i] = Normalize(user.Department);
             employeeNumbers[i] = ParseDirectoryEmployeeNumber(user.EmployeeId);
+            jobTitles[i] = Normalize(user.JobTitle);
             i++;
         }
 
         const string sql = @"
-INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number, last_synced_at)
-SELECT t.entra_object_id, t.user_principal_name, t.mail, t.display_name, t.account_enabled, t.department_name, t.employee_number, NOW()
-FROM unnest(@entraObjectIds::uuid[], @upns::text[], @mails::text[], @displayNames::text[], @accountEnableds::bool[], @departmentNames::text[], @employeeNumbers::int[])
-     AS t(entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number)
+INSERT INTO directory_identities (entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number, job_title, last_synced_at)
+SELECT t.entra_object_id, t.user_principal_name, t.mail, t.display_name, t.account_enabled, t.department_name, t.employee_number, t.job_title, NOW()
+FROM unnest(@entraObjectIds::uuid[], @upns::text[], @mails::text[], @displayNames::text[], @accountEnableds::bool[], @departmentNames::text[], @employeeNumbers::int[], @jobTitles::text[])
+     AS t(entra_object_id, user_principal_name, mail, display_name, account_enabled, department_name, employee_number, job_title)
 ON CONFLICT (entra_object_id) DO UPDATE SET
     user_principal_name = EXCLUDED.user_principal_name,
     mail = EXCLUDED.mail,
@@ -72,6 +74,7 @@ ON CONFLICT (entra_object_id) DO UPDATE SET
     account_enabled = EXCLUDED.account_enabled,
     department_name = EXCLUDED.department_name,
     employee_number = EXCLUDED.employee_number,
+    job_title = EXCLUDED.job_title,
     last_synced_at = NOW()
 RETURNING id, entra_object_id;";
 
@@ -84,6 +87,7 @@ RETURNING id, entra_object_id;";
         cmd.Parameters.Add("accountEnableds", NpgsqlDbType.Array | NpgsqlDbType.Boolean).Value = accountEnableds;
         cmd.Parameters.Add("departmentNames", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = departmentNames;
         cmd.Parameters.Add("employeeNumbers", NpgsqlDbType.Array | NpgsqlDbType.Integer).Value = employeeNumbers;
+        cmd.Parameters.Add("jobTitles", NpgsqlDbType.Array | NpgsqlDbType.Text).Value = jobTitles;
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))

@@ -946,7 +946,8 @@ CREATE TABLE public.directory_identities (
     last_synced_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     department_name character varying(120),
-    employee_number integer
+    employee_number integer,
+    job_title character varying(180)
 );
 
 

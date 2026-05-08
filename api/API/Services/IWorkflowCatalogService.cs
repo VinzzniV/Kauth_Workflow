@@ -11,4 +11,15 @@ internal interface IWorkflowCatalogService
     Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchRotationEligiblePeopleAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<RequirementDto>> GetRequirementsAsync(string? workflowDefinitionKey, CancellationToken cancellationToken = default);
     Task<WorkflowConfigDto?> GetWorkflowConfigAsync(int? roleId, string? workflowDefinitionKey, CancellationToken cancellationToken = default);
+    // A1: Entra-Identitaeten ohne people-Record — Basis fuer retroaktiven Import.
+    Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentitiesAsync(
+        string? departmentFilter,
+        bool? onlyEnabled,
+        int limit,
+        int offset,
+        CancellationToken cancellationToken = default);
+    Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectoryAsync(
+        ImportPeopleFromDirectoryRequest request,
+        long? actorUserId,
+        CancellationToken cancellationToken = default);
 }

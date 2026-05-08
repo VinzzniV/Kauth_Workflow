@@ -161,6 +161,7 @@ SELECT
         WHEN p.app_user_id IS NOT NULL THEN 'user_only'
         ELSE 'unlinked'
     END AS directory_link_status,
+    di.job_title,
     COUNT(*) OVER() AS total_count
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
@@ -202,9 +203,10 @@ LIMIT @limit OFFSET @offset;";
                 EmploymentStatus = reader.IsDBNull(8) ? null : reader.GetString(8),
                 EntryDate = reader.IsDBNull(9) ? null : DateOnly.FromDateTime(reader.GetDateTime(9)),
                 ExitDate = reader.IsDBNull(10) ? null : DateOnly.FromDateTime(reader.GetDateTime(10)),
-                DirectoryLinkStatus = reader.GetString(11)
+                DirectoryLinkStatus = reader.GetString(11),
+                JobTitle = reader.IsDBNull(12) ? null : reader.GetString(12)
             });
-            total = reader.GetInt32(12);
+            total = reader.GetInt32(13);
         }
 
         return new AdminListPageDto<PersonDirectoryItemDto>
@@ -574,6 +576,316 @@ LIMIT @limit;";
         }
 
         return results;
+    }
+
+    // A1: Entra-Identitaeten die noch keinen people-Record haben.
+    // "Unlinked" bedeutet: weder via directory_identity_id noch via employee_number mit people verknuepft.
+    public async Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentities(
+        string? departmentFilter,
+        bool? onlyEnabled,
+        int limit,
+        int offset)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        var normalizedDept = departmentFilter?.Trim() ?? string.Empty;
+
+        const string sql = @"
+SELECT
+    di.id              AS directory_identity_id,
+    di.entra_object_id,
+    di.display_name,
+    di.mail,
+    di.user_principal_name,
+    di.department_name,
+    dept.id            AS preview_department_id,
+    di.employee_number,
+    di.job_title,
+    di.account_enabled,
+    di.app_user_id,
+    (di.app_user_id IS NOT NULL) AS has_linked_app_user,
+    COUNT(*) OVER ()   AS total_count
+FROM directory_identities di
+LEFT JOIN departments dept
+    ON LOWER(dept.name) = LOWER(BTRIM(COALESCE(di.department_name, '')))
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM people p
+    WHERE p.directory_identity_id = di.id
+       OR (di.employee_number IS NOT NULL AND p.employee_number = di.employee_number)
+)
+  AND (@onlyEnabled IS NULL OR di.account_enabled = @onlyEnabled)
+  AND (@deptFilter = '' OR LOWER(COALESCE(di.department_name, '')) = LOWER(@deptFilter))
+ORDER BY di.department_name ASC NULLS LAST, di.display_name ASC, di.id ASC
+LIMIT @limit OFFSET @offset;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.Add("onlyEnabled", NpgsqlDbType.Boolean).Value =
+            onlyEnabled.HasValue ? (object)onlyEnabled.Value : DBNull.Value;
+        command.Parameters.AddWithValue("deptFilter", normalizedDept);
+        command.Parameters.AddWithValue("limit", limit);
+        command.Parameters.AddWithValue("offset", offset);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var items = new List<UnlinkedDirectoryIdentityDto>();
+        var total = 0;
+        while (await reader.ReadAsync())
+        {
+            items.Add(new UnlinkedDirectoryIdentityDto
+            {
+                DirectoryIdentityId = reader.GetInt64(0),
+                EntraObjectId = reader.GetGuid(1),
+                DisplayName = reader.GetString(2),
+                Mail = reader.IsDBNull(3) ? null : reader.GetString(3),
+                UserPrincipalName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                DepartmentName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                PreviewDepartmentId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                EmployeeNumber = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                JobTitle = reader.IsDBNull(8) ? null : reader.GetString(8),
+                AccountEnabled = reader.GetBoolean(9),
+                AppUserId = reader.IsDBNull(10) ? null : reader.GetInt64(10),
+                HasLinkedAppUser = reader.GetBoolean(11)
+            });
+            total = reader.GetInt32(12);
+        }
+
+        return new AdminListPageDto<UnlinkedDirectoryIdentityDto>
+        {
+            Items = items,
+            Total = total,
+            Limit = limit,
+            Offset = offset
+        };
+    }
+
+    // A1: Erstellt people-Records fuer die uebergebenen directory_identity_ids.
+    // Erstellt KEINEN app_user. Auto-Linkt zu bestehendem app_user wenn entra_object_id matcht.
+    // Dedupliziert via directory_identity_id und employee_number.
+    public async Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectory(
+        List<long> directoryIdentityIds,
+        long? actorUserId)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        var results = new List<ImportPeopleResultItemDto>(directoryIdentityIds.Count);
+
+        foreach (var directoryIdentityId in directoryIdentityIds)
+        {
+            try
+            {
+                var item = await ImportSinglePersonFromDirectory(connection, directoryIdentityId, actorUserId);
+                results.Add(item);
+            }
+            catch (Exception ex)
+            {
+                results.Add(new ImportPeopleResultItemDto
+                {
+                    DirectoryIdentityId = directoryIdentityId,
+                    DisplayName = "?",
+                    Outcome = "skipped",
+                    SkipReason = ex.Message
+                });
+            }
+        }
+
+        return new ImportPeopleFromDirectoryResultDto
+        {
+            CreatedCount = results.Count(r => r.Outcome == "created"),
+            LinkedCount = results.Count(r => r.Outcome == "linked"),
+            SkippedCount = results.Count(r => r.Outcome == "skipped"),
+            Results = results
+        };
+    }
+
+    private static async Task<ImportPeopleResultItemDto> ImportSinglePersonFromDirectory(
+        NpgsqlConnection connection,
+        long directoryIdentityId,
+        long? actorUserId)
+    {
+        // Step 1: Load identity info + find app_user via entra_object_id (auto-link candidate)
+        const string loadSql = @"
+SELECT
+    di.display_name,
+    di.employee_number,
+    dept.id AS department_id,
+    u.id    AS matched_app_user_id
+FROM directory_identities di
+LEFT JOIN departments dept
+    ON LOWER(dept.name) = LOWER(BTRIM(COALESCE(di.department_name, '')))
+LEFT JOIN app_users u ON u.entra_object_id = di.entra_object_id
+WHERE di.id = @directoryIdentityId;";
+
+        string displayName;
+        int? employeeNumber;
+        int? departmentId;
+        long? matchedAppUserId;
+
+        await using (var loadCmd = new NpgsqlCommand(loadSql, connection))
+        {
+            loadCmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+            await using var reader = await loadCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                return new ImportPeopleResultItemDto
+                {
+                    DirectoryIdentityId = directoryIdentityId,
+                    DisplayName = "?",
+                    Outcome = "skipped",
+                    SkipReason = "Identity not found."
+                };
+            }
+            displayName = reader.GetString(0);
+            employeeNumber = reader.IsDBNull(1) ? null : reader.GetInt32(1);
+            departmentId = reader.IsDBNull(2) ? null : reader.GetInt32(2);
+            matchedAppUserId = reader.IsDBNull(3) ? null : reader.GetInt64(3);
+        }
+
+        // Step 2: Dedup — suche existierenden people-Record via directory_identity_id, employee_number oder app_user_id.
+        // Prioritaet: directory_identity_id > employee_number > app_user_id
+        const string checkSql = @"
+SELECT p.id, p.directory_identity_id
+FROM people p
+WHERE p.directory_identity_id = @directoryIdentityId
+   OR (@employeeNumber IS NOT NULL AND p.employee_number = @employeeNumber)
+   OR (@matchedAppUserId IS NOT NULL AND p.app_user_id = @matchedAppUserId)
+ORDER BY
+    CASE
+        WHEN p.directory_identity_id = @directoryIdentityId THEN 0
+        WHEN @employeeNumber IS NOT NULL AND p.employee_number = @employeeNumber THEN 1
+        ELSE 2
+    END
+LIMIT 1;";
+
+        long? existingPersonId;
+        long? existingDirId;
+
+        await using (var checkCmd = new NpgsqlCommand(checkSql, connection))
+        {
+            checkCmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+            checkCmd.Parameters.Add("employeeNumber", NpgsqlDbType.Integer).Value =
+                employeeNumber.HasValue ? (object)employeeNumber.Value : DBNull.Value;
+            checkCmd.Parameters.Add("matchedAppUserId", NpgsqlDbType.Bigint).Value =
+                matchedAppUserId.HasValue ? (object)matchedAppUserId.Value : DBNull.Value;
+
+            await using var reader = await checkCmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                existingPersonId = reader.GetInt64(0);
+                existingDirId = reader.IsDBNull(1) ? null : reader.GetInt64(1);
+            }
+            else
+            {
+                existingPersonId = null;
+                existingDirId = null;
+            }
+        }
+
+        if (existingPersonId is not null && existingDirId == directoryIdentityId)
+        {
+            // Bereits vollstaendig verknuepft — kein weiterer Handlungsbedarf.
+            return new ImportPeopleResultItemDto
+            {
+                DirectoryIdentityId = directoryIdentityId,
+                DisplayName = displayName,
+                Outcome = "skipped",
+                PersonId = existingPersonId,
+                SkipReason = "Already linked to a people record."
+            };
+        }
+
+        if (existingPersonId is not null)
+        {
+            // People-Record existiert, aber noch nicht mit dieser directory_identity verknuepft — linken.
+            const string linkSql = @"
+UPDATE people
+SET
+    directory_identity_id = @directoryIdentityId,
+    app_user_id = COALESCE(app_user_id, @matchedAppUserId),
+    updated_at = NOW()
+WHERE id = @personId
+  AND (directory_identity_id IS NULL OR directory_identity_id = @directoryIdentityId);";
+
+            await using (var linkCmd = new NpgsqlCommand(linkSql, connection))
+            {
+                linkCmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+                linkCmd.Parameters.Add("matchedAppUserId", NpgsqlDbType.Bigint).Value =
+                    matchedAppUserId.HasValue ? (object)matchedAppUserId.Value : DBNull.Value;
+                linkCmd.Parameters.AddWithValue("personId", existingPersonId);
+                await linkCmd.ExecuteNonQueryAsync();
+            }
+
+            await InsertPersonImportAuditAsync(
+                connection, existingPersonId.Value, matchedAppUserId, directoryIdentityId,
+                employeeNumber, "directory_import_link");
+
+            return new ImportPeopleResultItemDto
+            {
+                DirectoryIdentityId = directoryIdentityId,
+                DisplayName = displayName,
+                Outcome = "linked",
+                PersonId = existingPersonId
+            };
+        }
+
+        // Step 3: Neuen people-Record anlegen (kein app_user!).
+        const string insertSql = @"
+INSERT INTO people (directory_identity_id, app_user_id, department_id, updated_at)
+VALUES (@directoryIdentityId, @matchedAppUserId, @departmentId, NOW())
+RETURNING id;";
+
+        long newPersonId;
+        await using (var insertCmd = new NpgsqlCommand(insertSql, connection))
+        {
+            insertCmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+            insertCmd.Parameters.Add("matchedAppUserId", NpgsqlDbType.Bigint).Value =
+                matchedAppUserId.HasValue ? (object)matchedAppUserId.Value : DBNull.Value;
+            insertCmd.Parameters.Add("departmentId", NpgsqlDbType.Integer).Value =
+                departmentId.HasValue ? (object)departmentId.Value : DBNull.Value;
+            var scalar = await insertCmd.ExecuteScalarAsync();
+            newPersonId = (long)scalar!;
+        }
+
+        await InsertPersonImportAuditAsync(
+            connection, newPersonId, matchedAppUserId, directoryIdentityId,
+            employeeNumber, "directory_import_people");
+
+        return new ImportPeopleResultItemDto
+        {
+            DirectoryIdentityId = directoryIdentityId,
+            DisplayName = displayName,
+            Outcome = "created",
+            PersonId = newPersonId
+        };
+    }
+
+    private static async Task InsertPersonImportAuditAsync(
+        NpgsqlConnection connection,
+        long personId,
+        long? appUserId,
+        long directoryIdentityId,
+        int? employeeNumber,
+        string matchStrategy)
+    {
+        const string sql = @"
+INSERT INTO person_match_audit_log (
+    matched_person_id, app_user_id, directory_identity_id, employee_number,
+    match_strategy, match_score, fallback_used, source, detail)
+VALUES (
+    @personId, @appUserId, @directoryIdentityId, @employeeNumber,
+    @matchStrategy, 1.00, false, 'directory_import_people', NULL);";
+
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        cmd.Parameters.AddWithValue("personId", personId);
+        cmd.Parameters.Add("appUserId", NpgsqlDbType.Bigint).Value =
+            appUserId.HasValue ? (object)appUserId.Value : DBNull.Value;
+        cmd.Parameters.AddWithValue("directoryIdentityId", directoryIdentityId);
+        cmd.Parameters.Add("employeeNumber", NpgsqlDbType.Integer).Value =
+            employeeNumber.HasValue ? (object)employeeNumber.Value : DBNull.Value;
+        cmd.Parameters.AddWithValue("matchStrategy", matchStrategy);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     // Anforderungen und Rollenempfehlungen bilden die Eingabemaske fuer neue Workflows.

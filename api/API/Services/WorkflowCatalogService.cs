@@ -113,4 +113,22 @@ internal sealed class WorkflowCatalogService(
 
         return await repository.GetWorkflowConfig(roleId, workflowDefinitionKey);
     }
+
+    public async Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentitiesAsync(
+        string? departmentFilter,
+        bool? onlyEnabled,
+        int limit,
+        int offset,
+        CancellationToken cancellationToken = default)
+    {
+        return await repository.GetUnlinkedDirectoryIdentities(departmentFilter, onlyEnabled, limit, offset);
+    }
+
+    public async Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectoryAsync(
+        ImportPeopleFromDirectoryRequest request,
+        long? actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await repository.ImportPeopleFromDirectory(request.DirectoryIdentityIds, actorUserId);
+    }
 }

@@ -109,4 +109,13 @@ internal interface IWorkflowRepository
     Task<AdminListPageDto<AdminRoleAnswerDefaultDto>> GetAdminRoleAnswerDefaults(int workflowDefinitionId, AdminListQuery query);
     Task<List<AdminRoleAnswerDefaultDto>> UpsertAdminRoleAnswerDefaults(AdminRoleAnswerDefaultsBulkUpsertRequest request);
     Task<AdminDependencyGraphDto> GetAdminDependencyGraph(int workflowDefinitionId);
+    // A1: Directory-Identitaeten ohne people-Record — Grundlage fuer retroaktiven Import.
+    Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentities(
+        string? departmentFilter,
+        bool? onlyEnabled,
+        int limit,
+        int offset);
+    Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectory(
+        List<long> directoryIdentityIds,
+        long? actorUserId);
 }

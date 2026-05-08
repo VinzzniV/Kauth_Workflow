@@ -24,7 +24,8 @@ public sealed record EntraDirectoryUser(
     string? DisplayName,
     bool? AccountEnabled,
     string? Department,
-    string? EmployeeId);
+    string? EmployeeId,
+    string? JobTitle);
 
 public interface IEntraGraphClient
 {

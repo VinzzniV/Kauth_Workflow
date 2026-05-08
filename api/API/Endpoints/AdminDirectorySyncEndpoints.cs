@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace API;
 
+
 internal static class AdminDirectorySyncEndpoints
 {
     public static IEndpointRouteBuilder MapAdminDirectorySyncEndpoints(this IEndpointRouteBuilder app)
@@ -281,6 +282,37 @@ internal static class AdminDirectorySyncEndpoints
                 : Results.NotFound(new { message = "Directory mapping not found." });
         }).Produces(StatusCodes.Status204NoContent)
           .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        // A1: Entra-Identitaeten ohne people-Record. Basis fuer die Auswahlliste im Import-UI (A2).
+        // department (optional) filtert auf eine Abteilung; onlyEnabled=true (default) blendet deaktivierte Konten aus.
+        app.MapGet("/admin/directory/unlinked-identities", async (
+            [FromQuery] string? department,
+            [FromQuery] bool? onlyEnabled,
+            [FromQuery] int? limit,
+            [FromQuery] int? offset,
+            [FromServices] IWorkflowCatalogService workflowCatalogService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var effectiveOnlyEnabled = onlyEnabled ?? true;
+            var result = await workflowCatalogService.GetUnlinkedDirectoryIdentitiesAsync(
+                department,
+                effectiveOnlyEnabled,
+                Math.Clamp(limit ?? 100, 1, 500),
+                Math.Max(offset ?? 0, 0));
+            return Results.Ok(result);
+        }).Produces<AdminListPageDto<UnlinkedDirectoryIdentityDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

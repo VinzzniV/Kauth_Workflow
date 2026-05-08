@@ -610,6 +610,7 @@ export type PersonDirectoryItem = {
   departmentName: string | null;
   roleId: number | null;
   roleName: string | null;
+  jobTitle: string | null;
   employeeNumber: number | null;
   badgeNumber: number | null;
   employmentStatus: string | null;

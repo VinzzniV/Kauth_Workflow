@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace API;
@@ -26,6 +27,53 @@ internal static class AdminPeopleEndpoints
             var query = AdminListQuery.From(request);
             return Results.Ok(await workflowCatalogService.GetPeopleDirectoryAsync(query));
         }).Produces<AdminListPageDto<PersonDirectoryItemDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        // A1: Erstellt people-Records fuer die gewaehlten Entra-Identitaeten (kein app_user).
+        // Dedupliziert via directory_identity_id und employee_number.
+        // Auto-Linkt zu bestehendem app_user wenn entra_object_id matcht.
+        app.MapPost("/admin/people/import-from-directory", async (
+            [FromBody] ImportPeopleFromDirectoryRequest request,
+            [FromServices] IWorkflowCatalogService workflowCatalogService,
+            [FromServices] ISystemEventLogService systemEventLogService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            if (request.DirectoryIdentityIds is null || request.DirectoryIdentityIds.Count == 0)
+            {
+                return Results.BadRequest(new { message = "At least one directoryIdentityId is required." });
+            }
+
+            var result = await workflowCatalogService.ImportPeopleFromDirectoryAsync(
+                request,
+                access.User?.UserId);
+
+            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            {
+                Severity = result.SkippedCount > 0 && result.CreatedCount == 0 && result.LinkedCount == 0
+                    ? "warning"
+                    : "info",
+                Source = "admin",
+                Category = "people_import",
+                EventKey = "people_import_from_directory",
+                Message = $"People import from directory: {result.CreatedCount} created, {result.LinkedCount} linked, {result.SkippedCount} skipped.",
+                ActorUserId = access.User?.UserId,
+                Details = new { result.CreatedCount, result.LinkedCount, result.SkippedCount }
+            });
+
+            return Results.Ok(result);
+        }).Produces<ImportPeopleFromDirectoryResultDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
