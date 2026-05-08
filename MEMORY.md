@@ -32,7 +32,7 @@
 
 ## Current Focus
 
-- **Z18 aktiv (Frontend Full Review).** Z18-S1 (Review + Doku) ist am 2026-05-08 abgeschlossen worden. Der Zyklus ist jetzt der aktive Review-Anker fuer Frontend-Nacharbeit; die 9 priorisierten Findings stehen in `FRONTEND_TODO.md`. Naechster Schritt: Codex priorisiert die ersten Z18-Umsetzungsslices.
+- **Kein aktiver Zyklus offen.** Z18 (Frontend Full Review) ist am 2026-05-08 vollstaendig abgeschlossen worden; alle 9 Findings sind umgesetzt. FE-8 (`approval_task_template_key` → `approval_spec_key`) ist ebenfalls abgeschlossen. `FRONTEND_TODO.md` hat aktuell keine offenen Items mehr. Naechster Schritt: Codex priorisiert den naechsten Zyklus aus den verbleibenden repo-weiten Review-/Architekturthemen.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts
