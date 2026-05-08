@@ -1169,7 +1169,7 @@ public sealed class WorkflowEndpointsTests
             Name = key,
             Description = null,
             RequiresSupervisorStep = false,
-            ApprovalTaskTemplateKey = null,
+            ApprovalSpecKey = null,
             RequiresTargetPerson = true,
             IconKey = null,
             IsActive = isActive,

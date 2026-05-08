@@ -33,36 +33,36 @@ internal static class WorkflowStatusRules
     public static string? EnsureApprovalTaskConfiguration(
         string processTypeName,
         bool requiresSupervisorStep,
-        string? approvalTaskTemplateKey)
+        string? approvalSpecKey)
     {
-        var normalizedApprovalTaskTemplateKey = NormalizeTaskTemplateKey(approvalTaskTemplateKey);
-        if (requiresSupervisorStep && string.IsNullOrWhiteSpace(normalizedApprovalTaskTemplateKey))
+        var normalizedApprovalSpecKey = NormalizeTaskTemplateKey(approvalSpecKey);
+        if (requiresSupervisorStep && string.IsNullOrWhiteSpace(normalizedApprovalSpecKey))
         {
             throw new InvalidOperationException(
                 $"Der Prozesstyp '{processTypeName}' verlangt einen Supervisor-Schritt, aber kein Approval-Task ist konfiguriert.");
         }
 
-        return normalizedApprovalTaskTemplateKey;
+        return normalizedApprovalSpecKey;
     }
 
     public static string DetermineActiveWorkflowStatus(
         IReadOnlyList<(string TaskKey, string Status, bool IsRequired)> taskStates,
         string processTypeName,
         bool requiresSupervisorStep,
-        string? approvalTaskTemplateKey)
+        string? approvalSpecKey)
     {
-        approvalTaskTemplateKey = EnsureApprovalTaskConfiguration(
+        approvalSpecKey = EnsureApprovalTaskConfiguration(
             processTypeName,
             requiresSupervisorStep,
-            approvalTaskTemplateKey);
+            approvalSpecKey);
 
         var supervisorTask = taskStates.FirstOrDefault(task =>
-            !string.IsNullOrWhiteSpace(approvalTaskTemplateKey)
-            && task.TaskKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase));
+            !string.IsNullOrWhiteSpace(approvalSpecKey)
+            && task.TaskKey.Equals(approvalSpecKey, StringComparison.OrdinalIgnoreCase));
         var departmentTasks = taskStates
             .Where(task =>
-                string.IsNullOrWhiteSpace(approvalTaskTemplateKey)
-                || !task.TaskKey.Equals(approvalTaskTemplateKey, StringComparison.OrdinalIgnoreCase))
+                string.IsNullOrWhiteSpace(approvalSpecKey)
+                || !task.TaskKey.Equals(approvalSpecKey, StringComparison.OrdinalIgnoreCase))
             .ToList();
         var hasDepartmentTasksInProgress = departmentTasks.Any(task =>
             task.Status.Equals("in_progress", StringComparison.OrdinalIgnoreCase));

@@ -1788,10 +1788,10 @@ CREATE TABLE public.workflow_definitions (
     allows_manager_creation boolean DEFAULT false NOT NULL,
     requires_supervisor_step boolean DEFAULT false NOT NULL,
     requires_target_person boolean DEFAULT false NOT NULL,
-    approval_task_template_key character varying(120),
+    approval_spec_key character varying(120),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT workflow_definitions_supervisor_step_requires_approval_task CHECK (((NOT requires_supervisor_step) OR (approval_task_template_key IS NOT NULL)))
+    CONSTRAINT workflow_definitions_supervisor_step_requires_approval_spec CHECK (((NOT requires_supervisor_step) OR (approval_spec_key IS NOT NULL)))
 );
 
 

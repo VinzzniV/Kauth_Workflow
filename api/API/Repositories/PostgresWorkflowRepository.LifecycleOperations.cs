@@ -79,7 +79,7 @@ SELECT
     w.status,
     wd.name,
     wd.requires_supervisor_step,
-    wd.approval_task_template_key
+    wd.approval_spec_key
 FROM workflows w
 JOIN workflow_definitions wd ON wd.id = w.workflow_definition_id
 WHERE w.uid = @workflowUid

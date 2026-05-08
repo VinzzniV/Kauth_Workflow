@@ -18,7 +18,7 @@ Dieses Dokument fixiert die Befunde, beschreibt drei Optionen mit Tradeoffs und 
 | Publish-time Validation | `PostgresWorkflowRepository.WorkflowDefinitionGraphMappingOperations.cs:49` | Existenz-Check via `LegacyTaskTemplateExists` |
 | Startup Validation | `LifecycleStartupValidationExtensions.cs:536-549` | Drift-Check beim App-Start |
 | Runtime-Aktivierung | `PostgresWorkflowRuntimeRepository.cs:1664-1669` | `LoadActiveTaskTemplateByKey` zieht 11 Felder aus `task_templates` |
-| Approval-Matching | `PostgresWorkflowRuntimeRepository.cs:1846-1849` | Vergleicht Approval-Node-`legacyTemplateKey` gegen `workflow_definitions.approval_task_template_key` (Bruecke seit Slice 6.3d-iv) |
+| Approval-Matching | `PostgresWorkflowRuntimeRepository.cs:1846-1849` | Vergleicht Approval-Node-`legacyTemplateKey` gegen `workflow_definitions.approval_spec_key` (Bruecke seit Slice 6.3d-iv; umbenannt FE-8 2026-05-08) |
 | Builder-UI | `WorkflowBuilderStepConfigEditor.tsx:71-86` | Dropdown der TaskTemplates der aktiven Definition |
 | Tests | `WorkflowDefinitionValidationServiceTests.cs` (~12 Stellen) | Fixtures setzen `legacyTemplateKey` im Node-Config |
 
@@ -62,7 +62,7 @@ Damit ist die Aussage im TODO ("Workflow-Definitionen muessen Task-Spezifikation
 
 ### 1.4 Bestehende Bruecken im Schema, auf denen LA5 aufsetzt
 
-- `workflow_definitions.approval_task_template_key` (varchar 120) — Slice 6.3d-iv. Funktional eine Pre-Computation des per-Definition Approval-`legacyTemplateKey`.
+- `workflow_definitions.approval_spec_key` (varchar 120) — Slice 6.3d-iv (umbenannt FE-8 2026-05-08). Funktional eine Pre-Computation des per-Definition Approval-`legacyTemplateKey`.
 - `workflow_definitions.requires_target_person`, `requires_supervisor_step`, `allows_manager_creation` — fachliche Flags, die direkt an der Definition haengen (Slices 6.2/6.3d).
 
 Das Muster ist klar erkennbar: Pro neuer Sondersituation eine eigene Spalte auf `workflow_definitions`. **Das skaliert fuer LA5 nicht** — man wuerde 10+ Spalten brauchen, um die Per-Template-Felder abzubilden. LA5 muss strukturell loesen, was die Bruecken bisher ad hoc geloest haben.
@@ -136,7 +136,7 @@ Neue Tabellen analog zum bestehenden Cluster, aber **am Node statt an der Defini
 1. Option B vermeidet die Builder-UX-Regression von Option A komplett. Der Form-Editor (L7-Zyklus) hat gerade Stabilitaet erreicht; den Maßnahmen-Block beim Publish in N Knoten zu expandieren ist genau das, was der Form-Editor abschaffen wollte.
 2. Option C ist fachlich sauberer, aber doppelter Wartungsaufwand fuer Admin-UI ist nicht durch ein konkretes Problem gerechtfertigt — die heutige `task_templates` traegt beide Achsen seit Jahren ohne Drift.
 3. Option B ist **die einzige Option, die rein additiv migrierbar ist** — alle Daten passen 1:1 ins neue Schema, der Generator-Code aendert nur SQL-Quellen, das Verhalten bleibt identisch. Damit ist die Migration testbar gegen Parity-Snapshot.
-4. Die bestehenden Bruecken in `workflow_definitions` (`requires_target_person`, `approval_task_template_key`, `requires_supervisor_step`) koennen **bleiben** — sie sind Per-Definition-Flags, nicht Per-Task. Option B kollidiert nicht mit ihnen.
+4. Die bestehenden Bruecken in `workflow_definitions` (`requires_target_person`, `approval_spec_key`, `requires_supervisor_step`) koennen **bleiben** — sie sind Per-Definition-Flags, nicht Per-Task. Option B kollidiert nicht mit ihnen.
 5. Naming-Vorteil: nach LA5 heisst nichts mehr `legacy*`. `workflow_node_task_specs` ist der kanonische Name, `template_key` heisst dann `spec_key` (oder entfaellt, weil Per-Node-Identity ueber Node-Key+Version laeuft).
 
 **Was Option B konkret bedeutet (high-level Slicing fuer die Implementierungs-Session):**

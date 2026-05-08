@@ -278,7 +278,7 @@ RETURNING id, uid;";
         }
 
         const string sql = @"
-SELECT id, definition_key, name, requires_supervisor_step, approval_task_template_key, requires_target_person
+SELECT id, definition_key, name, requires_supervisor_step, approval_spec_key, requires_target_person
 FROM workflow_definitions
 WHERE definition_key = @processTypeKey
 LIMIT 1;";
@@ -298,11 +298,11 @@ LIMIT 1;";
             Key = reader.GetString(1),
             Name = reader.GetString(2),
             RequiresSupervisorStep = reader.GetBoolean(3),
-            ApprovalTaskTemplateKey = reader.IsDBNull(4) ? null : reader.GetString(4).Trim(),
+            ApprovalSpecKey = reader.IsDBNull(4) ? null : reader.GetString(4).Trim(),
             RequiresTargetPerson = reader.GetBoolean(5)
         };
 
-        WorkflowStatusRules.EnsureApprovalTaskConfiguration(record.Name, record.RequiresSupervisorStep, record.ApprovalTaskTemplateKey);
+        WorkflowStatusRules.EnsureApprovalTaskConfiguration(record.Name, record.RequiresSupervisorStep, record.ApprovalSpecKey);
         return record;
     }
 

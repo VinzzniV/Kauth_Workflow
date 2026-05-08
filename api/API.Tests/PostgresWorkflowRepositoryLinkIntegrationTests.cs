@@ -230,7 +230,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                 name,
                 description,
                 requires_supervisor_step,
-                approval_task_template_key,
+                approval_spec_key,
                 requires_target_person,
                 allows_manager_creation
             )

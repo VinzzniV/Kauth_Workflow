@@ -100,6 +100,6 @@ internal sealed class ProcessTypeCreateRecord
     public required string Key { get; init; }
     public required string Name { get; init; }
     public required bool RequiresSupervisorStep { get; init; }
-    public string? ApprovalTaskTemplateKey { get; init; }
+    public string? ApprovalSpecKey { get; init; }
     public required bool RequiresTargetPerson { get; init; }
 }

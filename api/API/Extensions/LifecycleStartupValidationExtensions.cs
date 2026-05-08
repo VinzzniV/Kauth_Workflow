@@ -12,7 +12,7 @@ internal static class LifecycleStartupValidationExtensions
     internal sealed record SupervisorProcessValidationRecord(
         string ProcessTypeKey,
         bool RequiresSupervisorStep,
-        string? ApprovalTaskTemplateKey,
+        string? ApprovalSpecKey,
         bool ApprovalTaskTemplateExists);
 
     internal sealed record PublishedWorkflowDefinitionStartupValidationRecord(
@@ -80,16 +80,16 @@ internal static class LifecycleStartupValidationExtensions
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(processType.ApprovalTaskTemplateKey))
+            if (string.IsNullOrWhiteSpace(processType.ApprovalSpecKey))
             {
                 throw new InvalidOperationException(
-                    $"Process type '{processType.ProcessTypeKey}' requires a supervisor step but has no approval_task_template_key configured. Startup aborted.");
+                    $"Process type '{processType.ProcessTypeKey}' requires a supervisor step but has no approval_spec_key configured. Startup aborted.");
             }
 
             if (!processType.ApprovalTaskTemplateExists)
             {
                 throw new InvalidOperationException(
-                    $"Configured approval task template '{processType.ApprovalTaskTemplateKey}' for process type '{processType.ProcessTypeKey}' is missing in workflow_node_task_specs. Startup aborted.");
+                    $"Configured approval spec key '{processType.ApprovalSpecKey}' for process type '{processType.ProcessTypeKey}' is missing in workflow_node_task_specs. Startup aborted.");
             }
         }
 
@@ -314,7 +314,7 @@ internal static class LifecycleStartupValidationExtensions
 SELECT
     pt.definition_key,
     pt.requires_supervisor_step,
-    pt.approval_task_template_key,
+    pt.approval_spec_key,
     EXISTS(
         SELECT 1
         FROM workflow_node_task_specs s
@@ -323,7 +323,7 @@ SELECT
         WHERE v.workflow_definition_id = pt.id
           AND v.published_at IS NOT NULL
           AND n.node_type LIKE 'measure_%'
-          AND s.spec_key = pt.approval_task_template_key
+          AND s.spec_key = pt.approval_spec_key
     ) AS approval_task_exists
 FROM workflow_definitions pt
 WHERE pt.requires_supervisor_step = TRUE

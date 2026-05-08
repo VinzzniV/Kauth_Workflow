@@ -578,7 +578,7 @@ Architekturentscheidung: Option B (Owned Tables) — siehe [[LA5-TaskSpezifikati
 **Build:** .NET clean. **377/378 Tests gruen** (1 pre-existing skip). Frontend-TS-Errors sind pre-existing, nicht von LA5.
 
 **Bewusst nicht angefasst (Watch-Items):**
-- `workflow_definitions.approval_task_template_key`-Spaltenname: semantisch ist es jetzt `_spec_key`, nominal heisst es noch `_template_key`. 30+ Files Rename, defer ohne fachlichen Druck.
+- `workflow_definitions.approval_task_template_key`-Spaltenname: umbenannt zu `approval_spec_key` in FE-8 (2026-05-08). Erledigt.
 - Frontend-DTO-Rename `AdminTaskTemplate` → `AdminTaskSpec`, `templateKey` → `specKey`. ~22 Files mechanisch.
 - Spec-Carry-Over zwischen Versionen: wenn Admin per Builder eine neue Definition-Version published, werden Specs aktuell **nicht automatisch** vom alten zum neuen Massnahmen-Node geklont. Pre-Prod ohne Versions-Wechsel-Praxis. Wenn Builder-Verwendung steigt, separat einplanen.
 

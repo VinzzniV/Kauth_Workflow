@@ -58,7 +58,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
             ],
             processTypeName: "Onboarding",
             requiresSupervisorStep: true,
-            approvalTaskTemplateKey: "supervisor_fills_document");
+            approvalSpecKey: "supervisor_fills_document");
 
         Assert.Equal("waiting_for_supervisor", status);
     }
@@ -73,7 +73,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
             ],
             processTypeName: "Offboarding",
             requiresSupervisorStep: false,
-            approvalTaskTemplateKey: null);
+            approvalSpecKey: null);
 
         Assert.Equal("waiting_for_department", status);
     }
@@ -88,7 +88,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
             ],
             processTypeName: "Abteilungsfreigabe",
             requiresSupervisorStep: true,
-            approvalTaskTemplateKey: "department_approval_custom");
+            approvalSpecKey: "department_approval_custom");
 
         Assert.Equal("waiting_for_supervisor", status);
     }
@@ -103,7 +103,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
             ],
             processTypeName: "Mutation",
             requiresSupervisorStep: false,
-            approvalTaskTemplateKey: null);
+            approvalSpecKey: null);
 
         Assert.Equal("in_progress", status);
     }

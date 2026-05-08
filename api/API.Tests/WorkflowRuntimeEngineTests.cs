@@ -58,7 +58,7 @@ public sealed class WorkflowRuntimeEngineTests
             NodeInstanceStatusByWorkflowNodeId = nodeStatuses ?? new Dictionary<long, string>(),
             PrimaryLegacyProcessTypeKey = primaryLegacyProcessTypeKey,
             RequiresSupervisorStep = requiresSupervisorStep,
-            ApprovalTaskTemplateKey = approvalTaskTemplateKey,
+            ApprovalSpecKey = approvalTaskTemplateKey,
             ApprovalSpecByNodeId = approvalSpecs ?? new Dictionary<long, RuntimeApprovalNodeHint>()
         };
 

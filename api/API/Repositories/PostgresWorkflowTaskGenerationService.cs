@@ -52,7 +52,7 @@ internal sealed class PostgresWorkflowTaskGenerationService : IWorkflowTaskGener
             ? TaskConditionEvaluator.GetPostSupervisorTemplateIds(
                 templates,
                 dependencies,
-                workflowContext.ApprovalTaskTemplateKey)
+                workflowContext.ApprovalSpecKey)
             : new HashSet<int>();
 
         var selectedTemplates = templates
@@ -63,9 +63,9 @@ internal sealed class PostgresWorkflowTaskGenerationService : IWorkflowTaskGener
                     // Das Approval-Template wird im Definition-Layer durch den runtime approval-Node
                     // als Runtime-Task erzeugt. Es darf hier nicht als Legacy-Task doppelt generiert werden.
                     if (workflowContext.RequiresSupervisorStep
-                        && !string.IsNullOrWhiteSpace(workflowContext.ApprovalTaskTemplateKey)
+                        && !string.IsNullOrWhiteSpace(workflowContext.ApprovalSpecKey)
                         && template.TemplateKey.Equals(
-                            workflowContext.ApprovalTaskTemplateKey,
+                            workflowContext.ApprovalSpecKey,
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -224,8 +224,8 @@ ON CONFLICT (workflow_task_id, depends_on_workflow_task_id) DO NOTHING;";
             var assigneeResponsibilityId = template.DefaultResponsibilityId;
             long? assigneeUserId = null;
 
-            if (!string.IsNullOrWhiteSpace(workflowContext.ApprovalTaskTemplateKey)
-                && template.TemplateKey.Equals(workflowContext.ApprovalTaskTemplateKey, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(workflowContext.ApprovalSpecKey)
+                && template.TemplateKey.Equals(workflowContext.ApprovalSpecKey, StringComparison.OrdinalIgnoreCase))
             {
                 var supervisorAssignment = await PostgresRepositorySharedHelpers.ResolveDepartmentRequirementSelectionAssignment(
                     connection,
@@ -300,7 +300,7 @@ SELECT
     w.workflow_definition_id,
     pt.name,
     pt.requires_supervisor_step,
-    pt.approval_task_template_key,
+    pt.approval_spec_key,
     measure_node.id AS measure_node_id
 FROM workflows w
 JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
@@ -333,7 +333,7 @@ LIMIT 1;";
             WorkflowDefinitionId = reader.GetInt32(0),
             ProcessTypeName = reader.GetString(1),
             RequiresSupervisorStep = reader.GetBoolean(2),
-            ApprovalTaskTemplateKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
+            ApprovalSpecKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
                 reader.GetString(1),
                 reader.GetBoolean(2),
                 reader.IsDBNull(3) ? null : reader.GetString(3)),

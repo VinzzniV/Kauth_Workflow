@@ -36,15 +36,13 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 ## Offene Items
 
-| # | Aufgabe | Prio | Aufwand | Reasoning Effort | Modell | Status |
-|---|---------|------|---------|------------------|--------|--------|
-| FE-8 | **`approval_task_template_key` → `approval_spec_key`** (LA5-Watch). Spalte auf `workflow_definitions` heisst nominell noch `_template_key`, semantisch ist es Spec-Key. ~30 Files Backend+Frontend Rename. Cosmetic-Schuld, kein Funktionsproblem. | LOW | 1 d | medium | sonnet | defer ohne Trigger |
+Keine offenen Items.
 
 ---
 
 ## Naechster sinnvoller Schritt
 
-Z18 vollstaendig abgeschlossen 2026-05-08: alle 9 Findings erledigt. Kein offener Z18-Schritt. Naechster Schritt: Codex priorisiert neuen Zyklus.
+Z18 vollstaendig abgeschlossen 2026-05-08: alle 9 Findings erledigt. FE-8 abgeschlossen 2026-05-08: kein offener FRONTEND_TODO-Eintrag mehr. Naechster Schritt: Codex priorisiert neuen Zyklus.
 
 ---
 
@@ -64,6 +62,7 @@ Z18 vollstaendig abgeschlossen 2026-05-08: alle 9 Findings erledigt. Kein offene
 - `2026-05-06` `Z11-F3` P1-Hull fuer sieben scoped Builder-Endpunkte im FE aufgenommen: `services/adminConfigApi.ts`-Wrapper (`getAdminTaskTemplates`, `…Conditions`, `…Dependencies`, `getAdminAnswerDefinitions`, `getAdminRoleAnswerDefaults`, `getAdminWorkflowDefinitions`, `getAdminWorkflowActionDefinitions`) liefern jetzt `Promise<AdminListPage<T>>`; alle Builder-Hooks (`useAdminTaskTemplateData`, `useAdminAnswerDefinitionManagement`, `useAdminRoleAnswerDefaults`, `useAdminWorkflowVersionReferenceData`, `useAdminWorkflowBuilder`) lesen pragmatisch `page.items` mit `limit: 200`. UX-Prinzip: Vertrag zuerst vereinheitlichen — sichtbare Paging-/Filter-UI mit URL-Query-Filterzustand bleibt eigenstaendiger UI-Slice ausserhalb Z11 (bewusste Restgrenze).
 - `2026-05-08` `Z18-S2` Batch A abgeschlossen: F1 `.card-form`-Klasse eingefuehrt, `.dashboard-card` von 5 Formular-Containern entfernt; F2 `rotation-form-card` Ghost-Klasse entfernt; F3 `web/src/utils/employmentStatus.ts` erstellt, Duplikate aus 5 Dateien entfernt; F5 `scope="col"` auf alle 6 `<th>` in `PeopleDirectoryPage` gesetzt; F8 `offset` als URL-Param `page` in `PeopleDirectoryPage` persistiert; F9 `aria-controls` auf Area-Tab-Buttons in `AdminWorkspaceNavigation` verdrahtet. Build + 274 Tests gruen.
 - `2026-05-08` `Z18-S3` Batch B abgeschlossen: F6 `useSupervisorWorkflows`-Hook + `useSupervisorStep`-Hook neu in `web/src/hooks/useSupervisorWorkflows.ts`; `SupervisorStepPage` auf `useQuery`/`useMutation` umgestellt, kein manuelles `setQueueLoading`/`setQueueError`/`setIsSaving` mehr; F7 Auto-Select-Fallback `?? sortedRows[0] ?? null` aus `WorkflowListResults` entfernt; `useEffect` ergaenzt: Reset bei Seitenwechsel wenn uid nicht mehr in rows; 4 neue Tests `WorkflowListResults.test.tsx`. Build + 278 Tests gruen.
+- `2026-05-08` `FE-8` abgeschlossen: `approval_task_template_key` → `approval_spec_key` vollstaendig umbenannt in `db/01_schema.sql` (Spalte + Constraint), allen SQL-Strings in `api/`, allen C#-Eigenschaften (`ApprovalTaskTemplateKey` → `ApprovalSpecKey`) und C#-Parameternamen. Vault-Docs und Status-Spiegel nachgezogen. Build + Tests gruen. Keine offenen Items mehr in FRONTEND_TODO.
 - `2026-05-08` `Z18-F4` / `Z18-S4` abgeschlossen: `WorkflowSearchPage.tsx` entfernt; `/search`-Route ist jetzt ein `SearchParamsRedirect` (`Navigate` mit erhaltenen Query-Params `q`, `dept`, `type`, `status`) auf `/workflows`. `WorkflowListFilters.tsx`: „Zur gezielten Suche"-Link entfernt; `Link`-Import entfernt. `PersonWorkflowHistoryPage.tsx`: Breadcrumb `/search` → `/workflows`. `useRoleAwareNavigation.ts`: `workflowSearch`-Action + `magnifyingGlassIcon` entfernt; `surface`-Parameter aus `collectActionKeys` entfernt. `roleModel.ts`: `workflowSearch` aus `AppFeature` und `canAccessFeature`-Switch entfernt. `WorkflowSearchPage.test.tsx` auf 6 Redirect-Tests umgeschrieben. Build + 280 Tests gruen. **Z18 vollstaendig abgeschlossen.**
 
 ---

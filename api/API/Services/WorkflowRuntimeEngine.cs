@@ -588,7 +588,7 @@ internal static class WorkflowRuntimeEngine
         }
 
         if (!snapshot.RequiresSupervisorStep
-            || string.IsNullOrWhiteSpace(snapshot.ApprovalTaskTemplateKey))
+            || string.IsNullOrWhiteSpace(snapshot.ApprovalSpecKey))
         {
             return false;
         }
@@ -610,7 +610,7 @@ internal static class WorkflowRuntimeEngine
 
         return string.Equals(
             approvalSpec.TemplateKey,
-            snapshot.ApprovalTaskTemplateKey,
+            snapshot.ApprovalSpecKey,
             StringComparison.OrdinalIgnoreCase);
     }
 

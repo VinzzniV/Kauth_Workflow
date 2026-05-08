@@ -618,7 +618,7 @@ public sealed class AdminProcessTypeDto
     public required string Name { get; init; }
     public string? Description { get; init; }
     public required bool RequiresSupervisorStep { get; init; }
-    public string? ApprovalTaskTemplateKey { get; init; }
+    public string? ApprovalSpecKey { get; init; }
     public required bool RequiresTargetPerson { get; init; }
     public string? IconKey { get; init; }
     public required bool IsActive { get; init; }

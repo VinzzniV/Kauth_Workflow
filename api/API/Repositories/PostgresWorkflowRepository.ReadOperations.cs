@@ -41,8 +41,8 @@ SELECT
     t.task_key,
     CASE
         WHEN t.node_instance_id IS NOT NULL THEN COALESCE(runtime_node.node_type = 'approval', FALSE)
-        WHEN pt.approval_task_template_key IS NULL THEN FALSE
-        ELSE t.task_key = pt.approval_task_template_key
+        WHEN pt.approval_spec_key IS NULL THEN FALSE
+        ELSE t.task_key = pt.approval_spec_key
     END,
     t.node_instance_id IS NOT NULL,
     t.title,
@@ -365,8 +365,8 @@ SELECT
     wt.task_key,
     CASE
         WHEN wt.node_instance_id IS NOT NULL THEN COALESCE(runtime_node.node_type = 'approval', FALSE)
-        WHEN pt.approval_task_template_key IS NULL THEN FALSE
-        ELSE wt.task_key = pt.approval_task_template_key
+        WHEN pt.approval_spec_key IS NULL THEN FALSE
+        ELSE wt.task_key = pt.approval_spec_key
     END,
     wt.node_instance_id IS NOT NULL,
     wt.title,

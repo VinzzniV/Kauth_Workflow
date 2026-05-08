@@ -244,7 +244,7 @@ Frontend-Folgen: aktuell **keine**. Z8 ist backend-fokussiert; FE-Items entstehe
 | L2 | Datenbereinigung Drafts | deferred — Produkt-Entscheidung |
 | LQ2-Z3 | `EntraDirectorySyncService` Split + Coverage Z8-2.3-Batch-Helfer | abgeschlossen als Zyklus 9 (2026-05-05) |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein kleiner SQL-Hebel |
-| FE-8 | `approval_task_template_key` → `approval_spec_key` Rename | defer ohne Trigger |
+| FE-8 | `approval_task_template_key` → `approval_spec_key` Rename | **abgeschlossen 2026-05-08** |
 
 ---
 

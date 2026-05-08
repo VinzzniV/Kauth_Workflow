@@ -81,8 +81,8 @@ SELECT
     wt.task_key,
     CASE
         WHEN wt.node_instance_id IS NOT NULL THEN COALESCE(n.node_type = 'approval', FALSE)
-        WHEN pt.approval_task_template_key IS NULL THEN FALSE
-        ELSE wt.task_key = pt.approval_task_template_key
+        WHEN pt.approval_spec_key IS NULL THEN FALSE
+        ELSE wt.task_key = pt.approval_spec_key
     END,
     wt.title,
     wt.node_instance_id,
@@ -346,7 +346,7 @@ SELECT
     w.status,
     pt.name,
     pt.requires_supervisor_step,
-    pt.approval_task_template_key
+    pt.approval_spec_key
 FROM workflows w
 JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
 WHERE w.id = @workflowId

@@ -221,8 +221,8 @@ WHERE wt.workflow_id = @workflowId
   AND wt.status IN ('open', 'ready')
   AND (
       wt.node_instance_id IS NOT NULL
-      OR pt.approval_task_template_key IS NULL
-      OR wt.task_key <> pt.approval_task_template_key
+      OR pt.approval_spec_key IS NULL
+      OR wt.task_key <> pt.approval_spec_key
   )
   AND ta.assignee_user_id IS NOT NULL
   AND (
@@ -381,8 +381,8 @@ WHERE wt.workflow_id = @workflowId
   AND wt.status IN ('open', 'ready')
   AND (
       wt.node_instance_id IS NOT NULL
-      OR pt.approval_task_template_key IS NULL
-      OR wt.task_key <> pt.approval_task_template_key
+      OR pt.approval_spec_key IS NULL
+      OR wt.task_key <> pt.approval_spec_key
   )
   AND ta.assignee_user_id IS NOT NULL
   AND (
