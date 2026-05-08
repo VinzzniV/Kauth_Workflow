@@ -5,6 +5,7 @@ import {
   renderAnswerWorkspace,
   renderDefaultWorkspace,
   renderDirectoryWorkspace,
+  renderEntraImportWorkspace,
   renderMassnahmenvorlagenWorkspace,
   renderOverviewWorkspace,
   renderPersonenWorkspace,
@@ -32,6 +33,8 @@ export function AdminConfigWorkspaceContent(props: AdminConfigWorkspaceContentPr
       return renderAccessWorkspace(props);
     case "directory":
       return renderDirectoryWorkspace(props);
+    case "entra_import":
+      return renderEntraImportWorkspace();
     case "templates":
       return renderTemplateWorkspace(props);
     case "builder":

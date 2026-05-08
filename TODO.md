@@ -108,15 +108,9 @@ Aktuell entsteht ein `people`-Record fast ausschließlich durch das Anlegen eine
 `POST /admin/people/import-from-directory` und `GET /admin/directory/unlinked-identities` implementiert.
 Dedup via `directory_identity_id`, `employee_number` und `app_user_id`. Auto-Link zu bestehendem `app_user` via `entra_object_id`. Audit-Log in `person_match_audit_log`. Build: 0 CS-Fehler, 424 Tests gruen. Bereits im Repo gestaged (inkl. `job_title`-WIP-Durchleitung).
 
-#### A2 – Import-UI (Admin)
+#### A2 – Import-UI (Admin) ✅ abgeschlossen (2026-05-08)
 
-| Feld | Wert |
-|------|------|
-| **Was** | Neuer Admin-Bereich „Aus Entra importieren": Liste aller `directory_identities` ohne people-Record, gruppiert nach Abteilung, auswählbar per Checkbox. Vorschau was angelegt wird (Name, Abteilung, Stelle aus job_title). Import-Button. Deaktivierte Entra-Konten standardmäßig ausgeblendet. |
-| **Warum** | Admin braucht Kontrolle darüber, wer importiert wird (nicht alle Entra-User sind Mitarbeitende). Abteilungs-Gruppierung passt zu bestehendem UI-Pattern. |
-| **Effort** | `medium` — etablierte Admin-UI-Patterns vorhanden, neue Sektion im bestehenden Admin-Bereich |
-| **Modell** | `claude-sonnet-4-6` |
-| **CLI** | `--model claude-sonnet-4-6 --effort medium` |
+Neue Admin-Sektion „Aus Entra importieren" unter `personen_zugriff`. Selbstständige Komponente `AdminEntraImportSection` mit useQuery/useMutation. Abteilungs-Gruppierung, per-Gruppe und global Select-All, Vorschau (Name, UPN, Stelle, Konto-Status), Toggle für deaktivierte Konten (standardmäßig ausgeblendet), Import-Button mit Ergebnisbanner. Build: 0 TS-Fehler, 280 Tests grün.
 
 #### A3 – Mitarbeiterkarte: fehlende Felder + retroaktiver Status
 

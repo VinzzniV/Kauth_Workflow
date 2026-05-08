@@ -18,6 +18,7 @@ export type AdminWorkspaceSection =
   | "defaults"
   | "access"
   | "directory"
+  | "entra_import"
   | "system_logs"
   | "system_mail_templates"
   | "system_configuration";
@@ -330,6 +331,27 @@ export const ADMIN_WORKSPACE_SECTION_META: AdminWorkspaceSectionMeta[] = [
     riskNote: "Falsche Gruppen-Mappings verteilen Rechte schnell breit. Änderungen deshalb zuerst mit kleiner Gruppe oder nach gezieltem Sync prüfen.",
   },
   {
+    key: "entra_import",
+    label: "Aus Entra importieren",
+    description: "Bestehende Entra-Mitarbeitende retroaktiv als Mitarbeiterkarte anlegen.",
+    navLabel: "Aus Entra importieren",
+    navDescription: "Entra-Mitarbeitende ohne Mitarbeiterkarte retroaktiv importieren.",
+    area: "personen_zugriff",
+    introTitle: "Bestehende Mitarbeitende aus Entra importieren",
+    introDescription:
+      "Mitarbeitende, die bereits in Entra/AD existieren aber noch keine Mitarbeiterkarte in kauth_workflow haben, können hier retroaktiv angelegt werden — ohne Login-Konto zu vergeben.",
+    whatYouCanDo: [
+      "Entra-Mitarbeitende ohne Mitarbeiterkarte auswählen und importieren",
+      "Abteilungsweise Vorschau auf Name, Abteilung und Stelle prüfen",
+      "Bestehende App-Zugänge werden beim Import automatisch verknüpft",
+    ],
+    affectedObjects: ["Mitarbeiterkarten (people)", "Entra-Identitäten"],
+    impactNote:
+      "Importierte Mitarbeitende erhalten sofort eine vollständige Mitarbeiterkarte und sind für Vorgänge wie Offboarding oder Stellenwechsel verfügbar.",
+    riskNote:
+      "Nur Entra-Mitarbeitende importieren, die tatsächlich Mitarbeitende des Unternehmens sind — nicht alle Entra-Identitäten sind für kauth_workflow relevant.",
+  },
+  {
     key: "system_logs",
     label: "Logs",
     description: "Zentrale Betriebslogs, Fehler und technische Ereignisse app-weit überwachen.",
@@ -393,7 +415,7 @@ export const ADMIN_WORKSPACE_AREA_META: AdminWorkspaceAreaMeta[] = [
     label: "Personen & Zugriff",
     description: "Personen, Abteilungen, Zuständigkeiten und App-Rechte gemeinsam pflegen.",
     defaultSection: "personen",
-    sections: ["personen", "abteilungen", "zustaendigkeiten", "access", "directory"],
+    sections: ["personen", "abteilungen", "zustaendigkeiten", "access", "directory", "entra_import"],
   },
   {
     key: "massnahmen_rotation",
@@ -450,6 +472,7 @@ export function normalizeAdminWorkspaceSection(value: string | null): AdminWorks
     case "builder":
     case "access":
     case "directory":
+    case "entra_import":
     case "system_logs":
     case "system_mail_templates":
     case "system_configuration":

@@ -238,6 +238,36 @@ export type DirectoryImportResult = {
   failed: Array<{ directoryIdentityId: number; reason: string }>;
 };
 
+// A2: Entra-Identitaet ohne people-Record — Auswahlelement im Import-UI.
+export type UnlinkedDirectoryIdentity = {
+  directoryIdentityId: number;
+  entraObjectId: string;
+  displayName: string;
+  mail: string | null;
+  userPrincipalName: string | null;
+  departmentName: string | null;
+  previewDepartmentId: number | null;
+  employeeNumber: number | null;
+  jobTitle: string | null;
+  accountEnabled: boolean;
+  appUserId: number | null;
+  hasLinkedAppUser: boolean;
+};
+
+// A2: Ergebnis des POST /admin/people/import-from-directory.
+export type ImportPeopleFromDirectoryResult = {
+  createdCount: number;
+  linkedCount: number;
+  skippedCount: number;
+  results: Array<{
+    directoryIdentityId: number;
+    displayName: string;
+    outcome: "created" | "linked" | "skipped";
+    personId: number | null;
+    skipReason: string | null;
+  }>;
+};
+
 export type DirectoryResponsibilityCandidate = {
   appUserId: number;
   displayName: string;

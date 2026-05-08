@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AdminDirectoryPendingImportsSection } from "./AdminDirectoryPendingImportsSection";
 import { AdminDirectorySyncSection } from "./AdminDirectorySyncSection";
+import { AdminEntraImportSection } from "./AdminEntraImportSection";
 import { AdminFieldConfigurationWorkspaceSection } from "./AdminFieldConfigurationWorkspaceSection";
 import { AdminGroupMappingSection } from "./AdminGroupMappingSection";
 import { AdminAbteilungenSection } from "./AdminAbteilungenSection";
@@ -195,6 +196,10 @@ export function renderDirectoryWorkspace(props: AdminConfigWorkspaceContentProps
       />
     </div>
   );
+}
+
+export function renderEntraImportWorkspace() {
+  return renderWorkspaceWithIntro("entra_import", <AdminEntraImportSection />);
 }
 
 export function renderSystemLogsWorkspace() {
