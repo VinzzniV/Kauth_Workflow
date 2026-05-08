@@ -273,6 +273,26 @@ export async function deleteAdminDepartment(departmentId: number): Promise<void>
   });
 }
 
+export async function getDepartmentEntraJobTitles(departmentId: number): Promise<string[]> {
+  const result = await requestJson<{ jobTitle: string }[]>(
+    `/admin/master-data/departments/${encodeId(departmentId)}/entra-job-titles`
+  );
+  return result.map((r) => r.jobTitle);
+}
+
+export async function importDepartmentPositionsFromEntra(
+  departmentId: number,
+  jobTitles: string[]
+): Promise<{ created: number; skipped: number }> {
+  return requestJson<{ created: number; skipped: number }>(
+    `/admin/master-data/departments/${encodeId(departmentId)}/positions/import-from-entra`,
+    {
+      method: "POST",
+      body: { jobTitles },
+    }
+  );
+}
+
 export async function createAdminDepartmentPosition(
   departmentId: number,
   positionName: string

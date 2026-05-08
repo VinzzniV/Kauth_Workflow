@@ -410,6 +410,22 @@ public sealed class AdminDepartmentPositionCreateRequest
     public required string PositionName { get; init; }
 }
 
+public sealed class EntraJobTitleDto
+{
+    public required string JobTitle { get; init; }
+}
+
+public sealed class ImportPositionsFromEntraRequest
+{
+    public required List<string> JobTitles { get; init; }
+}
+
+public sealed class ImportPositionsFromEntraResult
+{
+    public required int Created { get; init; }
+    public required int Skipped { get; init; }
+}
+
 public sealed class AdminDepartmentPositionUpdateRequest
 {
     public required string PositionName { get; init; }

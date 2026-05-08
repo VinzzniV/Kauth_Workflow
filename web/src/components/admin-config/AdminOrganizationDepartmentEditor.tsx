@@ -10,6 +10,7 @@ import {
 } from "./adminConfigHelpers";
 import { isEligibleSupervisorSelection } from "./adminWorkspaceModel";
 import type { DepartmentDraft, PositionDraft } from "./adminOrganizationTypes";
+import { AdminDepartmentEntraImportSection } from "./AdminDepartmentEntraImportSection";
 
 type AdminOrganizationDepartmentEditorProps = {
   selectedDepartment: AdminDepartmentAssignment | null;
@@ -339,6 +340,11 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
           </div>
         )}
       </section>
+
+      <AdminDepartmentEntraImportSection
+        departmentId={selectedDepartment.departmentId}
+        existingPositions={props.selectedDepartmentPositions}
+      />
     </section>
   );
 }

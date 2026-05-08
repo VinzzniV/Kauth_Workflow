@@ -1770,4 +1770,117 @@ WHERE id = ANY(@groupIds)
             throw new InvalidOperationException("One or more groups are invalid or inactive.");
         }
     }
+
+    public async Task<List<EntraJobTitleDto>> GetDepartmentEntraJobTitles(
+        int departmentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (departmentId <= 0)
+        {
+            return [];
+        }
+
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+
+        const string sql = """
+SELECT DISTINCT di.job_title
+FROM directory_identities di
+JOIN departments d ON d.name ILIKE di.department_name
+WHERE d.id = @departmentId
+  AND di.job_title IS NOT NULL
+  AND di.job_title <> ''
+ORDER BY di.job_title;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("departmentId", departmentId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var result = new List<EntraJobTitleDto>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result.Add(new EntraJobTitleDto { JobTitle = reader.GetString(0) });
+        }
+
+        return result;
+    }
+
+    public async Task<ImportPositionsFromEntraResult> ImportDepartmentPositionsFromEntra(
+        int departmentId,
+        IReadOnlyList<string> jobTitles,
+        CancellationToken cancellationToken = default)
+    {
+        if (departmentId <= 0)
+        {
+            throw new InvalidOperationException("departmentId must be greater than zero.");
+        }
+
+        var normalized = jobTitles
+            .Select(t => t.Trim())
+            .Where(t => t.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0)
+        {
+            return new ImportPositionsFromEntraResult { Created = 0, Skipped = 0 };
+        }
+
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        if (!await DepartmentExists(connection, transaction, departmentId, cancellationToken))
+        {
+            throw new InvalidOperationException("Selected department is invalid.");
+        }
+
+        const string existingSql = """
+SELECT name FROM app_roles
+WHERE department_id = @departmentId
+  AND role_kind = 'position';
+""";
+
+        var existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var cmd = new NpgsqlCommand(existingSql, connection, transaction))
+        {
+            cmd.Parameters.AddWithValue("departmentId", departmentId);
+            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                existingNames.Add(reader.GetString(0));
+            }
+        }
+
+        var created = 0;
+        var skipped = 0;
+
+        foreach (var title in normalized)
+        {
+            if (existingNames.Contains(title))
+            {
+                skipped++;
+                continue;
+            }
+
+            var roleKey = await GenerateUniquePositionRoleKey(connection, transaction, departmentId, title, cancellationToken);
+
+            const string insertSql = """
+INSERT INTO app_roles (department_id, role_key, name, role_kind, is_active)
+VALUES (@departmentId, @roleKey, @name, 'position', TRUE);
+""";
+            await using var insertCmd = new NpgsqlCommand(insertSql, connection, transaction);
+            insertCmd.Parameters.AddWithValue("departmentId", departmentId);
+            insertCmd.Parameters.AddWithValue("roleKey", roleKey);
+            insertCmd.Parameters.AddWithValue("name", title);
+            await insertCmd.ExecuteNonQueryAsync(cancellationToken);
+
+            existingNames.Add(title);
+            created++;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return new ImportPositionsFromEntraResult { Created = created, Skipped = skipped };
+    }
 }

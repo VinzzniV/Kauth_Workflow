@@ -207,6 +207,58 @@ internal static class AdminOrgEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        app.MapGet("/admin/master-data/departments/{departmentId:int}/entra-job-titles", async (
+            int departmentId,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            return Results.Ok(await userAuthorizationRepository.GetDepartmentEntraJobTitles(departmentId));
+        }).Produces<List<EntraJobTitleDto>>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
+        app.MapPost("/admin/master-data/departments/{departmentId:int}/positions/import-from-entra", async (
+            int departmentId,
+            [FromBody] ImportPositionsFromEntraRequest request,
+            IUserAuthorizationRepository userAuthorizationRepository,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            try
+            {
+                var result = await userAuthorizationRepository.ImportDepartmentPositionsFromEntra(
+                    departmentId,
+                    request.JobTitles);
+                return Results.Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        }).Produces<ImportPositionsFromEntraResult>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPost("/admin/master-data/departments/{departmentId:int}/positions", async (
             int departmentId,
             [FromBody] AdminDepartmentPositionCreateRequest request,

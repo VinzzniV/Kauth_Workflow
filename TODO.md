@@ -124,17 +124,9 @@ Neue Admin-Sektion „Aus Entra importieren" unter `personen_zugriff`. Selbstst�
 
 ---
 
-### Feature B – Entra-Stellenbezeichnungen in Abteilungs-Stellen importieren
+### Feature B – Entra-Stellenbezeichnungen in Abteilungs-Stellen importieren ✅ abgeschlossen (2026-05-08)
 
-**Kontext:** `directory_identities.job_title` enthält die Entra-Berufsbezeichnungen. „Stellen dieser Abteilung" (`app_roles` mit `role_kind = 'position'`) werden aktuell nur manuell angelegt. Der Admin soll mit einem Klick alle eindeutigen Entra-Bezeichnungen der Abteilung als Vorschlag sehen und per Checkbox importieren.
-
-| Feld | Wert |
-|------|------|
-| **Was** | Neuer Endpunkt `GET /admin/master-data/departments/{id}/entra-job-titles` (DISTINCT job_title per department_name-Match) · Neuer Endpunkt `POST /admin/master-data/departments/{id}/positions/import-from-entra` · Checkbox-UI in `AdminOrganizationDepartmentEditor.tsx`, bereits vorhandene als markiert |
-| **Warum** | Manuelle Erfassung ist fehleranfällig, besonders beim retroaktiven Bootstrapping. Die Daten liegen bereits vor. |
-| **Effort** | `low` — klar abgegrenzter Scope, nutzt bestehende `CreateDepartmentPosition`-Logik intern |
-| **Modell** | `claude-sonnet-4-6` |
-| **CLI** | `--model claude-sonnet-4-6 --effort low` |
+`GET /admin/master-data/departments/{id}/entra-job-titles` und `POST …/positions/import-from-entra` implementiert. Checkbox-UI als `AdminDepartmentEntraImportSection` in `AdminOrganizationDepartmentEditor` eingebettet; bereits vorhandene Stellen markiert und deaktiviert. Build: 0 BE-Fehler, 0 FE-Fehler. Tests: 494 BE grün, 280 FE grün.
 
 ---
 

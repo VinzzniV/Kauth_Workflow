@@ -19,6 +19,8 @@ internal interface IUserAuthorizationRepository
         int departmentId,
         string positionName,
         CancellationToken cancellationToken = default);
+    Task<List<EntraJobTitleDto>> GetDepartmentEntraJobTitles(int departmentId, CancellationToken cancellationToken = default);
+    Task<ImportPositionsFromEntraResult> ImportDepartmentPositionsFromEntra(int departmentId, IReadOnlyList<string> jobTitles, CancellationToken cancellationToken = default);
     Task<AdminRoleDto?> UpdateDepartmentPosition(
         int positionId,
         string positionName,

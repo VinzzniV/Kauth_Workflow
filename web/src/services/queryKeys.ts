@@ -64,5 +64,6 @@ export const queryKeys = {
     workflowConfig: () => ["admin", "workflow-config"] as const,
     runtimeHealth: () => ["admin", "runtime-health"] as const,
     unlinkedIdentities: (onlyEnabled: boolean) => ["admin", "unlinked-identities", onlyEnabled] as const,
+    departmentEntraJobTitles: (departmentId: number) => ["admin", "department-entra-job-titles", departmentId] as const,
   },
 };
