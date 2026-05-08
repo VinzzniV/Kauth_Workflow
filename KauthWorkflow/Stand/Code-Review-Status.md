@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-07 — Zyklus 14 abgeschlossen (Mehrrollen-Persona-Kollisionen, reiner Review-/Planungszyklus; Z14-1.1 Inventur done, Z14-1.2 Vertrags-/UX-Entscheidung done, Z14-1.3 Slice-Plan Folgezyklus done); kein aktiver Zyklus, naechster Folgezyklus Codex-Entscheid; Zyklus 13 abgeschlossen: Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block (Z13-1 + Z13-2 done); Zyklus 12 abgeschlossen; Zyklus 11/10/9/8 abgeschlossen)
+## Gesamtbewertung (Stand 2026-05-08 — Zyklus 15 aktiv: Implementierungszyklus Mehrrollen-Persona (Z15-S1 `useActiveView`-Hook done; Z15-S2 Override-Stellen + Z15-S3 Switcher offen); Zyklus 14 abgeschlossen: Mehrrollen-Persona-Kollisionen Review-/Planungszyklus; Zyklus 13 abgeschlossen; Zyklus 12/11/10/9/8 abgeschlossen)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -60,6 +60,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — abgeschlossen (Z12-1.1 done; Z12-1.2 done; Z12-2.1 done: `GET /admin/runtime-health` + `AdminRuntimeHealthService` + 42 Tests; Z12-2.2 done: Frontend Betriebsblock mit Severity-Badge, API-Prozess/Abhaengigkeiten/Storage-Kacheln) |
 | 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen (Z13-1 Zykluseroeffnung/Scope; Z13-2 Implementierung done: HostHealthDto + procfs-Leser + FE-Kachel + compose.prod.yml + start-vm.sh dev + 50 Tests gruen) |
 | 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — abgeschlossen (Z14-1.1 Inventur done; Z14-1.2 Vertrags-/UX-Entscheidung done; Z14-1.3 Slice-Plan Folgezyklus done) |
+| 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — aktiv (Z15-S1 `useActiveView`-Hook done; Z15-S2 Override-Stellen offen; Z15-S3 Switcher offen) |
 
 ---
 

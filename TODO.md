@@ -56,9 +56,23 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus, abgeschlossen 2026-05-07
 | Z14-1.2 | Vertrags-/UX-Entscheidung: Begriffsklaerung + Optionen-Skizze fuer Mehrrollen-Behandlung (Switcher / Aggregat / Vorrang / Login-Auswahl) | HIGH | done 2026-05-07 — Vertrag in `CODE_REVIEW.md` § Z14-1.2 (Begriffsraster Rolle/Persona/aktive Ansicht; vier Optionen mit Pro/Contra; Vorzugsrichtung Persona-Switcher mit Vorrangs-Default + Persistenz, Admin-Vorrang als Default-Regel, Fallback `generic`; Vertragspflichten Default/Persistenz/Fallback/Schalter/Login-Routing getrennt; Capability-Schicht und Routen-Guards explizit unberuehrt; Andock an `loadDashboardInsights`/Query-Key/`DashboardOverview`-Schalter beschrieben) |
 | Z14-1.3 | Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung | HIGH | done 2026-05-07 — Slice-Plan in `CODE_REVIEW.md` § Z14-1.3 (drei Slices: I „aktive Ansicht" als reines Datenmodell + Persistenz + Fallback ohne Sicht-Konsumenten; II zwei Override-Stellen aus Z14-1.1 zusammen auf die neue Quelle umstellen; III sichtbarer Persona-Switcher nur fuer `hasMultipleRoles === true`; Reihenfolge Datenmodell → Routing/Sicht → UI; pro Slice Modell `claude-sonnet-4-6` + `--effort medium`; Loader und drei `DashboardOverview`-Schalter bleiben unangetastet) |
 
-**Zyklus 14 vollstaendig abgeschlossen (2026-05-07).** Kein aktiver Zyklus.
+**Zyklus 14 vollstaendig abgeschlossen (2026-05-07).** Zyklus 15 aktiv (2026-05-08).
 
-**Naechster Schritt:** Codex eroeffnet den Folgezyklus (Arbeitstitel Zyklus 15) auf Basis Z14-1.3 Slice I (Datenmodell „aktive Ansicht") und erzwingt `--model claude-sonnet-4-6` + `--effort medium` per CLI.
+---
+
+## Aktiver Zyklus 15 — Implementierung Mehrrollen-Persona (2026-05-08)
+
+Eroeffnet 2026-05-08 auf Basis Z14-1.3. Implementierungszyklus in drei Slices.
+
+**Praktisch:** Nutzer mit mehreren Rollen landen heute auf einem leeren Generic-Dashboard. Nach Z15 sehen sie per Default ihre maechtgiste Rolle. **Lohnenswert:** betrifft die Power-User des Systems; zentraler Hebel mit wenig Flaeche. **Nutzen:** kein ungefuelltes Generic-Dashboard mehr; sauberer Hook-Vertrag als Basis fuer spaeteren Switcher.
+
+| ID | Aufgabe | Prio | Status |
+|----|---------|------|--------|
+| Z15-S1 | Datenmodell: `useActiveView`-Hook + Fallback-Kaskade + Persistenz + Tests | HIGH | **done 2026-05-08** |
+| Z15-S2 | Override-Stellen: `useRoleAwareNavigation.ts:253` + `roleModel.ts:210` auf `useActiveView` umstellen | HIGH | offen — naechster Schritt |
+| Z15-S3 | Persona-Switcher fuer `hasMultipleRoles === true` | MEDIUM | offen — nach S2 |
+
+**Naechster Schritt:** Z15-S2 beauftragen (`--model claude-sonnet-4-6` + `--effort medium`).
 
 ---
 
