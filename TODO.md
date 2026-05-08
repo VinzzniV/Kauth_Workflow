@@ -47,18 +47,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Aktiver Zyklus: Z16 — Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag**
-
-Z16-S1/S2/S3 abgeschlossen 2026-05-08. Z16 damit im produktiven Kern fertig.
-
-| Slice | Inhalt | Status |
-|-------|--------|--------|
-| Z16-S1 | Inventur + Vertragsentscheidung | done 2026-05-08 |
-| Z16-S2 | BE-Permission-Vertrag: `CanAccessPeopleDirectory` + `/people/search`-Fix + `GET /admin/people` | done 2026-05-08 |
-| Z16-S3 | FE-Navigation: `peopleDirectory`-Feature + `PeopleDirectoryPage` + Nav-Eintrag HR/Admin | done 2026-05-08 |
-| Z16-S4 | Automation-Snapshot-Vertrag formal (optional) | deferred — Produkt-Entscheidung Snapshot-Persistenz |
-
-Naechster offener Zyklus: Z17 (noch offen — Codex priorisiert).
+**Kein aktiver Zyklus.** Z16 vollstaendig abgeschlossen 2026-05-08 (Z16-S1/S2/S3 done; Z16-S4 deferred). Naechster Zyklus: Z17 — Codex priorisiert.
 
 ## Zyklusuebergreifend offen
 
@@ -73,9 +62,9 @@ Naechster offener Zyklus: Z17 (noch offen — Codex priorisiert).
 
 ## Abgeschlossene Zyklen
 
-- Zyklen 7 bis 15 sind abgeschlossen.
+- Zyklen 7 bis 16 sind abgeschlossen.
 - Kurzfassungen und Begruendungen stehen in `CODE_REVIEW.md`.
-- Detailspiegel stehen in `CODEX_SYNC.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
+- Detailspiegel stehen in `CODE_REVIEW_ARCHIVE.md`, `CODEX_SYNC.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
 
 ---
 

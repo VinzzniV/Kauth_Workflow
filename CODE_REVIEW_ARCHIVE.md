@@ -19,7 +19,58 @@ Die aktive Primaerquelle fuer den aktuellen Review-Fokus bleibt `CODE_REVIEW.md`
 
 ---
 
-## Zyklen 8 bis 14 — aus der aktiven Review-Datei ausgelagert (2026-05-07)
+## Zyklen 8 bis 16 — aus der aktiven Review-Datei ausgelagert
+
+### Zyklus 16 — Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag
+
+- Status: abgeschlossen am 2026-05-08. Z16-S4 deferred (Produkt-Entscheidung Snapshot-Persistenz ausstehend).
+- Ergebnis: `/people` als neue Listenseite mit Navigationseintrag fuer HR + Admin; `CanAccessPeopleDirectory`-Policy; `/people/search` von `CanCreateWorkflow` auf `CanAccessWorkflowOverview` korrigiert; `GET /admin/people` Admin-Listenendpunkt; `PeopleDirectoryPage` mit Suche (debounced, URL-param `q`), paginierter Tabelle (50/Seite), Status-Badge, Verzeichnis-Link-Status; Breadcrumb in `PersonWorkflowHistoryPage` differenziert nach Feature-Zugang (HR/Admin → `/people`, Manager/Reader → `/search`).
+- Praktisch: HR und Admins koennen jetzt direkt ueber „Mitarbeiter" im Header zur Personenbestandsliste navigieren. Vorher gab es keinen Navigationseinstieg — die 360°-Akte war nur ueber indirekte Links aus Workflows oder dem Rotationsplan erreichbar.
+- Wichtige Leitplanken: Person = fachlicher Anker, `directoryIdentityId` = technische Entra-Identity — nie vermischen; Backend ist Source of Truth; Permission-Vertrag zuerst im BE, dann FE.
+
+#### Z16-S1 — Inventur + Vertragsentscheidung (done 2026-05-08)
+
+Vollstaendige Inventur: kein Navigationseintrag fuer `/people/:personId`; `/people/search` an `CanCreateWorkflow` gehaengt (semantisch falsch); kein `snapshotAt`-Zeitstempel fuer Automation-Snapshots. Vertragsentscheidungen: eigene `/people`-Listenseite + Navigationseintrag fuer HR + Admin; neues FE-Feature `peopleDirectory`; BE-Policy `CanAccessPeopleDirectory`; Automation-Snapshot-Zeitstempel deferred (S4). Kein Code-Change in S1.
+
+#### Z16-S2 — BE-Permission-Vertrag + Admin-People-Endpunkt (done 2026-05-08)
+
+`CanAccessPeopleDirectory`-Policy (Admin + HR); `/people/search` von `CanCreateWorkflow` auf `CanAccessWorkflowOverview` umgestellt (breaking-risk geprueft — Praxisfaelle nicht betroffen); `GET /admin/people` P1-Listendpunkt mit Server-Suche und Pagination.
+
+#### Z16-S3 — FE-Navigation + PeopleDirectoryPage + Nav-Eintrag (done 2026-05-08)
+
+Neues `AppFeature "peopleDirectory"` in `roleModel.ts` (HR + Admin). Neue `PeopleDirectoryPage` unter `/people`. Navigationseintrag "Mitarbeiter" fuer HR + Admin im Header + Dashboard. Breadcrumb in `PersonWorkflowHistoryPage` differenziert. Neuer Query-Key `people.directory`, Hook `usePeopleDirectory`, API-Funktion `getPeopleDirectory`. Lint-Status: 2 pre-existing Fehler aus Z15, keine neuen. Build: gruen, 5.15s.
+
+#### Z16-S4 — Automation-Snapshot-Vertrag formal (deferred)
+
+`AutomationPersonIdentitySnapshotDto` + `snapshotAt`-Feld + Audit-Eintrag bei Automation-Start. Wartet auf Produkt-Entscheidung, ob Snapshot in `workflow_automation_jobs` persistiert wird.
+
+---
+
+### Zyklus 15 — Implementierung Mehrrollen-Persona
+
+- Status: abgeschlossen am 2026-05-08.
+- Ergebnis: Mehrrollen-Nutzer fallen nicht mehr auf `generic`; Login-Routing, Dashboard-Sicht und Persona-Switcher lesen denselben Vertrag fuer die aktive Ansicht.
+- Praktisch: Power-User mit mehreren Rollen sehen wieder eine sinnvolle Startansicht statt eines leeren Generic-Dashboards und koennen zwischen ihren zulaessigen Personas umschalten.
+- Wichtige Leitplanken: Rechte, Capabilities, Header-Navigation und Routen-Guards bleiben unberuehrt; geaendert wurde nur die sichtbare Persona-Steuerung.
+
+#### Z15-S1 — Datenmodell `aktive Ansicht`
+
+- Neuer Hook `useActiveView` mit Fallback-Kaskade `localStorage -> Default-Persona -> generic`.
+- Persistenzschluessel: `kauth.activeView.<username>`.
+- Praktisch: Die sichtbare Persona hat jetzt eine einzige, testbare Quelle statt verteilter Sonderfaelle.
+
+#### Z15-S2 — Override-Stellen auf `useActiveView`
+
+- `useRoleAwareNavigation.ts` liest die Dashboard-Persona aus `activeView` statt aus einem Mehrrollen-Shortcut auf `generic`.
+- `roleModel.ts` `getDefaultRoute` akzeptiert die aktive Persona und leitet Mehrrollen-Nutzer damit wieder passend weiter.
+- Follow-up: `dashboardContext` aus dem `hasMultipleRoles`-Sonderfall geloest, damit Titel und Kontext wieder zur aktiven Ansicht passen.
+- Praktisch: Sicht und Login laufen wieder zusammen; Mehrrollen-Nutzer sehen nach dem Start die erwartete Persona statt einer generischen Leerseite.
+
+#### Z15-S3 — Persona-Switcher
+
+- `PersonaSwitcher` wird nur fuer `hasMultipleRoles === true` gerendert.
+- Die verfuegbaren Optionen werden direkt aus den Capabilities abgeleitet und ueber `setActiveView` gespeichert.
+- Praktisch: Nutzer muessen nicht auf eine starre Vorrangsregel festgelegt bleiben, sondern koennen innerhalb ihrer erlaubten Rollenansichten explizit umschalten.
 
 ### Zyklus 14 — Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung
 

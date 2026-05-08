@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-08 — Zyklus 16 aktiv: Z16-S1 + Z16-S2 + Z16-S3 done. Z16-S4 deferred. Zyklus 15 vollstaendig abgeschlossen. Zyklen 8–15 abgeschlossen.)
+## Gesamtbewertung (Stand 2026-05-08 — Zyklus 16 abgeschlossen: Z16-S1/S2/S3 done; Z16-S4 deferred. Zyklen 8–16 abgeschlossen. Kein aktiver Zyklus.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -61,11 +61,11 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen (Z13-1 Zykluseroeffnung/Scope; Z13-2 Implementierung done: HostHealthDto + procfs-Leser + FE-Kachel + compose.prod.yml + start-vm.sh dev + 50 Tests gruen) |
 | 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — abgeschlossen (Z14-1.1 Inventur done; Z14-1.2 Vertrags-/UX-Entscheidung done; Z14-1.3 Slice-Plan Folgezyklus done) |
 | 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — **vollstaendig abgeschlossen** (Z15-S1 done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done; 274/274 Tests gruen) |
-| 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **Z16-S1/S2/S3 done** |
+| 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 
 ---
 
-## Aktiver Zyklus 16 — Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag (2026-05-08)
+## Abgeschlossener Zyklus 16 — Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag (2026-05-08)
 
 Eroeffnet 2026-05-08 als Vertrags-/Implementierungszyklus.
 
