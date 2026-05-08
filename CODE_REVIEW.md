@@ -49,7 +49,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-08 — Z18 vollstaendig abgeschlossen: alle 9 Findings erledigt (S4: F4 Redirect). Kein aktiver Zyklus offen. Naechster Schritt: Codex priorisiert neuen Zyklus.
+**Stand**: 2026-05-08 — Z18 vollstaendig abgeschlossen: alle 9 Findings erledigt (S4: F4 Redirect). FE-8 abgeschlossen: `approval_task_template_key` → `approval_spec_key` vollstaendig umbenannt (25 Dateien, 442 Tests gruen). Kein aktiver Zyklus offen. Kein offener FRONTEND_TODO-Eintrag mehr. Naechster Schritt: Codex priorisiert neuen Zyklus.
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen; 2026-05-08 Z15 eroeffnet + abgeschlossen; 2026-05-08 Z16 eroeffnet).
 
 ---
