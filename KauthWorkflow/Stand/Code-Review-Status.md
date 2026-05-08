@@ -63,7 +63,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — **vollstaendig abgeschlossen** (Z15-S1 done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done; 274/274 Tests gruen) |
 | 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
-| 18 | 2026-05-08 | Frontend Full Review — Z18-S1 done; Z18-S2 (Batch A: F1/F2/F3/F5/F8/F9) done; offen: F4/F6/F7 |
+| 18 | 2026-05-08 | Frontend Full Review — Z18-S1 done; Z18-S2 (Batch A) done; Z18-S3 (Batch B: F6/F7) done; offen: F4 |
 
 ---
 
@@ -78,8 +78,8 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | Z18-F3 — `formatEmploymentStatus` + `formatDirectoryLinkStatus` dupliziert | `web/src/utils/` | MEDIUM | **done Z18-S2** |
 | Z18-F4 — `WorkflowSearchPage` 1000er-Cap ohne Pagination | `WorkflowSearchPage.tsx` | HIGH | **offen** |
 | Z18-F5 — `PeopleDirectoryPage` ohne `scope="col"` auf `<th>` | `PeopleDirectoryPage.tsx` | MEDIUM | **done Z18-S2** |
-| Z18-F6 — `SupervisorStepPage` manuelles async statt React Query | `SupervisorStepPage.tsx` | MEDIUM | **offen** |
-| Z18-F7 — Split-Workspace auto-selektiert ersten Eintrag | `WorkflowListResults.tsx` | MEDIUM | **offen** |
+| Z18-F6 — `SupervisorStepPage` manuelles async statt React Query | `SupervisorStepPage.tsx` | MEDIUM | **done Z18-S3** |
+| Z18-F7 — Split-Workspace auto-selektiert ersten Eintrag | `WorkflowListResults.tsx` | MEDIUM | **done Z18-S3** |
 | Z18-F8 — `PeopleDirectoryPage` Pagination offset nicht in URL | `PeopleDirectoryPage.tsx` | LOW | **done Z18-S2** |
 | Z18-F9 — Admin-Workspace-Nav `aria-expanded` ohne `aria-controls` | `AdminWorkspaceNavigation.tsx` | LOW | **done Z18-S2** |
 

@@ -1,5 +1,5 @@
 // Ansicht fuer die Abteilungsleitung, um Anforderungen eines freigabepflichtigen Vorgangs zu bestaetigen oder zu ergaenzen.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
@@ -10,14 +10,9 @@ import {
   applyRequirementBooleanEditorSelection,
   applyRequirementSingleSelectEditorSelection,
 } from "../utils/requirementEditor";
-import {
-  getSupervisorStepWorkflows,
-  getWorkflowSupervisorStep,
-  updateWorkflowSupervisorStep,
-} from "../services/workflowApi";
+import { useSupervisorStep, useSupervisorWorkflows } from "../hooks/useSupervisorWorkflows";
 import type {
   RequirementSelectionState,
-  WorkflowRequirementSnapshot,
   WorkflowSummary,
 } from "../types/workflow";
 import {
@@ -29,59 +24,35 @@ import { formatDateTime } from "../utils/dateFormat";
 
 export default function SupervisorStepPage() {
   const { capabilities } = useCurrentUser();
-  const [assignedWorkflows, setAssignedWorkflows] = useState<WorkflowSummary[]>([]);
-  const [queueLoading, setQueueLoading] = useState<boolean>(true);
-  const [queueError, setQueueError] = useState<string | null>(null);
+  const { assignedWorkflows, isQueueLoading, queueError, refetchQueue, saveMutation } = useSupervisorWorkflows();
 
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowSummary | null>(null);
-  const [requirements, setRequirements] = useState<WorkflowRequirementSnapshot[]>([]);
   const [selections, setSelections] = useState<Record<number, RequirementSelectionState>>({});
-  const [isLoadingStep, setIsLoadingStep] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [stepError, setStepError] = useState<string | null>(null);
+  // Track which workflow uid we've already initialized selections for, so refetches don't reset edits
+  const initializedForUid = useRef<string | null>(null);
   const usesAdminOverride = capabilities.canManageAdminConfiguration;
   const { showError, showSuccess } = useToast();
 
-  // Zuerst wird die Queue der zugewiesenen Faelle geladen.
-  const reloadAssignedWorkflows = useCallback(async () => {
-    setQueueLoading(true);
-    setQueueError(null);
+  const stepQuery = useSupervisorStep(selectedWorkflow?.uid ?? null);
+  const requirements = stepQuery.data ?? [];
 
-    try {
-      const workflows = await getSupervisorStepWorkflows();
-      setAssignedWorkflows(workflows.filter((workflow) => workflow.workflowStatus === "waiting_for_supervisor"));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Liste der Vorgänge konnte nicht geladen werden.";
-      setQueueError(message);
-      setAssignedWorkflows([]);
-    } finally {
-      setQueueLoading(false);
-    }
-  }, []);
-
+  // Initialize selections once per selected workflow when step data first arrives
   useEffect(() => {
-    void reloadAssignedWorkflows();
-  }, [reloadAssignedWorkflows]);
-
-  // Danach laedt die Seite fuer einen ausgewaehlten Fall die konkreten Anforderungen.
-  const loadSupervisorStep = useCallback(async (workflow: WorkflowSummary) => {
-    setIsLoadingStep(true);
-    setStepError(null);
-
-    try {
-      const data = await getWorkflowSupervisorStep(workflow.uid);
-      setRequirements(data);
-      setSelections(buildRequirementSelections(data));
-      setSelectedWorkflow(workflow);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Rückmeldung der Abteilungsleitung konnte nicht geladen werden.";
-      setStepError(message);
-      setRequirements([]);
-      setSelections({});
-      setSelectedWorkflow(null);
-    } finally {
-      setIsLoadingStep(false);
+    if (
+      stepQuery.data &&
+      stepQuery.data.length > 0 &&
+      selectedWorkflow &&
+      initializedForUid.current !== selectedWorkflow.uid
+    ) {
+      setSelections(buildRequirementSelections(stepQuery.data));
+      initializedForUid.current = selectedWorkflow.uid;
     }
+  }, [selectedWorkflow, stepQuery.data]);
+
+  const openSupervisorStep = useCallback((workflow: WorkflowSummary) => {
+    initializedForUid.current = null;
+    setSelectedWorkflow(workflow);
+    setSelections({});
   }, []);
 
   const setRequirementBoolean = useCallback(
@@ -132,30 +103,28 @@ export default function SupervisorStepPage() {
       return;
     }
 
-    setIsSaving(true);
-
     try {
-      await updateWorkflowSupervisorStep(selectedWorkflow.uid, toRequirementSelectionPayload(requirements, selections));
+      await saveMutation.mutateAsync({
+        uid: selectedWorkflow.uid,
+        payload: toRequirementSelectionPayload(requirements, selections),
+      });
       showSuccess(
         usesAdminOverride
           ? "Auswahl wurde per Admin-Override gespeichert. Der Vorgang wurde in die nächste Phase überführt."
           : "Auswahl wurde gespeichert. Der Vorgang wurde in die nächste Phase überführt."
       );
+      initializedForUid.current = null;
       setSelectedWorkflow(null);
-      setRequirements([]);
       setSelections({});
-      await reloadAssignedWorkflows();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Auswahl konnte nicht gespeichert werden.";
       showError(message);
-    } finally {
-      setIsSaving(false);
     }
-  }, [reloadAssignedWorkflows, requirements, selections, selectedWorkflow, showError, showSuccess, usesAdminOverride]);
+  }, [requirements, saveMutation, selections, selectedWorkflow, showError, showSuccess, usesAdminOverride]);
 
   const canSave = useMemo(
-    () => selectedWorkflow !== null && requirements.length > 0 && !isSaving,
-    [selectedWorkflow, requirements, isSaving]
+    () => selectedWorkflow !== null && requirements.length > 0 && !saveMutation.isPending,
+    [selectedWorkflow, requirements, saveMutation.isPending]
   );
 
   const workflowGroups = useMemo(() => {
@@ -206,26 +175,26 @@ export default function SupervisorStepPage() {
           ) : null}
 
           <div className="action-row">
-            <button type="button" className="btn btn-secondary" onClick={reloadAssignedWorkflows} disabled={queueLoading}>
+            <button type="button" className="btn btn-secondary" onClick={() => void refetchQueue()} disabled={isQueueLoading}>
               Aktualisieren
             </button>
           </div>
         </section>
 
-        {queueLoading ? <LoadingState title="Zugewiesene Vorgänge werden geladen..." /> : null}
+        {isQueueLoading ? <LoadingState title="Zugewiesene Vorgänge werden geladen..." /> : null}
 
-        {!queueLoading && queueError ? (
-          <EmptyState title="Liste der Vorgänge konnte nicht geladen werden." description={queueError} onAction={reloadAssignedWorkflows} actionLabel="Erneut laden" />
+        {!isQueueLoading && queueError ? (
+          <EmptyState title="Liste der Vorgänge konnte nicht geladen werden." description={queueError} onAction={() => void refetchQueue()} actionLabel="Erneut laden" />
         ) : null}
 
-        {!queueLoading && !queueError && assignedWorkflows.length === 0 ? (
+        {!isQueueLoading && !queueError && assignedWorkflows.length === 0 ? (
           <EmptyState
             title="Keine zugewiesenen Freigaben"
             description="Aktuell sind keine Freigaben offen."
           />
         ) : null}
 
-        {!queueLoading && !queueError && assignedWorkflows.length > 0 ? (
+        {!isQueueLoading && !queueError && assignedWorkflows.length > 0 ? (
           <div className={shouldGroupByProcessType ? "task-groups" : undefined}>
             {(shouldGroupByProcessType ? workflowGroups : [{ processTypeKey: "all", processTypeName: "", workflows: assignedWorkflows }]).map((group) => (
               <section
@@ -284,7 +253,7 @@ export default function SupervisorStepPage() {
                       </dl>
 
                       <div className="action-row">
-                        <button type="button" className="btn btn-primary" onClick={() => void loadSupervisorStep(workflow)}>
+                        <button type="button" className="btn btn-primary" onClick={() => openSupervisorStep(workflow)}>
                           Angaben öffnen
                         </button>
                       </div>
@@ -296,13 +265,16 @@ export default function SupervisorStepPage() {
           </div>
         ) : null}
 
-        {isLoadingStep ? <LoadingState title="Freigabeschritt wird geladen..." /> : null}
+        {stepQuery.isFetching ? <LoadingState title="Freigabeschritt wird geladen..." /> : null}
 
-        {!isLoadingStep && stepError ? (
-          <EmptyState title="Freigabeschritt konnte nicht geladen werden." description={stepError} />
+        {!stepQuery.isFetching && stepQuery.isError ? (
+          <EmptyState
+            title="Freigabeschritt konnte nicht geladen werden."
+            description={stepQuery.error instanceof Error ? stepQuery.error.message : "Unbekannter Fehler."}
+          />
         ) : null}
 
-        {!isLoadingStep && !stepError && selectedWorkflow && requirements.length > 0 ? (
+        {!stepQuery.isFetching && !stepQuery.isError && selectedWorkflow && requirements.length > 0 ? (
           <>
             <RequirementsSelection
               requirements={requirements}
@@ -323,8 +295,8 @@ export default function SupervisorStepPage() {
             />
             <section className="panel">
               <div className="action-row">
-                <button type="button" className="btn btn-primary" disabled={!canSave} onClick={saveChanges}>
-                  {isSaving ? "Speichern..." : usesAdminOverride ? "Angaben per Admin-Override abschließen" : "Angaben abschließen"}
+                <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void saveChanges()}>
+                  {saveMutation.isPending ? "Speichern..." : usesAdminOverride ? "Angaben per Admin-Override abschließen" : "Angaben abschließen"}
                 </button>
               </div>
             </section>

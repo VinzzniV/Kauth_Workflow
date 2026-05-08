@@ -112,7 +112,9 @@ describe("WorkflowListPage", () => {
 
     const list = await screen.findByLabelText("Vorgangsliste");
     expect(within(list).getByText("Mila Muster")).toBeTruthy();
-    expect(screen.getByLabelText("Vorschau für Mila Muster")).toBeTruthy();
+    // No auto-selection: empty preview hint shown until user clicks
+    expect(screen.getByLabelText("Vorgangs-Vorschau")).toBeTruthy();
+    expect(screen.getByText("Vorgang auswählen")).toBeTruthy();
 
     fireEvent.click(within(list).getAllByRole("button", { name: "Vorschau" })[1]);
 

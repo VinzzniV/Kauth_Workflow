@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import EmptyState from "../components/feedback/EmptyState";
 import SkeletonCard from "../components/feedback/SkeletonCard";
@@ -175,6 +175,14 @@ export function WorkflowListResults({
   const [sortKey, setSortKey] = useState<WorkflowSortKey>("created");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [selectedWorkflowUid, setSelectedWorkflowUid] = useState<string | null>(null);
+
+  // Reset selection when rows change (page or filter change) and the selected uid is no longer present
+  useEffect(() => {
+    if (selectedWorkflowUid !== null && !rows.some((w) => w.uid === selectedWorkflowUid)) {
+      setSelectedWorkflowUid(null);
+    }
+  }, [rows, selectedWorkflowUid]);
+
   const sortedRows = useMemo(() => {
     const next = [...rows].sort((left, right) => {
       switch (sortKey) {
@@ -206,8 +214,7 @@ export function WorkflowListResults({
   };
   const getSortValue = (key: WorkflowSortKey) =>
     sortKey === key ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
-  const selectedWorkflow =
-    sortedRows.find((workflow) => workflow.uid === selectedWorkflowUid) ?? sortedRows[0] ?? null;
+  const selectedWorkflow = sortedRows.find((workflow) => workflow.uid === selectedWorkflowUid) ?? null;
 
   if (isLoading) {
     return (
