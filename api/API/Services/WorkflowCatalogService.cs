@@ -131,4 +131,9 @@ internal sealed class WorkflowCatalogService(
     {
         return await repository.ImportPeopleFromDirectory(request.DirectoryIdentityIds, actorUserId);
     }
+
+    public Task<bool> UpdatePersonAsync(long personId, UpdatePersonRequest request, CancellationToken cancellationToken = default)
+    {
+        return repository.UpdatePersonCoreFields(personId, request.EntryDate, request.BadgeNumber);
+    }
 }

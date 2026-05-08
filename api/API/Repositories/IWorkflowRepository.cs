@@ -61,6 +61,8 @@ internal interface IWorkflowRepository
     Task<bool> ArchiveWorkflow(Guid workflowUid, long actorUserId);
     Task<bool> DeleteDraftWorkflow(Guid workflowUid);
     Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId);
+    // A3: Inline-Bearbeitung fehlender Stammdaten (Eintrittsdatum, Ausweisnummer).
+    Task<bool> UpdatePersonCoreFields(long personId, DateOnly? entryDate, int? badgeNumber);
     Task<List<WorkflowLinkDto>> GetWorkflowLinks(Guid workflowUid);
     Task<List<RelatedWorkflowSummaryDto>> GetRelatedWorkflows(Guid workflowUid);
     Task<WorkflowLinkDto?> CreateWorkflowLink(Guid targetWorkflowUid, CreateWorkflowLinkRequest request, long actorUserId);

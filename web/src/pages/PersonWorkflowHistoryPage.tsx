@@ -3,6 +3,7 @@
 // (`PersonWorkflowHistory` + `WorkflowDetail`); Aggregation passiert clientseitig.
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
@@ -14,6 +15,8 @@ import {
   type AggregatedTask,
 } from "../hooks/usePersonWorkflowAggregates";
 import { usePersonWorkflowHistory } from "../services/queries/peopleQueries";
+import { updatePerson } from "../services/peopleApi";
+import { queryKeys } from "../services/queryKeys";
 import type {
   PersonWorkflowHistory,
   PersonWorkflowSummary,
@@ -176,48 +179,171 @@ function PersonOverviewSection({
   history,
   activeWorkflows,
   setActiveTab,
+  personId,
+  canEdit,
 }: {
   history: PersonWorkflowHistory;
   activeWorkflows: PersonWorkflowSummary[];
   setActiveTab: (tab: WorkspaceTab) => void;
+  personId: number;
+  canEdit: boolean;
 }) {
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editEntryDate, setEditEntryDate] = useState<string>("");
+  const [editBadgeNumber, setEditBadgeNumber] = useState<string>("");
+
+  const startEdit = () => {
+    setEditEntryDate(history.entryDate ? history.entryDate.substring(0, 10) : "");
+    setEditBadgeNumber(history.badgeNumber != null ? String(history.badgeNumber) : "");
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => setIsEditing(false);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      updatePerson(personId, {
+        entryDate: editEntryDate || null,
+        badgeNumber: editBadgeNumber !== "" ? Number(editBadgeNumber) : null,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.people.history(personId) });
+      setIsEditing(false);
+    },
+  });
+
+  const hasGaps = history.entryDate === null || history.badgeNumber === null;
+
   return (
     <div className="content-stack">
       <section className="panel">
         <div className="panel-head">
           <h2>Stammdaten</h2>
           <p>Personalstammdaten aus der internen Personenverwaltung.</p>
+          {canEdit && !isEditing ? (
+            <button type="button" className="btn btn-secondary" onClick={startEdit}>
+              Bearbeiten
+            </button>
+          ) : null}
         </div>
-        <dl className="workflow-meta">
-          <div>
-            <dt>Stamm-Abteilung</dt>
-            <dd>{history.departmentName ?? "-"}</dd>
+
+        {hasGaps && !isEditing ? (
+          <p className="panel-note" style={{ color: "var(--text-warning, #b45309)" }}>
+            Eintrittsdatum und/oder Ausweisnummer fehlen noch. Bitte ergänzen.
+          </p>
+        ) : null}
+
+        {isEditing ? (
+          <div className="content-stack" style={{ gap: "0.75rem" }}>
+            <dl className="workflow-meta">
+              <div>
+                <dt>Stamm-Abteilung</dt>
+                <dd>{history.departmentName ?? "-"}</dd>
+              </div>
+              <div>
+                <dt>Aktuelle Stelle</dt>
+                <dd>{history.roleName ?? "-"}</dd>
+              </div>
+              <div>
+                <dt>Beschäftigungsstatus</dt>
+                <dd>{formatEmploymentStatus(history.employmentStatus)}</dd>
+              </div>
+              <div>
+                <dt>Personalnummer</dt>
+                <dd>{history.employeeNumber ?? "-"}</dd>
+              </div>
+              <div>
+                <dt>
+                  <label htmlFor="edit-badge-number">Ausweisnummer</label>
+                </dt>
+                <dd>
+                  <input
+                    id="edit-badge-number"
+                    type="number"
+                    className="form-input"
+                    value={editBadgeNumber}
+                    onChange={(e) => setEditBadgeNumber(e.target.value)}
+                    placeholder="Ausweisnummer"
+                    min={0}
+                  />
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <label htmlFor="edit-entry-date">Eintritt</label>
+                </dt>
+                <dd>
+                  <input
+                    id="edit-entry-date"
+                    type="date"
+                    className="form-input"
+                    value={editEntryDate}
+                    onChange={(e) => setEditEntryDate(e.target.value)}
+                  />
+                </dd>
+              </div>
+              <div>
+                <dt>Austritt</dt>
+                <dd>{history.exitDate ? formatDate(history.exitDate) : "-"}</dd>
+              </div>
+            </dl>
+            <div className="action-row">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => mutation.mutate()}
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending ? "Wird gespeichert…" : "Speichern"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={cancelEdit}
+                disabled={mutation.isPending}
+              >
+                Abbrechen
+              </button>
+              {mutation.isError ? (
+                <span style={{ color: "var(--text-error)", fontSize: "0.875rem" }}>
+                  Speichern fehlgeschlagen.
+                </span>
+              ) : null}
+            </div>
           </div>
-          <div>
-            <dt>Aktuelle Stelle</dt>
-            <dd>{history.roleName ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Beschäftigungsstatus</dt>
-            <dd>{formatEmploymentStatus(history.employmentStatus)}</dd>
-          </div>
-          <div>
-            <dt>Personalnummer</dt>
-            <dd>{history.employeeNumber ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Ausweisnummer</dt>
-            <dd>{history.badgeNumber ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Eintritt</dt>
-            <dd>{history.entryDate ? formatDate(history.entryDate) : "-"}</dd>
-          </div>
-          <div>
-            <dt>Austritt</dt>
-            <dd>{history.exitDate ? formatDate(history.exitDate) : "-"}</dd>
-          </div>
-        </dl>
+        ) : (
+          <dl className="workflow-meta">
+            <div>
+              <dt>Stamm-Abteilung</dt>
+              <dd>{history.departmentName ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>Aktuelle Stelle</dt>
+              <dd>{history.roleName ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>Beschäftigungsstatus</dt>
+              <dd>{formatEmploymentStatus(history.employmentStatus)}</dd>
+            </div>
+            <div>
+              <dt>Personalnummer</dt>
+              <dd>{history.employeeNumber ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>Ausweisnummer</dt>
+              <dd>{history.badgeNumber ?? "-"}</dd>
+            </div>
+            <div>
+              <dt>Eintritt</dt>
+              <dd>{history.entryDate ? formatDate(history.entryDate) : "-"}</dd>
+            </div>
+            <div>
+              <dt>Austritt</dt>
+              <dd>{history.exitDate ? formatDate(history.exitDate) : "-"}</dd>
+            </div>
+          </dl>
+        )}
       </section>
 
       <section className="panel">
@@ -534,9 +660,11 @@ function PersonNotificationsSection({
 function PersonWorkflowsListSection({
   history,
   displayName,
+  isRetroactivelyImported,
 }: {
   history: PersonWorkflowHistory;
   displayName: string;
+  isRetroactivelyImported: boolean;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [sortKey, setSortKey] = useState<HistorySortKey>("created");
@@ -583,7 +711,20 @@ function PersonWorkflowsListSection({
       </div>
 
       {history.workflows.length === 0 ? (
-        <p className="panel-note">Noch keine Vorgänge für diese Person angelegt.</p>
+        isRetroactivelyImported ? (
+          <div className="content-stack" style={{ gap: "0.5rem" }}>
+            <p className="panel-note">
+              Diese Person wurde nachträglich aus dem Entra-Verzeichnis importiert — es bestehen
+              noch keine Vorgänge.
+            </p>
+            <p className="panel-note">
+              Um einen Vorgang zu starten (z.&nbsp;B. Offboarding oder Stellenwechsel), nutzen
+              Sie den Button <strong>„Neuen Vorgang anlegen"</strong> oben auf dieser Seite.
+            </p>
+          </div>
+        ) : (
+          <p className="panel-note">Noch keine Vorgänge für diese Person angelegt.</p>
+        )
       ) : (
         <>
           <div className="list-view-toolbar">
@@ -738,6 +879,13 @@ export default function PersonWorkflowHistoryPage() {
     [history?.workflows]
   );
   const aggregates = usePersonWorkflowAggregates(history?.workflows);
+  const isRetroactivelyImported = useMemo(
+    () =>
+      history !== null &&
+      history.latestCompletedOnboardingWorkflowUid === null &&
+      !history.workflows.some((w) => w.processType.key === "onboarding"),
+    [history]
+  );
 
   return (
     <main className="app-shell">
@@ -802,6 +950,9 @@ export default function PersonWorkflowHistoryPage() {
                 ) : null}
                 {history.roleName ? (
                   <span className="status-pill">{history.roleName}</span>
+                ) : null}
+                {isRetroactivelyImported ? (
+                  <span className="badge badge--default">Retroaktiv importiert</span>
                 ) : null}
               </div>
 
@@ -895,6 +1046,8 @@ export default function PersonWorkflowHistoryPage() {
                 history={history}
                 activeWorkflows={activeWorkflows}
                 setActiveTab={setActiveTab}
+                personId={history.personId}
+                canEdit={capabilities.hasAdminRole}
               />
             ) : null}
 
@@ -918,7 +1071,11 @@ export default function PersonWorkflowHistoryPage() {
             ) : null}
 
             {activeTab === "workflows" ? (
-              <PersonWorkflowsListSection history={history} displayName={displayName} />
+              <PersonWorkflowsListSection
+                history={history}
+                displayName={displayName}
+                isRetroactivelyImported={isRetroactivelyImported}
+              />
             ) : null}
           </div>
         ) : null}

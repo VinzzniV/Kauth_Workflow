@@ -69,3 +69,14 @@ export async function importPeopleFromDirectory(
     body: { directoryIdentityIds },
   });
 }
+
+// A3: Inline-Bearbeitung fehlender Stammdaten auf der Mitarbeiterkarte.
+export async function updatePerson(
+  personId: number,
+  data: { entryDate: string | null; badgeNumber: number | null }
+): Promise<void> {
+  await requestJson<unknown>(`/admin/people/${encodeId(personId)}`, {
+    method: "PATCH",
+    body: data,
+  });
+}

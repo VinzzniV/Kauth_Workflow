@@ -112,15 +112,9 @@ Dedup via `directory_identity_id`, `employee_number` und `app_user_id`. Auto-Lin
 
 Neue Admin-Sektion „Aus Entra importieren" unter `personen_zugriff`. Selbstständige Komponente `AdminEntraImportSection` mit useQuery/useMutation. Abteilungs-Gruppierung, per-Gruppe und global Select-All, Vorschau (Name, UPN, Stelle, Konto-Status), Toggle für deaktivierte Konten (standardmäßig ausgeblendet), Import-Button mit Ergebnisbanner. Build: 0 TS-Fehler, 280 Tests grün.
 
-#### A3 – Mitarbeiterkarte: fehlende Felder + retroaktiver Status
+#### A3 – Mitarbeiterkarte: fehlende Felder + retroaktiver Status ✅ abgeschlossen (2026-05-08)
 
-| Feld | Wert |
-|------|------|
-| **Was** | `PersonWorkflowHistoryPage` erweitern: Inline-Bearbeitung fehlender Felder (Eintrittsdatum, Ausweisnummer) direkt auf der Karte. Lücken-Warnung wenn Pflichtfelder leer. Neuer Status-Badge „Retroaktiv importiert" wenn kein Onboarding-Vorgang vorhanden. Leerer Vorgangs-Bereich mit erklärendem Text statt leerem Panel. |
-| **Warum** | Ohne Bearbeitungsmöglichkeit entstehen dauerhaft unvollständige Karten. Der Status verhindert Verwechslung mit regulär ongeboardeten Mitarbeitenden. |
-| **Effort** | `medium` — bestehende Page erweitern, neue API-Mutation für Inline-Edit (PATCH /admin/people/{personId}), kein neues Konzept |
-| **Modell** | `claude-sonnet-4-6` |
-| **CLI** | `--model claude-sonnet-4-6 --effort medium` |
+`PATCH /admin/people/{personId}` implementiert (entry_date, badge_number). Inline-Edit in `PersonOverviewSection` (Admin-only). Lücken-Warnung wenn Felder leer. Badge „Retroaktiv importiert" wenn kein Onboarding vorhanden. Erklärender Text im leeren Vorgangsbereich. Build: 0 CS-Fehler, 0 TS-Fehler, 280 FE-Tests grün.
 
 ---
 

@@ -77,6 +77,31 @@ internal static class AdminPeopleEndpoints
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
+        // A3: Inline-Bearbeitung fehlender Stammdaten auf der Mitarbeiterkarte.
+        // Setzt Eintrittsdatum und Ausweisnummer; null loescht den jeweiligen Wert.
+        app.MapPatch("/admin/people/{personId:long}", async (
+            long personId,
+            [FromBody] UpdatePersonRequest request,
+            [FromServices] IWorkflowCatalogService workflowCatalogService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanManageAdminConfiguration,
+                "Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var updated = await workflowCatalogService.UpdatePersonAsync(personId, request);
+            return updated ? Results.NoContent() : Results.NotFound();
+        }).Produces(StatusCodes.Status204NoContent)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status401Unauthorized);
+
         return app;
     }
 }

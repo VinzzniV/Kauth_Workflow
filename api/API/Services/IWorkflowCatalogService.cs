@@ -22,4 +22,6 @@ internal interface IWorkflowCatalogService
         ImportPeopleFromDirectoryRequest request,
         long? actorUserId,
         CancellationToken cancellationToken = default);
+    // A3: Inline-Bearbeitung fehlender Stammdaten auf der Mitarbeiterkarte.
+    Task<bool> UpdatePersonAsync(long personId, UpdatePersonRequest request, CancellationToken cancellationToken = default);
 }

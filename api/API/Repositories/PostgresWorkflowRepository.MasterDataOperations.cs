@@ -1065,4 +1065,24 @@ LIMIT 1;";
         throw new InvalidOperationException($"Unbekannter oder inaktiver Prozesstyp '{normalizedProcessTypeKey}'.");
     }
 
+    // A3: Aktualisiert Eintrittsdatum und Ausweisnummer auf dem people-Record.
+    public async Task<bool> UpdatePersonCoreFields(long personId, DateOnly? entryDate, int? badgeNumber)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+UPDATE people
+SET entry_date = @entryDate, badge_number = @badgeNumber, updated_at = NOW()
+WHERE id = @personId";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("personId", personId);
+        command.Parameters.Add(new NpgsqlParameter<DateOnly?>("entryDate", NpgsqlDbType.Date) { TypedValue = entryDate });
+        command.Parameters.Add(new NpgsqlParameter<int?>("badgeNumber", NpgsqlDbType.Integer) { TypedValue = badgeNumber });
+
+        var affected = await command.ExecuteNonQueryAsync();
+        return affected > 0;
+    }
+
 }

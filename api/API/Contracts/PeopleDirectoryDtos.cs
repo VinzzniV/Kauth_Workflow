@@ -61,3 +61,11 @@ public sealed class ImportPeopleFromDirectoryResultDto
     public int SkippedCount { get; init; }
     public required List<ImportPeopleResultItemDto> Results { get; init; }
 }
+
+// A3: Inline-Bearbeitung fehlender Stammdaten auf der Mitarbeiterkarte (Admin).
+// Aktualisiert Eintrittsdatum und Ausweisnummer; null loescht den Wert.
+public sealed class UpdatePersonRequest
+{
+    public DateOnly? EntryDate { get; init; }
+    public int? BadgeNumber { get; init; }
+}
