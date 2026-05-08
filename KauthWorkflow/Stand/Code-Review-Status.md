@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-08 — Zyklus 15 vollstaendig abgeschlossen: Z15-S1 Datenmodell/Hook done; Z15-S2 Override-Stellen done — fachlicher Fehler behoben; Z15-S3 Persona-Switcher done. Kein aktiver Folgezyklus offen. Zyklen 8–14 abgeschlossen.)
+## Gesamtbewertung (Stand 2026-05-08 — Zyklus 16 eroeffnet: Z16-S1 Inventur + Vertragsentscheidung Mitarbeiterakte done. Zyklus 15 vollstaendig abgeschlossen. Zyklen 8–15 abgeschlossen.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -61,6 +61,24 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen (Z13-1 Zykluseroeffnung/Scope; Z13-2 Implementierung done: HostHealthDto + procfs-Leser + FE-Kachel + compose.prod.yml + start-vm.sh dev + 50 Tests gruen) |
 | 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — abgeschlossen (Z14-1.1 Inventur done; Z14-1.2 Vertrags-/UX-Entscheidung done; Z14-1.3 Slice-Plan Folgezyklus done) |
 | 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — **vollstaendig abgeschlossen** (Z15-S1 done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done; 274/274 Tests gruen) |
+| 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **Z16-S1 done** (Inventur + Vertragsentscheidung) |
+
+---
+
+## Aktiver Zyklus 16 — Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag (2026-05-08)
+
+Eroeffnet 2026-05-08 als Vertrags-/Implementierungszyklus.
+
+**Praktisch:** HR kann heute nicht direkt zur 360°-Mitarbeiterakte navigieren — es gibt keinen Navigationseinstieg, nur indirekte Links aus Workflows oder dem Rotationsplan. Gleichzeitig ist die Personen-Suche (`/people/search`) an die falsche Permission geknuepft (`CanCreateWorkflow` statt personenbezogener Zugang). **Lohnenswert:** Person ist der fachliche Primaeranker des Systems; einen eigenen Einstieg zu ereroeffnen haelt den Architekturanker sauber und schafft den Andockpunkt fuer spaetere Automationen. **Nutzen:** direkter HR/Admin-Zugang, sauberer Permission-Vertrag, klarer Identity-Snapshot-Vertrag fuer Automationen.
+
+| Befund | Prio | Status |
+|--------|------|--------|
+| Z16-S1 — Inventur + Vertragsentscheidung | HIGH | done 2026-05-08 — Inventur: kein Nav-Eintrag; `/people/search` auf `CanCreateWorkflow` (falsch); kein `snapshotAt` fuer Automation. Entscheidungen: `peopleDirectory`-Feature + `CanAccessPeopleDirectory`; `/people` Listenseite; Snapshot-Zeitstempel deferred |
+| Z16-S2 — BE-Permission-Vertrag: `CanAccessPeopleDirectory` Policy; `/people/search` Fix; `GET /admin/people` P1-Listendpunkt | HIGH | offen |
+| Z16-S3 — FE-Navigation: `peopleDirectory`-Feature + `PersonSearchPage` + Nav-Eintrag HR/Admin | HIGH | offen |
+| Z16-S4 — Automation-Snapshot-Vertrag formal (optional) | MEDIUM | deferred |
+
+**Naechster Schritt:** Z16-S2 mit `claude-sonnet-4-6` + `--effort medium`.
 
 ---
 

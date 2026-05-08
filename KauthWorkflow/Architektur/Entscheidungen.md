@@ -145,6 +145,28 @@ Falls in Zukunft mehrere Actions mit nested-Schemas auftauchen, ist das ein Anla
 
 ---
 
+## Mitarbeiterakte & Personenverzeichnis
+
+### Mitarbeiterakte bekommt eigenen Navigationsbereich (2026-05-08, Z16-S1)
+
+Person ist der fachliche Primaeranker. Die 360°-Akte (`/people/:personId`) ist vollwertig implementiert, hat aber keinen eigenen Navigationseinstieg — HR muss ueber Workflows oder Rotation navigieren, um eine Person zu oeffnen.
+
+**Entscheidung:** `/people` wird eine eigene Listen-/Suchseite mit Navigationseintrag fuer HR und Admin. Neues FE-Feature: `peopleDirectory`. Neue BE-Policy: `CanAccessPeopleDirectory` (Admin + HR).
+
+**Warum:** Person ist nicht Anhang eines Workflows, sondern eigenstaendiger fachlicher Kern. Kein direkter Einstieg widerspricht dem Architekturanker aus `KauthWorkflow/Domäne/Identity.md`.
+
+**Konsequenz:** `/people/search`-API von `CanCreateWorkflow` auf `CanAccessWorkflowOverview` umstellen (Suche nach Personen ist kein Workflow-Erstellungsakt). `CanAccessPeopleDirectory` gilt nur fuer die Listenseite; das Detail `/people/:personId` bleibt auf `workflowOverview` (Admin, HR, Manager, Reader).
+
+### Automation-Identity-Snapshot braucht Zeitstempel (2026-05-08, Z16-S1)
+
+Heute referenziert `AutomationPropertyCatalog.cs` `appUserId` und `directoryIdentityId` als Automation-Properties, aber ohne formalen Snapshot-Zeitstempel. Wenn ein Entra-Account spaeter verknuepft wird, ist retroaktiv unklar, welche Identity-Werte bei einer frueheren Automation galten.
+
+**Entscheidung (deferred):** Zukuenftiger Automation-Snapshot muss `personId`, `appUserId`, `directoryIdentityId`, `directoryUserPrincipalName` und `snapshotAt` enthalten. Produkt-Entscheidung ausstehendem: ob Snapshot in `workflow_automation_jobs` persistiert wird (Z16-S4).
+
+**Konsequenz fuer jetzt:** Trennung Person/technische Identity bleibt unveraendert. Kein neues Datenmodell in Z16-S2/S3.
+
+---
+
 ## API-Kompatibilität & Naming
 
 ### `LegacyProcessTypeKey` ist der kanonische Name (2026-05-02, HQ1-Z4)
