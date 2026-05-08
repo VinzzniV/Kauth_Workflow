@@ -56,7 +56,7 @@ Eroeffnet 2026-05-07 als reiner Review-/Planungszyklus, abgeschlossen 2026-05-07
 | Z14-1.2 | Vertrags-/UX-Entscheidung: Begriffsklaerung + Optionen-Skizze fuer Mehrrollen-Behandlung (Switcher / Aggregat / Vorrang / Login-Auswahl) | HIGH | done 2026-05-07 — Vertrag in `CODE_REVIEW.md` § Z14-1.2 (Begriffsraster Rolle/Persona/aktive Ansicht; vier Optionen mit Pro/Contra; Vorzugsrichtung Persona-Switcher mit Vorrangs-Default + Persistenz, Admin-Vorrang als Default-Regel, Fallback `generic`; Vertragspflichten Default/Persistenz/Fallback/Schalter/Login-Routing getrennt; Capability-Schicht und Routen-Guards explizit unberuehrt; Andock an `loadDashboardInsights`/Query-Key/`DashboardOverview`-Schalter beschrieben) |
 | Z14-1.3 | Slice-Plan Folgezyklus: 2–3 sichere Umsetzungsslices mit Reihenfolge-Begruendung | HIGH | done 2026-05-07 — Slice-Plan in `CODE_REVIEW.md` § Z14-1.3 (drei Slices: I „aktive Ansicht" als reines Datenmodell + Persistenz + Fallback ohne Sicht-Konsumenten; II zwei Override-Stellen aus Z14-1.1 zusammen auf die neue Quelle umstellen; III sichtbarer Persona-Switcher nur fuer `hasMultipleRoles === true`; Reihenfolge Datenmodell → Routing/Sicht → UI; pro Slice Modell `claude-sonnet-4-6` + `--effort medium`; Loader und drei `DashboardOverview`-Schalter bleiben unangetastet) |
 
-**Zyklus 14 vollstaendig abgeschlossen (2026-05-07).** Zyklus 15 aktiv (2026-05-08).
+**Zyklus 14 vollstaendig abgeschlossen (2026-05-07).** Zyklus 15 ist ebenfalls abgeschlossen (2026-05-08); kein aktiver Folgezyklus offen.
 
 ---
 

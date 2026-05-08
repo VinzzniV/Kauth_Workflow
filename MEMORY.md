@@ -32,14 +32,13 @@
 
 ## Current Focus
 
-- **Zyklus 15 aktiv** (Stand 2026-05-08) — Implementierungszyklus Mehrrollen-Persona. Z15-S1 + Z15-S2 abgeschlossen. Fachlicher Fehler (Mehrrollen → `generic`) behoben. Naechster Schritt: Z15-S3 (sichtbarer Persona-Switcher fuer `hasMultipleRoles === true`).
+- **Zyklus 15 abgeschlossen** (Stand 2026-05-08) — Implementierungszyklus Mehrrollen-Persona vollstaendig umgesetzt: Z15-S1 Hook/Persistenz done, Z15-S2 Override-Stellen done, Z15-S3 Persona-Switcher done. Kein aktiver Folgezyklus offen.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts
 
-- **Z15-S3 Scope:** sichtbarer Switcher nur fuer `hasMultipleRoles === true`; schreibt ueber `setActiveView`; Single-Role-Nutzer sehen nichts. System ist nach S2 korrekt — S3 ist reiner Komfort.
 - **Begriffstrennung verbindlich:** **Rolle** (Berechtigung) ≠ **Persona** (deterministischer Default) ≠ **aktive Ansicht** (persistierte Praeferenz, steuert nur Sicht). Nicht vermischen.
-- **Sicht, nicht Rechte:** Capabilities, Header-Navigation, Schnellaktionen und Routen-Guards bleiben in allen Z15-Slices unangetastet.
+- **Sicht, nicht Rechte:** Die Z15-Logik aendert nur die sichtbare Persona. Capabilities, Header-Navigation, Schnellaktionen und Routen-Guards bleiben unveraendert.
 - **Storage-Schluessel ist `kauth.activeView.<username>`** (kein `personId` im `/me`-Modell; `username` ist die stabilste user-gebundene Identitaet); Cross-Device-Hebung bleibt ausserhalb Z15.
 - `WorkflowLifecycleService` bleibt Commit-Grenze fuer Create/Form/Approval/Task — nicht aufweichen.
 - DB-Tests haengen lokal an PostgreSQL auf `127.0.0.1:26432`.

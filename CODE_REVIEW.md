@@ -49,12 +49,12 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-08 — Zyklus 15 vollstaendig abgeschlossen (Z15-S1 Datenmodell/Hook done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done). Kein aktiver Folgezyklus offen. Die abgeschlossenen Detailzyklen 8 bis 15 wurden in `CODE_REVIEW_ARCHIVE.md` ausgelagert; diese Datei bleibt die kompakte aktive Steuerdatei.
+**Stand**: 2026-05-08 — Zyklus 15 vollstaendig abgeschlossen (Z15-S1 Datenmodell/Hook done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done). Kein aktiver Folgezyklus offen. Die abgeschlossenen Detailzyklen 8 bis 14 wurden in `CODE_REVIEW_ARCHIVE.md` ausgelagert; diese Datei bleibt die kompakte aktive Steuerdatei.
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen; 2026-05-08 Z15 eroeffnet + Z15-S1 done + Z15-S2 done).
 
 ---
 
-## Aktiver Zyklus 15 — Implementierung Mehrrollen-Persona (2026-05-08)
+## Abgeschlossener Zyklus 15 — Implementierung Mehrrollen-Persona (2026-05-08)
 
 Eroeffnet 2026-05-08 als Implementierungszyklus auf Basis Z14-1.3. Drei Umsetzungsslices in fester Reihenfolge (Datenmodell → Override-Stellen → UI-Switcher).
 
