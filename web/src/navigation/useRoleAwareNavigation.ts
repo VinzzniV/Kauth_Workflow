@@ -246,6 +246,41 @@ function collectActionKeys(args: {
   return keys;
 }
 
+export function deriveNavigationContext(persona: DashboardPersona): NavigationContext {
+  switch (persona) {
+    case "admin":
+      return {
+        title: "Offene Admin-Aufgaben",
+        description: "Warnungen bereinigen, Engpässe prüfen und Systemstatus im Blick behalten.",
+      };
+    case "hr":
+      return {
+        title: "HR-Übersicht",
+        description: "Starten Sie neue Vorgänge und behalten Sie laufende Fälle im Blick.",
+      };
+    case "manager":
+      return {
+        title: "Vorgänge meiner Mitarbeitenden",
+        description: "Starten Sie Änderungen für Ihre Mitarbeitenden, bearbeiten Sie offene Anforderungen und beobachten Sie den Fortschritt.",
+      };
+    case "worker":
+      return {
+        title: "Meine Aufgaben",
+        description: "Hier bearbeiten Sie die offenen Aufgaben Ihrer Fachbereiche.",
+      };
+    case "reader":
+      return {
+        title: "Übersicht",
+        description: "Sie sehen den Prozess im Lesemodus.",
+      };
+    default:
+      return {
+        title: "Startbereich",
+        description: "Nutzen Sie die freigegebenen Bereiche für Ihren Prozessschritt.",
+      };
+  }
+}
+
 export function useRoleAwareNavigation() {
   const { canAccessFeature, capabilities, activeView } = useCurrentUser();
 
@@ -266,54 +301,10 @@ export function useRoleAwareNavigation() {
   }, []);
 
   // Der Kontext liefert lesbare Titel und Einordnung fuer die Startseite.
-  const dashboardContext = useMemo<NavigationContext>(() => {
-    if (capabilities.hasMultipleRoles) {
-      return {
-        title: "Ihre Arbeitsbereiche",
-        description: "Sie haben Zugriff auf mehrere Bereiche. Wählen Sie den passenden Einstieg für Ihren aktuellen Prozessschritt.",
-      };
-    }
-
-    if (capabilities.dashboardPersona === "admin") {
-      return {
-        title: "Offene Admin-Aufgaben",
-        description: "Warnungen bereinigen, Engpässe prüfen und Systemstatus im Blick behalten.",
-      };
-    }
-
-    if (capabilities.dashboardPersona === "hr") {
-      return {
-        title: "HR-Übersicht",
-        description: "Starten Sie neue Vorgänge und behalten Sie laufende Fälle im Blick.",
-      };
-    }
-
-    if (capabilities.dashboardPersona === "manager") {
-      return {
-        title: "Vorgänge meiner Mitarbeitenden",
-        description: "Starten Sie Änderungen für Ihre Mitarbeitenden, bearbeiten Sie offene Anforderungen und beobachten Sie den Fortschritt.",
-      };
-    }
-
-    if (capabilities.dashboardPersona === "worker") {
-      return {
-        title: "Meine Aufgaben",
-        description: "Hier bearbeiten Sie die offenen Aufgaben Ihrer Fachbereiche.",
-      };
-    }
-
-    if (capabilities.dashboardPersona === "reader") {
-      return {
-        title: "Übersicht",
-        description: "Sie sehen den Prozess im Lesemodus.",
-      };
-    }
-
-    return {
-      title: "Startbereich",
-      description: "Nutzen Sie die freigegebenen Bereiche für Ihren Prozessschritt.",
-    };
-  }, [capabilities.dashboardPersona, capabilities.hasMultipleRoles]);
+  const dashboardContext = useMemo<NavigationContext>(
+    () => deriveNavigationContext(dashboardPersona),
+    [dashboardPersona]
+  );
 
   // Die Kopf-Navigation bleibt bewusst kompakt und zeigt nur freigegebene Hauptbereiche.
   const headerNavItems = useMemo<HeaderNavItem[]>(() => {
