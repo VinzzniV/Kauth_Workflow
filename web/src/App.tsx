@@ -19,6 +19,7 @@ const WorkflowListPage = lazy(() => import("./pages/WorkflowListPage"));
 const WorkflowDetailPage = lazy(() => import("./pages/WorkflowDetailPage"));
 const WorkflowSearchPage = lazy(() => import("./pages/WorkflowSearchPage"));
 const PersonWorkflowHistoryPage = lazy(() => import("./pages/PersonWorkflowHistoryPage"));
+const PeopleDirectoryPage = lazy(() => import("./pages/PeopleDirectoryPage"));
 const AdminConfigPage = lazy(() => import("./pages/AdminConfigPage"));
 const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
 const RotationPlanningPage = lazy(() => import("./pages/RotationPlanningPage"));
@@ -139,6 +140,16 @@ function RoutesWithErrorBoundary({ defaultRoute }: { defaultRoute: string }) {
             <RouteGuard feature="workflowSearch">
               <LazyRoute>
                 <WorkflowSearchPage />
+              </LazyRoute>
+            </RouteGuard>
+          }
+        />
+        <Route
+          path="/people"
+          element={
+            <RouteGuard feature="peopleDirectory">
+              <LazyRoute>
+                <PeopleDirectoryPage />
               </LazyRoute>
             </RouteGuard>
           }

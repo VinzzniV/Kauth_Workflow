@@ -762,7 +762,7 @@ function PersonWorkflowsListSection({
 
 export default function PersonWorkflowHistoryPage() {
   const { personId } = useParams<{ personId: string }>();
-  const { capabilities } = useCurrentUser();
+  const { capabilities, canAccessFeature } = useCurrentUser();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("overview");
   const parsedPersonId = personId ? Number(personId) : null;
   const historyQuery = usePersonWorkflowHistory(parsedPersonId);
@@ -780,7 +780,11 @@ export default function PersonWorkflowHistoryPage() {
     <main className="app-shell">
       <div className="page-container">
         <nav className="breadcrumb" aria-label="Breadcrumb">
-          <Link to="/search">Vorgänge suchen</Link>
+          {canAccessFeature("peopleDirectory") ? (
+            <Link to="/people">Mitarbeiter</Link>
+          ) : (
+            <Link to="/search">Vorgänge suchen</Link>
+          )}
           <span className="breadcrumb-separator" aria-hidden="true">
             /
           </span>

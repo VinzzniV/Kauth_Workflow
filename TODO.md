@@ -49,16 +49,16 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 **Aktiver Zyklus: Z16 — Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag**
 
-Z16-S1 (Inventur + Vertragsentscheidung) abgeschlossen 2026-05-08.
+Z16-S1/S2/S3 abgeschlossen 2026-05-08. Z16 damit im produktiven Kern fertig.
 
 | Slice | Inhalt | Status |
 |-------|--------|--------|
 | Z16-S1 | Inventur + Vertragsentscheidung | done 2026-05-08 |
 | Z16-S2 | BE-Permission-Vertrag: `CanAccessPeopleDirectory` + `/people/search`-Fix + `GET /admin/people` | done 2026-05-08 |
-| Z16-S3 | FE-Navigation: `peopleDirectory`-Feature + `PersonSearchPage` + Nav-Eintrag HR/Admin | offen |
+| Z16-S3 | FE-Navigation: `peopleDirectory`-Feature + `PeopleDirectoryPage` + Nav-Eintrag HR/Admin | done 2026-05-08 |
 | Z16-S4 | Automation-Snapshot-Vertrag formal (optional) | deferred — Produkt-Entscheidung Snapshot-Persistenz |
 
-Empfehlung Naechster Schritt: Z16-S3 mit `--model claude-sonnet-4-6 --effort medium`.
+Naechster offener Zyklus: Z17 (noch offen — Codex priorisiert).
 
 ## Zyklusuebergreifend offen
 

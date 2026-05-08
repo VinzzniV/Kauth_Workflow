@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getPersonWorkflowHistory, searchPeople, searchRotationEligiblePeople } from "../peopleApi";
+import { getPersonWorkflowHistory, getPeopleDirectory, searchPeople, searchRotationEligiblePeople } from "../peopleApi";
 import { queryKeys } from "../queryKeys";
 
 export function usePeopleSearch(search: string, enabled = true) {
@@ -28,5 +28,14 @@ export function usePersonWorkflowHistory(personId: number | null, enabled = true
     queryFn: () => getPersonWorkflowHistory(personId as number),
     enabled: enabled && typeof personId === "number" && personId > 0,
     staleTime: 15 * 1000,
+  });
+}
+
+export function usePeopleDirectory(search: string, offset = 0, pageSize = 50) {
+  return useQuery({
+    queryKey: queryKeys.people.directory(search, offset),
+    queryFn: () => getPeopleDirectory({ search, limit: pageSize, offset }),
+    staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 }

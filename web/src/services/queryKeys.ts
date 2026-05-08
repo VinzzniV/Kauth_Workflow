@@ -11,6 +11,7 @@ export const queryKeys = {
     search: (search: string) => ["people", "search", search] as const,
     rotationEligible: (search: string) => ["people", "rotation-eligible", search] as const,
     history: (personId: number) => ["people", personId, "history"] as const,
+    directory: (search: string, offset: number) => ["people", "directory", search, offset] as const,
   },
 
   workflows: {

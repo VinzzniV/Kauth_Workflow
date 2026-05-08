@@ -20,7 +20,8 @@ export type AppFeature =
   | "workflowSearch"
   | "technicalTasks"
   | "supervisorStep"
-  | "adminConfig";
+  | "adminConfig"
+  | "peopleDirectory";
 
 export type RoleCapabilities = {
   roleKeys: AuthRoleKey[];
@@ -200,6 +201,8 @@ export function canAccessFeature(capabilities: RoleCapabilities, feature: AppFea
       return capabilities.canAccessSupervisorStep;
     case "adminConfig":
       return capabilities.canManageAdminConfiguration;
+    case "peopleDirectory":
+      return capabilities.hasHrRole || capabilities.hasAdminRole;
     default:
       return false;
   }

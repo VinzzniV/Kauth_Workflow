@@ -49,7 +49,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-08 — Zyklus 16 aktiv (Z16-S1 + Z16-S2 abgeschlossen). Aktiver Zyklus: Z16 (Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag).
+**Stand**: 2026-05-08 — Zyklus 16 aktiv (Z16-S1 + Z16-S2 + Z16-S3 abgeschlossen). Aktiver Zyklus: Z16 (Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag).
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen; 2026-05-08 Z15 eroeffnet + abgeschlossen; 2026-05-08 Z16 eroeffnet).
 
 ---
@@ -150,7 +150,7 @@ Eroeffnet 2026-05-08. Thema: Die 360°-Mitarbeiterakte (`/people/:personId`) exi
 |--------|------|--------|
 | Z16-S1 — Inventur + Vertragsentscheidung Mitarbeiterakte | HIGH | done 2026-05-08 |
 | Z16-S2 — BE-Permission-Vertrag + Admin-People-Endpunkt | HIGH | done 2026-05-08 |
-| Z16-S3 — FE-Navigation: peopleDirectory-Feature + PersonSearchPage + Nav-Eintrag | HIGH | offen |
+| Z16-S3 — FE-Navigation: peopleDirectory-Feature + PersonSearchPage + Nav-Eintrag | HIGH | done 2026-05-08 |
 | Z16-S4 — Automation-Snapshot-Vertrag formal (optional) | MEDIUM | deferred — wartet auf Produkt-Entscheidung Snapshot-Persistenz |
 
 ---
@@ -174,4 +174,4 @@ Eroeffnet 2026-05-08. Thema: Die 360°-Mitarbeiterakte (`/people/:personId`) exi
 | 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen |
 | 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation / rollenabhaengiger Darstellung — abgeschlossen |
 | 15 | 2026-05-08 | Implementierung Mehrrollen-Persona: S1 Datenmodell/Hook done; S2 Override-Stellen done; S3 Persona-Switcher done — **vollstaendig abgeschlossen** |
-| 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **Z16-S1 done** |
+| 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **Z16-S1/S2/S3 done** |

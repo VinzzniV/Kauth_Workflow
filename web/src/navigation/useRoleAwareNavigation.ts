@@ -106,6 +106,12 @@ const cogIcon = createIcon(
     d: "M19.25 12a7.24 7.24 0 0 0-.08-1.05l1.72-1.34-1.75-3.03-2.08.84a7.38 7.38 0 0 0-1.82-1.05l-.33-2.21H9.09l-.33 2.21c-.65.23-1.26.58-1.82 1.05l-2.08-.84-1.75 3.03 1.72 1.34A7.24 7.24 0 0 0 4.75 12c0 .36.03.71.08 1.05l-1.72 1.34 1.75 3.03 2.08-.84c.56.47 1.17.82 1.82 1.05l.33 2.21h3.82l.33-2.21c.65-.23 1.26-.58 1.82-1.05l2.08.84 1.75-3.03-1.72-1.34c.05-.34.08-.69.08-1.05Z",
   })
 );
+const peopleIcon = createIcon(
+  createElement("circle", { cx: "8", cy: "7.5", r: "2.75" }),
+  createElement("path", { d: "M2.5 19.5a5.5 5.5 0 0 1 11 0" }),
+  createElement("circle", { cx: "16.5", cy: "7.5", r: "2.25" }),
+  createElement("path", { d: "M14 19.5a4.5 4.5 0 0 1 7.5 0" })
+);
 
 const ACTIONS = {
   dashboard: {
@@ -164,6 +170,13 @@ const ACTIONS = {
     description: "Offene Aufgaben Ihrer Fachbereiche bearbeiten.",
     feature: "technicalTasks",
     icon: clipboardListIcon,
+  },
+  peopleDirectory: {
+    to: "/people",
+    label: "Mitarbeiter",
+    description: "Mitarbeitende suchen und Personalakten direkt aufrufen.",
+    feature: "peopleDirectory",
+    icon: peopleIcon,
   },
   rotationPlanning: {
     to: "/rotation",
@@ -229,6 +242,7 @@ function collectActionKeys(args: {
   addKey("managerCreate", capabilities.hasManagerRole && !capabilities.hasHrRole && canAccessFeature("workflowCreate"));
   addKey("workflowBuilder", canAccessFeature("workflowBuilder"));
   addKey("hrWorkflows", canAccessFeature("workflowOverview"));
+  addKey("peopleDirectory", canAccessFeature("peopleDirectory"));
   addKey(
     "rotationPlanning",
     canAccessFeature("rotationPlanning")

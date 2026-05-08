@@ -1,7 +1,8 @@
-import type { CreatePersonPayload, PersonWorkflowHistory, WorkflowTargetPerson } from "../types/workflow";
+import type { CreatePersonPayload, PersonDirectoryItem, PersonWorkflowHistory, WorkflowTargetPerson } from "../types/workflow";
 import { encodeId, requestJson } from "./api/client";
 import type { BackendPersonWorkflowHistoryDto, BackendWorkflowTargetPersonDto } from "./api/backendDtos";
 import { mapPersonWorkflowHistory } from "./api/mappers";
+import { buildAdminListQuery, type AdminListPage, type AdminListQueryOptions } from "./api/adminList";
 
 export async function getPersonWorkflowHistory(personId: number): Promise<PersonWorkflowHistory> {
   const data = await requestJson<BackendPersonWorkflowHistoryDto>(`/people/${encodeId(personId)}/workflows`);
@@ -37,4 +38,12 @@ export async function createPerson(payload: CreatePersonPayload): Promise<Workfl
     method: "POST",
     body: payload,
   });
+}
+
+export async function getPeopleDirectory(
+  options: AdminListQueryOptions = {}
+): Promise<AdminListPage<PersonDirectoryItem>> {
+  return requestJson<AdminListPage<PersonDirectoryItem>>(
+    `/admin/people${buildAdminListQuery(options)}`
+  );
 }

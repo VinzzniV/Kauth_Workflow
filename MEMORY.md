@@ -32,7 +32,7 @@
 
 ## Current Focus
 
-- **Zyklus 16 aktiv** (Stand 2026-05-08) — Z16-S1 + Z16-S2 abgeschlossen. Naechster Schritt: Z16-S3 FE-Navigation mit `--model claude-sonnet-4-6 --effort medium`.
+- **Zyklus 16 aktiv** (Stand 2026-05-08) — Z16-S1 + Z16-S2 + Z16-S3 abgeschlossen. Z16 im produktiven Kern fertig. Z16-S4 deferred. Naechster Zyklus: Codex priorisiert.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

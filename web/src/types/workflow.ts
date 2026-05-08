@@ -601,3 +601,19 @@ export type PersonWorkflowHistory = {
   latestCompletedOnboardingAt: string | null;
   workflows: PersonWorkflowSummary[];
 };
+
+// Z16-S3: Kompakter Listen-Eintrag im Personenverzeichnis (HR + Admin).
+export type PersonDirectoryItem = {
+  personId: number;
+  displayName: string;
+  departmentId: number | null;
+  departmentName: string | null;
+  roleId: number | null;
+  roleName: string | null;
+  employeeNumber: number | null;
+  badgeNumber: number | null;
+  employmentStatus: string | null;
+  entryDate: string | null;
+  exitDate: string | null;
+  directoryLinkStatus: string | null;
+};
