@@ -16,6 +16,7 @@ type AdminOrganizationDepartmentEditorProps = {
   selectedDepartment: AdminDepartmentAssignment | null;
   selectedDepartmentDraft: DepartmentDraft | null;
   selectedDepartmentPositions: AdminRole[];
+  onRefreshOrganizationData?: () => Promise<void> | void;
   positionDrafts: Record<number, PositionDraft>;
   selectedDepartmentLeadOptions: AdminUser[];
   selectedDepartmentOwnerOptions: AdminUser[];
@@ -119,16 +120,65 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
     selectedDepartmentDraft.requirementOwnerUserId,
     props.eligibleRequirementOwnerUsers
   ) && Boolean(selectedDepartmentDraft.requirementOwnerUserId);
+  const activePositionCount = props.selectedDepartmentPositions.filter((position) => position.isActive).length;
+  const inactivePositionCount = props.selectedDepartmentPositions.length - activePositionCount;
 
   return (
     <section
       ref={panelRef}
-      className="panel"
+      className="panel admin-department-editor"
     >
       <div className="panel-head">
         <h2>Abteilung pflegen: {selectedDepartment.departmentName}</h2>
         <p>Leitung und Anforderungsverantwortung werden bewusst gemeinsam gepflegt.</p>
       </div>
+
+      <section className="panel panel-muted admin-department-summary">
+        <div className="admin-department-summary__chips">
+          <span className="admin-department-badge admin-department-badge--brand">
+            {props.selectedDepartmentPositions.length} Stelle{props.selectedDepartmentPositions.length !== 1 ? "n" : ""}
+          </span>
+          <span className="admin-department-badge admin-department-badge--success">
+            {activePositionCount} aktiv
+          </span>
+          {inactivePositionCount > 0 ? (
+            <span className="admin-department-badge admin-department-badge--warning">
+              {inactivePositionCount} inaktiv
+            </span>
+          ) : null}
+          <span className="admin-department-badge">
+            Quelle {selectedDepartment.assignmentSource === "entra_managed" ? "Entra-geführt" : "manuell"}
+          </span>
+          <span className="admin-department-badge">
+            Sync {toSyncStateLabel(selectedDepartment.syncState)}
+          </span>
+        </div>
+
+        <dl className="admin-department-summary__grid">
+          <div>
+            <dt>Aktuell gespeicherte Leitung</dt>
+            <dd>{selectedDepartment.departmentLeadDisplayName ?? "keine feste Person"}</dd>
+          </div>
+          <div>
+            <dt>Anforderungsverantwortung</dt>
+            <dd>{selectedDepartment.requirementOwnerDisplayName ?? "keine feste Person"}</dd>
+          </div>
+          <div>
+            <dt>Zuletzt gespeichert</dt>
+            <dd>{formatTimestamp(selectedDepartment.updatedAt)}</dd>
+          </div>
+        </dl>
+
+        {selectedDepartment.syncDetail ? (
+          <p className="panel-note">{selectedDepartment.syncDetail}</p>
+        ) : null}
+
+        {selectedDepartment.assignmentSource === "entra_managed" ? (
+          <p className="panel-note">
+            Entra ist führend. Manuelle Änderungen werden beim nächsten Directory-Sync überschrieben.
+          </p>
+        ) : null}
+      </section>
 
       <div className="form-grid">
         <label className="field">
@@ -178,36 +228,17 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
         </label>
       </div>
 
-      <p className="panel-note">
-        Aktuell gespeichert: Leitung {selectedDepartment.departmentLeadDisplayName ?? "keine feste Person"} |
-        Anforderungsverantwortung {selectedDepartment.requirementOwnerDisplayName ?? "keine feste Person"} |
-        Zuletzt gespeichert {formatTimestamp(selectedDepartment.updatedAt)}
-      </p>
-
-      <p className="panel-note">
-        Quelle {selectedDepartment.assignmentSource === "entra_managed" ? "Entra-geführt" : "manuell"} |
-        Sync-Status {toSyncStateLabel(selectedDepartment.syncState)}
-      </p>
-
-      {selectedDepartment.syncDetail ? (
-        <p className="panel-note">{selectedDepartment.syncDetail}</p>
-      ) : null}
-
-      {selectedDepartment.assignmentSource === "entra_managed" ? (
-        <p className="panel-note">
-          Entra ist führend. Manuelle Änderungen werden beim nächsten Directory-Sync überschrieben.
-        </p>
-      ) : null}
-
       {hasInvalidDepartmentLeadSelection || hasInvalidDepartmentOwnerSelection ? (
-        <p className="panel-note">
-          Ungültige Zuordnung: Für die Leitung ist aktive Supervisor-Berechtigung nötig. Für die
-          anforderungsverantwortliche Person reicht ein aktiver Benutzer. Ungültige gespeicherte Personen bleiben
-          sichtbar, müssen aber vor dem Speichern ersetzt oder entfernt werden.
-        </p>
+        <section className="panel panel-warning">
+          <p className="panel-text">
+            Ungültige Zuordnung: Für die Leitung ist aktive Supervisor-Berechtigung nötig. Für die
+            anforderungsverantwortliche Person reicht ein aktiver Benutzer. Ungültige gespeicherte Personen bleiben
+            sichtbar, müssen aber vor dem Speichern ersetzt oder entfernt werden.
+          </p>
+        </section>
       ) : null}
 
-      <div className="action-row">
+      <div className="action-row admin-department-editor__actions">
         <button
           type="button"
           className="btn btn-primary"
@@ -236,7 +267,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
           <p>Diese Stellen werden bei neuen Vorgängen als auswählbare Stelle der Abteilung angeboten.</p>
         </div>
 
-        <div className="form-grid">
+        <div className="form-grid admin-department-position-creator">
           <label className="field">
             <span>Neue Stelle</span>
             <input
@@ -267,7 +298,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
         {props.selectedDepartmentPositions.length === 0 ? (
           <p className="panel-note">Für diese Abteilung sind noch keine Stellen hinterlegt.</p>
         ) : (
-          <div className="task-list">
+          <div className="admin-department-position-list">
             {props.selectedDepartmentPositions.map((position) => {
               const draft = props.positionDrafts[position.roleId] ?? {
                 roleName: position.roleName,
@@ -282,8 +313,8 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
                 props.savingPositionId !== position.roleId;
 
               return (
-                <article key={position.roleId} className="task-card">
-                  <div className="form-grid">
+                <article key={position.roleId} className="panel admin-department-position-card">
+                  <div className="admin-department-position-card__head">
                     <label className="field compact">
                       <span>Stellenname</span>
                       <input
@@ -297,7 +328,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
                         }
                       />
                     </label>
-                    <label className="checkbox-row">
+                    <label className="checkbox-row admin-department-position-card__toggle">
                       <input
                         type="checkbox"
                         checked={draft.isActive}
@@ -312,7 +343,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
                     </label>
                   </div>
 
-                  <div className="action-row">
+                  <div className="action-row admin-department-position-card__actions">
                     <button
                       type="button"
                       className="btn btn-primary"
@@ -344,6 +375,7 @@ export function AdminOrganizationDepartmentEditor(props: AdminOrganizationDepart
       <AdminDepartmentEntraImportSection
         departmentId={selectedDepartment.departmentId}
         existingPositions={props.selectedDepartmentPositions}
+        onRefreshData={props.onRefreshOrganizationData}
       />
     </section>
   );

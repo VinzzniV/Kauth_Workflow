@@ -523,6 +523,171 @@
   padding-left: 0.25rem;
 }
 
+.admin-department-editor {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-department-summary {
+  display: grid;
+  gap: 0.85rem;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--brand) 10%, transparent), transparent 42%),
+    var(--surface-card-subtle);
+}
+
+.admin-department-summary__chips,
+.admin-department-import__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-department-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.85rem;
+  padding: 0.3rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid var(--surface-card-border);
+  background: var(--surface-panel);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.admin-department-badge--brand {
+  border-color: var(--brand-border-soft);
+  background: color-mix(in srgb, var(--brand-soft) 90%, var(--surface-panel));
+  color: var(--brand);
+}
+
+.admin-department-badge--info {
+  border-color: color-mix(in srgb, var(--status-info-border) 78%, var(--surface-card-border));
+  background: color-mix(in srgb, var(--status-info-bg) 72%, var(--surface-panel));
+  color: var(--status-info-text);
+}
+
+.admin-department-badge--success {
+  border-color: color-mix(in srgb, var(--status-ready-border) 78%, var(--surface-card-border));
+  background: color-mix(in srgb, var(--status-ready-bg) 72%, var(--surface-panel));
+  color: var(--status-ready-text);
+}
+
+.admin-department-badge--warning {
+  border-color: color-mix(in srgb, var(--border-caution) 82%, var(--surface-card-border));
+  background: color-mix(in srgb, var(--bg-card-caution) 80%, var(--surface-panel));
+  color: var(--text-warning);
+}
+
+.admin-department-summary__grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-department-summary__grid div {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.8rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--surface-card-border);
+  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
+}
+
+.admin-department-summary__grid dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.admin-department-summary__grid dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.admin-department-editor__actions {
+  justify-content: flex-start;
+}
+
+.admin-department-position-creator {
+  align-items: end;
+}
+
+.admin-department-position-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-department-position-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem;
+  background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
+}
+
+.admin-department-position-card__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.9fr);
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.admin-department-position-card__toggle {
+  min-height: 100%;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--surface-card-border);
+  border-radius: 12px;
+  background: var(--surface-card-subtle);
+}
+
+.admin-department-position-card__actions {
+  justify-content: flex-start;
+}
+
+.admin-department-import {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.admin-department-import__actions {
+  justify-content: space-between;
+}
+
+.admin-department-import__list {
+  gap: 0.7rem;
+}
+
+.admin-department-import-option {
+  min-height: 4.9rem;
+}
+
+.admin-department-import-option--locked {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface-panel) 72%, var(--surface-card-subtle));
+}
+
+.admin-department-import-option[disabled] {
+  cursor: default;
+  opacity: 1;
+  transform: none;
+}
+
+.admin-department-import-option[disabled]:hover {
+  border-color: var(--surface-card-border);
+  transform: none;
+}
+
+.admin-department-import__banner {
+  margin: 0;
+}
+
 .admin-data-table .admin-data-row {
   cursor: pointer;
   transition: background-color 100ms ease;
@@ -647,6 +812,16 @@
   .admin-drawer,
   .admin-drawer-backdrop {
     animation: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .admin-department-position-card__head {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-department-import__actions {
+    justify-content: flex-start;
   }
 }
 

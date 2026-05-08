@@ -35,6 +35,7 @@ type AdminAbteilungenSectionProps = {
   deletingPositionId: number | null;
   savingDepartmentId: number | null;
   savingPositionId: number | null;
+  onReloadOrganizationData: () => void | Promise<void>;
   onSelectOrganizationEntity: (entity: AdminOrganizationEntity, id?: number | null) => void;
   onNewDepartmentNameChange: (value: string) => void;
   onNewPositionNameChange: (value: string) => void;
@@ -257,6 +258,7 @@ export function AdminAbteilungenSection(props: AdminAbteilungenSectionProps) {
                 savingDepartmentId={props.savingDepartmentId}
                 savingPositionId={props.savingPositionId}
                 canSaveDepartment={view.canSaveDepartment}
+                onRefreshOrganizationData={props.onReloadOrganizationData}
                 onNewDepartmentNameChange={props.onNewDepartmentNameChange}
                 onNewPositionNameChange={props.onNewPositionNameChange}
                 onDepartmentDraftChange={props.onDepartmentDraftChange}

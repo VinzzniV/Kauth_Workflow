@@ -130,6 +130,7 @@ export function renderAbteilungenWorkspace(props: AdminConfigWorkspaceContentPro
       deletingPositionId={organization.deletingPositionId}
       savingDepartmentId={organization.savingDepartmentId}
       savingPositionId={organization.savingPositionId}
+      onReloadOrganizationData={organization.onReloadOrganizationData}
       onSelectOrganizationEntity={meta.onOpenOrganization}
       onNewDepartmentNameChange={organization.onNewDepartmentNameChange}
       onNewPositionNameChange={organization.onNewPositionNameChange}
