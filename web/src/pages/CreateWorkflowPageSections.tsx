@@ -12,34 +12,10 @@ import type {
   WorkflowConfig,
   WorkflowTargetPerson,
 } from "../types/workflow";
-
-function formatEmploymentStatus(status: string | null): string {
-  switch (status) {
-    case "planned":
-      return "Geplant";
-    case "active":
-      return "Aktiv";
-    case "inactive":
-      return "Inaktiv";
-    case "exited":
-      return "Ausgetreten";
-    default:
-      return "-";
-  }
-}
-
-function formatDirectoryLinkStatus(status: string | null): string {
-  switch (status) {
-    case "linked":
-      return "Mit Verzeichnis verknüpft";
-    case "user_only":
-      return "Nur App-Benutzer verknüpft";
-    case "unlinked":
-      return "Noch nicht verknüpft";
-    default:
-      return "-";
-  }
-}
+import {
+  formatEmploymentStatus,
+  formatDirectoryLinkStatus,
+} from "../utils/employmentStatus";
 
 export function WorkflowCreationStepper({
   steps,

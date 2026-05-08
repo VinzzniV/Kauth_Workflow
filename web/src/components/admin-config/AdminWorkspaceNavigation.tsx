@@ -10,6 +10,7 @@ import {
 type AdminWorkspaceNavigationProps = {
   section: AdminWorkspaceSection;
   onSelectSection: (section: AdminWorkspaceSection) => void;
+  id?: string;
 };
 
 export function AdminWorkspaceNavigation({
@@ -40,6 +41,7 @@ export function AdminWorkspaceNavigation({
       {ADMIN_WORKSPACE_AREA_META.map((area) => {
         const areaSections = getAdminWorkspaceSectionsForArea(area.key);
         const isAreaActive = activeArea === area.key;
+        const subNavId = `admin-subnav-${area.key}`;
 
         return (
           <div key={area.key} className="admin-workspace-nav-group">
@@ -47,6 +49,7 @@ export function AdminWorkspaceNavigation({
               type="button"
               className={`admin-workspace-tab admin-workspace-tab--${area.key} ${isAreaActive ? "active" : ""}`}
               aria-expanded={isAreaActive}
+              aria-controls={areaSections.length > 1 ? subNavId : undefined}
               onClick={() => onSelectSection(area.defaultSection)}
             >
               <span className="admin-workspace-tab-title">{area.label}</span>
@@ -55,6 +58,7 @@ export function AdminWorkspaceNavigation({
 
             {isAreaActive && areaSections.length > 1 ? (
               <AdminWorkspaceSubNavigation
+                id={subNavId}
                 section={section}
                 onSelectSection={onSelectSection}
               />
@@ -69,6 +73,7 @@ export function AdminWorkspaceNavigation({
 export function AdminWorkspaceSubNavigation({
   section,
   onSelectSection,
+  id,
 }: AdminWorkspaceNavigationProps) {
   const activeArea = getAdminWorkspaceArea(section);
   const activeSection = getAdminWorkspacePresentationSection(section);
@@ -83,7 +88,7 @@ export function AdminWorkspaceSubNavigation({
   }
 
   return (
-    <nav className="admin-workspace-subnav" aria-label="Bereich wechseln">
+    <nav id={id} className="admin-workspace-subnav" aria-label="Bereich wechseln">
       {sections.map((item) => (
         <button
           key={item.key}

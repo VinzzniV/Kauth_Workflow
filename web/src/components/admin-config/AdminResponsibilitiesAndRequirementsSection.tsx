@@ -651,7 +651,7 @@ export function AbteilungsanforderungenPanel() {
             <h2>{editingTemplateId ? "Vorlage bearbeiten" : "Neue Vorlage anlegen"}</h2>
           </div>
           <div className="workflow-grid" aria-label="Vorlagenformular">
-            <div className="dashboard-card card-primary rotation-form-card">
+            <div className="card-primary card-form">
               <label className="field compact">
                 <span>Abteilung</span>
                 <select

@@ -103,7 +103,7 @@ export function AdminUsersSection({
         </section>
       ) : null}
 
-      <div className="dashboard-card card-primary">
+      <div className="card-primary card-form">
         <div>
           <h2>{isExternalIdentityMode ? "Neue Ausnahme-Person" : "Neue Person"}</h2>
           <p>

@@ -92,7 +92,7 @@ function buildSelectableUserOptions(selectedUserId: string, eligibleUsers: Admin
         <p>Pflegen Sie je Abteilung die Abteilungsleitung und die anforderungsverantwortliche Person. Die Leitung braucht Supervisor-Berechtigung, für die Anforderungsverantwortung reicht ein aktiver Benutzer.</p>
       </div>
 
-      <div className="dashboard-card card-primary">
+      <div className="card-primary card-form">
         <div>
           <h2>Neue Abteilung</h2>
           <p>Legen Sie zusätzliche Abteilungen für Mitarbeiterprozesse an.</p>

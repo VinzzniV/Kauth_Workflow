@@ -13,6 +13,7 @@ import type {
   RotationPlanStatus,
 } from "../types/rotation";
 import { formatDateTime } from "../utils/dateFormat";
+import { formatEmploymentStatus } from "../utils/employmentStatus";
 
 function FilterChip({ label, value }: { label: string; value: string }) {
   return (
@@ -53,20 +54,6 @@ function formatUid(uid: string | null | undefined): string {
   return uid.length > 8 ? `${uid.slice(0, 8)}…` : uid;
 }
 
-function formatEmploymentStatus(status: string | null): string {
-  switch (status) {
-    case "planned":
-      return "Geplant";
-    case "active":
-      return "Aktiv";
-    case "inactive":
-      return "Inaktiv";
-    case "exited":
-      return "Ausgetreten";
-    default:
-      return "-";
-  }
-}
 
 export default function RotationPlanningPage() {
   const navigate = useNavigate();
@@ -349,7 +336,7 @@ export default function RotationPlanningPage() {
               </div>
 
               <div className="workflow-grid" aria-label="Plananlage">
-                <div className="dashboard-card card-primary rotation-form-card">
+                <div className="card-primary card-form">
                   <label className="field compact">
                     <span>Titel</span>
                     <input

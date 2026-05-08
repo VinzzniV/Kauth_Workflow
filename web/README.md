@@ -85,6 +85,13 @@ Wichtig:
 - keine Business-Regeln duplizieren
 - keine onboarding-spezifischen Kernannahmen weiter zementieren
 
+## CSS-Klassen-Vertrag fuer Karten und Formular-Container
+
+- `.dashboard-card` — interaktive Karte (Link, klickbares Element): setzt `cursor: pointer` und Hover-Lift. Nur fuer wirklich anklickbare Karten verwenden.
+- `.card-form` — nicht-interaktiver Formular-Container: flex-column-Layout, kein Cursor, kein Hover. Mit `.card-primary` oder `.card-list` kombinieren. Ersetzt `.dashboard-card` ueberall dort, wo der Container ein Formular wrappt, nicht ein Link ist.
+- Falsch: `<div className="dashboard-card card-primary">` mit Form-Fields drin.
+- Richtig: `<div className="card-primary card-form">` mit Form-Fields drin.
+
 ## Theme-Vertrag (Design-Token-Regeln)
 
 Verbindliche Token-Regeln fuer neue Komponenten und Karten:

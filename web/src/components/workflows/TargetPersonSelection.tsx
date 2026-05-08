@@ -1,33 +1,9 @@
 import type { WorkflowTargetPerson } from "../../types/workflow";
 import { formatDateTime } from "../../utils/dateFormat";
-
-function formatEmploymentStatus(status: string | null): string {
-  switch (status) {
-    case "planned":
-      return "Geplant";
-    case "active":
-      return "Aktiv";
-    case "inactive":
-      return "Inaktiv";
-    case "exited":
-      return "Ausgetreten";
-    default:
-      return "Unbekannt";
-  }
-}
-
-function formatDirectoryLinkStatus(status: string | null): string {
-  switch (status) {
-    case "linked":
-      return "Mit Verzeichnis verknüpft";
-    case "user_only":
-      return "Nur App-Benutzer verknüpft";
-    case "unlinked":
-      return "Noch nicht verknüpft";
-    default:
-      return "Nicht bekannt";
-  }
-}
+import {
+  formatEmploymentStatus,
+  formatDirectoryLinkStatus,
+} from "../../utils/employmentStatus";
 
 type Props = {
   processTypeName: string;

@@ -47,7 +47,7 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Z18 aktiv (Frontend Full Review).** Z17-S1 (Theme-Leak `.card-primary`) done 2026-05-08. Z18-S1 (Frontend Full Review + Doku) abgeschlossen 2026-05-08 — 9 Findings in `FRONTEND_TODO.md`. Naechster Schritt: Codex priorisiert Z18-Slices zur Umsetzung. Empfohlen fuer ersten Slice: Z18-F3 (Utility-Extraktion) oder Z18-F5 (Accessibility).
+**Z18 aktiv (Frontend Full Review).** Z18-S1 (Review + Doku) done. Z18-S2 (Batch A: F1/F2/F3/F5/F8/F9) done 2026-05-08. Offen: Z18-F4 (HIGH — WorkflowSearchPage Pagination), Z18-F6 (MEDIUM — SupervisorStepPage RQ), Z18-F7 (MEDIUM — Split-Workspace). Naechster Schritt: Codex priorisiert Z18-F4 oder naechsten Batch.
 
 ## Zyklusuebergreifend offen
 

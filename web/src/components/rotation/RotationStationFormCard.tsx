@@ -31,7 +31,7 @@ export default function RotationStationFormCard({
       </div>
 
       <div className="workflow-grid" aria-label="Stationsformular">
-        <div className="dashboard-card card-primary rotation-form-card">
+        <div className="card-primary card-form">
           <label className="field compact">
             <span>Abteilung</span>
             <select

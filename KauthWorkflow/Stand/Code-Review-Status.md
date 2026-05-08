@@ -63,31 +63,25 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — **vollstaendig abgeschlossen** (Z15-S1 done; Z15-S2 Override-Stellen done; Z15-S3 Persona-Switcher done; 274/274 Tests gruen) |
 | 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
-| 18 | 2026-05-08 | Frontend Full Review — Z18-S1 done; 9 Findings (Z18-F1 bis Z18-F9) in `FRONTEND_TODO.md` |
+| 18 | 2026-05-08 | Frontend Full Review — Z18-S1 done; Z18-S2 (Batch A: F1/F2/F3/F5/F8/F9) done; offen: F4/F6/F7 |
 
 ---
 
 ## Aktiver Zyklus 18 — Frontend Full Review (2026-05-08)
 
-**Praktisch:** Erster umfassender Review des gesamten Frontends unter Enterprise-/Admin-Frontend-Leitplanken (data-dense dashboard, Kontrast, Labels, Submit-Feedback, Listen-zu-Detail-Klarheit, Responsive, Light/Dark-Konsistenz). Keine Implementierung — nur Review + Befunddokumentation.
-
-**Lohnenswert:** Seit Z11 haben sich viele neue Bereiche ergeben (Personenverzeichnis, Split-Views, Persona-Switcher, Saved Views). Ein kurzer Review-Stopp hält technische Schuld klein bevor weitere Features aufgebaut werden.
-
-**Nutzen:** 9 konkrete Findings mit klarer Priorisierung, bereit zur Einzelumsetzung.
+**Praktisch:** Erster umfassender Review des gesamten Frontends. Z18-S2 hat 6 von 9 Findings bereinigt.
 
 | Befund | Bereich | Prio | Status |
 |--------|---------|------|--------|
-| Z18-F1 — `dashboard-card cursor: pointer` auf 4 Formular-Containern (semantisch falsch, irreführender Zeiger) | CSS / 4 TSX-Dateien | MEDIUM | offen |
-| Z18-F2 — `rotation-form-card` Ghost-Klasse ohne CSS-Regeln (3 Verwendungen, 0 Definitionen) | CSS / 3 TSX-Dateien | LOW | offen |
-| Z18-F3 — `formatEmploymentStatus` + `formatDirectoryLinkStatus` in 3–4 Dateien dupliziert | `web/src/pages/` | MEDIUM | offen |
-| Z18-F4 — `WorkflowSearchPage` lädt bis zu 1000 Vorgänge ohne Pagination | `WorkflowSearchPage.tsx` | HIGH | offen |
-| Z18-F5 — `PeopleDirectoryPage`-Tabelle ohne `scope="col"` auf `<th>` (Accessibility) | `PeopleDirectoryPage.tsx` | MEDIUM | offen |
-| Z18-F6 — `SupervisorStepPage` nutzt manuelles async/await statt React Query (kein Retry, kein Caching) | `SupervisorStepPage.tsx` | MEDIUM | offen |
-| Z18-F7 — Split-Workspace auto-selektiert ersten Eintrag ohne Nutzer-Geste (WorkflowListResults) | `WorkflowListResults.tsx` | MEDIUM | offen |
-| Z18-F8 — `PeopleDirectoryPage` Pagination: `offset` nicht in URL persistiert | `PeopleDirectoryPage.tsx` | LOW | offen |
-| Z18-F9 — Admin-Workspace-Nav: `aria-expanded` ohne `aria-controls` auf Area-Tabs | `AdminWorkspaceNavigation.tsx` | LOW | offen |
-
-Alle Findings detailliert mit Begründung und Lösungsvorschlag in `FRONTEND_TODO.md`.
+| Z18-F1 — `dashboard-card cursor: pointer` auf Formular-Containern | CSS / TSX | MEDIUM | **done Z18-S2** |
+| Z18-F2 — `rotation-form-card` Ghost-Klasse | CSS / TSX | LOW | **done Z18-S2** |
+| Z18-F3 — `formatEmploymentStatus` + `formatDirectoryLinkStatus` dupliziert | `web/src/utils/` | MEDIUM | **done Z18-S2** |
+| Z18-F4 — `WorkflowSearchPage` 1000er-Cap ohne Pagination | `WorkflowSearchPage.tsx` | HIGH | **offen** |
+| Z18-F5 — `PeopleDirectoryPage` ohne `scope="col"` auf `<th>` | `PeopleDirectoryPage.tsx` | MEDIUM | **done Z18-S2** |
+| Z18-F6 — `SupervisorStepPage` manuelles async statt React Query | `SupervisorStepPage.tsx` | MEDIUM | **offen** |
+| Z18-F7 — Split-Workspace auto-selektiert ersten Eintrag | `WorkflowListResults.tsx` | MEDIUM | **offen** |
+| Z18-F8 — `PeopleDirectoryPage` Pagination offset nicht in URL | `PeopleDirectoryPage.tsx` | LOW | **done Z18-S2** |
+| Z18-F9 — Admin-Workspace-Nav `aria-expanded` ohne `aria-controls` | `AdminWorkspaceNavigation.tsx` | LOW | **done Z18-S2** |
 
 ---
 

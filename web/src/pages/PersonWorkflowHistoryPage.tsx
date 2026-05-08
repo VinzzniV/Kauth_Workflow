@@ -21,6 +21,11 @@ import type {
 } from "../types/workflow";
 import { formatDate, formatDateTime } from "../utils/dateFormat";
 import {
+  formatDirectoryLinkStatus,
+  formatEmploymentStatus,
+  getEmploymentStatusClass,
+} from "../utils/employmentStatus";
+import {
   getTaskSlaClassName,
   getTaskSlaLabel,
   getTaskStatusClassName,
@@ -36,48 +41,6 @@ type HistorySortKey = "created" | "completed" | "type" | "status" | "department"
 type SortDirection = "asc" | "desc";
 
 const TERMINAL_WORKFLOW_STATUSES = new Set<string>(["completed"]);
-
-function formatEmploymentStatus(status: string | null): string {
-  switch (status) {
-    case "planned":
-      return "Geplant";
-    case "active":
-      return "Aktiv";
-    case "inactive":
-      return "Inaktiv";
-    case "exited":
-      return "Ausgetreten";
-    default:
-      return "-";
-  }
-}
-
-function formatDirectoryLinkStatus(status: string | null): string {
-  switch (status) {
-    case "linked":
-      return "Mit Verzeichnis verknüpft";
-    case "user_only":
-      return "Nur App-Benutzer verknüpft";
-    case "unlinked":
-      return "Noch nicht verknüpft";
-    default:
-      return "-";
-  }
-}
-
-function getEmploymentChipClass(status: string | null): string {
-  switch (status) {
-    case "active":
-      return "status-pill running";
-    case "planned":
-      return "status-pill open";
-    case "inactive":
-    case "exited":
-      return "status-pill completed";
-    default:
-      return "status-pill";
-  }
-}
 
 function getDirectoryChipClass(status: string | null): string {
   switch (status) {
@@ -828,7 +791,7 @@ export default function PersonWorkflowHistoryPage() {
               <div
                 style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}
               >
-                <span className={getEmploymentChipClass(history.employmentStatus)}>
+                <span className={getEmploymentStatusClass(history.employmentStatus)}>
                   {formatEmploymentStatus(history.employmentStatus)}
                 </span>
                 <span className={getDirectoryChipClass(history.directoryLinkStatus)}>

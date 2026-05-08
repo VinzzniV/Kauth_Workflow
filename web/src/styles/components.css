@@ -82,6 +82,14 @@
   box-shadow: var(--surface-focus-shadow);
 }
 
+/* Non-interactive form container: card appearance without pointer cursor or hover lift.
+   Use instead of .dashboard-card on wrappers that contain form fields, not clickable links. */
+.card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .card-list {
   padding: 0.95rem 1rem;
   box-shadow: none;

@@ -6,51 +6,14 @@ import PageHeader from "../components/layout/PageHeader";
 import { usePeopleDirectory } from "../services/queries/peopleQueries";
 import type { PersonDirectoryItem } from "../types/workflow";
 import { formatDate } from "../utils/dateFormat";
+import {
+  formatDirectoryLinkStatusShort,
+  formatEmploymentStatus,
+  getEmploymentStatusClass,
+} from "../utils/employmentStatus";
 
 const SEARCH_DEBOUNCE_MS = 400;
 const PAGE_SIZE = 50;
-
-function formatEmploymentStatus(status: string | null): string {
-  switch (status) {
-    case "planned":
-      return "Geplant";
-    case "active":
-      return "Aktiv";
-    case "inactive":
-      return "Inaktiv";
-    case "exited":
-      return "Ausgetreten";
-    default:
-      return "–";
-  }
-}
-
-function getEmploymentStatusClass(status: string | null): string {
-  switch (status) {
-    case "active":
-      return "status-pill running";
-    case "planned":
-      return "status-pill open";
-    case "inactive":
-    case "exited":
-      return "status-pill completed";
-    default:
-      return "status-pill";
-  }
-}
-
-function formatDirectoryLinkStatus(status: string | null): string {
-  switch (status) {
-    case "linked":
-      return "Verknüpft";
-    case "user_only":
-      return "Nur App";
-    case "unlinked":
-      return "Nicht verknüpft";
-    default:
-      return "–";
-  }
-}
 
 function PersonRow({ person }: { person: PersonDirectoryItem }) {
   return (
@@ -68,7 +31,7 @@ function PersonRow({ person }: { person: PersonDirectoryItem }) {
         </span>
       </td>
       <td>{person.entryDate ? formatDate(person.entryDate) : "–"}</td>
-      <td>{formatDirectoryLinkStatus(person.directoryLinkStatus)}</td>
+      <td>{formatDirectoryLinkStatusShort(person.directoryLinkStatus)}</td>
     </tr>
   );
 }
@@ -76,9 +39,10 @@ function PersonRow({ person }: { person: PersonDirectoryItem }) {
 export default function PeopleDirectoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get("q") ?? "";
+  const initialPage = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const [search, setSearch] = useState<string>(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch);
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffset] = useState((initialPage - 1) * PAGE_SIZE);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -93,10 +57,14 @@ export default function PeopleDirectoryPage() {
     if (search.trim()) {
       nextParams.set("q", search.trim());
     }
+    const pageNum = Math.floor(offset / PAGE_SIZE) + 1;
+    if (pageNum > 1) {
+      nextParams.set("page", String(pageNum));
+    }
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [search, searchParams, setSearchParams]);
+  }, [search, offset, searchParams, setSearchParams]);
 
   const directoryQuery = usePeopleDirectory(debouncedSearch, offset, PAGE_SIZE);
   const items: PersonDirectoryItem[] = directoryQuery.data?.items ?? [];
@@ -189,12 +157,12 @@ export default function PeopleDirectoryPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Abteilung</th>
-                    <th>Stelle</th>
-                    <th>Status</th>
-                    <th>Eintrittsdatum</th>
-                    <th>Verzeichnis</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Abteilung</th>
+                    <th scope="col">Stelle</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Eintrittsdatum</th>
+                    <th scope="col">Verzeichnis</th>
                   </tr>
                 </thead>
                 <tbody>
