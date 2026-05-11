@@ -114,7 +114,7 @@ LIMIT @limit OFFSET @offset;";
         };
     }
 
-    public async Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query)
+    public async Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query, IReadOnlyCollection<int>? observableDepartmentIds = null)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -131,6 +131,7 @@ LIMIT @limit OFFSET @offset;";
 
         // C: UNION ALL ergaenzt directory_identities ohne people-Record (account_enabled = true).
         // directory_only-Eintraege haben PersonId = NULL und DirectoryIdentityId gesetzt.
+        // observableDepartmentIds = null bedeutet keine Einschraenkung (HR/Admin).
         var sql = $@"
 SELECT
     person_id,
@@ -192,6 +193,10 @@ FROM (
         OR COALESCE(r.name, '') ILIKE @pattern
         OR CAST(COALESCE(p.employee_number, 0) AS TEXT) ILIKE @pattern
     )
+    AND (
+        @observableDepartmentIds IS NULL
+        OR p.department_id = ANY(@observableDepartmentIds)
+    )
 
     UNION ALL
 
@@ -220,6 +225,10 @@ FROM (
             OR COALESCE(dep.name, '') ILIKE @pattern
             OR COALESCE(dir.department_name, '') ILIKE @pattern
         )
+        AND (
+            @observableDepartmentIds IS NULL
+            OR dep.id = ANY(@observableDepartmentIds)
+        )
 ) combined
 ORDER BY {orderBy}
 LIMIT @limit OFFSET @offset;";
@@ -229,6 +238,8 @@ LIMIT @limit OFFSET @offset;";
         command.Parameters.AddWithValue("pattern", query.SearchPattern);
         command.Parameters.AddWithValue("limit", query.Limit);
         command.Parameters.AddWithValue("offset", query.Offset);
+        command.Parameters.Add("observableDepartmentIds", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Integer).Value =
+            observableDepartmentIds is null ? DBNull.Value : observableDepartmentIds.ToArray();
 
         await using var reader = await command.ExecuteReaderAsync();
 

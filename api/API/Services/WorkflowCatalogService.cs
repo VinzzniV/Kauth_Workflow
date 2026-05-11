@@ -61,9 +61,9 @@ internal sealed class WorkflowCatalogService(
         return await repository.GetRoles(query);
     }
 
-    public async Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectoryAsync(AdminListQuery query, CancellationToken cancellationToken = default)
+    public async Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectoryAsync(AdminListQuery query, IReadOnlyCollection<int>? observableDepartmentIds = null, CancellationToken cancellationToken = default)
     {
-        return await repository.GetPeopleDirectory(query);
+        return await repository.GetPeopleDirectory(query, observableDepartmentIds);
     }
 
     public async Task<IReadOnlyList<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSourcesAsync(

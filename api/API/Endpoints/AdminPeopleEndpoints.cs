@@ -12,20 +12,30 @@ internal static class AdminPeopleEndpoints
         app.MapGet("/admin/people", async (
             HttpRequest request,
             IWorkflowCatalogService workflowCatalogService,
+            IWorkflowVisibilityService workflowVisibilityService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
         {
-            var access = await EndpointSupport.RequireAuthorization(
-                userContext,
-                authorizationPolicy.CanAccessPeopleDirectory,
-                "HR oder Admin role is required.");
-            if (access.Error is not null)
+            var currentUser = await userContext.GetCurrentUser();
+            if (currentUser is null || !currentUser.IsActive)
             {
-                return access.Error;
+                return Results.Unauthorized();
+            }
+
+            // HR/Admin: uneingeschraenkte Sicht auf alle Personen.
+            // Manager/Supervisor: nur Personen in beobachtbaren Abteilungen.
+            var isFullAccess = authorizationPolicy.CanAccessPeopleDirectory(currentUser);
+            var observableDepartmentIds = isFullAccess
+                ? null
+                : await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
+
+            if (!isFullAccess && (observableDepartmentIds is null || observableDepartmentIds.Count == 0))
+            {
+                return EndpointSupport.Forbidden("HR, Admin oder Abteilungsleitung erforderlich.");
             }
 
             var query = AdminListQuery.From(request);
-            return Results.Ok(await workflowCatalogService.GetPeopleDirectoryAsync(query));
+            return Results.Ok(await workflowCatalogService.GetPeopleDirectoryAsync(query, isFullAccess ? null : observableDepartmentIds));
         }).Produces<AdminListPageDto<PersonDirectoryItemDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
