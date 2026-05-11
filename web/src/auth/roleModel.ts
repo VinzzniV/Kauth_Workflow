@@ -200,7 +200,7 @@ export function canAccessFeature(capabilities: RoleCapabilities, feature: AppFea
     case "adminConfig":
       return capabilities.canManageAdminConfiguration;
     case "peopleDirectory":
-      return capabilities.hasHrRole || capabilities.hasAdminRole;
+      return capabilities.hasHrRole || capabilities.hasAdminRole || capabilities.canAccessSupervisorStep;
     default:
       return false;
   }
