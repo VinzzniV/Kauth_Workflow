@@ -128,7 +128,7 @@ export default function RotationAuditLog({
   error,
 }: RotationAuditLogProps) {
   return (
-    <details className="panel" name="rotation-audit-log" open>
+    <details className="panel" name="rotation-audit-log">
       <summary className="panel-head" style={{ cursor: "pointer", listStyle: "none" }}>
         <div>
           <h2>{title}</h2>

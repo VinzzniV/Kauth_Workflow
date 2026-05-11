@@ -38,6 +38,24 @@ export default function RotationPlanDetailPage() {
   const departments = departmentsQuery.data?.items ?? [];
 
   const plan = planDetailQuery.data;
+
+  const groupedGeneratedTasks = useMemo(() => {
+    const tasks = generatedTasksQuery.data ?? [];
+    const groupMap = new Map<string, { anchorDate: string; departmentName: string; tasks: typeof tasks }>();
+    for (const task of tasks) {
+      const key = `${task.anchorDate}::${task.departmentName ?? "-"}`;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, { anchorDate: task.anchorDate, departmentName: task.departmentName ?? "-", tasks: [] });
+      }
+      groupMap.get(key)!.tasks.push(task);
+    }
+    return Array.from(groupMap.values()).sort((left, right) => {
+      const dateDelta = left.anchorDate.localeCompare(right.anchorDate);
+      if (dateDelta !== 0) return dateDelta;
+      return left.departmentName.localeCompare(right.departmentName, "de");
+    });
+  }, [generatedTasksQuery.data]);
+
   const orderedStations = useMemo(
     () => [...(plan?.stations ?? [])].sort((left, right) => left.orderIndex - right.orderIndex),
     [plan?.stations]
@@ -202,40 +220,44 @@ export default function RotationPlanDetailPage() {
               {!generatedTasksQuery.isLoading &&
               !generatedTasksQuery.error &&
               (generatedTasksQuery.data?.length ?? 0) > 0 ? (
-                <div className="workflow-grid" aria-label="Generierte Aufgaben">
-                  {(generatedTasksQuery.data ?? []).map((task) => (
-                    <article key={task.id} className="workflow-card card-list">
-                      <div className="workflow-card-top">
-                        <h3>{task.title}</h3>
-                        <span className="status-pill running">{getGeneratedTaskStatusLabel(task)}</span>
+                <div className="generated-task-groups" aria-label="Generierte Aufgaben">
+                  {groupedGeneratedTasks.map((group) => (
+                    <details key={`${group.anchorDate}::${group.departmentName}`} className="generated-task-group" open>
+                      <summary className="generated-task-group-head">
+                        <span className="generated-task-group-title">
+                          {formatDate(group.anchorDate)} · {group.departmentName}
+                        </span>
+                        <span className="chip">{group.tasks.length} Aufgabe{group.tasks.length === 1 ? "" : "n"}</span>
+                      </summary>
+                      <div className="workflow-grid">
+                        {group.tasks.map((task) => (
+                          <article key={task.id} className="workflow-card card-list">
+                            <div className="workflow-card-top">
+                              <h3>{task.title}</h3>
+                              <span className="status-pill running">{getGeneratedTaskStatusLabel(task)}</span>
+                            </div>
+                            <dl className="workflow-meta">
+                              <div>
+                                <dt>Trigger</dt>
+                                <dd>{task.triggerType === "enter" ? "Eintritt" : "Austritt"}</dd>
+                              </div>
+                              <div>
+                                <dt>Fällig</dt>
+                                <dd>{formatDate(task.dueDate)}</dd>
+                              </div>
+                              <div>
+                                <dt>Verantwortung</dt>
+                                <dd>{task.responsibilityName ?? "-"}</dd>
+                              </div>
+                              <div>
+                                <dt>Vorlage</dt>
+                                <dd>{task.templateTitle ?? "-"}</dd>
+                              </div>
+                            </dl>
+                          </article>
+                        ))}
                       </div>
-                      <dl className="workflow-meta">
-                        <div>
-                          <dt>Abteilung</dt>
-                          <dd>{task.departmentName ?? "-"}</dd>
-                        </div>
-                        <div>
-                          <dt>Trigger</dt>
-                          <dd>{task.triggerType === "enter" ? "Eintritt" : "Austritt"}</dd>
-                        </div>
-                        <div>
-                          <dt>Wechselbezug</dt>
-                          <dd>{formatDate(task.anchorDate)}</dd>
-                        </div>
-                        <div>
-                          <dt>Fällig</dt>
-                          <dd>{formatDate(task.dueDate)}</dd>
-                        </div>
-                        <div>
-                          <dt>Verantwortung</dt>
-                          <dd>{task.responsibilityName ?? "-"}</dd>
-                        </div>
-                        <div>
-                          <dt>Vorlage</dt>
-                          <dd>{task.templateTitle ?? "-"}</dd>
-                        </div>
-                      </dl>
-                    </article>
+                    </details>
                   ))}
                 </div>
               ) : null}
