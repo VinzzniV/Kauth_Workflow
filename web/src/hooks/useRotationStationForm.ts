@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../components/feedback/useToast";
 import {
@@ -63,28 +63,35 @@ export function normalizeStationPayload(form: StationFormState): RotationStation
 export type UseRotationStationFormArgs = {
   numericPlanId: number;
   personId: number | null;
-  orderedStationsCount: number;
+  orderedStations: RotationStation[];
 };
 
 export function useRotationStationForm({
   numericPlanId,
   personId,
-  orderedStationsCount,
+  orderedStations,
 }: UseRotationStationFormArgs) {
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useToast();
 
+  // Always use max existing orderIndex + 1 to avoid gaps causing conflicts
+  const nextOrderIndex = useMemo(
+    () => orderedStations.reduce((max, s) => Math.max(max, s.orderIndex), -1) + 1,
+    [orderedStations]
+  );
+
   const [editingStationId, setEditingStationId] = useState<number | null>(null);
-  const [stationForm, setStationForm] = useState<StationFormState>(() => createEmptyStationForm(orderedStationsCount));
+  const [stationForm, setStationForm] = useState<StationFormState>(() => createEmptyStationForm(nextOrderIndex));
   const [isSavingStation, setIsSavingStation] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [deletingStationId, setDeletingStationId] = useState<number | null>(null);
 
+  // Keep form orderIndex in sync for display (editing mode excluded)
   useEffect(() => {
     if (editingStationId === null) {
-      setStationForm(prev => ({ ...prev, orderIndex: String(orderedStationsCount) }));
+      setStationForm(prev => ({ ...prev, orderIndex: String(nextOrderIndex) }));
     }
-  }, [orderedStationsCount, editingStationId]);
+  }, [nextOrderIndex, editingStationId]);
 
   async function reloadPlanData() {
     await Promise.all([
@@ -101,7 +108,7 @@ export function useRotationStationForm({
 
   function openCreateStationForm() {
     setEditingStationId(null);
-    setStationForm(createEmptyStationForm(orderedStationsCount));
+    setStationForm(createEmptyStationForm(nextOrderIndex));
   }
 
   function openEditStationForm(station: RotationStation) {
@@ -111,7 +118,7 @@ export function useRotationStationForm({
 
   function resetStationForm() {
     setEditingStationId(null);
-    setStationForm(createEmptyStationForm(orderedStationsCount));
+    setStationForm(createEmptyStationForm(nextOrderIndex));
   }
 
   async function handleSaveStation() {
@@ -122,17 +129,22 @@ export function useRotationStationForm({
         !Number.isFinite(payload.departmentId) ||
         payload.departmentId <= 0 ||
         !payload.startDate ||
-        !payload.endDate ||
-        !Number.isFinite(payload.orderIndex)
+        !payload.endDate
       ) {
         throw new Error("Bitte alle Pflichtfelder der Station korrekt ausfüllen.");
       }
 
       if (editingStationId) {
+        // Update: keep the station's own orderIndex from the form
+        if (!Number.isFinite(payload.orderIndex)) {
+          throw new Error("Bitte alle Pflichtfelder der Station korrekt ausfüllen.");
+        }
         await updateRotationStation(editingStationId, payload);
         showSuccess("Station wurde aktualisiert.");
       } else {
-        await createRotationStation(numericPlanId, payload);
+        // Create: always derive orderIndex from current stations at submit time,
+        // not from form state (which can lag behind due to async data reload)
+        await createRotationStation(numericPlanId, { ...payload, orderIndex: nextOrderIndex });
         showSuccess("Station wurde angelegt.");
       }
 

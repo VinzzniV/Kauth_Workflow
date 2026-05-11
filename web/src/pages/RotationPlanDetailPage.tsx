@@ -46,7 +46,7 @@ export default function RotationPlanDetailPage() {
   const stationForm = useRotationStationForm({
     numericPlanId: isValidPlanId ? numericPlanId : 0,
     personId: plan?.personId ?? null,
-    orderedStationsCount: orderedStations.length,
+    orderedStations,
   });
 
   if (!isValidPlanId) {
