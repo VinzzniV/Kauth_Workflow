@@ -107,10 +107,10 @@ internal sealed class RotationPlanningService(
             throw new InvalidOperationException("sourceWorkflowUid is required.");
         }
 
-        var source = await rotationRepository.GetCompletedOnboardingSource(request.SourceWorkflowUid);
+        var source = await rotationRepository.GetSourceWorkflow(request.SourceWorkflowUid);
         if (source is null)
         {
-            throw new InvalidOperationException("Das angegebene abgeschlossene Onboarding wurde nicht gefunden.");
+            throw new InvalidOperationException("Der angegebene Quell-Workflow wurde nicht gefunden.");
         }
 
         await EnsureVisibleAsync(source.DepartmentId, currentUser);
@@ -118,7 +118,7 @@ internal sealed class RotationPlanningService(
         if (source.PersonId != request.PersonId)
         {
             throw new InvalidOperationException(
-                "Der Durchlaufplan muss auf dieselbe Person wie der abgeschlossene Onboarding-Vorgang referenzieren.");
+                "Der Durchlaufplan muss auf dieselbe Person wie der Quell-Workflow referenzieren.");
         }
 
         var normalizedStatus = NormalizePlanStatus(request.Status);
@@ -131,7 +131,7 @@ internal sealed class RotationPlanningService(
         if (conflictState.HasOpenPlanForSourceWorkflow)
         {
             throw new InvalidOperationException(
-                "Für dieses abgeschlossene Onboarding existiert bereits ein offener Durchlaufplan.");
+                "Für diesen Quell-Workflow existiert bereits ein offener Durchlaufplan.");
         }
 
         var persistedRequest = new CreateRotationPlanRequest

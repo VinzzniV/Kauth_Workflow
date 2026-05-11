@@ -326,7 +326,7 @@ WHERE allows_manager_creation = TRUE;";
         int limit = 20,
         IReadOnlyCollection<int>? observableDepartmentIds = null)
     {
-        return await SearchPeopleInternal(query, limit, observableDepartmentIds, requireCompletedOnboarding: false);
+        return await SearchPeopleInternal(query, limit, observableDepartmentIds, requireSourceWorkflow: false);
     }
 
     public async Task<List<WorkflowTargetPersonDto>> SearchRotationEligiblePeople(
@@ -334,14 +334,14 @@ WHERE allows_manager_creation = TRUE;";
         int limit = 20,
         IReadOnlyCollection<int>? observableDepartmentIds = null)
     {
-        return await SearchPeopleInternal(query, limit, observableDepartmentIds, requireCompletedOnboarding: true);
+        return await SearchPeopleInternal(query, limit, observableDepartmentIds, requireSourceWorkflow: true);
     }
 
     private async Task<List<WorkflowTargetPersonDto>> SearchPeopleInternal(
         string? query,
         int limit,
         IReadOnlyCollection<int>? observableDepartmentIds,
-        bool requireCompletedOnboarding)
+        bool requireSourceWorkflow)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
@@ -387,7 +387,7 @@ WITH latest_workflow AS (
     ) resolved
     ORDER BY resolved.person_id, resolved.created_at DESC, resolved.id DESC
 ),
-latest_completed_onboarding AS (
+latest_source_workflow AS (
     SELECT DISTINCT ON (resolved.person_id)
         resolved.person_id,
         resolved.workflow_uid,
@@ -460,20 +460,20 @@ SELECT
     linked_directory.user_principal_name,
     linked_directory.mail,
     linked_directory.employee_number AS directory_employee_number,
-    latest_completed_onboarding.workflow_uid,
-    latest_completed_onboarding.completed_at
+    latest_source_workflow.workflow_uid,
+    latest_source_workflow.completed_at
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
 LEFT JOIN directory_identities linked_directory ON linked_directory.id = p.directory_identity_id
 LEFT JOIN latest_workflow ON latest_workflow.person_id = p.id
-LEFT JOIN latest_completed_onboarding ON latest_completed_onboarding.person_id = p.id
+LEFT JOIN latest_source_workflow ON latest_source_workflow.person_id = p.id
 LEFT JOIN departments d ON d.id = COALESCE(p.department_id, latest_workflow.department_id, u.department_id)
 LEFT JOIN app_roles r ON r.id = COALESCE(p.current_position_role_id, latest_workflow.position_role_id)
 WHERE (
       @departmentIds IS NULL
       OR COALESCE(p.department_id, latest_workflow.department_id, u.department_id) = ANY(@departmentIds)
   )
-  {(requireCompletedOnboarding ? "AND latest_completed_onboarding.workflow_uid IS NOT NULL" : string.Empty)}
+  {(requireSourceWorkflow ? "AND latest_source_workflow.workflow_uid IS NOT NULL" : string.Empty)}
   AND (
       @query = ''
       OR COALESCE(
@@ -489,7 +489,7 @@ WHERE (
       OR COALESCE(linked_directory.mail, '') ILIKE @pattern
   )
 ORDER BY
-    latest_completed_onboarding.completed_at DESC NULLS LAST,
+    latest_source_workflow.completed_at DESC NULLS LAST,
     display_name,
     p.id
 LIMIT @limit;";
@@ -1001,8 +1001,8 @@ VALUES (
             DirectoryUserPrincipalName = reader.IsDBNull(15) ? null : reader.GetString(15),
             DirectoryMail = reader.IsDBNull(16) ? null : reader.GetString(16),
             DirectoryEmployeeNumber = reader.IsDBNull(17) ? null : reader.GetInt32(17),
-            LatestCompletedOnboardingWorkflowUid = reader.IsDBNull(18) ? null : reader.GetGuid(18),
-            LatestCompletedOnboardingAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19)
+            LatestSourceWorkflowUid = reader.IsDBNull(18) ? null : reader.GetGuid(18),
+            LatestSourceWorkflowCompletedAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19)
         };
     }
 

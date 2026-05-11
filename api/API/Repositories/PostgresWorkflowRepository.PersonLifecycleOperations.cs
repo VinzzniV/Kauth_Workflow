@@ -358,7 +358,7 @@ WHERE id = @personId;
         await connection.OpenAsync();
 
         const string sql = """
-WITH latest_completed_onboarding AS (
+WITH latest_source_workflow AS (
     SELECT DISTINCT ON (resolved.person_id)
         resolved.person_id,
         resolved.workflow_uid,
@@ -415,14 +415,14 @@ SELECT
     linked_directory.user_principal_name,
     linked_directory.mail,
     linked_directory.employee_number AS directory_employee_number,
-    latest_completed_onboarding.workflow_uid,
-    latest_completed_onboarding.completed_at
+    latest_source_workflow.workflow_uid,
+    latest_source_workflow.completed_at
 FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
 LEFT JOIN directory_identities linked_directory ON linked_directory.id = p.directory_identity_id
 LEFT JOIN departments d ON d.id = p.department_id
 LEFT JOIN app_roles r ON r.id = p.current_position_role_id
-LEFT JOIN latest_completed_onboarding ON latest_completed_onboarding.person_id = p.id
+LEFT JOIN latest_source_workflow ON latest_source_workflow.person_id = p.id
 WHERE p.id = @personId
 LIMIT 1;
 """;
@@ -455,8 +455,8 @@ LIMIT 1;
             DirectoryUserPrincipalName = reader.IsDBNull(15) ? null : reader.GetString(15),
             DirectoryMail = reader.IsDBNull(16) ? null : reader.GetString(16),
             DirectoryEmployeeNumber = reader.IsDBNull(17) ? null : reader.GetInt32(17),
-            LatestCompletedOnboardingWorkflowUid = reader.IsDBNull(18) ? null : reader.GetGuid(18),
-            LatestCompletedOnboardingAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19)
+            LatestSourceWorkflowUid = reader.IsDBNull(18) ? null : reader.GetGuid(18),
+            LatestSourceWorkflowCompletedAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19)
         };
     }
 

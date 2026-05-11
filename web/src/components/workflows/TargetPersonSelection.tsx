@@ -58,9 +58,9 @@ export default function TargetPersonSelection({
         <div className="wizard-choice-list">
           {targetPeople.map((person) => {
             const isSelected = selectedPersonId === person.personId;
-            const lastOnboardingLabel = person.latestCompletedOnboardingAt
-              ? `Letztes Onboarding: ${formatDateTime(person.latestCompletedOnboardingAt)}`
-              : "Noch kein abgeschlossenes Onboarding";
+            const lastOnboardingLabel = person.latestSourceWorkflowCompletedAt
+              ? `Letzter Quell-Workflow: ${formatDateTime(person.latestSourceWorkflowCompletedAt)}`
+              : "Kein Quell-Workflow vorhanden";
 
             return (
               <label
@@ -120,8 +120,8 @@ export default function TargetPersonSelection({
               <dd>{formatDirectoryLinkStatus(selectedPerson.directoryLinkStatus)}</dd>
             </div>
             <div>
-              <dt>Letztes abgeschlossenes Onboarding</dt>
-              <dd>{selectedPerson.latestCompletedOnboardingWorkflowUid ?? "-"}</dd>
+              <dt>Letzter Quell-Workflow</dt>
+              <dd>{selectedPerson.latestSourceWorkflowUid ?? "-"}</dd>
             </div>
           </dl>
         </div>

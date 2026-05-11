@@ -429,8 +429,8 @@ export function CreateWorkflowReviewStep(props: {
               </div>
               {requiresTargetPerson ? (
                 <div>
-                  <dt>Letztes abgeschlossenes Onboarding</dt>
-                  <dd>{selectedTargetPerson?.latestCompletedOnboardingWorkflowUid ?? "-"}</dd>
+                  <dt>Letzter Quell-Workflow</dt>
+                  <dd>{selectedTargetPerson?.latestSourceWorkflowUid ?? "-"}</dd>
                 </div>
               ) : null}
             </dl>

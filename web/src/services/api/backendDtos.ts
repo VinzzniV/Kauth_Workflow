@@ -549,7 +549,7 @@ export type BackendPersonWorkflowHistoryDto = {
   directoryUserPrincipalName: string | null;
   directoryMail: string | null;
   directoryEmployeeNumber: number | null;
-  latestCompletedOnboardingWorkflowUid: string | null;
-  latestCompletedOnboardingAt: string | null;
+  latestSourceWorkflowUid: string | null;
+  latestSourceWorkflowCompletedAt: string | null;
   workflows: BackendPersonWorkflowSummaryDto[];
 };

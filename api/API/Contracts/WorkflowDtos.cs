@@ -579,8 +579,8 @@ public sealed class WorkflowTargetPersonDto
     public string? DirectoryUserPrincipalName { get; init; }
     public string? DirectoryMail { get; init; }
     public int? DirectoryEmployeeNumber { get; init; }
-    public Guid? LatestCompletedOnboardingWorkflowUid { get; init; }
-    public DateTime? LatestCompletedOnboardingAt { get; init; }
+    public Guid? LatestSourceWorkflowUid { get; init; }
+    public DateTime? LatestSourceWorkflowCompletedAt { get; init; }
 }
 
 public sealed class WorkflowTargetPersonSourceDto
@@ -826,8 +826,8 @@ public sealed class PersonWorkflowHistoryDto
     public string? DirectoryUserPrincipalName { get; init; }
     public string? DirectoryMail { get; init; }
     public int? DirectoryEmployeeNumber { get; init; }
-    public Guid? LatestCompletedOnboardingWorkflowUid { get; init; }
-    public DateTime? LatestCompletedOnboardingAt { get; init; }
+    public Guid? LatestSourceWorkflowUid { get; init; }
+    public DateTime? LatestSourceWorkflowCompletedAt { get; init; }
     public required List<PersonWorkflowSummaryDto> Workflows { get; init; }
 }
 

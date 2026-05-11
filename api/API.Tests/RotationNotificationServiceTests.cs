@@ -190,7 +190,7 @@ public sealed class RotationNotificationServiceTests
 
         public Task<bool> DepartmentExists(int departmentId) => Task.FromResult(true);
         public Task<bool> ResponsibilityExists(int responsibilityId) => Task.FromResult(true);
-        public Task<WorkflowTargetPersonSourceDto?> GetCompletedOnboardingSource(Guid workflowUid) => Task.FromResult<WorkflowTargetPersonSourceDto?>(null);
+        public Task<WorkflowTargetPersonSourceDto?> GetSourceWorkflow(Guid workflowUid) => Task.FromResult<WorkflowTargetPersonSourceDto?>(null);
         public Task<RotationPlanConflictState> GetRotationPlanConflictState(long personId, Guid sourceWorkflowUid) => Task.FromResult(new RotationPlanConflictState());
         public Task<List<RotationPlanListItemDto>> GetRotationPlans(long? personId, IReadOnlyCollection<int>? observableDepartmentIds = null) => Task.FromResult(new List<RotationPlanListItemDto>());
         public Task<RotationPlanDetailDto?> GetRotationPlan(long planId) => Task.FromResult<RotationPlanDetailDto?>(null);

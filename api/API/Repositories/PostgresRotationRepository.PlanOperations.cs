@@ -5,7 +5,7 @@ namespace API;
 
 internal sealed partial class PostgresRotationRepository
 {
-    public async Task<WorkflowTargetPersonSourceDto?> GetCompletedOnboardingSource(Guid workflowUid)
+    public async Task<WorkflowTargetPersonSourceDto?> GetSourceWorkflow(Guid workflowUid)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();

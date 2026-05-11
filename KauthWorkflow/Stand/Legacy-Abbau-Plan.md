@@ -34,6 +34,7 @@ Der wichtigste Resthebel ist heute die Mischung aus:
 | `process_types`-Tabelle | erledigt | Physische Tabelle und zentrale FKs sind abgebaut. |
 | `task_templates`-Cluster | erledigt | Durch `workflow_node_task_specs*` ersetzt. |
 | `CompletedOnboarding*`-Aliaspfade | erledigt | Fachlich neutrale Endpunkte und DTOs sind produktiv. |
+| `CompletedOnboarding*`-Fachbegriff-Rest (BE/FE) | erledigt 2026-05-11 | `GetCompletedOnboardingSource` → `GetSourceWorkflow`; DTO-Properties `LatestCompletedOnboardingWorkflowUid`/`At` → `LatestSourceWorkflowUid`/`CompletedAt`; SQL CTEs, FE-Typen und UI-Labels durchgehend entlegacyt. |
 | Permission-Schema `workflows.create.<key>` | erledigt | Quelle ist `workflow_definitions.key`, nicht mehr `process_types.key`. |
 | `approval_task_template_key` | erledigt | Rename auf `approval_spec_key` inkl. manueller DB-Helfer dokumentiert. |
 | `setup`-Node-Type (Code/Seeds) | erledigt | Kein `node_type = 'setup'` mehr in aktivem Code oder Seeds; nur noch in `db/_archive/`. Einziger Restpunkt: DB-Inventur gegen persistierte Definitionen (manuell, kein DB-Zugriff hier). |
@@ -87,6 +88,7 @@ Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der R
 6. ~~Seed-/Test-Cleanup~~ — ✓ erledigt 2026-05-11 (gemeinsam mit Schritt 4).
 7. ~~Internes `processType*`-Naming in Backend-Workflow-Pfaden bereinigen~~ — ✓ erledigt 2026-05-11 (WorkflowStatusRules, PostgresWorkflowStatusCalculationService, WorkflowTaskGenerationContext, WorkflowCreateOperations, WorkflowQueryOperations, NotificationEmailTemplateBuilder + Consumer).
 8. ~~`legacyStatus` als SQL-/Parameter-Name im Runtime-/Lifecycle-Pfad~~ — ✓ erledigt 2026-05-11 (`WorkflowLifecycleService.cs`, `PostgresWorkflowRuntimeRepository.cs`: `legacyStatus` → `workflowStatus`).
+9. ~~`CompletedOnboarding*`-Fachbegriff-Rest in BE/FE~~ — ✓ erledigt 2026-05-11 (`GetCompletedOnboardingSource` → `GetSourceWorkflow`; DTO-Properties und FE-Typen auf `LatestSourceWorkflowUid`/`CompletedAt`; UI-Labels entlegacyt).
 
 ---
 

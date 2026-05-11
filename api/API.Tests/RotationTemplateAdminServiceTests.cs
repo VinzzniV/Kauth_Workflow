@@ -236,7 +236,7 @@ public sealed class RotationTemplateAdminServiceTests
         public Task<bool> ResponsibilityExists(int responsibilityId)
             => Task.FromResult(ResponsibilityExistsResult);
 
-        public Task<WorkflowTargetPersonSourceDto?> GetCompletedOnboardingSource(Guid workflowUid)
+        public Task<WorkflowTargetPersonSourceDto?> GetSourceWorkflow(Guid workflowUid)
             => Task.FromResult<WorkflowTargetPersonSourceDto?>(null);
 
         public Task<RotationPlanConflictState> GetRotationPlanConflictState(long personId, Guid sourceWorkflowUid)

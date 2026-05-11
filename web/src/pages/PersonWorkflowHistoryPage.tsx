@@ -373,11 +373,11 @@ function PersonOverviewSection({
             <dd>{history.directoryEmployeeNumber ?? "-"}</dd>
           </div>
           <div>
-            <dt>Letztes abgeschlossenes Onboarding</dt>
+            <dt>Letzter Quell-Workflow</dt>
             <dd>
-              {history.latestCompletedOnboardingWorkflowUid ? (
-                <Link to={`/workflows/${history.latestCompletedOnboardingWorkflowUid}`}>
-                  {history.latestCompletedOnboardingWorkflowUid}
+              {history.latestSourceWorkflowUid ? (
+                <Link to={`/workflows/${history.latestSourceWorkflowUid}`}>
+                  {history.latestSourceWorkflowUid}
                 </Link>
               ) : (
                 "-"
@@ -385,10 +385,10 @@ function PersonOverviewSection({
             </dd>
           </div>
           <div>
-            <dt>Onboarding-Datum</dt>
+            <dt>Quell-Workflow-Datum</dt>
             <dd>
-              {history.latestCompletedOnboardingAt
-                ? formatDate(history.latestCompletedOnboardingAt)
+              {history.latestSourceWorkflowCompletedAt
+                ? formatDate(history.latestSourceWorkflowCompletedAt)
                 : "-"}
             </dd>
           </div>
@@ -882,7 +882,7 @@ export default function PersonWorkflowHistoryPage() {
   const isRetroactivelyImported = useMemo(
     () =>
       history !== null &&
-      history.latestCompletedOnboardingWorkflowUid === null &&
+      history.latestSourceWorkflowUid === null &&
       !history.workflows.some((w) => w.workflowDefinition.key === "onboarding"),
     [history]
   );

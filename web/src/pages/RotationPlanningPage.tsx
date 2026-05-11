@@ -95,12 +95,12 @@ export default function RotationPlanningPage() {
 
   async function handleCreatePlan() {
     if (!selectedPerson) {
-      showError("Bitte zuerst eine Person mit abgeschlossenem Onboarding auswählen.");
+      showError("Bitte zuerst eine Person auswählen.");
       return;
     }
 
-    if (!selectedPerson.latestCompletedOnboardingWorkflowUid) {
-      showError("Für die gewählte Person fehlt ein abgeschlossenes Onboarding als Referenz.");
+    if (!selectedPerson.latestSourceWorkflowUid) {
+      showError("Für die gewählte Person fehlt ein Quell-Workflow als Referenz.");
       return;
     }
 
@@ -108,7 +108,7 @@ export default function RotationPlanningPage() {
     try {
       const createdPlan = await createRotationPlan({
         personId: selectedPerson.personId,
-        sourceWorkflowUid: selectedPerson.latestCompletedOnboardingWorkflowUid,
+        sourceWorkflowUid: selectedPerson.latestSourceWorkflowUid,
         title: planTitle.trim() || undefined,
         status: planStatus,
       });
@@ -253,8 +253,8 @@ export default function RotationPlanningPage() {
                       <dd>{formatEmploymentStatus(entry.employmentStatus)}</dd>
                     </div>
                     <div>
-                      <dt>Letztes Onboarding</dt>
-                      <dd>{formatDateTime(entry.latestCompletedOnboardingAt)}</dd>
+                      <dt>Letzter Quell-Workflow</dt>
+                      <dd>{formatDateTime(entry.latestSourceWorkflowCompletedAt)}</dd>
                     </div>
                   </dl>
                   <div className="action-row">
@@ -311,14 +311,14 @@ export default function RotationPlanningPage() {
                   <dd>{formatEmploymentStatus(selectedPerson.employmentStatus)}</dd>
                 </div>
                 <div>
-                  <dt>Quell-Onboarding</dt>
-                  <dd title={selectedPerson.latestCompletedOnboardingWorkflowUid ?? undefined} className="uid-value">
-                    {formatUid(selectedPerson.latestCompletedOnboardingWorkflowUid)}
+                  <dt>Quell-Workflow</dt>
+                  <dd title={selectedPerson.latestSourceWorkflowUid ?? undefined} className="uid-value">
+                    {formatUid(selectedPerson.latestSourceWorkflowUid)}
                   </dd>
                 </div>
                 <div>
                   <dt>Abgeschlossen</dt>
-                  <dd>{formatDateTime(selectedPerson.latestCompletedOnboardingAt)}</dd>
+                  <dd>{formatDateTime(selectedPerson.latestSourceWorkflowCompletedAt)}</dd>
                 </div>
               </dl>
 

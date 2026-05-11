@@ -6,11 +6,11 @@ namespace API.Tests;
 public sealed class RotationPlanningServiceTests
 {
     [Fact]
-    public async Task CreateRotationPlanAsync_RejectsWhenCompletedOnboardingBelongsToDifferentPerson()
+    public async Task CreateRotationPlanAsync_RejectsWhenSourceWorkflowBelongsToDifferentPerson()
     {
         var repository = new StubRotationRepository
         {
-            CompletedOnboardingSource = CreateSource(personId: 10, departmentId: 2)
+            SourceWorkflow = CreateSource(personId: 10, departmentId: 2)
         };
         var service = CreateService(repository);
 
@@ -18,7 +18,7 @@ public sealed class RotationPlanningServiceTests
             new CreateRotationPlanRequest
             {
                 PersonId = 11,
-                SourceWorkflowUid = repository.CompletedOnboardingSource!.WorkflowUid,
+                SourceWorkflowUid = repository.SourceWorkflow!.WorkflowUid,
                 Status = "draft"
             },
             CreateUser()));
@@ -31,7 +31,7 @@ public sealed class RotationPlanningServiceTests
     {
         var repository = new StubRotationRepository
         {
-            CompletedOnboardingSource = CreateSource(personId: 10, departmentId: 2),
+            SourceWorkflow = CreateSource(personId: 10, departmentId: 2),
             ConflictState = new RotationPlanConflictState
             {
                 HasActivePlanForPerson = true
@@ -43,7 +43,7 @@ public sealed class RotationPlanningServiceTests
             new CreateRotationPlanRequest
             {
                 PersonId = 10,
-                SourceWorkflowUid = repository.CompletedOnboardingSource!.WorkflowUid,
+                SourceWorkflowUid = repository.SourceWorkflow!.WorkflowUid,
                 Status = "active"
             },
             CreateUser()));
@@ -156,7 +156,7 @@ public sealed class RotationPlanningServiceTests
     {
         var repository = new StubRotationRepository
         {
-            CompletedOnboardingSource = CreateSource(personId: 10, departmentId: 2),
+            SourceWorkflow = CreateSource(personId: 10, departmentId: 2),
             Plan = CreatePlanWithStations()
         };
         var generationService = new StubRotationTaskGenerationService();
@@ -166,7 +166,7 @@ public sealed class RotationPlanningServiceTests
             new CreateRotationPlanRequest
             {
                 PersonId = 10,
-                SourceWorkflowUid = repository.CompletedOnboardingSource!.WorkflowUid,
+                SourceWorkflowUid = repository.SourceWorkflow!.WorkflowUid,
                 Status = "draft"
             },
             CreateUser());
@@ -291,7 +291,7 @@ public sealed class RotationPlanningServiceTests
 
     private sealed class StubRotationRepository : IRotationRepository
     {
-        public WorkflowTargetPersonSourceDto? CompletedOnboardingSource { get; set; }
+        public WorkflowTargetPersonSourceDto? SourceWorkflow { get; set; }
         public RotationPlanConflictState ConflictState { get; set; } = new();
         public RotationPlanDetailDto? Plan { get; set; }
         public RotationStationDto? Station { get; set; }
@@ -304,8 +304,8 @@ public sealed class RotationPlanningServiceTests
         public Task<bool> ResponsibilityExists(int responsibilityId)
             => Task.FromResult(true);
 
-        public Task<WorkflowTargetPersonSourceDto?> GetCompletedOnboardingSource(Guid workflowUid)
-            => Task.FromResult(CompletedOnboardingSource);
+        public Task<WorkflowTargetPersonSourceDto?> GetSourceWorkflow(Guid workflowUid)
+            => Task.FromResult(SourceWorkflow);
 
         public Task<RotationPlanConflictState> GetRotationPlanConflictState(long personId, Guid sourceWorkflowUid)
             => Task.FromResult(ConflictState);

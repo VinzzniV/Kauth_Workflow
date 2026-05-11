@@ -569,7 +569,7 @@ WITH latest_workflow AS (
     ) resolved
     ORDER BY resolved.person_id, resolved.created_at DESC, resolved.id DESC
 ),
-latest_completed_onboarding AS (
+latest_source_workflow AS (
     SELECT DISTINCT ON (resolved.person_id)
         resolved.person_id,
         resolved.workflow_uid,
@@ -644,8 +644,8 @@ SELECT
     linked_directory.user_principal_name,
     linked_directory.mail,
     linked_directory.employee_number AS directory_employee_number,
-    latest_completed_onboarding.workflow_uid AS latest_completed_onboarding_workflow_uid,
-    latest_completed_onboarding.completed_at AS latest_completed_onboarding_at,
+    latest_source_workflow.workflow_uid AS latest_source_workflow_uid,
+    latest_source_workflow.completed_at AS latest_source_workflow_completed_at,
     w.uid,
     pt.definition_key,
     pt.name,
@@ -665,7 +665,7 @@ FROM people p
 LEFT JOIN app_users u ON u.id = p.app_user_id
 LEFT JOIN directory_identities linked_directory ON linked_directory.id = p.directory_identity_id
 LEFT JOIN latest_workflow ON latest_workflow.person_id = p.id
-LEFT JOIN latest_completed_onboarding ON latest_completed_onboarding.person_id = p.id
+LEFT JOIN latest_source_workflow ON latest_source_workflow.person_id = p.id
 LEFT JOIN departments d ON d.id = COALESCE(p.department_id, latest_workflow.department_id, u.department_id)
 LEFT JOIN app_roles role_ref ON role_ref.id = COALESCE(p.current_position_role_id, latest_workflow.position_role_id)
 LEFT JOIN workflows w
@@ -716,8 +716,8 @@ ORDER BY w.created_at DESC NULLS LAST;";
                     DirectoryUserPrincipalName = reader.IsDBNull(17) ? null : reader.GetString(17),
                     DirectoryMail = reader.IsDBNull(18) ? null : reader.GetString(18),
                     DirectoryEmployeeNumber = reader.IsDBNull(19) ? null : reader.GetInt32(19),
-                    LatestCompletedOnboardingWorkflowUid = reader.IsDBNull(20) ? null : reader.GetGuid(20),
-                    LatestCompletedOnboardingAt = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
+                    LatestSourceWorkflowUid = reader.IsDBNull(20) ? null : reader.GetGuid(20),
+                    LatestSourceWorkflowCompletedAt = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
                     Workflows = workflows
                 };
             }

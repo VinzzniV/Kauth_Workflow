@@ -10,7 +10,7 @@ internal interface IRotationRepository
 {
     Task<bool> DepartmentExists(int departmentId);
     Task<bool> ResponsibilityExists(int responsibilityId);
-    Task<WorkflowTargetPersonSourceDto?> GetCompletedOnboardingSource(Guid workflowUid);
+    Task<WorkflowTargetPersonSourceDto?> GetSourceWorkflow(Guid workflowUid);
     Task<RotationPlanConflictState> GetRotationPlanConflictState(long personId, Guid sourceWorkflowUid);
     Task<List<RotationPlanListItemDto>> GetRotationPlans(long? personId, IReadOnlyCollection<int>? observableDepartmentIds = null);
     Task<RotationPlanDetailDto?> GetRotationPlan(long planId);

@@ -533,8 +533,8 @@ export type WorkflowTargetPerson = {
   directoryUserPrincipalName: string | null;
   directoryMail: string | null;
   directoryEmployeeNumber: number | null;
-  latestCompletedOnboardingWorkflowUid: string | null;
-  latestCompletedOnboardingAt: string | null;
+  latestSourceWorkflowUid: string | null;
+  latestSourceWorkflowCompletedAt: string | null;
 };
 
 export type WorkflowTargetPersonSource = {
@@ -597,8 +597,8 @@ export type PersonWorkflowHistory = {
   directoryUserPrincipalName: string | null;
   directoryMail: string | null;
   directoryEmployeeNumber: number | null;
-  latestCompletedOnboardingWorkflowUid: string | null;
-  latestCompletedOnboardingAt: string | null;
+  latestSourceWorkflowUid: string | null;
+  latestSourceWorkflowCompletedAt: string | null;
   workflows: PersonWorkflowSummary[];
 };
 

@@ -489,8 +489,8 @@ export function mapPersonWorkflowHistory(dto: BackendPersonWorkflowHistoryDto): 
     directoryUserPrincipalName: dto.directoryUserPrincipalName,
     directoryMail: dto.directoryMail,
     directoryEmployeeNumber: dto.directoryEmployeeNumber,
-    latestCompletedOnboardingWorkflowUid: dto.latestCompletedOnboardingWorkflowUid,
-    latestCompletedOnboardingAt: dto.latestCompletedOnboardingAt,
+    latestSourceWorkflowUid: dto.latestSourceWorkflowUid,
+    latestSourceWorkflowCompletedAt: dto.latestSourceWorkflowCompletedAt,
     workflows: dto.workflows.map(mapPersonWorkflowSummary),
   };
 }
