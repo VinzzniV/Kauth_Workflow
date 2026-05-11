@@ -64,7 +64,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
 | 18 | 2026-05-08 | Frontend Full Review — **vollstaendig abgeschlossen** (alle 9 Findings: S2 Batch A, S3 Batch B, S4 F4 Redirect) |
-| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **eroeffnet** als Doku-Zyklus, S1 Audit-Pass offen |
+| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **S1 done** (3 HIGH, 4 MEDIUM, 4 LOW Findings); Umsetzungsslices S2..S9 offen |
 
 ---
 
@@ -80,12 +80,38 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 
 | Slice | Inhalt | Prio | Modell/Effort | Status |
 |-------|--------|------|---------------|--------|
-| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. `db/manual/`-Workflow), Test-Coverage. **Doku-only.** | HIGH | `claude-opus-4-7` + `--effort high` | offen |
-| Z19-S2..N | Umsetzungsslices nach Findings-Verteilung. | — | typisch `claude-sonnet-4-6` + `--effort medium`; Opus nur bei Engine-/Lifecycle-/Authorization-Eingriffen | folgt nach S1 |
+| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. `db/manual/`-Workflow), Test-Coverage. **Doku-only.** | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
+| Z19-S2 | Sweep-Timeout fuer `DirectorySyncHostedService` (analog `RotationNotificationHostedService.SweepTimeout = 2h`). | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z19-S3 | Schema-Paritaets-Check `db/01_schema.sql` vs `db/manual/*.sql`. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z19-S4 | `CancellationToken`-Propagation in `WorkflowLifecycleService` + `WorkflowRuntimeService`. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z19-S5 | `SystemEventLogService`: UndefinedTable-Swallow, Cursor-Pagination, Unit-Tests. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z19-S6 | `PostgresUserAuthorizationRepository` Repo-Split nach Z9-Pattern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z19-S7 | `WorkflowAutomationService` Failure-of-Failure absichern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z19-S8 | Verdikt fuer deferred Z8-3.2/#8 + Z16-S4. | MEDIUM | (Doku-Entscheidung) | offen |
+| Z19-S9 | Hygiene-Batch (L1–L4). | LOW | `claude-sonnet-4-6` + `--effort medium` | offen |
+
+### Z19-S1 Findings (2026-05-11)
+
+**HIGH:**
+- **H1** — `DirectorySyncHostedService` ohne Sweep-Timeout (vs `RotationNotificationHostedService.SweepTimeout = 2h`). *Praktisch:* haengender Graph-Call blockt Sync-Loop bis Restart. *Lohnenswert:* Pattern existiert ein paar Meter weiter. *Nutzen:* harte Sweep-Obergrenze, Sichtbarkeit im Runtime-Health.
+- **H2** — `db/manual/`-Workflow ohne Schema-Paritaetspruefung. *Praktisch:* Drift faellt erst im Laufzeitfehler auf. *Lohnenswert:* zwei Vorfaelle in einer Woche. *Nutzen:* verlaesslicher Migrationspfad bis Live-Schaltung.
+- **H3** — `WorkflowLifecycleService`/`WorkflowRuntimeService` propagieren `CancellationToken` nicht. *Praktisch:* HTTP-Abbruch laesst DB-Tx offen, Hold-Locks bleiben. *Lohnenswert:* genau der Pfad fuer Lock-Eskalationen unter Last. *Nutzen:* sauberer Abbruchpfad bis DB-Layer.
+
+**MEDIUM:**
+- **M1** — `SystemEventLogService` schluckt `UndefinedTable` still, LIMIT/OFFSET-Pagination, keine Unit-Tests.
+- **M2** — `PostgresUserAuthorizationRepository.AdminOperations.cs` (1886 LOC) + `…AdminReadOperations.cs` (1002 LOC) als naechster Repo-Split nach Z9-Pattern.
+- **M3** — `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure leakt Job-Claim.
+- **M4** — Verdikt fuer deferred Z8-3.2/#8 + Z16-S4.
+
+**LOW:**
+- **L1** — Stray `db/init/prod;C/` Verzeichnis (Shell-Typo-Artefakt).
+- **L2** — `AdminRuntimeHealthService` doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync`.
+- **L3** — Leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs`.
+- **L4** — `WorkflowRuntimeService.GetWorkflowsAsync` propagiert empfangenen `CancellationToken` nicht ans Repository.
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer, neue FE-Findings (Z18 abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigenstaendig).
 
-**Naechster Schritt:** Codex erzwingt Z19-S1 per CLI mit `--model claude-opus-4-7 --effort high`.
+**Naechster Schritt:** Z19-S2 (Sweep-Timeout `DirectorySyncHostedService`) per CLI mit `--model claude-opus-4-7 --effort high`.
 
 ---
 

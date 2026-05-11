@@ -82,16 +82,74 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 
 | Slice | Inhalt | Prio | Status |
 |-------|--------|------|--------|
-| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. DB-Drift-Pfad und `db/manual/`-Workflow), Test-Coverage-Luecken. Liefert priorisierte Findings (HIGH/MEDIUM/LOW) mit Begruendung, Bereich und vorgeschlagenem Slice-Schnitt. **Doku-only**, keine Code-Aenderung. | HIGH | offen |
-| Z19-S2..N | Umsetzungsslices je nach Findings-Verteilung; Modell/Effort pro Slice gesetzt. | — | folgt nach S1 |
+| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. DB-Drift-Pfad und `db/manual/`-Workflow), Test-Coverage-Luecken. Liefert priorisierte Findings (HIGH/MEDIUM/LOW) mit Begruendung, Bereich und vorgeschlagenem Slice-Schnitt. **Doku-only**, keine Code-Aenderung. | HIGH | **done 2026-05-11** |
+| Z19-S2 | Background-Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap). | HIGH | offen |
+| Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql` (oder Migrations-Manifest), damit DB-Drift nicht stillschweigend passiert. | HIGH | offen |
+| Z19-S4 | `WorkflowLifecycleService` und `WorkflowRuntimeService` durchgaengig auf `CancellationToken` umstellen (HTTP-Abbruch erreicht offene DB-Transaktion). | HIGH | offen |
+| Z19-S5 | `SystemEventLogService`: stilles Schlucken von `UndefinedTable` ersetzen, Cursor-Pagination statt LIMIT/OFFSET, eigene Unit-Tests fuer Redaction/Normalization/Filter. | MEDIUM | offen |
+| Z19-S6 | `PostgresUserAuthorizationRepository.AdminOperations.cs` (1886 LOC) + `…AdminReadOperations.cs` (1002 LOC) nach Z9-Pattern aufteilen. | MEDIUM | offen |
+| Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern (Job-Claim leakt, wenn `CompleteAutomationJobFailure` selbst wirft). | MEDIUM | offen |
+| Z19-S8 | Verdikt fuer deferred Befunde Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot-Vertrag): explizit weiter deferred mit Frist, oder eigener Slice. | MEDIUM | offen |
+| Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` (Z. 37–41) zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` reicht den entgegengenommenen `CancellationToken` nicht ans Repository weiter. | LOW | offen |
 
 **Empfohlenes Modell/Effort fuer Folgeslices:**
-- **Z19-S1** (Audit): `claude-opus-4-7` + `--effort high` — breites, dichtes Audit ueber mehrere Backend-Module, Begruendungs-/Schreibregel-Pflicht und Slice-Plan-Schnitt rechtfertigen Opus-Tiefe.
-- **Z19-S2..N** (Umsetzung): typisch `claude-sonnet-4-6` + `--effort medium` fuer lokale Refactorings, Coverage-Auffuellungen und Vertrags-/Hygiene-Fixes; `claude-opus-4-7` + `--effort high` nur bei nicht-trivialen Engine-/Lifecycle- oder Authorization-Eingriffen.
+- **Z19-S1** (Audit, abgeschlossen): `claude-opus-4-7` + `--effort high`.
+- **Z19-S2..S4** (HIGH-Umsetzung): `claude-opus-4-7` + `--effort high` fuer Lifecycle-/Cancellation- und Schema-/Migrations-Eingriffe; **Z19-S5..S7** typisch `claude-sonnet-4-6` + `--effort medium`; **Z19-S8** ist eine Entscheidung, kein Code; **Z19-S9** `claude-sonnet-4-6` + `--effort medium`.
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Workflow-Definition-/Runtime-/Automation-Layer (Migrationspfad-Arbeit bleibt eigenstaendig), neue Frontend-Findings (Z18 vollstaendig abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigener Backlog).
 
-**Naechster Schritt:** Codex erzwingt Z19-S1 per CLI mit `--model claude-opus-4-7 --effort high`.
+**Naechster Schritt:** Z19-S2 (Sweep-Timeout fuer Directory-Sync) — kleinster eigenstaendiger HIGH-Hebel mit klarem Pattern aus Z8/RotationNotification.
+
+---
+
+## Aktiver Zyklus 19 — S1 Ergebnis (2026-05-11)
+
+Audit-Pass ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, `db/01_schema.sql`, `db/init/`, `db/manual/`, `api/API.Tests` ist abgeschlossen. Keine Code-Aenderungen, nur Dokumentation. Findings sind nach Risiko fuer Betrieb/Daten/Wartbarkeit priorisiert; jeder Befund erklaert kurz, was er praktisch bedeutet, warum er sich lohnt und was dadurch besser wird.
+
+### HIGH
+
+**H1 — `DirectorySyncHostedService` ohne Sweep-Timeout.**
+`api/API/Services/DirectorySyncHostedService.cs` ruft `directorySyncService.SyncAllAsync(stoppingToken)` direkt auf; `RotationNotificationHostedService` setzt im Gegensatz dazu `SweepTimeout = TimeSpan.FromHours(2)` mit `sweepCts.CancelAfter(SweepTimeout)`. **Praktisch:** ein haengender Graph-Call (Drossellung, Netzwerk, Tenant-Latenz) blockiert den Sync-Loop unbemerkt bis zum Service-Restart — neue Mitarbeiter erscheinen nicht im Dev-Sim-Login, Re-Sync-Effekte verzoegern sich. **Lohnenswert:** der Vorfall ist betrieblich diagnostisch teuer (kein Healthcheck, der ihn als „haengend" zeigt) und das Pattern existiert bereits ein paar Meter weiter im selben Verzeichnis. **Nutzen:** harte Obergrenze fuer einen Einzelsweep, Sichtbarkeit im Admin-Runtime-Health-Block, kein einseitiger Hang.
+
+**H2 — `db/manual/`-Workflow ohne Schema-Paritaetspruefung.**
+`db/01_schema.sql` ist die einzige Wahrheit fuer frische DBs; bestehende DBs werden ueber manuelle SQL-Helfer in `db/manual/` (zuletzt `2026-05-08_rename_approval_task_template_key_to_approval_spec_key.sql` und `2026-05-08_add_directory_identities_job_title.sql`) nachgezogen. Es gibt keinen Test/Check, der sicherstellt, dass eine Inplace-DB nach Anwendung aller Helfer wirklich `01_schema.sql` entspricht. **Praktisch:** Drift faellt erst beim naechsten Laufzeitfehler auf (`column does not exist` beim Directory-Sync, `relation … does not exist` bei Startup-Validierung) — und nur, wenn ueberhaupt jemand den passenden Codepfad ausloest. **Lohnenswert:** zwei Vorfaelle innerhalb einer Woche zeigen, dass das aktuelle „Codex/Claude denkt dran"-Pattern nicht traegt. **Nutzen:** verlaesslicher Migrationspfad bis zur Live-Schaltung, keine stillschweigenden Schema-Abweichungen mehr; klare Andockflaeche fuer den spaeteren Wechsel auf additive Migrationen.
+
+**H3 — `WorkflowLifecycleService`/`WorkflowRuntimeService` propagieren `CancellationToken` nicht.**
+`api/API/Services/WorkflowLifecycleService.cs` nutzt fuenfmal `CancellationToken` und kennt weder fuer `CreateWorkflowInstanceAsync` noch fuer `UpdateTaskStatusAsync` einen Token-Parameter. `WorkflowRuntimeService.GetWorkflowsAsync` empfaengt zwar einen Token, reicht ihn aber nicht ans Repository weiter. **Praktisch:** wenn ein Client die HTTP-Anfrage abbricht (Browser-Reload, Timeout, Navigation), laeuft die DB-Transaktion samt Hold-Locks weiter — schlimmstenfalls werden Notification-Outbox-Inserts noch ausgefuehrt, die zugehoerige Lifecycle-Reaktion ist aber fuer den Anrufer egal. **Lohnenswert:** das ist genau der Pfad, der unter Last fuer Lock-Eskalationen sorgt (lange offene Tx auf `workflow_*`-Tabellen blockieren Sweep-Jobs). **Nutzen:** sauberer Abbruchpfad bis in den DB-Layer; weniger zombieartige Transaktionen unter Last; konsistenter Vertrag mit dem Rest des Services-Layers (Z9-Pattern).
+
+### MEDIUM
+
+**M1 — `SystemEventLogService` schluckt `UndefinedTable` still und paginiert ueber OFFSET.**
+`api/API/Services/SystemEventLogService.cs` faengt in INSERT- und SELECT-Pfaden `PostgresException ex when ex.SqlState == PostgresErrorCodes.UndefinedTable` und liefert leise leeres Ergebnis. Listen-Read nutzt `LIMIT @limit OFFSET @offset` und ILIKE-Substring-Suche ueber viele Spalten; eine `SystemEventLogServiceTests.cs` existiert nicht. **Praktisch:** wenn die `system_event_log`-Tabelle wirklich fehlt (DB-Drift, neue Umgebung), faellt das Admin-Dashboard nicht auf — es zeigt einfach „keine Events". Suche skaliert ueber `OFFSET` linear mit dem Tabellenwachstum. **Lohnenswert:** das ist genau der Pfad, ueber den Operatoren Drift entdecken sollten. **Nutzen:** sichtbarer Healthcheck-Fail statt stiller Leere; vorhersagbare Suche unter Wachstum; gezielte Unit-Tests fuer Redaction/Normalization/Filter geben Z19-S5 einen kleinen, klar bewertbaren Hebel.
+
+**M2 — `PostgresUserAuthorizationRepository` Repo-Monolith-Resthebel.**
+`api/API/Repositories/PostgresUserAuthorizationRepository.AdminOperations.cs` hat 1886 LOC, `…AdminReadOperations.cs` 1002 LOC. Beides waechst weiter, beide kombinieren Admin-Mutation und Admin-Listen-Reads. **Praktisch:** lange Dateien sind im Review-/Merge-Pfad teurer, Konfliktrate steigt mit der naechsten Auth-/Berechtigungsaenderung. **Lohnenswert:** das Splitt-Pattern aus Z9 (Directory) und Z11 (Workflow-Definition-Admin) ist erprobt; ein weiterer Repo passt zum Pattern. **Nutzen:** kleinere, fokussiertere Partials; geringere Konfliktwahrscheinlichkeit; klare Read-/Write-Trennung.
+
+**M3 — `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure.**
+Beim Verarbeiten eines Automation-Jobs catcht der Service eine generische Exception und ruft `CompleteAutomationJobFailure` auf. Wirft dieser Call selbst (z.B. transienter DB-Fehler), bleibt der Job im `claimed`-Status haengen, ohne dass der Worker ihn jemals wieder zieht. **Praktisch:** ein einzelnes DB-Hiccup im Fehlpfad kann einen Automationsjob dauerhaft blockieren — sichtbar nur durch lange „in Bearbeitung"-Anzeigen im Admin. **Lohnenswert:** kleiner Patch, der eine ganze Klasse von „warum laeuft mein Automatisierungsschritt nie weiter"-Tickets schliesst. **Nutzen:** sichere Re-Claim-Logik, idempotentes Failure-Handling, kein menschliches Eingreifen mehr noetig.
+
+**M4 — Verdikt fuer deferred Befunde aus frueheren Zyklen.**
+`Z8-3.2/#8` (`RotationTaskGenerationService.RegenerateDepartmentPlansAsync`-Schleife) und `Z16-S4` (Automation-Snapshot-Vertrag) stehen seit mehreren Zyklen auf „deferred" ohne Frist. **Praktisch:** beide bleiben latent als „Admin loest aus, niemand weiss wie lange es dauert"-Pfade. **Lohnenswert:** Z19 ist die richtige Stelle, beide entweder mit Begruendung dauerhaft zu archivieren oder als eigenstaendige Slices zu schneiden. **Nutzen:** keine ewigen Watchout-Eintraege; klare Erwartung an Folgezyklen.
+
+### LOW
+
+**L1 — Stray `db/init/prod;C/` Verzeichnis.**
+Neben `db/init/prod/` existiert ein leeres `db/init/prod;C/` — eindeutig ein Shell-Typo-Artefakt. **Praktisch:** verwirrt nur den naechsten Leser. **Lohnenswert:** kostet keinen Aufwand. **Nutzen:** weniger Rauschen in der Repo-Wurzel des `db/`-Layouts.
+
+**L2 — `AdminRuntimeHealthService` doppeltes `Task.WhenAll`, serielles Host-Probe.**
+`api/API/Services/AdminRuntimeHealthService.cs` Z. 37–41 ruft `await Task.WhenAll(...)` zweimal mit ueberlappenden Tasks auf; `BuildHostHealthAsync` laeuft serielle nach dem initialen WhenAll statt parallel mit den anderen Probes. **Praktisch:** unter Last sind das ein paar zusaetzliche Millisekunden auf dem Admin-Dashboard-Endpunkt, sonst keine Auswirkung. **Lohnenswert:** sauberer Read, ehrliche Parallelitaet. **Nutzen:** weniger Wait-Zeit, klareres Lese-Muster fuer kuenftige Probes.
+
+**L3 — Leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs`.**
+Die Datei besteht nur aus `namespace API.Tests;` plus Kommentar „Entfernt in Slice 6.3d-iii". **Praktisch:** Datei wird vom Test-Runner geladen, leistet aber nichts. **Lohnenswert:** ein `git rm`. **Nutzen:** weniger Verwirrung beim Durchsehen des Test-Projekts.
+
+**L4 — `WorkflowRuntimeService.GetWorkflowsAsync` schluckt `CancellationToken`.**
+Methode hat einen `CancellationToken`-Parameter, gibt ihn aber nicht ans Repository weiter. **Praktisch:** subset von H3 fuer die Read-Seite. **Lohnenswert:** einzeiliger Fix. **Nutzen:** konsistente Token-Propagation.
+
+### Slice-Schnitt-Empfehlung
+
+- HIGH zuerst, in der Reihenfolge **S2 (Sweep-Timeout) → S3 (Schema-Paritaet) → S4 (Cancellation)**: jeder Slice ist eigenstaendig, klein und hat ein erprobtes Pattern als Vorbild.
+- MEDIUM danach, in der Reihenfolge **S5 (SystemEventLog) → S6 (AuthZ-Repo-Split) → S7 (Automation-Failure-Failure) → S8 (Deferred-Verdikt)**.
+- LOW zum Schluss als gebuendelter Hygiene-Batch **S9**.
 
 ---
 
