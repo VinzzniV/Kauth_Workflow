@@ -170,7 +170,7 @@ RETURNING id, uid;";
                 WorkflowId = workflowId,
                 WorkflowUid = workflowUid,
                 ProcessTypeId = processType.Id,
-                LegacyProcessTypeKey = processType.Key,
+                WorkflowDefinitionKey = processType.Key,
                 RequiresSupervisorStep = processType.RequiresSupervisorStep,
                 DepartmentId = departmentId,
                 RoleId = roleId

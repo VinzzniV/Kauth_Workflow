@@ -13,8 +13,8 @@ internal sealed class WorkflowNotificationRenderContext
     public required string TemplateKey { get; init; }
     public required string RecipientName { get; init; }
     public required string WorkflowUrl { get; init; }
-    public required string LegacyProcessTypeKey { get; init; }
-    public required string ProcessTypeName { get; init; }
+    public required string WorkflowDefinitionKey { get; init; }
+    public required string WorkflowDefinitionName { get; init; }
     public IReadOnlyList<string> TaskTitles { get; init; } = [];
 }
 

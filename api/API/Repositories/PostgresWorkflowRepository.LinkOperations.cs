@@ -11,7 +11,7 @@ internal sealed partial class PostgresWorkflowRepository
         public required long WorkflowId { get; init; }
         public required Guid WorkflowUid { get; init; }
         public required int ProcessTypeId { get; init; }
-        public required string LegacyProcessTypeKey { get; init; }
+        public required string WorkflowDefinitionKey { get; init; }
         public required bool RequiresSupervisorStep { get; init; }
         public required int DepartmentId { get; init; }
         public required int RoleId { get; init; }
@@ -333,7 +333,7 @@ LIMIT 1;";
             WorkflowId = reader.GetInt64(0),
             WorkflowUid = reader.GetGuid(1),
             ProcessTypeId = reader.GetInt32(2),
-            LegacyProcessTypeKey = reader.GetString(3),
+            WorkflowDefinitionKey = reader.GetString(3),
             RequiresSupervisorStep = reader.GetBoolean(4),
             DepartmentId = reader.GetInt32(5),
             RoleId = reader.GetInt32(6)
@@ -384,7 +384,7 @@ RETURNING id;";
             connection,
             transaction,
             sourceWorkflow.WorkflowUid,
-            targetWorkflow.LegacyProcessTypeKey);
+            targetWorkflow.WorkflowDefinitionKey);
         if (derivedAnswers.Count == 0)
         {
             return new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase);

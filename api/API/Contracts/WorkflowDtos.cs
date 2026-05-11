@@ -485,8 +485,8 @@ public sealed class WorkflowNotificationDispatchTarget
 {
     public required long NotificationId { get; init; }
     public required string NotificationType { get; init; }
-    public required string LegacyProcessTypeKey { get; init; }
-    public required string ProcessTypeName { get; init; }
+    public required string WorkflowDefinitionKey { get; init; }
+    public required string WorkflowDefinitionName { get; init; }
     public long? WorkflowTaskId { get; init; }
     public long? RecipientUserId { get; init; }
     public string? RecipientIdentityKey { get; init; }

@@ -495,8 +495,8 @@ internal sealed class GraphWorkflowEmailNotificationSender : IWorkflowEmailNotif
                 TemplateKey = batch.NotificationType,
                 RecipientName = recipientName,
                 WorkflowUrl = workflowUrl,
-                LegacyProcessTypeKey = batch.PrimaryTarget.LegacyProcessTypeKey,
-                ProcessTypeName = batch.PrimaryTarget.ProcessTypeName,
+                WorkflowDefinitionKey = batch.PrimaryTarget.WorkflowDefinitionKey,
+                WorkflowDefinitionName = batch.PrimaryTarget.WorkflowDefinitionName,
                 TaskTitles = batch.TaskTitles
             },
             cancellationToken);
