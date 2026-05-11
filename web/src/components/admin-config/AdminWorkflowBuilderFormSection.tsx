@@ -87,7 +87,7 @@ type AdminWorkflowBuilderFormSectionProps = {
   onError: (message: string | null) => void;
 };
 
-const PROCESS_TYPE_OPTIONS: { key: string; label: string }[] = [
+const WORKFLOW_DEFINITION_OPTIONS: { key: string; label: string }[] = [
   { key: "onboarding", label: "Onboarding" },
   { key: "offboarding", label: "Offboarding" },
   { key: "department_change", label: "Abteilungswechsel" },
@@ -564,24 +564,24 @@ function Section1Stammdaten({
         </div>
 
         <div className="wf-form-field">
-          <label className="form-label" htmlFor="wf-process-type">
-            Prozesstyp <span className="text-error">*</span>
+          <label className="form-label" htmlFor="wf-definition-key">
+            Workflow-Typ <span className="text-error">*</span>
           </label>
           <select
-            id="wf-process-type"
+            id="wf-definition-key"
             className="form-select"
-            value={builder.versionDraft.primaryLegacyProcessTypeKey}
-            onChange={(e) => builder.updateVersionDraftField("primaryLegacyProcessTypeKey", e.target.value)}
+            value={builder.versionDraft.workflowDefinitionKey}
+            onChange={(e) => builder.updateVersionDraftField("workflowDefinitionKey", e.target.value)}
             disabled={!canManageAdvanced}
           >
             <option value="">– bitte wählen –</option>
-            {PROCESS_TYPE_OPTIONS.map((opt) => (
+            {WORKFLOW_DEFINITION_OPTIONS.map((opt) => (
               <option key={opt.key} value={opt.key}>{opt.label}</option>
             ))}
           </select>
           <p className="wf-form-field-hint">
-            Bestimmt, welche Aufgaben- und Maßnahmenvorlagen automatisch zu diesem Workflow gehören.
-            Beispiel: „Onboarding" zieht alle Eintritts-Maßnahmen der Abteilungen.
+            Bestimmt, welche Antwort-, Aufgaben- und Maßnahmenbausteine zu dieser Workflow-Definition gehören.
+            Beispiel: „Onboarding" zieht die Eintritts-Maßnahmen der betroffenen Bereiche.
           </p>
         </div>
 
@@ -623,19 +623,19 @@ function Section1Stammdaten({
           </div>
 
           <div className="wf-form-field">
-            <label className="form-label" htmlFor="wf-legacy-key">Prozesstyp-Schlüssel (technisch)</label>
+            <label className="form-label" htmlFor="wf-definition-key-tech">Workflow-Definition-Schlüssel</label>
             <input
-              id="wf-legacy-key"
+              id="wf-definition-key-tech"
               className="form-input"
               type="text"
-              value={builder.versionDraft.primaryLegacyProcessTypeKey}
-              onChange={(e) => builder.updateVersionDraftField("primaryLegacyProcessTypeKey", e.target.value)}
+              value={builder.versionDraft.workflowDefinitionKey}
+              onChange={(e) => builder.updateVersionDraftField("workflowDefinitionKey", e.target.value)}
               placeholder="z. B. onboarding"
               disabled={!canManageAdvanced}
             />
             <p className="wf-form-field-hint">
-              Wird vom Prozesstyp-Dropdown oben gesetzt. Hier nur ändern, wenn ein abweichender Schlüssel
-              gegen ein bestehendes Backend-System gemappt werden muss.
+              Wird vom Workflow-Typ oben gesetzt. Hier nur ändern, wenn die Definition auf einen
+              bestehenden kanonischen Workflow-Schlüssel gemappt werden muss.
             </p>
           </div>
         </div>

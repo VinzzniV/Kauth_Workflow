@@ -87,12 +87,12 @@ internal sealed class WorkflowLifecycleService(
                     $"No published workflow definition exists for key '{request.WorkflowDefinitionKey.Trim().ToLowerInvariant()}'.");
             }
 
-            var processType = await PostgresWorkflowRepository.LoadProcessTypeForCreate(connection, transaction, publishedVersion.PrimaryLegacyProcessTypeKey);
+            var processType = await PostgresWorkflowRepository.LoadProcessTypeForCreate(connection, transaction, publishedVersion.WorkflowDefinitionKey);
             var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
 
             var gatekeeperEvaluation = WorkflowRuntimeEngine.EvaluateSupervisorGatekeeper(
                 graph,
-                publishedVersion.PrimaryLegacyProcessTypeKey,
+                publishedVersion.WorkflowDefinitionKey,
                 processType.RequiresSupervisorStep);
             if (!gatekeeperEvaluation.IsSatisfied)
             {
@@ -221,7 +221,7 @@ RETURNING id, uid;
             Guid workflowUid;
             await using (var insertWorkflowCommand = new NpgsqlCommand(insertWorkflowSql, connection, transaction))
             {
-                insertWorkflowCommand.Parameters.AddWithValue("processTypeId", publishedVersion.PrimaryLegacyProcessTypeId);
+                insertWorkflowCommand.Parameters.AddWithValue("processTypeId", publishedVersion.WorkflowDefinitionId);
                 insertWorkflowCommand.Parameters.AddWithValue("workflowDefinitionVersionId", publishedVersion.VersionId);
                 insertWorkflowCommand.Parameters.AddWithValue("departmentId", departmentId);
                 insertWorkflowCommand.Parameters.AddWithValue("roleId", roleId);

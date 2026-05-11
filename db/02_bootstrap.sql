@@ -935,12 +935,12 @@ INSERT INTO public.workflow_edges OVERRIDING SYSTEM VALUE VALUES
 --
 
 INSERT INTO public.workflow_node_configs OVERRIDING SYSTEM VALUE VALUES
-	(7, 20, '{"legacyProcessTypeKey": "offboarding"}', '2026-04-27 07:05:52.0201+00'),
-	(8, 24, '{"legacyProcessTypeKey": "department_change"}', '2026-04-27 07:05:52.023922+00'),
-	(9, 28, '{"legacyProcessTypeKey": "name_change"}', '2026-04-27 07:05:52.03267+00'),
-	(10, 32, '{"legacyProcessTypeKey": "position_change"}', '2026-04-27 07:05:52.036601+00'),
-	(11, 36, '{"legacyProcessTypeKey": "role_change"}', '2026-04-27 07:05:52.039432+00'),
-	(12, 40, '{"legacyProcessTypeKey": "onboarding"}', '2026-04-27 07:05:52.043926+00');
+	(7, 20, '{"workflowDefinitionKey": "offboarding"}', '2026-04-27 07:05:52.0201+00'),
+	(8, 24, '{"workflowDefinitionKey": "department_change"}', '2026-04-27 07:05:52.023922+00'),
+	(9, 28, '{"workflowDefinitionKey": "name_change"}', '2026-04-27 07:05:52.03267+00'),
+	(10, 32, '{"workflowDefinitionKey": "position_change"}', '2026-04-27 07:05:52.036601+00'),
+	(11, 36, '{"workflowDefinitionKey": "role_change"}', '2026-04-27 07:05:52.039432+00'),
+	(12, 40, '{"workflowDefinitionKey": "onboarding"}', '2026-04-27 07:05:52.043926+00');
 
 
 --

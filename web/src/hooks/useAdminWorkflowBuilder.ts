@@ -137,7 +137,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
 
   // Aufgaben-/Antwort-/Conditions-/Dependencies-Referenzdaten kommen aus einem
   // dedizierten Hook (HQ2-Z3): er beobachtet versionDraft + definitions und
-  // re-laedt automatisch, wenn legacyProcessTypeKey-Referenzen sich aendern.
+  // re-laedt automatisch, wenn workflowDefinitionKey-Referenzen sich aendern.
   const {
     taskTemplates,
     answerDefinitions,
@@ -366,7 +366,7 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setNewDefinitionDraft((current) => ({ ...current, [key]: value }));
   }, []);
 
-  const updateVersionDraftField = useCallback((key: "name" | "description" | "primaryLegacyProcessTypeKey", value: string) => {
+  const updateVersionDraftField = useCallback((key: "name" | "description" | "workflowDefinitionKey", value: string) => {
     setVersionDraft((current) => ({ ...current, [key]: value }));
     setIsDirty(true);
   }, []);

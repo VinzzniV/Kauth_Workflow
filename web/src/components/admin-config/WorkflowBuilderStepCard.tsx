@@ -197,7 +197,7 @@ export function WorkflowBuilderStepCard(props: WorkflowBuilderStepCardProps) {
               spellCheck={false}
             />
             <p className="wf-form-field-hint">
-              Roh-JSON. Form-Nodes nutzen <code>legacyProcessTypeKey</code>, andere Knoten brauchen
+              Roh-JSON. Form-Nodes nutzen <code>workflowDefinitionKey</code>, andere Knoten brauchen
               meist keine Konfig (Spezifikationen liegen in <code>workflow_node_task_specs</code>).
             </p>
           </div>

@@ -47,7 +47,7 @@ public sealed class WorkflowRuntimeEngineTests
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord>? answers = null,
         IReadOnlyDictionary<long, string>? nodeStatuses = null,
         bool requiresSupervisorStep = false,
-        string? primaryLegacyProcessTypeKey = null,
+        string? workflowDefinitionKey = null,
         string? approvalTaskTemplateKey = null,
         IReadOnlyDictionary<long, RuntimeApprovalNodeHint>? approvalSpecs = null)
         => new()
@@ -56,7 +56,7 @@ public sealed class WorkflowRuntimeEngineTests
             Graph = graph,
             AnswersByKey = answers ?? new Dictionary<string, StoredWorkflowAnswerRecord>(),
             NodeInstanceStatusByWorkflowNodeId = nodeStatuses ?? new Dictionary<long, string>(),
-            PrimaryLegacyProcessTypeKey = primaryLegacyProcessTypeKey,
+            WorkflowDefinitionKey = workflowDefinitionKey,
             RequiresSupervisorStep = requiresSupervisorStep,
             ApprovalSpecKey = approvalTaskTemplateKey,
             ApprovalSpecByNodeId = approvalSpecs ?? new Dictionary<long, RuntimeApprovalNodeHint>()
@@ -411,9 +411,9 @@ public sealed class WorkflowRuntimeEngineTests
     public void Plan_ApprovalAfterGatekeeperForm_EmitsBridgeSkipAndContinues()
     {
         // Graph: start(1) → gatekeeper_form(2) → approval(3) → end(4)
-        // gatekeeper_form has legacyProcessTypeKey="onboarding" in config
+        // gatekeeper_form has workflowDefinitionKey="onboarding" in config
         var start = Node(1, "start", "start");
-        var gatekeeper = Node(2, "gatekeeper_form", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}""");
+        var gatekeeper = Node(2, "gatekeeper_form", "form", configJson: """{"workflowDefinitionKey":"onboarding"}""");
         var approval = Node(3, "supervisor_approval", "approval");
         var end = Node(4, "end", "end");
         var edges = new[]
@@ -430,7 +430,7 @@ public sealed class WorkflowRuntimeEngineTests
         var snapshot = Snapshot(
             graph,
             requiresSupervisorStep: true,
-            primaryLegacyProcessTypeKey: "onboarding",
+            workflowDefinitionKey: "onboarding",
             approvalTaskTemplateKey: "supervisor_approval_template",
             approvalSpecs: approvalSpecs);
 
@@ -448,7 +448,7 @@ public sealed class WorkflowRuntimeEngineTests
     public void Plan_ApprovalAfterGatekeeperForm_TemplateKeyMismatch_NoBridge_WaitsOnApproval()
     {
         var start = Node(1, "start", "start");
-        var gatekeeper = Node(2, "gatekeeper_form", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}""");
+        var gatekeeper = Node(2, "gatekeeper_form", "form", configJson: """{"workflowDefinitionKey":"onboarding"}""");
         var approval = Node(3, "supervisor_approval", "approval");
         var edges = new[]
         {
@@ -463,7 +463,7 @@ public sealed class WorkflowRuntimeEngineTests
         var snapshot = Snapshot(
             graph,
             requiresSupervisorStep: true,
-            primaryLegacyProcessTypeKey: "onboarding",
+            workflowDefinitionKey: "onboarding",
             approvalTaskTemplateKey: "supervisor_approval_template",
             approvalSpecs: approvalSpecs);
 

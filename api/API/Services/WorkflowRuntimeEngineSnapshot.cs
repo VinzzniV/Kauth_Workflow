@@ -24,7 +24,7 @@ internal sealed class WorkflowRuntimeSnapshot
     public required IReadOnlyDictionary<long, string> NodeInstanceStatusByWorkflowNodeId { get; init; }
 
     // Workflow-Kontext fuer Status-Mapping + Supervisor-Gatekeeper-Logik.
-    public required string? PrimaryLegacyProcessTypeKey { get; init; }
+    public required string? WorkflowDefinitionKey { get; init; }
 
     public required bool RequiresSupervisorStep { get; init; }
 

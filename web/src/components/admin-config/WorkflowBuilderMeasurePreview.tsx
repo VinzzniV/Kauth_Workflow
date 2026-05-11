@@ -38,9 +38,9 @@ export function WorkflowBuilderMeasurePreview({
   const [open, setOpen] = useState(false);
 
   const details = useMemo(() => {
-    const processKey = versionDraft.primaryLegacyProcessTypeKey.trim().toLowerCase();
-    const def = processKey
-      ? workflowDefinitions.find((d) => d.key.trim().toLowerCase() === processKey) ?? null
+    const workflowDefinitionKey = versionDraft.workflowDefinitionKey.trim().toLowerCase();
+    const def = workflowDefinitionKey
+      ? workflowDefinitions.find((d) => d.key.trim().toLowerCase() === workflowDefinitionKey) ?? null
       : null;
     return buildMeasureNodeDetails(
       node,
@@ -55,7 +55,7 @@ export function WorkflowBuilderMeasurePreview({
     );
   }, [
     node,
-    versionDraft.primaryLegacyProcessTypeKey,
+    versionDraft.workflowDefinitionKey,
     workflowDefinitions,
     taskTemplates,
     answerDefinitions,
@@ -86,7 +86,7 @@ export function WorkflowBuilderMeasurePreview({
         <div className="wf-measure-preview-body">
           <p className="wf-measure-preview-summary">
             <strong>{details.measureTypeLabel}</strong>
-            {details.processTypeName ? ` · Prozess: ${details.processTypeName}` : null}
+            {details.workflowDefinitionName ? ` · Workflow: ${details.workflowDefinitionName}` : null}
           </p>
           <p className="wf-measure-preview-summary text-secondary">{details.measureSummary}</p>
 
@@ -129,8 +129,8 @@ export function WorkflowBuilderMeasurePreview({
           )}
 
           <p className="wf-form-field-hint">
-            Read-only Vorschau aus den Prozessdefinitionen. Bedingungen und Bereiche werden in der
-            Prozesstyp-Verwaltung gepflegt, nicht hier.
+            Read-only Vorschau aus den Workflow-Definitionen. Bedingungen und Bereiche werden in der
+            Definitionsverwaltung gepflegt, nicht hier.
           </p>
         </div>
       )}

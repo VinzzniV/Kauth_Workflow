@@ -31,13 +31,13 @@ internal sealed partial class PostgresWorkflowRepository
         {
             if (string.Equals(node.NodeType, "form", StringComparison.OrdinalIgnoreCase))
             {
-                var processTypeKey = TryGetNodeConfigValue(node, "legacyProcessTypeKey");
-                if (!string.IsNullOrWhiteSpace(processTypeKey)
-                    && !await LegacyProcessTypeExists(connection, transaction, processTypeKey, requireActive: true))
+                var workflowDefinitionKey = TryGetWorkflowDefinitionKeyFromNodeConfig(node);
+                if (!string.IsNullOrWhiteSpace(workflowDefinitionKey)
+                    && !await LegacyProcessTypeExists(connection, transaction, workflowDefinitionKey, requireActive: true))
                 {
                     referenceIssues.Add(CreateDefinitionReferenceIssue(
-                        "unknown_form_legacy_process_type",
-                        $"Node '{node.NodeKey}' references unknown or inactive legacyProcessTypeKey '{processTypeKey}'.",
+                        "unknown_form_workflow_definition_key",
+                        $"Node '{node.NodeKey}' references unknown or inactive workflowDefinitionKey '{workflowDefinitionKey}'.",
                         "workflow_node",
                         node.NodeKey));
                 }
@@ -125,6 +125,14 @@ internal sealed partial class PostgresWorkflowRepository
         }
 
         return property.GetString()!.Trim().ToLowerInvariant();
+    }
+
+    // Aktiver Pfad nutzt "workflowDefinitionKey"; "legacyProcessTypeKey" bleibt
+    // read-only Fallback fuer persistierte Definitionen aus der Alt-Welt.
+    private static string? TryGetWorkflowDefinitionKeyFromNodeConfig(WorkflowDefinitionNodeDto node)
+    {
+        return TryGetNodeConfigValue(node, "workflowDefinitionKey")
+            ?? TryGetNodeConfigValue(node, "legacyProcessTypeKey");
     }
 
     // FE-9: Konvertiert eine NodeDto in eine DraftNode-Struktur fuer Persistierung.

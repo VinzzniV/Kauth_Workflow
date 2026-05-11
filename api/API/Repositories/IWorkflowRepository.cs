@@ -28,8 +28,8 @@ internal interface IWorkflowRepository
     Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query);
     Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query, IReadOnlyCollection<int>? observableDepartmentIds = null);
     Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions(string? search = null, int? limit = null);
-    Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey);
-    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey);
+    Task<List<RequirementDto>> GetRequirements(string workflowDefinitionKey);
+    Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string workflowDefinitionKey);
     Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey);
     Task<IReadOnlySet<string>> GetManagerCreatableDefinitionKeys();
     Task<WorkflowTargetPersonDto> CreatePerson(CreatePersonRequest request, long actorUserId);

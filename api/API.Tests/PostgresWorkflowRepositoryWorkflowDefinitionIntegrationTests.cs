@@ -97,7 +97,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                     Nodes =
                     [
                         WorkflowDefinitionTestData.FormNode("Start", "start"),
-                        WorkflowDefinitionTestData.FormNode("Collect_Data", "form", """{"legacyProcessTypeKey":"onboarding"}""", 10, 160, 80),
+                        WorkflowDefinitionTestData.FormNode("Collect_Data", "form", """{"workflowDefinitionKey":"onboarding"}""", 10, 160, 80),
                         WorkflowDefinitionTestData.FormNode("Approve_Manager", "approval", null, 20, 480, 80),
                         WorkflowDefinitionTestData.FormNode("Finish", "end", null, 30, 820, 80)
                     ],
@@ -364,7 +364,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                     Nodes =
                     [
                         WorkflowDefinitionTestData.FormNode("Start", "start"),
-                        WorkflowDefinitionTestData.FormNode("Collect_Data", "form", """{"legacyProcessTypeKey":"offboarding"}""", 10, 160, 80),
+                        WorkflowDefinitionTestData.FormNode("Collect_Data", "form", """{"workflowDefinitionKey":"offboarding"}""", 10, 160, 80),
                         WorkflowDefinitionTestData.FormNode("Finish", "end", null, 20, 460, 80)
                     ],
                     Edges =
@@ -486,7 +486,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
                     Nodes =
                     [
                         WorkflowDefinitionTestData.FormNode("start", "start"),
-                        WorkflowDefinitionTestData.FormNode("collect_requirements", "form", """{"legacyProcessTypeKey":"onboarding"}""", 10),
+                        WorkflowDefinitionTestData.FormNode("collect_requirements", "form", """{"workflowDefinitionKey":"onboarding"}""", 10),
                         measureNode,
                         WorkflowDefinitionTestData.FormNode("end", "end", null, 30)
                     ],

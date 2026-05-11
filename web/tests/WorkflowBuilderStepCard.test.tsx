@@ -24,7 +24,7 @@ function makeNode(
 const VERSION_DRAFT: WorkflowBuilderVersionDraft = {
   name: "Draft",
   description: "",
-  primaryLegacyProcessTypeKey: "",
+  workflowDefinitionKey: "",
   nodes: [],
   edges: [],
 };

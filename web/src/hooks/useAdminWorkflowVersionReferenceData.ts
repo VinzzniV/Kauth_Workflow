@@ -30,7 +30,8 @@ const EMPTY: AdminWorkflowVersionReferenceData = {
 
 // Lädt Templates + AnswerDefinitions + zugehörige Conditions/Dependencies fuer
 // die Workflow-Definitionen, die der aktuelle Builder-Draft via
-// `primaryLegacyProcessTypeKey` ODER via `node.config.legacyProcessTypeKey`
+// `workflowDefinitionKey` ODER via `node.config.workflowDefinitionKey`
+// (mit `legacyProcessTypeKey` als read-only Fallback fuer Alt-Daten)
 // referenziert. Re-lädt bei Änderung von `definitions` oder relevanten
 // Draft-Feldern. Fehler werden swallowed (Fallback: leere Listen) — das ist
 // Anzeigedaten fuer den Editor, kein kritischer Pfad.
@@ -41,20 +42,23 @@ export function useAdminWorkflowVersionReferenceData(
   // Derived: welche workflow_definition_ids muessen geladen werden? Sync rein aus
   // Draft + Definitions herleitbar, gehoert daher in useMemo statt in useEffect.
   const workflowDefinitionIdsToLoad = useMemo(() => {
-    const referencedProcessKeys = new Set<string>();
+    const referencedDefinitionKeys = new Set<string>();
 
-    if (versionDraft.primaryLegacyProcessTypeKey.trim()) {
-      referencedProcessKeys.add(versionDraft.primaryLegacyProcessTypeKey.trim().toLowerCase());
+    if (versionDraft.workflowDefinitionKey.trim()) {
+      referencedDefinitionKeys.add(versionDraft.workflowDefinitionKey.trim().toLowerCase());
     }
 
     for (const node of versionDraft.nodes) {
       try {
         const parsed = node.configText.trim() ? JSON.parse(node.configText) as Record<string, unknown> : null;
-        const legacyProcessTypeKey = typeof parsed?.legacyProcessTypeKey === "string"
-          ? parsed.legacyProcessTypeKey.trim().toLowerCase()
-          : "";
-        if (legacyProcessTypeKey) {
-          referencedProcessKeys.add(legacyProcessTypeKey);
+        const rawKey = typeof parsed?.workflowDefinitionKey === "string"
+          ? parsed.workflowDefinitionKey
+          : typeof parsed?.legacyProcessTypeKey === "string"
+            ? parsed.legacyProcessTypeKey
+            : "";
+        const nodeWorkflowDefinitionKey = rawKey.trim().toLowerCase();
+        if (nodeWorkflowDefinitionKey) {
+          referencedDefinitionKeys.add(nodeWorkflowDefinitionKey);
         }
       } catch {
         continue;
@@ -63,12 +67,12 @@ export function useAdminWorkflowVersionReferenceData(
 
     const ids = new Set<number>();
     for (const definition of definitions) {
-      if (referencedProcessKeys.has(definition.key.trim().toLowerCase())) {
+      if (referencedDefinitionKeys.has(definition.key.trim().toLowerCase())) {
         ids.add(definition.id);
       }
     }
     return ids;
-  }, [definitions, versionDraft.nodes, versionDraft.primaryLegacyProcessTypeKey]);
+  }, [definitions, versionDraft.nodes, versionDraft.workflowDefinitionKey]);
 
   const [data, setData] = useState<AdminWorkflowVersionReferenceData>(EMPTY);
 

@@ -112,7 +112,7 @@ public sealed class StartupValidationTests
                 new List<WorkflowDefinitionNodeDto>
                 {
                     CreateNode("start", "start"),
-                    CreateNode("form", "form", """{"legacyProcessTypeKey":"department_change"}"""),
+                    CreateNode("form", "form", """{"workflowDefinitionKey":"department_change"}"""),
                     CreateNode("end", "end")
                 },
                 new List<WorkflowDefinitionEdgeDto>

@@ -166,7 +166,7 @@ internal static class WorkflowRuntimeEngine
 
     public static WorkflowDefinitionSupervisorGatekeeperEvaluation EvaluateSupervisorGatekeeper(
         WorkflowDefinitionGraphRecord graph,
-        string? primaryLegacyProcessTypeKey,
+        string? workflowDefinitionKey,
         bool requiresSupervisorStep)
     {
         return WorkflowDefinitionSupervisorGatekeeperRules.Evaluate(
@@ -174,7 +174,7 @@ internal static class WorkflowRuntimeEngine
             {
                 NodeKey = node.NodeKey,
                 NodeType = node.NodeType,
-                LegacyProcessTypeKey = TryGetNodeConfigString(node, "legacyProcessTypeKey")
+                WorkflowDefinitionKey = TryGetWorkflowDefinitionKeyFromNodeConfig(node)
             }).ToList(),
             graph.Edges.Select(edge => new WorkflowDefinitionSupervisorGatekeeperEdge
             {
@@ -182,17 +182,17 @@ internal static class WorkflowRuntimeEngine
                 TargetNodeKey = graph.NodeById[edge.TargetNodeId].NodeKey,
                 Priority = edge.Priority
             }).ToList(),
-            primaryLegacyProcessTypeKey,
+            workflowDefinitionKey,
             requiresSupervisorStep);
     }
 
     public static bool IsSupervisorGatekeeperNode(
         WorkflowDefinitionGraphRecord graph,
         string nodeKey,
-        string? primaryLegacyProcessTypeKey,
+        string? workflowDefinitionKey,
         bool requiresSupervisorStep)
     {
-        var evaluation = EvaluateSupervisorGatekeeper(graph, primaryLegacyProcessTypeKey, requiresSupervisorStep);
+        var evaluation = EvaluateSupervisorGatekeeper(graph, workflowDefinitionKey, requiresSupervisorStep);
         return evaluation.IsSatisfied
             && string.Equals(evaluation.GatekeeperNodeKey, nodeKey, StringComparison.OrdinalIgnoreCase);
     }
@@ -200,14 +200,14 @@ internal static class WorkflowRuntimeEngine
     public static string ComputeWorkflowStatusFromActiveNodes(
         WorkflowDefinitionGraphRecord graph,
         IReadOnlyCollection<ActiveRuntimeNodeRecord> activeNodes,
-        string? primaryLegacyProcessTypeKey,
+        string? workflowDefinitionKey,
         bool requiresSupervisorStep)
     {
         if (activeNodes.Any(node =>
                 IsSupervisorGatekeeperNode(
                     graph,
                     node.NodeKey,
-                    primaryLegacyProcessTypeKey,
+                    workflowDefinitionKey,
                     requiresSupervisorStep)))
         {
             return "waiting_for_supervisor";
@@ -260,6 +260,27 @@ internal static class WorkflowRuntimeEngine
         }
 
         return property.GetString()!.Trim();
+    }
+
+    // Liest den fachlichen Workflow-Definition-Schluessel aus der Node-Config.
+    // Aktiver Pfad nutzt "workflowDefinitionKey"; "legacyProcessTypeKey" bleibt
+    // ein read-only Fallback fuer persistierte Definitionen aus der Alt-Welt.
+    public static string? TryGetWorkflowDefinitionKeyFromNodeConfig(WorkflowDefinitionNodeRecord node)
+    {
+        return TryGetNodeConfigString(node, "workflowDefinitionKey")
+            ?? TryGetNodeConfigString(node, "legacyProcessTypeKey");
+    }
+
+    public static string GetRequiredWorkflowDefinitionKeyFromNodeConfig(WorkflowDefinitionNodeRecord node)
+    {
+        var value = TryGetWorkflowDefinitionKeyFromNodeConfig(node);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException(
+                $"Node '{node.NodeKey}' requires config property 'workflowDefinitionKey' as non-empty string.");
+        }
+
+        return value;
     }
 
     // ====== Plan(...) — Slice 1.4 ====================================
@@ -496,7 +517,7 @@ internal static class WorkflowRuntimeEngine
         var computedStatus = ComputeWorkflowStatusFromActiveNodes(
             snapshot.Graph,
             postActiveNodes,
-            snapshot.PrimaryLegacyProcessTypeKey,
+            snapshot.WorkflowDefinitionKey,
             snapshot.RequiresSupervisorStep);
 
         return new WorkflowRuntimePlan
@@ -593,11 +614,11 @@ internal static class WorkflowRuntimeEngine
             return false;
         }
 
-        var gatekeeperProcessTypeKey = TryGetNodeConfigString(completedNode, "legacyProcessTypeKey");
+        var gatekeeperWorkflowDefinitionKey = TryGetWorkflowDefinitionKeyFromNodeConfig(completedNode);
         if (!IsSupervisorGatekeeperNode(
                 snapshot.Graph,
                 completedNode.NodeKey,
-                gatekeeperProcessTypeKey,
+                gatekeeperWorkflowDefinitionKey,
                 snapshot.RequiresSupervisorStep))
         {
             return false;

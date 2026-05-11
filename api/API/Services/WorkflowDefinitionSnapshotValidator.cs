@@ -276,7 +276,7 @@ internal static class WorkflowDefinitionSnapshotValidator
                     }
                     break;
                 case "form":
-                    WorkflowDefinitionValidationHelpers.ValidateRequiredStringConfig(node, "legacyProcessTypeKey", issues);
+                    WorkflowDefinitionValidationHelpers.ValidateRequiredWorkflowDefinitionKeyConfig(node, issues);
                     break;
                 case "task":
                 case "approval":
@@ -680,7 +680,7 @@ internal static class WorkflowDefinitionSnapshotValidator
             {
                 NodeKey = node.NodeKey,
                 NodeType = node.NodeType,
-                LegacyProcessTypeKey = WorkflowDefinitionValidationHelpers.TryGetNodeConfigValue(node, "legacyProcessTypeKey")
+                WorkflowDefinitionKey = WorkflowDefinitionValidationHelpers.TryGetWorkflowDefinitionKeyFromNodeConfig(node)
             }).ToList(),
             edges.Select(edge => new WorkflowDefinitionSupervisorGatekeeperEdge
             {

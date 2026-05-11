@@ -63,7 +63,7 @@ function makeVersionDraft(primaryKey: string): WorkflowBuilderVersionDraft {
   return {
     name: "v1",
     description: "",
-    primaryLegacyProcessTypeKey: primaryKey,
+    workflowDefinitionKey: primaryKey,
     nodes: [],
     edges: [],
   };

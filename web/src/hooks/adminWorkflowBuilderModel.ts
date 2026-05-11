@@ -59,7 +59,7 @@ export type WorkflowBuilderEdgeDraft = {
 export type WorkflowBuilderVersionDraft = {
   name: string;
   description: string;
-  primaryLegacyProcessTypeKey: string;
+  workflowDefinitionKey: string;
   nodes: WorkflowBuilderNodeDraft[];
   edges: WorkflowBuilderEdgeDraft[];
 };
@@ -97,11 +97,11 @@ export function isMeasureGenerationNodeType(
     && MEASURE_GENERATION_NODE_TYPES.includes(nodeType as (typeof MEASURE_GENERATION_NODE_TYPES)[number]);
 }
 
-export function getExpectedMeasureNodeTypeForProcessKey(
-  processTypeKey: string | null | undefined
+export function getExpectedMeasureNodeTypeForDefinitionKey(
+  workflowDefinitionKey: string | null | undefined
 ): Extract<WorkflowBuilderNodeDraft["nodeType"], "measure_provision" | "measure_deprovision" | "measure_change" | "measure_rename"> | null {
-  const normalizedProcessTypeKey = processTypeKey?.trim().toLowerCase() ?? "";
-  return PROCESS_MEASURE_NODE_TYPES[normalizedProcessTypeKey as keyof typeof PROCESS_MEASURE_NODE_TYPES] ?? null;
+  const normalizedWorkflowDefinitionKey = workflowDefinitionKey?.trim().toLowerCase() ?? "";
+  return PROCESS_MEASURE_NODE_TYPES[normalizedWorkflowDefinitionKey as keyof typeof PROCESS_MEASURE_NODE_TYPES] ?? null;
 }
 
 export function getDefaultWorkflowBuilderNodeTitle(
@@ -140,7 +140,7 @@ export function createEmptyVersionDraft(): WorkflowBuilderVersionDraft {
   return {
     name: "",
     description: "",
-    primaryLegacyProcessTypeKey: "",
+    workflowDefinitionKey: "",
     nodes: [],
     edges: [],
   };
@@ -185,12 +185,11 @@ export function createEmptyEdgeDraft(): WorkflowBuilderEdgeDraft {
 }
 
 export function toVersionDraft(detail: AdminWorkflowDefinitionVersionDetail): WorkflowBuilderVersionDraft {
-  // Builder-internes Feld primaryLegacyProcessTypeKey kommt jetzt direkt aus dem
-  // definitionKey — beide sind seit Slice 6.2/6.3b semantisch identisch.
+  // Der Builder arbeitet intern auf dem kanonischen Definition-Key.
   return {
     name: detail.name ?? "",
     description: detail.description ?? "",
-    primaryLegacyProcessTypeKey: detail.definitionKey,
+    workflowDefinitionKey: detail.definitionKey,
     nodes: detail.nodes.map(toNodeDraft),
     edges: detail.edges.map(toEdgeDraft),
   };
@@ -668,7 +667,7 @@ function validateMeasurePhaseProcessCompatibility(
   draft: WorkflowBuilderVersionDraft,
   issues: WorkflowBuilderLocalIssue[]
 ) {
-  const expectedMeasureNodeType = getExpectedMeasureNodeTypeForProcessKey(draft.primaryLegacyProcessTypeKey);
+  const expectedMeasureNodeType = getExpectedMeasureNodeTypeForDefinitionKey(draft.workflowDefinitionKey);
   if (!expectedMeasureNodeType) {
     return;
   }
@@ -685,7 +684,7 @@ function validateMeasurePhaseProcessCompatibility(
 
   issues.push({
     scope: "node",
-    message: `Der Prozess '${draft.primaryLegacyProcessTypeKey.trim()}' benötigt den Baustein '${getDefaultWorkflowBuilderNodeTitle(expectedMeasureNodeType)}'.`,
+    message: `Die Workflow-Definition '${draft.workflowDefinitionKey.trim()}' benötigt den Baustein '${getDefaultWorkflowBuilderNodeTitle(expectedMeasureNodeType)}'.`,
     referenceKey: measureNode.nodeKey.trim() || undefined,
   });
 }

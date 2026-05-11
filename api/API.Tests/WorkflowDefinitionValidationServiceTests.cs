@@ -15,7 +15,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start", positionX: 60, positionY: 40),
-                CreateNode("Form_A", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}""", positionX: 320, positionY: 40),
+                CreateNode("Form_A", "form", configJson: """{"workflowDefinitionKey":"onboarding"}""", positionX: 320, positionY: 40),
                 CreateNode("Task_A", "task"),
                 CreateNode("End", "end")
             ],
@@ -125,7 +125,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Requirements", "form", configJson: """{"workflowDefinitionKey":"offboarding"}"""),
                 CreateNode("Department_Setup", "measure_deprovision", configJson: """{"summaryText":"Entzieht bereichsbezogene Maßnahmen."}"""),
                 CreateNode("End", "end")
             ],
@@ -169,7 +169,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
         {
             "missing_start" => new ReplaceWorkflowDefinitionVersionRequest
             {
-                Nodes = [CreateNode("Form", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}"""), CreateNode("End", "end")],
+                Nodes = [CreateNode("Form", "form", configJson: """{"workflowDefinitionKey":"onboarding"}"""), CreateNode("End", "end")],
                 Edges = [CreateEdge("Form", "End", 0)]
             },
             "multiple_starts" => new ReplaceWorkflowDefinitionVersionRequest
@@ -418,7 +418,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Gatekeeper", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Gatekeeper", "form", configJson: """{"workflowDefinitionKey":"offboarding"}"""),
                 CreateNode("End", "end")
             ],
             Edges =
@@ -442,7 +442,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Gatekeeper", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Gatekeeper", "form", configJson: """{"workflowDefinitionKey":"onboarding"}"""),
                 CreateNode("Task_A", "task"),
                 CreateNode("End", "end")
             ],
@@ -468,7 +468,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Requirements", "form", configJson: """{"workflowDefinitionKey":"offboarding"}"""),
                 CreateNode("Setup", "measure_deprovision"),
                 CreateNode("HiddenTask", "task"),
                 CreateNode("End", "end")
@@ -496,7 +496,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Requirements", "form", configJson: """{"workflowDefinitionKey":"onboarding"}"""),
                 CreateNode("Setup", "measure_provision"),
                 CreateNode("End", "end")
             ],
@@ -522,7 +522,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"offboarding"}"""),
+                CreateNode("Requirements", "form", configJson: """{"workflowDefinitionKey":"offboarding"}"""),
                 CreateNode("Approval", "approval"),
                 CreateNode("Setup", "measure_deprovision"),
                 CreateNode("End", "end")
@@ -553,7 +553,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Requirements", "form", configJson: $$"""{"legacyProcessTypeKey":"{{processTypeKey}}"}"""),
+                CreateNode("Requirements", "form", configJson: $$"""{"workflowDefinitionKey":"{{processTypeKey}}"}"""),
                 CreateNode("Setup", measureNodeType),
                 CreateNode("End", "end")
             ],
@@ -579,7 +579,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Requirements", "form", configJson: """{"legacyProcessTypeKey":"role_change"}"""),
+                CreateNode("Requirements", "form", configJson: """{"workflowDefinitionKey":"role_change"}"""),
                 CreateNode("Setup", "measure_rename"),
                 CreateNode("End", "end")
             ],
@@ -608,7 +608,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             NodeKey = "form",
             NodeType = "form",
             SortOrder = 10,
-            Config = JsonDocument.Parse("""{"legacyProcessTypeKey":"onboarding"}""").RootElement.Clone(),
+            Config = JsonDocument.Parse("""{"workflowDefinitionKey":"onboarding"}""").RootElement.Clone(),
             Specs = new List<WorkflowDefinitionNodeSpecDto>
             {
                 new() { SpecKey = "should_not_be_here", Title = "Spec on form" }
@@ -644,7 +644,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"workflowDefinitionKey":"onboarding"}"""),
                 measureNode,
                 CreateNode("End", "end", sortOrder: 20)
             ],
@@ -681,7 +681,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"workflowDefinitionKey":"onboarding"}"""),
                 measureNode,
                 CreateNode("End", "end", sortOrder: 20)
             ],
@@ -719,7 +719,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"workflowDefinitionKey":"onboarding"}"""),
                 measureNode,
                 CreateNode("End", "end", sortOrder: 20)
             ],
@@ -794,7 +794,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Nodes =
             [
                 CreateNode("Start", "start"),
-                CreateNode("Form", "form", sortOrder: 5, configJson: """{"legacyProcessTypeKey":"onboarding"}"""),
+                CreateNode("Form", "form", sortOrder: 5, configJson: """{"workflowDefinitionKey":"onboarding"}"""),
                 measureNode,
                 CreateNode("End", "end", sortOrder: 20)
             ],

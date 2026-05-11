@@ -42,11 +42,34 @@ Der wichtigste Resthebel ist heute die Mischung aus:
 
 ---
 
+## Teilfortschritt 2026-05-11
+
+Erster risikofreier Teilschnitt des verbleibenden Key-Clusters ist erledigt:
+
+- Builder-internes `primaryLegacyProcessTypeKey` wurde auf `workflowDefinitionKey` umgestellt.
+- Die Builder-UI spricht jetzt von Workflow-Typ bzw. Workflow-Definition-Schlüssel statt von Prozesstyp.
+- Die lokalen Builder-Helfer und die Measure-Vorschau verwenden definitionsbasierte Benennung.
+- Backend-intern wurden die naming-only-Reste im selben Schnitt reduziert:
+  `IWorkflowRepository.GetRequirements/GetWorkflowConfig` sind nun auch in der Signatur definitionsbasiert benannt; Runtime-/Startup-Validation-Records tragen `WorkflowDefinitionKey` statt `PrimaryLegacyProcessTypeKey`.
+
+Zweiter Teilschnitt (semantischer Rest um `node.config.legacyProcessTypeKey`) ist ebenfalls erledigt:
+
+- Neuer aktiver Anker ist überall `node.config.workflowDefinitionKey`. `legacyProcessTypeKey` ist nur noch read-only-Fallback für bereits persistierte Definitionen.
+- Runtime-Engine, Snapshot-Validator, Draft-Validator und Lifecycle-Startup-Validierung lesen über zentrale Helfer (`TryGetWorkflowDefinitionKeyFromNodeConfig` / `GetRequiredWorkflowDefinitionKeyFromNodeConfig`) mit Fallback; Publish-/Draft-Validatoren erzwingen den neuen Schlüssel als Pflicht-Property.
+- Supervisor-Gatekeeper-Regel-Record wurde von `LegacyProcessTypeKey` auf `WorkflowDefinitionKey` umbenannt; Fehlercode `unknown_form_legacy_process_type` → `unknown_form_workflow_definition_key`.
+- FE-Builder-Hint, Builder-Hook-Kommentar und der Referenzdaten-Hook (`useAdminWorkflowVersionReferenceData`) lesen jetzt `workflowDefinitionKey` zuerst und fallen für persistierten Altbestand auf `legacyProcessTypeKey` zurück.
+- Seeds (`db/02_dev_seed.sql`, `db/02_bootstrap.sql`) und sämtliche Test-Fixtures (BE + FE) schreiben den neuen Schlüssel.
+
+Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der Read-Fallback bleibt als Brücke für persistierten Altbestand stehen.
+
+---
+
 ## Restinventur
 
 | Cluster | Wo noch sichtbar | Was für die Umstellung nötig ist | Nutzen | Aufwand / Risiko |
 | --- | --- | --- | --- | --- |
-| `legacyProcessTypeKey` / `PrimaryLegacyProcessTypeKey` | `api/API/Services/WorkflowLifecycleService.cs`, `WorkflowRuntimeEngine*.cs`, `LifecycleStartupValidationExtensions.cs`, `PostgresWorkflowRuntimeRepository.cs`, `PostgresWorkflowRepository.MasterDataOperations.cs`, `WorkflowDefinitionAdminOperations.cs`, `web/src/hooks/adminWorkflowBuilderModel.ts`, `useAdminWorkflowVersionReferenceData.ts`, Seeds in `db/02_*.sql` | Gatekeeper-/Form-Konfiguration und Builder intern auf `workflowDefinitionKey` umstellen; Requirements/WorkflowConfig/Answer-Definition-Loads endgültig definitionsbasiert machen; Seed-JSON und Tests mitziehen | Entfernt die letzte echte Brücke zwischen Definition-Layer und Altwelt; weniger Sonderlogik in Runtime, Publish-Validierung und Builder | hoch / hoch |
+| `node.config.legacyProcessTypeKey` (semantisch) | erledigt | Aktive Pfade lesen + erzwingen `workflowDefinitionKey`; `legacyProcessTypeKey` bleibt nur read-only-Fallback für persistierten Altbestand. Seeds + Tests auf den neuen Schlüssel migriert. |
+| `PrimaryLegacyProcessTypeKey` (Naming-Rest auf DTO-/Record-Properties) | offen | Mehrere C#-Properties tragen den Alt-Namen noch; reine Naming-Aufräumung, keine Semantik. Nach dem Key-Cut als eigener Folge-Slice schneidbar. |
 | Legacy-Status im Runtime-Pfad | `api/API/Services/WorkflowRuntimePlan.cs`, `WorkflowRuntimeEngine.cs`, `PostgresWorkflowRuntimeRepository.EngineAdapter.cs`, `WorkflowRuntimeEngineTests.cs` | Die Mapping-Logik bleibt korrekt (`ComputeWorkflowStatusFromActiveNodes`); Benennung ist bereinigt. Einzig verbliebener Punkt: ggf. `legacyStatus` als SQL-Parametername in `WorkflowLifecycleService.cs` + `PostgresWorkflowRuntimeRepository.cs` nach großem Key-Cut nachziehen. | niedrig / niedrig nach Key-Cut |
 | Legacy-Sprache in Seeds und Tests | Test-Fixtures mit `legacyProcessTypeKey` in config_json (korrekt, weil Produktiv-JSON-Struktur) und `TemporaryProcessType`-Hilfsklassen in Integrationstests | Erst nach dem großen Key-Cut nachziehen; vorher wären die Fixture-Werte falsch | niedrig / niedrig |
 
@@ -57,8 +80,9 @@ Der wichtigste Resthebel ist heute die Mischung aus:
 1. ~~`setup`-Realitätscheck und Doku-Drift bereinigen~~ — ✓ erledigt 2026-05-11
 2. ~~Veraltete Doku-/ERD-Artefakte~~ — ✓ erledigt 2026-05-11 (ERD neu generiert, Migrationspfad + Zielarchitektur aktuell)
 3. ~~Read-DTOs und API-Benennung auf den neuen Anker ziehen~~ — ✓ erledigt 2026-05-11 (`WorkflowDefinitionRefDto`, `workflowDefinition`, `ComputedStatus`)
-4. `legacyProcessTypeKey` / `PrimaryLegacyProcessTypeKey` abschneiden. Das ist der eigentliche Kernrest des Legacy-Abbaus.
-5. Seed-/Test-Cleanup als Schlussarbeit (erst nach Key-Cut sinnvoll, da config_json-Fixtures vorher korrekt sind).
+4. ~~`node.config.legacyProcessTypeKey` semantisch abschneiden~~ — ✓ erledigt 2026-05-11 (read-Fallback bleibt; aktive Pfade ankerlos auf `workflowDefinitionKey`).
+5. `PrimaryLegacyProcessTypeKey`-Properties als reines Naming-Folge-Slice umbenennen.
+6. ~~Seed-/Test-Cleanup~~ — ✓ erledigt 2026-05-11 (gemeinsam mit Schritt 4).
 
 ---
 

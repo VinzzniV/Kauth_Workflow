@@ -11,7 +11,7 @@ describe("adminWorkflowBuilderModel", () => {
     const payload = buildVersionReplacePayload({
       name: "Draft 1",
       description: "",
-      primaryLegacyProcessTypeKey: "onboarding",
+      workflowDefinitionKey: "onboarding",
       nodes: [
         {
           id: "node_1",
@@ -38,7 +38,7 @@ describe("adminWorkflowBuilderModel", () => {
     const payload = buildVersionReplacePayload({
       name: "Draft",
       description: "",
-      primaryLegacyProcessTypeKey: "onboarding",
+      workflowDefinitionKey: "onboarding",
       nodes: [
         {
           id: "node_measure",
@@ -252,7 +252,7 @@ describe("adminWorkflowBuilderModel", () => {
     const issues = validateWorkflowBuilderDraft({
       name: "Draft 1",
       description: "",
-      primaryLegacyProcessTypeKey: "onboarding",
+      workflowDefinitionKey: "onboarding",
       nodes: [
         {
           id: "node_start",
@@ -308,7 +308,7 @@ describe("adminWorkflowBuilderModel", () => {
       status: "draft",
       name: "Draft 2",
       description: null,
-      primaryLegacyProcessTypeKey: "routing",
+      workflowDefinitionKey: "routing",
       createdAt: "2026-04-08T10:00:00Z",
       updatedAt: "2026-04-08T10:00:00Z",
       publishedAt: null,
@@ -343,7 +343,7 @@ describe("adminWorkflowBuilderModel", () => {
       status: "draft",
       name: "Parallel Draft",
       description: null,
-      primaryLegacyProcessTypeKey: "parallel_flow",
+      workflowDefinitionKey: "parallel_flow",
       createdAt: "2026-04-08T10:00:00Z",
       updatedAt: "2026-04-08T10:00:00Z",
       publishedAt: null,
@@ -386,7 +386,7 @@ describe("adminWorkflowBuilderModel", () => {
     const issues = validateWorkflowBuilderDraft({
       name: "Parallel Draft",
       description: "",
-      primaryLegacyProcessTypeKey: "",
+      workflowDefinitionKey: "",
       nodes: [
         {
           id: "start",
@@ -458,7 +458,7 @@ describe("adminWorkflowBuilderModel", () => {
     const issues = validateWorkflowBuilderDraft({
       name: "Onboarding",
       description: "",
-      primaryLegacyProcessTypeKey: "onboarding",
+      workflowDefinitionKey: "onboarding",
       nodes: [
         {
           id: "start",
@@ -479,7 +479,7 @@ describe("adminWorkflowBuilderModel", () => {
           sortOrder: "2",
           positionX: 0,
           positionY: 0,
-          configText: "{\"legacyProcessTypeKey\":\"onboarding\"}",
+          configText: "{\"workflowDefinitionKey\":\"onboarding\"}",
           actions: [], specs: [],
         },
         {
@@ -542,7 +542,7 @@ describe("adminWorkflowBuilderModel", () => {
     const issues = validateWorkflowBuilderDraft({
       name: "Role Change",
       description: "",
-      primaryLegacyProcessTypeKey: "role_change",
+      workflowDefinitionKey: "role_change",
       nodes: [
         {
           id: "start",
@@ -563,7 +563,7 @@ describe("adminWorkflowBuilderModel", () => {
           sortOrder: "2",
           positionX: 0,
           positionY: 0,
-          configText: "{\"legacyProcessTypeKey\":\"role_change\"}",
+          configText: "{\"workflowDefinitionKey\":\"role_change\"}",
           actions: [], specs: [],
         },
         {
@@ -600,7 +600,7 @@ describe("adminWorkflowBuilderModel", () => {
       expect.arrayContaining([
         expect.objectContaining({
           scope: "node",
-          message: "Der Prozess 'role_change' benötigt den Baustein 'Änderungsmaßnahmen erzeugen'.",
+          message: "Die Workflow-Definition 'role_change' benötigt den Baustein 'Änderungsmaßnahmen erzeugen'.",
         }),
       ])
     );

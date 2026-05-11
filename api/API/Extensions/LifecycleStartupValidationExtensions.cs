@@ -18,7 +18,7 @@ internal static class LifecycleStartupValidationExtensions
     internal sealed record PublishedWorkflowDefinitionStartupValidationRecord(
         string DefinitionKey,
         int VersionNumber,
-        string? PrimaryLegacyProcessTypeKey,
+        string? WorkflowDefinitionKey,
         bool RequiresSupervisorStep,
         List<WorkflowDefinitionNodeDto> Nodes,
         List<WorkflowDefinitionEdgeDto> Edges,
@@ -402,14 +402,14 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
                     new List<WorkflowDefinitionValidationIssue>());
                 definitions.Add(recordKey, definition);
 
-                if (string.IsNullOrWhiteSpace(definition.PrimaryLegacyProcessTypeKey))
+                if (string.IsNullOrWhiteSpace(definition.WorkflowDefinitionKey))
                 {
                     definition.ReferenceIssues.Add(new WorkflowDefinitionValidationIssue
                     {
-                        Code = "missing_primary_legacy_process_type",
+                        Code = "missing_workflow_definition_key",
                         Severity = "error",
                         Scope = "workflow_definition_version",
-                        Message = $"Workflow definition '{definition.DefinitionKey}' version {definition.VersionNumber} requires a primaryLegacyProcessTypeKey before it can be published.",
+                        Message = $"Workflow definition '{definition.DefinitionKey}' version {definition.VersionNumber} requires a workflowDefinitionKey before it can be published.",
                         ReferenceKey = definition.DefinitionKey
                     });
                 }
@@ -505,34 +505,34 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, wna.execu
 
         foreach (var definition in definitions.Values)
         {
-            if (!string.IsNullOrWhiteSpace(definition.PrimaryLegacyProcessTypeKey))
+            if (!string.IsNullOrWhiteSpace(definition.WorkflowDefinitionKey))
             {
-                if (!await LegacyProcessTypeExists(connection, definition.PrimaryLegacyProcessTypeKey, requireActive: true))
+                if (!await LegacyProcessTypeExists(connection, definition.WorkflowDefinitionKey, requireActive: true))
                 {
                     definition.ReferenceIssues.Add(new WorkflowDefinitionValidationIssue
                     {
-                        Code = "unknown_primary_legacy_process_type",
+                        Code = "unknown_workflow_definition_key",
                         Severity = "error",
                         Scope = "workflow_definition_version",
-                        Message = $"Workflow definition '{definition.DefinitionKey}' version {definition.VersionNumber} references unknown or inactive primaryLegacyProcessTypeKey '{definition.PrimaryLegacyProcessTypeKey}'.",
-                        ReferenceKey = definition.PrimaryLegacyProcessTypeKey
+                        Message = $"Workflow definition '{definition.DefinitionKey}' version {definition.VersionNumber} references unknown or inactive workflowDefinitionKey '{definition.WorkflowDefinitionKey}'.",
+                        ReferenceKey = definition.WorkflowDefinitionKey
                     });
                 }
             }
 
             foreach (var node in definition.Nodes)
             {
-                var configValue = TryGetNodeConfigValue(node, "legacyProcessTypeKey");
+                var configValue = TryGetWorkflowDefinitionKeyFromNodeConfig(node);
                 if (string.Equals(node.NodeType, "form", StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrWhiteSpace(configValue)
                     && !await LegacyProcessTypeExists(connection, configValue, requireActive: true))
                 {
                     definition.ReferenceIssues.Add(new WorkflowDefinitionValidationIssue
                     {
-                        Code = "unknown_form_legacy_process_type",
+                        Code = "unknown_form_workflow_definition_key",
                         Severity = "error",
                         Scope = "workflow_node",
-                        Message = $"Node '{node.NodeKey}' references unknown or inactive legacyProcessTypeKey '{configValue}'.",
+                        Message = $"Node '{node.NodeKey}' references unknown or inactive workflowDefinitionKey '{configValue}'.",
                         ReferenceKey = node.NodeKey
                     });
                 }
@@ -583,6 +583,14 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, wna.execu
         }
 
         return property.GetString()!.Trim().ToLowerInvariant();
+    }
+
+    // Aktiver Pfad nutzt "workflowDefinitionKey"; "legacyProcessTypeKey" bleibt
+    // read-only Fallback fuer persistierte Definitionen aus der Alt-Welt.
+    private static string? TryGetWorkflowDefinitionKeyFromNodeConfig(WorkflowDefinitionNodeDto node)
+    {
+        return TryGetNodeConfigValue(node, "workflowDefinitionKey")
+            ?? TryGetNodeConfigValue(node, "legacyProcessTypeKey");
     }
 
     private static System.Text.Json.JsonElement ParseJsonElement(string json)

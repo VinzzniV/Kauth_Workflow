@@ -222,7 +222,7 @@ internal static class WorkflowDefinitionDraftValidator
                     }
                     break;
                 case "form":
-                    WorkflowDefinitionValidationHelpers.ValidateRequiredStringConfig(node, "legacyProcessTypeKey", errors);
+                    WorkflowDefinitionValidationHelpers.ValidateRequiredWorkflowDefinitionKeyConfig(node, errors);
                     break;
                 case "task":
                 case "approval":

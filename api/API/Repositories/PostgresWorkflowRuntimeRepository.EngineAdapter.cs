@@ -43,7 +43,7 @@ internal sealed partial class PostgresWorkflowRuntimeRepository
             Graph = graph,
             AnswersByKey = answersByKey,
             NodeInstanceStatusByWorkflowNodeId = nodeInstanceStates,
-            PrimaryLegacyProcessTypeKey = statusContext.PrimaryLegacyProcessTypeKey,
+            WorkflowDefinitionKey = statusContext.WorkflowDefinitionKey,
             RequiresSupervisorStep = statusContext.RequiresSupervisorStep,
             ApprovalSpecKey = taskGenContext.ApprovalSpecKey,
             ApprovalSpecByNodeId = approvalSpecHints

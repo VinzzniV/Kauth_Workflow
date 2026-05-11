@@ -36,8 +36,8 @@ export type MeasureTemplateCard = {
 
 export type MeasureNodeDetails = {
   workflowDefinitionId: number | null;
-  processTypeKey: string | null;
-  processTypeName: string | null;
+  workflowDefinitionKey: string | null;
+  workflowDefinitionName: string | null;
   measureTypeLabel: string;
   measureSummary: string;
   templates: MeasureTemplateCard[];
@@ -46,16 +46,16 @@ export type MeasureNodeDetails = {
 export function buildMeasureNodeDetails(
   node: WorkflowBuilderNodeDraft,
   workflowDefinitionId: number | null,
-  processTypeKey: string | null,
-  processTypeName: string | null,
+  workflowDefinitionKey: string | null,
+  workflowDefinitionName: string | null,
   taskTemplates: AdminTaskSpec[],
   answerDefinitions: AdminAnswerDefinition[],
   taskTemplateConditions: AdminTaskSpecCondition[],
   taskTemplateDependencies: AdminTaskSpecDependency[],
   responsibilityOwners: AdminResponsibilityOwner[]
 ): MeasureNodeDetails {
-  const measureTypeLabel = getMeasureTypeLabel(node.nodeType, processTypeKey, processTypeName);
-  const measureSummary = getMeasureProcessSummary(node.nodeType, processTypeKey);
+  const measureTypeLabel = getMeasureTypeLabel(node.nodeType, workflowDefinitionKey, workflowDefinitionName);
+  const measureSummary = getMeasureProcessSummary(node.nodeType, workflowDefinitionKey);
   const relevantTemplates = workflowDefinitionId
     ? taskTemplates
         .filter((tpl) => tpl.workflowDefinitionId === workflowDefinitionId && tpl.isActive && tpl.isDepartmentPhaseTask)
@@ -83,33 +83,33 @@ export function buildMeasureNodeDetails(
     };
   });
 
-  return { workflowDefinitionId, processTypeKey, processTypeName, measureTypeLabel, measureSummary, templates };
+  return { workflowDefinitionId, workflowDefinitionKey, workflowDefinitionName, measureTypeLabel, measureSummary, templates };
 }
 
 function getMeasureTypeLabel(
   nodeType: WorkflowBuilderNodeDraft["nodeType"],
-  processTypeKey: string | null,
-  processTypeName: string | null
+  workflowDefinitionKey: string | null,
+  workflowDefinitionName: string | null
 ): string {
   if (nodeType === "measure_change") {
-    if (processTypeKey === "position_change") {
-      return processTypeName ? `Änderungsmaßnahmen für ${processTypeName}` : "Änderungsmaßnahmen für Positionswechsel";
+    if (workflowDefinitionKey === "position_change") {
+      return workflowDefinitionName ? `Änderungsmaßnahmen für ${workflowDefinitionName}` : "Änderungsmaßnahmen für Positionswechsel";
     }
-    if (processTypeKey === "role_change") {
-      return processTypeName ? `Änderungsmaßnahmen für ${processTypeName}` : "Änderungsmaßnahmen für Rollenwechsel";
+    if (workflowDefinitionKey === "role_change") {
+      return workflowDefinitionName ? `Änderungsmaßnahmen für ${workflowDefinitionName}` : "Änderungsmaßnahmen für Rollenwechsel";
     }
   }
-  if (nodeType === "measure_rename" && processTypeName) {
-    return `Umbenennungsmaßnahmen für ${processTypeName}`;
+  if (nodeType === "measure_rename" && workflowDefinitionName) {
+    return `Umbenennungsmaßnahmen für ${workflowDefinitionName}`;
   }
   return getDefaultWorkflowBuilderNodeTitle(nodeType);
 }
 
 function getMeasureProcessSummary(
   nodeType: WorkflowBuilderNodeDraft["nodeType"],
-  processTypeKey: string | null
+  workflowDefinitionKey: string | null
 ): string {
-  switch (processTypeKey) {
+  switch (workflowDefinitionKey) {
     case "name_change":
       return "Bündelt Namens-, Anzeigenamen-, Mail- und Verzeichnisumstellungen.";
     case "position_change":

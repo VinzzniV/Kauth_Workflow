@@ -233,7 +233,7 @@ LIMIT @limit;
             transaction,
             workflow.WorkflowId,
             graph,
-            workflow.PrimaryLegacyProcessTypeKey,
+            workflow.WorkflowDefinitionKey,
             workflow.RequiresSupervisorStep);
         if (gatekeeperNodeExecution is null)
         {
@@ -259,22 +259,22 @@ LIMIT @limit;
         IReadOnlyList<RequirementSelectionInputDto> selections,
         long actorUserId)
     {
-        var legacyProcessTypeKey = WorkflowRuntimeEngine.GetRequiredNodeConfigString(activeNodeExecution.Node, "legacyProcessTypeKey");
-        var legacyProcessTypeId = await PostgresWorkflowRepository.ResolveWorkflowDefinitionLegacyProcessTypeId(
+        var workflowDefinitionKey = WorkflowRuntimeEngine.GetRequiredWorkflowDefinitionKeyFromNodeConfig(activeNodeExecution.Node);
+        var workflowDefinitionId = await PostgresWorkflowRepository.ResolveWorkflowDefinitionLegacyProcessTypeId(
             connection,
             transaction,
-            legacyProcessTypeKey,
+            workflowDefinitionKey,
             requireActive: true);
-        if (!legacyProcessTypeId.HasValue)
+        if (!workflowDefinitionId.HasValue)
         {
             throw new InvalidOperationException(
-                $"Node '{activeNodeExecution.Node.NodeKey}' references unknown or inactive legacyProcessTypeKey '{legacyProcessTypeKey}'.");
+                $"Node '{activeNodeExecution.Node.NodeKey}' references unknown or inactive workflowDefinitionKey '{workflowDefinitionKey}'.");
         }
 
-        await DeleteWorkflowAnswersForProcessType(connection, transaction, workflow.WorkflowId, legacyProcessTypeId.Value);
+        await DeleteWorkflowAnswersForProcessType(connection, transaction, workflow.WorkflowId, workflowDefinitionId.Value);
 
-        var answerDefinitions = await PostgresWorkflowRepository.LoadAnswerDefinitionRecords(connection, transaction, legacyProcessTypeId.Value);
-        var roleDefaults = await PostgresWorkflowRepository.LoadRoleDefaultRecords(connection, transaction, workflow.RoleId, legacyProcessTypeId.Value);
+        var answerDefinitions = await PostgresWorkflowRepository.LoadAnswerDefinitionRecords(connection, transaction, workflowDefinitionId.Value);
+        var roleDefaults = await PostgresWorkflowRepository.LoadRoleDefaultRecords(connection, transaction, workflow.RoleId, workflowDefinitionId.Value);
         var persistedAnswers = await PostgresWorkflowRepository.PersistWorkflowAnswers(
             connection,
             transaction,
@@ -295,7 +295,7 @@ LIMIT @limit;
             CreateJsonbPayload(new
             {
                 selectionCount = selections.Count,
-                legacyProcessTypeKey
+                workflowDefinitionKey
             }));
 
         await InsertWorkflowRuntimeEvent(
@@ -480,9 +480,7 @@ LIMIT 1;
             WorkflowDefinitionKey = reader.GetString(1),
             WorkflowDefinitionName = reader.GetString(2),
             VersionId = reader.GetInt64(3),
-            VersionNumber = reader.GetInt32(4),
-            PrimaryLegacyProcessTypeId = reader.GetInt32(5),
-            PrimaryLegacyProcessTypeKey = reader.GetString(6)
+            VersionNumber = reader.GetInt32(4)
         };
     }
 
@@ -712,7 +710,7 @@ LIMIT 1;
 
         return new RuntimeWorkflowStatusContextRecord
         {
-            PrimaryLegacyProcessTypeKey = reader.GetString(0),
+            WorkflowDefinitionKey = reader.GetString(0),
             RequiresSupervisorStep = reader.GetBoolean(1)
         };
     }
@@ -722,10 +720,10 @@ LIMIT 1;
         NpgsqlTransaction transaction,
         long workflowId,
         WorkflowDefinitionGraphRecord graph,
-        string? primaryLegacyProcessTypeKey,
+        string? workflowDefinitionKey,
         bool requiresSupervisorStep)
     {
-        var evaluation = WorkflowRuntimeEngine.EvaluateSupervisorGatekeeper(graph, primaryLegacyProcessTypeKey, requiresSupervisorStep);
+        var evaluation = WorkflowRuntimeEngine.EvaluateSupervisorGatekeeper(graph, workflowDefinitionKey, requiresSupervisorStep);
         if (!evaluation.IsSatisfied || string.IsNullOrWhiteSpace(evaluation.GatekeeperNodeKey))
         {
             return null;
@@ -1309,7 +1307,7 @@ FOR UPDATE OF w;
             WorkflowUid = reader.GetGuid(1),
             WorkflowDefinitionVersionId = reader.GetInt64(2),
             RoleId = reader.GetInt32(3),
-            PrimaryLegacyProcessTypeKey = reader.GetString(4),
+            WorkflowDefinitionKey = reader.GetString(4),
             RequiresSupervisorStep = reader.GetBoolean(5),
             CurrentRuntimeStatus = reader.GetString(6)
         };
@@ -1353,7 +1351,7 @@ FOR UPDATE OF w;
             WorkflowUid = reader.GetGuid(1),
             WorkflowDefinitionVersionId = reader.GetInt64(2),
             RoleId = reader.GetInt32(3),
-            PrimaryLegacyProcessTypeKey = reader.GetString(4),
+            WorkflowDefinitionKey = reader.GetString(4),
             RequiresSupervisorStep = reader.GetBoolean(5),
             CurrentRuntimeStatus = reader.GetString(6)
         };
@@ -1828,8 +1826,6 @@ WHERE id = @workflowId;
         public required string WorkflowDefinitionName { get; init; }
         public required long VersionId { get; init; }
         public required int VersionNumber { get; init; }
-        public required int PrimaryLegacyProcessTypeId { get; init; }
-        public required string PrimaryLegacyProcessTypeKey { get; init; }
     }
 
     internal sealed class RuntimeWorkflowHeaderRecord
@@ -1838,7 +1834,7 @@ WHERE id = @workflowId;
         public required Guid WorkflowUid { get; init; }
         public required long WorkflowDefinitionVersionId { get; init; }
         public required int RoleId { get; init; }
-        public required string PrimaryLegacyProcessTypeKey { get; init; }
+        public required string WorkflowDefinitionKey { get; init; }
         public required bool RequiresSupervisorStep { get; init; }
         public required string CurrentRuntimeStatus { get; init; }
     }
@@ -1852,7 +1848,7 @@ WHERE id = @workflowId;
 
     private sealed class RuntimeWorkflowStatusContextRecord
     {
-        public required string PrimaryLegacyProcessTypeKey { get; init; }
+        public required string WorkflowDefinitionKey { get; init; }
         public required bool RequiresSupervisorStep { get; init; }
     }
 

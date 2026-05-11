@@ -947,30 +947,30 @@ VALUES (
     }
 
     // Anforderungen und Rollenempfehlungen bilden die Eingabemaske fuer neue Workflows.
-    public async Task<List<RequirementDto>> GetRequirements(string legacyProcessTypeKey)
+    public async Task<List<RequirementDto>> GetRequirements(string workflowDefinitionKey)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        var processTypeId = await ResolveProcessTypeId(connection, null, legacyProcessTypeKey);
-        return await LoadRequirements(connection, null, processTypeId);
+        var workflowDefinitionId = await ResolveWorkflowDefinitionId(connection, null, workflowDefinitionKey);
+        return await LoadRequirements(connection, null, workflowDefinitionId);
     }
 
-    public async Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string legacyProcessTypeKey)
+    public async Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string workflowDefinitionKey)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        var processTypeId = await ResolveProcessTypeId(connection, null, legacyProcessTypeKey);
+        var workflowDefinitionId = await ResolveWorkflowDefinitionId(connection, null, workflowDefinitionKey);
         if (roleId.HasValue && !await RoleExists(connection, null, roleId.Value))
         {
             return null;
         }
 
-        var requirements = await LoadRequirements(connection, null, processTypeId);
+        var requirements = await LoadRequirements(connection, null, workflowDefinitionId);
         var roleRecommendations = roleId.HasValue
-            ? await LoadRoleRecommendations(connection, null, roleId.Value, processTypeId)
-            : await LoadAllRoleRecommendations(connection, null, processTypeId);
+            ? await LoadRoleRecommendations(connection, null, roleId.Value, workflowDefinitionId)
+            : await LoadAllRoleRecommendations(connection, null, workflowDefinitionId);
 
         return new WorkflowConfigDto
         {
@@ -1088,39 +1088,38 @@ ORDER BY id;";
         };
     }
 
-    // Naming-Hinweis: Methode heißt aus Legacy-Gründen weiter ResolveProcessTypeId,
-    // liefert seit Slice 6.3d-ii aber die `workflow_definitions.id` zurück. Die
+    // Liefert die `workflow_definitions.id` fuer einen kanonischen Definition-Key. Die
     // Stammdaten-Tabellen (workflow_answer_definitions, task_templates,
     // app_role_answer_defaults, workflow_answer_derivation_rules) verweisen seit
     // 6.3d-ii via workflow_definition_id-FK auf workflow_definitions.
-    private static async Task<int> ResolveProcessTypeId(
+    private static async Task<int> ResolveWorkflowDefinitionId(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
-        string? processTypeKey)
+        string? workflowDefinitionKey)
     {
         const string sql = @"
 SELECT id
 FROM workflow_definitions
-WHERE definition_key = @processTypeKey
+WHERE definition_key = @workflowDefinitionKey
 LIMIT 1;";
 
-        if (string.IsNullOrWhiteSpace(processTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
-            throw new InvalidOperationException("processTypeKey is required.");
+            throw new InvalidOperationException("workflowDefinitionKey is required.");
         }
 
-        var normalizedProcessTypeKey = processTypeKey.Trim().ToLowerInvariant();
+        var normalizedWorkflowDefinitionKey = workflowDefinitionKey.Trim().ToLowerInvariant();
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("processTypeKey", normalizedProcessTypeKey);
+        command.Parameters.AddWithValue("workflowDefinitionKey", normalizedWorkflowDefinitionKey);
 
         var scalar = await command.ExecuteScalarAsync();
-        if (scalar is int processTypeId)
+        if (scalar is int workflowDefinitionId)
         {
-            return processTypeId;
+            return workflowDefinitionId;
         }
 
-        throw new InvalidOperationException($"Unbekannter oder inaktiver Prozesstyp '{normalizedProcessTypeKey}'.");
+        throw new InvalidOperationException($"Unbekannte oder inaktive Workflow-Definition '{normalizedWorkflowDefinitionKey}'.");
     }
 
     // A3: Aktualisiert Eintrittsdatum und Ausweisnummer auf dem people-Record.

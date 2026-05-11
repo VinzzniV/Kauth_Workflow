@@ -3,8 +3,8 @@ namespace API;
 internal static class WorkflowDefinitionSupervisorGatekeeperRules
 {
     // Der workflowDefinitionKey steuert, gegen welchen Wert der Gatekeeper-Node-Config
-    // (`legacyProcessTypeKey`) gematcht werden muss. Solange definition_key == legacy
-    // process_type_key (siehe Slice 6.2-Inventur), bleibt der Vergleich semantisch identisch.
+    // (`workflowDefinitionKey`, mit Fallback `legacyProcessTypeKey` fuer Alt-Daten)
+    // gematcht werden muss.
     public static WorkflowDefinitionSupervisorGatekeeperEvaluation Evaluate(
         IReadOnlyList<WorkflowDefinitionSupervisorGatekeeperNode> nodes,
         IReadOnlyList<WorkflowDefinitionSupervisorGatekeeperEdge> edges,
@@ -78,13 +78,13 @@ internal static class WorkflowDefinitionSupervisorGatekeeperRules
         }
 
         if (!string.Equals(
-                gatekeeperNode.LegacyProcessTypeKey,
+                gatekeeperNode.WorkflowDefinitionKey,
                 normalizedDefinitionKey,
                 StringComparison.OrdinalIgnoreCase))
         {
             return WorkflowDefinitionSupervisorGatekeeperEvaluation.Failed(
                 "supervisor_gatekeeper_process_type_mismatch",
-                $"Supervisor-Gatekeeper-Node '{gatekeeperNode.NodeKey}' muss legacyProcessTypeKey '{normalizedDefinitionKey}' verwenden.");
+                $"Supervisor-Gatekeeper-Node '{gatekeeperNode.NodeKey}' muss workflowDefinitionKey '{normalizedDefinitionKey}' verwenden.");
         }
 
         return WorkflowDefinitionSupervisorGatekeeperEvaluation.Satisfied(gatekeeperNode.NodeKey);
@@ -126,7 +126,7 @@ internal sealed class WorkflowDefinitionSupervisorGatekeeperNode
 {
     public required string NodeKey { get; init; }
     public required string NodeType { get; init; }
-    public string? LegacyProcessTypeKey { get; init; }
+    public string? WorkflowDefinitionKey { get; init; }
 }
 
 internal sealed class WorkflowDefinitionSupervisorGatekeeperEdge

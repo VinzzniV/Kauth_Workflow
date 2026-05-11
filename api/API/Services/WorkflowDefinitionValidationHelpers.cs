@@ -297,4 +297,68 @@ internal static class WorkflowDefinitionValidationHelpers
 
         return property.GetString()!.Trim();
     }
+
+    // Aktiver Pfad nutzt "workflowDefinitionKey"; "legacyProcessTypeKey" bleibt
+    // read-only Fallback fuer persistierte Definitionen aus der Alt-Welt.
+    public static string? TryGetWorkflowDefinitionKeyFromNodeConfig(WorkflowDefinitionDraftNode node)
+    {
+        return TryGetNodeConfigValue(node, "workflowDefinitionKey")
+            ?? TryGetNodeConfigValue(node, "legacyProcessTypeKey");
+    }
+
+    public static void ValidateRequiredWorkflowDefinitionKeyConfig(
+        WorkflowDefinitionDraftNode node,
+        List<string> errors)
+    {
+        if (!HasConfig(node.Config))
+        {
+            errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' requires a config object with 'workflowDefinitionKey'.");
+            return;
+        }
+
+        if (node.Config!.Value.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' requires a JSON object config.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(TryGetWorkflowDefinitionKeyFromNodeConfig(node)))
+        {
+            errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' requires config property 'workflowDefinitionKey' as non-empty string.");
+        }
+    }
+
+    public static void ValidateRequiredWorkflowDefinitionKeyConfig(
+        WorkflowDefinitionDraftNode node,
+        List<WorkflowDefinitionValidationIssue> issues)
+    {
+        if (!HasConfig(node.Config))
+        {
+            issues.Add(CreateIssue(
+                "missing_node_config",
+                $"Node '{node.NodeKey}' of type '{node.NodeType}' requires a config object with 'workflowDefinitionKey'.",
+                "workflow_node",
+                node.NodeKey));
+            return;
+        }
+
+        if (node.Config!.Value.ValueKind != JsonValueKind.Object)
+        {
+            issues.Add(CreateIssue(
+                "invalid_node_config_kind",
+                $"Node '{node.NodeKey}' of type '{node.NodeType}' requires a JSON object config.",
+                "workflow_node",
+                node.NodeKey));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(TryGetWorkflowDefinitionKeyFromNodeConfig(node)))
+        {
+            issues.Add(CreateIssue(
+                "missing_required_node_config_property",
+                $"Node '{node.NodeKey}' of type '{node.NodeType}' requires config property 'workflowDefinitionKey' as non-empty string.",
+                "workflow_node",
+                node.NodeKey));
+        }
+    }
 }
