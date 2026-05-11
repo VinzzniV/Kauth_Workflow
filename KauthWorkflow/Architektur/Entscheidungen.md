@@ -169,23 +169,19 @@ Heute referenziert `AutomationPropertyCatalog.cs` `appUserId` und `directoryIden
 
 ## API-Kompatibilität & Naming
 
-### `LegacyProcessTypeKey` ist der kanonische Name (2026-05-02, HQ1-Z4)
+### `WorkflowDefinitionKey` ist der kanonische Name (aktiv seit 2026-05-11; Umbenennung begann 2026-05-02, HQ1-Z4)
 
-Der bisherige Begriff `ProcessTypeKey` wurde in allen öffentlichen API-Parametern, DTOs und internen Service-Signaturen zu `LegacyProcessTypeKey` umbenannt. Der "Legacy"-Prefix macht klar, dass dieser Key aus dem alten prozesstyp-basierten Modell stammt und langfristig durch `WorkflowDefinitionKey` abgelöst wird.
+`workflowDefinitionKey` ist der aktive fachliche Anker überall im System: Builder, Runtime-Engine, Validatoren, Gatekeeper-Regeln, Repositories und Notification-/Link-DTOs schreiben und lesen ausschließlich diesen Schlüssel. `legacyProcessTypeKey` existiert nur noch als read-only-Fallback für bereits persistierte Workflow-Definitionen im Altbestand — neue Definitionen müssen `workflowDefinitionKey` tragen.
 
-**Betroffene Endpoints (Parametername geändert):**
+**Historischer Hintergrund:** Mit HQ1-Z4 (2026-05-02) wurde `processTypeKey` in allen öffentlichen API-Parametern zu `legacyProcessTypeKey` umbenannt, um den Übergang sichtbar zu machen. Die Legacy-Key-Slices vom 2026-05-11 haben diesen Übergang vollständig abgeschlossen:
 
-| Endpoint | Alter Param | Neuer Param |
-|----------|------------|-------------|
-| `GET /workflows` | `processTypeKey` | `legacyProcessTypeKey` |
-| `GET /workflow-config` | `processTypeKey` | `legacyProcessTypeKey` |
-| `GET /requirements` | `processTypeKey` | `legacyProcessTypeKey` |
-| `GET /admin/config/workflow` | `processTypeKey` | `legacyProcessTypeKey` |
-| `GET /workflows/derive-answers` | `targetProcessTypeKey` | `targetLegacyProcessTypeKey` |
+- Builder-internes `primaryLegacyProcessTypeKey` → `workflowDefinitionKey`
+- `node.config.legacyProcessTypeKey` → `node.config.workflowDefinitionKey` als aktiver Anker; Fallback-Lesepfad für Altbestand bleibt erhalten
+- `WorkflowNotificationDispatchTarget.LegacyProcessTypeKey` → `WorkflowDefinitionKey`; `ProcessTypeName` → `WorkflowDefinitionName`
+- Gatekeeper-Record `LegacyProcessTypeKey` → `WorkflowDefinitionKey`; Fehlercode `unknown_form_legacy_process_type` → `unknown_form_workflow_definition_key`
+- `PrimaryLegacyProcessTypeKey`-Cluster vollständig abgebaut
 
-**DTOs:** `CreateWorkflowRequest.LegacyProcessTypeKey`, `WorkflowNotificationDispatchTarget.LegacyProcessTypeKey`
-
-**Deprecation-Ziel:** Wenn alle Workflows über `WorkflowDefinitionKey` gestartet werden können, entfällt `LegacyProcessTypeKey` vollständig. Kein konkreter Termin — erst nach Migrations-Parität.
+**Verbleibender Legacy-Rest:** `legacyProcessTypeKey` als read-only-Fallback in Builder/Runtime für persistierten Altbestand — bewusst behalten, kein Handlungsbedarf. Vollständige Entfernung erst nach Migrations-Parität aller persistierten Definitionen.
 
 ---
 
