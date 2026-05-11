@@ -32,8 +32,8 @@
 
 ## Current Focus
 
-- **Z20 — Admin/Directory/Runtime Read Contracts Phase 2 ist vollstaendig abgeschlossen** (2026-05-11). S1+B1+B2+B3+B4 sind done; kein aktiver Review-Slice offen. Naechster Schritt ist ein neuer Review-Zyklus nur bei neuem Bedarf.
-- Z19 vollstaendig abgeschlossen seit 2026-05-11 (S1..S9).
+- Kein aktiver Review-Slice offen. Z20 und Z19 sind seit 2026-05-11 vollstaendig abgeschlossen.
+- Naechster Schritt ist ein neuer Review-Zyklus nur bei neuem Bedarf; davor `CODE_REVIEW.md` und `TODO.md` als aktive Steuerdateien lesen.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

@@ -19,7 +19,43 @@ Die aktive Primaerquelle fuer den aktuellen Review-Fokus bleibt `CODE_REVIEW.md`
 
 ---
 
-## Zyklen 8 bis 19 — aus der aktiven Review-Datei ausgelagert
+## Zyklen 8 bis 20 — aus der aktiven Review-Datei ausgelagert
+
+### Zyklus 20 — Admin/Directory/Runtime Read Contracts Phase 2
+
+- Status: abgeschlossen am 2026-05-11.
+- Ergebnis: die nach Z10/Z11 zurueckgestellten Read-Vertraege fuer Admin-/Directory-/Runtime-Pfade sind vollstaendig auf die etablierten P1-/P2-/P3-Muster gezogen worden.
+- Praktisch: offene Mischvertraege und ungecursorte Runtime-Subresources sind aus dem aktiven Backlog verschwunden; das FE liest die neuen Hulls ueber Adapter weiter kompatibel.
+
+#### Z20-S1 — Inventur + Slice-Plan (done 2026-05-11)
+
+- Breiter Folgezyklus statt Mikro-Slices festgelegt; B1 bis B4 als Bundle-Reihenfolge dokumentiert.
+- Praktisch: gleicher Vertragsumbau wurde einmal sauber geplant, statt denselben Doku- und Review-Overhead pro Endpunkt zu wiederholen.
+
+#### Z20-B1 — P3-Lookups (done 2026-05-11)
+
+- `GET /workflow-definitions/startable` sowie die Notification-Preview-Target-Lookups fuer Workflows und Rotation-Plans auf `search`/`limit`-Lookup-Adapter gezogen.
+- Praktisch: Typeahead-faehige Lookups mit einheitlichem P3-Vertrag.
+
+#### Z20-B2 — Directory-Reads (done 2026-05-11)
+
+- `/admin/directory/identities` auf P1 umgestellt; `/admin/directory/responsibility-gaps` und `/admin/directory/pending-imports` liefern jetzt saubere P1-Listen.
+- Praktisch: der alte Composite-Mischvertrag ist aufgeloest; Directory-Folgearbeit haengt an konsistenten Listenendpunkten.
+
+#### Z20-B3 — Templates + Runtime-Subresources (done 2026-05-11)
+
+- `/admin/notification-templates` und `/admin/rotation/action-templates` auf P1; Runtime-Events und Runtime-Automation-Jobs auf P2-Cursor umgestellt.
+- Praktisch: wachsende Settings-Listen und laengere Runtime-Verlaeufe schneiden nicht mehr still an hartem Listenformat ab.
+
+#### Z20-B4 — Auth-/Identity-Listen (done 2026-05-11)
+
+- `/admin/auth/{users,roles,groups,permissions}` liefern P1; `/admin/directory/unlinked-identities` nutzt den P1-Query-Parser.
+- Praktisch: der verbleibende Admin-Identity-Block folgt jetzt demselben Listenvertrag wie die uebrigen Admin-Reads.
+
+#### Verifikation
+
+- `dotnet test api/API.Tests/API.Tests.csproj --artifacts-path .codex-artifacts` → 566 bestanden, 1 uebersprungen.
+- `npm run build` in `web/` → erfolgreich.
 
 ### Zyklus 19 — Backend Full Review / Holistic Audit
 
