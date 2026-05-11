@@ -143,6 +143,9 @@ export default function RotationOperationsPage() {
 
         <div className="task-card-layout">
           <div className="task-card-content">
+            {row.task.description ? (
+              <p className="task-description panel-text">{row.task.description}</p>
+            ) : null}
             <dl className="task-meta">
               <div>
                 <dt>Bereich</dt>
@@ -516,6 +519,9 @@ export default function RotationOperationsPage() {
                                     <div className="operational-cell-primary">
                                       <span className="operational-cell-title">{row.task.title}</span>
                                       <span className="operational-cell-meta">{row.rotation.planTitle}</span>
+                                      {row.task.description ? (
+                                        <span className="operational-cell-meta">{row.task.description}</span>
+                                      ) : null}
                                     </div>
                                   </td>
                                   <td>{row.rotation.displayName}</td>
