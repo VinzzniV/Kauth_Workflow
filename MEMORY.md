@@ -32,7 +32,7 @@
 
 ## Current Focus
 
-- **Aktiver Zyklus: Z20 — Admin/Directory/Runtime Read Contracts Phase 2** (eroeffnet 2026-05-11). **S1 (Inventur + Vertrags-Skizze + Slice-Plan) Doku-only done.** Naechster Schritt: **Z20-B1** (Block H `/workflow-definitions/startable` + Block E Preview-Lookups → P3-Lookup-Adapter; `claude-sonnet-4-6` + `--effort medium`). Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 20" und `TODO.md`.
+- **Aktiver Zyklus: Z20 — Admin/Directory/Runtime Read Contracts Phase 2** (eroeffnet 2026-05-11). **S1 + B1 abgeschlossen 2026-05-11.** Naechster Schritt: **Z20-B2** — Block C (`/admin/directory/identities` auf P1 + Composite-Split `responsibility-gaps` / `pending-imports`), empfohlen mit `claude-opus-4-7` + `--effort high`. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 20" und `TODO.md`.
 - Z19 vollstaendig abgeschlossen seit 2026-05-11 (S1..S9).
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
