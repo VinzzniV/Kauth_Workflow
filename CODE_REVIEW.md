@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-11 — **Z19 fast abgeschlossen** (Backend Full Review / Holistic Audit). Erledigt: S1..S5 + S7..S9. Offener Rest: **Z19-S6** (`PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations nach Z9-Pattern aufteilen). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 eroeffnet; 2026-05-11 Z19-S1 Audit; 2026-05-11 Z19-S2+S4+L4; 2026-05-11 Z19-S3+L1; 2026-05-11 Z19-S5+S7+S8+S9/L2+L3).
+**Stand**: 2026-05-11 — **Z19 vollstaendig abgeschlossen** (Backend Full Review / Holistic Audit). Alle Slices S1..S9 erledigt. Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 eroeffnet + S1..S9 vollstaendig abgeschlossen).
 
 ---
 
@@ -87,7 +87,7 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 | Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql` (Migrations-Manifest `db/manual/manifest.json` + `api/API.Tests/SchemaParityTests.cs`). | HIGH | **done 2026-05-11** |
 | Z19-S4 | `WorkflowLifecycleService` und `WorkflowRuntimeService` durchgaengig auf `CancellationToken` umstellen (HTTP-Abbruch erreicht offene DB-Transaktion). | HIGH | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Restrest dokumentiert) |
 | Z19-S5 | `SystemEventLogService`: stilles Schlucken von `UndefinedTable` ersetzen, Cursor-Pagination statt LIMIT/OFFSET, eigene Unit-Tests fuer Redaction/Normalization/Filter. | MEDIUM | **done 2026-05-11** |
-| Z19-S6 | `PostgresUserAuthorizationRepository.AdminOperations.cs` (1886 LOC) + `…AdminReadOperations.cs` (1002 LOC) nach Z9-Pattern aufteilen. | MEDIUM | offen |
+| Z19-S6 | `PostgresUserAuthorizationRepository.AdminOperations.cs` (1886 LOC) + `…AdminReadOperations.cs` (1002 LOC) nach Z9-Pattern aufteilen. | MEDIUM | **done 2026-05-11** |
 | Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern (Job-Claim leakt, wenn `CompleteAutomationJobFailure` selbst wirft). | MEDIUM | **done 2026-05-11** |
 | Z19-S8 | Verdikt fuer deferred Befunde Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot-Vertrag): explizit weiter deferred mit Frist, oder eigener Slice. | MEDIUM | **done 2026-05-11** (beide formal deferred mit Begruendung — siehe S8-Ergebnis) |
 | Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` Token-Propagation. | LOW | **done 2026-05-11** (L1 + L4 in S2/S4-Commit; L2 + L3 in diesem Bundle) |

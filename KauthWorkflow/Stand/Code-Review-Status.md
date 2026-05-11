@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-11 — **Z19 aktiv; S1..S5 + S7..S9 abgeschlossen 2026-05-11**; einziger offener Slice: S6 (`AuthZ-Repo-Split`); Z18 + Entra-Retrofit-Block am 2026-05-08 abgeschlossen.)
+## Gesamtbewertung (Stand 2026-05-11 — **Z19 vollstaendig abgeschlossen 2026-05-11**; Z18 + Entra-Retrofit-Block am 2026-05-08 abgeschlossen; kein aktiver Zyklus.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -64,7 +64,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
 | 18 | 2026-05-08 | Frontend Full Review — **vollstaendig abgeschlossen** (alle 9 Findings: S2 Batch A, S3 Batch B, S4 F4 Redirect) |
-| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **S1..S5 + S7..S9 done 2026-05-11**; einziger offener Slice: S6 (`AuthZ-Repo-Split`) |
+| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **vollstaendig abgeschlossen 2026-05-11** (alle Slices S1..S9 done) |
 
 ---
 
@@ -85,7 +85,7 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 | Z19-S3 | Schema-Paritaets-Check `db/01_schema.sql` vs `db/manual/*.sql` (`db/manual/manifest.json` + `SchemaParityTests.cs`). | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
 | Z19-S4 | `CancellationToken`-Propagation in `WorkflowLifecycleService` + `WorkflowRuntimeService`. | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Resthebel dokumentiert) |
 | Z19-S5 | `SystemEventLogService`: UndefinedTable-Swallow, Cursor-Pagination, Unit-Tests. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | **done 2026-05-11** |
-| Z19-S6 | `PostgresUserAuthorizationRepository` Repo-Split nach Z9-Pattern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen — naechster Schritt |
+| Z19-S6 | `PostgresUserAuthorizationRepository` Repo-Split nach Z9-Pattern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | **done 2026-05-11** |
 | Z19-S7 | `WorkflowAutomationService` Failure-of-Failure absichern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | **done 2026-05-11** |
 | Z19-S8 | Verdikt fuer deferred Z8-3.2/#8 + Z16-S4. | MEDIUM | (Doku-Entscheidung) | **done 2026-05-11** (beide deferred mit Begruendung) |
 | Z19-S9 | Hygiene-Batch (L1–L4). | LOW | `claude-sonnet-4-6` + `--effort medium` | **done 2026-05-11** (L1+L4 vorher; L2+L3 in diesem Bundle) |

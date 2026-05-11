@@ -47,22 +47,9 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Z19 fast abgeschlossen (2026-05-11).** Backend Full Review / Holistic Audit. **S1..S5 + S7..S9 done**; einziger offener Slice: S6 (`AuthZ-Repo-Split`). Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Z19 vollstaendig abgeschlossen (2026-05-11).** Backend Full Review / Holistic Audit — alle Slices S1..S9 erledigt. Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) abgeschlossen am 2026-05-08.
 
-**Aktive Arbeit:**
-
-| Slice | Inhalt | Prio | Modell/Effort | Status |
-|-------|--------|------|---------------|--------|
-| Z19-S6 | `PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations nach Z9-Pattern aufteilen. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen — naechster Schritt |
-
-**Erledigt in diesem Bundle (2026-05-11):**
-- Z19-S5: `SystemEventLogService` UndefinedTable-Swallow + Cursor-Pagination + 67 Unit-Tests
-- Z19-S7: Failure-of-Failure + `UnclaimAutomationJobAsync` + neuer Test
-- Z19-S8: Z8-3.2/#8 und Z16-S4 formal deferred mit Begruendung (kein Code)
-- Z19-S9/L2: `AdminRuntimeHealthService` doppeltes `Task.WhenAll` bereinigt
-- Z19-S9/L3: Tombstone-Datei entfernt
-
-**Praktischer Nutzen:** alle MEDIUMs und alle LOWs abgearbeitet; einziger Rest ist der `AuthZ-Repo-Split` (MEDIUM, reine Code-Hygiene). Detail in `CODE_REVIEW.md` § Ergebnis-Bloecke.
+Aktuell kein aktiver Zyklus und keine offene Slice-Arbeit. Naechster Schritt: neuer Zyklus bei konkretem Bedarf.
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer, neue FE-Findings, Berechtigungsmodell-Aenderungen ohne konkretes Risiko.
 
