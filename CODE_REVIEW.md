@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-08 — Z18, FE-8, A1, A2, A3, B und C vollstaendig abgeschlossen. Der Entra-Retrofit-Block ist damit end-to-end nutzbar: Import-Backend, Admin-Import-UI, Mitarbeiterkarten-Nachpflege, Stellenimport und Sichtbarkeit von directory-only-Personen sind umgesetzt. Naechster Schritt: Codex priorisiert einen neuen Zyklus ausserhalb dieses Blocks.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..03 Zyklus 2–5; 2026-05-03..04 Zyklus 6; 2026-05-05 Zyklus 7; 2026-05-05 Zyklus 8 abgeschlossen; 2026-05-05 Zyklus 9 abgeschlossen; 2026-05-05 Zyklus 10 abgeschlossen; 2026-05-05 Zyklus 11 eroeffnet) + Codex-Fallback (2026-05-05 Z11-F1 Abschluss waehrend Claude-Rate-Limit) + Claude (2026-05-06 Z11-F2 Abschluss; 2026-05-06 Z11-F3 Abschluss = Z11 vollstaendig geschlossen; 2026-05-06 Z12 eroeffnet + abgeschlossen; 2026-05-06 Z13 eroeffnet + abgeschlossen; 2026-05-07 Z14 eroeffnet + abgeschlossen; 2026-05-08 Z15 eroeffnet + abgeschlossen; 2026-05-08 Z16 eroeffnet).
+**Stand**: 2026-05-11 — **Z19 als aktiver Zyklus eroeffnet** (Backend Full Review / Holistic Audit). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen. Z19-S1 ist ein reiner Doku-/Review-Slice: vollstaendiger Backend-Audit ueber Endpoints, Repositories, Services, Authorization, Auth-Pipeline, Background-Jobs, Schema-/Migrations-Hygiene und Test-Coverage-Luecken; liefert eine priorisierte Findings-Liste fuer Folgeslices.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 eroeffnet).
 
 ---
 
@@ -67,6 +67,31 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | Skalierbarkeit | **B-** | Mehrere Listen-, Sweep- und Dispatch-Pfade sind noch Kandidaten fuer SQL-Pushdown, Pagination oder N+1-Abbau |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
+
+---
+
+## Aktiver Zyklus 19 — Backend Full Review / Holistic Audit (2026-05-11)
+
+Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend Full Review). Keine Implementierung in S1.
+
+**Praktisch:** Erstmals seit den punktuellen Backend-Zyklen Z8 (Skalierbarkeit), Z9 (Directory-Sync-Split), Z11 (Listen-Vertraege), Z12/Z13 (Runtime-Health) bekommt der gesamte Backend-Stack einen zusammenhaengenden Review-Pass — Endpoints, Repositories, Services, Authorization, Auth-Pipeline, `Services/Directory/`, Background-Jobs, Schema-/Migrations-Hygiene und Test-Coverage. Ergebnis ist eine priorisierte Findings-Liste (HIGH/MEDIUM/LOW) im Stil von Z18, an der Folgeslices gezielt aufraeumen.
+
+**Lohnenswert:** Skalierbarkeit (B-) und Testbarkeit (B) sind die schwaechsten Noten in der Gesamtbewertung. Deferred Hotspots (Z8-3.2/#8 `RegenerateDepartmentPlansAsync`, Z16-S4 Automation-Snapshot-Vertrag) und die jueengsten DB-Drift-Vorfaelle (manuelle SQL-Helfer fuer `approval_spec_key` und `directory_identities.job_title`, dokumentiert in `db/manual/`) zeigen systemische Resthebel, die einzeln klein wirken, in Summe aber Wartbarkeit und Betriebsfestigkeit kosten. Eine breite Bestandsaufnahme jetzt ist deutlich billiger als wiederholte Hotfixes unter Last und schafft die Andockflaeche fuer den naechsten gerichteten Schritt Richtung Definition Layer / Runtime / Automation Layer.
+
+**Nutzen:** vollstaendige Inventur der noch nicht von Z8/Z9/Z11/Z12/Z13 adressierten Hotspots; klare Begruendung fuer deferred / nicht-jetzt-Befunde; ein dokumentierter Slice-Plan, an dem nachfolgende Umsetzungszyklen sauber andocken; bessere Priorisierung gegen das Zielbild statt isolierter Mikro-Optimierungen; transparenter Vertrag, was nicht zum Audit gehoert (kein breiter Architektur-Umbau).
+
+| Slice | Inhalt | Prio | Status |
+|-------|--------|------|--------|
+| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. DB-Drift-Pfad und `db/manual/`-Workflow), Test-Coverage-Luecken. Liefert priorisierte Findings (HIGH/MEDIUM/LOW) mit Begruendung, Bereich und vorgeschlagenem Slice-Schnitt. **Doku-only**, keine Code-Aenderung. | HIGH | offen |
+| Z19-S2..N | Umsetzungsslices je nach Findings-Verteilung; Modell/Effort pro Slice gesetzt. | — | folgt nach S1 |
+
+**Empfohlenes Modell/Effort fuer Folgeslices:**
+- **Z19-S1** (Audit): `claude-opus-4-7` + `--effort high` — breites, dichtes Audit ueber mehrere Backend-Module, Begruendungs-/Schreibregel-Pflicht und Slice-Plan-Schnitt rechtfertigen Opus-Tiefe.
+- **Z19-S2..N** (Umsetzung): typisch `claude-sonnet-4-6` + `--effort medium` fuer lokale Refactorings, Coverage-Auffuellungen und Vertrags-/Hygiene-Fixes; `claude-opus-4-7` + `--effort high` nur bei nicht-trivialen Engine-/Lifecycle- oder Authorization-Eingriffen.
+
+**Bewusst NICHT in Z19:** breite Architektur-Umbauten am Workflow-Definition-/Runtime-/Automation-Layer (Migrationspfad-Arbeit bleibt eigenstaendig), neue Frontend-Findings (Z18 vollstaendig abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigener Backlog).
+
+**Naechster Schritt:** Codex erzwingt Z19-S1 per CLI mit `--model claude-opus-4-7 --effort high`.
 
 ---
 
@@ -116,3 +141,4 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | A3 | 2026-05-08 | Mitarbeiterkarte fehlende Felder + retroaktiver Status — PATCH /admin/people/{personId} (entry_date, badge_number); Inline-Edit in PersonOverviewSection (Admin-only, useMutation + Invalidierung); Lücken-Warnung; Badge „Retroaktiv importiert"; erklärender Text im leeren Vorgangsbereich — **abgeschlossen** |
 | B | 2026-05-08 | Entra-Stellenbezeichnungen in Abteilungs-Stellen importieren — GET /admin/master-data/departments/{id}/entra-job-titles + POST …/positions/import-from-entra; Checkbox-UI in AdminOrganizationDepartmentEditor mit bereits-vorhanden-Markierung — **abgeschlossen** |
 | C | 2026-05-08 | Mitarbeiter-Verzeichnis zeigt jetzt auch aktive `directory_identities` ohne Mitarbeiterkarte — `GetPeopleDirectory` per `UNION ALL`, Status `directory_only`, nullable `personId`, Inline-Import-Button pro Verzeichnis-Eintrag in `PeopleDirectoryPage` — **abgeschlossen** |
+| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — eroeffnet als Doku-Zyklus, S1 Audit-Pass offen |

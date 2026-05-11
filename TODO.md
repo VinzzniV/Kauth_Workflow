@@ -47,7 +47,18 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Z18 abgeschlossen (2026-05-08).** Alle 9 Findings erledigt. Kein aktiver Zyklus offen. Naechster Schritt: Codex priorisiert neuen Zyklus.
+**Z19 eroeffnet (2026-05-11).** Backend Full Review / Holistic Audit als Doku-Zyklus, analog zu Z18 (Frontend Full Review). Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+
+**Aktive Arbeit:**
+
+| Slice | Inhalt | Prio | Modell/Effort | Status |
+|-------|--------|------|---------------|--------|
+| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene und Test-Coverage. Liefert priorisierte Findings (HIGH/MEDIUM/LOW) mit Begruendung und vorgeschlagenem Slice-Schnitt. **Doku-only.** | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z19-S2..N | Umsetzungsslices nach Findings-Verteilung. | — | typisch `claude-sonnet-4-6` + `--effort medium`; Opus nur bei Engine-/Lifecycle-/Authorization-Eingriffen | folgt nach S1 |
+
+**Praktischer Nutzen:** breite Bestandsaufnahme nach den punktuellen Backend-Zyklen (Z8/Z9/Z11/Z12/Z13) sichert die schwaechsten Noten der Gesamtbewertung (Skalierbarkeit B-, Testbarkeit B), benennt deferred Hotspots (Z8-3.2/#8, Z16-S4) und die jueengsten DB-Drift-Vorfaelle (`approval_spec_key`, `directory_identities.job_title`) explizit mit Folge-Slice. Detail in `CODE_REVIEW.md` § "Aktiver Zyklus 19".
+
+**Bewusst NICHT in Z19:** breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer, neue FE-Findings, Berechtigungsmodell-Aenderungen ohne konkretes Risiko.
 
 ## Zyklusuebergreifend offen
 

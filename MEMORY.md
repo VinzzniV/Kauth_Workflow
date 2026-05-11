@@ -32,13 +32,14 @@
 
 ## Current Focus
 
-- **Kein aktiver Zyklus offen.** Z18, FE-8 und der komplette Entra-Retrofit-Block aus `TODO.md` (A1, A2, A3, B, C) sind am 2026-05-08 abgeschlossen worden. Praktisch bedeutet das: bestehende Entra-Mitarbeitende lassen sich jetzt retroaktiv importieren, direkt im Verzeichnis sehen, auf der Mitarbeiterkarte nachpflegen und mit Entra-Stellen sauber in Abteilungen uebernehmen. Naechster Schritt: Codex priorisiert den naechsten Zyklus aus den verbleibenden repo-weiten Review-/Architekturthemen.
+- **Aktiver Zyklus: Z19 — Backend Full Review / Holistic Audit (eroeffnet 2026-05-11).** Doku-/Review-Slice analog zu Z18 (Frontend Full Review). **Naechster Slice: Z19-S1**, Audit-Pass ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. `db/manual/`-Workflow) und Test-Coverage. Liefert priorisierte Findings (HIGH/MEDIUM/LOW). Empfehlung Codex-CLI: `--model claude-opus-4-7 --effort high`. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 19" und `TODO.md`.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts
 
-- **Rolle ≠ Persona ≠ aktive Ansicht** (aus Z15): bleibt verbindlich — Rechte, Capabilities, Header-Navigation und Routen-Guards nicht mit Persona-Steuerung vermengen.
-- **Person ≠ Identity**: `personId` = fachlicher Anker, `directoryIdentityId` = Entra-Objekt-Anker — nie vermischen (in `KauthWorkflow/Domäne/Identity.md` verankert).
+- **Z19-Scope-Abgrenzung:** kein breiter Architektur-Umbau am Definition-/Runtime-/Automation-Layer, keine neuen FE-Findings (Z18 abgeschlossen), keine Berechtigungsmodell-Aenderungen ohne konkretes Risiko — sonst Slice-Drift.
+- **DB-Drift-Pfad:** schemaaendernde Slices erzeugen aktuell manuelle SQL-Helfer in `db/manual/` (zuletzt `approval_spec_key` + `directory_identities.job_title`). Z19-S1 muss diesen Workflow explizit benennen, nicht stillschweigend uebersehen.
+- **Person ≠ Identity:** `personId` = fachlicher Anker, `directoryIdentityId` = Entra-Objekt-Anker — nie vermischen (in `KauthWorkflow/Domäne/Identity.md` verankert).
 - `WorkflowLifecycleService` bleibt Commit-Grenze fuer Create/Form/Approval/Task — nicht aufweichen.
 - DB-Tests haengen lokal an PostgreSQL auf `127.0.0.1:26432`.
 - P2-Cursor (Z11-F2) opaque — FE nie zerlegen.

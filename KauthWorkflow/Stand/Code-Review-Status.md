@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-08 — Z17-S1 done; Z18-S1 (Frontend Full Review) done. Zyklen 8–18 (S1) abgeschlossen.)
+## Gesamtbewertung (Stand 2026-05-11 — **Z19 (Backend Full Review / Holistic Audit) als aktiver Zyklus eroeffnet**; Z18 + Entra-Retrofit-Block am 2026-05-08 abgeschlossen.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -64,6 +64,28 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag — **vollstaendig abgeschlossen** (Z16-S4 deferred) |
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
 | 18 | 2026-05-08 | Frontend Full Review — **vollstaendig abgeschlossen** (alle 9 Findings: S2 Batch A, S3 Batch B, S4 F4 Redirect) |
+| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **eroeffnet** als Doku-Zyklus, S1 Audit-Pass offen |
+
+---
+
+## Aktiver Zyklus 19 — Backend Full Review / Holistic Audit (2026-05-11)
+
+Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend Full Review). Keine Implementierung in S1.
+
+**Praktisch:** Erstmals seit den punktuellen Backend-Zyklen Z8/Z9/Z11/Z12/Z13 erhaelt der gesamte Backend-Stack einen zusammenhaengenden Review-Pass — Endpoints, Repositories, Services, Authorization, Auth-Pipeline, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene und Test-Coverage. Ergebnis ist eine priorisierte Findings-Liste (HIGH/MEDIUM/LOW) im Stil von Z18.
+
+**Lohnenswert:** Skalierbarkeit (B-) und Testbarkeit (B) sind die schwaechsten Noten der Gesamtbewertung. Deferred Hotspots (Z8-3.2/#8 `RegenerateDepartmentPlansAsync`, Z16-S4 Automation-Snapshot-Vertrag) und die juengsten DB-Drift-Vorfaelle (manuelle SQL-Helfer fuer `approval_spec_key` und `directory_identities.job_title`) zeigen systemische Resthebel, die einzeln klein wirken, in Summe aber Wartbarkeit und Betriebsfestigkeit kosten. Eine breite Bestandsaufnahme jetzt ist deutlich billiger als wiederholte Hotfixes unter Last.
+
+**Nutzen:** vollstaendige Inventur der noch nicht von Z8/Z9/Z11/Z12/Z13 adressierten Hotspots; klare Begruendung fuer deferred / nicht-jetzt-Befunde; ein dokumentierter Slice-Plan fuer Folge-Umsetzungszyklen; bessere Priorisierung gegen das Zielbild (Definition Layer / Runtime / Automation Layer) statt isolierter Mikro-Optimierungen.
+
+| Slice | Inhalt | Prio | Modell/Effort | Status |
+|-------|--------|------|---------------|--------|
+| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. `db/manual/`-Workflow), Test-Coverage. **Doku-only.** | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z19-S2..N | Umsetzungsslices nach Findings-Verteilung. | — | typisch `claude-sonnet-4-6` + `--effort medium`; Opus nur bei Engine-/Lifecycle-/Authorization-Eingriffen | folgt nach S1 |
+
+**Bewusst NICHT in Z19:** breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer, neue FE-Findings (Z18 abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigenstaendig).
+
+**Naechster Schritt:** Codex erzwingt Z19-S1 per CLI mit `--model claude-opus-4-7 --effort high`.
 
 ---
 
