@@ -101,7 +101,8 @@ internal static class TaskEndpoints
             [FromBody] TaskStatusUpdateRequest request,
             ITaskApplicationService taskApplicationService,
             IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -114,7 +115,7 @@ internal static class TaskEndpoints
 
             try
             {
-                var task = await taskApplicationService.UpdateTaskStatusAsync(id, request, access.User!);
+                var task = await taskApplicationService.UpdateTaskStatusAsync(id, request, access.User!, cancellationToken);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });
@@ -140,7 +141,8 @@ internal static class TaskEndpoints
             [FromBody] TaskStatusUpdateRequest request,
             ITaskApplicationService taskApplicationService,
             IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -153,7 +155,7 @@ internal static class TaskEndpoints
 
             try
             {
-                var task = await taskApplicationService.UpdateTaskStatusByRefAsync(taskRef, request, access.User!);
+                var task = await taskApplicationService.UpdateTaskStatusByRefAsync(taskRef, request, access.User!, cancellationToken);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });
@@ -179,7 +181,8 @@ internal static class TaskEndpoints
             [FromBody] TaskApprovalDecisionRequest request,
             ITaskApplicationService taskApplicationService,
             IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -193,7 +196,7 @@ internal static class TaskEndpoints
 
             try
             {
-                var task = await taskApplicationService.DecideTaskApprovalAsync(id, request, access.User!);
+                var task = await taskApplicationService.DecideTaskApprovalAsync(id, request, access.User!, cancellationToken);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });
@@ -219,7 +222,8 @@ internal static class TaskEndpoints
             [FromBody] TaskApprovalDecisionRequest request,
             ITaskApplicationService taskApplicationService,
             IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -233,7 +237,7 @@ internal static class TaskEndpoints
 
             try
             {
-                var task = await taskApplicationService.DecideTaskApprovalByRefAsync(taskRef, request, access.User!);
+                var task = await taskApplicationService.DecideTaskApprovalByRefAsync(taskRef, request, access.User!, cancellationToken);
                 if (task is null)
                 {
                     return Results.NotFound(new { message = "Task not found." });

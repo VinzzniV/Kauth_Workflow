@@ -13,7 +13,8 @@ internal interface IWorkflowLifecycleScopedRepository
         NpgsqlTransaction transaction,
         long taskId,
         string normalizedStatus,
-        long actorUserId);
+        long actorUserId,
+        CancellationToken cancellationToken = default);
 
     // null = nicht gefunden / gesperrt.
     Task<DecideTaskApprovalScopeResult?> DecideTaskApprovalInScope(
@@ -21,7 +22,8 @@ internal interface IWorkflowLifecycleScopedRepository
         NpgsqlTransaction transaction,
         long taskId,
         TaskApprovalDecisionRequest request,
-        long actorUserId);
+        long actorUserId,
+        CancellationToken cancellationToken = default);
 
     Task CompleteAutomationJobSuccessInScope(
         NpgsqlConnection connection,
@@ -37,14 +39,16 @@ internal interface IWorkflowLifecycleScopedRepository
         Guid workflowUid,
         long nodeInstanceId,
         long actorUserId,
-        string? comment = null);
+        string? comment = null,
+        CancellationToken cancellationToken = default);
 
     Task TryAdvanceRuntimeSetupInScope(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
         Guid workflowUid,
-        long actorUserId);
+        long actorUserId,
+        CancellationToken cancellationToken = default);
 
     Task ApplyApprovalNodeDecisionInScope(
         NpgsqlConnection connection,
@@ -53,5 +57,6 @@ internal interface IWorkflowLifecycleScopedRepository
         Guid workflowUid,
         long nodeInstanceId,
         bool approved,
-        long actorUserId);
+        long actorUserId,
+        CancellationToken cancellationToken = default);
 }

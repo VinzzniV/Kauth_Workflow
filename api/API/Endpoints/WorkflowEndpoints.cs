@@ -92,7 +92,8 @@ internal static class WorkflowEndpoints
             [FromQuery] int? offset,
             IWorkflowRuntimeService workflowRuntimeService,
             IUserContext userContext,
-            IAuthorizationPolicyService authorizationPolicy) =>
+            IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -113,7 +114,8 @@ internal static class WorkflowEndpoints
                     responsibility,
                     limit,
                     offset,
-                    access.User!);
+                    access.User!,
+                    cancellationToken);
                 return Results.Ok(result);
             }
             catch (InvalidOperationException ex)

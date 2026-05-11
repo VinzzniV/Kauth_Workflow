@@ -9,50 +9,50 @@ internal sealed class WorkflowLifecycleService(
     IWorkflowStatusCalculationService statusCalculation,
     IWorkflowNotificationDispatchOperations notificationDispatch) : IWorkflowLifecycleService
 {
-    public async Task<TaskWithWorkflowDto?> UpdateTaskStatusAsync(long taskId, string status, long actorUserId)
+    public async Task<TaskWithWorkflowDto?> UpdateTaskStatusAsync(long taskId, string status, long actorUserId, CancellationToken cancellationToken = default)
     {
         var normalizedStatus = TaskStatusRules.NormalizeTaskStatus(status);
         await using var connection = new NpgsqlConnection(LifecycleRuntimeSettingsResolver.GetRequiredConnectionString());
-        await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
-        var result = await scopedRepository.UpdateTaskStatusInScope(connection, transaction, taskId, normalizedStatus, actorUserId);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var result = await scopedRepository.UpdateTaskStatusInScope(connection, transaction, taskId, normalizedStatus, actorUserId, cancellationToken);
         if (result is null)
             return null;
         if (result.ShouldCompleteRuntimeTaskNode && result.RuntimeNodeInstanceId.HasValue)
-            await scopedRepository.CompleteRuntimeTaskNodeInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, result.RuntimeNodeInstanceId.Value, actorUserId);
+            await scopedRepository.CompleteRuntimeTaskNodeInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, result.RuntimeNodeInstanceId.Value, actorUserId, cancellationToken: cancellationToken);
         else if (result.ShouldTryAdvanceRuntimeSetup)
-            await scopedRepository.TryAdvanceRuntimeSetupInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, actorUserId);
-        await transaction.CommitAsync();
+            await scopedRepository.TryAdvanceRuntimeSetupInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, actorUserId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return await workflowRepository.GetTaskById(taskId);
     }
 
-    public Task<TaskWithWorkflowDto?> UpdateTaskStatusByRefAsync(string taskRef, string status, long actorUserId)
+    public Task<TaskWithWorkflowDto?> UpdateTaskStatusByRefAsync(string taskRef, string status, long actorUserId, CancellationToken cancellationToken = default)
     {
         if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
-            return UpdateTaskStatusAsync(workflowTaskId, status, actorUserId);
+            return UpdateTaskStatusAsync(workflowTaskId, status, actorUserId, cancellationToken);
 
         // Rotation-Tasks bleiben ausserhalb der Lifecycle-Engine; Repo routet auf Rotation-Repository.
         return workflowRepository.UpdateTaskStatusByRef(taskRef, status, actorUserId);
     }
 
-    public async Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(long taskId, TaskApprovalDecisionRequest request, long actorUserId)
+    public async Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(long taskId, TaskApprovalDecisionRequest request, long actorUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         await using var connection = new NpgsqlConnection(LifecycleRuntimeSettingsResolver.GetRequiredConnectionString());
-        await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
-        var result = await scopedRepository.DecideTaskApprovalInScope(connection, transaction, taskId, request, actorUserId);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var result = await scopedRepository.DecideTaskApprovalInScope(connection, transaction, taskId, request, actorUserId, cancellationToken);
         if (result is null)
             return null;
-        await scopedRepository.ApplyApprovalNodeDecisionInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, result.NodeInstanceId, request.Approved, actorUserId);
-        await transaction.CommitAsync();
+        await scopedRepository.ApplyApprovalNodeDecisionInScope(connection, transaction, result.WorkflowId, result.WorkflowUid, result.NodeInstanceId, request.Approved, actorUserId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return await workflowRepository.GetTaskById(taskId);
     }
 
-    public Task<TaskWithWorkflowDto?> DecideTaskApprovalByRefAsync(string taskRef, TaskApprovalDecisionRequest request, long actorUserId)
+    public Task<TaskWithWorkflowDto?> DecideTaskApprovalByRefAsync(string taskRef, TaskApprovalDecisionRequest request, long actorUserId, CancellationToken cancellationToken = default)
     {
         if (WorkflowTaskRef.TryParse(taskRef, out var workflowTaskId))
-            return DecideTaskApprovalAsync(workflowTaskId, request, actorUserId);
+            return DecideTaskApprovalAsync(workflowTaskId, request, actorUserId, cancellationToken);
 
         // Rotation-Tasks bleiben ausserhalb der Lifecycle-Engine.
         return workflowRepository.DecideTaskApprovalByRef(taskRef, request, actorUserId);
@@ -67,7 +67,7 @@ internal sealed class WorkflowLifecycleService(
         await transaction.CommitAsync(cancellationToken);
     }
 
-    public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId)
+    public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (string.IsNullOrWhiteSpace(request.WorkflowDefinitionKey))
@@ -307,10 +307,10 @@ RETURNING id, uid;
 
             return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid)
                 ?? throw new InvalidOperationException("Workflow runtime instance could not be loaded after creation.");
-        });
+        }, cancellationToken);
     }
 
-    public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId)
+    public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         return ExecuteDefinitionRuntimeMutationAsync(async (connection, transaction) =>
@@ -334,10 +334,10 @@ RETURNING id, uid;
                 actorUserId);
 
             return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid);
-        });
+        }, cancellationToken);
     }
 
-    public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteApprovalNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId)
+    public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteApprovalNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         return ExecuteDefinitionRuntimeMutationAsync(async (connection, transaction) =>
@@ -387,10 +387,10 @@ RETURNING id, uid;
                 actorUserId);
 
             return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid);
-        });
+        }, cancellationToken);
     }
 
-    public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteTaskNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId)
+    public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteTaskNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         return ExecuteDefinitionRuntimeMutationAsync(async (connection, transaction) =>
@@ -440,17 +440,18 @@ RETURNING id, uid;
                 request.Comment);
 
             return await PostgresWorkflowRuntimeRepository.GetWorkflowDefinitionRuntimeDetailInternal(connection, transaction, workflowUid);
-        });
+        }, cancellationToken);
     }
 
     private static async Task<T> ExecuteDefinitionRuntimeMutationAsync<T>(
-        Func<NpgsqlConnection, NpgsqlTransaction, Task<T>> mutation)
+        Func<NpgsqlConnection, NpgsqlTransaction, Task<T>> mutation,
+        CancellationToken cancellationToken)
     {
         await using var connection = new NpgsqlConnection(LifecycleRuntimeSettingsResolver.GetRequiredConnectionString());
-        await connection.OpenAsync();
-        await using var transaction = await connection.BeginTransactionAsync();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         var result = await mutation(connection, transaction);
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(cancellationToken);
         return result;
     }
 }

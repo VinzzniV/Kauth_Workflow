@@ -954,7 +954,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<List<WorkflowNotificationDispatchTarget>> CreateWorkflowCompletionNotifications(Guid workflowUid) => throw new NotSupportedException();
         public Task ApplyNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results) => throw new NotSupportedException();
         public Task<List<WorkflowListItemDto>> GetWorkflows() => throw new NotSupportedException();
-        public Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query) => throw new NotSupportedException();
+        public Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<WorkflowDetailDto?> GetWorkflowByUid(Guid workflowUid) => throw new NotSupportedException();
         public Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId) => throw new NotSupportedException();
         public Task<List<TaskWithWorkflowDto>> GetTasks() => throw new NotSupportedException();

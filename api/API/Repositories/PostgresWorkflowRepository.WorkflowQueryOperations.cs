@@ -160,18 +160,18 @@ ORDER BY w.created_at DESC;";
     }
 
     // Gefilterte und paginierte Workflow-Liste – Filterung und Paginierung erfolgen auf DB-Ebene.
-    public async Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query)
+    public async Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query, CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
-        await connection.OpenAsync();
+        await connection.OpenAsync(cancellationToken);
 
-        var workflowRows = await QueryFilteredWorkflowRows(connection, query);
+        var workflowRows = await QueryFilteredWorkflowRows(connection, query, cancellationToken);
         var workflowIds = workflowRows.Select(row => row.WorkflowId).ToList();
         var totalCount = workflowRows.Count > 0 ? workflowRows[0].TotalCount : 0;
 
-        var definitions = await LoadAnswerDefinitionRecords(connection, null, null);
-        var requirementSummaries = await LoadWorkflowRequirementSummaries(connection, workflowIds, definitions);
-        var metadataMap = await LoadWorkflowListMetadata(connection, workflowIds);
+        var definitions = await LoadAnswerDefinitionRecords(connection, null, null, cancellationToken);
+        var requirementSummaries = await LoadWorkflowRequirementSummaries(connection, workflowIds, definitions, cancellationToken);
+        var metadataMap = await LoadWorkflowListMetadata(connection, workflowIds, cancellationToken);
 
         var items = workflowRows.Select(row =>
         {
@@ -217,8 +217,8 @@ ORDER BY w.created_at DESC;";
             return new WorkflowListResult { Items = items, TotalCount = totalCount };
         }
 
-        var deptOptions = await QueryDepartmentOptions(connection, query);
-        var respOptions = await QueryResponsibilityOptions(connection, query);
+        var deptOptions = await QueryDepartmentOptions(connection, query, cancellationToken);
+        var respOptions = await QueryResponsibilityOptions(connection, query, cancellationToken);
 
         return new WorkflowListResult
         {
@@ -238,7 +238,8 @@ ORDER BY w.created_at DESC;";
 
     private static async Task<List<FilteredWorkflowRow>> QueryFilteredWorkflowRows(
         NpgsqlConnection connection,
-        WorkflowListQuery query)
+        WorkflowListQuery query,
+        CancellationToken cancellationToken = default)
     {
         await using var command = new NpgsqlCommand();
         command.Connection = connection;
@@ -268,8 +269,8 @@ GROUP BY w.id, d.id, d.name, pt.definition_key, pt.name, pt.requires_target_pers
 ORDER BY w.created_at DESC{limitClause}{offsetClause};";
 
         var rows = new List<FilteredWorkflowRow>();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
         {
             rows.Add(new FilteredWorkflowRow(
                 reader.GetInt64(0), reader.GetGuid(1), reader.GetString(2), reader.GetString(3),
@@ -287,7 +288,8 @@ ORDER BY w.created_at DESC{limitClause}{offsetClause};";
 
     private static async Task<List<DepartmentDto>> QueryDepartmentOptions(
         NpgsqlConnection connection,
-        WorkflowListQuery query)
+        WorkflowListQuery query,
+        CancellationToken cancellationToken = default)
     {
         await using var command = new NpgsqlCommand();
         command.Connection = connection;
@@ -305,8 +307,8 @@ JOIN app_roles r ON r.id = w.position_role_id
 ORDER BY d.name;";
 
         var options = new List<DepartmentDto>();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
         {
             options.Add(new DepartmentDto { Id = reader.GetInt32(0), Name = reader.GetString(1) });
         }
@@ -316,7 +318,8 @@ ORDER BY d.name;";
 
     private static async Task<List<WorkflowResponsibilityOptionDto>> QueryResponsibilityOptions(
         NpgsqlConnection connection,
-        WorkflowListQuery query)
+        WorkflowListQuery query,
+        CancellationToken cancellationToken = default)
     {
         await using var command = new NpgsqlCommand();
         command.Connection = connection;
@@ -345,8 +348,8 @@ LEFT JOIN app_responsibilities ar ON ar.id = sa.assignee_responsibility_id
 {whereClause};";
 
         var optionsMap = new Dictionary<string, WorkflowResponsibilityOptionDto>(StringComparer.OrdinalIgnoreCase);
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
         {
             var option = BuildWorkflowResponsibilityOption(
                 reader.IsDBNull(0) ? null : reader.GetString(0),

@@ -110,7 +110,8 @@ internal sealed class WorkflowRuntimeService(
                 BadgeNumber = request.BadgeNumber,
                 DeadlineDate = request.DeadlineDate
             },
-            currentUser.UserId);
+            currentUser.UserId,
+            cancellationToken);
 
         var workflowUid = created.WorkflowUid;
         await workflowNotificationDispatchService.DispatchWorkflowCreatedNotificationsAsync(
@@ -232,7 +233,7 @@ internal sealed class WorkflowRuntimeService(
             ObservableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser)
         };
 
-        var result = await repository.GetFilteredWorkflows(query);
+        var result = await repository.GetFilteredWorkflows(query, cancellationToken);
         return new WorkflowListPageDto
         {
             Items = result.Items,

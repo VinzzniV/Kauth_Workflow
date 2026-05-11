@@ -83,14 +83,14 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 | Slice | Inhalt | Prio | Status |
 |-------|--------|------|--------|
 | Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. DB-Drift-Pfad und `db/manual/`-Workflow), Test-Coverage-Luecken. Liefert priorisierte Findings (HIGH/MEDIUM/LOW) mit Begruendung, Bereich und vorgeschlagenem Slice-Schnitt. **Doku-only**, keine Code-Aenderung. | HIGH | **done 2026-05-11** |
-| Z19-S2 | Background-Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap). | HIGH | offen |
+| Z19-S2 | Background-Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap). | HIGH | **done 2026-05-11** |
 | Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql` (oder Migrations-Manifest), damit DB-Drift nicht stillschweigend passiert. | HIGH | offen |
-| Z19-S4 | `WorkflowLifecycleService` und `WorkflowRuntimeService` durchgaengig auf `CancellationToken` umstellen (HTTP-Abbruch erreicht offene DB-Transaktion). | HIGH | offen |
+| Z19-S4 | `WorkflowLifecycleService` und `WorkflowRuntimeService` durchgaengig auf `CancellationToken` umstellen (HTTP-Abbruch erreicht offene DB-Transaktion). | HIGH | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Restrest dokumentiert) |
 | Z19-S5 | `SystemEventLogService`: stilles Schlucken von `UndefinedTable` ersetzen, Cursor-Pagination statt LIMIT/OFFSET, eigene Unit-Tests fuer Redaction/Normalization/Filter. | MEDIUM | offen |
 | Z19-S6 | `PostgresUserAuthorizationRepository.AdminOperations.cs` (1886 LOC) + `…AdminReadOperations.cs` (1002 LOC) nach Z9-Pattern aufteilen. | MEDIUM | offen |
 | Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern (Job-Claim leakt, wenn `CompleteAutomationJobFailure` selbst wirft). | MEDIUM | offen |
 | Z19-S8 | Verdikt fuer deferred Befunde Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot-Vertrag): explizit weiter deferred mit Frist, oder eigener Slice. | MEDIUM | offen |
-| Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` (Z. 37–41) zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` reicht den entgegengenommenen `CancellationToken` nicht ans Repository weiter. | LOW | offen |
+| Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` (Z. 37–41) zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` reicht den entgegengenommenen `CancellationToken` nicht ans Repository weiter. | LOW | teil-erledigt 2026-05-11 (L4 CancellationToken-Propagation done; L1/L2/L3 Hygiene-Punkte weiterhin offen) |
 
 **Empfohlenes Modell/Effort fuer Folgeslices:**
 - **Z19-S1** (Audit, abgeschlossen): `claude-opus-4-7` + `--effort high`.
@@ -98,7 +98,7 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Workflow-Definition-/Runtime-/Automation-Layer (Migrationspfad-Arbeit bleibt eigenstaendig), neue Frontend-Findings (Z18 vollstaendig abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigener Backlog).
 
-**Naechster Schritt:** Z19-S2 (Sweep-Timeout fuer Directory-Sync) — kleinster eigenstaendiger HIGH-Hebel mit klarem Pattern aus Z8/RotationNotification.
+**Naechster Schritt:** Z19-S3 (Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql`) — nach Erledigung von S2 (Sweep-Timeout), S4 (CancellationToken-Propagation) und Z19-S9/L4 als gebuendeltem HIGH-Slice am 2026-05-11 ist S3 der naechste eigenstaendige HIGH-Hebel.
 
 ---
 
@@ -150,6 +150,29 @@ Methode hat einen `CancellationToken`-Parameter, gibt ihn aber nicht ans Reposit
 - HIGH zuerst, in der Reihenfolge **S2 (Sweep-Timeout) → S3 (Schema-Paritaet) → S4 (Cancellation)**: jeder Slice ist eigenstaendig, klein und hat ein erprobtes Pattern als Vorbild.
 - MEDIUM danach, in der Reihenfolge **S5 (SystemEventLog) → S6 (AuthZ-Repo-Split) → S7 (Automation-Failure-Failure) → S8 (Deferred-Verdikt)**.
 - LOW zum Schluss als gebuendelter Hygiene-Batch **S9**.
+
+---
+
+## Aktiver Zyklus 19 — S2 + S4 + L4 Ergebnis (2026-05-11)
+
+S2, S4 und das L4-Sub-Item von S9 sind in einem einzigen gebuendelten Commit erledigt; H1/H3 sind damit als Befund abgehakt, L4 ebenfalls.
+
+**Was wurde geaendert:**
+- `DirectorySyncHostedService` hat jetzt einen `SweepTimeout = TimeSpan.FromHours(2)`, gespiegelt aus `RotationNotificationHostedService`. Pro Sweep wird ein verlinkter `CancellationTokenSource` mit `CancelAfter(SweepTimeout)` aufgebaut; ein Timeout wird als Warnung geloggt und als Hosted-Log-Eintrag `scheduled_directory_sync_timeout` geschrieben, gefolgt von 5-Minuten-Backoff vor dem naechsten Versuch.
+- `IWorkflowLifecycleService` traegt jetzt auf allen acht Methoden einen optionalen `CancellationToken cancellationToken = default`. Die Implementierung in `WorkflowLifecycleService` reicht den Token an `OpenAsync`/`BeginTransactionAsync`/`CommitAsync` und an alle direkten Aufrufe der scoped-Repo-Schnittstelle weiter. `ExecuteDefinitionRuntimeMutationAsync<T>` traegt den Token explizit.
+- `IWorkflowLifecycleScopedRepository` reicht den Token jetzt auf den fuenf zentralen In-Scope-Methoden (`UpdateTaskStatusInScope`, `DecideTaskApprovalInScope`, `CompleteRuntimeTaskNodeInScope`, `TryAdvanceRuntimeSetupInScope`, `ApplyApprovalNodeDecisionInScope`) optional durch; bestehende Aufrufer ohne Token bleiben kompatibel.
+- `IWorkflowRepository.GetFilteredWorkflows` trag jetzt einen `CancellationToken`-Parameter und reicht ihn ueber die Postgres-Partials (`WorkflowQueryOperations`, `TaskMetadataOperations`, `RequirementOperations`) bis in die `Read`-/`ExecuteReader`-Aufrufe weiter. Damit ist L4 vollstaendig erledigt: ein Client-Abbruch auf `/workflows` schneidet auch den DB-Reader.
+- `TaskApplicationService`, `WorkflowRuntimeService.CreateWorkflowAsync`/`GetWorkflowsAsync`, `WorkflowDefinitionRuntimeService` und alle vier betroffenen Endpoint-Dateien (`/workflows` GET, `/tasks/{id}/status` PATCH, `/tasks/ref/{taskRef}/status` PATCH, `/tasks/{id}/approval-decision` POST, `/tasks/ref/{taskRef}/approval-decision` POST, `/admin/runtime/workflow-instances` POST, `…/form-completions` POST, `…/approval-completions` POST, `…/task-completions` POST) binden jetzt den Request-Token und reichen ihn durch.
+- Test-Stubs in `WorkflowEndpointsTests`, `WorkflowAutomationServiceTests`, `WorkflowLifecycleServiceTests`, `AdminWorkflowDefinitionConfigEndpointsTests` haben die neuen Signaturen mit optionalem Default-Token uebernommen.
+
+**Bewusst NICHT veraendert (Resthebel):**
+- Tiefe statische Repository-Helfer (`PostgresWorkflowRuntimeRepository.AdvanceRuntimeUntilWaitOrTerminal`, `CreateWorkflowNodeInstance`, `InsertWorkflowRuntimeEvent`, `LoadPublishedWorkflowDefinitionVersion`, einige Helfer in `PostgresRepositorySharedHelpers.*`) bekommen den Token nicht. **Praktisch:** ein abgebrochener Request schneidet jetzt zwar Verbindung und Transaktion am Commit-Punkt, die innerhalb der Tx bereits laufenden statischen Sub-Queries laufen aber bis zur naechsten `CommandText`-Grenze weiter. **Lohnenswert nicht jetzt:** das wuerde mehrere Hundert Signaturen anfassen und steht zur Z19-Slice-Definition explizit ausserhalb (siehe Brief). **Nutzen, wenn spaeter angegangen:** ehrliche End-to-End-Abbruchsemantik bis ins niedrigste DB-Lese-Statement; sinnvoll erst, wenn ein konkreter Lock-/Latenz-Befund das motiviert.
+- L1 (`db/init/prod;C/` Stray), L2 (`AdminRuntimeHealthService` doppeltes `Task.WhenAll` + serielles Probe) und L3 (Tombstone-Datei) bleiben als unbearbeiteter Rest von S9.
+
+**Tests:**
+- `dotnet build` (API + Tests, Verify-Ausgabepfad zwecks laufender Dev-API-Lock-Datei): grueen, 0 Warnungen, 0 Fehler.
+- `dotnet test … --filter "FullyQualifiedName~WorkflowLifecycleServiceTests|WorkflowEndpointsTests|AdminWorkflowDefinitionConfigEndpointsTests|DirectorySyncHostedServiceTests"`: 51/51 grueen.
+- `dotnet test … --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Concurrency"` (gesamter Non-Integration-Block): 440/440 grueen.
 
 ---
 

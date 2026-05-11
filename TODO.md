@@ -47,21 +47,21 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Z19 aktiv (2026-05-11).** Backend Full Review / Holistic Audit. **Z19-S1 abgeschlossen 2026-05-11.** Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Z19 aktiv (2026-05-11).** Backend Full Review / Holistic Audit. **Z19-S1 + S2 + S4 + S9/L4 abgeschlossen 2026-05-11** (S2/S4/L4 als ein gebuendelter Commit). Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
 
 **Aktive Arbeit:**
 
 | Slice | Inhalt | Prio | Modell/Effort | Status |
 |-------|--------|------|---------------|--------|
 | Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene und Test-Coverage. Findings in `CODE_REVIEW.md` § „Aktiver Zyklus 19 — S1 Ergebnis". | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
-| Z19-S2 | Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap, `CancelAfter`). | HIGH | `claude-opus-4-7` + `--effort high` | offen — naechster Schritt |
-| Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql`. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
-| Z19-S4 | `WorkflowLifecycleService` + `WorkflowRuntimeService` durchgaengig auf `CancellationToken`. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z19-S2 | Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap, `CancelAfter`). | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
+| Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql`. | HIGH | `claude-opus-4-7` + `--effort high` | offen — naechster Schritt |
+| Z19-S4 | `WorkflowLifecycleService` + `WorkflowRuntimeService` durchgaengig auf `CancellationToken`. | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Resthebel dokumentiert) |
 | Z19-S5 | `SystemEventLogService`: UndefinedTable-Swallow ersetzen, Cursor-Pagination, eigene Unit-Tests. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
 | Z19-S6 | `PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations nach Z9-Pattern aufteilen. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
 | Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
 | Z19-S8 | Verdikt fuer deferred Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot). | MEDIUM | (Doku-Entscheidung) | offen |
-| Z19-S9 | Hygiene-Batch (LOW): Stray `db/init/prod;C/`, doppeltes `Task.WhenAll` in `AdminRuntimeHealthService`, leerer Tombstone-Test, `WorkflowRuntimeService.GetWorkflowsAsync` Token-Propagation. | LOW | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z19-S9 | Hygiene-Batch (LOW): Stray `db/init/prod;C/`, doppeltes `Task.WhenAll` in `AdminRuntimeHealthService`, leerer Tombstone-Test, `WorkflowRuntimeService.GetWorkflowsAsync` Token-Propagation. | LOW | `claude-sonnet-4-6` + `--effort medium` | teil-erledigt 2026-05-11 (L4 Token-Propagation done; L1/L2/L3 weiterhin offen) |
 
 **Praktischer Nutzen:** breite Bestandsaufnahme nach den punktuellen Backend-Zyklen (Z8/Z9/Z11/Z12/Z13) hat 3 HIGH-, 4 MEDIUM- und 4 LOW-Findings sichtbar gemacht. Die HIGHs zielen direkt auf Betriebsfestigkeit (Sweep-Timeout, Schema-Drift, Transaktions-Abbruchpfad), die MEDIUMs auf Diagnose- und Wartbarkeitsluecken. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 19 — S1 Ergebnis".
 

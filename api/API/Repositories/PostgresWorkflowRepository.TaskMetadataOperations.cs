@@ -87,7 +87,8 @@ internal sealed partial class PostgresWorkflowRepository
 
     private static async Task<Dictionary<long, WorkflowListMetadata>> LoadWorkflowListMetadata(
         NpgsqlConnection connection,
-        IReadOnlyList<long> workflowIds)
+        IReadOnlyList<long> workflowIds,
+        CancellationToken cancellationToken = default)
     {
         var metadataByWorkflowId = new Dictionary<long, WorkflowListMetadata>();
         if (workflowIds.Count == 0)
@@ -122,8 +123,8 @@ WHERE wt.workflow_id = ANY(@workflowIds);";
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.Add("workflowIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = workflowIds;
 
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
         {
             var workflowId = reader.GetInt64(0);
             if (!metadataByWorkflowId.TryGetValue(workflowId, out var metadata))
@@ -244,7 +245,8 @@ WHERE wt.workflow_id = ANY(@workflowIds);";
     private static async Task<Dictionary<long, WorkflowRequirementSummaryDto>> LoadWorkflowRequirementSummaries(
         NpgsqlConnection connection,
         IReadOnlyList<long> workflowIds,
-        IReadOnlyDictionary<int, AnswerDefinitionRecord> definitions)
+        IReadOnlyDictionary<int, AnswerDefinitionRecord> definitions,
+        CancellationToken cancellationToken = default)
     {
         var summariesByWorkflowId = workflowIds.ToDictionary(
             workflowId => workflowId,
@@ -278,9 +280,9 @@ ORDER BY a.workflow_id, d.sort_order, d.id, a.id;";
         await using (var command = new NpgsqlCommand(answersSql, connection))
         {
             command.Parameters.Add("workflowIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = workflowIds;
-            await using var reader = await command.ExecuteReaderAsync();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync(cancellationToken))
             {
                 var workflowId = reader.GetInt64(0);
                 if (!answersByWorkflowId.TryGetValue(workflowId, out var answersByKey))
@@ -323,9 +325,9 @@ ORDER BY a.workflow_id, d.sort_order, d.id, o.sort_order, o.id;";
         await using (var command = new NpgsqlCommand(multiSelectSql, connection))
         {
             command.Parameters.Add("workflowIds", NpgsqlDbType.Array | NpgsqlDbType.Bigint).Value = workflowIds;
-            await using var reader = await command.ExecuteReaderAsync();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync(cancellationToken))
             {
                 var workflowId = reader.GetInt64(0);
                 if (!answersByWorkflowId.TryGetValue(workflowId, out var answersByKey))

@@ -6,6 +6,12 @@ namespace API;
 
 internal sealed class DirectorySyncHostedService : BackgroundService
 {
+    // Hard upper bound for a single sweep. Without this guard, a stalled Graph call
+    // or hanging DB write would block the worker for the full interval — silent
+    // sync delay with no log trace. Timeout fires OperationCanceledException,
+    // which is logged + retried via the existing 5-minute backoff path.
+    private static readonly TimeSpan SweepTimeout = TimeSpan.FromHours(2);
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly LifecycleRuntimeSettings _runtimeSettings;
     private readonly ILogger<DirectorySyncHostedService> _logger;
@@ -56,7 +62,9 @@ internal sealed class DirectorySyncHostedService : BackgroundService
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var directorySyncService = scope.ServiceProvider.GetRequiredService<IDirectorySyncService>();
-                var result = await directorySyncService.SyncAllAsync(cancellationToken: stoppingToken);
+                using var sweepCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                sweepCts.CancelAfter(SweepTimeout);
+                var result = await directorySyncService.SyncAllAsync(cancellationToken: sweepCts.Token);
                 if (!string.Equals(result.Status, "success", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning(
@@ -75,10 +83,26 @@ internal sealed class DirectorySyncHostedService : BackgroundService
                         Details = result
                     }, stoppingToken);
                 }
+
+                await Task.Delay(interval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
+            }
+            catch (OperationCanceledException ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Scheduled directory sync exceeded {TimeoutMinutes}-minute timeout; retrying after backoff.",
+                    SweepTimeout.TotalMinutes);
+                await WriteHostedLogAsync(
+                    "warning",
+                    "scheduled_directory_sync_timeout",
+                    $"Scheduled directory sync exceeded {SweepTimeout.TotalMinutes}-minute timeout.",
+                    stoppingToken,
+                    new { timeoutMinutes = SweepTimeout.TotalMinutes });
+                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
             catch (Exception ex)
             {
@@ -89,9 +113,8 @@ internal sealed class DirectorySyncHostedService : BackgroundService
                     $"Scheduled directory sync failed: {ex.Message}",
                     stoppingToken,
                     new { error = ex.Message, exceptionType = ex.GetType().FullName });
+                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
-
-            await Task.Delay(interval, stoppingToken);
         }
     }
 

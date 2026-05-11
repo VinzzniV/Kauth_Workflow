@@ -46,7 +46,8 @@ internal sealed partial class PostgresWorkflowRepository
     internal static async Task<Dictionary<int, AnswerDefinitionRecord>> LoadAnswerDefinitionRecords(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
-        int? processTypeId)
+        int? processTypeId,
+        CancellationToken cancellationToken = default)
     {
         const string sql = @"
 SELECT
@@ -75,9 +76,9 @@ ORDER BY d.sort_order, d.id, o.sort_order, o.id;";
         {
             command.Parameters.Add("processTypeId", NpgsqlTypes.NpgsqlDbType.Integer).Value =
                 (object?)processTypeId ?? DBNull.Value;
-            await using var reader = await command.ExecuteReaderAsync();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync(cancellationToken))
             {
                 var definitionId = reader.GetInt32(0);
                 if (!definitions.TryGetValue(definitionId, out var definition))

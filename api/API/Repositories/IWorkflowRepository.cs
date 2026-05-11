@@ -39,7 +39,7 @@ internal interface IWorkflowRepository
     Task<List<WorkflowNotificationDispatchTarget>> CreateWorkflowCompletionNotifications(Guid workflowUid);
     Task ApplyNotificationDispatchResults(IReadOnlyList<NotificationDispatchResult> results);
     Task<List<WorkflowListItemDto>> GetWorkflows();
-    Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query);
+    Task<WorkflowListResult> GetFilteredWorkflows(WorkflowListQuery query, CancellationToken cancellationToken = default);
     Task<WorkflowDetailDto?> GetWorkflowByUid(Guid workflowUid);
     Task<HashSet<int>> GetRequirementSelectionDepartmentIds(long userId);
     Task<List<TaskWithWorkflowDto>> GetTasks();

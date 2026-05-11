@@ -14,7 +14,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CurrentUser currentUser,
         CancellationToken cancellationToken = default)
     {
-        var created = await lifecycleService.CreateWorkflowInstanceAsync(request, currentUser.UserId);
+        var created = await lifecycleService.CreateWorkflowInstanceAsync(request, currentUser.UserId, cancellationToken);
         await workflowNotificationDispatchService.DispatchReadyTaskNotificationsAsync(created.WorkflowUid, cancellationToken);
         if (string.Equals(created.CurrentRuntimeStatus, "completed", StringComparison.OrdinalIgnoreCase))
         {
@@ -57,7 +57,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CancellationToken cancellationToken = default)
     {
         return CompleteAndDispatchAsync(
-            lifecycleService.CompleteFormNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId),
+            lifecycleService.CompleteFormNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId, cancellationToken),
             cancellationToken);
     }
 
@@ -69,7 +69,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CancellationToken cancellationToken = default)
     {
         return CompleteAndDispatchAsync(
-            lifecycleService.CompleteApprovalNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId),
+            lifecycleService.CompleteApprovalNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId, cancellationToken),
             cancellationToken);
     }
 
@@ -81,7 +81,7 @@ internal sealed class WorkflowDefinitionRuntimeService(
         CancellationToken cancellationToken = default)
     {
         return CompleteAndDispatchAsync(
-            lifecycleService.CompleteTaskNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId),
+            lifecycleService.CompleteTaskNodeAsync(workflowUid, nodeInstanceId, request, currentUser.UserId, cancellationToken),
             cancellationToken);
     }
 

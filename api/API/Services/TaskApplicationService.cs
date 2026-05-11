@@ -89,7 +89,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Approval decisions require the assigned supervisor responsibility or Admin override.");
         }
 
-        var task = await workflowLifecycleService.DecideTaskApprovalAsync(taskId, request, currentUser.UserId);
+        var task = await workflowLifecycleService.DecideTaskApprovalAsync(taskId, request, currentUser.UserId, cancellationToken);
         if (task is null)
         {
             return null;
@@ -121,7 +121,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Task updates require the current workflow phase, matching assignment or Admin override.");
         }
 
-        var task = await workflowLifecycleService.UpdateTaskStatusAsync(taskId, request.Status, currentUser.UserId);
+        var task = await workflowLifecycleService.UpdateTaskStatusAsync(taskId, request.Status, currentUser.UserId, cancellationToken);
         if (task is null)
         {
             return null;
@@ -155,7 +155,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Task updates require the current workflow phase, matching assignment or Admin override.");
         }
 
-        var task = await workflowLifecycleService.UpdateTaskStatusByRefAsync(taskRef, request.Status, currentUser.UserId);
+        var task = await workflowLifecycleService.UpdateTaskStatusByRefAsync(taskRef, request.Status, currentUser.UserId, cancellationToken);
         if (task is null)
         {
             return null;
@@ -332,7 +332,7 @@ internal sealed class TaskApplicationService(
             throw new UnauthorizedAccessException("Approval decisions require the assigned supervisor responsibility or Admin override.");
         }
 
-        var task = await workflowLifecycleService.DecideTaskApprovalByRefAsync(taskRef, request, currentUser.UserId);
+        var task = await workflowLifecycleService.DecideTaskApprovalByRefAsync(taskRef, request, currentUser.UserId, cancellationToken);
         if (task is null)
         {
             return null;

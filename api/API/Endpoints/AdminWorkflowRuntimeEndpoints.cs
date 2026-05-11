@@ -13,7 +13,8 @@ internal static class AdminWorkflowRuntimeEndpoints
             [FromBody] CreateWorkflowDefinitionInstanceRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
             [FromServices] IUserContext userContext,
-            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -26,7 +27,7 @@ internal static class AdminWorkflowRuntimeEndpoints
 
             try
             {
-                var created = await runtimeService.CreateWorkflowInstanceAsync(request, access.User!);
+                var created = await runtimeService.CreateWorkflowInstanceAsync(request, access.User!, cancellationToken);
                 return Results.Created($"/admin/runtime/workflow-instances/{created.WorkflowUid}", created);
             }
             catch (InvalidOperationException ex)
@@ -108,7 +109,8 @@ internal static class AdminWorkflowRuntimeEndpoints
             [FromBody] CompleteRuntimeFormNodeRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
             [FromServices] IUserContext userContext,
-            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -121,7 +123,7 @@ internal static class AdminWorkflowRuntimeEndpoints
 
             try
             {
-                var updated = await runtimeService.CompleteFormNodeAsync(uid, nodeInstanceId, request, access.User!);
+                var updated = await runtimeService.CompleteFormNodeAsync(uid, nodeInstanceId, request, access.User!, cancellationToken);
                 return updated is null
                     ? Results.NotFound(new { message = "Workflow runtime instance not found." })
                     : Results.Ok(updated);
@@ -142,7 +144,8 @@ internal static class AdminWorkflowRuntimeEndpoints
             [FromBody] CompleteRuntimeApprovalNodeRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
             [FromServices] IUserContext userContext,
-            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -155,7 +158,7 @@ internal static class AdminWorkflowRuntimeEndpoints
 
             try
             {
-                var updated = await runtimeService.CompleteApprovalNodeAsync(uid, nodeInstanceId, request, access.User!);
+                var updated = await runtimeService.CompleteApprovalNodeAsync(uid, nodeInstanceId, request, access.User!, cancellationToken);
                 return updated is null
                     ? Results.NotFound(new { message = "Workflow runtime instance not found." })
                     : Results.Ok(updated);
@@ -176,7 +179,8 @@ internal static class AdminWorkflowRuntimeEndpoints
             [FromBody] CompleteRuntimeTaskNodeRequest request,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
             [FromServices] IUserContext userContext,
-            [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
+            [FromServices] IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken cancellationToken) =>
         {
             var access = await EndpointSupport.RequireAuthorization(
                 userContext,
@@ -189,7 +193,7 @@ internal static class AdminWorkflowRuntimeEndpoints
 
             try
             {
-                var updated = await runtimeService.CompleteTaskNodeAsync(uid, nodeInstanceId, request, access.User!);
+                var updated = await runtimeService.CompleteTaskNodeAsync(uid, nodeInstanceId, request, access.User!, cancellationToken);
                 return updated is null
                     ? Results.NotFound(new { message = "Workflow runtime instance not found." })
                     : Results.Ok(updated);

@@ -66,7 +66,8 @@ internal sealed partial class PostgresWorkflowRepository
         NpgsqlTransaction transaction,
         long taskId,
         string normalizedStatus,
-        long actorUserId)
+        long actorUserId,
+        CancellationToken cancellationToken = default)
     {
         if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
             return null;
@@ -124,7 +125,8 @@ internal sealed partial class PostgresWorkflowRepository
         NpgsqlTransaction transaction,
         long taskId,
         TaskApprovalDecisionRequest request,
-        long actorUserId)
+        long actorUserId,
+        CancellationToken cancellationToken = default)
     {
         if (!await _statusCalculation.TryLockWorkflowForTaskStatusUpdate(connection, transaction, taskId))
             return null;
@@ -174,7 +176,8 @@ internal sealed partial class PostgresWorkflowRepository
         Guid workflowUid,
         long nodeInstanceId,
         long actorUserId,
-        string? comment = null)
+        string? comment = null,
+        CancellationToken cancellationToken = default)
         => PostgresWorkflowRuntimeRepository.CompleteTaskNodeRuntimeSide(
             connection,
             transaction,
@@ -189,7 +192,8 @@ internal sealed partial class PostgresWorkflowRepository
         NpgsqlTransaction transaction,
         long workflowId,
         Guid workflowUid,
-        long actorUserId)
+        long actorUserId,
+        CancellationToken cancellationToken = default)
         => PostgresWorkflowRuntimeRepository.TryAdvanceSetupNodeIfReady(
             connection,
             transaction,
@@ -204,7 +208,8 @@ internal sealed partial class PostgresWorkflowRepository
         Guid workflowUid,
         long nodeInstanceId,
         bool approved,
-        long actorUserId)
+        long actorUserId,
+        CancellationToken cancellationToken = default)
         => PostgresWorkflowRuntimeRepository.ApplyApprovalNodeDecision(
             connection,
             transaction,
