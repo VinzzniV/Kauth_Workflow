@@ -13,6 +13,7 @@ import type {
   RotationTaskRegenerationResult,
 } from "../types/rotation";
 import { encodeId, requestJson } from "./api/client";
+import { buildAdminListQuery, type AdminListPage } from "./api/adminList";
 
 function buildSearchQuery(search?: string, limit = 20): string {
   const params = new URLSearchParams({ limit: String(limit) });
@@ -126,7 +127,7 @@ export async function getAdminRotationTemplates(
   departmentId?: number | null,
   isActive?: boolean | null
 ): Promise<DepartmentActionTemplate[]> {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams(buildAdminListQuery({ limit: 200 }).slice(1));
   if (typeof departmentId === "number") {
     params.set("departmentId", String(departmentId));
   }
@@ -134,9 +135,10 @@ export async function getAdminRotationTemplates(
     params.set("isActive", String(isActive));
   }
   const query = params.toString();
-  return requestJson<DepartmentActionTemplate[]>(
+  const page = await requestJson<AdminListPage<DepartmentActionTemplate>>(
     `/admin/rotation/action-templates${query ? `?${query}` : ""}`
   );
+  return page.items;
 }
 
 export async function getAdminRotationTemplate(templateId: number): Promise<DepartmentActionTemplate> {

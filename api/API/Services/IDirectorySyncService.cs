@@ -10,6 +10,7 @@ internal interface IDirectorySyncService
     Task<DirectorySyncStatusDto> GetSyncStatusAsync(CancellationToken cancellationToken = default);
     Task<List<AdminDirectoryGroupDto>> GetGroupsAsync(CancellationToken cancellationToken = default);
     Task<List<AdminDirectoryIdentityDto>> GetIdentitiesAsync(int limit = 100, int offset = 0, CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminDirectoryIdentityDto>> GetIdentitiesAsync(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<CursorPageDto<AdminDirectoryMappingAuditEntryDto>> GetMappingAuditAsync(CursorPageQuery query, CancellationToken cancellationToken = default);
     Task<AdminDirectoryGroupRoleMappingDto> UpsertGroupRoleMappingAsync(
         AdminDirectoryGroupRoleMappingUpsertRequest request,
@@ -17,7 +18,9 @@ internal interface IDirectorySyncService
         CancellationToken cancellationToken = default);
     Task<bool> DeleteGroupRoleMappingAsync(int mappingId, long? actorUserId = null, CancellationToken cancellationToken = default);
     Task<DirectoryResponsibilityGapsDto> GetResponsibilityGapsAsync(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<DirectoryResponsibilityGapEntry>> GetResponsibilityGapsAsync(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<DirectoryPendingImportsDto> GetPendingImportsAsync(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<DirectoryPendingImportDto>> GetPendingImportsAsync(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<DirectoryImportResultDto> ImportIdentitiesAsync(DirectoryImportRequest request, long? actorUserId = null, CancellationToken cancellationToken = default);
 }
 

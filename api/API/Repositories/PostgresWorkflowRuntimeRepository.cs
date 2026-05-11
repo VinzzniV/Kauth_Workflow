@@ -145,10 +145,24 @@ WHERE id = @versionId;
 
     public async Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid)
     {
+        var page = await GetWorkflowDefinitionRuntimeEvents(
+            workflowUid,
+            new CursorPageQuery { Limit = CursorPageQuery.MaxLimit });
+        return page.Items.ToList();
+    }
+
+    public async Task<CursorPageDto<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid, CursorPageQuery query)
+    {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        const string sql = """
+        var decoded = query.DecodedCursor;
+        var hasCursor = decoded.HasValue;
+        var cursorClause = hasCursor
+            ? "AND (e.created_at > @cursorTs OR (e.created_at = @cursorTs AND e.id > @cursorId))"
+            : "";
+
+        var sql = $"""
 SELECT
     e.id,
     e.workflow_node_instance_id,
@@ -159,11 +173,19 @@ FROM workflows w
 JOIN workflow_runtime_events e ON e.workflow_id = w.id
 WHERE w.uid = @workflowUid
   AND w.workflow_definition_version_id IS NOT NULL
-ORDER BY e.created_at, e.id;
+  {cursorClause}
+ORDER BY e.created_at, e.id
+LIMIT @limit;
 """;
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("workflowUid", workflowUid);
+        command.Parameters.AddWithValue("limit", query.Limit + 1);
+        if (hasCursor)
+        {
+            command.Parameters.Add("cursorTs", NpgsqlTypes.NpgsqlDbType.TimestampTz).Value = decoded!.Value.CreatedAt;
+            command.Parameters.AddWithValue("cursorId", decoded!.Value.Id);
+        }
         await using var reader = await command.ExecuteReaderAsync();
 
         var events = new List<WorkflowRuntimeEventDto>();
@@ -179,7 +201,21 @@ ORDER BY e.created_at, e.id;
             });
         }
 
-        return events;
+        var hasMore = events.Count > query.Limit;
+        if (hasMore)
+        {
+            events.RemoveAt(events.Count - 1);
+        }
+
+        var lastEvent = events.Count > 0 ? events[^1] : null;
+        return new CursorPageDto<WorkflowRuntimeEventDto>
+        {
+            Items = events,
+            HasMore = hasMore,
+            NextCursor = hasMore && lastEvent is not null
+                ? CursorPageQuery.EncodeCursor(lastEvent.CreatedAt, lastEvent.Id)
+                : null
+        };
     }
 
     internal static async Task CompleteRuntimeSupervisorGatekeeperStep(

@@ -64,6 +64,7 @@ internal static class AdminWorkflowRuntimeEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/runtime/workflow-instances/{uid:guid}/events", async (
+            HttpRequest request,
             Guid uid,
             [FromServices] IWorkflowDefinitionRuntimeService runtimeService,
             [FromServices] IUserContext userContext,
@@ -78,12 +79,14 @@ internal static class AdminWorkflowRuntimeEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await runtimeService.GetWorkflowInstanceEventsAsync(uid, access.User!));
-        }).Produces<List<WorkflowRuntimeEventDto>>(StatusCodes.Status200OK)
+            var query = CursorPageQuery.From(request);
+            return Results.Ok(await runtimeService.GetWorkflowInstanceEventsAsync(uid, query, access.User!));
+        }).Produces<CursorPageDto<WorkflowRuntimeEventDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/runtime/workflow-instances/{uid:guid}/automation-jobs", async (
+            HttpRequest request,
             Guid uid,
             [FromServices] IWorkflowAutomationService automationService,
             [FromServices] IUserContext userContext,
@@ -98,8 +101,9 @@ internal static class AdminWorkflowRuntimeEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await automationService.GetWorkflowAutomationJobsAsync(uid));
-        }).Produces<List<AutomationJobDetailDto>>(StatusCodes.Status200OK)
+            var query = CursorPageQuery.From(request);
+            return Results.Ok(await automationService.GetWorkflowAutomationJobsAsync(uid, query));
+        }).Produces<CursorPageDto<AutomationJobDetailDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

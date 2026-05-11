@@ -1749,6 +1749,7 @@ public sealed class WorkflowEndpointsTests
 
         public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowDefinitionRuntimeDetail(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid) => throw new NotSupportedException();
+        public Task<CursorPageDto<WorkflowRuntimeEventDto>> GetWorkflowDefinitionRuntimeEvents(Guid workflowUid, CursorPageQuery query) => throw new NotSupportedException();
         public Task<bool> UpdatePersonCoreFields(long personId, DateOnly? entryDate, int? badgeNumber) => throw new NotSupportedException();
         public Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentities(string? departmentFilter, bool? onlyEnabled, int limit, int offset) => throw new NotSupportedException();
         public Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectory(List<long> directoryIdentityIds, long? actorUserId) => throw new NotSupportedException();
@@ -1815,6 +1816,15 @@ public sealed class WorkflowEndpointsTests
     {
         public Task<IReadOnlyList<AdminNotificationTemplateDto>> GetAdminTemplates(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<AdminNotificationTemplateDto>>([]);
+
+        public Task<AdminListPageDto<AdminNotificationTemplateDto>> GetAdminTemplates(AdminListQuery query, CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminListPageDto<AdminNotificationTemplateDto>
+            {
+                Items = [],
+                Total = 0,
+                Limit = query.Limit,
+                Offset = query.Offset
+            });
 
         public Task<AdminNotificationTemplateDto> UpdateAdminTemplate(
             string templateKey,
@@ -1912,9 +1922,13 @@ public sealed class WorkflowEndpointsTests
         public Task<CurrentUser?> FindOrCreateFromExternalIdentity(ResolvedIdentity identity, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<SimulationLoginUserOptionDto>> GetSimulationLoginUsers(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminUserDto>> GetAdminUsers(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminUserDto>> GetAdminUsers(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminRoleDto>> GetAdminRoles(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminRoleDto>> GetAdminRoles(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminGroupDto>> GetAdminGroups(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminGroupDto>> GetAdminGroups(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AdminListPageDto<AdminPermissionDto>> GetAdminPermissions(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<CursorPageDto<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(CursorPageQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminListPageDto<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminListPageDto<AdminRoleDto>> GetAdminDepartmentPositions(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();

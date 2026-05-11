@@ -32,7 +32,7 @@
 
 ## Current Focus
 
-- **Aktiver Zyklus: Z20 — Admin/Directory/Runtime Read Contracts Phase 2** (eroeffnet 2026-05-11). **S1 + B1 abgeschlossen 2026-05-11.** Naechster Schritt: **Z20-B2** — Block C (`/admin/directory/identities` auf P1 + Composite-Split `responsibility-gaps` / `pending-imports`), empfohlen mit `claude-opus-4-7` + `--effort high`. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 20" und `TODO.md`.
+- **Z20 — Admin/Directory/Runtime Read Contracts Phase 2 ist vollstaendig abgeschlossen** (2026-05-11). S1+B1+B2+B3+B4 sind done; kein aktiver Review-Slice offen. Naechster Schritt ist ein neuer Review-Zyklus nur bei neuem Bedarf.
 - Z19 vollstaendig abgeschlossen seit 2026-05-11 (S1..S9).
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 

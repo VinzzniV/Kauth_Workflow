@@ -270,14 +270,21 @@ public sealed class AdminWorkflowRuntimeEndpointsTests
             return Task.FromResult<WorkflowDefinitionRuntimeDetailDto?>(null);
         }
 
-        public Task<IReadOnlyList<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(
+        public Task<CursorPageDto<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(
             Guid workflowUid,
+            CursorPageQuery query,
             CurrentUser currentUser,
             CancellationToken cancellationToken = default)
         {
             _ = workflowUid;
+            _ = query;
             _ = currentUser;
-            return Task.FromResult<IReadOnlyList<WorkflowRuntimeEventDto>>(new List<WorkflowRuntimeEventDto>());
+            return Task.FromResult(new CursorPageDto<WorkflowRuntimeEventDto>
+            {
+                Items = [],
+                HasMore = false,
+                NextCursor = null
+            });
         }
 
         public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(

@@ -7,8 +7,10 @@ import type {
   AdminDirectoryMappingAuditEntry,
   AdminDirectorySyncResult,
   AdminDirectorySyncStatus,
+  DirectoryPendingImport,
   DirectoryImportResult,
   DirectoryPendingImports,
+  DirectoryResponsibilityGapEntry,
   DirectoryResponsibilityGaps,
   AdminRoleAnswerDefault,
   AdminTaskSpec,
@@ -41,8 +43,6 @@ import type {
   BackendAdminDirectorySyncResultDto,
   BackendAdminDirectorySyncStatusDto,
   BackendDirectoryImportResultDto,
-  BackendDirectoryPendingImportsDto,
-  BackendDirectoryResponsibilityGapsDto,
   BackendAdminRoleAnswerDefaultDto,
   BackendAdminTaskTemplateConditionDto,
   BackendAdminTaskTemplateDependencyDto,
@@ -74,19 +74,32 @@ export async function getAdminDirectoryIdentities(
   limit = 100,
   offset = 0
 ): Promise<AdminDirectoryIdentity[]> {
-  const params = new URLSearchParams({
-    limit: String(limit),
-    offset: String(offset),
-  });
-  return requestJson<BackendAdminDirectoryIdentityDto[]>(`/admin/directory/identities?${params.toString()}`);
+  const page = await requestJson<AdminListPage<BackendAdminDirectoryIdentityDto>>(
+    `/admin/directory/identities${buildAdminListQuery({ limit, offset })}`
+  );
+  return page.items;
 }
 
 export async function getAdminDirectoryResponsibilityGaps(): Promise<DirectoryResponsibilityGaps> {
-  return requestJson<BackendDirectoryResponsibilityGapsDto>("/admin/directory/responsibility-gaps");
+  const page = await requestJson<AdminListPage<DirectoryResponsibilityGapEntry>>(
+    `/admin/directory/responsibility-gaps${buildAdminListQuery({ limit: 200 })}`
+  );
+  const unassigned = page.items.filter((gap) => gap.assignedLeadPersonId === null);
+  return {
+    gaps: page.items,
+    totalUnassignedDepartments: unassigned.length,
+    totalCandidatesNotYetAssigned: unassigned.reduce((sum, gap) => sum + gap.candidatesInEntra, 0),
+  };
 }
 
 export async function getAdminDirectoryPendingImports(): Promise<DirectoryPendingImports> {
-  return requestJson<BackendDirectoryPendingImportsDto>("/admin/directory/pending-imports");
+  const page = await requestJson<AdminListPage<DirectoryPendingImport>>(
+    `/admin/directory/pending-imports${buildAdminListQuery({ limit: 200 })}`
+  );
+  return {
+    pendingImports: page.items,
+    totalCount: page.total,
+  };
 }
 
 export async function postAdminDirectoryImport(directoryIdentityIds: number[]): Promise<DirectoryImportResult> {

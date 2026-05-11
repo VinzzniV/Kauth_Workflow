@@ -85,8 +85,7 @@ internal static class AdminDirectorySyncEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/directory/identities", async (
-            [FromQuery] int? limit,
-            [FromQuery] int? offset,
+            HttpRequest request,
             [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -100,12 +99,14 @@ internal static class AdminDirectorySyncEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await directorySyncService.GetIdentitiesAsync(limit ?? 100, offset ?? 0));
-        }).Produces<List<AdminDirectoryIdentityDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await directorySyncService.GetIdentitiesAsync(query));
+        }).Produces<AdminListPageDto<AdminDirectoryIdentityDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/directory/responsibility-gaps", async (
+            HttpRequest request,
             [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -119,12 +120,14 @@ internal static class AdminDirectorySyncEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await directorySyncService.GetResponsibilityGapsAsync());
-        }).Produces<DirectoryResponsibilityGapsDto>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await directorySyncService.GetResponsibilityGapsAsync(query));
+        }).Produces<AdminListPageDto<DirectoryResponsibilityGapEntry>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/directory/pending-imports", async (
+            HttpRequest request,
             [FromServices] IDirectorySyncService directorySyncService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -138,8 +141,9 @@ internal static class AdminDirectorySyncEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await directorySyncService.GetPendingImportsAsync());
-        }).Produces<DirectoryPendingImportsDto>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await directorySyncService.GetPendingImportsAsync(query));
+        }).Produces<AdminListPageDto<DirectoryPendingImportDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
@@ -288,10 +292,9 @@ internal static class AdminDirectorySyncEndpoints
         // A1: Entra-Identitaeten ohne people-Record. Basis fuer die Auswahlliste im Import-UI (A2).
         // department (optional) filtert auf eine Abteilung; onlyEnabled=true (default) blendet deaktivierte Konten aus.
         app.MapGet("/admin/directory/unlinked-identities", async (
+            HttpRequest request,
             [FromQuery] string? department,
             [FromQuery] bool? onlyEnabled,
-            [FromQuery] int? limit,
-            [FromQuery] int? offset,
             [FromServices] IWorkflowCatalogService workflowCatalogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -306,11 +309,12 @@ internal static class AdminDirectorySyncEndpoints
             }
 
             var effectiveOnlyEnabled = onlyEnabled ?? true;
+            var query = AdminListQuery.From(request);
             var result = await workflowCatalogService.GetUnlinkedDirectoryIdentitiesAsync(
                 department,
                 effectiveOnlyEnabled,
-                Math.Clamp(limit ?? 100, 1, 500),
-                Math.Max(offset ?? 0, 0));
+                query.Limit,
+                query.Offset);
             return Results.Ok(result);
         }).Produces<AdminListPageDto<UnlinkedDirectoryIdentityDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)

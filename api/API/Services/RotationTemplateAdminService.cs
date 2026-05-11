@@ -27,12 +27,42 @@ internal sealed class RotationTemplateAdminService(
         bool? isActive,
         CancellationToken cancellationToken = default)
     {
+        var page = await GetDepartmentActionTemplatesAsync(
+            departmentId,
+            isActive,
+            new AdminListQuery { Limit = AdminListQuery.MaxLimit, Offset = 0 },
+            cancellationToken);
+        return page.Items;
+    }
+
+    public async Task<AdminListPageDto<DepartmentActionTemplateDto>> GetDepartmentActionTemplatesAsync(
+        int? departmentId,
+        bool? isActive,
+        AdminListQuery query,
+        CancellationToken cancellationToken = default)
+    {
         if (departmentId is <= 0)
         {
             throw new InvalidOperationException("departmentId must be greater than zero.");
         }
 
-        return await rotationRepository.GetDepartmentActionTemplates(departmentId, isActive);
+        var templates = await rotationRepository.GetDepartmentActionTemplates(departmentId, isActive);
+        var search = query.NormalizedSearch;
+        var filtered = templates
+            .Where(template =>
+                string.IsNullOrWhiteSpace(search)
+                || template.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (template.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || template.TriggerType.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || template.TaskType.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (template.AutomationKey?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(template => template.DepartmentName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(template => template.TriggerType, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(template => template.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(template => template.Id)
+            .ToList();
+
+        return AdminListPage.From(filtered, query);
     }
 
     public async Task<DepartmentActionTemplateDto?> GetDepartmentActionTemplateAsync(

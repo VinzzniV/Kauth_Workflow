@@ -329,6 +329,26 @@ ORDER BY u.id, di.last_synced_at DESC NULLS LAST, di.id DESC;";
         return await LoadAdminUsers(connection, null, null, cancellationToken);
     }
 
+    public async Task<AdminListPageDto<AdminUserDto>> GetAdminUsers(AdminListQuery query, CancellationToken cancellationToken = default)
+    {
+        var users = await GetAdminUsers(cancellationToken);
+        var search = query.NormalizedSearch;
+        var filtered = users
+            .Where(user =>
+                string.IsNullOrWhiteSpace(search)
+                || user.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || user.Email.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (user.ExternalKey?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (user.DepartmentName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || user.Roles.Any(role => role.RoleName.Contains(search, StringComparison.OrdinalIgnoreCase) || role.RoleKey.Contains(search, StringComparison.OrdinalIgnoreCase))
+                || user.Groups.Any(group => group.GroupName.Contains(search, StringComparison.OrdinalIgnoreCase) || group.GroupKey.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(user => user.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(user => user.UserId)
+            .ToList();
+
+        return AdminListPage.From(filtered, query);
+    }
+
     public async Task<List<AdminRoleDto>> GetAdminRoles(CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
@@ -336,11 +356,48 @@ ORDER BY u.id, di.last_synced_at DESC NULLS LAST, di.id DESC;";
         return await LoadAdminRoles(connection, null, cancellationToken);
     }
 
+    public async Task<AdminListPageDto<AdminRoleDto>> GetAdminRoles(AdminListQuery query, CancellationToken cancellationToken = default)
+    {
+        var roles = await GetAdminRoles(cancellationToken);
+        var search = query.NormalizedSearch;
+        var filtered = roles
+            .Where(role =>
+                string.IsNullOrWhiteSpace(search)
+                || role.RoleName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || role.RoleKey.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || role.RoleKind.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (role.DepartmentName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || role.Permissions.Any(permission => permission.PermissionName.Contains(search, StringComparison.OrdinalIgnoreCase) || permission.PermissionKey.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(role => role.RoleName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(role => role.RoleId)
+            .ToList();
+
+        return AdminListPage.From(filtered, query);
+    }
+
     public async Task<List<AdminGroupDto>> GetAdminGroups(CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
         return await LoadAdminGroups(connection, null, null, cancellationToken);
+    }
+
+    public async Task<AdminListPageDto<AdminGroupDto>> GetAdminGroups(AdminListQuery query, CancellationToken cancellationToken = default)
+    {
+        var groups = await GetAdminGroups(cancellationToken);
+        var search = query.NormalizedSearch;
+        var filtered = groups
+            .Where(group =>
+                string.IsNullOrWhiteSpace(search)
+                || group.GroupName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || group.GroupKey.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (group.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || group.Roles.Any(role => role.RoleName.Contains(search, StringComparison.OrdinalIgnoreCase) || role.RoleKey.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(group => group.GroupName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(group => group.GroupId)
+            .ToList();
+
+        return AdminListPage.From(filtered, query);
     }
 
     public async Task<AdminListPageDto<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(AdminListQuery query, CancellationToken cancellationToken = default)

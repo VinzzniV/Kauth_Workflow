@@ -94,10 +94,28 @@ LIMIT @limit OFFSET @offset;";
         Guid workflowUid,
         CancellationToken cancellationToken = default)
     {
+        var page = await GetAutomationJobs(
+            workflowUid,
+            new CursorPageQuery { Limit = CursorPageQuery.MaxLimit },
+            cancellationToken);
+        return page.Items;
+    }
+
+    public async Task<CursorPageDto<AutomationJobDetailDto>> GetAutomationJobs(
+        Guid workflowUid,
+        CursorPageQuery query,
+        CancellationToken cancellationToken = default)
+    {
         await using var connection = new NpgsqlConnection(LifecycleRuntimeSettingsResolver.GetRequiredConnectionString());
         await connection.OpenAsync(cancellationToken);
 
-        const string jobSql = """
+        var decoded = query.DecodedCursor;
+        var hasCursor = decoded.HasValue;
+        var cursorClause = hasCursor
+            ? "AND (j.created_at > @cursorTs OR (j.created_at = @cursorTs AND j.id > @cursorId))"
+            : "";
+
+        var jobSql = $"""
 SELECT
     j.id,
     j.workflow_id,
@@ -120,7 +138,9 @@ INNER JOIN action_definitions ad ON ad.id = j.action_definition_id
 INNER JOIN workflow_node_instances ni ON ni.id = j.workflow_node_instance_id
 INNER JOIN workflow_nodes n ON n.id = ni.workflow_node_id
 WHERE w.uid = @workflowUid
-ORDER BY j.created_at, j.id;
+{cursorClause}
+ORDER BY j.created_at, j.id
+LIMIT @limit;
 """;
 
         var jobs = new List<AutomationJobDetailDto>();
@@ -128,6 +148,12 @@ ORDER BY j.created_at, j.id;
         await using (var command = new NpgsqlCommand(jobSql, connection))
         {
             command.Parameters.AddWithValue("workflowUid", workflowUid);
+            command.Parameters.AddWithValue("limit", query.Limit + 1);
+            if (hasCursor)
+            {
+                command.Parameters.Add("cursorTs", NpgsqlTypes.NpgsqlDbType.TimestampTz).Value = decoded!.Value.CreatedAt;
+                command.Parameters.AddWithValue("cursorId", decoded!.Value.Id);
+            }
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
@@ -157,7 +183,20 @@ ORDER BY j.created_at, j.id;
 
         if (jobIds.Count == 0)
         {
-            return jobs;
+            return new CursorPageDto<AutomationJobDetailDto>
+            {
+                Items = jobs,
+                HasMore = false,
+                NextCursor = null
+            };
+        }
+
+        var hasMore = jobs.Count > query.Limit;
+        if (hasMore)
+        {
+            var overflowJob = jobs[^1];
+            jobs.RemoveAt(jobs.Count - 1);
+            jobIds.Remove(overflowJob.Id);
         }
 
         var jobById = jobs.ToDictionary(job => job.Id);
@@ -234,6 +273,14 @@ ORDER BY automation_job_id, created_at, id;
             }
         }
 
-        return jobs;
+        var lastJob = jobs.Count > 0 ? jobs[^1] : null;
+        return new CursorPageDto<AutomationJobDetailDto>
+        {
+            Items = jobs,
+            HasMore = hasMore,
+            NextCursor = hasMore && lastJob is not null
+                ? CursorPageQuery.EncodeCursor(lastJob.CreatedAt, lastJob.Id)
+                : null
+        };
     }
 }

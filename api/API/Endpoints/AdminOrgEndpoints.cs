@@ -10,6 +10,7 @@ internal static class AdminOrgEndpoints
     public static IEndpointRouteBuilder MapAdminOrgEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/auth/users", async (
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -23,12 +24,14 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminUsers());
-        }).Produces<List<AdminUserDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminUsers(query));
+        }).Produces<AdminListPageDto<AdminUserDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/auth/roles", async (
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -42,12 +45,14 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminRoles());
-        }).Produces<List<AdminRoleDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminRoles(query));
+        }).Produces<AdminListPageDto<AdminRoleDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/auth/groups", async (
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -61,12 +66,14 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminGroups());
-        }).Produces<List<AdminGroupDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminGroups(query));
+        }).Produces<AdminListPageDto<AdminGroupDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/auth/permissions", async (
+            HttpRequest request,
             IUserAuthorizationRepository userAuthorizationRepository,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -80,8 +87,9 @@ internal static class AdminOrgEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await userAuthorizationRepository.GetAdminPermissions());
-        }).Produces<List<AdminPermissionDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await userAuthorizationRepository.GetAdminPermissions(query));
+        }).Produces<AdminListPageDto<AdminPermissionDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

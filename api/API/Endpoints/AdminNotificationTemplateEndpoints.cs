@@ -10,6 +10,7 @@ internal static class AdminNotificationTemplateEndpoints
     public static IEndpointRouteBuilder MapAdminNotificationTemplateEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/notification-templates", async (
+            HttpRequest request,
             [FromServices] INotificationTemplateService notificationTemplateService,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy) =>
@@ -23,8 +24,9 @@ internal static class AdminNotificationTemplateEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await notificationTemplateService.GetAdminTemplates());
-        }).Produces<List<AdminNotificationTemplateDto>>(StatusCodes.Status200OK)
+            var query = AdminListQuery.From(request);
+            return Results.Ok(await notificationTemplateService.GetAdminTemplates(query));
+        }).Produces<AdminListPageDto<AdminNotificationTemplateDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 

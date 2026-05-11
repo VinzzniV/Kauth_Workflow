@@ -679,21 +679,48 @@ ORDER BY dgrm.directory_group_id, r.role_kind, r.name, dgrm.id;";
         int offset = 0,
         CancellationToken cancellationToken = default)
     {
+        var page = await GetIdentitiesAsync(
+            new AdminListQuery
+            {
+                Limit = Math.Clamp(limit, 1, AdminListQuery.MaxLimit),
+                Offset = Math.Max(offset, 0)
+            },
+            cancellationToken);
+        return page.Items.ToList();
+    }
+
+    public async Task<AdminListPageDto<AdminDirectoryIdentityDto>> GetIdentitiesAsync(
+        AdminListQuery query,
+        CancellationToken cancellationToken = default)
+    {
         var connectionString = _runtimeSettings.ConnectionString;
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            return [];
+            return new AdminListPageDto<AdminDirectoryIdentityDto>
+            {
+                Items = [],
+                Total = 0,
+                Limit = query.Limit,
+                Offset = query.Offset
+            };
         }
-
-        limit = Math.Clamp(limit, 1, 250);
-        offset = Math.Max(offset, 0);
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
 
         try
         {
-            const string sql = @"
+            var orderBy = query.Sort?.Trim().ToLowerInvariant() switch
+            {
+                "displayname:desc" => "display_name DESC, id DESC",
+                "lastsyncedat:desc" => "last_synced_at DESC NULLS LAST, id DESC",
+                "lastsyncedat:asc" => "last_synced_at ASC NULLS LAST, id ASC",
+                "userprincipalname:desc" => "user_principal_name DESC, id DESC",
+                "userprincipalname:asc" => "user_principal_name ASC, id ASC",
+                _ => "display_name ASC, id ASC"
+            };
+
+            var sql = $@"
 WITH latest_sync AS (
     SELECT started_at
     FROM directory_sync_log
@@ -704,33 +731,56 @@ current_groups AS (
     SELECT dg.id
     FROM directory_groups dg
     WHERE dg.last_synced_at >= COALESCE((SELECT started_at FROM latest_sync), '-infinity'::timestamptz)
+),
+identity_projection AS (
+    SELECT
+        di.id,
+        di.entra_object_id::text,
+        di.user_principal_name,
+        di.mail,
+        di.display_name,
+        di.account_enabled,
+        di.app_user_id,
+        u.display_name AS app_user_display_name,
+        di.last_synced_at
+    FROM directory_identities di
+    JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
+    JOIN current_groups cg ON cg.id = dgm.directory_group_id
+    LEFT JOIN app_users u ON u.id = di.app_user_id
+    GROUP BY di.id, di.entra_object_id, di.user_principal_name, di.mail, di.display_name, di.account_enabled, di.app_user_id, u.display_name, di.last_synced_at
 )
 SELECT
-    di.id,
-    di.entra_object_id::text,
-    di.user_principal_name,
-    di.mail,
-    di.display_name,
-    di.account_enabled,
-    di.app_user_id,
-    u.display_name,
-    di.last_synced_at
-FROM directory_identities di
-JOIN directory_group_members dgm ON dgm.directory_identity_id = di.id
-JOIN current_groups cg ON cg.id = dgm.directory_group_id
-LEFT JOIN app_users u ON u.id = di.app_user_id
-GROUP BY di.id, di.entra_object_id, di.user_principal_name, di.mail, di.display_name, di.account_enabled, di.app_user_id, u.display_name, di.last_synced_at
-ORDER BY di.display_name, di.id
+    id,
+    entra_object_id,
+    user_principal_name,
+    mail,
+    display_name,
+    account_enabled,
+    app_user_id,
+    app_user_display_name,
+    last_synced_at,
+    COUNT(*) OVER() AS total_count
+FROM identity_projection
+WHERE @search = ''
+   OR LOWER(display_name) LIKE @searchPattern
+   OR LOWER(user_principal_name) LIKE @searchPattern
+   OR LOWER(COALESCE(mail, '')) LIKE @searchPattern
+   OR LOWER(COALESCE(app_user_display_name, '')) LIKE @searchPattern
+ORDER BY {orderBy}
 LIMIT @limit OFFSET @offset;";
 
             await using var cmd = new NpgsqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("limit", limit);
-            cmd.Parameters.AddWithValue("offset", offset);
+            cmd.Parameters.AddWithValue("limit", query.Limit);
+            cmd.Parameters.AddWithValue("offset", query.Offset);
+            cmd.Parameters.AddWithValue("search", query.NormalizedSearch.ToLowerInvariant());
+            cmd.Parameters.AddWithValue("searchPattern", query.SearchPattern.ToLowerInvariant());
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
             var identities = new List<AdminDirectoryIdentityDto>();
+            var total = 0;
             while (await reader.ReadAsync(cancellationToken))
             {
+                total = reader.GetInt32(9);
                 identities.Add(new AdminDirectoryIdentityDto
                 {
                     DirectoryIdentityId = reader.GetInt64(0),
@@ -745,11 +795,23 @@ LIMIT @limit OFFSET @offset;";
                 });
             }
 
-            return identities;
+            return new AdminListPageDto<AdminDirectoryIdentityDto>
+            {
+                Items = identities,
+                Total = total,
+                Limit = query.Limit,
+                Offset = query.Offset
+            };
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
-            return [];
+            return new AdminListPageDto<AdminDirectoryIdentityDto>
+            {
+                Items = [],
+                Total = 0,
+                Limit = query.Limit,
+                Offset = query.Offset
+            };
         }
     }
 
@@ -1087,6 +1149,27 @@ ORDER BY d.id, candidate.display_name, candidate.app_user_id;";
         };
     }
 
+    public async Task<AdminListPageDto<DirectoryResponsibilityGapEntry>> GetResponsibilityGapsAsync(
+        AdminListQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await GetResponsibilityGapsAsync(cancellationToken);
+        var search = query.NormalizedSearch;
+        var filtered = result.Gaps
+            .Where(gap =>
+                string.IsNullOrWhiteSpace(search)
+                || gap.DepartmentName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (gap.EntraGroupName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || gap.Candidates.Any(candidate =>
+                    candidate.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || (candidate.Mail?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)))
+            .OrderBy(gap => gap.DepartmentName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(gap => gap.DepartmentId)
+            .ToList();
+
+        return AdminListPage.From(filtered, query);
+    }
+
     public async Task<DirectoryPendingImportsDto> GetPendingImportsAsync(CancellationToken cancellationToken = default)
     {
         var connectionString = _runtimeSettings.ConnectionString;
@@ -1167,6 +1250,28 @@ ORDER BY di.display_name, di.id, dg.display_name;";
             PendingImports = pendingImports,
             TotalCount = pendingImports.Count
         };
+    }
+
+    public async Task<AdminListPageDto<DirectoryPendingImportDto>> GetPendingImportsAsync(
+        AdminListQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await GetPendingImportsAsync(cancellationToken);
+        var search = query.NormalizedSearch;
+        var filtered = result.PendingImports
+            .Where(item =>
+                string.IsNullOrWhiteSpace(search)
+                || item.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (item.Mail?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (item.UserPrincipalName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (item.DepartmentName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || item.GroupNames.Any(groupName => groupName.Contains(search, StringComparison.OrdinalIgnoreCase))
+                || item.PreviewRoleKeys.Any(roleKey => roleKey.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(item => item.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(item => item.DirectoryIdentityId)
+            .ToList();
+
+        return AdminListPage.From(filtered, query);
     }
 
     public async Task<DirectoryImportResultDto> ImportIdentitiesAsync(

@@ -10,8 +10,9 @@ internal interface IWorkflowDefinitionRuntimeService
         Guid workflowUid,
         CurrentUser currentUser,
         CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(
+    Task<CursorPageDto<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(
         Guid workflowUid,
+        CursorPageQuery query,
         CurrentUser currentUser,
         CancellationToken cancellationToken = default);
     Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(

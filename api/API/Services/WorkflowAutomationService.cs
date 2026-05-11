@@ -16,11 +16,12 @@ internal sealed class WorkflowAutomationService(
         return readRepository.GetAdminActionDefinitions(query, cancellationToken);
     }
 
-    public Task<IReadOnlyList<AutomationJobDetailDto>> GetWorkflowAutomationJobsAsync(
+    public Task<CursorPageDto<AutomationJobDetailDto>> GetWorkflowAutomationJobsAsync(
         Guid workflowUid,
+        CursorPageQuery query,
         CancellationToken cancellationToken = default)
     {
-        return readRepository.GetAutomationJobs(workflowUid, cancellationToken);
+        return readRepository.GetAutomationJobs(workflowUid, query, cancellationToken);
     }
 
     public async Task<bool> TryProcessNextPendingJobAsync(CancellationToken cancellationToken = default)

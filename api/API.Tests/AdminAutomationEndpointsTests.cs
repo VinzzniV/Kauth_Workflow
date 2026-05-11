@@ -209,10 +209,15 @@ public sealed class AdminAutomationEndpointsTests
             });
         }
 
-        public Task<IReadOnlyList<AutomationJobDetailDto>> GetWorkflowAutomationJobsAsync(Guid workflowUid, CancellationToken cancellationToken = default)
+        public Task<CursorPageDto<AutomationJobDetailDto>> GetWorkflowAutomationJobsAsync(Guid workflowUid, CursorPageQuery query, CancellationToken cancellationToken = default)
         {
             LastWorkflowUid = workflowUid;
-            return Task.FromResult(Jobs);
+            return Task.FromResult(new CursorPageDto<AutomationJobDetailDto>
+            {
+                Items = Jobs,
+                HasMore = false,
+                NextCursor = null
+            });
         }
 
         public Task<bool> TryProcessNextPendingJobAsync(CancellationToken cancellationToken = default)
@@ -229,7 +234,7 @@ public sealed class AdminAutomationEndpointsTests
         public Task<WorkflowDefinitionRuntimeDetailDto?> GetWorkflowInstanceAsync(Guid workflowUid, CurrentUser currentUser, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(Guid workflowUid, CurrentUser currentUser, CancellationToken cancellationToken = default)
+        public Task<CursorPageDto<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(Guid workflowUid, CursorPageQuery query, CurrentUser currentUser, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, CurrentUser currentUser, CancellationToken cancellationToken = default)

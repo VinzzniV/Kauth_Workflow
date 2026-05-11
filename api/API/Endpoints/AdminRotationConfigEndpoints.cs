@@ -9,6 +9,7 @@ internal static class AdminRotationConfigEndpoints
     public static IEndpointRouteBuilder MapAdminRotationConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/admin/rotation/action-templates", async (
+            HttpRequest request,
             [FromQuery] int? departmentId,
             [FromQuery] bool? isActive,
             IRotationTemplateAdminService rotationTemplateAdminService,
@@ -26,13 +27,14 @@ internal static class AdminRotationConfigEndpoints
 
             try
             {
-                return Results.Ok(await rotationTemplateAdminService.GetDepartmentActionTemplatesAsync(departmentId, isActive));
+                var query = AdminListQuery.From(request);
+                return Results.Ok(await rotationTemplateAdminService.GetDepartmentActionTemplatesAsync(departmentId, isActive, query));
             }
             catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
-        }).Produces<List<DepartmentActionTemplateDto>>(StatusCodes.Status200OK)
+        }).Produces<AdminListPageDto<DepartmentActionTemplateDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);

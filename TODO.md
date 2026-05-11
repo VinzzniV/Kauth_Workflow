@@ -47,23 +47,23 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Z20 laeuft 2026-05-11.** Admin/Directory/Runtime Read Contracts Phase 2 — die nach Z10/Z11 bewusst zurueckgestellten Read-/Listen-Vertraege (Block A, C, E, F, G, H) werden als ein breiter Folgeblock geschnitten. **Z20-S1 Doku-only done. Z20-B1 done 2026-05-11** (P3-Lookup-Adapter live fuer 3 Endpunkte: `startable`, Preview-Workflows, Preview-RotationPlans). Bundles B2..B4 stehen zur Umsetzung an.
+**Z20 ist vollstaendig abgeschlossen (2026-05-11).** Admin/Directory/Runtime Read Contracts Phase 2 — die nach Z10/Z11 bewusst zurueckgestellten Read-/Listen-Vertraege (Block A, C, E, F, G, H) sind erledigt. Z20-S1+B1+B2+B3+B4 sind done; P3-Lookups, P1-Admin-/Directory-/Settings-Listen und P2-Runtime-Subresources sind live.
 
 **Praktisch:** P1-/P2-/P3-Adapter sind seit Z11 etabliert; einzelne Mikro-Slices je Endpunkt waeren reine Wiederholungsarbeit. **Lohnenswert:** vier thematisch enge Bundles loesen den gesamten Restblock auf, statt sieben Mini-Zyklen mit identischem Doku-Overhead. **Nutzen:** konvergenter Admin-/Directory-/Runtime-Read-Vertrag; FE konvergiert auf zwei Hulls + ein P3-Lookup-Pattern.
 
 Z19 vollstaendig abgeschlossen (2026-05-11). Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) abgeschlossen am 2026-05-08.
 
-### Aktive Slices Z20
+### Abgeschlossene Slices Z20
 
 | Slice | Inhalt | Prio | Modell/Effort | Status |
 |-------|--------|------|---------------|--------|
 | Z20-S1 | Inventur + Vertrags-Skizze + Slice-Plan (Doku-only) | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
 | Z20-B1 | Block H + Block E Preview-Lookups: `GET /workflow-definitions/startable` + `GET /admin/notification-templates/preview-targets/{workflows,rotation-plans}` auf P3-Lookup-Adapter (Server-`search`/`limit`, FE-Wrapper). | HIGH | `claude-sonnet-4-6` + `--effort medium` | **done 2026-05-11** |
-| Z20-B2 | Block C: `GET /admin/directory/identities` auf P1; **Composite-Split** `/admin/directory/responsibility-gaps` + `/admin/directory/pending-imports`. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
-| Z20-B3 | Block E (Liste) + F + G: `GET /admin/notification-templates` P1, `GET /admin/rotation/action-templates` P1, `GET /admin/runtime/workflow-instances/{uid}/events` P2/Cursor, `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` P2/Cursor. | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen |
-| Z20-B4 | Block A: `/admin/auth/{users,groups,permissions,roles}` auf P1 + `/admin/directory/unlinked-identities` P1. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z20-B2 | Block C: `GET /admin/directory/identities` auf P1; **Composite-Split** `/admin/directory/responsibility-gaps` + `/admin/directory/pending-imports`. | HIGH | urspruenglich `claude-opus-4-7` + `--effort high`; umgesetzt durch Codex | **done 2026-05-11** |
+| Z20-B3 | Block E (Liste) + F + G: `GET /admin/notification-templates` P1, `GET /admin/rotation/action-templates` P1, `GET /admin/runtime/workflow-instances/{uid}/events` P2/Cursor, `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` P2/Cursor. | HIGH | urspruenglich `claude-sonnet-4-6` + `--effort medium`; umgesetzt durch Codex | **done 2026-05-11** |
+| Z20-B4 | Block A: `/admin/auth/{users,groups,permissions,roles}` auf P1 + `/admin/directory/unlinked-identities` P1. | MEDIUM | urspruenglich `claude-sonnet-4-6` + `--effort medium`; umgesetzt durch Codex | **done 2026-05-11** |
 
-Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 20" (S1-Findings, Reihenfolge-Begruendung, Test-Erwartung).
+Detail in `CODE_REVIEW.md` § „Abgeschlossener Zyklus 20" (S1-Findings, Reihenfolge-Begruendung, Test-Erwartung, Abschluss).
 
 **Bewusst NICHT in Z20:** Schreibpfade der genannten Endpunkte; breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer; Berechtigungsmodell-Aenderungen; Mobile-/Tablet-Layout (R10); Z16-S4 Automation-Snapshot-Vertrag (deferred); Z8-3.2/#8 `RegenerateDepartmentPlansAsync` (deferred); `/admin/people` Vertragsaenderung (Z16-S2-Anker bleibt unveraendert); Filterzustand-URL-Persistenz fuer Builder-Tabs (Restgrenze aus Z11-F3).
 

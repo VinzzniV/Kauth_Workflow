@@ -6,9 +6,13 @@ internal interface IUserAuthorizationRepository
     Task<CurrentUser?> FindOrCreateFromExternalIdentity(ResolvedIdentity identity, CancellationToken cancellationToken = default);
     Task<List<SimulationLoginUserOptionDto>> GetSimulationLoginUsers(CancellationToken cancellationToken = default);
     Task<List<AdminUserDto>> GetAdminUsers(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminUserDto>> GetAdminUsers(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<List<AdminRoleDto>> GetAdminRoles(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminRoleDto>> GetAdminRoles(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<List<AdminGroupDto>> GetAdminGroups(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminGroupDto>> GetAdminGroups(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<List<AdminPermissionDto>> GetAdminPermissions(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminPermissionDto>> GetAdminPermissions(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<CursorPageDto<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(CursorPageQuery query, CancellationToken cancellationToken = default);
     Task<AdminListPageDto<AdminDepartmentAssignmentDto>> GetAdminDepartmentAssignments(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<AdminListPageDto<AdminRoleDto>> GetAdminDepartmentPositions(AdminListQuery query, CancellationToken cancellationToken = default);

@@ -29,6 +29,7 @@ internal sealed class RotationNotificationRenderContext
 internal interface INotificationTemplateService
 {
     Task<IReadOnlyList<AdminNotificationTemplateDto>> GetAdminTemplates(CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<AdminNotificationTemplateDto>> GetAdminTemplates(AdminListQuery query, CancellationToken cancellationToken = default);
     Task<AdminNotificationTemplateDto> UpdateAdminTemplate(
         string templateKey,
         AdminNotificationTemplateUpdateRequest request,

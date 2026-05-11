@@ -40,13 +40,14 @@ internal sealed class WorkflowDefinitionRuntimeService(
         return repository.GetWorkflowDefinitionRuntimeDetail(workflowUid);
     }
 
-    public async Task<IReadOnlyList<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(
+    public async Task<CursorPageDto<WorkflowRuntimeEventDto>> GetWorkflowInstanceEventsAsync(
         Guid workflowUid,
+        CursorPageQuery query,
         CurrentUser currentUser,
         CancellationToken cancellationToken = default)
     {
         _ = currentUser;
-        return await repository.GetWorkflowDefinitionRuntimeEvents(workflowUid);
+        return await repository.GetWorkflowDefinitionRuntimeEvents(workflowUid, query);
     }
 
     public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(

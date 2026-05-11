@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-11 — **Z20 laeuft** (Admin/Directory/Runtime Read Contracts Phase 2). **S1 Doku-only done 2026-05-11. B1 done 2026-05-11** (P3-Lookup-Adapter live fuer 3 Endpunkte). B2..B4 stehen zur Umsetzung an. Z19 vollstaendig abgeschlossen (Backend Full Review / Holistic Audit, alle Slices S1..S9 erledigt). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 vollstaendig + Z20-S1 Doku-only abgeschlossen).
+**Stand**: 2026-05-11 — **Z20 vollstaendig abgeschlossen** (Admin/Directory/Runtime Read Contracts Phase 2, S1+B1+B2+B3+B4 erledigt). P3-Lookups, Directory-/Notification-/Rotation-/Auth-P1-Reads und Runtime-P2-Cursor-Subresources sind live. Z19 vollstaendig abgeschlossen (Backend Full Review / Holistic Audit, alle Slices S1..S9 erledigt). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 vollstaendig + Z20-S1/B1). Codex (2026-05-11 Z20-B2/B3/B4 Abschluss).
 
 ---
 
@@ -70,7 +70,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-## Aktiver Zyklus 20 — Admin/Directory/Runtime Read Contracts Phase 2 (2026-05-11)
+## Abgeschlossener Zyklus 20 — Admin/Directory/Runtime Read Contracts Phase 2 (2026-05-11)
 
 Eroeffnet 2026-05-11 als breiter Read-Vertrags-Folgeblock zu Z10/Z11. S1 ist **reiner Doku-/Planungs-Slice**, keine Code-Aenderung.
 
@@ -124,9 +124,19 @@ Eroeffnet 2026-05-11 als breiter Read-Vertrags-Folgeblock zu Z10/Z11. S1 ist **r
 |-------|--------|------|---------------|--------|
 | Z20-S1 | Inventur + Vertrags-Skizze + Slice-Plan (Doku-only) | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
 | Z20-B1 | Block H + Block E Preview-Lookups: `GET /workflow-definitions/startable` + `GET /admin/notification-templates/preview-targets/{workflows,rotation-plans}` auf P3-Lookup-Adapter (Server-`search`/`limit`, FE-Wrapper). Kleinster Schnitt zuerst, etabliert P3-Pattern. | HIGH | `claude-sonnet-4-6` + `--effort medium` | **done 2026-05-11** |
-| Z20-B2 | Block C: `GET /admin/directory/identities` auf P1; **Composite-Split** `/admin/directory/responsibility-gaps` + `/admin/directory/pending-imports` jeweils als saubere P1-Endpunkte. Zentralster Risiko-Schnitt, weil Composite. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
-| Z20-B3 | Block E (Liste) + Block F + Block G: `GET /admin/notification-templates` P1; `GET /admin/rotation/action-templates` P1; `GET /admin/runtime/workflow-instances/{uid}/events` P2/Cursor; `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` P2/Cursor. Pattern-Bulk-Anwendung. | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen |
-| Z20-B4 | Block A: `/admin/auth/{users,groups,permissions,roles}` auf P1 + `/admin/directory/unlinked-identities` P1. Pflege-/Hygiene-Schnitt zum Schluss; `/admin/people` bleibt als Vertragsanker unveraendert. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z20-B2 | Block C: `GET /admin/directory/identities` auf P1; **Composite-Split** `/admin/directory/responsibility-gaps` + `/admin/directory/pending-imports` jeweils als saubere P1-Endpunkte. Zentralster Risiko-Schnitt, weil Composite. | HIGH | urspruenglich `claude-opus-4-7` + `--effort high`; umgesetzt durch Codex | **done 2026-05-11** |
+| Z20-B3 | Block E (Liste) + Block F + Block G: `GET /admin/notification-templates` P1; `GET /admin/rotation/action-templates` P1; `GET /admin/runtime/workflow-instances/{uid}/events` P2/Cursor; `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` P2/Cursor. Pattern-Bulk-Anwendung. | HIGH | urspruenglich `claude-sonnet-4-6` + `--effort medium`; umgesetzt durch Codex | **done 2026-05-11** |
+| Z20-B4 | Block A: `/admin/auth/{users,groups,permissions,roles}` auf P1 + `/admin/directory/unlinked-identities` P1. Pflege-/Hygiene-Schnitt zum Schluss; `/admin/people` bleibt als Vertragsanker unveraendert. | MEDIUM | urspruenglich `claude-sonnet-4-6` + `--effort medium`; umgesetzt durch Codex | **done 2026-05-11** |
+
+### Z20-Abschluss 2026-05-11
+
+**Praktisch:** Die zurueckgestellten Read-Vertraege aus Z10/Z11 sind jetzt geschlossen. Admin-Directory-Identities, Responsibility-Gaps, Pending-Imports, Notification-Templates, Rotation-Action-Templates, Runtime-Events, Runtime-Automation-Jobs, Auth-Identity-Listen und Unlinked-Directory-Identities liefern einheitliche P1-/P2-Huellen.
+
+**Lohnenswert:** Die Arbeit wurde in einem Lauf gebuendelt, weil das Pattern nach B1 vollstaendig etabliert war. Dadurch entfallen mehrere Mikro-Zyklen mit identischem Doku-/Test-Overhead.
+
+**Nutzen:** Das FE liest die neuen Huellen ueber Adapter kompatibel weiter; Runtime-Subresources sind cursorfaehig; Directory-Composite-Reads sind in P1-Listen gesplittet; die verbleibenden Z10/Z11-Mitnahmeschnitte sind erledigt.
+
+**Verifikation:** `dotnet test api/API.Tests/API.Tests.csproj --artifacts-path .codex-artifacts` → 566 bestanden, 1 uebersprungen. `npm run build` im `web/` → erfolgreich.
 
 ### Reihenfolge-Begruendung
 
@@ -224,4 +234,4 @@ Die Detaildokumentation von Z19 liegt jetzt in `CODE_REVIEW_ARCHIVE.md` und im m
 | B | 2026-05-08 | Entra-Stellenbezeichnungen in Abteilungs-Stellen importieren — GET /admin/master-data/departments/{id}/entra-job-titles + POST …/positions/import-from-entra; Checkbox-UI in AdminOrganizationDepartmentEditor mit bereits-vorhanden-Markierung — **abgeschlossen** |
 | C | 2026-05-08 | Mitarbeiter-Verzeichnis zeigt jetzt auch aktive `directory_identities` ohne Mitarbeiterkarte — `GetPeopleDirectory` per `UNION ALL`, Status `directory_only`, nullable `personId`, Inline-Import-Button pro Verzeichnis-Eintrag in `PeopleDirectoryPage` — **abgeschlossen** |
 | 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **vollstaendig abgeschlossen** (alle Slices S1..S9 done) |
-| 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — **Z20-S1 Doku-only done 2026-05-11**; Bundles B1..B4 offen |
+| 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — **vollstaendig abgeschlossen** (S1+B1+B2+B3+B4 done) |

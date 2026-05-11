@@ -144,7 +144,10 @@ export async function sendAdminNotificationEmailTest(recipientEmail: string | nu
 }
 
 export async function getAdminNotificationTemplates(): Promise<AdminNotificationTemplate[]> {
-  return requestJson<BackendAdminNotificationTemplateDto[]>("/admin/notification-templates");
+  const page = await requestJson<AdminListPage<BackendAdminNotificationTemplateDto>>(
+    `/admin/notification-templates${buildAdminListQuery({ limit: 200 })}`
+  );
+  return page.items;
 }
 
 export async function updateAdminNotificationTemplate(
@@ -205,19 +208,31 @@ export async function getAdminSystemLogSummary(options: Omit<AdminSystemLogQuery
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
-  return requestJson<BackendAdminUserDto[]>("/admin/auth/users");
+  const page = await requestJson<AdminListPage<BackendAdminUserDto>>(
+    `/admin/auth/users${buildAdminListQuery({ limit: 200 })}`
+  );
+  return page.items;
 }
 
 export async function getAdminRoles(): Promise<AdminRole[]> {
-  return requestJson<BackendAdminRoleDto[]>("/admin/auth/roles");
+  const page = await requestJson<AdminListPage<BackendAdminRoleDto>>(
+    `/admin/auth/roles${buildAdminListQuery({ limit: 200 })}`
+  );
+  return page.items;
 }
 
 export async function getAdminGroups(): Promise<AdminGroup[]> {
-  return requestJson<BackendAdminGroupDto[]>("/admin/auth/groups");
+  const page = await requestJson<AdminListPage<BackendAdminGroupDto>>(
+    `/admin/auth/groups${buildAdminListQuery({ limit: 200 })}`
+  );
+  return page.items;
 }
 
 export async function getAdminPermissions(): Promise<AdminPermission[]> {
-  return requestJson<BackendAdminPermissionDto[]>("/admin/auth/permissions");
+  const page = await requestJson<AdminListPage<BackendAdminPermissionDto>>(
+    `/admin/auth/permissions${buildAdminListQuery({ limit: 200 })}`
+  );
+  return page.items;
 }
 
 export async function getAdminPermissionAudit(options: CursorPageQueryOptions = {}): Promise<CursorPage<AdminPermissionAuditEntry>> {

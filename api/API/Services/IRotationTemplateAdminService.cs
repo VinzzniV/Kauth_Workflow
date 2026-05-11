@@ -6,6 +6,11 @@ internal interface IRotationTemplateAdminService
         int? departmentId,
         bool? isActive,
         CancellationToken cancellationToken = default);
+    Task<AdminListPageDto<DepartmentActionTemplateDto>> GetDepartmentActionTemplatesAsync(
+        int? departmentId,
+        bool? isActive,
+        AdminListQuery query,
+        CancellationToken cancellationToken = default);
 
     Task<DepartmentActionTemplateDto?> GetDepartmentActionTemplateAsync(
         int templateId,

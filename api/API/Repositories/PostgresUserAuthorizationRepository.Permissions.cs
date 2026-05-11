@@ -22,6 +22,26 @@ internal sealed partial class PostgresUserAuthorizationRepository
         return await LoadAdminPermissions(connection, null, cancellationToken);
     }
 
+    public async Task<AdminListPageDto<AdminPermissionDto>> GetAdminPermissions(AdminListQuery query, CancellationToken cancellationToken = default)
+    {
+        var permissions = await GetAdminPermissions(cancellationToken);
+        var search = query.NormalizedSearch;
+        var filtered = permissions
+            .Where(permission =>
+                string.IsNullOrWhiteSpace(search)
+                || permission.PermissionName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || permission.PermissionKey.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || permission.Category.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || permission.ScopeKind.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (permission.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(permission => permission.Category, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(permission => permission.PermissionName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(permission => permission.PermissionId)
+            .ToList();
+
+        return AdminListPage.From(filtered, query);
+    }
+
     public async Task<CursorPageDto<AdminPermissionAuditEntryDto>> GetAdminPermissionAudit(
         CursorPageQuery query,
         CancellationToken cancellationToken = default)

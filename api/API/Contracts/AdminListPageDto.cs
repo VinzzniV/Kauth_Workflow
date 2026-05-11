@@ -14,6 +14,26 @@ public sealed class AdminListPageDto<T>
     public required int Offset { get; init; }
 }
 
+internal static class AdminListPage
+{
+    public static AdminListPageDto<T> From<T>(IReadOnlyList<T> items, AdminListQuery query)
+    {
+        var total = items.Count;
+        var pageItems = items
+            .Skip(query.Offset)
+            .Take(query.Limit)
+            .ToList();
+
+        return new AdminListPageDto<T>
+        {
+            Items = pageItems,
+            Total = total,
+            Limit = query.Limit,
+            Offset = query.Offset
+        };
+    }
+}
+
 internal sealed class AdminListQuery
 {
     public const int DefaultLimit = 50;

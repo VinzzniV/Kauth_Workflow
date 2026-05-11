@@ -10,11 +10,32 @@ internal sealed class NotificationTemplateService(
 {
     public async Task<IReadOnlyList<AdminNotificationTemplateDto>> GetAdminTemplates(CancellationToken cancellationToken = default)
     {
+        var page = await GetAdminTemplates(
+            new AdminListQuery { Limit = AdminListQuery.MaxLimit, Offset = 0 },
+            cancellationToken);
+        return page.Items;
+    }
+
+    public async Task<AdminListPageDto<AdminNotificationTemplateDto>> GetAdminTemplates(
+        AdminListQuery query,
+        CancellationToken cancellationToken = default)
+    {
         var storedTemplates = await repository.GetTemplates(cancellationToken);
-        return NotificationTemplateCatalog
+        var search = query.NormalizedSearch;
+        var templates = NotificationTemplateCatalog
             .GetDefinitions()
             .Select(definition => MapToAdminDto(definition, FindStoredTemplate(storedTemplates, definition.TemplateKey)))
+            .Where(template =>
+                string.IsNullOrWhiteSpace(search)
+                || template.TemplateKey.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || template.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || template.TriggerDescription.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || template.PreviewTargetType.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(template => template.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(template => template.TemplateKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        return AdminListPage.From(templates, query);
     }
 
     public async Task<AdminNotificationTemplateDto> UpdateAdminTemplate(
