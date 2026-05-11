@@ -74,6 +74,9 @@ function WorkflowSummaryCard({
 function WorkflowTaskDetailPane({
   summary,
   selectedWorkflowGroups,
+  availableCategories,
+  selectedCategory,
+  onSelectCategory,
   expandedStatuses,
   savingTaskIds,
   savingApprovalTaskIds,
@@ -88,6 +91,9 @@ function WorkflowTaskDetailPane({
 }: {
   summary: WorkflowTaskSummary | null;
   selectedWorkflowGroups: ReturnType<typeof useMyTasksPageView>["selectedWorkflowGroups"];
+  availableCategories: string[];
+  selectedCategory: string | null;
+  onSelectCategory: (category: string | null) => void;
   expandedStatuses: ReturnType<typeof useMyTasksPageView>["expandedStatuses"];
   savingTaskIds: ReturnType<typeof useMyTasksPageView>["savingTaskIds"];
   savingApprovalTaskIds: ReturnType<typeof useMyTasksPageView>["savingApprovalTaskIds"];
@@ -129,6 +135,28 @@ function WorkflowTaskDetailPane({
         <TaskCountBadge label="Blockiert" count={summary.counts.blocked} highlight />
         <TaskCountBadge label="Erledigt" count={summary.counts.done} />
       </div>
+
+      {availableCategories.length > 1 ? (
+        <div className="task-category-filter" role="group" aria-label="Nach Kategorie filtern">
+          <button
+            type="button"
+            className={`chip chip-action${selectedCategory === null ? " active" : ""}`}
+            onClick={() => onSelectCategory(null)}
+          >
+            Alle
+          </button>
+          {availableCategories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={`chip chip-action${selectedCategory === cat ? " active" : ""}`}
+              onClick={() => onSelectCategory(selectedCategory === cat ? null : cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {selectedWorkflowGroups.length === 0 ? (
         <EmptyState title="Keine Aufgaben" description="Für diesen Vorgang gibt es keine Aufgaben." />
@@ -407,6 +435,9 @@ export default function MyTasksPage() {
                 <WorkflowTaskDetailPane
                   summary={view.selectedWorkflowSummary}
                   selectedWorkflowGroups={view.selectedWorkflowGroups}
+                  availableCategories={view.selectedWorkflowCategories}
+                  selectedCategory={view.selectedCategory}
+                  onSelectCategory={view.setSelectedCategory}
                   expandedStatuses={view.expandedStatuses}
                   savingTaskIds={view.savingTaskIds}
                   savingApprovalTaskIds={view.savingApprovalTaskIds}

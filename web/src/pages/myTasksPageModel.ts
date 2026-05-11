@@ -44,10 +44,16 @@ export function useMyTasksPageView() {
 
   const [search, setSearch] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  const [selectedWorkflowUid, setSelectedWorkflowUid] = useState<string | null>(null);
+  const [selectedWorkflowUid, setSelectedWorkflowUidRaw] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expandedStatuses, setExpandedStatuses] = useState<Set<VisibleTaskStatus>>(
     new Set(["open", "in_progress", "blocked"])
   );
+
+  const setSelectedWorkflowUid = useCallback((uid: string | null) => {
+    setSelectedWorkflowUidRaw(uid);
+    setSelectedCategory(null);
+  }, []);
 
   const rows = useMemo<TaskWithWorkflow[]>(() => myTasksQuery.data ?? [], [myTasksQuery.data]);
   const workflowRows = useMemo(
@@ -156,17 +162,26 @@ export function useMyTasksPageView() {
     });
   }, [selectedWorkflowUid, tasksByWorkflow]);
 
+  const selectedWorkflowCategories = useMemo<string[]>(() => {
+    return Array.from(
+      new Set(selectedWorkflowTasks.map((row) => row.task.category).filter(Boolean))
+    ).sort((left, right) => left.localeCompare(right, "de"));
+  }, [selectedWorkflowTasks]);
+
   const selectedWorkflowGroups = useMemo<TaskGroup[]>(() => {
+    const tasks = selectedCategory
+      ? selectedWorkflowTasks.filter((row) => row.task.category === selectedCategory)
+      : selectedWorkflowTasks;
     const groups = VISIBLE_TASK_STATUS_ORDER.map((status) => ({
       status,
       items: [] as TaskWithWorkflow[],
     }));
     const itemsByStatus = new Map(groups.map((group) => [group.status, group.items]));
-    for (const row of selectedWorkflowTasks) {
+    for (const row of tasks) {
       itemsByStatus.get(getVisibleTaskStatus(row.task.status))?.push(row);
     }
     return groups.filter((group) => group.items.length > 0);
-  }, [selectedWorkflowTasks]);
+  }, [selectedCategory, selectedWorkflowTasks]);
 
   // Legacy-Kompatibilität für bestehende responsibility-Filter-Hilfen (werden nicht mehr im UI verwendet, aber Interaktionshooks brauchen sie ggf.)
   const responsibilityOptions = useMemo(() => {
@@ -242,6 +257,9 @@ export function useMyTasksPageView() {
     selectedWorkflowUid,
     setSelectedWorkflowUid,
     selectedWorkflowSummary,
+    selectedWorkflowCategories,
+    selectedCategory,
+    setSelectedCategory,
     selectedWorkflowGroups,
     expandedStatuses,
     toggleStatus,

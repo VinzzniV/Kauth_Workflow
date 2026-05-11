@@ -71,7 +71,12 @@ export function MyTaskGroups({
                 <div className="task-card-top">
                   <div>
                     <h3>{row.task.title}</h3>
-                    <p className="panel-text">{row.task.description}</p>
+                    {row.task.category ? (
+                      <span className="chip task-category-chip">{row.task.category}</span>
+                    ) : null}
+                    {row.task.description ? (
+                      <p className="task-card-description">{row.task.description}</p>
+                    ) : null}
                   </div>
                   <div className="task-card-pill-group">
                     <TaskSlaPill status={row.task.slaStatus} />

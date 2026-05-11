@@ -379,6 +379,29 @@
   margin-top: 0.15rem;
 }
 
+.task-card-description {
+  margin: 0.25rem 0 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.task-category-chip {
+  display: inline-flex;
+  margin-top: 0.3rem;
+}
+
+.task-category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

@@ -38,11 +38,6 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 | ID | Aufgabe | Prio | Reasoning | Modell |
 |----|---------|------|-----------|--------|
-| FE-9a | Badge „Meine Aufgaben" in der Nav aktualisiert sich nicht nach Aufgaben-Abschluss — Query-Invalidierung prüfen und Badge-Count reaktiv halten | HIGH | medium | sonnet |
-| FE-9b | Badge-Zähler auch für Durchlaufplanung-Aufgaben in der Nav anzeigen (analog zu „Meine Aufgaben") | MEDIUM | medium | sonnet |
-| FE-10 | „Meine Aufgaben": Aufgaben-Detail-Panel überarbeiten — aufgeklappte Karte erschlägt mit Text; Aufgaben nach Kategorie (Software, Hardware, Zugang …) gruppieren oder filterbar machen; Kommentar-Block per Default einklappen | MEDIUM | high | opus |
-| FE-11 | „Wechsel & Aufgaben" / Rotation-Maßnahmen: Aufgaben-Detail fehlt — z. B. welche Ordnerpfade für Ordnerzugriff, welcher Referenzuser für AD-Berechtigungen; Detailfelder aus dem Task-Template in der Listenansicht durchreichen oder Detailansicht verlinken | MEDIUM | medium | sonnet |
-| FE-12 | Supervisor-Sichtbarkeit: Supervisoren sehen aktuell nicht ihre eigenen Mitarbeiter in der Mitarbeiterliste — Frontend muss passende API-Query nutzen sobald Backend die Visibility-Regel liefert (hängt an B-1 unten) | HIGH | low | sonnet |
 
 ---
 
@@ -62,6 +57,11 @@ FE-9a (Badge-Reaktivität) hat den größten sofortigen UX-Schmerz und ist isoli
 ---
 
 ## Abgeschlossene Zyklen
+
+- `2026-05-11` `FE-10` „Meine Aufgaben" Detail-Panel überarbeitet: Kategorie-Filter-Chips zwischen Zählern und Aufgabengruppen; Aufgabenbeschreibung auf 2 Zeilen gekürzt (`task-card-description` mit `line-clamp`); Kategorie-Badge auf jeder Aufgabenkarte; Kommentar-Block war bereits per Default eingeklappt (`TaskCommentsSection` startete mit `isOpen=false`).
+- `2026-05-11` `FE-11` Rotation-Maßnahmen-Detail in Listenansicht: `task.description` (Ordnerpfade, AD-Referenzbenutzer) wird jetzt in der Karten- und Tabellenansicht von `RotationOperationsPage` angezeigt. Detaillink bleibt für vollständigen Kontext erhalten.
+- `2026-05-11` `FE-12` Supervisor-Sichtbarkeit auf Mitarbeiterliste: `canAccessFeature("peopleDirectory")` gibt jetzt auch fuer Supervisors `true` zurueck. Backend-Beschraenkung (B-2) filtert auf beobachtbare Abteilungen.
+- `2026-05-11` `FE-9a + FE-9b` Badge-Counts nach taskFamily gesplittet: `/tasks/my` zaehlt nur Workflow-Tasks, `/rotation/operations` bekommt eigenen Badge fuer Rotation-Tasks. Beide Counts aus derselben `getMyTasks()`-Query abgeleitet (`useNavBadgeCounts.ts`). Verhindert verwirrenden Restzaehler wenn alle Workflow-Tasks erledigt aber Rotation-Tasks noch offen.
 
 - `2026-05-05` `Z11-F1` P1-Hull fuer Master-Data/Lookups im FE aufgenommen: neuer typed Wrapper `web/src/services/api/adminList.ts`, `lookupApi.ts`/`adminApi.ts` auf `AdminListPage<T>` umgestellt, betroffene Consumer vorerst pragmatisch auf `page.items` + `limit: 200` adaptiert. UX-Prinzip: Vertrag zuerst vereinheitlichen, sichtbare Paging-UI erst im passenden Folgeslice statt halb fertiger Mischloesung.
 - `2026-05-06` `Z11-F2` P2-Hull fuer Audit-Streams im FE aufgenommen: neuer typed Wrapper `web/src/services/api/cursorPage.ts`; `adminApi.ts`/`adminConfigApi.ts` auf `CursorPage<T>` umgestellt; `useAdminConfigData` akkumuliert bei „Mehr laden" (append), resettet bei Neuladen; beide Audit-Tabs (`AdminPermissionsSection`, `AdminDirectorySyncSection`) haben „Mehr laden"-Knopf. UX-Prinzip: kein stiller Cap mehr — Knopf erscheint nur wenn `hasMore=true`.
