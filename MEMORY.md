@@ -32,7 +32,8 @@
 
 ## Current Focus
 
-- **Kein aktiver Zyklus offen.** Z19 (Backend Full Review / Holistic Audit) ist seit 2026-05-11 vollstaendig abgeschlossen. Naechster Schritt nur bei konkretem neuem Review- oder Implementierungsbedarf. Detail in `CODE_REVIEW.md`, `TODO.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
+- **Aktiver Zyklus: Z20 — Admin/Directory/Runtime Read Contracts Phase 2** (eroeffnet 2026-05-11). **S1 (Inventur + Vertrags-Skizze + Slice-Plan) Doku-only done.** Naechster Schritt: **Z20-B1** (Block H `/workflow-definitions/startable` + Block E Preview-Lookups → P3-Lookup-Adapter; `claude-sonnet-4-6` + `--effort medium`). Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 20" und `TODO.md`.
+- Z19 vollstaendig abgeschlossen seit 2026-05-11 (S1..S9).
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

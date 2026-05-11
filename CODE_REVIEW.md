@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-11 — **Z19 vollstaendig abgeschlossen** (Backend Full Review / Holistic Audit). Alle Slices S1..S9 erledigt. Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 eroeffnet + S1..S9 vollstaendig abgeschlossen).
+**Stand**: 2026-05-11 — **Z20 eroeffnet** (Admin/Directory/Runtime Read Contracts Phase 2). **S1 (Inventur + Slice-/Bundle-Plan) Doku-only abgeschlossen 2026-05-11**, B1..B4 stehen zur Umsetzung an. Z19 vollstaendig abgeschlossen (Backend Full Review / Holistic Audit, alle Slices S1..S9 erledigt). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 vollstaendig + Z20-S1 Doku-only abgeschlossen).
 
 ---
 
@@ -67,6 +67,93 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | Skalierbarkeit | **B-** | Mehrere Listen-, Sweep- und Dispatch-Pfade sind noch Kandidaten fuer SQL-Pushdown, Pagination oder N+1-Abbau |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen weniger in Benennung als in Hotspot-Pfaden unter Last |
+
+---
+
+## Aktiver Zyklus 20 — Admin/Directory/Runtime Read Contracts Phase 2 (2026-05-11)
+
+Eroeffnet 2026-05-11 als breiter Read-Vertrags-Folgeblock zu Z10/Z11. S1 ist **reiner Doku-/Planungs-Slice**, keine Code-Aenderung.
+
+**Praktisch:** Nach Z10/Z11 wurden bewusst sieben Read-/Listen-Vertraege zurueckgestellt (A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation Action-Templates, G Runtime-Sub-Resources, H `/workflow-definitions/startable`). Diese Mitnahmeschnitte sind seither liegen geblieben. In Summe ist das der verbleibende Block fuer einen einheitlichen Admin-/Directory-/Runtime-Read-Vertrag.
+
+**Lohnenswert:** P1-/P2-Hull-Adapter (`AdminListPage<T>`, `CursorPage<T>`) sind seit Z11 etabliert; FE-Wrapper (`services/api/adminList.ts`, `services/api/cursorPage.ts`) stehen. Pro Endpunkt ein eigener Mikro-Zyklus waere reine Wiederholungsarbeit — Begruendung, Schreibregel-Block, Doku-Mitzug, Test-Coverage wuerden jedes Mal neu durchgespielt. Z19-S6 (AuthZ-Repo-Split) hat gezeigt, dass mittlere Single-Topic-Bundles sicher durchgehen.
+
+**Nutzen:** ein konvergenter Read-Vertrag fuer den verbleibenden Admin-/Directory-/Runtime-Block; keine N+1-Diskussion mehr pro Mikro-Endpunkt; FE-Komponenten konvergieren auf zwei Hulls; Composite-Split fuer C Gaps/Pending wird in einem kontrollierten Schnitt erledigt statt als nachgereichter Mini-PR.
+
+### Warum breiter und nicht wieder Einzelschnitt?
+
+- Pattern P1/P2/P3 ist seit Z11 produktiv und typisiert. Adaptierung ist wiederholbares Muster, keine Vertragsentscheidung mehr.
+- Die zurueckgestellten Endpunkte teilen sich denselben Anker (Admin/Directory/Runtime Read). Ein Bundle haelt Review und Implementierung thematisch zusammen.
+- Single-Endpoint-Slices fragmentieren die Doku-Mitzuege; jeder Mikro-Slice loest jeweils `MEMORY.md`/`CODEX_SYNC.md`/Status-Spiegel aus. Bundle-Schnitt halbiert den Doku-Overhead.
+- Bundle-Groesse bleibt unter Z19-S6-Risikoniveau, weil jeder Bundle thematisch eng (Lookups, Directory, Templates+Runtime, Hygiene) geschnitten ist.
+
+### Z20-S1 Findings (Inventur + Vertrags-Skizze)
+
+**Block A — Identity-Listen (HIGH)**
+- `GET /admin/auth/users`, `/admin/auth/groups`, `/admin/auth/permissions`, `/admin/auth/roles` in `AdminOrgEndpoints.cs:12..69` — heute ohne P1-Hull, ohne Server-`search`/`sort`-Whitelist.
+- `GET /admin/people` in `AdminPeopleEndpoints.cs:12` — bereits P1-Listendpunkt aus Z16-S2 (Vertragsanker).
+- `GET /admin/directory/unlinked-identities` in `AdminDirectorySyncEndpoints.cs:290` — aus Z19-Feature-Block A1 ohne P1-Hull.
+- *Praktisch:* Admins, die mit wachsendem Personenstamm arbeiten (Migration, Rollen-Audit), sehen weiterhin Cap-/Sortier-Unklarheit. *Lohnenswert:* `/admin/people` als Vertragsanker existiert bereits; Mitnahme der vier `/admin/auth/*`-Endpunkte ist billiger als spaeterer Hotfix. *Nutzen:* einheitlicher Identity-Read-Vertrag; FE-Adapter wiederverwendet.
+
+**Block C — Directory Read (HIGH)**
+- `GET /admin/directory/identities` (`AdminDirectorySyncEndpoints.cs:87`) — heutige Hauptliste der gesyncten Identities, ohne P1-Hull.
+- `GET /admin/directory/responsibility-gaps` (`:108`) + `GET /admin/directory/pending-imports` (`:127`) — bewusst als Composite-Split vorbereitet in Z11; gehoeren in Z20 in einen kontrollierten Schnitt.
+- *Praktisch:* Directory-Sync-Folge-Workflows (Lueckenpflege, Pending-Importe) haengen an einer Mischvertragsstelle. *Lohnenswert:* genau hier wurden die Splits in Z11 verschoben; der Composite-Split ist mit P1-Adapter heute sicher machbar. *Nutzen:* zwei klare Endpunkte, beide P1, ohne Mischbedeutung.
+
+**Block E — Notification-Templates (HIGH)**
+- `GET /admin/notification-templates` (`AdminNotificationTemplateEndpoints.cs:12`) — Liste Settings-typisch, ohne P1-Hull.
+- Preview-Target-Lookups `/admin/notification-templates/preview-targets/workflows`, `…/rotation-plans` (`:79`, `:100`) — kandidaten fuer P3-Typeahead bei wachsender Kardinalitaet.
+- *Praktisch:* Templates wachsen langsam, aber Preview-Targets koennen schnell groesser werden. *Lohnenswert:* gleicher P1-Adapter wie Z11-F3 (Builder-Tabs). *Nutzen:* ein FE-Wrapper, zwei Verwendungen.
+
+**Block F — Rotation Action-Templates (HIGH)**
+- `GET /admin/rotation/action-templates` (`AdminRotationConfigEndpoints.cs:11`) — Settings-Liste, heute ohne P1-Hull.
+- *Praktisch:* Rotation-Admin-UI laeuft aktuell mit voller Liste. *Lohnenswert:* gleicher P1-Schnitt wie Block E. *Nutzen:* konsistenter Settings-/Templates-Vertrag.
+
+**Block G — Runtime-Sub-Resources (HIGH)**
+- `GET /admin/runtime/workflow-instances/{uid}/events` (`AdminWorkflowRuntimeEndpoints.cs:66`) — Event-Strom je Instanz, heute ohne Cursor.
+- `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` (`:86`) — Automation-Job-Strom je Instanz, ohne Cursor.
+- *Praktisch:* langlebige Workflow-Instanzen haben heute Event-/Job-Listen, die im Admin-UI hart geschnitten werden. *Lohnenswert:* gleiche P2-Achse wie Z11-F2 (Audit-Streams). *Nutzen:* Operator kann Verlauf vollstaendig durchscrollen, kein stiller Cap.
+
+**Block H — `/workflow-definitions/startable` (MEDIUM)**
+- `GET /workflow-definitions/startable` (`WorkflowMasterDataEndpoints.cs:50`) — Catalog-Lookup ohne Server-`search`/`limit`.
+- *Praktisch:* Endpoint wird beim Workflow-Start aufgerufen, Liste waechst mit Definitionsbestand. *Lohnenswert:* P3-Lookup-Muster ist im FE noch nicht verdrahtet — Z20 fuegt den Adapter hinzu. *Nutzen:* Typeahead-faehiges Lookup, sauberes Limit auf Server-Seite.
+
+### Slice-/Bundle-Map fuer Z20
+
+| Slice | Inhalt | Prio | Modell/Effort | Status |
+|-------|--------|------|---------------|--------|
+| Z20-S1 | Inventur + Vertrags-Skizze + Slice-Plan (Doku-only) | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
+| Z20-B1 | Block H + Block E Preview-Lookups: `GET /workflow-definitions/startable` + `GET /admin/notification-templates/preview-targets/{workflows,rotation-plans}` auf P3-Lookup-Adapter (Server-`search`/`limit`, FE-Wrapper). Kleinster Schnitt zuerst, etabliert P3-Pattern. | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z20-B2 | Block C: `GET /admin/directory/identities` auf P1; **Composite-Split** `/admin/directory/responsibility-gaps` + `/admin/directory/pending-imports` jeweils als saubere P1-Endpunkte. Zentralster Risiko-Schnitt, weil Composite. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z20-B3 | Block E (Liste) + Block F + Block G: `GET /admin/notification-templates` P1; `GET /admin/rotation/action-templates` P1; `GET /admin/runtime/workflow-instances/{uid}/events` P2/Cursor; `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` P2/Cursor. Pattern-Bulk-Anwendung. | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z20-B4 | Block A: `/admin/auth/{users,groups,permissions,roles}` auf P1 + `/admin/directory/unlinked-identities` P1. Pflege-/Hygiene-Schnitt zum Schluss; `/admin/people` bleibt als Vertragsanker unveraendert. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
+
+### Reihenfolge-Begruendung
+
+B1 → B2 → B3 → B4 in fester Reihenfolge:
+- **B1 zuerst**, weil P3 (Lookup) das einzige noch nicht verdrahtete Adapter-Muster ist und der Risiko-/Aufwand-Hebel am kleinsten ist. Danach steht P1, P2, P3 alle drei produktiv.
+- **B2 in der Mitte**, weil der Composite-Split fuer Gaps/Pending das hoechste Vertrags-Risiko traegt und mit `claude-opus-4-7`/`high` durchgezogen wird, **bevor** B3 als reine Bulk-Adaption laeuft.
+- **B3** ist Bulk-Anwendung des bereits etablierten Patterns; P1 (E+F) und P2 (G) parallel auf vier Endpunkten.
+- **B4 zuletzt**, weil A Identity-Listen der pflege-/hygiene-lastigste Block ist und nach B1..B3 mit dem dann komplett etablierten Pattern abgeraeumt wird.
+
+### Bewusst NICHT in Z20
+
+- Schreibpfade (`POST`/`PUT`/`PATCH`/`DELETE`) der genannten Endpunkte — Z20 ist Read-Contract.
+- Breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer.
+- Berechtigungsmodell-Aenderungen ohne konkretes Risiko.
+- Mobile-/Tablet-Layout (R10 bleibt eigenstaendig).
+- Z16-S4 Automation-Snapshot-Vertrag — deferred, wartet auf Produkt-Entscheidung Snapshot-Persistenz.
+- Z8-3.2/#8 `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` — deferred, admin-getriggert, kein kleiner SQL-Hebel ohne breiten Umbau.
+- `/admin/people` Vertragsaenderung — bereits Z16-S2-Anker, bleibt unveraendert.
+- Filterzustand-URL-Persistenz fuer Builder-Tabs — Restgrenze aus Z11-F3, separater UI-Slice ausserhalb Z20.
+- `GET /admin/directory/{status,groups,audit}` — `audit` ist bereits Z11-F2 P2; `status`/`groups` sind admin-getriggerte Single-Doc-/Mini-Listen ohne realen Pagination-Bedarf.
+
+### Test-/Verifikationserwartung pro Bundle (zur Orientierung)
+
+- B1: P3-Lookup-Tests (Server-`search`/`limit`-Whitelist, leere/voll besetzte Trefferliste). FE-Wrapper-Vitest, kein Composite-Risiko.
+- B2: P1-Tests Standard + **dedizierte Composite-Split-Tests**: Trennung Gaps vs. Pending Imports (frueher Mischpfad); Identities-P1 mit Server-Whitelist; Backend Integration ueber Testcontainers.
+- B3: Standard P1- und P2-Tests; Cursor-Stabilitaet fuer Runtime-Sub-Resources analog Z11-F2.
+- B4: P1-Hull-Tests `/admin/auth/*` + `/admin/directory/unlinked-identities`. `/admin/people` darf nicht regressieren — Vertragstest dort nur als Schutzgurt.
 
 ---
 
@@ -137,3 +224,4 @@ Die Detaildokumentation von Z19 liegt jetzt in `CODE_REVIEW_ARCHIVE.md` und im m
 | B | 2026-05-08 | Entra-Stellenbezeichnungen in Abteilungs-Stellen importieren — GET /admin/master-data/departments/{id}/entra-job-titles + POST …/positions/import-from-entra; Checkbox-UI in AdminOrganizationDepartmentEditor mit bereits-vorhanden-Markierung — **abgeschlossen** |
 | C | 2026-05-08 | Mitarbeiter-Verzeichnis zeigt jetzt auch aktive `directory_identities` ohne Mitarbeiterkarte — `GetPeopleDirectory` per `UNION ALL`, Status `directory_only`, nullable `personId`, Inline-Import-Button pro Verzeichnis-Eintrag in `PeopleDirectoryPage` — **abgeschlossen** |
 | 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **vollstaendig abgeschlossen** (alle Slices S1..S9 done) |
+| 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — **Z20-S1 Doku-only done 2026-05-11**; Bundles B1..B4 offen |

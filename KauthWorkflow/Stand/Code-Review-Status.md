@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-11 — **Z19 vollstaendig abgeschlossen 2026-05-11**; Z18 + Entra-Retrofit-Block am 2026-05-08 abgeschlossen; kein aktiver Zyklus.)
+## Gesamtbewertung (Stand 2026-05-11 — **Z20 eroeffnet 2026-05-11**, S1 Doku-only done, B1..B4 offen; Z19 vollstaendig abgeschlossen 2026-05-11; Z18 + Entra-Retrofit-Block am 2026-05-08 abgeschlossen.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -65,6 +65,29 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 17 | 2026-05-08 | Light/Dark-Mode Theme-Leaks: Z17-S1 `.card-primary`-Fix done |
 | 18 | 2026-05-08 | Frontend Full Review — **vollstaendig abgeschlossen** (alle 9 Findings: S2 Batch A, S3 Batch B, S4 F4 Redirect) |
 | 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **vollstaendig abgeschlossen 2026-05-11** (alle Slices S1..S9 done) |
+| 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — **Z20-S1 Doku-only done 2026-05-11**; B1..B4 offen |
+
+---
+
+## Aktiver Zyklus 20 — Admin/Directory/Runtime Read Contracts Phase 2 (2026-05-11)
+
+Eroeffnet 2026-05-11 als breiter Read-Vertrags-Folgeblock zu Z10/Z11. S1 ist **reiner Doku-/Planungs-Slice**.
+
+**Praktisch:** Nach Z10/Z11 wurden bewusst sieben Read-/Listen-Vertraege zurueckgestellt (A Identity-Listen, C `/admin/directory/identities`, C Gaps/Pending Split, E Notification-Templates, F Rotation Action-Templates, G Runtime-Sub-Resources, H `/workflow-definitions/startable`). Diese Mitnahmeschnitte sind seither liegen geblieben.
+**Lohnenswert:** P1-/P2-Hull-Adapter (`AdminListPage<T>`, `CursorPage<T>`) sind seit Z11 produktiv; ein Bundle-Schnitt loest den Restblock auf, statt jeden Endpunkt als Mikro-Zyklus mit eigenem Doku-Overhead zu fahren.
+**Nutzen:** konvergenter Admin-/Directory-/Runtime-Read-Vertrag; Composite-Split fuer C Gaps/Pending in einem kontrollierten Schnitt; FE-Komponenten konvergieren auf zwei Hulls + ein P3-Lookup-Pattern.
+
+| Slice | Inhalt | Prio | Modell/Effort | Status |
+|-------|--------|------|---------------|--------|
+| Z20-S1 | Inventur + Vertrags-Skizze + Slice-Plan (Doku-only) | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
+| Z20-B1 | Block H + Block E Preview-Lookups → P3-Lookup-Adapter | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen — naechster Schritt |
+| Z20-B2 | Block C: `/admin/directory/identities` P1 + Composite-Split Gaps/Pending | HIGH | `claude-opus-4-7` + `--effort high` | offen |
+| Z20-B3 | Block E (Liste) + F + G: Templates P1 + Runtime-Sub-Resources P2/Cursor | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z20-B4 | Block A: `/admin/auth/{users,groups,permissions,roles}` + `/admin/directory/unlinked-identities` P1 | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
+
+**Bewusst NICHT in Z20:** Schreibpfade der genannten Endpunkte; breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer; Berechtigungsmodell-Aenderungen; Mobile-/Tablet-Layout (R10); Z16-S4 Automation-Snapshot-Vertrag (deferred); Z8-3.2/#8 (deferred); `/admin/people` Vertragsaenderung (Z16-S2-Anker); Filterzustand-URL-Persistenz fuer Builder-Tabs (Restgrenze aus Z11-F3); `GET /admin/directory/{status,groups,audit}` (`audit` bereits Z11-F2 P2; `status`/`groups` ohne realen Pagination-Bedarf).
+
+Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 20" (S1-Findings je Block, Reihenfolge-Begruendung, Test-Erwartung).
 
 ---
 
