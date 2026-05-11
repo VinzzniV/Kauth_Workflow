@@ -1734,14 +1734,14 @@ WHERE workflow_id = @workflowId
         NpgsqlTransaction transaction,
         long workflowId,
         string runtimeStatus,
-        string legacyStatus,
+        string workflowStatus,
         DateTime? completedAt)
     {
         const string sql = """
 UPDATE workflows
 SET
     current_runtime_status = @runtimeStatus,
-    status = @legacyStatus,
+    status = @workflowStatus,
     completed_at = @completedAt
 WHERE id = @workflowId;
 """;
@@ -1749,7 +1749,7 @@ WHERE id = @workflowId;
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("workflowId", workflowId);
         command.Parameters.AddWithValue("runtimeStatus", runtimeStatus);
-        command.Parameters.AddWithValue("legacyStatus", legacyStatus);
+        command.Parameters.AddWithValue("workflowStatus", workflowStatus);
         command.Parameters.Add("completedAt", NpgsqlDbType.TimestampTz).Value =
             (object?)completedAt ?? DBNull.Value;
         await command.ExecuteNonQueryAsync();

@@ -211,7 +211,7 @@ VALUES (
     @badgeNumber,
     @deadlineDate,
     @currentRuntimeStatus,
-    @legacyStatus,
+    @workflowStatus,
     NOW()
 )
 RETURNING id, uid;
@@ -234,7 +234,7 @@ RETURNING id, uid;
                 insertWorkflowCommand.Parameters.Add("deadlineDate", NpgsqlTypes.NpgsqlDbType.Date).Value =
                     (object?)request.DeadlineDate ?? DBNull.Value;
                 insertWorkflowCommand.Parameters.AddWithValue("currentRuntimeStatus", "running");
-                insertWorkflowCommand.Parameters.AddWithValue("legacyStatus", "draft");
+                insertWorkflowCommand.Parameters.AddWithValue("workflowStatus", "draft");
 
                 await using var reader = await insertWorkflowCommand.ExecuteReaderAsync();
                 if (!await reader.ReadAsync())

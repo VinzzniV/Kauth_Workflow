@@ -72,7 +72,7 @@ Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der R
 | `PrimaryLegacyProcessTypeKey` (Naming-Rest auf DTO-/Record-Properties) | erledigt 2026-05-11 | Parameter `primaryLegacyProcessTypeKey` in `ResolveWorkflowDefinitionLegacyProcessTypeId` → `workflowDefinitionKey`; Fehlermeldungen entlegacyt; Skizzen-Dokus nachgezogen. |
 | `LegacyProcessTypeKey` / `ProcessTypeName` in Notification-DTOs und Link-Lookup | erledigt 2026-05-11 | `WorkflowNotificationDispatchTarget`, `WorkflowNotificationRenderContext`, `WorkflowLinkLookupRecord` + alle 8 Consumer-Dateien auf `WorkflowDefinitionKey` / `WorkflowDefinitionName` umbenannt. Kein Semantik-Change. |
 | Internes `processType*`-Naming in Backend-Workflow-Pfaden | erledigt 2026-05-11 | `WorkflowStatusRules`, `PostgresWorkflowStatusCalculationService`, `PostgresRepositorySharedHelpers` (`WorkflowTaskGenerationContext`), `PostgresWorkflowTaskGenerationService`, `PostgresWorkflowRepository.*` (Create-/QueryOperations, lokaler Record), `NotificationEmailTemplateBuilder`, `NotificationTemplateService`, `WorkflowLifecycleService` + Tests: `processTypeName`/`processTypeKey`/`ProcessTypeCreateRecord`/`ResolveProcessTypeEmailContext` → `workflowDefinitionName`/`workflowDefinitionKey`/`WorkflowDefinitionCreateRecord`/`ResolveWorkflowDefinitionEmailContext`. Fehlermeldungen entlegacyt. Kein Semantik-Change. |
-| Legacy-Status im Runtime-Pfad | `api/API/Services/WorkflowRuntimePlan.cs`, `WorkflowRuntimeEngine.cs`, `PostgresWorkflowRuntimeRepository.EngineAdapter.cs`, `WorkflowRuntimeEngineTests.cs` | Die Mapping-Logik bleibt korrekt (`ComputeWorkflowStatusFromActiveNodes`); Benennung ist bereinigt. Einzig verbliebener Punkt: ggf. `legacyStatus` als SQL-Parametername in `WorkflowLifecycleService.cs` + `PostgresWorkflowRuntimeRepository.cs` nach großem Key-Cut nachziehen. | niedrig / niedrig nach Key-Cut |
+| Legacy-Status im Runtime-Pfad | erledigt 2026-05-11 | `legacyStatus` als SQL-Parametername in `WorkflowLifecycleService.cs` + `PostgresWorkflowRuntimeRepository.cs` auf `workflowStatus` umbenannt. Kein Semantik-Change. |
 | Legacy-Sprache in Seeds und Tests | Test-Fixtures mit `legacyProcessTypeKey` in config_json (korrekt, weil Produktiv-JSON-Struktur) und `TemporaryProcessType`-Hilfsklassen in Integrationstests | Erst nach dem großen Key-Cut nachziehen; vorher wären die Fixture-Werte falsch | niedrig / niedrig |
 
 ---
@@ -86,6 +86,7 @@ Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der R
 5. ~~`PrimaryLegacyProcessTypeKey`-Properties als reines Naming-Folge-Slice umbenennen.~~ — ✓ erledigt 2026-05-11
 6. ~~Seed-/Test-Cleanup~~ — ✓ erledigt 2026-05-11 (gemeinsam mit Schritt 4).
 7. ~~Internes `processType*`-Naming in Backend-Workflow-Pfaden bereinigen~~ — ✓ erledigt 2026-05-11 (WorkflowStatusRules, PostgresWorkflowStatusCalculationService, WorkflowTaskGenerationContext, WorkflowCreateOperations, WorkflowQueryOperations, NotificationEmailTemplateBuilder + Consumer).
+8. ~~`legacyStatus` als SQL-/Parameter-Name im Runtime-/Lifecycle-Pfad~~ — ✓ erledigt 2026-05-11 (`WorkflowLifecycleService.cs`, `PostgresWorkflowRuntimeRepository.cs`: `legacyStatus` → `workflowStatus`).
 
 ---
 
