@@ -196,9 +196,96 @@ SET
             }
         }
 
+        await ReassignOpenTasksByResponsibilityAsync(connection, transaction, responsibilityId, normalizedUserId, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
         var assignments = await LoadAdminResponsibilityOwners(connection, null, responsibilityId, cancellationToken);
         return assignments.FirstOrDefault();
+    }
+
+    private static async Task ReassignOpenTasksByResponsibilityAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        int responsibilityId,
+        long? newUserId,
+        CancellationToken cancellationToken)
+    {
+        if (newUserId.HasValue)
+        {
+            const string reassignWorkflowTasksSql = @"
+UPDATE task_assignments ta
+SET
+    assignee_user_id = @newUserId,
+    assignee_responsibility_id = NULL,
+    assignment_type = 'user'
+FROM workflow_tasks wt
+JOIN workflows w ON w.id = wt.workflow_id
+WHERE ta.workflow_task_id = wt.id
+  AND ta.is_primary = TRUE
+  AND (
+    (ta.assignment_type = 'responsibility' AND ta.assignee_responsibility_id = @responsibilityId)
+    OR (
+      ta.assignment_type = 'user'
+      AND EXISTS (
+        SELECT 1 FROM workflow_node_task_specs spec
+        WHERE spec.id = wt.workflow_node_task_spec_id
+          AND spec.default_responsibility_id = @responsibilityId
+      )
+    )
+  )
+  AND wt.status NOT IN ('done', 'cancelled')
+  AND w.status NOT IN ('completed', 'cancelled')";
+
+            await using (var cmd = new NpgsqlCommand(reassignWorkflowTasksSql, connection, transaction))
+            {
+                cmd.Parameters.Add("newUserId", NpgsqlDbType.Bigint).Value = newUserId.Value;
+                cmd.Parameters.AddWithValue("responsibilityId", responsibilityId);
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            const string reassignRotationTasksSql = @"
+UPDATE rotation_task_assignments rta
+SET
+    assignee_user_id = @newUserId,
+    assignee_responsibility_id = NULL,
+    assignment_type = 'user'
+FROM rotation_generated_tasks rgt
+WHERE rta.rotation_generated_task_id = rgt.id
+  AND rta.is_primary = TRUE
+  AND rta.assignment_type = 'responsibility'
+  AND rta.assignee_responsibility_id = @responsibilityId
+  AND rgt.status NOT IN ('completed', 'cancelled', 'failed')";
+
+            await using (var cmd = new NpgsqlCommand(reassignRotationTasksSql, connection, transaction))
+            {
+                cmd.Parameters.Add("newUserId", NpgsqlDbType.Bigint).Value = newUserId.Value;
+                cmd.Parameters.AddWithValue("responsibilityId", responsibilityId);
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+        else
+        {
+            // No explicit person — revert user-pinned workflow tasks back to responsibility lookup
+            const string revertWorkflowTasksSql = @"
+UPDATE task_assignments ta
+SET
+    assignee_user_id = NULL,
+    assignee_responsibility_id = @responsibilityId,
+    assignment_type = 'responsibility'
+FROM workflow_tasks wt
+JOIN workflows w ON w.id = wt.workflow_id
+JOIN workflow_node_task_specs spec ON spec.id = wt.workflow_node_task_spec_id
+WHERE ta.workflow_task_id = wt.id
+  AND ta.is_primary = TRUE
+  AND ta.assignment_type = 'user'
+  AND spec.default_responsibility_id = @responsibilityId
+  AND wt.status NOT IN ('done', 'cancelled')
+  AND w.status NOT IN ('completed', 'cancelled')";
+
+            await using var cmd = new NpgsqlCommand(revertWorkflowTasksSql, connection, transaction);
+            cmd.Parameters.AddWithValue("responsibilityId", responsibilityId);
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     private static async Task<bool> ResponsibilityExists(
