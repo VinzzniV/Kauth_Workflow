@@ -85,7 +85,7 @@ internal sealed class NotificationTemplateService(
             {
                 WorkflowUid = item.Uid,
                 DisplayName = BuildWorkflowDisplayName(item),
-                ProcessName = item.ProcessType.Name,
+                ProcessName = item.WorkflowDefinition.Name,
                 DepartmentName = item.DepartmentName,
                 WorkflowStatus = item.WorkflowStatus,
                 CreatedAt = item.CreatedAt
@@ -379,7 +379,7 @@ internal sealed class NotificationTemplateService(
                 WorkflowUid = workflow.Uid,
                 RotationPlanId = null,
                 PrimaryLabel = BuildWorkflowDisplayName(workflow),
-                SecondaryLabel = $"{workflow.ProcessType.Name} | {workflow.DepartmentName}",
+                SecondaryLabel = $"{workflow.WorkflowDefinition.Name} | {workflow.DepartmentName}",
                 Status = workflow.WorkflowStatus
             };
         }

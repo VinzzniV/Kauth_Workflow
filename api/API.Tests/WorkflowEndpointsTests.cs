@@ -138,7 +138,7 @@ public sealed class WorkflowEndpointsTests
                 LinkType = "derived_from",
                 LinkedWorkflowFirstName = "Ada",
                 LinkedWorkflowLastName = "Lovelace",
-                LinkedWorkflowProcessType = new WorkflowProcessTypeDto
+                LinkedWorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = "onboarding",
                     Name = "Onboarding",
@@ -190,7 +190,7 @@ public sealed class WorkflowEndpointsTests
                 LinkType = "derived_from",
                 LinkedWorkflowFirstName = "Ada",
                 LinkedWorkflowLastName = "Lovelace",
-                LinkedWorkflowProcessType = new WorkflowProcessTypeDto
+                LinkedWorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = "onboarding",
                     Name = "Onboarding",
@@ -288,7 +288,7 @@ public sealed class WorkflowEndpointsTests
                     WorkflowStatus = "draft",
                     CreatedAt = DateTime.UtcNow,
                     DepartmentId = 1,
-                    ProcessType = new WorkflowProcessTypeDto
+                    WorkflowDefinition = new WorkflowDefinitionRefDto
                     {
                         Key = "onboarding",
                         Name = "Onboarding",
@@ -301,7 +301,7 @@ public sealed class WorkflowEndpointsTests
                     WorkflowStatus = "draft",
                     CreatedAt = DateTime.UtcNow.AddDays(-1),
                     DepartmentId = 2,
-                    ProcessType = new WorkflowProcessTypeDto
+                    WorkflowDefinition = new WorkflowDefinitionRefDto
                     {
                         Key = "offboarding",
                         Name = "Offboarding",
@@ -1154,7 +1154,7 @@ public sealed class WorkflowEndpointsTests
             BadgeNumber = 2001,
             DepartmentId = 1,
             DepartmentName = "IT",
-            ProcessType = new WorkflowProcessTypeDto
+            WorkflowDefinition = new WorkflowDefinitionRefDto
             {
                 Key = "onboarding",
                 Name = "Onboarding",
@@ -1212,14 +1212,14 @@ public sealed class WorkflowEndpointsTests
         };
     }
 
-    private static AdminProcessTypeDto CreateAdminProcessTypeDto(
+    private static AdminWorkflowDefinitionDto CreateAdminWorkflowDefinitionDto(
         int id,
         string key,
         bool isActive,
         bool canActivate,
         string? activationBlockedReason)
     {
-        return new AdminProcessTypeDto
+        return new AdminWorkflowDefinitionDto
         {
             Id = id,
             Key = key,
@@ -1719,9 +1719,9 @@ public sealed class WorkflowEndpointsTests
             return Task.FromResult(DerivedAnswers);
         }
 
-        public Task<AdminListPageDto<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions(AdminListQuery query) => throw new NotSupportedException();
-        public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
-        public Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request) => throw new NotSupportedException();
+        public Task<AdminListPageDto<WorkflowDefinitionRefDto>> GetAdminWorkflowDefinitions(AdminListQuery query) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRefDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionRefDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminWorkflowDefinition(int definitionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(int definitionId, CreateWorkflowDefinitionVersionRequest request) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> EnsureAdminWorkflowDefinitionWorkingDraft(int definitionId) => throw new NotSupportedException();

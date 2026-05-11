@@ -1,5 +1,5 @@
 // Gemeinsame Frontend-Typen fuer Workflow-Konfiguration, Laufzeitdaten und Aufgabenansichten.
-export type ProcessType = {
+export type WorkflowDefinitionRef = {
   key: string;
   name: string;
   description?: string | null;
@@ -243,7 +243,7 @@ export type WorkflowTaskAreaSummary = {
 // Kompakte Uebersicht fuer Listen und Dashboards.
 export type WorkflowSummary = {
   uid: string;
-  processType: ProcessType;
+  workflowDefinition: WorkflowDefinitionRef;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -277,7 +277,7 @@ export type WorkflowPage = {
 // Detailansicht eines Workflows inklusive Antworten, Aufgaben und Benachrichtigungen.
 export type WorkflowDetail = {
   uid: string;
-  processType: ProcessType;
+  workflowDefinition: WorkflowDefinitionRef;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -485,7 +485,7 @@ export type WorkflowLink = {
   linkType: string;
   linkedWorkflowFirstName: string;
   linkedWorkflowLastName: string;
-  linkedWorkflowProcessType: ProcessType;
+  linkedWorkflowDefinition: WorkflowDefinitionRef;
   linkedWorkflowStatus: string;
   linkedWorkflowCreatedAt: string;
   notes: string | null;
@@ -496,7 +496,7 @@ export type WorkflowLink = {
 
 export type LinkableWorkflow = {
   uid: string;
-  processType: ProcessType;
+  workflowDefinition: WorkflowDefinitionRef;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -508,7 +508,7 @@ export type LinkableWorkflow = {
 
 export type RelatedWorkflowSummary = {
   uid: string;
-  processType: ProcessType;
+  workflowDefinition: WorkflowDefinitionRef;
   workflowStatus: WorkflowRuntimeStatus;
   createdAt: string;
   departmentId: number;
@@ -565,7 +565,7 @@ export type DerivedAnswer = {
 // Mitarbeiter-Lifecycle: Alle Vorgänge einer Person in chronologischer Reihenfolge.
 export type PersonWorkflowSummary = {
   uid: string;
-  processType: ProcessType;
+  workflowDefinition: WorkflowDefinitionRef;
   firstName: string;
   lastName: string;
   roleName: string;

@@ -53,8 +53,8 @@ function isActiveWorkflow(summary: PersonWorkflowSummary): boolean {
 function buildContext(summary: PersonWorkflowSummary): PersonWorkflowContext {
   return {
     workflowUid: summary.uid,
-    processTypeKey: summary.processType.key,
-    processTypeName: summary.processType.name,
+    processTypeKey: summary.workflowDefinition.key,
+    processTypeName: summary.workflowDefinition.name,
     roleName: summary.roleName,
     departmentName: summary.departmentName,
   };

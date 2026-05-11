@@ -115,7 +115,7 @@ public sealed class WorkflowRuntimeEngineTests
         Assert.IsType<WaitNodeActivationStep>(step);
         Assert.Equal(2, step.NodeId);
         var outcome = Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
-        Assert.Equal("in_progress", outcome.LegacyStatus);
+        Assert.Equal("in_progress", outcome.ComputedStatus);
         Assert.False(outcome.RequiresStatusRecalc);
     }
 
@@ -129,7 +129,7 @@ public sealed class WorkflowRuntimeEngineTests
 
         Assert.Single(plan.NodeSteps);
         var outcome = Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
-        Assert.Equal("waiting_for_department", outcome.LegacyStatus);
+        Assert.Equal("waiting_for_department", outcome.ComputedStatus);
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public sealed class WorkflowRuntimeEngineTests
 
         Assert.Single(plan.NodeSteps);
         var outcome = Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
-        Assert.Equal("waiting_for_supervisor", outcome.LegacyStatus);
+        Assert.Equal("waiting_for_supervisor", outcome.ComputedStatus);
     }
 
     // ---- Decision branching --------------------------------------------
@@ -276,7 +276,7 @@ public sealed class WorkflowRuntimeEngineTests
 
         Assert.Empty(plan.NodeSteps);
         var outcome = Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
-        Assert.Equal("in_progress", outcome.LegacyStatus);
+        Assert.Equal("in_progress", outcome.ComputedStatus);
     }
 
     [Fact]
@@ -402,7 +402,7 @@ public sealed class WorkflowRuntimeEngineTests
 
         Assert.Empty(plan.NodeSteps);
         var outcome = Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
-        Assert.Equal("in_progress", outcome.LegacyStatus);
+        Assert.Equal("in_progress", outcome.ComputedStatus);
     }
 
     // ---- Supervisor approval bridge ------------------------------------
@@ -491,7 +491,7 @@ public sealed class WorkflowRuntimeEngineTests
         Assert.IsType<AutoCompleteStep>(plan.NodeSteps[0]);
         // end auto-completes but existingTask still active → WaitOutcome
         var outcome = Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
-        Assert.Equal("waiting_for_department", outcome.LegacyStatus);
+        Assert.Equal("waiting_for_department", outcome.ComputedStatus);
     }
 
     [Fact]

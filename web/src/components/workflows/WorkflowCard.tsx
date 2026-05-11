@@ -20,7 +20,7 @@ export default function WorkflowCard({ workflow }: Props) {
         <div>
           <h3>{fullName || "Unbekannter Name"}</h3>
           <div className="chips-row" aria-label="Prozesstyp">
-            <span className="chip">{workflow.processType.name}</span>
+            <span className="chip">{workflow.workflowDefinition.name}</span>
           </div>
         </div>
         <div className="stacked-status">

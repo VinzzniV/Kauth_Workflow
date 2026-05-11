@@ -1,5 +1,5 @@
 import type {
-  ProcessType,
+  WorkflowDefinitionRef,
   RequirementBehavior,
   RequirementOption,
   RequirementResetTarget,
@@ -46,7 +46,7 @@ import type {
 } from "../../types/auth";
 import { coerceIconKey } from "../../utils/iconRegistry";
 import type {
-  BackendProcessTypeDto,
+  BackendWorkflowDefinitionRefDto,
   BackendRequirementBehaviorDto,
   BackendRequirementDto,
   BackendRequirementOptionDto,
@@ -315,7 +315,7 @@ export function mapWorkflowTask(dto: BackendWorkflowTaskDto): WorkflowTask {
   };
 }
 
-function mapProcessType(dto: BackendProcessTypeDto): ProcessType {
+function mapWorkflowDefinitionRef(dto: BackendWorkflowDefinitionRefDto): WorkflowDefinitionRef {
   return {
     key: dto.key,
     name: dto.name,
@@ -329,7 +329,7 @@ export function mapWorkflowSummary(dto: BackendWorkflowSummaryDto): WorkflowSumm
 
   return {
     uid: dto.uid,
-    processType: mapProcessType(dto.processType),
+    workflowDefinition: mapWorkflowDefinitionRef(dto.workflowDefinition),
     firstName: dto.firstName,
     lastName: dto.lastName,
     employeeNumber: dto.employeeNumber,
@@ -368,7 +368,7 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
 
   return {
     uid: dto.uid,
-    processType: mapProcessType(dto.processType),
+    workflowDefinition: mapWorkflowDefinitionRef(dto.workflowDefinition),
     firstName: dto.firstName,
     lastName: dto.lastName,
     employeeNumber: dto.employeeNumber,
@@ -455,7 +455,7 @@ function mapPersonWorkflowSummary(dto: BackendPersonWorkflowSummaryDto): PersonW
   const workflowStatus = normalizeStatus(dto.workflowStatus);
   return {
     uid: dto.uid,
-    processType: mapProcessType(dto.processType),
+    workflowDefinition: mapWorkflowDefinitionRef(dto.workflowDefinition),
     firstName: dto.firstName,
     lastName: dto.lastName,
     roleName: dto.roleName,

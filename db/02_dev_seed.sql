@@ -339,12 +339,12 @@ INSERT INTO public.app_role_permissions VALUES
 --
 
 INSERT INTO public.workflow_definitions OVERRIDING SYSTEM VALUE VALUES
-	(2, 'offboarding', 'Offboarding', 'Business-phase workflow definition mapped to the legacy offboarding task generator.', false, false, true, NULL, '2026-04-27 07:07:10.336213+00', '2026-04-27 07:07:10.374109+00'),
-	(3, 'department_change', 'Abteilungswechsel', 'Business-phase workflow definition mapped to the legacy department change task generator.', true, false, true, NULL, '2026-04-27 07:07:10.339459+00', '2026-04-27 07:07:10.377381+00'),
-	(7, 'name_change', 'Namensaenderung', 'Business-phase workflow definition mapped to the legacy name change task generator.', true, false, true, NULL, '2026-04-27 07:07:10.385153+00', '2026-04-27 07:07:10.385153+00'),
-	(8, 'position_change', 'Positionswechsel', 'Business-phase workflow definition mapped to the legacy position change task generator.', true, false, true, NULL, '2026-04-27 07:07:10.389326+00', '2026-04-27 07:07:10.389326+00'),
-	(9, 'role_change', 'Rollenwechsel', 'Business-phase workflow definition mapped to the legacy role change task generator.', true, false, true, NULL, '2026-04-27 07:07:10.392633+00', '2026-04-27 07:07:10.392633+00'),
-	(1, 'onboarding', 'Onboarding', 'Business-phase workflow definition mapped to the legacy onboarding task generator.', false, true, false, 'supervisor_fills_document', '2026-04-27 07:07:10.326548+00', '2026-04-27 07:07:10.396926+00');
+	(2, 'offboarding', 'Offboarding', 'Business-phase workflow definition for offboarding.', false, false, true, NULL, '2026-04-27 07:07:10.336213+00', '2026-04-27 07:07:10.374109+00'),
+	(3, 'department_change', 'Abteilungswechsel', 'Business-phase workflow definition for department changes.', true, false, true, NULL, '2026-04-27 07:07:10.339459+00', '2026-04-27 07:07:10.377381+00'),
+	(7, 'name_change', 'Namensaenderung', 'Business-phase workflow definition for name changes.', true, false, true, NULL, '2026-04-27 07:07:10.385153+00', '2026-04-27 07:07:10.385153+00'),
+	(8, 'position_change', 'Positionswechsel', 'Business-phase workflow definition for position changes.', true, false, true, NULL, '2026-04-27 07:07:10.389326+00', '2026-04-27 07:07:10.389326+00'),
+	(9, 'role_change', 'Rollenwechsel', 'Business-phase workflow definition for role changes.', true, false, true, NULL, '2026-04-27 07:07:10.392633+00', '2026-04-27 07:07:10.392633+00'),
+	(1, 'onboarding', 'Onboarding', 'Business-phase workflow definition for onboarding.', false, true, false, 'supervisor_fills_document', '2026-04-27 07:07:10.326548+00', '2026-04-27 07:07:10.396926+00');
 
 
 --

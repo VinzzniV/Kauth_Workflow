@@ -51,7 +51,7 @@ function WorkflowCard({
         <div>
           <h3>{workflowDisplayName}</h3>
           <div className="chips-row" aria-label="Prozesstyp">
-            <span className="chip">{workflow.processType.name}</span>
+            <span className="chip">{workflow.workflowDefinition.name}</span>
           </div>
         </div>
         <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
@@ -116,7 +116,7 @@ function WorkflowPreviewPane({ workflow }: { workflow: WorkflowSummary | null })
       <div className="split-detail-head">
         <div className="split-detail-title">
           <h2>Vorgangs-Vorschau</h2>
-          <p className="split-detail-meta">{workflowDisplayName} · {workflow.processType.name} · PN {workflow.employeeNumber}</p>
+          <p className="split-detail-meta">{workflowDisplayName} · {workflow.workflowDefinition.name} · PN {workflow.employeeNumber}</p>
         </div>
         <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
           {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}
@@ -337,7 +337,7 @@ export function WorkflowListResults({
                           <span className="operational-cell-meta">PN {workflow.employeeNumber}</span>
                         </div>
                       </td>
-                      <td>{workflow.processType.name}</td>
+                      <td>{workflow.workflowDefinition.name}</td>
                       <td>
                         <span className={`status-pill ${getWorkflowRuntimeStatusPillClass(workflow.workflowStatus)}`}>
                           {getWorkflowRuntimeStatusLabel(workflow.workflowStatus)}

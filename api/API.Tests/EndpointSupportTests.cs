@@ -41,7 +41,7 @@ public sealed class WorkflowVisibilityServiceTests
             BadgeNumber = 2000,
             DepartmentId = 10,
             DepartmentName = "IT",
-            ProcessType = new WorkflowProcessTypeDto
+            WorkflowDefinition = new WorkflowDefinitionRefDto
             {
                 Key = "onboarding",
                 Name = "Onboarding",

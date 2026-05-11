@@ -508,7 +508,7 @@ WHERE workflow_id = @workflowId;
                 }
                 else
                 {
-                    finalStatus = wait.LegacyStatus;
+                    finalStatus = wait.ComputedStatus;
                 }
 
                 await SetWorkflowRuntimeState(

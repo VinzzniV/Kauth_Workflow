@@ -38,6 +38,7 @@ Der wichtigste Resthebel ist heute die Mischung aus:
 | `approval_task_template_key` | erledigt | Rename auf `approval_spec_key` inkl. manueller DB-Helfer dokumentiert. |
 | `setup`-Node-Type (Code/Seeds) | erledigt | Kein `node_type = 'setup'` mehr in aktivem Code oder Seeds; nur noch in `db/_archive/`. Einziger Restpunkt: DB-Inventur gegen persistierte Definitionen (manuell, kein DB-Zugriff hier). |
 | Veraltete Doku-/ERD-Artefakte | erledigt | ERD neu generiert (2026-05-11): `process_types`, `task_templates` entfernt, `workflow_node_task_specs*` und `person_match_audit_log` korrekt zugeordnet. Migrationspfad und Zielarchitektur sind aktuell. |
+| `processType`-Benennung in Read-DTOs | erledigt | `WorkflowProcessTypeDto` → `WorkflowDefinitionRefDto`, Property `processType` → `workflowDefinition` in BE + FE. `LegacyStatus` / `MapLegacyStatusForActiveNodes` → `ComputedStatus` / `ComputeWorkflowStatusFromActiveNodes`. Seed-Descriptions bereinigt. 494 Tests grün. |
 
 ---
 
@@ -46,9 +47,8 @@ Der wichtigste Resthebel ist heute die Mischung aus:
 | Cluster | Wo noch sichtbar | Was für die Umstellung nötig ist | Nutzen | Aufwand / Risiko |
 | --- | --- | --- | --- | --- |
 | `legacyProcessTypeKey` / `PrimaryLegacyProcessTypeKey` | `api/API/Services/WorkflowLifecycleService.cs`, `WorkflowRuntimeEngine*.cs`, `LifecycleStartupValidationExtensions.cs`, `PostgresWorkflowRuntimeRepository.cs`, `PostgresWorkflowRepository.MasterDataOperations.cs`, `WorkflowDefinitionAdminOperations.cs`, `web/src/hooks/adminWorkflowBuilderModel.ts`, `useAdminWorkflowVersionReferenceData.ts`, Seeds in `db/02_*.sql` | Gatekeeper-/Form-Konfiguration und Builder intern auf `workflowDefinitionKey` umstellen; Requirements/WorkflowConfig/Answer-Definition-Loads endgültig definitionsbasiert machen; Seed-JSON und Tests mitziehen | Entfernt die letzte echte Brücke zwischen Definition-Layer und Altwelt; weniger Sonderlogik in Runtime, Publish-Validierung und Builder | hoch / hoch |
-| Legacy-Status im Runtime-Pfad | `api/API/Services/WorkflowRuntimePlan.cs`, `WorkflowRuntimeEngine.cs`, `PostgresWorkflowRuntimeRepository.EngineAdapter.cs`, `WorkflowLifecycleService.cs`, `PostgresWorkflowRuntimeRepository.cs`, `WorkflowRuntimeEngineTests.cs` | Entscheiden, ob `workflows.status` nur noch kanonischer Runtime-Status ist oder ob eine zweite Projektion bewusst bleibt; danach `MapLegacyStatusForActiveNodes` und Persistenzpfad vereinheitlichen | Ein Statusmodell statt Mapping zwischen Runtime-Engine und Legacy-Stringlogik | mittel / mittel |
-| `processType`-Benennung in Read-DTOs | `api/API/Contracts/WorkflowDtos.cs` (`WorkflowProcessTypeDto`), Workflow-/Notification-/Link-Reads, `web/src/types/workflow.ts`, `web/src/services/api/mappers.ts` | Entweder bewusst als Fachbegriff einfrieren oder konsequent auf `workflowDefinition`-/`workflowCategory`-Sprache umbenennen; API- und FE-Types synchron ziehen | Weniger Begriffsdrift: Leser sehen sofort, dass die Daten aus `workflow_definitions` kommen und nicht aus einer alten `process_types`-Welt | mittel / niedrig |
-| Legacy-Sprache in Seeds und Tests | Beschreibungen in `db/02_bootstrap.sql` / `db/02_dev_seed.sql` ("mapped to the legacy ... task generator"), Test-Fixtures mit `legacyProcessTypeKey` und `ProcessType*`-Hilfsklassen | Nach dem großen Key-/DTO-Cut Seed-Texte, Fixture-Namen und Test-Helfer nachziehen | Räumt Restverwirrung aus künftigen Inventuren und Tests; kein direkter Produktnutzen, aber deutlicher Wartungsnutzen | niedrig / niedrig |
+| Legacy-Status im Runtime-Pfad | `api/API/Services/WorkflowRuntimePlan.cs`, `WorkflowRuntimeEngine.cs`, `PostgresWorkflowRuntimeRepository.EngineAdapter.cs`, `WorkflowRuntimeEngineTests.cs` | Die Mapping-Logik bleibt korrekt (`ComputeWorkflowStatusFromActiveNodes`); Benennung ist bereinigt. Einzig verbliebener Punkt: ggf. `legacyStatus` als SQL-Parametername in `WorkflowLifecycleService.cs` + `PostgresWorkflowRuntimeRepository.cs` nach großem Key-Cut nachziehen. | niedrig / niedrig nach Key-Cut |
+| Legacy-Sprache in Seeds und Tests | Test-Fixtures mit `legacyProcessTypeKey` in config_json (korrekt, weil Produktiv-JSON-Struktur) und `TemporaryProcessType`-Hilfsklassen in Integrationstests | Erst nach dem großen Key-Cut nachziehen; vorher wären die Fixture-Werte falsch | niedrig / niedrig |
 
 ---
 
@@ -56,10 +56,9 @@ Der wichtigste Resthebel ist heute die Mischung aus:
 
 1. ~~`setup`-Realitätscheck und Doku-Drift bereinigen~~ — ✓ erledigt 2026-05-11
 2. ~~Veraltete Doku-/ERD-Artefakte~~ — ✓ erledigt 2026-05-11 (ERD neu generiert, Migrationspfad + Zielarchitektur aktuell)
-3. `legacyProcessTypeKey` / `PrimaryLegacyProcessTypeKey` abschneiden. Das ist der eigentliche Kernrest des Legacy-Abbaus.
-4. Read-DTOs und API-Benennung auf den neuen Anker ziehen. Danach ist auch für Konsumenten klar, dass `workflow_definitions` die Quelle sind.
-5. Legacy-Status im Runtime-Pfad entfernen oder bewusst als Projektion festschreiben. Das sollte erst nach dem Key-Cut passieren, damit nicht zwei semantische Umbauten gleichzeitig laufen.
-6. Seed-/Test-Cleanup als Schlussarbeit. Erst dann lohnt sich die rein kosmetische Bereinigung breitflächig.
+3. ~~Read-DTOs und API-Benennung auf den neuen Anker ziehen~~ — ✓ erledigt 2026-05-11 (`WorkflowDefinitionRefDto`, `workflowDefinition`, `ComputedStatus`)
+4. `legacyProcessTypeKey` / `PrimaryLegacyProcessTypeKey` abschneiden. Das ist der eigentliche Kernrest des Legacy-Abbaus.
+5. Seed-/Test-Cleanup als Schlussarbeit (erst nach Key-Cut sinnvoll, da config_json-Fixtures vorher korrekt sind).
 
 ---
 

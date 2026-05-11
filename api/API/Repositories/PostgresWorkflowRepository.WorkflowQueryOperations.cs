@@ -133,7 +133,7 @@ ORDER BY w.created_at DESC;";
                     BadgeNumber = row.BadgeNumber,
                     DepartmentId = row.DepartmentId,
                     DepartmentName = row.DepartmentName,
-                    ProcessType = new WorkflowProcessTypeDto
+                    WorkflowDefinition = new WorkflowDefinitionRefDto
                     {
                         Key = row.LegacyProcessTypeKey,
                         Name = row.ProcessTypeName,
@@ -188,7 +188,7 @@ ORDER BY w.created_at DESC;";
                 BadgeNumber = row.BadgeNumber,
                 DepartmentId = row.DepartmentId,
                 DepartmentName = row.DepartmentName,
-                ProcessType = new WorkflowProcessTypeDto
+                WorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = row.LegacyProcessTypeKey,
                     Name = row.ProcessTypeName,
@@ -515,7 +515,7 @@ LIMIT 1;";
                 BadgeNumber = reader.GetInt32(6),
                 DepartmentId = reader.GetInt32(7),
                 DepartmentName = reader.GetString(8),
-                ProcessType = new WorkflowProcessTypeDto
+                WorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = reader.GetString(9),
                     Name = reader.GetString(10),

@@ -138,7 +138,7 @@ function WorkflowHistoryCard({
       <dl className="workflow-meta">
         <div>
           <dt>Prozesstyp</dt>
-          <dd>{workflow.processType.name}</dd>
+          <dd>{workflow.workflowDefinition.name}</dd>
         </div>
         <div>
           <dt>Stelle</dt>
@@ -408,7 +408,7 @@ function PersonOverviewSection({
               <li key={workflow.uid}>
                 <Link className="dashboard-work-item" to={`/workflows/${workflow.uid}`}>
                   <div>
-                    <div className="dashboard-work-item__title">{workflow.processType.name}</div>
+                    <div className="dashboard-work-item__title">{workflow.workflowDefinition.name}</div>
                     <div className="dashboard-work-item__detail">
                       {workflow.roleName} · {workflow.departmentName} · seit{" "}
                       {formatDateTime(workflow.createdAt)}
@@ -676,7 +676,7 @@ function PersonWorkflowsListSection({
         case "completed":
           return compareNullableDate(left.completedAt, right.completedAt);
         case "type":
-          return compareText(left.processType.name, right.processType.name);
+          return compareText(left.workflowDefinition.name, right.workflowDefinition.name);
         case "status":
           return compareText(
             getWorkflowRuntimeStatusLabel(left.workflowStatus),
@@ -801,7 +801,7 @@ function PersonWorkflowsListSection({
                             <span className="operational-cell-meta">{workflow.uid}</span>
                           </div>
                         </td>
-                        <td>{workflow.processType.name}</td>
+                        <td>{workflow.workflowDefinition.name}</td>
                         <td>
                           <span
                             className={`status-pill ${getWorkflowRuntimeStatusPillClass(
@@ -883,7 +883,7 @@ export default function PersonWorkflowHistoryPage() {
     () =>
       history !== null &&
       history.latestCompletedOnboardingWorkflowUid === null &&
-      !history.workflows.some((w) => w.processType.key === "onboarding"),
+      !history.workflows.some((w) => w.workflowDefinition.key === "onboarding"),
     [history]
   );
 

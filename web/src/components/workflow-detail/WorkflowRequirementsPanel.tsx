@@ -36,7 +36,7 @@ function getRequirementsDescription(
     return "In dieser Phase werden die Anforderungen regulär durch die zuständige Abteilungsleitung gepflegt. Diese Ansicht ist nur lesend.";
   }
 
-  return `Gespeicherte Anforderungen für diesen ${workflow.processType.name}-Vorgang.`;
+  return `Gespeicherte Anforderungen für diesen ${workflow.workflowDefinition.name}-Vorgang.`;
 }
 
 export default function WorkflowRequirementsPanel({

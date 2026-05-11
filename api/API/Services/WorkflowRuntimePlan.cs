@@ -85,13 +85,13 @@ internal abstract class RuntimeWorkflowOutcome
 // Workflow bleibt running, mindestens ein Wait-Node ist aktiv.
 internal sealed class WorkflowWaitOutcome : RuntimeWorkflowOutcome
 {
-    // Engine-derived Status aus MapLegacyStatusForActiveNodes. Apply MAY
-    // ueberschreiben, wenn RequiresStatusRecalc=true.
-    public required string LegacyStatus { get; init; }
+    // Engine-computed status from active node types. Apply MAY override when
+    // RequiresStatusRecalc=true (measure_* nodes active, DB recalc needed).
+    public required string ComputedStatus { get; init; }
 
     // Wenn nach Plan-Apply ein measure_*-Node aktiv ist, muss Apply
     // RecalculateAndPersistWorkflowStatusAsync aufrufen und das Ergebnis
-    // statt LegacyStatus persistieren. Diese DB-Recalc-Logik mit Tasks/
+    // statt ComputedStatus persistieren. Diese DB-Recalc-Logik mit Tasks/
     // Conditions/Dependencies kann die Engine nicht spiegeln, ohne den
     // gesamten Status-Algorithmus pure zu portieren.
     public required bool RequiresStatusRecalc { get; init; }

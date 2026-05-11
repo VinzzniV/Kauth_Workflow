@@ -31,7 +31,7 @@ export default function WorkflowHeaderPanel({
           </div>
 
           <div className="workflow-detail-chip-row">
-            <span className="chip" aria-label={`Prozesstyp: ${workflow.processType.name}`}>{workflow.processType.name}</span>
+            <span className="chip" aria-label={`Prozesstyp: ${workflow.workflowDefinition.name}`}>{workflow.workflowDefinition.name}</span>
             <span className="chip" aria-label={`Workflow-Status: ${toRuntimeStatusLabel(workflow.workflowStatus)}`}>Status: {toRuntimeStatusLabel(workflow.workflowStatus)}</span>
             <span className="chip" aria-label={`Aktuelle Phase: ${regularEditingText}`}>Phase: {regularEditingText}</span>
           </div>

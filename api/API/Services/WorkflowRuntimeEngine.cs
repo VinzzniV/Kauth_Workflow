@@ -197,7 +197,7 @@ internal static class WorkflowRuntimeEngine
             && string.Equals(evaluation.GatekeeperNodeKey, nodeKey, StringComparison.OrdinalIgnoreCase);
     }
 
-    public static string MapLegacyStatusForActiveNodes(
+    public static string ComputeWorkflowStatusFromActiveNodes(
         WorkflowDefinitionGraphRecord graph,
         IReadOnlyCollection<ActiveRuntimeNodeRecord> activeNodes,
         string? primaryLegacyProcessTypeKey,
@@ -493,7 +493,7 @@ internal static class WorkflowRuntimeEngine
 
         var hasMeasureActive = postActiveNodes.Any(n => IsMeasureGenerationNodeType(n.NodeType));
 
-        var legacyStatus = MapLegacyStatusForActiveNodes(
+        var computedStatus = ComputeWorkflowStatusFromActiveNodes(
             snapshot.Graph,
             postActiveNodes,
             snapshot.PrimaryLegacyProcessTypeKey,
@@ -504,7 +504,7 @@ internal static class WorkflowRuntimeEngine
             NodeSteps = nodeSteps,
             Outcome = new WorkflowWaitOutcome
             {
-                LegacyStatus = legacyStatus,
+                ComputedStatus = computedStatus,
                 RequiresStatusRecalc = hasMeasureActive
             }
         };

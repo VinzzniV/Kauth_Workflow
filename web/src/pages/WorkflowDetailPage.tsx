@@ -247,7 +247,7 @@ export default function WorkflowDetailPage() {
 
         <PageHeader
           variant="detail"
-          eyebrow={workflow?.processType.name}
+          eyebrow={workflow?.workflowDefinition.name}
           title={
             workflow
               ? `${workflow.firstName} ${workflow.lastName}`

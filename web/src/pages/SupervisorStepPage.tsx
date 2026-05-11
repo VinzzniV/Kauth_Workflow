@@ -131,15 +131,15 @@ export default function SupervisorStepPage() {
     const groups = assignedWorkflows.reduce<
       Array<{ processTypeKey: string; processTypeName: string; workflows: WorkflowSummary[] }>
     >((current, workflow) => {
-      const existingGroup = current.find((group) => group.processTypeKey === workflow.processType.key);
+      const existingGroup = current.find((group) => group.processTypeKey === workflow.workflowDefinition.key);
       if (existingGroup) {
         existingGroup.workflows.push(workflow);
         return current;
       }
 
       current.push({
-        processTypeKey: workflow.processType.key,
-        processTypeName: workflow.processType.name,
+        processTypeKey: workflow.workflowDefinition.key,
+        processTypeName: workflow.workflowDefinition.name,
         workflows: [workflow],
       });
       return current;
@@ -221,7 +221,7 @@ export default function SupervisorStepPage() {
                             {workflow.firstName} {workflow.lastName}
                           </h3>
                           <div className="chips-row" aria-label="Prozesstyp">
-                            <span className="chip">{workflow.processType.name}</span>
+                            <span className="chip">{workflow.workflowDefinition.name}</span>
                           </div>
                         </div>
                         <div className="stacked-status">

@@ -77,7 +77,7 @@ ORDER BY wl.created_at DESC;";
                 LinkedWorkflowLastName = reader.GetString(10),
                 LinkedWorkflowStatus = reader.GetString(11),
                 LinkedWorkflowCreatedAt = reader.GetDateTime(12),
-                LinkedWorkflowProcessType = new WorkflowProcessTypeDto
+                LinkedWorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = reader.GetString(13),
                     Name = reader.GetString(14),
@@ -140,7 +140,7 @@ ORDER BY related.created_at DESC;";
                 WorkflowStatus = reader.GetString(1),
                 CreatedAt = reader.GetDateTime(2),
                 DepartmentId = reader.GetInt32(3),
-                ProcessType = new WorkflowProcessTypeDto
+                WorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = reader.GetString(4),
                     Name = reader.GetString(5),
@@ -287,7 +287,7 @@ ORDER BY w.created_at DESC;";
                 Status = reader.GetString(5),
                 WorkflowStatus = reader.GetString(5), // same DB column
                 CreatedAt = reader.GetDateTime(6),
-                ProcessType = new WorkflowProcessTypeDto
+                WorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = reader.GetString(7),
                     Name = reader.GetString(8),
@@ -638,7 +638,7 @@ WHERE wl.id = @linkId;";
             LinkedWorkflowLastName = reader.GetString(10),
             LinkedWorkflowStatus = reader.GetString(11),
             LinkedWorkflowCreatedAt = reader.GetDateTime(12),
-            LinkedWorkflowProcessType = new WorkflowProcessTypeDto
+            LinkedWorkflowDefinition = new WorkflowDefinitionRefDto
             {
                 Key = reader.GetString(13),
                 Name = reader.GetString(14),

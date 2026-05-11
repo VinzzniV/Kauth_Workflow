@@ -2,7 +2,7 @@ import type {
   Department,
   DerivedAnswer,
   LinkableWorkflow,
-  ProcessType,
+  WorkflowDefinitionRef,
   RelatedWorkflowSummary,
   Role,
   WorkflowLink,
@@ -52,7 +52,7 @@ import type {
 
 export type BackendDepartmentDto = Department;
 export type BackendRoleDto = Role;
-export type BackendProcessTypeDto = ProcessType;
+export type BackendWorkflowDefinitionRefDto = WorkflowDefinitionRef;
 
 export type BackendRequirementOptionDto = {
   id: number;
@@ -136,7 +136,7 @@ export type BackendWorkflowConfigDto = {
 
 export type BackendWorkflowSummaryDto = {
   uid: string;
-  processType: BackendProcessTypeDto;
+  workflowDefinition: BackendWorkflowDefinitionRefDto;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -339,7 +339,7 @@ export type BackendWorkflowTaskDto = {
 
 export type BackendWorkflowDetailDto = {
   uid: string;
-  processType: BackendProcessTypeDto;
+  workflowDefinition: BackendWorkflowDefinitionRefDto;
   firstName: string;
   lastName: string;
   employeeNumber: number;
@@ -516,7 +516,7 @@ export type BackendAdminWorkflowActionDefinitionDto = {
 
 export type BackendPersonWorkflowSummaryDto = {
   uid: string;
-  processType: BackendProcessTypeDto;
+  workflowDefinition: BackendWorkflowDefinitionRefDto;
   firstName: string;
   lastName: string;
   roleName: string;

@@ -732,7 +732,7 @@ ORDER BY w.created_at DESC NULLS LAST;";
             workflows.Add(new PersonWorkflowSummaryDto
             {
                 Uid = reader.GetGuid(22),
-                ProcessType = new WorkflowProcessTypeDto
+                WorkflowDefinition = new WorkflowDefinitionRefDto
                 {
                     Key = reader.IsDBNull(34) ? reader.GetString(23) : reader.GetString(34),
                     Name = reader.IsDBNull(35) ? reader.GetString(24) : reader.GetString(35),

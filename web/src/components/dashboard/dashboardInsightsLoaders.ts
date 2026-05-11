@@ -133,7 +133,7 @@ export async function loadManagerInsights(options: DashboardInsightsOptions = {}
     getWorkflows({ workflowDefinitionKey: options.workflowDefinitionKey ?? null }),
   ]);
   const filteredSupervisorWorkflows = options.workflowDefinitionKey
-    ? supervisorWorkflows.filter((workflow) => workflow.processType.key === options.workflowDefinitionKey)
+    ? supervisorWorkflows.filter((workflow) => workflow.workflowDefinition.key === options.workflowDefinitionKey)
     : supervisorWorkflows;
   const relevantWorkflows = visibleWorkflows.filter(
     (workflow) => !isWorkflowTerminalStatus(workflow.workflowStatus) || isRecentlyCompletedWorkflow(workflow, nowEpoch)
@@ -172,7 +172,7 @@ export async function loadManagerInsights(options: DashboardInsightsOptions = {}
         name: `${workflow.firstName} ${workflow.lastName}`.trim() || "Unbekannter Mitarbeitender",
         roleName: workflow.roleName,
         departmentName: shouldShowDepartmentName ? workflow.departmentName : null,
-        processTypeName: workflow.processType.name,
+        processTypeName: workflow.workflowDefinition.name,
         workflowStatus: workflow.workflowStatus,
         contextText: getManagerWorkflowContextText(workflow),
         dateLabel: isCompleted ? "Abgeschlossen" : "Gestartet",

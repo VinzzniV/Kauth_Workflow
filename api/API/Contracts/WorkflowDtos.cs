@@ -194,7 +194,7 @@ public sealed class WorkflowTaskAreaSummaryDto
     public required WorkflowTaskCountSummaryDto Counts { get; init; }
 }
 
-public sealed class WorkflowProcessTypeDto
+public sealed class WorkflowDefinitionRefDto
 {
     public required string Key { get; init; }
     public required string Name { get; init; }
@@ -212,7 +212,7 @@ public sealed class WorkflowListItemDto
     public required int BadgeNumber { get; init; }
     public required int DepartmentId { get; init; }
     public required string DepartmentName { get; init; }
-    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required WorkflowDefinitionRefDto WorkflowDefinition { get; init; }
     public required int RoleId { get; init; }
     public required string RoleName { get; init; }
     public required string WorkflowStatus { get; init; }
@@ -465,7 +465,7 @@ public sealed class WorkflowDetailDto
     public required int BadgeNumber { get; init; }
     public required int DepartmentId { get; init; }
     public required string DepartmentName { get; init; }
-    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required WorkflowDefinitionRefDto WorkflowDefinition { get; init; }
     public required int RoleId { get; init; }
     public required string RoleName { get; init; }
     public required string WorkflowStatus { get; init; }
@@ -521,7 +521,7 @@ public sealed class WorkflowLinkDto
     public required string LinkType { get; init; }
     public required string LinkedWorkflowFirstName { get; init; }
     public required string LinkedWorkflowLastName { get; init; }
-    public required WorkflowProcessTypeDto LinkedWorkflowProcessType { get; init; }
+    public required WorkflowDefinitionRefDto LinkedWorkflowDefinition { get; init; }
     public required string LinkedWorkflowStatus { get; init; }
     public required DateTime LinkedWorkflowCreatedAt { get; init; }
     public string? Notes { get; init; }
@@ -540,7 +540,7 @@ public sealed class CreateWorkflowLinkRequest
 public sealed class LinkableWorkflowDto
 {
     public required Guid Uid { get; init; }
-    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required WorkflowDefinitionRefDto WorkflowDefinition { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
     public required int EmployeeNumber { get; init; }
@@ -553,7 +553,7 @@ public sealed class LinkableWorkflowDto
 public sealed class RelatedWorkflowSummaryDto
 {
     public required Guid Uid { get; init; }
-    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required WorkflowDefinitionRefDto WorkflowDefinition { get; init; }
     public required string WorkflowStatus { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required int DepartmentId { get; init; }
@@ -610,8 +610,8 @@ public sealed class DerivedAnswerDto
     public string? SelectedOptionValue { get; init; }
 }
 
-// Admin-Verwaltung: Prozesstypen
-public sealed class AdminProcessTypeDto
+// Admin-Verwaltung: Workflow-Definitionen
+public sealed class AdminWorkflowDefinitionDto
 {
     public required int Id { get; init; }
     public required string Key { get; init; }
@@ -718,7 +718,7 @@ public sealed class AdminDependencyGraphDto
     public required List<AdminDependencyGraphEdgeDto> Edges { get; init; }
 }
 
-public sealed class AdminProcessTypeUpdateRequest
+public sealed class AdminWorkflowDefinitionUpdateRequest
 {
     public string? Name { get; init; }
     public string? Description { get; init; }
@@ -793,7 +793,7 @@ public sealed class AdminRoleAnswerDefaultsBulkUpsertRequest
 public sealed class PersonWorkflowSummaryDto
 {
     public required Guid Uid { get; init; }
-    public required WorkflowProcessTypeDto ProcessType { get; init; }
+    public required WorkflowDefinitionRefDto WorkflowDefinition { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
     public required string RoleName { get; init; }
