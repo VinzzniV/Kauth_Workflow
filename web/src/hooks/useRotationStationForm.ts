@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../components/feedback/useToast";
 import {
@@ -75,10 +75,16 @@ export function useRotationStationForm({
   const { showError, showSuccess } = useToast();
 
   const [editingStationId, setEditingStationId] = useState<number | null>(null);
-  const [stationForm, setStationForm] = useState<StationFormState>(createEmptyStationForm());
+  const [stationForm, setStationForm] = useState<StationFormState>(() => createEmptyStationForm(orderedStationsCount));
   const [isSavingStation, setIsSavingStation] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [deletingStationId, setDeletingStationId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (editingStationId === null) {
+      setStationForm(prev => ({ ...prev, orderIndex: String(orderedStationsCount) }));
+    }
+  }, [orderedStationsCount, editingStationId]);
 
   async function reloadPlanData() {
     await Promise.all([

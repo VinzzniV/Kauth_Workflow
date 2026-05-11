@@ -150,6 +150,7 @@ export default function RotationPlanDetailPage() {
               isDepartmentsLoading={departmentsQuery.isLoading}
               isSavingStation={stationForm.isSavingStation}
               editingStationId={stationForm.editingStationId}
+              stations={orderedStations}
               onSave={() => void stationForm.handleSaveStation()}
               onReset={stationForm.resetStationForm}
             />

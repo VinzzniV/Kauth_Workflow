@@ -1,6 +1,7 @@
 import type { Department } from "../../types/workflow";
-import type { RotationStationStatus } from "../../types/rotation";
+import type { RotationStation, RotationStationStatus } from "../../types/rotation";
 import type { StationFormState } from "../../hooks/useRotationStationForm";
+import StationDateRangePicker from "./StationDateRangePicker";
 
 export type RotationStationFormCardProps = {
   stationForm: StationFormState;
@@ -9,6 +10,7 @@ export type RotationStationFormCardProps = {
   isDepartmentsLoading: boolean;
   isSavingStation: boolean;
   editingStationId: number | null;
+  stations: RotationStation[];
   onSave: () => void;
   onReset: () => void;
 };
@@ -20,6 +22,7 @@ export default function RotationStationFormCard({
   isDepartmentsLoading,
   isSavingStation,
   editingStationId,
+  stations,
   onSave,
   onReset,
 }: RotationStationFormCardProps) {
@@ -49,26 +52,20 @@ export default function RotationStationFormCard({
               ))}
             </select>
           </label>
-          <label className="field compact">
-            <span>Startdatum</span>
-            <input
-              type="date"
-              value={stationForm.startDate}
-              onChange={(event) =>
-                setStationForm((current) => ({ ...current, startDate: event.target.value }))
-              }
-            />
-          </label>
-          <label className="field compact">
-            <span>Enddatum</span>
-            <input
-              type="date"
-              value={stationForm.endDate}
-              onChange={(event) =>
-                setStationForm((current) => ({ ...current, endDate: event.target.value }))
-              }
-            />
-          </label>
+
+          <StationDateRangePicker
+            startDate={stationForm.startDate}
+            endDate={stationForm.endDate}
+            onStartDateChange={(date) =>
+              setStationForm((current) => ({ ...current, startDate: date }))
+            }
+            onEndDateChange={(date) =>
+              setStationForm((current) => ({ ...current, endDate: date }))
+            }
+            stations={stations}
+            editingStationId={editingStationId}
+          />
+
           <label className="field compact">
             <span>Status</span>
             <select
