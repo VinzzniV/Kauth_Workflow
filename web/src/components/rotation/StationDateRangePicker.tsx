@@ -142,39 +142,36 @@ export default function StationDateRangePicker({
 
   return (
     <div>
-      <div style={{ display: "flex", gap: "12px", marginBottom: "10px" }}>
-        <label className="field compact" style={{ flex: 1 }}>
-          <span>Startdatum</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              onStartDateChange(e.target.value);
-              if (e.target.value) setIsPickingEnd(true);
-              else setIsPickingEnd(false);
-            }}
-          />
-        </label>
-        <label className="field compact" style={{ flex: 1 }}>
-          <span>Enddatum</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              onEndDateChange(e.target.value);
-              if (e.target.value) setIsPickingEnd(false);
-            }}
-          />
-        </label>
-      </div>
+      <label className="field compact">
+        <span>Startdatum</span>
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => {
+            onStartDateChange(e.target.value);
+            setIsPickingEnd(!!e.target.value);
+          }}
+        />
+      </label>
+      <label className="field compact">
+        <span>Enddatum</span>
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => {
+            onEndDateChange(e.target.value);
+            if (e.target.value) setIsPickingEnd(false);
+          }}
+        />
+      </label>
 
       <div
         style={{
           border: "1px solid var(--border)",
           borderRadius: "6px",
           overflow: "hidden",
-          maxWidth: "264px",
           fontSize: "0.78rem",
+          marginTop: "10px",
         }}
       >
         {/* Month navigation */}
