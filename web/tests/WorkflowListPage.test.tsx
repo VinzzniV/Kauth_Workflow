@@ -41,8 +41,8 @@ describe("WorkflowListPage", () => {
     mockedGetStartableWorkflowDefinitions.mockReset();
     mockedGetWorkflowPage.mockReset();
     mockedGetStartableWorkflowDefinitions.mockResolvedValue([
-      { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, primaryLegacyProcessTypeKey: "onboarding", latestPublishedVersionNumber: 1 },
-      { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
+      { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, latestPublishedVersionNumber: 1 },
+      { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, latestPublishedVersionNumber: 1 },
     ]);
   });
 

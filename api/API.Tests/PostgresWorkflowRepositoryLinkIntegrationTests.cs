@@ -57,22 +57,22 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
             "integration-admin@kauth.local",
             "Integration Admin");
 
-        var sourceProcessType = await CreateTemporaryProcessTypeAsync(connectionString, "source");
-        var targetProcessType = await CreateTemporaryProcessTypeAsync(connectionString, "target");
+        var sourceWorkflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString, "source");
+        var targetWorkflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString, "target");
 
         var sourceAnswer = await InsertSelectAnswerDefinitionWithOptionAsync(
             connectionString,
-            sourceProcessType.ProcessTypeId,
-            $"src_select_{sourceProcessType.Suffix}",
+            sourceWorkflowDefinition.WorkflowDefinitionId,
+            $"src_select_{sourceWorkflowDefinition.Suffix}",
             "shared_value");
         var targetAnswer = await InsertSelectAnswerDefinitionWithOptionAsync(
             connectionString,
-            targetProcessType.ProcessTypeId,
-            $"tgt_select_{targetProcessType.Suffix}",
+            targetWorkflowDefinition.WorkflowDefinitionId,
+            $"tgt_select_{targetWorkflowDefinition.Suffix}",
             "shared_value");
 
-        var sourceWorkflow = await CreateWorkflowAsync(connectionString, departmentId, roleId, sourceProcessType.ProcessTypeKey);
-        var targetWorkflow = await CreateWorkflowAsync(connectionString, departmentId, roleId, targetProcessType.ProcessTypeKey);
+        var sourceWorkflow = await CreateWorkflowAsync(connectionString, departmentId, roleId, sourceWorkflowDefinition.WorkflowDefinitionKey);
+        var targetWorkflow = await CreateWorkflowAsync(connectionString, departmentId, roleId, targetWorkflowDefinition.WorkflowDefinitionKey);
 
         await InsertWorkflowAnswerAsync(
             connectionString,
@@ -82,8 +82,8 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
             sourceAnswer.OptionId);
         await InsertDerivationRuleAsync(
             connectionString,
-            sourceProcessType.ProcessTypeId,
-            targetProcessType.ProcessTypeId,
+            sourceWorkflowDefinition.WorkflowDefinitionId,
+            targetWorkflowDefinition.WorkflowDefinitionId,
             sourceAnswer.AnswerKey,
             targetAnswer.AnswerKey,
             "copy_selected_option");
@@ -110,8 +110,8 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         {
             await CleanupWorkflowAsync(connectionString, sourceWorkflow.WorkflowId);
             await CleanupWorkflowAsync(connectionString, targetWorkflow.WorkflowId);
-            await CleanupTemporaryProcessTypeAsync(connectionString, sourceProcessType);
-            await CleanupTemporaryProcessTypeAsync(connectionString, targetProcessType);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, sourceWorkflowDefinition);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, targetWorkflowDefinition);
         }
     }
 
@@ -216,10 +216,10 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
             ?? throw new InvalidOperationException($"Role '{roleKey}' not found."));
     }
 
-    private static async Task<TemporaryProcessType> CreateTemporaryProcessTypeAsync(string connectionString, string prefix)
+    private static async Task<TemporaryWorkflowDefinition> CreateTemporaryWorkflowDefinitionAsync(string connectionString, string prefix)
     {
         var suffix = Guid.NewGuid().ToString("N");
-        var processTypeKey = $"it_{prefix}_{suffix}";
+        var workflowDefinitionKey = $"it_{prefix}_{suffix}";
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -246,23 +246,23 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
             RETURNING id;
             """,
             connection);
-        command.Parameters.AddWithValue("key", processTypeKey);
+        command.Parameters.AddWithValue("key", workflowDefinitionKey);
         command.Parameters.AddWithValue("name", $"Integration {prefix} {suffix}");
 
-        var processTypeId = (int)(await command.ExecuteScalarAsync()
+        var workflowDefinitionId = (int)(await command.ExecuteScalarAsync()
             ?? throw new InvalidOperationException("Temporary process type could not be created."));
 
-        return new TemporaryProcessType
+        return new TemporaryWorkflowDefinition
         {
-            ProcessTypeId = processTypeId,
-            ProcessTypeKey = processTypeKey,
+            WorkflowDefinitionId = workflowDefinitionId,
+            WorkflowDefinitionKey = workflowDefinitionKey,
             Suffix = suffix
         };
     }
 
     private static async Task<SelectAnswerDefinition> InsertSelectAnswerDefinitionWithOptionAsync(
         string connectionString,
-        int processTypeId,
+        int workflowDefinitionId,
         string answerKey,
         string optionValue)
     {
@@ -286,7 +286,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                              is_active
                          )
                          VALUES (
-                             @processTypeId,
+                             @workflowDefinitionId,
                              @answerKey,
                              'Integration Select',
                              'general',
@@ -302,7 +302,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                          connection,
                          transaction))
         {
-            definitionCommand.Parameters.AddWithValue("processTypeId", processTypeId);
+            definitionCommand.Parameters.AddWithValue("workflowDefinitionId", workflowDefinitionId);
             definitionCommand.Parameters.AddWithValue("answerKey", answerKey);
             answerDefinitionId = (int)(await definitionCommand.ExecuteScalarAsync()
                 ?? throw new InvalidOperationException("Answer definition could not be created."));
@@ -352,7 +352,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         string connectionString,
         int departmentId,
         int roleId,
-        string processTypeKey)
+        string workflowDefinitionKey)
     {
         var suffix = Guid.NewGuid().ToString("N");
         var employeeNumber = Math.Abs(suffix[..8].GetHashCode());
@@ -373,7 +373,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                 status
             )
             VALUES (
-                (SELECT id FROM workflow_definitions WHERE definition_key = @processTypeKey),
+                (SELECT id FROM workflow_definitions WHERE definition_key = @workflowDefinitionKey),
                 @departmentId,
                 @roleId,
                 'Integration',
@@ -385,7 +385,7 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
             RETURNING id, uid;
             """,
             connection);
-        command.Parameters.AddWithValue("processTypeKey", processTypeKey);
+        command.Parameters.AddWithValue("workflowDefinitionKey", workflowDefinitionKey);
         command.Parameters.AddWithValue("departmentId", departmentId);
         command.Parameters.AddWithValue("roleId", roleId);
         command.Parameters.AddWithValue("lastName", suffix);
@@ -441,8 +441,8 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
 
     private static async Task InsertDerivationRuleAsync(
         string connectionString,
-        int sourceProcessTypeId,
-        int targetProcessTypeId,
+        int sourceWorkflowDefinitionId,
+        int targetWorkflowDefinitionId,
         string sourceAnswerKey,
         string targetAnswerKey,
         string derivationKind)
@@ -461,8 +461,8 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
                 sort_order
             )
             VALUES (
-                @sourceProcessTypeId,
-                @targetProcessTypeId,
+                @sourceWorkflowDefinitionId,
+                @targetWorkflowDefinitionId,
                 @sourceAnswerKey,
                 @targetAnswerKey,
                 @derivationKind,
@@ -471,8 +471,8 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
             );
             """,
             connection);
-        command.Parameters.AddWithValue("sourceProcessTypeId", sourceProcessTypeId);
-        command.Parameters.AddWithValue("targetProcessTypeId", targetProcessTypeId);
+        command.Parameters.AddWithValue("sourceWorkflowDefinitionId", sourceWorkflowDefinitionId);
+        command.Parameters.AddWithValue("targetWorkflowDefinitionId", targetWorkflowDefinitionId);
         command.Parameters.AddWithValue("sourceAnswerKey", sourceAnswerKey);
         command.Parameters.AddWithValue("targetAnswerKey", targetAnswerKey);
         command.Parameters.AddWithValue("derivationKind", derivationKind);
@@ -589,40 +589,40 @@ public sealed class PostgresWorkflowRepositoryLinkIntegrationTests
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task CleanupTemporaryProcessTypeAsync(string connectionString, TemporaryProcessType processType)
+    private static async Task CleanupTemporaryWorkflowDefinitionAsync(string connectionString, TemporaryWorkflowDefinition workflowDefinition)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(
             """
             DELETE FROM workflow_answer_derivation_rules
-            WHERE source_workflow_definition_id = @processTypeId
-               OR target_workflow_definition_id = @processTypeId;
+            WHERE source_workflow_definition_id = @workflowDefinitionId
+               OR target_workflow_definition_id = @workflowDefinitionId;
 
             DELETE FROM workflow_answer_options
             WHERE answer_definition_id IN (
                 SELECT id
                 FROM workflow_answer_definitions
-                WHERE workflow_definition_id = @processTypeId
+                WHERE workflow_definition_id = @workflowDefinitionId
             );
 
             DELETE FROM workflow_answer_definitions
-            WHERE workflow_definition_id = @processTypeId;
+            WHERE workflow_definition_id = @workflowDefinitionId;
 
             DELETE FROM workflow_definitions
-            WHERE id = @processTypeId
-              AND definition_key = @processTypeKey;
+            WHERE id = @workflowDefinitionId
+              AND definition_key = @workflowDefinitionKey;
             """,
             connection);
-        command.Parameters.AddWithValue("processTypeId", processType.ProcessTypeId);
-        command.Parameters.AddWithValue("processTypeKey", processType.ProcessTypeKey);
+        command.Parameters.AddWithValue("workflowDefinitionId", workflowDefinition.WorkflowDefinitionId);
+        command.Parameters.AddWithValue("workflowDefinitionKey", workflowDefinition.WorkflowDefinitionKey);
         await command.ExecuteNonQueryAsync();
     }
 
-    private sealed class TemporaryProcessType
+    private sealed class TemporaryWorkflowDefinition
     {
-        public required int ProcessTypeId { get; init; }
-        public required string ProcessTypeKey { get; init; }
+        public required int WorkflowDefinitionId { get; init; }
+        public required string WorkflowDefinitionKey { get; init; }
         public required string Suffix { get; init; }
     }
 

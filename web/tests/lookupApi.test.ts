@@ -24,7 +24,6 @@ describe("lookupApi.getStartableWorkflowDefinitions", () => {
           name: "Onboarding",
           description: "Neue Person anlegen",
           requiresTargetPerson: false,
-          primaryLegacyProcessTypeKey: "onboarding",
           latestPublishedVersionNumber: 3,
         },
       ])
@@ -34,7 +33,6 @@ describe("lookupApi.getStartableWorkflowDefinitions", () => {
           name: "Abteilungswechsel",
           description: "Bestehende Person versetzen",
           requiresTargetPerson: true,
-          primaryLegacyProcessTypeKey: "department_change",
           latestPublishedVersionNumber: 2,
         },
       ]);

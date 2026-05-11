@@ -108,7 +108,7 @@ describe("dashboardInsights", () => {
 
     const insights = await loadDashboardInsights("hr", {
       workflowDefinitionKey: "onboarding",
-      selectedWorkflowDefinition: { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, primaryLegacyProcessTypeKey: "onboarding", latestPublishedVersionNumber: 1 },
+      selectedWorkflowDefinition: { definitionKey: "onboarding", name: "Onboarding", requiresTargetPerson: false, latestPublishedVersionNumber: 1 },
     });
 
     expect(mockedGetWorkflows).toHaveBeenCalledWith(expect.objectContaining({ workflowDefinitionKey: "onboarding" }));
@@ -158,7 +158,7 @@ describe("dashboardInsights", () => {
 
     const insights = await loadDashboardInsights("manager", {
       workflowDefinitionKey: "offboarding",
-      selectedWorkflowDefinition: { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, primaryLegacyProcessTypeKey: "offboarding", latestPublishedVersionNumber: 1 },
+      selectedWorkflowDefinition: { definitionKey: "offboarding", name: "Offboarding", requiresTargetPerson: true, latestPublishedVersionNumber: 1 },
     });
 
     expect(insights.stats[0]?.value).toBe(1); // waitingForSupervisor (offboarding only)

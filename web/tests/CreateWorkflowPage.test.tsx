@@ -160,7 +160,7 @@ describe("CreateWorkflowPage", () => {
         name: "Abteilungswechsel",
         description: "Mitarbeiter in eine neue Abteilung versetzen.",
         requiresTargetPerson: true,
-        primaryLegacyProcessTypeKey: "department_change",
+
         latestPublishedVersionNumber: 1,
       },
     ]);
@@ -179,7 +179,7 @@ describe("CreateWorkflowPage", () => {
         name: "Onboarding",
         description: "Neue Person anlegen.",
         requiresTargetPerson: false,
-        primaryLegacyProcessTypeKey: "onboarding",
+
         latestPublishedVersionNumber: 1,
       },
       {
@@ -187,7 +187,7 @@ describe("CreateWorkflowPage", () => {
         name: "Offboarding",
         description: "Bestehende Person austreten lassen.",
         requiresTargetPerson: true,
-        primaryLegacyProcessTypeKey: "offboarding",
+
         latestPublishedVersionNumber: 1,
       },
     ]);
@@ -211,7 +211,7 @@ describe("CreateWorkflowPage", () => {
         name: "Abteilungswechsel",
         description: "Bestehende Person in eine neue Abteilung verschieben.",
         requiresTargetPerson: true,
-        primaryLegacyProcessTypeKey: "department_change",
+
         latestPublishedVersionNumber: 1,
       },
     ]);
@@ -234,7 +234,7 @@ describe("CreateWorkflowPage", () => {
         name: "Abteilungswechsel",
         description: "Bestehende Person in eine neue Abteilung verschieben.",
         requiresTargetPerson: true,
-        primaryLegacyProcessTypeKey: "department_change",
+
         latestPublishedVersionNumber: 1,
       },
     ]);
@@ -261,7 +261,7 @@ describe("CreateWorkflowPage", () => {
         name: "Onboarding",
         description: "Neue Person anlegen.",
         requiresTargetPerson: false,
-        primaryLegacyProcessTypeKey: "onboarding",
+
         latestPublishedVersionNumber: 1,
       },
       {
@@ -269,7 +269,7 @@ describe("CreateWorkflowPage", () => {
         name: "Offboarding",
         description: "Bestehende Person auswählen.",
         requiresTargetPerson: true,
-        primaryLegacyProcessTypeKey: "offboarding",
+
         latestPublishedVersionNumber: 1,
       },
     ]);
@@ -306,7 +306,7 @@ describe("CreateWorkflowPage", () => {
         name: "Onboarding",
         description: "Neue Person anlegen.",
         requiresTargetPerson: false,
-        primaryLegacyProcessTypeKey: "onboarding",
+
         latestPublishedVersionNumber: 1,
       },
     ]);
@@ -338,7 +338,7 @@ describe("CreateWorkflowPage", () => {
         name: "Onboarding",
         description: "Neue Person anlegen.",
         requiresTargetPerson: false,
-        primaryLegacyProcessTypeKey: "onboarding",
+
         latestPublishedVersionNumber: 1,
       },
     ]);
@@ -388,7 +388,7 @@ describe("CreateWorkflowPage", () => {
         name: "Abteilungswechsel",
         description: "Bestehende Person in eine neue Abteilung verschieben.",
         requiresTargetPerson: true,
-        primaryLegacyProcessTypeKey: "department_change",
+
         latestPublishedVersionNumber: 1,
       },
     ]);

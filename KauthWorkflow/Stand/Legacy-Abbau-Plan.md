@@ -74,7 +74,7 @@ Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der R
 | `LegacyProcessTypeKey` / `ProcessTypeName` in Notification-DTOs und Link-Lookup | erledigt 2026-05-11 | `WorkflowNotificationDispatchTarget`, `WorkflowNotificationRenderContext`, `WorkflowLinkLookupRecord` + alle 8 Consumer-Dateien auf `WorkflowDefinitionKey` / `WorkflowDefinitionName` umbenannt. Kein Semantik-Change. |
 | Internes `processType*`-Naming in Backend-Workflow-Pfaden | erledigt 2026-05-11 | `WorkflowStatusRules`, `PostgresWorkflowStatusCalculationService`, `PostgresRepositorySharedHelpers` (`WorkflowTaskGenerationContext`), `PostgresWorkflowTaskGenerationService`, `PostgresWorkflowRepository.*` (Create-/QueryOperations, lokaler Record), `NotificationEmailTemplateBuilder`, `NotificationTemplateService`, `WorkflowLifecycleService` + Tests: `processTypeName`/`processTypeKey`/`ProcessTypeCreateRecord`/`ResolveProcessTypeEmailContext` → `workflowDefinitionName`/`workflowDefinitionKey`/`WorkflowDefinitionCreateRecord`/`ResolveWorkflowDefinitionEmailContext`. Fehlermeldungen entlegacyt. Kein Semantik-Change. |
 | Legacy-Status im Runtime-Pfad | erledigt 2026-05-11 | `legacyStatus` als SQL-Parametername in `WorkflowLifecycleService.cs` + `PostgresWorkflowRuntimeRepository.cs` auf `workflowStatus` umbenannt. Kein Semantik-Change. |
-| Legacy-Sprache in Seeds und Tests | Test-Fixtures mit `legacyProcessTypeKey` in config_json (korrekt, weil Produktiv-JSON-Struktur) und `TemporaryProcessType`-Hilfsklassen in Integrationstests | Erst nach dem großen Key-Cut nachziehen; vorher wären die Fixture-Werte falsch | niedrig / niedrig |
+| Legacy-Sprache in Seeds und Tests | erledigt 2026-05-11 | `TemporaryProcessType`-Hilfsklassen in AdminConfig- und Link-Integrationstests → `TemporaryWorkflowDefinition`; alle lokalen Vars, Parameter und SQL-@params mitgezogen. `primaryLegacyProcessTypeKey` aus FE-Test-Fixtures entfernt (Property nicht mehr im Typ). Stub-Parameternamen `legacyProcessTypeKey` → `workflowDefinitionKey` in `WorkflowLifecycleServiceTests`. `legacyProcessTypeKey` in config_json-Fixtures bleibt (korrekt, da Produktiv-JSON-Fallback-Struktur). |
 
 ---
 
@@ -89,6 +89,7 @@ Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der R
 7. ~~Internes `processType*`-Naming in Backend-Workflow-Pfaden bereinigen~~ — ✓ erledigt 2026-05-11 (WorkflowStatusRules, PostgresWorkflowStatusCalculationService, WorkflowTaskGenerationContext, WorkflowCreateOperations, WorkflowQueryOperations, NotificationEmailTemplateBuilder + Consumer).
 8. ~~`legacyStatus` als SQL-/Parameter-Name im Runtime-/Lifecycle-Pfad~~ — ✓ erledigt 2026-05-11 (`WorkflowLifecycleService.cs`, `PostgresWorkflowRuntimeRepository.cs`: `legacyStatus` → `workflowStatus`).
 9. ~~`CompletedOnboarding*`-Fachbegriff-Rest in BE/FE~~ — ✓ erledigt 2026-05-11 (`GetCompletedOnboardingSource` → `GetSourceWorkflow`; DTO-Properties und FE-Typen auf `LatestSourceWorkflowUid`/`CompletedAt`; UI-Labels entlegacyt).
+10. ~~Test-/Fixture-Hygiene für verbliebene Legacy-Benennung~~ — ✓ erledigt 2026-05-11 (`TemporaryProcessType` → `TemporaryWorkflowDefinition`; `primaryLegacyProcessTypeKey` aus FE-Fixtures; Stub-Params in `WorkflowLifecycleServiceTests`).
 
 ---
 

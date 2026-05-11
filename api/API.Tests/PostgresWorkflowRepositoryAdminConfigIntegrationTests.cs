@@ -202,15 +202,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplate_CRUD_Works()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var created = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"test_tmpl_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"test_tmpl_{workflowDefinition.Suffix}",
                     Title = "Test Task",
                     Category = "general",
                     Description = "Test description",
@@ -221,8 +221,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                     IsActive = true
                 }));
 
-            Assert.Equal(processType.Id, created.WorkflowDefinitionId);
-            Assert.Equal($"test_tmpl_{processType.Suffix}", created.TemplateKey);
+            Assert.Equal(workflowDefinition.Id, created.WorkflowDefinitionId);
+            Assert.Equal($"test_tmpl_{workflowDefinition.Suffix}", created.TemplateKey);
             Assert.Equal("Test Task", created.Title);
             Assert.Equal(5, created.DueInDays);
             Assert.Equal(0, created.ConditionCount);
@@ -231,8 +231,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var updated = await WithRepositoryAsync(connectionString, repo =>
                 repo.UpdateAdminTaskTemplate(created.Id, new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"test_tmpl_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"test_tmpl_{workflowDefinition.Suffix}",
                     Title = "Updated Task",
                     Category = "general",
                     Description = "Updated description",
@@ -250,7 +250,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.True(updated.IsActive);
 
             var listPage = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplates(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+                repo.GetAdminTaskTemplates(workflowDefinition.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
             var list = listPage.Items;
 
             Assert.Single(list);
@@ -262,14 +262,14 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.True(deleted);
 
             var listAfterDeletePage = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplates(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+                repo.GetAdminTaskTemplates(workflowDefinition.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
             var listAfterDelete = listAfterDeletePage.Items;
 
             Assert.Empty(listAfterDelete);
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -278,15 +278,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplate_RejectsDuplicateTemplateKey()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"dup_key_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"dup_key_{workflowDefinition.Suffix}",
                     Title = "First",
                     Category = "general",
                     Description = "",
@@ -300,8 +300,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 WithRepositoryAsync(connectionString, repo =>
                     repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                     {
-                        WorkflowDefinitionId = processType.Id,
-                        TemplateKey = $"dup_key_{processType.Suffix}",
+                        WorkflowDefinitionId = workflowDefinition.Id,
+                        TemplateKey = $"dup_key_{workflowDefinition.Suffix}",
                         Title = "Second",
                         Category = "general",
                         Description = "",
@@ -315,7 +315,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -324,7 +324,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplate_RejectsMissingTitle()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
@@ -332,8 +332,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 WithRepositoryAsync(connectionString, repo =>
                     repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                     {
-                        WorkflowDefinitionId = processType.Id,
-                        TemplateKey = $"no_title_{processType.Suffix}",
+                        WorkflowDefinitionId = workflowDefinition.Id,
+                        TemplateKey = $"no_title_{workflowDefinition.Suffix}",
                         Title = "",
                         Category = "general",
                         Description = "",
@@ -347,7 +347,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -358,18 +358,18 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateCondition_CRUD_Works()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
-        var answerKey = $"cond_answer_{processType.Suffix}";
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var answerKey = $"cond_answer_{workflowDefinition.Suffix}";
 
         try
         {
-            await InsertAnswerDefinitionAsync(connectionString, processType.Id, answerKey);
+            await InsertAnswerDefinitionAsync(connectionString, workflowDefinition.Id, answerKey);
 
             var template = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"cond_tmpl_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"cond_tmpl_{workflowDefinition.Suffix}",
                     Title = "Condition Test",
                     Category = "general",
                     Description = "",
@@ -413,7 +413,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -422,18 +422,18 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateCondition_RejectsInvalidOperator()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
-        var answerKey = $"op_answer_{processType.Suffix}";
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var answerKey = $"op_answer_{workflowDefinition.Suffix}";
 
         try
         {
-            await InsertAnswerDefinitionAsync(connectionString, processType.Id, answerKey);
+            await InsertAnswerDefinitionAsync(connectionString, workflowDefinition.Id, answerKey);
 
             var template = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"op_tmpl_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"op_tmpl_{workflowDefinition.Suffix}",
                     Title = "Op Test",
                     Category = "general",
                     Description = "",
@@ -456,7 +456,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -465,19 +465,19 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateCondition_RejectsAnswerKeyFromDifferentProcessType()
     {
         var connectionString = GetTestConnectionString();
-        var processType1 = await CreateTemporaryProcessTypeAsync(connectionString);
-        var processType2 = await CreateTemporaryProcessTypeAsync(connectionString);
-        var answerKey = $"cross_answer_{processType2.Suffix}";
+        var workflowDefinition1 = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var workflowDefinition2 = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var answerKey = $"cross_answer_{workflowDefinition2.Suffix}";
 
         try
         {
-            await InsertAnswerDefinitionAsync(connectionString, processType2.Id, answerKey);
+            await InsertAnswerDefinitionAsync(connectionString, workflowDefinition2.Id, answerKey);
 
             var template = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType1.Id,
-                    TemplateKey = $"cross_tmpl_{processType1.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition1.Id,
+                    TemplateKey = $"cross_tmpl_{workflowDefinition1.Suffix}",
                     Title = "Cross Process Test",
                     Category = "general",
                     Description = "",
@@ -501,8 +501,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType1.Id, processType1.Suffix);
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType2.Id, processType2.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition1.Id, workflowDefinition1.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition2.Id, workflowDefinition2.Suffix);
         }
     }
 
@@ -513,15 +513,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateDependency_CRUD_Works()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var templateA = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"dep_a_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"dep_a_{workflowDefinition.Suffix}",
                     Title = "Task A",
                     Category = "general",
                     Description = "",
@@ -534,8 +534,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var templateB = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"dep_b_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"dep_b_{workflowDefinition.Suffix}",
                     Title = "Task B",
                     Category = "general",
                     Description = "",
@@ -570,7 +570,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -579,15 +579,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateDependency_RejectsSelfDependency()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var template = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"self_dep_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"self_dep_{workflowDefinition.Suffix}",
                     Title = "Self Dep",
                     Category = "general",
                     Description = "",
@@ -609,7 +609,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -618,15 +618,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateDependency_RejectsDuplicateDependency()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var templateA = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"dup_dep_a_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"dup_dep_a_{workflowDefinition.Suffix}",
                     Title = "A",
                     Category = "general",
                     Description = "",
@@ -639,8 +639,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var templateB = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"dup_dep_b_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"dup_dep_b_{workflowDefinition.Suffix}",
                     Title = "B",
                     Category = "general",
                     Description = "",
@@ -669,7 +669,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -678,15 +678,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateDependency_RejectsCircularDependency()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var templateA = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"cycle_a_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"cycle_a_{workflowDefinition.Suffix}",
                     Title = "A",
                     Category = "general",
                     Description = "",
@@ -699,8 +699,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var templateB = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"cycle_b_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"cycle_b_{workflowDefinition.Suffix}",
                     Title = "B",
                     Category = "general",
                     Description = "",
@@ -713,8 +713,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var templateC = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"cycle_c_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"cycle_c_{workflowDefinition.Suffix}",
                     Title = "C",
                     Category = "general",
                     Description = "",
@@ -751,7 +751,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -760,16 +760,16 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplateDependency_RejectsCrossProcessTypeDependency()
     {
         var connectionString = GetTestConnectionString();
-        var processType1 = await CreateTemporaryProcessTypeAsync(connectionString);
-        var processType2 = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition1 = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var workflowDefinition2 = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var templateA = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType1.Id,
-                    TemplateKey = $"cross_dep_a_{processType1.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition1.Id,
+                    TemplateKey = $"cross_dep_a_{workflowDefinition1.Suffix}",
                     Title = "A",
                     Category = "general",
                     Description = "",
@@ -782,8 +782,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var templateB = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType2.Id,
-                    TemplateKey = $"cross_dep_b_{processType2.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition2.Id,
+                    TemplateKey = $"cross_dep_b_{workflowDefinition2.Suffix}",
                     Title = "B",
                     Category = "general",
                     Description = "",
@@ -805,8 +805,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType1.Id, processType1.Suffix);
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType2.Id, processType2.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition1.Id, workflowDefinition1.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition2.Id, workflowDefinition2.Suffix);
         }
     }
 
@@ -817,15 +817,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task AnswerDefinition_CRUD_Works()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var created = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminAnswerDefinition(new AdminAnswerDefinitionUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    AnswerKey = $"ans_def_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    AnswerKey = $"ans_def_{workflowDefinition.Suffix}",
                     Title = "Test Answer",
                     Category = "general",
                     Description = "Test",
@@ -835,15 +835,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                     IsActive = true
                 }));
 
-            Assert.Equal(processType.Id, created.WorkflowDefinitionId);
-            Assert.Equal($"ans_def_{processType.Suffix}", created.AnswerKey);
+            Assert.Equal(workflowDefinition.Id, created.WorkflowDefinitionId);
+            Assert.Equal($"ans_def_{workflowDefinition.Suffix}", created.AnswerKey);
             Assert.Equal("boolean", created.InputType);
 
             var updated = await WithRepositoryAsync(connectionString, repo =>
                 repo.UpdateAdminAnswerDefinition(created.Id, new AdminAnswerDefinitionUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    AnswerKey = $"ans_def_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    AnswerKey = $"ans_def_{workflowDefinition.Suffix}",
                     Title = "Updated Answer",
                     Category = "general",
                     Description = "Updated",
@@ -858,7 +858,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.Equal("text", updated.InputType);
 
             var listPage = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminAnswerDefinitions(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+                repo.GetAdminAnswerDefinitions(workflowDefinition.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
             var list = listPage.Items;
 
             Assert.Single(list);
@@ -870,7 +870,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -879,15 +879,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task AnswerDefinition_RejectsDuplicateAnswerKey()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminAnswerDefinition(new AdminAnswerDefinitionUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    AnswerKey = $"dup_ans_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    AnswerKey = $"dup_ans_{workflowDefinition.Suffix}",
                     Title = "First",
                     Category = "general",
                     Description = "",
@@ -901,8 +901,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 WithRepositoryAsync(connectionString, repo =>
                     repo.CreateAdminAnswerDefinition(new AdminAnswerDefinitionUpsertRequest
                     {
-                        WorkflowDefinitionId = processType.Id,
-                        AnswerKey = $"dup_ans_{processType.Suffix}",
+                        WorkflowDefinitionId = workflowDefinition.Id,
+                        AnswerKey = $"dup_ans_{workflowDefinition.Suffix}",
                         Title = "Second",
                         Category = "general",
                         Description = "",
@@ -916,7 +916,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -925,7 +925,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task AnswerDefinition_RejectsInvalidInputType()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
@@ -933,8 +933,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 WithRepositoryAsync(connectionString, repo =>
                     repo.CreateAdminAnswerDefinition(new AdminAnswerDefinitionUpsertRequest
                     {
-                        WorkflowDefinitionId = processType.Id,
-                        AnswerKey = $"bad_type_{processType.Suffix}",
+                        WorkflowDefinitionId = workflowDefinition.Id,
+                        AnswerKey = $"bad_type_{workflowDefinition.Suffix}",
                         Title = "Bad Type",
                         Category = "general",
                         Description = "",
@@ -948,7 +948,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -957,15 +957,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task AnswerDefinition_DeleteBlockedByConditionReference()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
 
         try
         {
             var answer = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminAnswerDefinition(new AdminAnswerDefinitionUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    AnswerKey = $"ref_ans_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    AnswerKey = $"ref_ans_{workflowDefinition.Suffix}",
                     Title = "Referenced Answer",
                     Category = "general",
                     Description = "",
@@ -978,8 +978,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var template = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"ref_tmpl_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"ref_tmpl_{workflowDefinition.Suffix}",
                     Title = "Referencing Template",
                     Category = "general",
                     Description = "",
@@ -993,7 +993,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 repo.CreateAdminTaskTemplateCondition(template.Id, new AdminTaskTemplateConditionCreateRequest
                 {
                     ConditionGroup = 1,
-                    AnswerKey = $"ref_ans_{processType.Suffix}",
+                    AnswerKey = $"ref_ans_{workflowDefinition.Suffix}",
                     Operator = "is_true"
                 }));
 
@@ -1005,7 +1005,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -1016,18 +1016,18 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task RoleAnswerDefaults_UpsertAndRead_Works()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
-        var answerKey = $"rad_answer_{processType.Suffix}";
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var answerKey = $"rad_answer_{workflowDefinition.Suffix}";
         var roleId = await GetFirstActiveRoleIdAsync(connectionString);
 
         try
         {
-            await InsertAnswerDefinitionAsync(connectionString, processType.Id, answerKey);
+            await InsertAnswerDefinitionAsync(connectionString, workflowDefinition.Id, answerKey);
 
             var result = await WithRepositoryAsync(connectionString, repo =>
                 repo.UpsertAdminRoleAnswerDefaults(new AdminRoleAnswerDefaultsBulkUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
+                    WorkflowDefinitionId = workflowDefinition.Id,
                     Items = new List<AdminRoleAnswerDefaultUpsertItemRequest>
                     {
                         new()
@@ -1044,7 +1044,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             Assert.True(result[0].DefaultValueBoolean);
 
             var readBackPage = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminRoleAnswerDefaults(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+                repo.GetAdminRoleAnswerDefaults(workflowDefinition.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
             var readBack = readBackPage.Items;
 
             Assert.Single(readBack);
@@ -1054,7 +1054,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             var updated = await WithRepositoryAsync(connectionString, repo =>
                 repo.UpsertAdminRoleAnswerDefaults(new AdminRoleAnswerDefaultsBulkUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
+                    WorkflowDefinitionId = workflowDefinition.Id,
                     Items = new List<AdminRoleAnswerDefaultUpsertItemRequest>
                     {
                         new()
@@ -1071,8 +1071,8 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupRoleAnswerDefaultsAsync(connectionString, processType.Id);
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupRoleAnswerDefaultsAsync(connectionString, workflowDefinition.Id);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -1081,18 +1081,18 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task RoleAnswerDefaults_RejectsInvalidRoleId()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
-        var answerKey = $"bad_role_answer_{processType.Suffix}";
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var answerKey = $"bad_role_answer_{workflowDefinition.Suffix}";
 
         try
         {
-            await InsertAnswerDefinitionAsync(connectionString, processType.Id, answerKey);
+            await InsertAnswerDefinitionAsync(connectionString, workflowDefinition.Id, answerKey);
 
             var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 WithRepositoryAsync(connectionString, repo =>
                     repo.UpsertAdminRoleAnswerDefaults(new AdminRoleAnswerDefaultsBulkUpsertRequest
                     {
-                        WorkflowDefinitionId = processType.Id,
+                        WorkflowDefinitionId = workflowDefinition.Id,
                         Items = new List<AdminRoleAnswerDefaultUpsertItemRequest>
                         {
                             new()
@@ -1108,7 +1108,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -1119,18 +1119,18 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
     public async Task TaskTemplate_ConditionCount_ReflectsActualConditions()
     {
         var connectionString = GetTestConnectionString();
-        var processType = await CreateTemporaryProcessTypeAsync(connectionString);
-        var answerKey = $"count_answer_{processType.Suffix}";
+        var workflowDefinition = await CreateTemporaryWorkflowDefinitionAsync(connectionString);
+        var answerKey = $"count_answer_{workflowDefinition.Suffix}";
 
         try
         {
-            await InsertAnswerDefinitionAsync(connectionString, processType.Id, answerKey);
+            await InsertAnswerDefinitionAsync(connectionString, workflowDefinition.Id, answerKey);
 
             var template = await WithRepositoryAsync(connectionString, repo =>
                 repo.CreateAdminTaskTemplate(new AdminTaskTemplateUpsertRequest
                 {
-                    WorkflowDefinitionId = processType.Id,
-                    TemplateKey = $"count_tmpl_{processType.Suffix}",
+                    WorkflowDefinitionId = workflowDefinition.Id,
+                    TemplateKey = $"count_tmpl_{workflowDefinition.Suffix}",
                     Title = "Count Test",
                     Category = "general",
                     Description = "",
@@ -1159,7 +1159,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 }));
 
             var templatesPage = await WithRepositoryAsync(connectionString, repo =>
-                repo.GetAdminTaskTemplates(processType.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
+                repo.GetAdminTaskTemplates(workflowDefinition.Id, new AdminListQuery { Limit = AdminListQuery.MaxLimit }));
             var templates = templatesPage.Items;
 
             Assert.Single(templates);
@@ -1167,7 +1167,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
         finally
         {
-            await CleanupTemporaryProcessTypeAsync(connectionString, processType.Id, processType.Suffix);
+            await CleanupTemporaryWorkflowDefinitionAsync(connectionString, workflowDefinition.Id, workflowDefinition.Suffix);
         }
     }
 
@@ -1215,7 +1215,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         }
     }
 
-    private static async Task<TemporaryProcessType> CreateTemporaryProcessTypeAsync(string connectionString)
+    private static async Task<TemporaryWorkflowDefinition> CreateTemporaryWorkflowDefinitionAsync(string connectionString)
     {
         var suffix = Guid.NewGuid().ToString("N");
 
@@ -1280,7 +1280,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
 
         await transaction.CommitAsync();
 
-        return new TemporaryProcessType { Id = id, Suffix = suffix };
+        return new TemporaryWorkflowDefinition { Id = id, Suffix = suffix };
     }
 
     private static async Task<int> CreateTemporaryDepartmentAsync(string connectionString, string suffix)
@@ -1559,7 +1559,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
             ?? throw new InvalidOperationException($"Role '{roleKey}' not found."));
     }
 
-    private static async Task InsertAnswerDefinitionAsync(string connectionString, int processTypeId, string answerKey)
+    private static async Task InsertAnswerDefinitionAsync(string connectionString, int workflowDefinitionId, string answerKey)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -1572,13 +1572,13 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 is_required, sort_order, is_active
             )
             VALUES (
-                @processTypeId, @answerKey, 'Test Answer', 'general',
+                @workflowDefinitionId, @answerKey, 'Test Answer', 'general',
                 'Test', 'berechtigungen', 'boolean',
                 FALSE, 10, TRUE
             );
             """,
             connection);
-        command.Parameters.AddWithValue("processTypeId", processTypeId);
+        command.Parameters.AddWithValue("workflowDefinitionId", workflowDefinitionId);
         command.Parameters.AddWithValue("answerKey", answerKey);
         await command.ExecuteNonQueryAsync();
     }
@@ -1601,15 +1601,15 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         return roleId;
     }
 
-    private static async Task CleanupRoleAnswerDefaultsAsync(string connectionString, int processTypeId)
+    private static async Task CleanupRoleAnswerDefaultsAsync(string connectionString, int workflowDefinitionId)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
 
         await using var command = new NpgsqlCommand(
-            "DELETE FROM app_role_answer_defaults WHERE workflow_definition_id = @processTypeId;",
+            "DELETE FROM app_role_answer_defaults WHERE workflow_definition_id = @workflowDefinitionId;",
             connection);
-        command.Parameters.AddWithValue("processTypeId", processTypeId);
+        command.Parameters.AddWithValue("workflowDefinitionId", workflowDefinitionId);
         await command.ExecuteNonQueryAsync();
     }
 
@@ -1805,7 +1805,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task CleanupTemporaryProcessTypeAsync(string connectionString, int processTypeId, string suffix)
+    private static async Task CleanupTemporaryWorkflowDefinitionAsync(string connectionString, int workflowDefinitionId, string suffix)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
@@ -1817,7 +1817,7 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 SELECT s.id FROM workflow_node_task_specs s
                 JOIN workflow_nodes n ON n.id = s.workflow_node_id
                 JOIN workflow_definition_versions v ON v.id = n.workflow_definition_version_id
-                WHERE v.workflow_definition_id = @processTypeId
+                WHERE v.workflow_definition_id = @workflowDefinitionId
             );
 
             DELETE FROM workflow_node_task_spec_conditions
@@ -1825,33 +1825,33 @@ public sealed class PostgresWorkflowRepositoryAdminConfigIntegrationTests
                 SELECT s.id FROM workflow_node_task_specs s
                 JOIN workflow_nodes n ON n.id = s.workflow_node_id
                 JOIN workflow_definition_versions v ON v.id = n.workflow_definition_version_id
-                WHERE v.workflow_definition_id = @processTypeId
+                WHERE v.workflow_definition_id = @workflowDefinitionId
             );
 
             DELETE FROM workflow_node_task_specs
             WHERE workflow_node_id IN (
                 SELECT n.id FROM workflow_nodes n
                 JOIN workflow_definition_versions v ON v.id = n.workflow_definition_version_id
-                WHERE v.workflow_definition_id = @processTypeId
+                WHERE v.workflow_definition_id = @workflowDefinitionId
             );
 
             DELETE FROM app_role_answer_defaults
-            WHERE workflow_definition_id = @processTypeId;
+            WHERE workflow_definition_id = @workflowDefinitionId;
 
             DELETE FROM workflow_answer_definitions
-            WHERE workflow_definition_id = @processTypeId;
+            WHERE workflow_definition_id = @workflowDefinitionId;
 
             DELETE FROM workflow_definitions
-            WHERE id = @processTypeId
-              AND definition_key = @processTypeKey;
+            WHERE id = @workflowDefinitionId
+              AND definition_key = @workflowDefinitionKey;
             """,
             connection);
-        command.Parameters.AddWithValue("processTypeId", processTypeId);
-        command.Parameters.AddWithValue("processTypeKey", $"admin_config_test_{suffix}");
+        command.Parameters.AddWithValue("workflowDefinitionId", workflowDefinitionId);
+        command.Parameters.AddWithValue("workflowDefinitionKey", $"admin_config_test_{suffix}");
         await command.ExecuteNonQueryAsync();
     }
 
-    private sealed class TemporaryProcessType
+    private sealed class TemporaryWorkflowDefinition
     {
         public required int Id { get; init; }
         public required string Suffix { get; init; }
