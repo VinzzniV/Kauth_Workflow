@@ -36,13 +36,19 @@ Bevor die KI mit einer neuen Aufgabe anfaengt, **muss** sie ansagen:
 
 ## Offene Items
 
-Keine offenen Items.
+| ID | Aufgabe | Prio | Reasoning | Modell |
+|----|---------|------|-----------|--------|
+| FE-9a | Badge „Meine Aufgaben" in der Nav aktualisiert sich nicht nach Aufgaben-Abschluss — Query-Invalidierung prüfen und Badge-Count reaktiv halten | HIGH | medium | sonnet |
+| FE-9b | Badge-Zähler auch für Durchlaufplanung-Aufgaben in der Nav anzeigen (analog zu „Meine Aufgaben") | MEDIUM | medium | sonnet |
+| FE-10 | „Meine Aufgaben": Aufgaben-Detail-Panel überarbeiten — aufgeklappte Karte erschlägt mit Text; Aufgaben nach Kategorie (Software, Hardware, Zugang …) gruppieren oder filterbar machen; Kommentar-Block per Default einklappen | MEDIUM | high | opus |
+| FE-11 | „Wechsel & Aufgaben" / Rotation-Maßnahmen: Aufgaben-Detail fehlt — z. B. welche Ordnerpfade für Ordnerzugriff, welcher Referenzuser für AD-Berechtigungen; Detailfelder aus dem Task-Template in der Listenansicht durchreichen oder Detailansicht verlinken | MEDIUM | medium | sonnet |
+| FE-12 | Supervisor-Sichtbarkeit: Supervisoren sehen aktuell nicht ihre eigenen Mitarbeiter in der Mitarbeiterliste — Frontend muss passende API-Query nutzen sobald Backend die Visibility-Regel liefert (hängt an B-1 unten) | HIGH | low | sonnet |
 
 ---
 
 ## Naechster sinnvoller Schritt
 
-Z18 vollstaendig abgeschlossen 2026-05-08: alle 9 Findings erledigt. FE-8 abgeschlossen 2026-05-08: kein offener FRONTEND_TODO-Eintrag mehr. Naechster Schritt: Codex priorisiert neuen Zyklus.
+FE-9a (Badge-Reaktivität) hat den größten sofortigen UX-Schmerz und ist isoliert lösbar. FE-12 ist Blocker-abhängig von Backend-Item B-1 (siehe TODO.md). FE-10 und FE-11 sind eigenständige UI-Slices ohne externe Abhängigkeit.
 
 ---
 
