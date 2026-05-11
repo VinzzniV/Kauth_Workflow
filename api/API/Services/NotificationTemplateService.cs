@@ -155,7 +155,7 @@ internal sealed class NotificationTemplateService(
 
         var definition = NotificationTemplateCatalog.GetDefinitionOrThrow(context.TemplateKey);
         var template = await GetEffectiveTemplate(definition, cancellationToken);
-        var processTypeContext = NotificationEmailTemplateBuilder.ResolveProcessTypeEmailContext(
+        var processTypeContext = NotificationEmailTemplateBuilder.ResolveWorkflowDefinitionEmailContext(
             context.WorkflowDefinitionKey,
             context.WorkflowDefinitionName);
         var placeholders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

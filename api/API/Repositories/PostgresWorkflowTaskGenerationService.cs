@@ -331,7 +331,7 @@ LIMIT 1;";
         return new WorkflowTaskGenerationContext
         {
             WorkflowDefinitionId = reader.GetInt32(0),
-            ProcessTypeName = reader.GetString(1),
+            WorkflowDefinitionName = reader.GetString(1),
             RequiresSupervisorStep = reader.GetBoolean(2),
             ApprovalSpecKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
                 reader.GetString(1),

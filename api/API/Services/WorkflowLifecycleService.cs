@@ -87,13 +87,13 @@ internal sealed class WorkflowLifecycleService(
                     $"No published workflow definition exists for key '{request.WorkflowDefinitionKey.Trim().ToLowerInvariant()}'.");
             }
 
-            var processType = await PostgresWorkflowRepository.LoadProcessTypeForCreate(connection, transaction, publishedVersion.WorkflowDefinitionKey);
+            var workflowDefinition = await PostgresWorkflowRepository.LoadWorkflowDefinitionForCreate(connection, transaction, publishedVersion.WorkflowDefinitionKey);
             var graph = await PostgresRepositorySharedHelpers.LoadWorkflowDefinitionGraph(connection, transaction, publishedVersion.VersionId);
 
             var gatekeeperEvaluation = WorkflowRuntimeEngine.EvaluateSupervisorGatekeeper(
                 graph,
                 publishedVersion.WorkflowDefinitionKey,
-                processType.RequiresSupervisorStep);
+                workflowDefinition.RequiresSupervisorStep);
             if (!gatekeeperEvaluation.IsSatisfied)
             {
                 throw new InvalidOperationException(
@@ -146,7 +146,7 @@ internal sealed class WorkflowLifecycleService(
 
             var firstName = PostgresWorkflowRuntimeRepository.NormalizeRuntimeOptionalText(request.FirstName);
             var lastName = PostgresWorkflowRuntimeRepository.NormalizeRuntimeOptionalText(request.LastName);
-            if (!processType.RequiresTargetPerson)
+            if (!workflowDefinition.RequiresTargetPerson)
             {
                 var derivedFirstName = targetPerson.FirstName;
                 var derivedLastName = targetPerson.LastName;
@@ -301,7 +301,7 @@ RETURNING id, uid;
                 transaction,
                 workflowId,
                 departmentId,
-                processType.RequiresSupervisorStep,
+                workflowDefinition.RequiresSupervisorStep,
                 publishedVersion.WorkflowDefinitionKey,
                 publishedVersion.WorkflowDefinitionName);
 

@@ -881,7 +881,7 @@ internal enum TaskGenerationStage
 internal sealed class WorkflowTaskGenerationContext
 {
     public required int WorkflowDefinitionId { get; init; }
-    public required string ProcessTypeName { get; init; }
+    public required string WorkflowDefinitionName { get; init; }
     public required bool RequiresSupervisorStep { get; init; }
     public string? ApprovalSpecKey { get; init; }
     public long? MeasureNodeId { get; init; }

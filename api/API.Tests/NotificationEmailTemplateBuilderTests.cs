@@ -5,9 +5,9 @@ namespace API.Tests;
 public sealed class NotificationEmailTemplateBuilderTests
 {
     [Fact]
-    public void ResolveProcessTypeEmailContext_UsesConfiguredProcessTypeName()
+    public void ResolveWorkflowDefinitionEmailContext_UsesConfiguredWorkflowDefinitionName()
     {
-        var context = NotificationEmailTemplateBuilder.ResolveProcessTypeEmailContext(
+        var context = NotificationEmailTemplateBuilder.ResolveWorkflowDefinitionEmailContext(
             "offboarding",
             "Offboarding");
 

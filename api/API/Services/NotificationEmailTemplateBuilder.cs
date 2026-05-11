@@ -14,18 +14,18 @@ internal static class NotificationEmailTemplateBuilder
         string HtmlBody,
         IReadOnlyDictionary<string, string> PlaceholderValues);
 
-    internal sealed record ProcessTypeEmailContext(string Key, string Name, string WorkflowLabel, string ProcessLabel);
+    internal sealed record WorkflowDefinitionEmailContext(string Key, string Name, string WorkflowLabel, string ProcessLabel);
 
-    public static ProcessTypeEmailContext ResolveProcessTypeEmailContext(string processTypeKey, string processTypeName)
+    public static WorkflowDefinitionEmailContext ResolveWorkflowDefinitionEmailContext(string workflowDefinitionKey, string workflowDefinitionName)
     {
-        var normalizedKey = string.IsNullOrWhiteSpace(processTypeKey)
+        var normalizedKey = string.IsNullOrWhiteSpace(workflowDefinitionKey)
             ? "generic"
-            : processTypeKey.Trim().ToLowerInvariant();
-        var normalizedName = string.IsNullOrWhiteSpace(processTypeName)
+            : workflowDefinitionKey.Trim().ToLowerInvariant();
+        var normalizedName = string.IsNullOrWhiteSpace(workflowDefinitionName)
             ? "Workflow"
-            : processTypeName.Trim();
+            : workflowDefinitionName.Trim();
 
-        return new ProcessTypeEmailContext(
+        return new WorkflowDefinitionEmailContext(
             normalizedKey,
             normalizedName,
             $"{normalizedName}-Workflow",

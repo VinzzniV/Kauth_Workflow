@@ -31,7 +31,7 @@ internal static class WorkflowStatusRules
     }
 
     public static string? EnsureApprovalTaskConfiguration(
-        string processTypeName,
+        string workflowDefinitionName,
         bool requiresSupervisorStep,
         string? approvalSpecKey)
     {
@@ -39,7 +39,7 @@ internal static class WorkflowStatusRules
         if (requiresSupervisorStep && string.IsNullOrWhiteSpace(normalizedApprovalSpecKey))
         {
             throw new InvalidOperationException(
-                $"Der Prozesstyp '{processTypeName}' verlangt einen Supervisor-Schritt, aber kein Approval-Task ist konfiguriert.");
+                $"Die Workflow-Definition '{workflowDefinitionName}' verlangt einen Supervisor-Schritt, aber kein Approval-Task ist konfiguriert.");
         }
 
         return normalizedApprovalSpecKey;
@@ -47,12 +47,12 @@ internal static class WorkflowStatusRules
 
     public static string DetermineActiveWorkflowStatus(
         IReadOnlyList<(string TaskKey, string Status, bool IsRequired)> taskStates,
-        string processTypeName,
+        string workflowDefinitionName,
         bool requiresSupervisorStep,
         string? approvalSpecKey)
     {
         approvalSpecKey = EnsureApprovalTaskConfiguration(
-            processTypeName,
+            workflowDefinitionName,
             requiresSupervisorStep,
             approvalSpecKey);
 

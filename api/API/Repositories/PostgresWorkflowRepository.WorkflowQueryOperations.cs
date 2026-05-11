@@ -71,9 +71,9 @@ ORDER BY w.created_at DESC;";
             int BadgeNumber,
             int DepartmentId,
             string DepartmentName,
-            string LegacyProcessTypeKey,
-            string ProcessTypeName,
-            bool ProcessTypeRequiresTargetPerson,
+            string WorkflowDefinitionKey,
+            string WorkflowDefinitionName,
+            bool WorkflowDefinitionRequiresTargetPerson,
             int RoleId,
             string RoleName,
             string WorkflowStatus,
@@ -135,9 +135,9 @@ ORDER BY w.created_at DESC;";
                     DepartmentName = row.DepartmentName,
                     WorkflowDefinition = new WorkflowDefinitionRefDto
                     {
-                        Key = row.LegacyProcessTypeKey,
-                        Name = row.ProcessTypeName,
-                        RequiresTargetPerson = row.ProcessTypeRequiresTargetPerson
+                        Key = row.WorkflowDefinitionKey,
+                        Name = row.WorkflowDefinitionName,
+                        RequiresTargetPerson = row.WorkflowDefinitionRequiresTargetPerson
                     },
                     RoleId = row.RoleId,
                     RoleName = row.RoleName,
@@ -190,9 +190,9 @@ ORDER BY w.created_at DESC;";
                 DepartmentName = row.DepartmentName,
                 WorkflowDefinition = new WorkflowDefinitionRefDto
                 {
-                    Key = row.LegacyProcessTypeKey,
-                    Name = row.ProcessTypeName,
-                    RequiresTargetPerson = row.ProcessTypeRequiresTargetPerson
+                    Key = row.WorkflowDefinitionKey,
+                    Name = row.WorkflowDefinitionName,
+                    RequiresTargetPerson = row.WorkflowDefinitionRequiresTargetPerson
                 },
                 RoleId = row.RoleId,
                 RoleName = row.RoleName,
@@ -232,7 +232,7 @@ ORDER BY w.created_at DESC;";
     private sealed record FilteredWorkflowRow(
         long WorkflowId, Guid Uid, string FirstName, string LastName,
         int EmployeeNumber, int BadgeNumber, int DepartmentId, string DepartmentName,
-        string LegacyProcessTypeKey, string ProcessTypeName, bool ProcessTypeRequiresTargetPerson,
+        string WorkflowDefinitionKey, string WorkflowDefinitionName, bool WorkflowDefinitionRequiresTargetPerson,
         int RoleId, string RoleName, string WorkflowStatus, DateTime? CompletedAt, DateOnly? DeadlineDate,
         DateTime CreatedAt, int PendingNotifications, int FailedNotifications, int TotalCount);
 

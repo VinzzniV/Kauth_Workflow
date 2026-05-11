@@ -8,22 +8,22 @@ internal sealed partial class PostgresWorkflowRepository
     // Erstellt den Workflow, initialisiert Benachrichtigungen und liefert anschliessend die neue UID zurueck.
     public async Task<WorkflowCreationResult> CreateWorkflow(CreateWorkflowRequest request, long createdByUserId)
     {
-        var processTypeKey = request.WorkflowDefinitionKey;
-        if (string.IsNullOrWhiteSpace(processTypeKey))
+        var workflowDefinitionKey = request.WorkflowDefinitionKey;
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
-            throw new InvalidOperationException("processTypeKey ist erforderlich.");
+            throw new InvalidOperationException("WorkflowDefinitionKey ist erforderlich.");
         }
 
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
 
-        var processType = await LoadProcessTypeForCreate(connection, transaction, processTypeKey);
+        var processType = await LoadWorkflowDefinitionForCreate(connection, transaction, workflowDefinitionKey);
         var requiresNewPersonFields = !processType.RequiresTargetPerson;
 
         if (!request.TargetPersonId.HasValue)
         {
-            throw new InvalidOperationException($"Der Prozesstyp '{processType.Name}' erfordert eine Zielperson.");
+            throw new InvalidOperationException($"Die Workflow-Definition '{processType.Name}' erfordert eine Zielperson.");
         }
 
         var targetPerson = await PostgresRepositorySharedHelpers.LoadTargetPerson(connection, transaction, request.TargetPersonId.Value);
@@ -43,12 +43,12 @@ internal sealed partial class PostgresWorkflowRepository
 
         if (!effectiveDepartmentId.HasValue)
         {
-            throw new InvalidOperationException("Die Abteilung ist fuer diesen Prozesstyp erforderlich.");
+            throw new InvalidOperationException("Die Abteilung ist fuer diese Workflow-Definition erforderlich.");
         }
 
         if (!effectiveRoleId.HasValue)
         {
-            throw new InvalidOperationException("Die Zielrolle ist fuer diesen Prozesstyp erforderlich.");
+            throw new InvalidOperationException("Die Zielrolle ist fuer diese Workflow-Definition erforderlich.");
         }
 
         var roleId = effectiveRoleId.Value;
@@ -88,14 +88,14 @@ internal sealed partial class PostgresWorkflowRepository
         if (!employeeNumber.HasValue)
         {
             throw new InvalidOperationException(
-                "Die Personalnummer ist erforderlich. Fuer diesen Prozesstyp konnte sie nicht aus der Zielperson oder einem vorhandenen Vorgang abgeleitet werden.");
+                "Die Personalnummer ist erforderlich. Fuer diese Workflow-Definition konnte sie nicht aus der Zielperson oder einem vorhandenen Vorgang abgeleitet werden.");
         }
 
         var badgeNumber = request.BadgeNumber ?? targetPerson?.BadgeNumber;
         if (!badgeNumber.HasValue)
         {
             throw new InvalidOperationException(
-                "Die Ausweisnummer ist erforderlich. Fuer diesen Prozesstyp konnte sie nicht aus der Zielperson oder einem vorhandenen Vorgang abgeleitet werden.");
+                "Die Ausweisnummer ist erforderlich. Fuer diese Workflow-Definition konnte sie nicht aus der Zielperson oder einem vorhandenen Vorgang abgeleitet werden.");
         }
 
         const string workflowInsertSql = @"
@@ -267,32 +267,32 @@ RETURNING id, uid;";
         };
     }
 
-    internal static async Task<ProcessTypeCreateRecord> LoadProcessTypeForCreate(
+    internal static async Task<WorkflowDefinitionCreateRecord> LoadWorkflowDefinitionForCreate(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
-        string processTypeKey)
+        string workflowDefinitionKey)
     {
-        if (string.IsNullOrWhiteSpace(processTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
-            throw new InvalidOperationException("Der Prozesstyp ist erforderlich.");
+            throw new InvalidOperationException("Der Workflow-Definitions-Schlüssel ist erforderlich.");
         }
 
         const string sql = @"
 SELECT id, definition_key, name, requires_supervisor_step, approval_spec_key, requires_target_person
 FROM workflow_definitions
-WHERE definition_key = @processTypeKey
+WHERE definition_key = @workflowDefinitionKey
 LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("processTypeKey", processTypeKey.Trim().ToLowerInvariant());
+        command.Parameters.AddWithValue("workflowDefinitionKey", workflowDefinitionKey.Trim().ToLowerInvariant());
         await using var reader = await command.ExecuteReaderAsync();
 
         if (!await reader.ReadAsync())
         {
-            throw new InvalidOperationException($"Unbekannter Prozesstyp '{processTypeKey}'.");
+            throw new InvalidOperationException($"Unbekannte Workflow-Definition '{workflowDefinitionKey}'.");
         }
 
-        var record = new ProcessTypeCreateRecord
+        var record = new WorkflowDefinitionCreateRecord
         {
             Id = reader.GetInt32(0),
             Key = reader.GetString(1),

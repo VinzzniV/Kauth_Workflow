@@ -94,7 +94,7 @@ internal sealed partial class PostgresWorkflowRepository : IWorkflowRepository, 
     }
 }
 
-internal sealed class ProcessTypeCreateRecord
+internal sealed class WorkflowDefinitionCreateRecord
 {
     public required int Id { get; init; }
     public required string Key { get; init; }

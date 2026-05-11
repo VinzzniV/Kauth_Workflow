@@ -353,7 +353,7 @@ WHERE w.id = @workflowId
 FOR UPDATE OF w;";
 
         string? currentWorkflowStatus = null;
-        string processTypeName = "Workflow";
+        string workflowDefinitionName = "Workflow";
         var requiresSupervisorStep = true;
         string? approvalTaskTemplateKey = null;
         await using (var workflowStatusContextCommand = new NpgsqlCommand(workflowStatusContextSql, connection, transaction))
@@ -363,10 +363,10 @@ FOR UPDATE OF w;";
             if (await reader.ReadAsync())
             {
                 currentWorkflowStatus = reader.IsDBNull(0) ? null : reader.GetString(0);
-                processTypeName = reader.GetString(1);
+                workflowDefinitionName = reader.GetString(1);
                 requiresSupervisorStep = reader.GetBoolean(2);
                 approvalTaskTemplateKey = WorkflowStatusRules.EnsureApprovalTaskConfiguration(
-                    processTypeName,
+                    workflowDefinitionName,
                     requiresSupervisorStep,
                     reader.IsDBNull(3) ? null : reader.GetString(3));
             }
@@ -404,7 +404,7 @@ WHERE workflow_id = @workflowId;";
             : completionRelevantStatuses.All(status =>
                     status.Equals("done", StringComparison.OrdinalIgnoreCase))
                 ? "completed"
-                : WorkflowStatusRules.DetermineActiveWorkflowStatus(taskStates, processTypeName, requiresSupervisorStep, approvalTaskTemplateKey);
+                : WorkflowStatusRules.DetermineActiveWorkflowStatus(taskStates, workflowDefinitionName, requiresSupervisorStep, approvalTaskTemplateKey);
 
         const string workflowStatusUpdateSql = @"
 UPDATE workflows
