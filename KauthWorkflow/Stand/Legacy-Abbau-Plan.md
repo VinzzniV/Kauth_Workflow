@@ -23,7 +23,7 @@ Offen sind damit vor allem **semantische Brücken** und **veraltete Dokumentatio
 Der wichtigste Resthebel ist heute die Mischung aus:
 
 - `workflowDefinitionKey` als neuem fachlichen Anker
-- `legacyProcessTypeKey` / `PrimaryLegacyProcessTypeKey` als Brücke für Builder, Gatekeeper, Requirements und Teile der Runtime
+- `legacyProcessTypeKey` als read-only-Fallback für persistierten Altbestand in Builder, Gatekeeper, Requirements und Runtime-Pfad
 
 ---
 
@@ -69,7 +69,7 @@ Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der R
 | Cluster | Wo noch sichtbar | Was für die Umstellung nötig ist | Nutzen | Aufwand / Risiko |
 | --- | --- | --- | --- | --- |
 | `node.config.legacyProcessTypeKey` (semantisch) | erledigt | Aktive Pfade lesen + erzwingen `workflowDefinitionKey`; `legacyProcessTypeKey` bleibt nur read-only-Fallback für persistierten Altbestand. Seeds + Tests auf den neuen Schlüssel migriert. |
-| `PrimaryLegacyProcessTypeKey` (Naming-Rest auf DTO-/Record-Properties) | offen | Mehrere C#-Properties tragen den Alt-Namen noch; reine Naming-Aufräumung, keine Semantik. Nach dem Key-Cut als eigener Folge-Slice schneidbar. |
+| `PrimaryLegacyProcessTypeKey` (Naming-Rest auf DTO-/Record-Properties) | erledigt 2026-05-11 | Parameter `primaryLegacyProcessTypeKey` in `ResolveWorkflowDefinitionLegacyProcessTypeId` → `workflowDefinitionKey`; Fehlermeldungen entlegacyt; Skizzen-Dokus nachgezogen. |
 | Legacy-Status im Runtime-Pfad | `api/API/Services/WorkflowRuntimePlan.cs`, `WorkflowRuntimeEngine.cs`, `PostgresWorkflowRuntimeRepository.EngineAdapter.cs`, `WorkflowRuntimeEngineTests.cs` | Die Mapping-Logik bleibt korrekt (`ComputeWorkflowStatusFromActiveNodes`); Benennung ist bereinigt. Einzig verbliebener Punkt: ggf. `legacyStatus` als SQL-Parametername in `WorkflowLifecycleService.cs` + `PostgresWorkflowRuntimeRepository.cs` nach großem Key-Cut nachziehen. | niedrig / niedrig nach Key-Cut |
 | Legacy-Sprache in Seeds und Tests | Test-Fixtures mit `legacyProcessTypeKey` in config_json (korrekt, weil Produktiv-JSON-Struktur) und `TemporaryProcessType`-Hilfsklassen in Integrationstests | Erst nach dem großen Key-Cut nachziehen; vorher wären die Fixture-Werte falsch | niedrig / niedrig |
 
@@ -81,7 +81,7 @@ Damit andocken neue aktive Pfade nicht mehr an `legacyProcessTypeKey`; nur der R
 2. ~~Veraltete Doku-/ERD-Artefakte~~ — ✓ erledigt 2026-05-11 (ERD neu generiert, Migrationspfad + Zielarchitektur aktuell)
 3. ~~Read-DTOs und API-Benennung auf den neuen Anker ziehen~~ — ✓ erledigt 2026-05-11 (`WorkflowDefinitionRefDto`, `workflowDefinition`, `ComputedStatus`)
 4. ~~`node.config.legacyProcessTypeKey` semantisch abschneiden~~ — ✓ erledigt 2026-05-11 (read-Fallback bleibt; aktive Pfade ankerlos auf `workflowDefinitionKey`).
-5. `PrimaryLegacyProcessTypeKey`-Properties als reines Naming-Folge-Slice umbenennen.
+5. ~~`PrimaryLegacyProcessTypeKey`-Properties als reines Naming-Folge-Slice umbenennen.~~ — ✓ erledigt 2026-05-11
 6. ~~Seed-/Test-Cleanup~~ — ✓ erledigt 2026-05-11 (gemeinsam mit Schritt 4).
 
 ---

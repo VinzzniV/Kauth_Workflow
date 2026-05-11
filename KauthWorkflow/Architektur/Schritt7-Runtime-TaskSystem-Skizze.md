@@ -440,7 +440,7 @@ Direkte Aufrufer von `AdvanceRuntimeUntilWaitOrTerminal` und der drei Brücken:
 - `WorkflowDefinitionGraphRecord` — Nodes, Edges, EdgeConditions, NodeActions, NodeActionsByNodeId (schon heute in Helpers geladen)
 - `WorkflowRuntimeStateRecord` — bestehende Node-Instance-States (für Idempotenz-Guard + Parallel-Join)
 - `WorkflowAnswersByKey` — für Decision-Condition-Evaluation
-- `WorkflowContextRecord` — `RequiresSupervisorStep`, `ApprovalSpecKey`, `PrimaryLegacyProcessTypeKey` (heute teils via separatem DB-Load in `ShouldAutoCompleteSupervisorApprovalBridge`)
+- `WorkflowContextRecord` — `RequiresSupervisorStep`, `ApprovalSpecKey`, `WorkflowDefinitionKey` (heute teils via separatem DB-Load in `ShouldAutoCompleteSupervisorApprovalBridge`)
 - `ApprovalSpecByNodeId` — Mapping NodeId → `TemplateKey` für Supervisor-Bridge-Check (heute `LoadTaskSpecForNode`-Call im Loop)
 
 ---

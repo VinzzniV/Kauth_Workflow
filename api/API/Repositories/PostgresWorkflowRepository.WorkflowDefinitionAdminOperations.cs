@@ -1288,10 +1288,10 @@ LIMIT 1;
     internal static async Task<int?> ResolveWorkflowDefinitionLegacyProcessTypeId(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
-        string? primaryLegacyProcessTypeKey,
+        string? workflowDefinitionKey,
         bool requireActive)
     {
-        if (string.IsNullOrWhiteSpace(primaryLegacyProcessTypeKey))
+        if (string.IsNullOrWhiteSpace(workflowDefinitionKey))
         {
             return null;
         }
@@ -1304,7 +1304,7 @@ LIMIT 1;
 """;
 
         await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("processTypeKey", primaryLegacyProcessTypeKey.Trim().ToLowerInvariant());
+        command.Parameters.AddWithValue("processTypeKey", workflowDefinitionKey.Trim().ToLowerInvariant());
         command.Parameters.AddWithValue("requireActive", requireActive);
         var processTypeId = await command.ExecuteScalarAsync();
         if (processTypeId is int resolvedId)
@@ -1314,7 +1314,7 @@ LIMIT 1;
 
         throw new InvalidOperationException(
             requireActive
-                ? $"Active legacy process type '{primaryLegacyProcessTypeKey}' was not found."
-                : $"Legacy process type '{primaryLegacyProcessTypeKey}' was not found.");
+                ? $"Active workflow definition '{workflowDefinitionKey}' was not found."
+                : $"Workflow definition '{workflowDefinitionKey}' was not found.");
     }
 }

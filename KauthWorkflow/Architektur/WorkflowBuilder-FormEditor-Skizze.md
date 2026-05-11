@@ -55,7 +55,7 @@ Kein Drei-Spalten-Layout mehr. Linearer Lesefluss von oben nach unten. Sticky-Fo
 | Definition-Schlüssel    | Auto, read-only    | —       | wird vom Namen abgeleitet            |
 | Version                 | Auto, read-only    | —       | „Version 3 (Entwurf)"                |
 
-**Aufklappbar „Technische Details ►":** `definition_key` (manuell überschreibbar), `primaryLegacyProcessTypeKey`.
+**Aufklappbar „Technische Details ►":** `definition_key` (manuell überschreibbar), `workflowDefinitionKey`.
 
 ---
 

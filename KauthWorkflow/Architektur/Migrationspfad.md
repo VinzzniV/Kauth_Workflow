@@ -92,7 +92,7 @@ Der große Parallelzustand ist deutlich geschrumpft. Offen sind vor allem noch B
 | Legacy | Neu | Status |
 |--------|-----|--------|
 | `legacyProcessTypeKey` in Form-/Gatekeeper-Config, Requirements- und WorkflowConfig-Pfaden | `workflowDefinitionKey` | noch aktiv in Builder, Publish-Validierung, Runtime-Gatekeeper und Teilen der Master-Data-Leser |
-| `PrimaryLegacyProcessTypeKey` in Definition-/Runtime-Snapshots | direkter Definition-Key | noch aktiv als Brücke im Publish- und Runtime-Pfad |
+| `PrimaryLegacyProcessTypeKey` in Definition-/Runtime-Snapshots | direkter Definition-Key | ✓ erledigt 2026-05-11: Properties in C#-Code und Doku auf `workflowDefinitionKey` / `WorkflowDefinitionKey` umbenannt |
 | `WorkflowLegacyStatus` bzw. `LegacyStatus` im Runtime-Pfad | typsicheres `WorkflowStatus` | kein eigener DTO-Schwerpunkt mehr, aber intern noch als Übergangsstatus in Engine/Apply-Pfad vorhanden |
 | `WorkflowProcessTypeDto` / `processType`-Lesesurface | definitionsbasierte Workflow-Metadaten | ✓ erledigt 2026-05-11: umbenannt zu `WorkflowDefinitionRefDto` / `workflowDefinition`; FE-Typen und alle Consumer synchron |
 | `setup`-Node-Type | `measure_provision` / `_deprovision` / `_change` / `_rename` | ✓ Code/Seeds clean (nur noch `db/_archive/`); Doku bereinigt; einzig offener Rest: manuelle DB-Inventur gegen persistierte Definitionen |
