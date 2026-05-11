@@ -6,10 +6,12 @@ internal sealed class WorkflowCatalogService(
     IWorkflowVisibilityService workflowVisibilityService) : IWorkflowCatalogService
 {
     public async Task<IReadOnlyList<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitionsAsync(
+        string? search,
+        int? limit,
         CurrentUser currentUser,
         CancellationToken cancellationToken = default)
     {
-        var definitions = await repository.GetStartableWorkflowDefinitions();
+        var definitions = await repository.GetStartableWorkflowDefinitions(search, limit);
         var canCreateAny = authorizationPolicyService.HasAnyRole(
             currentUser,
             AuthorizationRoles.Hr,

@@ -49,7 +49,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-11 — **Z20 eroeffnet** (Admin/Directory/Runtime Read Contracts Phase 2). **S1 (Inventur + Slice-/Bundle-Plan) Doku-only abgeschlossen 2026-05-11**, B1..B4 stehen zur Umsetzung an. Z19 vollstaendig abgeschlossen (Backend Full Review / Holistic Audit, alle Slices S1..S9 erledigt). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Stand**: 2026-05-11 — **Z20 laeuft** (Admin/Directory/Runtime Read Contracts Phase 2). **S1 Doku-only done 2026-05-11. B1 done 2026-05-11** (P3-Lookup-Adapter live fuer 3 Endpunkte). B2..B4 stehen zur Umsetzung an. Z19 vollstaendig abgeschlossen (Backend Full Review / Holistic Audit, alle Slices S1..S9 erledigt). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
 **Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 vollstaendig + Z20-S1 Doku-only abgeschlossen).
 
 ---
@@ -123,7 +123,7 @@ Eroeffnet 2026-05-11 als breiter Read-Vertrags-Folgeblock zu Z10/Z11. S1 ist **r
 | Slice | Inhalt | Prio | Modell/Effort | Status |
 |-------|--------|------|---------------|--------|
 | Z20-S1 | Inventur + Vertrags-Skizze + Slice-Plan (Doku-only) | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
-| Z20-B1 | Block H + Block E Preview-Lookups: `GET /workflow-definitions/startable` + `GET /admin/notification-templates/preview-targets/{workflows,rotation-plans}` auf P3-Lookup-Adapter (Server-`search`/`limit`, FE-Wrapper). Kleinster Schnitt zuerst, etabliert P3-Pattern. | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen |
+| Z20-B1 | Block H + Block E Preview-Lookups: `GET /workflow-definitions/startable` + `GET /admin/notification-templates/preview-targets/{workflows,rotation-plans}` auf P3-Lookup-Adapter (Server-`search`/`limit`, FE-Wrapper). Kleinster Schnitt zuerst, etabliert P3-Pattern. | HIGH | `claude-sonnet-4-6` + `--effort medium` | **done 2026-05-11** |
 | Z20-B2 | Block C: `GET /admin/directory/identities` auf P1; **Composite-Split** `/admin/directory/responsibility-gaps` + `/admin/directory/pending-imports` jeweils als saubere P1-Endpunkte. Zentralster Risiko-Schnitt, weil Composite. | HIGH | `claude-opus-4-7` + `--effort high` | offen |
 | Z20-B3 | Block E (Liste) + Block F + Block G: `GET /admin/notification-templates` P1; `GET /admin/rotation/action-templates` P1; `GET /admin/runtime/workflow-instances/{uid}/events` P2/Cursor; `GET /admin/runtime/workflow-instances/{uid}/automation-jobs` P2/Cursor. Pattern-Bulk-Anwendung. | HIGH | `claude-sonnet-4-6` + `--effort medium` | offen |
 | Z20-B4 | Block A: `/admin/auth/{users,groups,permissions,roles}` auf P1 + `/admin/directory/unlinked-identities` P1. Pflege-/Hygiene-Schnitt zum Schluss; `/admin/people` bleibt als Vertragsanker unveraendert. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |

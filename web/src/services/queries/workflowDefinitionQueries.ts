@@ -9,7 +9,7 @@ type StartableWorkflowDefinitionsOptions = {
 export function useStartableWorkflowDefinitions(options: StartableWorkflowDefinitionsOptions = {}) {
   return useQuery({
     queryKey: queryKeys.workflowDefinitions.startable(),
-    queryFn: getStartableWorkflowDefinitions,
+    queryFn: () => getStartableWorkflowDefinitions(),
     staleTime: 30 * 1000,
     enabled: options.enabled ?? true,
   });

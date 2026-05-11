@@ -527,6 +527,63 @@ public sealed class WorkflowEndpointsTests
     }
 
     [Fact]
+    public async Task StartableWorkflowDefinitionsEndpoint_PassesSearchAndLimitToRepository()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            StartableWorkflowDefinitions = []
+        };
+
+        var app = CreateApp(repository, CreateUser(AuthorizationRoles.Hr));
+        var endpoint = GetWorkflowEndpoint(app, "/workflow-definitions/startable", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            "/workflow-definitions/startable",
+            "?search=onboarding&limit=5");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetStartableWorkflowDefinitionsCallCount);
+        Assert.Equal("onboarding", repository.LastGetStartableWorkflowDefinitionsSearch);
+        Assert.Equal(5, repository.LastGetStartableWorkflowDefinitionsLimit);
+    }
+
+    [Fact]
+    public async Task StartableWorkflowDefinitionsEndpoint_WorksWithoutSearchOrLimit()
+    {
+        var repository = new StubWorkflowRepository
+        {
+            StartableWorkflowDefinitions =
+            [
+                new WorkflowStartableDefinitionDto
+                {
+                    DefinitionKey = "onboarding",
+                    Name = "Onboarding",
+                    RequiresTargetPerson = false,
+                    LatestPublishedVersionNumber = 1
+                }
+            ]
+        };
+
+        var app = CreateApp(repository, CreateUser(AuthorizationRoles.Hr));
+        var endpoint = GetWorkflowEndpoint(app, "/workflow-definitions/startable", HttpMethods.Get);
+        var context = CreateGetRequestContext(
+            app.Services,
+            endpoint,
+            "/workflow-definitions/startable",
+            "");
+
+        await endpoint.RequestDelegate!(context);
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal(1, repository.GetStartableWorkflowDefinitionsCallCount);
+        Assert.Null(repository.LastGetStartableWorkflowDefinitionsSearch);
+        Assert.Null(repository.LastGetStartableWorkflowDefinitionsLimit);
+    }
+
+    [Fact]
     public async Task CreateWorkflowEndpoint_UsesWorkflowDefinitionKey_WhenPublishedDefinitionIsStartable()
     {
         var workflowUid = Guid.NewGuid();
@@ -1405,6 +1462,8 @@ public sealed class WorkflowEndpointsTests
         public int GetDerivedAnswersCallCount { get; private set; }
         public int DeleteWorkflowLinkCallCount { get; private set; }
         public int GetStartableWorkflowDefinitionsCallCount { get; private set; }
+        public string? LastGetStartableWorkflowDefinitionsSearch { get; private set; }
+        public int? LastGetStartableWorkflowDefinitionsLimit { get; private set; }
         public int SearchWorkflowTargetPersonSourcesCallCount { get; private set; }
         public int SearchWorkflowTargetPeopleCallCount { get; private set; }
         public int SearchRotationEligiblePeopleCallCount { get; private set; }
@@ -1470,9 +1529,11 @@ public sealed class WorkflowEndpointsTests
                 Offset = query.Offset
             });
         }
-        public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions()
+        public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions(string? search = null, int? limit = null)
         {
             GetStartableWorkflowDefinitionsCallCount += 1;
+            LastGetStartableWorkflowDefinitionsSearch = search;
+            LastGetStartableWorkflowDefinitionsLimit = limit;
             return Task.FromResult(StartableWorkflowDefinitions);
         }
         public Task<List<RequirementDto>> GetRequirements(string workflowDefinitionKey) => throw new NotSupportedException();

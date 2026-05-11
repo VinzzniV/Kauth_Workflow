@@ -1,6 +1,7 @@
 import type { Department, Role, StartableWorkflowDefinition } from "../types/workflow";
 import { requestJson } from "./api/client";
 import { buildAdminListQuery, type AdminListPage, type AdminListQueryOptions } from "./api/adminList";
+import { buildLookupQuery, type LookupQueryOptions } from "./api/lookupPage";
 import type {
   BackendDepartmentDto,
   BackendRoleDto,
@@ -11,8 +12,8 @@ export async function getRoles(options: AdminListQueryOptions = {}): Promise<Adm
   return requestJson<AdminListPage<BackendRoleDto>>(`/roles${buildAdminListQuery(options)}`);
 }
 
-export function getStartableWorkflowDefinitions(): Promise<StartableWorkflowDefinition[]> {
-  return requestJson<BackendWorkflowStartableDefinitionDto[]>("/workflow-definitions/startable");
+export function getStartableWorkflowDefinitions(options: LookupQueryOptions = {}): Promise<StartableWorkflowDefinition[]> {
+  return requestJson<BackendWorkflowStartableDefinitionDto[]>(`/workflow-definitions/startable${buildLookupQuery(options)}`);
 }
 
 export async function getDepartments(options: AdminListQueryOptions = {}): Promise<AdminListPage<Department>> {

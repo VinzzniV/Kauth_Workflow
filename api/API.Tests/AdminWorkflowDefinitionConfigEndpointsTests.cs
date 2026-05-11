@@ -942,7 +942,7 @@ public sealed class AdminWorkflowDefinitionConfigEndpointsTests
         public Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query) => throw new NotSupportedException();
         public Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query) => throw new NotSupportedException();
-        public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions() => throw new NotSupportedException();
+        public Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions(string? search = null, int? limit = null) => throw new NotSupportedException();
         public Task<List<RequirementDto>> GetRequirements(string workflowDefinitionKey) => throw new NotSupportedException();
         public Task<WorkflowConfigDto?> GetWorkflowConfig(int? roleId, string workflowDefinitionKey) => throw new NotSupportedException();
         public Task<bool> IsManagerCreatableDefinition(string workflowDefinitionKey) => throw new NotSupportedException();

@@ -34,11 +34,11 @@ internal interface INotificationTemplateService
         AdminNotificationTemplateUpdateRequest request,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminNotificationTemplateWorkflowPreviewTargetDto>> SearchWorkflowPreviewTargets(
-        string? query,
+        string? search,
         int limit,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AdminNotificationTemplateRotationPlanPreviewTargetDto>> SearchRotationPlanPreviewTargets(
-        string? query,
+        string? search,
         int limit,
         CancellationToken cancellationToken = default);
     Task<AdminNotificationTemplatePreviewResponseDto> BuildPreview(

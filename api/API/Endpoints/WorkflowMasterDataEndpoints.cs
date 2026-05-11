@@ -48,6 +48,8 @@ internal static class WorkflowMasterDataEndpoints
         }).Produces<AdminListPageDto<RoleDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/workflow-definitions/startable", async (
+            [FromQuery] string? search,
+            [FromQuery] int? limit,
             IWorkflowCatalogService workflowCatalogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -61,7 +63,7 @@ internal static class WorkflowMasterDataEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await workflowCatalogService.GetStartableWorkflowDefinitionsAsync(access.User!));
+            return Results.Ok(await workflowCatalogService.GetStartableWorkflowDefinitionsAsync(search, limit, access.User!));
         }).Produces<List<WorkflowStartableDefinitionDto>>(StatusCodes.Status200OK);
 
         app.MapGet("/workflow-target-person-sources", async (

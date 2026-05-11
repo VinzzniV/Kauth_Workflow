@@ -9,12 +9,15 @@ internal sealed partial class PostgresWorkflowRepository
     internal const string WorkflowDefinitionDraftStatus = "draft";
     internal const string WorkflowDefinitionPublishedStatus = "published";
 
-    public async Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions()
+    public async Task<List<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitions(string? search = null, int? limit = null)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync();
 
-        const string sql = """
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? string.Empty : search.Trim();
+        var effectiveLimit = limit.HasValue ? Math.Clamp(limit.Value, 1, 200) : (int?)null;
+
+        var sql = $"""
 SELECT
     d.definition_key,
     COALESCE(NULLIF(BTRIM(d.name), ''), NULLIF(BTRIM(v.name), '')) AS effective_name,
@@ -25,11 +28,19 @@ FROM workflow_definition_versions v
 INNER JOIN workflow_definitions d
     ON d.id = v.workflow_definition_id
 WHERE v.status = @publishedStatus
-ORDER BY effective_name, d.definition_key, v.version_number DESC;
+  AND (@search = '' OR COALESCE(NULLIF(BTRIM(d.name), ''), NULLIF(BTRIM(v.name), '')) ILIKE @pattern)
+ORDER BY effective_name, d.definition_key, v.version_number DESC
+{(effectiveLimit.HasValue ? "LIMIT @limit" : "")};
 """;
 
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("publishedStatus", WorkflowDefinitionPublishedStatus);
+        command.Parameters.AddWithValue("search", normalizedSearch);
+        command.Parameters.AddWithValue("pattern", $"%{normalizedSearch}%");
+        if (effectiveLimit.HasValue)
+        {
+            command.Parameters.AddWithValue("limit", effectiveLimit.Value);
+        }
         await using var reader = await command.ExecuteReaderAsync();
 
         var definitions = new List<WorkflowStartableDefinitionDto>();

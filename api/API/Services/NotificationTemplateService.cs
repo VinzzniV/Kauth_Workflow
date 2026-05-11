@@ -45,14 +45,14 @@ internal sealed class NotificationTemplateService(
     }
 
     public async Task<IReadOnlyList<AdminNotificationTemplateWorkflowPreviewTargetDto>> SearchWorkflowPreviewTargets(
-        string? query,
+        string? search,
         int limit,
         CancellationToken cancellationToken = default)
     {
         var effectiveLimit = Math.Clamp(limit, 1, 50);
         var result = await workflowRepository.GetFilteredWorkflows(new WorkflowListQuery
         {
-            Search = string.IsNullOrWhiteSpace(query) ? null : query.Trim().ToLowerInvariant(),
+            Search = string.IsNullOrWhiteSpace(search) ? null : search.Trim().ToLowerInvariant(),
             Limit = effectiveLimit,
             Offset = 0,
             ReaderOnly = false,
@@ -73,22 +73,22 @@ internal sealed class NotificationTemplateService(
     }
 
     public async Task<IReadOnlyList<AdminNotificationTemplateRotationPlanPreviewTargetDto>> SearchRotationPlanPreviewTargets(
-        string? query,
+        string? search,
         int limit,
         CancellationToken cancellationToken = default)
     {
         var effectiveLimit = Math.Clamp(limit, 1, 50);
-        var normalizedQuery = string.IsNullOrWhiteSpace(query)
+        var normalizedSearch = string.IsNullOrWhiteSpace(search)
             ? null
-            : query.Trim().ToLowerInvariant();
+            : search.Trim().ToLowerInvariant();
 
         var plans = await rotationRepository.GetRotationPlans(null, null);
         return plans
             .Where(plan =>
-                normalizedQuery is null
+                normalizedSearch is null
                 || $"{plan.Title} {plan.DisplayName} {plan.DepartmentName ?? string.Empty} {plan.SourceWorkflowUid}"
                     .ToLowerInvariant()
-                    .Contains(normalizedQuery, StringComparison.Ordinal))
+                    .Contains(normalizedSearch, StringComparison.Ordinal))
             .OrderByDescending(plan => plan.UpdatedAt)
             .Take(effectiveLimit)
             .Select(plan => new AdminNotificationTemplateRotationPlanPreviewTargetDto

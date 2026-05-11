@@ -21,6 +21,7 @@ import type { WorkflowConfig } from "../types/workflow";
 import { encodeId, requestJson } from "./api/client";
 import { buildAdminListQuery, type AdminListPage, type AdminListQueryOptions } from "./api/adminList";
 import { buildCursorPageQuery, type CursorPage, type CursorPageQueryOptions } from "./api/cursorPage";
+import { buildLookupQuery } from "./api/lookupPage";
 import type {
   BackendAdminDepartmentAssignmentDto,
   BackendAdminGraphApplicationConfigurationDto,
@@ -160,32 +161,20 @@ export async function updateAdminNotificationTemplate(
 }
 
 export async function searchAdminNotificationTemplateWorkflows(
-  query: string,
+  search: string,
   limit = 20
 ): Promise<AdminNotificationTemplateWorkflowPreviewTarget[]> {
-  const params = new URLSearchParams();
-  if (query.trim()) {
-    params.set("query", query.trim());
-  }
-  params.set("limit", String(limit));
-
   return requestJson<BackendAdminNotificationTemplateWorkflowPreviewTargetDto[]>(
-    `/admin/notification-templates/preview-targets/workflows?${params.toString()}`
+    `/admin/notification-templates/preview-targets/workflows${buildLookupQuery({ search, limit })}`
   );
 }
 
 export async function searchAdminNotificationTemplateRotationPlans(
-  query: string,
+  search: string,
   limit = 20
 ): Promise<AdminNotificationTemplateRotationPlanPreviewTarget[]> {
-  const params = new URLSearchParams();
-  if (query.trim()) {
-    params.set("query", query.trim());
-  }
-  params.set("limit", String(limit));
-
   return requestJson<BackendAdminNotificationTemplateRotationPlanPreviewTargetDto[]>(
-    `/admin/notification-templates/preview-targets/rotation-plans?${params.toString()}`
+    `/admin/notification-templates/preview-targets/rotation-plans${buildLookupQuery({ search, limit })}`
   );
 }
 

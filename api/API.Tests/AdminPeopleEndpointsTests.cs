@@ -207,7 +207,7 @@ public sealed class AdminPeopleEndpointsTests
 
         public Task<AdminListPageDto<DepartmentDto>> GetDepartmentsAsync(AdminListQuery query, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<AdminListPageDto<RoleDto>> GetRolesAsync(AdminListQuery query, CurrentUser currentUser, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitionsAsync(CurrentUser currentUser, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<WorkflowStartableDefinitionDto>> GetStartableWorkflowDefinitionsAsync(string? search, int? limit, CurrentUser currentUser, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<WorkflowTargetPersonSourceDto>> SearchWorkflowTargetPersonSourcesAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchWorkflowTargetPeopleAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<WorkflowTargetPersonDto>> SearchRotationEligiblePeopleAsync(string? search, CurrentUser currentUser, int limit = 20, CancellationToken cancellationToken = default) => throw new NotSupportedException();

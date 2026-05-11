@@ -77,7 +77,7 @@ internal static class AdminNotificationTemplateEndpoints
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/notification-templates/preview-targets/workflows", async (
-            [FromQuery] string? query,
+            [FromQuery] string? search,
             [FromQuery] int? limit,
             [FromServices] INotificationTemplateService notificationTemplateService,
             [FromServices] IUserContext userContext,
@@ -92,13 +92,13 @@ internal static class AdminNotificationTemplateEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await notificationTemplateService.SearchWorkflowPreviewTargets(query, limit ?? 20));
+            return Results.Ok(await notificationTemplateService.SearchWorkflowPreviewTargets(search, limit ?? 20));
         }).Produces<List<AdminNotificationTemplateWorkflowPreviewTargetDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
         app.MapGet("/admin/notification-templates/preview-targets/rotation-plans", async (
-            [FromQuery] string? query,
+            [FromQuery] string? search,
             [FromQuery] int? limit,
             [FromServices] INotificationTemplateService notificationTemplateService,
             [FromServices] IUserContext userContext,
@@ -113,7 +113,7 @@ internal static class AdminNotificationTemplateEndpoints
                 return access.Error;
             }
 
-            return Results.Ok(await notificationTemplateService.SearchRotationPlanPreviewTargets(query, limit ?? 20));
+            return Results.Ok(await notificationTemplateService.SearchRotationPlanPreviewTargets(search, limit ?? 20));
         }).Produces<List<AdminNotificationTemplateRotationPlanPreviewTargetDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
