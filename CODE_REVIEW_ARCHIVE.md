@@ -19,7 +19,59 @@ Die aktive Primaerquelle fuer den aktuellen Review-Fokus bleibt `CODE_REVIEW.md`
 
 ---
 
-## Zyklen 8 bis 16 — aus der aktiven Review-Datei ausgelagert
+## Zyklen 8 bis 19 — aus der aktiven Review-Datei ausgelagert
+
+### Zyklus 19 — Backend Full Review / Holistic Audit
+
+- Status: abgeschlossen am 2026-05-11.
+- Ergebnis: vollstaendiger Backend-Audit ueber Endpoints, Repositories, Services, Authorization/Auth, `Services/Directory/`, Background-Jobs, Schema-/Migrations-Hygiene und Test-Coverage; alle Umsetzungsslices S2..S9 im selben Tag abgearbeitet.
+- Praktisch: mehrere teure Betriebsrisiken sind aus dem System entfernt worden, bevor sie als wiederkehrende Hotfix-Klasse haengen bleiben konnten.
+- Wichtige Leitplanken: kein breiter Architektur-Umbau am Definition-/Runtime-/Automation-Layer, keine FE-Nacharbeit, keine Berechtigungslogik-Aenderung ohne konkreten Befund.
+
+#### Z19-S1 — Audit-Pass (done 2026-05-11)
+
+- Findings: H1 Sweep-Timeout fehlt in `DirectorySyncHostedService`; H2 keine Schema-Paritaetspruefung zwischen `db/manual/` und `db/01_schema.sql`; H3 fehlende `CancellationToken`-Propagation in Lifecycle-/Runtime-Pfaden; M1 `SystemEventLogService`; M2 AuthZ-Repo-Monolith; M3 Automation Failure-of-Failure; M4 Deferred-Verdikt; L1-L4 Hygiene.
+- Praktisch: der Audit hat die Resthebel nicht abstrakt, sondern direkt entlang realer Betriebs- und Lastpfade geschnitten.
+
+#### Z19-S2 — Sweep-Timeout (done 2026-05-11)
+
+- `DirectorySyncHostedService` hat jetzt einen 2h-Sweep-Timeout analog `RotationNotificationHostedService`, inkl. Warn- und Hosted-Log bei Timeout.
+- Praktisch: ein haengender Directory-Sync blockiert den Loop nicht mehr bis zum Restart.
+
+#### Z19-S3 — Schema-Paritaet + L1 (done 2026-05-11)
+
+- `db/manual/manifest.json`, `db/manual/README.md` und `SchemaParityTests.cs` eingefuehrt; stray-Verzeichnis `db/init/prod;C/` entfernt.
+- Praktisch: manuelle DB-Helfer muessen jetzt ihren Soll-Endzustand sichtbar in `db/01_schema.sql` hinterlassen, sonst wird der Test rot.
+
+#### Z19-S4 — CancellationToken-Propagation + L4 (done 2026-05-11)
+
+- Lifecycle-/Runtime-Services, relevante Repository-Vertraege und betroffene Endpoints tragen den Request-Abbruch jetzt durch.
+- Praktisch: HTTP-Abbrueche lassen deutlich weniger zombieartige DB-Transaktionen und Reader offen.
+
+#### Z19-S5 — SystemEventLogService (done 2026-05-11)
+
+- UndefinedTable-Stille entfernt, Cursor-Pagination nach Z11-Pattern eingefuehrt, 67 Unit-Tests fuer Redaction/Normalization/Filter ergaenzt.
+- Praktisch: Admins sehen Schema-Drift jetzt als Fehler statt als leere Eventliste; Listen wachsen kontrollierter.
+
+#### Z19-S6 — AuthZ-Repo-Split (done 2026-05-11)
+
+- `PostgresUserAuthorizationRepository.AdminOperations.cs` und `...AdminReadOperations.cs` nach Z9-Pattern in fokussierte Department/Position/Responsibility/User/Group- und Read-Partials zerlegt.
+- Praktisch: Review-, Merge- und Folgeaenderungen im Berechtigungsbereich landen nicht mehr in zwei sehr grossen Sammeldateien.
+
+#### Z19-S7 — Automation Failure-of-Failure (done 2026-05-11)
+
+- `UnclaimAutomationJobAsync` eingefuehrt; der Worker gibt Jobs bei scheiterndem Failure-Pfad wieder frei.
+- Praktisch: ein transienter DB-Fehler im Fehlerpfad blockiert Automationsjobs nicht mehr dauerhaft.
+
+#### Z19-S8 — Deferred-Verdikt (done 2026-05-11)
+
+- `Z8-3.2/#8` und `Z16-S4` formal weiter deferred, jeweils mit Begruendung.
+- Praktisch: die Watchouts bleiben bewusst sichtbar, aber nicht mehr als unklare „vielleicht spaeter“-Reste.
+
+#### Z19-S9 — Hygiene-Batch (done 2026-05-11)
+
+- `AdminRuntimeHealthService` Parallelitaet bereinigt, Tombstone-Testdatei entfernt, Rest-Hygiene abgeschlossen.
+- Praktisch: weniger Rauschen im Code und klarerer Betriebsblock ohne semantische Aenderung.
 
 ### Zyklus 16 — Mitarbeiterakte als eigener Navigationsbereich + sauberer Identity-/Permission-Vertrag
 

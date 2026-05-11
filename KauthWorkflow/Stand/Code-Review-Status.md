@@ -68,7 +68,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Aktiver Zyklus 19 — Backend Full Review / Holistic Audit (2026-05-11)
+## Abgeschlossener Zyklus 19 — Backend Full Review / Holistic Audit (2026-05-11)
 
 Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend Full Review). Keine Implementierung in S1.
 
@@ -111,7 +111,7 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer, neue FE-Findings (Z18 abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigenstaendig).
 
-**Naechster Schritt:** Z19-S6 (`PostgresUserAuthorizationRepository` AdminOperations-/AdminReadOperations-Split nach Z9-Pattern) per CLI mit `--model claude-sonnet-4-6 --effort medium`. S5 + S7 + S8 + S9/L2 + S9/L3 wurden am 2026-05-11 als gebuendelter Commit erledigt.
+**Abschluss:** Z19 ist seit 2026-05-11 vollstaendig erledigt. Ein neuer Schritt beginnt erst mit einem neuen Zyklus oder einem gesonderten Implementierungsbedarf.
 
 ---
 

@@ -32,12 +32,11 @@
 
 ## Current Focus
 
-- **Aktiver Zyklus: Z19 — Backend Full Review / Holistic Audit.** **Z19-S1..S5 + S7..S9 abgeschlossen 2026-05-11.** Einziger offener Rest: **Z19-S6** — `PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations nach Z9-Pattern aufteilen. Empfehlung Codex-CLI: `--model claude-sonnet-4-6 --effort medium`. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 19" und `TODO.md`.
+- **Kein aktiver Zyklus offen.** Z19 (Backend Full Review / Holistic Audit) ist seit 2026-05-11 vollstaendig abgeschlossen. Naechster Schritt nur bei konkretem neuem Review- oder Implementierungsbedarf. Detail in `CODE_REVIEW.md`, `TODO.md` und `KauthWorkflow/Stand/Code-Review-Status.md`.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts
 
-- **Z19-S6-Scope-Abgrenzung:** nur Repo-Split fuer `PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations. Kein stiller Vertragsumbau, keine Berechtigungslogik-Aenderung ohne konkreten Befund, keine FE-Baustelle.
 - **DB-Drift-Pfad:** schemaaendernde Slices erzeugen weiterhin manuelle SQL-Helfer in `db/manual/`. Seit Z19-S3 (2026-05-11) sichert `db/manual/manifest.json` + `SchemaParityTests.cs` ab, dass jede `*.sql`-Datei dort ihren Soll-Endstand in `db/01_schema.sql` widerspiegelt; jede neue Migration braucht zusaetzlich einen Manifest-Eintrag mit `expect_in_schema` (+ optional `forbid_in_schema`), sonst wird der Test rot.
 - **CancellationToken-Resthebel nach Z19-S4:** tiefe statische Repo-Helfer (`PostgresWorkflowRuntimeRepository.AdvanceRuntimeUntilWaitOrTerminal`, `CreateWorkflowNodeInstance`, `InsertWorkflowRuntimeEvent`, `LoadPublishedWorkflowDefinitionVersion`, einige `PostgresRepositorySharedHelpers.*`) tragen den Token nicht. Praktisch: Connection und Transaktion brechen am Commit-Punkt, statische Sub-Queries laufen bis zur naechsten `CommandText`-Grenze weiter. Nicht jetzt — eigener Folgeslice nur bei konkretem Lock-/Latenz-Befund.
 - **Person ≠ Identity:** `personId` = fachlicher Anker, `directoryIdentityId` = Entra-Objekt-Anker — nie vermischen (in `KauthWorkflow/Domäne/Identity.md` verankert).
