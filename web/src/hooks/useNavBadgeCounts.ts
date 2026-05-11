@@ -18,7 +18,6 @@ export function useNavBadgeCounts(): NavBadgeCounts {
     queryFn: getMyTasks,
     staleTime: 60 * 1000,
     enabled: canSeeTasks,
-    select: (tasks) => tasks.filter((item) => isOpenTask(item.task)).length,
   });
 
   const supervisorQuery = useQuery({
@@ -29,10 +28,22 @@ export function useNavBadgeCounts(): NavBadgeCounts {
     select: (workflows) => workflows.length,
   });
 
+  const allTasks = myTasksQuery.data ?? [];
+  const openWorkflowCount = allTasks.filter(
+    (item) => item.taskFamily === "workflow" && isOpenTask(item.task)
+  ).length;
+  const openRotationCount = allTasks.filter(
+    (item) => item.taskFamily === "rotation" && isOpenTask(item.task)
+  ).length;
+
   const counts: Record<string, number> = {};
 
-  if (canSeeTasks && (myTasksQuery.data ?? 0) > 0) {
-    counts["/tasks/my"] = myTasksQuery.data!;
+  if (canSeeTasks && openWorkflowCount > 0) {
+    counts["/tasks/my"] = openWorkflowCount;
+  }
+
+  if (canSeeTasks && openRotationCount > 0) {
+    counts["/rotation/operations"] = openRotationCount;
   }
 
   if (canSeeSupervisor && (supervisorQuery.data ?? 0) > 0) {
