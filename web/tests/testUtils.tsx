@@ -81,9 +81,10 @@ export function renderWithApp(ui: ReactNode, options: RenderOptions = {}) {
 export function createWorkflowSummary(overrides: Partial<WorkflowSummary> = {}): WorkflowSummary {
   return {
     uid: "wf-1",
-    processType: {
+    workflowDefinition: {
       key: "onboarding",
       name: "Onboarding",
+      requiresTargetPerson: false,
     },
     firstName: "Alice",
     lastName: "Example",
@@ -93,9 +94,11 @@ export function createWorkflowSummary(overrides: Partial<WorkflowSummary> = {}):
     departmentName: "IT",
     roleId: 5,
     roleName: "Engineer",
-    status: "open",
     workflowStatus: "waiting_for_department",
     createdAt: "2026-03-20T10:00:00.000Z",
+    completedAt: null,
+    deadlineDate: null,
+    archivedAt: null,
     pendingNotifications: 0,
     failedNotifications: 0,
     requirementSummary: {

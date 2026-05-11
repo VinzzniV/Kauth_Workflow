@@ -161,7 +161,7 @@ describe("useRotationStationForm", () => {
 
   it("openCreateStationForm seeds an empty form using orderedStationsCount", () => {
     const { result } = renderHook(
-      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStationsCount: 4 }),
+      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStations: [makeStation({ orderIndex: 3 })] }),
       { wrapper: makeWrapper() },
     );
 
@@ -173,7 +173,7 @@ describe("useRotationStationForm", () => {
 
   it("openEditStationForm populates form from station and tracks id", () => {
     const { result } = renderHook(
-      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStationsCount: 4 }),
+      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStations: [makeStation({ orderIndex: 3 })] }),
       { wrapper: makeWrapper() },
     );
 
@@ -185,7 +185,7 @@ describe("useRotationStationForm", () => {
 
   it("resetStationForm clears editing id and re-seeds empty form", () => {
     const { result } = renderHook(
-      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStationsCount: 4 }),
+      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStations: [makeStation({ orderIndex: 3 })] }),
       { wrapper: makeWrapper() },
     );
 
@@ -198,7 +198,7 @@ describe("useRotationStationForm", () => {
 
   it("handleSaveStation rejects empty form without calling the API", async () => {
     const { result } = renderHook(
-      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStationsCount: 0 }),
+      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStations: [] }),
       { wrapper: makeWrapper() },
     );
 
@@ -215,7 +215,7 @@ describe("useRotationStationForm", () => {
     mockedCreate.mockResolvedValue(makeStation({ id: 200 }));
 
     const { result } = renderHook(
-      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStationsCount: 0 }),
+      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStations: [] }),
       { wrapper: makeWrapper() },
     );
 
@@ -252,7 +252,7 @@ describe("useRotationStationForm", () => {
     mockedUpdate.mockResolvedValue(makeStation({ id: 100, status: "active" }));
 
     const { result } = renderHook(
-      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStationsCount: 1 }),
+      () => useRotationStationForm({ numericPlanId: 7, personId: 11, orderedStations: [makeStation({ orderIndex: 0 })] }),
       { wrapper: makeWrapper() },
     );
 

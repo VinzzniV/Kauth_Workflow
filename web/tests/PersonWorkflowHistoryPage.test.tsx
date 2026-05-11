@@ -43,7 +43,7 @@ function createPersonWorkflowHistory(): PersonWorkflowHistory {
     workflows: [
       {
         uid: "wf-onboarding-1",
-        processType: {
+        workflowDefinition: {
           key: "onboarding",
           name: "Onboarding",
           requiresTargetPerson: true,

@@ -267,7 +267,7 @@ describe("RotationPlanDetailPage", () => {
         departmentId: 9,
         startDate: "2026-06-21",
         endDate: "2026-06-30",
-        orderIndex: 0,
+        orderIndex: 1,
         location: undefined,
         notes: undefined,
         status: "planned",

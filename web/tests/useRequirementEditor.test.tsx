@@ -26,7 +26,7 @@ vi.mock("../src/components/feedback/useToast", () => ({
 function createWorkflow(uid: string, requirementText: string): WorkflowDetail {
   return {
     uid,
-    processType: {
+    workflowDefinition: {
       key: "onboarding",
       name: "Onboarding",
       requiresTargetPerson: true,

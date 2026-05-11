@@ -102,7 +102,7 @@ describe("dashboardInsights", () => {
       createWorkflowSummary({
         uid: "wf-onboarding",
         workflowStatus: "waiting_for_department",
-        processType: { key: "onboarding", name: "Onboarding" },
+        workflowDefinition: { key: "onboarding", name: "Onboarding", requiresTargetPerson: false },
       }),
     ]);
 
@@ -121,7 +121,7 @@ describe("dashboardInsights", () => {
     mockedGetSupervisorStepWorkflows.mockResolvedValue([
       createWorkflowSummary({
         uid: "wf-2",
-        processType: { key: "offboarding", name: "Offboarding" },
+        workflowDefinition: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
         workflowStatus: "waiting_for_supervisor",
         requirementSummary: {
           totalCount: 3,
@@ -132,7 +132,7 @@ describe("dashboardInsights", () => {
       }),
       createWorkflowSummary({
         uid: "wf-ignored",
-        processType: { key: "onboarding", name: "Onboarding" },
+        workflowDefinition: { key: "onboarding", name: "Onboarding", requiresTargetPerson: false },
         workflowStatus: "waiting_for_supervisor",
         requirementSummary: {
           totalCount: 1,
@@ -145,7 +145,7 @@ describe("dashboardInsights", () => {
     mockedGetWorkflows.mockResolvedValue([
       createWorkflowSummary({
         uid: "wf-2",
-        processType: { key: "offboarding", name: "Offboarding" },
+        workflowDefinition: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
         workflowStatus: "waiting_for_supervisor",
         requirementSummary: {
           totalCount: 3,

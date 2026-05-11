@@ -8,7 +8,7 @@ import { createRequirementSnapshot } from "./testUtils";
 function createWorkflowDetail(requirements: WorkflowDetail["requirements"]): WorkflowDetail {
   return {
     uid: "wf-1",
-    processType: {
+    workflowDefinition: {
       key: "onboarding",
       name: "Onboarding",
       description: null,

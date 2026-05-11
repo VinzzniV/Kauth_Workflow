@@ -9,7 +9,7 @@ import type { WorkflowDetail } from "../src/types/workflow";
 function createWorkflowDetail(overrides: Partial<WorkflowDetail> = {}): WorkflowDetail {
   return {
     uid: "wf-1",
-    processType: {
+    workflowDefinition: {
       key: "onboarding",
       name: "Onboarding",
       requiresTargetPerson: false,
@@ -82,7 +82,7 @@ describe("workflowDetailModel", () => {
 
   it("omits the supervisor step for process types without approval task", () => {
     const workflow = createWorkflowDetail({
-        processType: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
+        workflowDefinition: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
         workflowStatus: "waiting_for_department",
         tasks: [
           {

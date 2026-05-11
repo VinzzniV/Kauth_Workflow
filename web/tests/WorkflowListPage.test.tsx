@@ -129,7 +129,7 @@ describe("WorkflowListPage", () => {
       .mockResolvedValueOnce(createWorkflowPageResponse({
         items: [createWorkflowSummary({
           uid: "wf-off",
-          processType: { key: "offboarding", name: "Offboarding" },
+          workflowDefinition: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
         })],
       }));
 
@@ -164,7 +164,7 @@ describe("WorkflowListPage", () => {
             firstName: "Clara",
             lastName: "Completed",
             workflowStatus: "completed",
-            processType: { key: "offboarding", name: "Offboarding" },
+            workflowDefinition: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
           }),
         ],
         count: 21,

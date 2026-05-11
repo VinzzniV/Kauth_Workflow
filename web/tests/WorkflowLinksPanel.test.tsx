@@ -23,7 +23,7 @@ function createRelatedWorkflow(
 ): RelatedWorkflowSummary {
   return {
     uid: "wf-related-1",
-    processType: {
+    workflowDefinition: {
       key: "offboarding",
       name: "Offboarding",
       requiresTargetPerson: true,

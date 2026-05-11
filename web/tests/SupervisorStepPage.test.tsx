@@ -29,14 +29,14 @@ describe("SupervisorStepPage", () => {
         uid: "wf-supervisor",
         firstName: "Lea",
         lastName: "Leitung",
-        processType: { key: "onboarding", name: "Onboarding" },
+        workflowDefinition: { key: "onboarding", name: "Onboarding", requiresTargetPerson: false },
         workflowStatus: "waiting_for_supervisor",
       }),
       createWorkflowSummary({
         uid: "wf-department",
         firstName: "Nina",
         lastName: "Nebenlauf",
-        processType: { key: "offboarding", name: "Offboarding" },
+        workflowDefinition: { key: "offboarding", name: "Offboarding", requiresTargetPerson: true },
         workflowStatus: "waiting_for_department",
       }),
     ]);

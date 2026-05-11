@@ -7,7 +7,7 @@ import type { WorkflowSummary } from "../src/types/workflow";
 function createWorkflowSummary(overrides: Partial<WorkflowSummary> = {}): WorkflowSummary {
   return {
     uid: "wf-1",
-    processType: { key: "onboarding", name: "Onboarding" },
+    workflowDefinition: { key: "onboarding", name: "Onboarding", requiresTargetPerson: false },
     firstName: "Anna",
     lastName: "Müller",
     employeeNumber: 1001,
@@ -23,11 +23,11 @@ function createWorkflowSummary(overrides: Partial<WorkflowSummary> = {}): Workfl
     archivedAt: null,
     pendingNotifications: 0,
     failedNotifications: 0,
-    requirementSummary: { pendingVisibleCount: 0, totalVisibleCount: 0 },
+    requirementSummary: { totalCount: 0, visibleCount: 0, answeredVisibleCount: 0, pendingVisibleCount: 0 },
     taskMetrics: {
-      overall: { inProgressCount: 0, blockedCount: 0, doneCount: 0, completedCount: 0, activeCount: 1 },
-      required: { inProgressCount: 0, blockedCount: 0, doneCount: 0, completedCount: 0, activeCount: 0 },
-      departmentPhase: { inProgressCount: 0, blockedCount: 0, doneCount: 0, completedCount: 0, activeCount: 0 },
+      overall: { totalCount: 1, openCount: 1, inProgressCount: 0, blockedCount: 0, doneCount: 0, completedCount: 0, activeCount: 1 },
+      required: { totalCount: 0, openCount: 0, inProgressCount: 0, blockedCount: 0, doneCount: 0, completedCount: 0, activeCount: 0 },
+      departmentPhase: { totalCount: 0, openCount: 0, inProgressCount: 0, blockedCount: 0, doneCount: 0, completedCount: 0, activeCount: 0 },
     },
     taskSummary: "",
     responsibilityOptions: [],
