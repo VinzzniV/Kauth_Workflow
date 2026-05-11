@@ -49,8 +49,8 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Stand**: 2026-05-11 — **Z19 als aktiver Zyklus eroeffnet** (Backend Full Review / Holistic Audit). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen. Z19-S1 ist ein reiner Doku-/Review-Slice: vollstaendiger Backend-Audit ueber Endpoints, Repositories, Services, Authorization, Auth-Pipeline, Background-Jobs, Schema-/Migrations-Hygiene und Test-Coverage-Luecken; liefert eine priorisierte Findings-Liste fuer Folgeslices.
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 eroeffnet).
+**Stand**: 2026-05-11 — **Z19 fast abgeschlossen** (Backend Full Review / Holistic Audit). Erledigt: S1..S5 + S7..S9. Offener Rest: **Z19-S6** (`PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations nach Z9-Pattern aufteilen). Z18, FE-8 und der Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Zyklus 2–13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 eroeffnet; 2026-05-11 Z19-S1 Audit; 2026-05-11 Z19-S2+S4+L4; 2026-05-11 Z19-S3+L1; 2026-05-11 Z19-S5+S7+S8+S9/L2+L3).
 
 ---
 
