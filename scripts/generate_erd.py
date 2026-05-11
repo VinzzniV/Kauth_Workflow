@@ -21,6 +21,7 @@ DOMAINS = {
         "people", "app_users", "directory_identities", "directory_groups",
         "directory_group_members", "directory_group_role_mappings",
         "directory_mapping_audit_log", "directory_sync_log",
+        "person_match_audit_log",
     ],
     "Auth & Rollen": [
         "app_roles", "app_permissions", "app_responsibilities", "app_groups",
@@ -30,8 +31,7 @@ DOMAINS = {
         "auth_permission_audit_log", "system_responsibilities",
     ],
     "Prozess-Konfiguration": [
-        "process_types", "task_templates", "task_template_conditions",
-        "task_template_dependencies", "workflow_answer_definitions",
+        "workflow_answer_definitions",
         "workflow_answer_options", "workflow_answer_validation_rules",
         "workflow_answer_visibility_rules", "workflow_answer_reset_rules",
         "workflow_answer_derivation_rules",
@@ -49,6 +49,8 @@ DOMAINS = {
         "workflow_definitions", "workflow_definition_versions",
         "workflow_nodes", "workflow_edges", "workflow_node_configs",
         "workflow_node_instances", "workflow_node_actions",
+        "workflow_node_task_specs", "workflow_node_task_spec_conditions",
+        "workflow_node_task_spec_dependencies",
     ],
     "Automation": [
         "action_definitions", "automation_jobs", "automation_job_attempts",

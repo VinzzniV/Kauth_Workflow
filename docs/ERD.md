@@ -1,7 +1,7 @@
 # ERD – Kauth Workflow
 
 > Automatisch generiert aus `db/01_schema.sql`. Nicht manuell bearbeiten.
-> 69 Tabellen, 134 Foreign Keys.
+> 69 Tabellen, 126 Foreign Keys.
 
 ---
 
@@ -18,6 +18,7 @@ flowchart LR
     directory_group_role_mappings
     directory_mapping_audit_log
     directory_sync_log
+    person_match_audit_log
   end
   subgraph Auth_und_Rollen["Auth & Rollen"]
     app_roles
@@ -35,10 +36,6 @@ flowchart LR
     system_responsibilities
   end
   subgraph Prozess-Konfiguration["Prozess-Konfiguration"]
-    process_types
-    task_templates
-    task_template_conditions
-    task_template_dependencies
     workflow_answer_definitions
     workflow_answer_options
     workflow_answer_validation_rules
@@ -70,6 +67,9 @@ flowchart LR
     workflow_node_configs
     workflow_node_instances
     workflow_node_actions
+    workflow_node_task_specs
+    workflow_node_task_spec_conditions
+    workflow_node_task_spec_dependencies
   end
   subgraph Automation["Automation"]
     action_definitions
@@ -106,7 +106,7 @@ flowchart LR
   app_role_answer_default_options --> workflow_answer_options
   app_role_answer_defaults --> workflow_answer_definitions
   app_role_answer_defaults --> app_roles
-  app_role_answer_defaults --> process_types
+  app_role_answer_defaults --> workflow_definitions
   app_role_permissions --> app_permissions
   app_role_permissions --> app_roles
   app_roles --> departments
@@ -175,13 +175,8 @@ flowchart LR
   system_responsibilities --> departments
   system_responsibilities --> people
   task_assignments --> workflow_tasks
-  task_template_conditions --> task_templates
-  task_template_dependencies --> task_templates
-  task_templates --> app_responsibilities
-  task_templates --> departments
-  task_templates --> process_types
-  workflow_answer_definitions --> process_types
-  workflow_answer_derivation_rules --> process_types
+  workflow_answer_definitions --> workflow_definitions
+  workflow_answer_derivation_rules --> workflow_definitions
   workflow_answer_options --> workflow_answer_definitions
   workflow_answer_reset_rules --> workflow_answer_definitions
   workflow_answer_selected_options --> workflow_answer_options
@@ -194,7 +189,6 @@ flowchart LR
   workflow_audit_log --> app_users
   workflow_audit_log --> workflow_tasks
   workflow_audit_log --> workflows
-  workflow_definition_versions --> process_types
   workflow_definition_versions --> workflow_definitions
   workflow_edges --> workflow_nodes
   workflow_edges --> workflow_definition_versions
@@ -215,12 +209,11 @@ flowchart LR
   workflow_task_comments --> workflow_tasks
   workflow_task_dependencies --> workflow_tasks
   workflow_tasks --> workflow_node_instances
-  workflow_tasks --> task_templates
   workflow_tasks --> workflows
   workflows --> app_users
   workflows --> departments
   workflows --> app_roles
-  workflows --> process_types
+  workflows --> workflow_definitions
   workflows --> people
 ```
 
@@ -230,7 +223,7 @@ flowchart LR
 
 ### Identity
 
-Tabellen: `people`, `app_users`, `directory_identities`, `directory_groups`, `directory_group_members`, `directory_group_role_mappings`, `directory_mapping_audit_log`, `directory_sync_log`
+Tabellen: `people`, `app_users`, `directory_identities`, `directory_groups`, `directory_group_members`, `directory_group_role_mappings`, `directory_mapping_audit_log`, `directory_sync_log`, `person_match_audit_log`
 
 ```mermaid
 erDiagram
@@ -280,6 +273,7 @@ erDiagram
     timestamptz created_at
     varchar department_name
     int employee_number
+    varchar job_title
   }
   directory_groups {
     int id PK
@@ -324,6 +318,19 @@ erDiagram
     text error_message
     timestamptz started_at
     timestamptz completed_at
+  }
+  person_match_audit_log {
+    bigint id PK
+    bigint matched_person_id
+    bigint app_user_id
+    bigint directory_identity_id
+    int employee_number
+    varchar match_strategy
+    numeric match_score
+    bool fallback_used
+    varchar source
+    jsonb detail
+    timestamptz created_at
   }
 
   departments {
@@ -436,6 +443,7 @@ erDiagram
     text detail
     jsonb old_value
     jsonb new_value
+    text reason
     timestamptz created_at
   }
   system_responsibilities {
@@ -478,62 +486,13 @@ erDiagram
 
 ### Prozess-Konfiguration
 
-Tabellen: `process_types`, `task_templates`, `task_template_conditions`, `task_template_dependencies`, `workflow_answer_definitions`, `workflow_answer_options`, `workflow_answer_validation_rules`, `workflow_answer_visibility_rules`, `workflow_answer_reset_rules`, `workflow_answer_derivation_rules`, `workflow_answer_single_select_keep_values`, `app_role_answer_defaults`, `app_role_answer_default_options`
+Tabellen: `workflow_answer_definitions`, `workflow_answer_options`, `workflow_answer_validation_rules`, `workflow_answer_visibility_rules`, `workflow_answer_reset_rules`, `workflow_answer_derivation_rules`, `workflow_answer_single_select_keep_values`, `app_role_answer_defaults`, `app_role_answer_default_options`
 
 ```mermaid
 erDiagram
-  process_types {
-    int id PK
-    varchar key
-    varchar name
-    text description
-    bool requires_supervisor_step
-    varchar approval_task_template_key
-    bool requires_target_person
-    varchar icon_key
-    bool allows_manager_creation
-    bool is_active
-    int sort_order
-    timestamptz created_at
-  }
-  task_templates {
-    int id PK
-    int process_type_id
-    varchar template_key
-    varchar title
-    varchar category
-    text description
-    varchar icon_key
-    int owning_department_id
-    int default_responsibility_id
-    varchar process_area_label
-    bool is_department_phase_task
-    bool is_required
-    int due_in_days
-    int sort_order
-    bool is_active
-    timestamptz created_at
-  }
-  task_template_conditions {
-    bigint id PK
-    int task_template_id
-    int condition_group
-    varchar answer_key
-    varchar operator
-    text expected_value_text
-    bool expected_value_boolean
-    numeric expected_value_number
-    timestamptz created_at
-  }
-  task_template_dependencies {
-    bigint id PK
-    int task_template_id
-    int depends_on_task_template_id
-    varchar required_status
-  }
   workflow_answer_definitions {
     int id PK
-    int process_type_id
+    int workflow_definition_id
     varchar answer_key
     varchar title
     varchar category
@@ -583,8 +542,8 @@ erDiagram
   }
   workflow_answer_derivation_rules {
     int id PK
-    int source_process_type_id
-    int target_process_type_id
+    int source_workflow_definition_id
+    int target_workflow_definition_id
     varchar source_answer_key
     varchar target_answer_key
     varchar derivation_kind
@@ -600,7 +559,7 @@ erDiagram
     timestamptz created_at
   }
   app_role_answer_defaults {
-    int process_type_id
+    int workflow_definition_id
     int app_role_id
     int answer_definition_id
     bool is_recommended
@@ -623,20 +582,12 @@ erDiagram
   app_roles {
   }
   app_role_answer_defaults }o..|| app_roles : "app_role_id →"
-  app_role_answer_defaults }o--|| process_types : "process_type_id"
-  task_template_conditions }o--|| task_templates : "task_template_id"
-  task_template_dependencies }o--|| task_templates : "depends_on_task_template_id"
-  task_template_dependencies }o--|| task_templates : "task_template_id"
-  app_responsibilities {
+  workflow_definitions {
   }
-  task_templates }o..|| app_responsibilities : "default_responsibility_id →"
-  departments {
-  }
-  task_templates }o..|| departments : "owning_department_id →"
-  task_templates }o--|| process_types : "process_type_id"
-  workflow_answer_definitions }o--|| process_types : "process_type_id"
-  workflow_answer_derivation_rules }o--|| process_types : "source_process_type_id"
-  workflow_answer_derivation_rules }o--|| process_types : "target_process_type_id"
+  app_role_answer_defaults }o..|| workflow_definitions : "workflow_definition_id →"
+  workflow_answer_definitions }o..|| workflow_definitions : "workflow_definition_id →"
+  workflow_answer_derivation_rules }o..|| workflow_definitions : "source_workflow_definition_id →"
+  workflow_answer_derivation_rules }o..|| workflow_definitions : "target_workflow_definition_id →"
   workflow_answer_options }o--|| workflow_answer_definitions : "answer_definition_id"
   workflow_answer_reset_rules }o--|| workflow_answer_definitions : "answer_definition_id"
   workflow_answer_reset_rules }o--|| workflow_answer_definitions : "target_answer_definition_id"
@@ -655,7 +606,7 @@ erDiagram
   workflows {
     bigint id PK
     uuid uid
-    int process_type_id
+    int workflow_definition_id
     bigint workflow_definition_version_id
     int department_id
     int position_role_id
@@ -676,7 +627,7 @@ erDiagram
   workflow_tasks {
     bigint id PK
     bigint workflow_id
-    int task_template_id
+    bigint workflow_node_task_spec_id
     varchar task_key
     varchar title
     varchar category
@@ -816,9 +767,6 @@ erDiagram
   workflow_task_dependencies }o--|| workflow_tasks : "depends_on_workflow_task_id"
   workflow_task_dependencies }o--|| workflow_tasks : "workflow_task_id"
   workflow_tasks }o..|| workflow_node_instances : "node_instance_id →"
-  task_templates {
-  }
-  workflow_tasks }o..|| task_templates : "task_template_id →"
   workflow_tasks }o--|| workflows : "workflow_id"
   workflows }o..|| app_users : "created_by_user_id →"
   departments {
@@ -827,9 +775,9 @@ erDiagram
   app_roles {
   }
   workflows }o..|| app_roles : "position_role_id →"
-  process_types {
+  workflow_definitions {
   }
-  workflows }o..|| process_types : "process_type_id →"
+  workflows }o..|| workflow_definitions : "workflow_definition_id →"
   people {
   }
   workflows }o..|| people : "target_person_id →"
@@ -837,7 +785,7 @@ erDiagram
 
 ### Workflow Definition
 
-Tabellen: `workflow_definitions`, `workflow_definition_versions`, `workflow_nodes`, `workflow_edges`, `workflow_node_configs`, `workflow_node_instances`, `workflow_node_actions`
+Tabellen: `workflow_definitions`, `workflow_definition_versions`, `workflow_nodes`, `workflow_edges`, `workflow_node_configs`, `workflow_node_instances`, `workflow_node_actions`, `workflow_node_task_specs`, `workflow_node_task_spec_conditions`, `workflow_node_task_spec_dependencies`
 
 ```mermaid
 erDiagram
@@ -846,6 +794,10 @@ erDiagram
     varchar definition_key
     varchar name
     text description
+    bool allows_manager_creation
+    bool requires_supervisor_step
+    bool requires_target_person
+    varchar approval_spec_key
     timestamptz created_at
     timestamptz updated_at
   }
@@ -856,7 +808,6 @@ erDiagram
     varchar status
     varchar name
     text description
-    int primary_legacy_process_type_id
     timestamptz created_at
     timestamptz updated_at
     timestamptz published_at
@@ -906,10 +857,39 @@ erDiagram
     varchar on_error_behavior
     timestamptz created_at
   }
-
-  process_types {
+  workflow_node_task_specs {
+    bigint id PK
+    bigint workflow_node_id
+    varchar spec_key
+    varchar title
+    text description
+    varchar category
+    varchar icon_key
+    int default_responsibility_id
+    varchar process_area_label
+    bool is_department_phase_task
+    bool is_required
+    int due_in_days
+    int sort_order
+    timestamptz created_at
   }
-  workflow_definition_versions }o..|| process_types : "primary_legacy_process_type_id →"
+  workflow_node_task_spec_conditions {
+    bigint id PK
+    bigint workflow_node_task_spec_id
+    varchar answer_key
+    varchar operator
+    text expected_value_text
+    bool expected_value_boolean
+    numeric expected_value_number
+    timestamptz created_at
+  }
+  workflow_node_task_spec_dependencies {
+    bigint id PK
+    bigint workflow_node_task_spec_id
+    bigint depends_on_workflow_node_task_spec_id
+    bigint workflow_node_id
+  }
+
   workflow_definition_versions }o--|| workflow_definitions : "workflow_definition_id"
   workflow_edges }o--|| workflow_nodes : "source_workflow_node_id"
   workflow_edges }o--|| workflow_nodes : "target_workflow_node_id"

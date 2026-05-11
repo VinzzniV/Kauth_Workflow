@@ -28,7 +28,7 @@ Wird versioniert: eine Änderung durch einen Admin erzeugt eine neue Version, la
 ```
 workflow_definitions
   └── workflow_definition_versions
-        └── workflow_nodes (start, form, approval, setup, task, decision, end, ...)
+        └── workflow_nodes (start, form, approval, measure_*, task, decision, end, ...)
         └── workflow_edges (wer führt zu wem)
         └── workflow_node_configs (Konfiguration pro Node)
 ```
@@ -95,7 +95,7 @@ Für `onboarding`, `offboarding`, `department_change`:
 | C | `measure_rename` | Namensänderung |
 | C | `measure_change` | Positions- und Rollenwechsel |
 
-`setup` bleibt Legacy-Alias — nicht mehr als neuer Standard-Baustein anbieten.
+`setup` ist nur noch ein historischer Migrationspunkt. Der aktuelle Repo-Scan vom 2026-05-11 fand keine aktiven UI-/Runtime-Sonderpfade mehr; vor finalem Entfernen ist nur noch die Dateninventur gegen bestehende Definitionen noetig.
 
 ---
 

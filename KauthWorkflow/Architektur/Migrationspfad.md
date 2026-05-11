@@ -8,7 +8,7 @@ Primärquelle im Repo: `PROJECT_CONTEXT.md`
 
 ---
 
-## Stand April 2026
+## Stand Mai 2026
 
 ### Bereits vorhanden ✓
 
@@ -87,23 +87,18 @@ Noch ausstehend: weitere fachlich motivierte Schnitte um `PostgresWorkflowReposi
 
 ## Parallelzustand: Legacy + Neu
 
-Beide existieren bewusst nebeneinander, bis Parität erreicht ist:
+Der große Parallelzustand ist deutlich geschrumpft. Offen sind vor allem noch Benennungs- und Runtime-Brücken:
 
 | Legacy | Neu | Status |
 |--------|-----|--------|
-| `process_types`-Tabelle + `/process-types`-Endpunkt | `workflow_definitions` + `/workflow-definitions/startable` | aktiv parallel — beide Pfade haben Konsumenten |
-| `processTypeKey` in `WorkflowCreateRequest` | `workflowDefinitionKey` | beide werden parallel gesendet/akzeptiert |
-| `PrimaryLegacyProcessTypeKey` in Definition-DTOs | direkter Definition-Key | aktiv für Mapping bei Publish |
-| `setup`-Node-Type | `measure_provision` / `_deprovision` / `_change` / `_rename` | aktiv defensiv für Production-Daten; kein neuer `setup` mehr im Seed |
-| `WorkflowLegacyStatus`-String-Feld | typsicheres `WorkflowStatus` | beide werden geliefert; Frontend konvertiert weg vom Legacy |
-| `workflows.create.onboarding` etc. (process-type-Permissions) | `workflows.create.<definition_key>` | ✓ Code-Umstellung (Schritt 5, 2026-04-30) — Suffix kommt jetzt aus `workflow_definitions.key`; Permission-Strings unverändert, weil definition_key == legacy process_type_key. Legacy-Lookup gegen `PrimaryLegacyProcessTypeKey` bleibt als Brücke bis Schritt 6 |
-| `/workflows/completed-onboardings`, `/rotation/completed-onboardings`, `CompletedOnboardingSearchResultDto`, `CompletedOnboardingSearchResult` | `/workflow-target-person-sources`, `/people/rotation-eligible`, `WorkflowTargetPersonSourceDto`, `RotationEligiblePerson` | ✓ Code-Umstellung (Schritt 7A, 2026-05-01) |
-| Responsibility `hr_onboarding` | `hr_workflow_initiator` | ✓ Code-Umstellung (Schritt 7B, 2026-05-01). Seeds + Backend-Fallback in `NotificationOperations.cs` umgestellt |
-| Hardcoded `WorkflowCreatePermissions[]`-Array | dynamisch via `WorkflowCreate(definitionKey)` | ✓ Code-Cleanup (Schritt 7C, 2026-05-01). Permission-Schema ist seit 6.3d-iv vollstaendig definitionsgetrieben — Array war ungenutzt |
-| `task_templates` + `legacyTemplateKey`-Konfig pro Node | `workflow_node_task_specs` + Sub-Tabellen pro Maßnahmen-/task/approval-Node | ✓ LA5 (2026-05-03). Specs haengen am `workflow_node_id` der published Version. Generator + Runtime-Resolver + Admin-CRUD lesen/schreiben aus den neuen Tabellen. Alte Tabellen + `legacyTemplateKey`-Validation droppt. Detail in [[LA5-TaskSpezifikation-Skizze]]. |
-| Specs nur am published `workflow_node_id`, kein Carry-Over zwischen Versionen | Specs reisen mit der Version-DTO; `EnsureWorkingDraft` + `Replace` schreiben sie atomic | ✓ FE-9 (2026-05-03). `WorkflowDefinitionNodeDto.Specs` ist Pflichtfeld; Validierung deckt Spec-Key-Eindeutigkeit, Same-Node-Dependencies, Node-Type-Compat ab. Builder round-trippt Specs durch Save. AdminTaskTemplate-Editor unveraendert (schreibt weiter auf published) — Cross-Version-Leak ist Watch-Item. Detail in [[FE9-Spec-Carry-Over-Skizze]]. |
-| In-Memory Task-Filter (Rotation) | SQL-seitiger Task-Filter | ✓ erledigt |
+| `legacyProcessTypeKey` in Form-/Gatekeeper-Config, Requirements- und WorkflowConfig-Pfaden | `workflowDefinitionKey` | noch aktiv in Builder, Publish-Validierung, Runtime-Gatekeeper und Teilen der Master-Data-Leser |
+| `PrimaryLegacyProcessTypeKey` in Definition-/Runtime-Snapshots | direkter Definition-Key | noch aktiv als Brücke im Publish- und Runtime-Pfad |
+| `WorkflowLegacyStatus` bzw. `LegacyStatus` im Runtime-Pfad | typsicheres `WorkflowStatus` | kein eigener DTO-Schwerpunkt mehr, aber intern noch als Übergangsstatus in Engine/Apply-Pfad vorhanden |
+| `WorkflowProcessTypeDto` / `processType`-Lesesurface | definitionsbasierte Workflow-Metadaten | API/FE-Benennung ist noch alt, obwohl die Datenquelle heute `workflow_definitions` ist |
+| `setup`-Node-Type | `measure_provision` / `_deprovision` / `_change` / `_rename` | ✓ Code/Seeds clean (nur noch `db/_archive/`); Doku bereinigt; einzig offener Rest: manuelle DB-Inventur gegen persistierte Definitionen |
 | Monolith-Repository | Slice-Repositories (`PostgresRotationRepository` + Helpers) | Rotation ✓ erledigt; Runtime/Automation/Audit/Notification offen |
+
+Bereits abgebaut sind u. a. `process_types` als Tabelle, die alten Onboarding-Alias-Endpunkte, das harte Permission-Array und der `task_templates`-/`legacyTemplateKey`-Pfad. Konkrete Restinventur: [[Legacy-Abbau-Plan]].
 
 Konkrete Roadmap zum Abbau: siehe [[Legacy-Abbau-Plan]].
 
