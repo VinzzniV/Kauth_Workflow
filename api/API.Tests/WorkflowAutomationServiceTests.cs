@@ -67,6 +67,48 @@ public sealed class WorkflowAutomationServiceTests
     }
 
     [Fact]
+    public async Task TryProcessNextPendingJobAsync_UnclaimsJobWhenCompleteFailureThrows()
+    {
+        var repository = new ThrowingFailureRepository
+        {
+            ClaimedJob = new ClaimedAutomationJobRecord
+            {
+                JobId = 7,
+                WorkflowId = 2,
+                WorkflowUid = Guid.NewGuid(),
+                WorkflowNodeInstanceId = 3,
+                WorkflowNodeId = 4,
+                NodeKey = "auto",
+                NodeType = "automation",
+                WorkflowNodeActionId = 5,
+                ExecutionOrder = 10,
+                OnErrorBehavior = "fail_workflow",
+                ActionDefinitionId = 6,
+                ActionKey = "CreateAdUser",
+                ActionName = "Create AD User",
+                HandlerType = "simulated_directory",
+                IsIdempotent = true,
+                AttemptNumber = 1,
+                CreatedByUserId = 99
+            }
+        };
+
+        var service = new WorkflowAutomationService(
+            repository,
+            repository,
+            new StubWorkflowAutomationHandlerRegistry(_ => new ThrowingAutomationHandler("CreateAdUser")),
+            new StubSystemEventLogService(),
+            new StubWorkflowLifecycleService(),
+            new WorkflowAutomationRetrySettings(),
+            NullLogger<WorkflowAutomationService>.Instance);
+
+        var processed = await service.TryProcessNextPendingJobAsync();
+
+        Assert.True(processed);
+        Assert.True(repository.UnclaimWasCalled);
+    }
+
+    [Fact]
     public async Task TryProcessNextPendingJobAsync_CompletesFailureWithoutRetryForNonIdempotentAction()
     {
         var repository = new StubWorkflowAutomationRepository
@@ -141,6 +183,9 @@ public sealed class WorkflowAutomationServiceTests
             LastFailureRetryAvailableAt = retryAvailableAt;
             return Task.CompletedTask;
         }
+
+        public Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class StubWorkflowAutomationHandlerRegistry(Func<string, IWorkflowAutomationActionHandler> factory)
@@ -172,12 +217,42 @@ public sealed class WorkflowAutomationServiceTests
         public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteTaskNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeTaskNodeRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
+    private sealed class ThrowingFailureRepository : IWorkflowAutomationRepository, IWorkflowAutomationReadRepository
+    {
+        public ClaimedAutomationJobRecord? ClaimedJob { get; set; }
+        public bool UnclaimWasCalled { get; private set; }
+
+        public Task<AdminListPageDto<ActionDefinitionDto>> GetAdminActionDefinitions(AdminListQuery query, CancellationToken cancellationToken = default)
+            => Task.FromResult(new AdminListPageDto<ActionDefinitionDto> { Items = [], Total = 0, Limit = query.Limit, Offset = query.Offset });
+
+        public Task<IReadOnlyList<AutomationJobDetailDto>> GetAutomationJobs(Guid workflowUid, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AutomationJobDetailDto>>([]);
+
+        public Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default)
+            => Task.FromResult(ClaimedJob);
+
+        public Task CompleteAutomationJobFailure(
+            ClaimedAutomationJobRecord job,
+            string errorMessage,
+            bool shouldRetry,
+            DateTime? retryAvailableAt,
+            IReadOnlyList<WorkflowAutomationLogEntry> logs,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("Simulated DB failure in CompleteAutomationJobFailure.");
+
+        public Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default)
+        {
+            UnclaimWasCalled = true;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class StubSystemEventLogService : ISystemEventLogService
     {
-        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+        public Task<CursorPageDto<AdminSystemLogEntryDto>> GetAdminLogsAsync(
             SystemEventLogQuery query,
             CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+            => Task.FromResult(new CursorPageDto<AdminSystemLogEntryDto> { Items = [], HasMore = false, NextCursor = null });
 
         public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
             SystemEventLogQuery query,

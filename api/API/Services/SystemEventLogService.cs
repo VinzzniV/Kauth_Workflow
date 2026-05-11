@@ -1,11 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
 
 namespace API;
 
-internal sealed class SystemEventLogService(LifecycleRuntimeSettings runtimeSettings) : ISystemEventLogService
+internal sealed class SystemEventLogService(
+    LifecycleRuntimeSettings runtimeSettings,
+    ILogger<SystemEventLogService> logger) : ISystemEventLogService
 {
     private static readonly HashSet<string> AllowedSources =
     [
@@ -129,20 +132,23 @@ VALUES (
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
         {
-            // Ignore until migration is applied.
+            logger.LogError(ex,
+                "system_event_log table does not exist. DB schema drift detected — apply the pending migration before system events can be recorded.");
         }
     }
 
-    public async Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+    public async Task<CursorPageDto<AdminSystemLogEntryDto>> GetAdminLogsAsync(
         SystemEventLogQuery query,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(runtimeSettings.ConnectionString))
         {
-            return [];
+            return new CursorPageDto<AdminSystemLogEntryDto> { Items = [], HasMore = false, NextCursor = null };
         }
 
         var normalizedQuery = NormalizeQuery(query);
+        var cursor = DecodeCursor(normalizedQuery.Cursor);
+
         await using var connection = new NpgsqlConnection(runtimeSettings.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -191,50 +197,73 @@ WHERE (@severities IS NULL OR log.severity = ANY(@severities))
   AND (@workflowUid IS NULL OR log.workflow_uid = @workflowUid)
   AND (@rotationPlanId IS NULL OR log.rotation_plan_id = @rotationPlanId)
   AND (@taskRef IS NULL OR log.task_ref = @taskRef)
+  AND (@cursorAt IS NULL OR log.created_at < @cursorAt
+       OR (log.created_at = @cursorAt AND log.id < @cursorId))
 ORDER BY log.created_at DESC, log.id DESC
-LIMIT @limit OFFSET @offset;
+LIMIT @fetchLimit;
 """;
 
-        try
+        await using var command = BuildFilterCommand(sql, normalizedQuery, connection);
+        command.Parameters.Add(new NpgsqlParameter("cursorAt", NpgsqlDbType.TimestampTz)
         {
-            await using var command = BuildQueryCommand(sql, normalizedQuery, connection);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            var entries = new List<AdminSystemLogEntryDto>();
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                entries.Add(new AdminSystemLogEntryDto
-                {
-                    Id = reader.GetInt64(0),
-                    CreatedAt = reader.GetDateTime(1),
-                    Severity = reader.GetString(2),
-                    Source = reader.GetString(3),
-                    Category = reader.GetString(4),
-                    EventKey = reader.GetString(5),
-                    Message = reader.GetString(6),
-                    UserMessage = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    ActorUserId = reader.IsDBNull(8) ? null : reader.GetInt64(8),
-                    ActorDisplayName = reader.IsDBNull(9) ? null : reader.GetString(9),
-                    ClientRoute = reader.IsDBNull(10) ? null : reader.GetString(10),
-                    ClientFunction = reader.IsDBNull(11) ? null : reader.GetString(11),
-                    HttpMethod = reader.IsDBNull(12) ? null : reader.GetString(12),
-                    HttpPath = reader.IsDBNull(13) ? null : reader.GetString(13),
-                    HttpStatus = reader.IsDBNull(14) ? null : reader.GetInt32(14),
-                    TraceIdentifier = reader.IsDBNull(15) ? null : reader.GetString(15),
-                    WorkflowUid = reader.IsDBNull(16) ? null : reader.GetGuid(16),
-                    RotationPlanId = reader.IsDBNull(17) ? null : reader.GetInt64(17),
-                    TaskRef = reader.IsDBNull(18) ? null : reader.GetString(18),
-                    EntityType = reader.IsDBNull(19) ? null : reader.GetString(19),
-                    EntityId = reader.IsDBNull(20) ? null : reader.GetString(20),
-                    Details = reader.IsDBNull(21) ? null : JsonSerializer.Deserialize<JsonElement>(reader.GetString(21))
-                });
-            }
+            Value = (object?)cursor?.CreatedAt ?? DBNull.Value
+        });
+        command.Parameters.Add(new NpgsqlParameter("cursorId", NpgsqlDbType.Bigint)
+        {
+            Value = (object?)cursor?.Id ?? DBNull.Value
+        });
+        command.Parameters.Add(new NpgsqlParameter("fetchLimit", NpgsqlDbType.Integer)
+        {
+            Value = normalizedQuery.Limit + 1
+        });
 
-            return entries;
-        }
-        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var entries = new List<AdminSystemLogEntryDto>();
+        while (await reader.ReadAsync(cancellationToken))
         {
-            return [];
+            entries.Add(new AdminSystemLogEntryDto
+            {
+                Id = reader.GetInt64(0),
+                CreatedAt = reader.GetDateTime(1),
+                Severity = reader.GetString(2),
+                Source = reader.GetString(3),
+                Category = reader.GetString(4),
+                EventKey = reader.GetString(5),
+                Message = reader.GetString(6),
+                UserMessage = reader.IsDBNull(7) ? null : reader.GetString(7),
+                ActorUserId = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+                ActorDisplayName = reader.IsDBNull(9) ? null : reader.GetString(9),
+                ClientRoute = reader.IsDBNull(10) ? null : reader.GetString(10),
+                ClientFunction = reader.IsDBNull(11) ? null : reader.GetString(11),
+                HttpMethod = reader.IsDBNull(12) ? null : reader.GetString(12),
+                HttpPath = reader.IsDBNull(13) ? null : reader.GetString(13),
+                HttpStatus = reader.IsDBNull(14) ? null : reader.GetInt32(14),
+                TraceIdentifier = reader.IsDBNull(15) ? null : reader.GetString(15),
+                WorkflowUid = reader.IsDBNull(16) ? null : reader.GetGuid(16),
+                RotationPlanId = reader.IsDBNull(17) ? null : reader.GetInt64(17),
+                TaskRef = reader.IsDBNull(18) ? null : reader.GetString(18),
+                EntityType = reader.IsDBNull(19) ? null : reader.GetString(19),
+                EntityId = reader.IsDBNull(20) ? null : reader.GetString(20),
+                Details = reader.IsDBNull(21) ? null : JsonSerializer.Deserialize<JsonElement>(reader.GetString(21))
+            });
         }
+
+        var hasMore = entries.Count > normalizedQuery.Limit;
+        if (hasMore)
+        {
+            entries.RemoveAt(entries.Count - 1);
+        }
+
+        var nextCursor = hasMore && entries.Count > 0
+            ? CursorPageQuery.EncodeCursor(entries[^1].CreatedAt, entries[^1].Id)
+            : null;
+
+        return new CursorPageDto<AdminSystemLogEntryDto>
+        {
+            Items = entries,
+            HasMore = hasMore,
+            NextCursor = nextCursor
+        };
     }
 
     public async Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
@@ -308,50 +337,40 @@ GROUP BY log.source
 ORDER BY COUNT(*) DESC, log.source ASC;
 """;
 
-        try
+        var summary = EmptySummary();
+        await using (var command = BuildFilterCommand(countSql, normalizedQuery, connection))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            var summary = EmptySummary();
-            await using (var command = BuildQueryCommand(countSql, normalizedQuery, connection))
-            await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            if (await reader.ReadAsync(cancellationToken))
             {
-                if (await reader.ReadAsync(cancellationToken))
+                summary = new AdminSystemLogSummaryDto
                 {
-                    summary = new AdminSystemLogSummaryDto
-                    {
-                        TotalCount = reader.GetInt32(0),
-                        InfoCount = reader.GetInt32(1),
-                        WarningCount = reader.GetInt32(2),
-                        ErrorCount = reader.GetInt32(3),
-                        Sources = []
-                    };
-                }
+                    TotalCount = reader.GetInt32(0),
+                    InfoCount = reader.GetInt32(1),
+                    WarningCount = reader.GetInt32(2),
+                    ErrorCount = reader.GetInt32(3),
+                    Sources = []
+                };
             }
-
-            await using (var command = BuildQueryCommand(sourceSql, normalizedQuery, connection))
-            await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
-            {
-                while (await reader.ReadAsync(cancellationToken))
-                {
-                    summary.Sources.Add(new AdminSystemLogSourceCountDto
-                    {
-                        Source = reader.GetString(0),
-                        Count = reader.GetInt32(1)
-                    });
-                }
-            }
-
-            return summary;
         }
-        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
+
+        await using (var command = BuildFilterCommand(sourceSql, normalizedQuery, connection))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            return EmptySummary();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                summary.Sources.Add(new AdminSystemLogSourceCountDto
+                {
+                    Source = reader.GetString(0),
+                    Count = reader.GetInt32(1)
+                });
+            }
         }
+
+        return summary;
     }
 
-    private static NpgsqlCommand BuildQueryCommand(
-        string sql,
-        SystemEventLogQuery query,
-        NpgsqlConnection connection)
+    private static NpgsqlCommand BuildFilterCommand(string sql, SystemEventLogQuery query, NpgsqlConnection connection)
     {
         var command = new NpgsqlCommand(sql, connection);
         command.Parameters.Add("severities", NpgsqlDbType.Array | NpgsqlDbType.Varchar).Value =
@@ -396,8 +415,6 @@ ORDER BY COUNT(*) DESC, log.source ASC;
             {
                 Value = (object?)NormalizeOptionalText(query.TaskRef) ?? DBNull.Value
             });
-        command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = query.Limit });
-        command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = query.Offset });
         return command;
     }
 
@@ -430,35 +447,46 @@ ORDER BY COUNT(*) DESC, log.source ASC;
             RotationPlanId = query.RotationPlanId is > 0 ? query.RotationPlanId : null,
             TaskRef = NormalizeOptionalText(query.TaskRef),
             Limit = Math.Clamp(query.Limit, 1, 200),
-            Offset = Math.Max(0, query.Offset)
+            Cursor = query.Cursor
         };
     }
 
-    private static string NormalizeSeverity(string? value)
+    internal static (DateTime CreatedAt, long Id)? DecodeCursor(string? cursor)
+    {
+        if (string.IsNullOrWhiteSpace(cursor))
+        {
+            return null;
+        }
+
+        var query = new CursorPageQuery { Cursor = cursor };
+        return query.DecodedCursor;
+    }
+
+    internal static string NormalizeSeverity(string? value)
     {
         var normalized = NormalizeValue(value, "info");
         return AllowedSeverities.Contains(normalized) ? normalized : "info";
     }
 
-    private static string NormalizeSource(string? value)
+    internal static string NormalizeSource(string? value)
     {
         var normalized = NormalizeValue(value, "system");
         return AllowedSources.Contains(normalized) ? normalized : "system";
     }
 
-    private static string NormalizeValue(string? value, string fallback)
+    internal static string NormalizeValue(string? value, string fallback)
     {
         var normalized = NormalizeOptionalText(value)?.ToLowerInvariant();
         return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized;
     }
 
-    private static string NormalizeMessage(string? value)
+    internal static string NormalizeMessage(string? value)
     {
         var normalized = NormalizeOptionalText(value);
         return string.IsNullOrWhiteSpace(normalized) ? "Systemereignis protokolliert." : normalized;
     }
 
-    private static string? NormalizeOptionalText(string? value)
+    internal static string? NormalizeOptionalText(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
@@ -469,7 +497,7 @@ ORDER BY COUNT(*) DESC, log.source ASC;
         return normalized is null ? null : $"%{normalized}%";
     }
 
-    private static string? BuildRedactedDetailsJson(object? details)
+    internal static string? BuildRedactedDetailsJson(object? details)
     {
         if (details is null)
         {
@@ -557,13 +585,13 @@ ORDER BY COUNT(*) DESC, log.source ASC;
         }
     }
 
-    private static bool ShouldRedact(string key)
+    internal static bool ShouldRedact(string key)
     {
         var normalized = key.Trim().ToLowerInvariant();
         return RedactedKeyFragments.Any(fragment => normalized.Contains(fragment, StringComparison.Ordinal));
     }
 
-    private static bool ShouldRedactBody(string key)
+    internal static bool ShouldRedactBody(string key)
     {
         var normalized = key.Trim().ToLowerInvariant();
         return BodyKeyFragments.Any(fragment => normalized.Contains(fragment, StringComparison.Ordinal));

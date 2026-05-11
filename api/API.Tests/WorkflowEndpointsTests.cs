@@ -1824,10 +1824,10 @@ public sealed class WorkflowEndpointsTests
 
     private sealed class StubSystemEventLogService : ISystemEventLogService
     {
-        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+        public Task<CursorPageDto<AdminSystemLogEntryDto>> GetAdminLogsAsync(
             SystemEventLogQuery query,
             CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+            => Task.FromResult(new CursorPageDto<AdminSystemLogEntryDto> { Items = [], HasMore = false, NextCursor = null });
 
         public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
             SystemEventLogQuery query,

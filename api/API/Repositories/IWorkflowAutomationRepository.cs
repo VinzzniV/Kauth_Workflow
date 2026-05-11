@@ -10,6 +10,7 @@ internal interface IWorkflowAutomationRepository
         DateTime? retryAvailableAt,
         IReadOnlyList<WorkflowAutomationLogEntry> logs,
         CancellationToken cancellationToken = default);
+    Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default);
 }
 
 internal sealed class ClaimedAutomationJobRecord

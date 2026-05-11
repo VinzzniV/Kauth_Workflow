@@ -52,7 +52,7 @@ export type AdminSystemLogQueryOptions = {
   rotationPlanId?: number | null;
   taskRef?: string | null;
   limit?: number | null;
-  offset?: number | null;
+  cursor?: string | null;
 };
 
 function buildAdminSystemLogQuery(options: AdminSystemLogQueryOptions): string {
@@ -98,8 +98,8 @@ function buildAdminSystemLogQuery(options: AdminSystemLogQueryOptions): string {
     params.set("limit", String(options.limit));
   }
 
-  if (options.offset !== null && options.offset !== undefined) {
-    params.set("offset", String(options.offset));
+  if (options.cursor?.trim()) {
+    params.set("cursor", options.cursor.trim());
   }
 
   const query = params.toString();
@@ -205,11 +205,11 @@ export async function previewAdminNotificationTemplate(
   );
 }
 
-export async function getAdminSystemLogs(options: AdminSystemLogQueryOptions): Promise<AdminSystemLogEntry[]> {
-  return requestJson<BackendAdminSystemLogEntryDto[]>(`/admin/system/logs${buildAdminSystemLogQuery(options)}`);
+export async function getAdminSystemLogs(options: AdminSystemLogQueryOptions): Promise<CursorPage<AdminSystemLogEntry>> {
+  return requestJson<CursorPage<BackendAdminSystemLogEntryDto>>(`/admin/system/logs${buildAdminSystemLogQuery(options)}`);
 }
 
-export async function getAdminSystemLogSummary(options: Omit<AdminSystemLogQueryOptions, "limit" | "offset">): Promise<AdminSystemLogSummary> {
+export async function getAdminSystemLogSummary(options: Omit<AdminSystemLogQueryOptions, "limit" | "cursor">): Promise<AdminSystemLogSummary> {
   return requestJson<BackendAdminSystemLogSummaryDto>(
     `/admin/system/logs/summary${buildAdminSystemLogQuery(options)}`
   );

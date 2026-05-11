@@ -172,8 +172,8 @@ public sealed class EntraDirectorySyncServiceTests
     {
         public List<SystemEventLogWriteModel> Writes { get; } = new();
 
-        public Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(SystemEventLogQuery query, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<AdminSystemLogEntryDto>>([]);
+        public Task<CursorPageDto<AdminSystemLogEntryDto>> GetAdminLogsAsync(SystemEventLogQuery query, CancellationToken cancellationToken = default)
+            => Task.FromResult(new CursorPageDto<AdminSystemLogEntryDto> { Items = [], HasMore = false, NextCursor = null });
 
         public Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(SystemEventLogQuery query, CancellationToken cancellationToken = default)
             => Task.FromResult(new AdminSystemLogSummaryDto { TotalCount = 0, InfoCount = 0, WarningCount = 0, ErrorCount = 0, Sources = [] });

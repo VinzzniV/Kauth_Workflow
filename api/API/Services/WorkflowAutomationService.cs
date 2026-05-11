@@ -75,28 +75,50 @@ internal sealed class WorkflowAutomationService(
                 ? DateTime.UtcNow + retrySettings.ResolveRetryDelay(job.AttemptNumber)
                 : null;
 
-            await repository.CompleteAutomationJobFailure(
-                job,
-                ex.Message,
-                shouldRetry,
-                retryAvailableAt,
-                [
-                    new WorkflowAutomationLogEntry
-                    {
-                        Level = "error",
-                        Message = shouldRetry
-                            ? $"Automation action '{job.ActionKey}' failed and will be retried."
-                            : $"Automation action '{job.ActionKey}' failed permanently.",
-                        Details = System.Text.Json.JsonSerializer.SerializeToElement(new
+            try
+            {
+                await repository.CompleteAutomationJobFailure(
+                    job,
+                    ex.Message,
+                    shouldRetry,
+                    retryAvailableAt,
+                    [
+                        new WorkflowAutomationLogEntry
                         {
-                            error = ex.Message,
-                            attemptNumber = job.AttemptNumber,
-                            shouldRetry,
-                            retryAvailableAt
-                        })
-                    }
-                ],
-                cancellationToken);
+                            Level = "error",
+                            Message = shouldRetry
+                                ? $"Automation action '{job.ActionKey}' failed and will be retried."
+                                : $"Automation action '{job.ActionKey}' failed permanently.",
+                            Details = System.Text.Json.JsonSerializer.SerializeToElement(new
+                            {
+                                error = ex.Message,
+                                attemptNumber = job.AttemptNumber,
+                                shouldRetry,
+                                retryAvailableAt
+                            })
+                        }
+                    ],
+                    cancellationToken);
+            }
+            catch (Exception failureEx) when (failureEx is not OperationCanceledException)
+            {
+                logger.LogError(
+                    failureEx,
+                    "Failed to record failure for automation job {JobId} (action {ActionKey}). Attempting unclaim to allow retry.",
+                    job.JobId,
+                    job.ActionKey);
+                try
+                {
+                    await repository.UnclaimAutomationJobAsync(job.JobId, cancellationToken);
+                }
+                catch (Exception unclaimEx) when (unclaimEx is not OperationCanceledException)
+                {
+                    logger.LogError(
+                        unclaimEx,
+                        "Failed to unclaim automation job {JobId}. Job may remain stuck in claimed state.",
+                        job.JobId);
+                }
+            }
 
             logger.LogWarning(
                 ex,
@@ -106,26 +128,33 @@ internal sealed class WorkflowAutomationService(
                 job.AttemptNumber,
                 shouldRetry);
 
-            await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
+            try
             {
-                Severity = "error",
-                Source = "automation",
-                Category = "job",
-                EventKey = shouldRetry ? "automation_job_failed_retrying" : "automation_job_failed",
-                Message = $"Automation job {job.JobId} for action {job.ActionKey} failed: {ex.Message}",
-                WorkflowUid = job.WorkflowUid,
-                EntityType = "automation_job",
-                EntityId = job.JobId.ToString(),
-                Details = new
+                await systemEventLogService.WriteAsync(new SystemEventLogWriteModel
                 {
-                    job.JobId,
-                    job.ActionKey,
-                    job.AttemptNumber,
-                    shouldRetry,
-                    retryAvailableAt,
-                    error = ex.Message
-                }
-            }, cancellationToken);
+                    Severity = "error",
+                    Source = "automation",
+                    Category = "job",
+                    EventKey = shouldRetry ? "automation_job_failed_retrying" : "automation_job_failed",
+                    Message = $"Automation job {job.JobId} for action {job.ActionKey} failed: {ex.Message}",
+                    WorkflowUid = job.WorkflowUid,
+                    EntityType = "automation_job",
+                    EntityId = job.JobId.ToString(),
+                    Details = new
+                    {
+                        job.JobId,
+                        job.ActionKey,
+                        job.AttemptNumber,
+                        shouldRetry,
+                        retryAvailableAt,
+                        error = ex.Message
+                    }
+                }, cancellationToken);
+            }
+            catch (Exception logEx) when (logEx is not OperationCanceledException)
+            {
+                logger.LogWarning(logEx, "Failed to write system event log for automation job {JobId} failure.", job.JobId);
+            }
         }
 
         return true;

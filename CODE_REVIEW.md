@@ -86,11 +86,11 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 | Z19-S2 | Background-Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap). | HIGH | **done 2026-05-11** |
 | Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql` (Migrations-Manifest `db/manual/manifest.json` + `api/API.Tests/SchemaParityTests.cs`). | HIGH | **done 2026-05-11** |
 | Z19-S4 | `WorkflowLifecycleService` und `WorkflowRuntimeService` durchgaengig auf `CancellationToken` umstellen (HTTP-Abbruch erreicht offene DB-Transaktion). | HIGH | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Restrest dokumentiert) |
-| Z19-S5 | `SystemEventLogService`: stilles Schlucken von `UndefinedTable` ersetzen, Cursor-Pagination statt LIMIT/OFFSET, eigene Unit-Tests fuer Redaction/Normalization/Filter. | MEDIUM | offen |
+| Z19-S5 | `SystemEventLogService`: stilles Schlucken von `UndefinedTable` ersetzen, Cursor-Pagination statt LIMIT/OFFSET, eigene Unit-Tests fuer Redaction/Normalization/Filter. | MEDIUM | **done 2026-05-11** |
 | Z19-S6 | `PostgresUserAuthorizationRepository.AdminOperations.cs` (1886 LOC) + `…AdminReadOperations.cs` (1002 LOC) nach Z9-Pattern aufteilen. | MEDIUM | offen |
-| Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern (Job-Claim leakt, wenn `CompleteAutomationJobFailure` selbst wirft). | MEDIUM | offen |
-| Z19-S8 | Verdikt fuer deferred Befunde Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot-Vertrag): explizit weiter deferred mit Frist, oder eigener Slice. | MEDIUM | offen |
-| Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` (Z. 37–41) zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` reicht den entgegengenommenen `CancellationToken` nicht ans Repository weiter. | LOW | teil-erledigt 2026-05-11 (L1 Stray-Verzeichnis + L4 CancellationToken-Propagation done; L2/L3 Hygiene-Punkte weiterhin offen) |
+| Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern (Job-Claim leakt, wenn `CompleteAutomationJobFailure` selbst wirft). | MEDIUM | **done 2026-05-11** |
+| Z19-S8 | Verdikt fuer deferred Befunde Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot-Vertrag): explizit weiter deferred mit Frist, oder eigener Slice. | MEDIUM | **done 2026-05-11** (beide formal deferred mit Begruendung — siehe S8-Ergebnis) |
+| Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` Token-Propagation. | LOW | **done 2026-05-11** (L1 + L4 in S2/S4-Commit; L2 + L3 in diesem Bundle) |
 
 **Empfohlenes Modell/Effort fuer Folgeslices:**
 - **Z19-S1** (Audit, abgeschlossen): `claude-opus-4-7` + `--effort high`.
@@ -98,7 +98,7 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Workflow-Definition-/Runtime-/Automation-Layer (Migrationspfad-Arbeit bleibt eigenstaendig), neue Frontend-Findings (Z18 vollstaendig abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigener Backlog).
 
-**Naechster Schritt:** Z19-S5 (`SystemEventLogService`: UndefinedTable-Swallow ersetzen, Cursor-Pagination, eigene Unit-Tests) — alle drei HIGH-Slices (S2, S3, S4) und zwei der vier LOW-Punkte (L1, L4) sind am 2026-05-11 erledigt; MEDIUM-Phase beginnt.
+**Naechster Schritt (nach diesem Bundle):** Z19-S6 (`PostgresUserAuthorizationRepository`-Split) — einziger offener MEDIUM-Slice. S5 + S7 + S8 + S9/L2 + S9/L3 sind am 2026-05-11 in diesem gebuendelten Commit erledigt.
 
 ---
 
@@ -205,6 +205,41 @@ S3 (Schema-Paritaets-Check) und L1 (Stray-Verzeichnis) sind in einem gebuendelte
 
 ---
 
+## Aktiver Zyklus 19 — S5 + S7 + S8 + S9/L2 + S9/L3 Ergebnis (2026-05-11)
+
+S5, S7, S8, L2 und L3 in einem gebuendelten Commit erledigt. Z19 damit bis auf S6 vollstaendig abgeschlossen.
+
+**S5 — SystemEventLogService:**
+- UndefinedTable-Swallow in `WriteAsync` ersetzt: ILogger hinzugefuegt, LogError statt stillem Schlucken. Admins sehen jetzt im Application-Log, wenn die Tabelle fehlt.
+- UndefinedTable-Catches aus `GetAdminLogsAsync` und `GetAdminLogSummaryAsync` entfernt: fehlende Tabelle propagiert als HTTP-500 zum Admin — sichtbares Drift-Signal statt stiller Leere.
+- `GetAdminLogsAsync` jetzt Cursor-basiert (`CursorPageDto<AdminSystemLogEntryDto>` statt `IReadOnlyList`): keyset-Pagination ueber `(created_at DESC, id DESC)`, opaque Base64-Cursor (Z11-Pattern), `hasMore`-Flag. `LIMIT/OFFSET` entfernt.
+- `SystemEventLogQuery.Offset` durch `Cursor` (string?) ersetzt. `BuildQueryCommand` in `BuildFilterCommand` aufgeteilt — Cursor-Parameter nur im List-Pfad.
+- Frontend (`adminApi.ts`, `AdminSystemLogSection.tsx`): `offset` durch `cursor` ersetzt, Pagination auf „Nächste Seite / Zurück zum Anfang" umgebaut.
+- 67 neue Unit-Tests (`SystemEventLogServiceTests.cs`): Redaction (token/secret/password/key/refresh/authorization), Body-Omission (htmlBody/textBody/mailBody/messageBody), Normalization (severity/source/message/optionalText), ShouldRedact/ShouldRedactBody, Cursor-En-/Decodierung.
+
+**S7 — WorkflowAutomationService Failure-of-Failure:**
+- `IWorkflowAutomationRepository.UnclaimAutomationJobAsync` hinzugefuegt; implementiert in `PostgresWorkflowRepository.AutomationOperations.cs` (setzt Job auf `pending` mit `available_at = NOW()`).
+- `TryProcessNextPendingJobAsync` Failure-Pfad: `CompleteAutomationJobFailure` in try-catch gekapselt. Scheitert dieser Call, wird `UnclaimAutomationJobAsync` versucht, damit der Job wieder vom Worker aufgenommen werden kann. Scheitert auch Unclaim, wird LogError ausgegeben — kein Crash des Workers.
+- `systemEventLogService.WriteAsync` im Failure-Pfad ebenfalls in try-catch (best-effort; kein Worker-Crash bei fehlendem System-Log).
+- Neuer Test `TryProcessNextPendingJobAsync_UnclaimsJobWhenCompleteFailureThrows` prueft Unclaim-Pfad.
+
+**S8 — Verdikt deferred Befunde:**
+- **Z8-3.2/#8** (`RegenerateDepartmentPlansAsync`): formal deferred, kein Verfallsdatum. Kein kleiner SQL-/Batch-Hebel ohne breiten Umbau an `SynchronizeRotationGeneratedTasks`. Der richtige Zeitpunkt ist ein dedizierter Rotation-Scheduling-Umbau im Zuge der geplanten „explizit transaktionalen Rotation-Task-Generierung" (Zielarchitektur-Meilenstein). Bis dahin: Admin-getriggert, kein Hot-Path, Risiko akzeptabel. Eintrag in `CODE_REVIEW.md` § Offene Befunde bleibt.
+- **Z16-S4** (Automation-Snapshot-Zeitstempel): formal deferred bis Produkt-Entscheidung. `AutomationPropertyCatalog.cs` referenziert `appUserId`/`directoryIdentityId` ohne formalen Snapshot-Zeitstempel. Kein technischer Blocker — der fehlende Snapshot betrifft rueckwirkende Klarheit bei Automation-Properties, nicht aktuelle Korrektheit. Sobald Produkt entscheidet, ob Snapshot in `workflow_automation_jobs` persistiert wird, ist Z16-S4 ein eigenstaendiger Slice. Eintrag in `KauthWorkflow/Architektur/Entscheidungen.md` bereits vorhanden.
+
+**S9/L2 + L3:**
+- `AdminRuntimeHealthService`: doppeltes `Task.WhenAll` entfernt. `BuildHostHealthAsync` wird jetzt parallel mit den anderen Probes gestartet, einziges `await Task.WhenAll(...)` ueber alle sechs Tasks. Keine Funktionsaenderung, ehrlichere Parallelitaet.
+- Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` (4-Zeilen-Kommentar-Datei) entfernt.
+
+**Tests:**
+- `dotnet test … --filter "FullyQualifiedName~SystemEventLogServiceTests|FullyQualifiedName~WorkflowAutomationServiceTests"`: 70/70 gruen.
+- `dotnet test … --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Concurrency" -p:OutputPath=bin/Verify/`: 511/511 gruen (444 vorher + 67 neu).
+- TypeScript-Build (`npx tsc --noEmit`): 0 Fehler.
+
+**Offener Rest:** Z19-S6 (`PostgresUserAuthorizationRepository`-Split nach Z9-Pattern). Alle anderen Z19-Slices done.
+
+---
+
 ## Archivstatus
 
 - Die Detailzyklen **Z8 bis Z16** liegen in `CODE_REVIEW_ARCHIVE.md`.
@@ -251,4 +286,4 @@ S3 (Schema-Paritaets-Check) und L1 (Stray-Verzeichnis) sind in einem gebuendelte
 | A3 | 2026-05-08 | Mitarbeiterkarte fehlende Felder + retroaktiver Status — PATCH /admin/people/{personId} (entry_date, badge_number); Inline-Edit in PersonOverviewSection (Admin-only, useMutation + Invalidierung); Lücken-Warnung; Badge „Retroaktiv importiert"; erklärender Text im leeren Vorgangsbereich — **abgeschlossen** |
 | B | 2026-05-08 | Entra-Stellenbezeichnungen in Abteilungs-Stellen importieren — GET /admin/master-data/departments/{id}/entra-job-titles + POST …/positions/import-from-entra; Checkbox-UI in AdminOrganizationDepartmentEditor mit bereits-vorhanden-Markierung — **abgeschlossen** |
 | C | 2026-05-08 | Mitarbeiter-Verzeichnis zeigt jetzt auch aktive `directory_identities` ohne Mitarbeiterkarte — `GetPeopleDirectory` per `UNION ALL`, Status `directory_only`, nullable `personId`, Inline-Import-Button pro Verzeichnis-Eintrag in `PeopleDirectoryPage` — **abgeschlossen** |
-| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — eroeffnet als Doku-Zyklus, S1 Audit-Pass offen |
+| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — S1..S5 + S7..S9 done 2026-05-11; S6 (`AuthZ-Repo-Split`) offen |

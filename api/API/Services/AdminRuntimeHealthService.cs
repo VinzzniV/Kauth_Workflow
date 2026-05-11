@@ -33,9 +33,6 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         var mailConfigTask = _mailConfigService.GetAdminConfiguration(cancellationToken);
         var syncStatusTask = _directorySyncService.GetSyncStatusAsync(cancellationToken);
         var pendingImportsTask = _directorySyncService.GetPendingImportsAsync(cancellationToken);
-
-        await Task.WhenAll(dbCheckTask, authCheckTask, mailConfigTask, syncStatusTask, pendingImportsTask);
-
         var hostTask = BuildHostHealthAsync(cancellationToken);
 
         await Task.WhenAll(dbCheckTask, authCheckTask, mailConfigTask, syncStatusTask, pendingImportsTask, hostTask);

@@ -3,7 +3,7 @@ namespace API;
 internal interface ISystemEventLogService
 {
     Task WriteAsync(SystemEventLogWriteModel model, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<AdminSystemLogEntryDto>> GetAdminLogsAsync(
+    Task<CursorPageDto<AdminSystemLogEntryDto>> GetAdminLogsAsync(
         SystemEventLogQuery query,
         CancellationToken cancellationToken = default);
     Task<AdminSystemLogSummaryDto> GetAdminLogSummaryAsync(
@@ -23,7 +23,7 @@ internal sealed class SystemEventLogQuery
     public long? RotationPlanId { get; init; }
     public string? TaskRef { get; init; }
     public int Limit { get; init; } = 50;
-    public int Offset { get; init; }
+    public string? Cursor { get; init; }
 }
 
 internal sealed class SystemEventLogWriteModel

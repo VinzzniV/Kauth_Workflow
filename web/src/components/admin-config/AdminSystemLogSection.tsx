@@ -78,7 +78,7 @@ function buildQuery(options: {
   rotationPlanId: string;
   taskRef: string;
   limit: number;
-  offset: number;
+  cursor: string | null;
 }): AdminSystemLogQueryOptions {
   return {
     severity: options.severities,
@@ -91,7 +91,7 @@ function buildQuery(options: {
     rotationPlanId: options.rotationPlanId ? Number(options.rotationPlanId) : null,
     taskRef: options.taskRef || null,
     limit: options.limit,
-    offset: options.offset,
+    cursor: options.cursor,
   };
 }
 
@@ -106,17 +106,18 @@ export function AdminSystemLogSection() {
   const [rotationPlanId, setRotationPlanId] = useState("");
   const [taskRef, setTaskRef] = useState("");
   const [limit, setLimit] = useState(50);
-  const [offset, setOffset] = useState(0);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const advancedFilterCount = [actorUserId, workflowUid, rotationPlanId, taskRef].filter(
     (value) => value.trim().length > 0
   ).length;
   const [entries, setEntries] = useState<AdminSystemLogEntry[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [summary, setSummary] = useState<AdminSystemLogSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const currentPage = Math.floor(offset / limit) + 1;
   const query = useMemo(
     () =>
       buildQuery({
@@ -130,9 +131,9 @@ export function AdminSystemLogSection() {
         rotationPlanId,
         taskRef,
         limit,
-        offset,
+        cursor,
       }),
-    [actorUserId, limit, offset, rotationPlanId, search, severities, since, source, taskRef, until, workflowUid]
+    [actorUserId, cursor, limit, rotationPlanId, search, severities, since, source, taskRef, until, workflowUid]
   );
 
   useEffect(() => {
@@ -143,7 +144,7 @@ export function AdminSystemLogSection() {
       setError(null);
 
       try {
-        const [nextEntries, nextSummary] = await Promise.all([
+        const [nextPage, nextSummary] = await Promise.all([
           getAdminSystemLogs(query),
           getAdminSystemLogSummary(query),
         ]);
@@ -152,7 +153,9 @@ export function AdminSystemLogSection() {
           return;
         }
 
-        setEntries(nextEntries);
+        setEntries(nextPage.items);
+        setHasMore(nextPage.hasMore);
+        setNextCursor(nextPage.nextCursor ?? null);
         setSummary(nextSummary);
       } catch (loadError) {
         if (isCancelled) {
@@ -174,7 +177,7 @@ export function AdminSystemLogSection() {
   }, [query]);
 
   function toggleSeverity(severity: string) {
-    setOffset(0);
+    setCursor(null);
     setSeverities((current) => {
       if (current.includes(severity)) {
         return current.length === 1 ? current : current.filter((item) => item !== severity);
@@ -243,7 +246,7 @@ export function AdminSystemLogSection() {
             <select
               value={source}
               onChange={(event) => {
-                setOffset(0);
+                setCursor(null);
                 setSource(event.target.value);
               }}
             >
@@ -263,7 +266,7 @@ export function AdminSystemLogSection() {
                 type="date"
                 value={since}
                 onChange={(event) => {
-                  setOffset(0);
+                  setCursor(null);
                   setSince(event.target.value);
                 }}
               />
@@ -275,7 +278,7 @@ export function AdminSystemLogSection() {
                 type="date"
                 value={until}
                 onChange={(event) => {
-                  setOffset(0);
+                  setCursor(null);
                   setUntil(event.target.value);
                 }}
               />
@@ -288,7 +291,7 @@ export function AdminSystemLogSection() {
               type="text"
               value={search}
               onChange={(event) => {
-                setOffset(0);
+                setCursor(null);
                 setSearch(event.target.value);
               }}
               placeholder="Meldung, Route, Funktion"
@@ -313,7 +316,7 @@ export function AdminSystemLogSection() {
             <select
               value={String(limit)}
               onChange={(event) => {
-                setOffset(0);
+                setCursor(null);
                 setLimit(Number(event.target.value));
               }}
             >
@@ -332,7 +335,7 @@ export function AdminSystemLogSection() {
                 type="number"
                 value={actorUserId}
                 onChange={(event) => {
-                  setOffset(0);
+                  setCursor(null);
                   setActorUserId(event.target.value);
                 }}
                 placeholder="optional"
@@ -345,7 +348,7 @@ export function AdminSystemLogSection() {
                 type="text"
                 value={workflowUid}
                 onChange={(event) => {
-                  setOffset(0);
+                  setCursor(null);
                   setWorkflowUid(event.target.value);
                 }}
                 placeholder="Workflow-UID"
@@ -358,7 +361,7 @@ export function AdminSystemLogSection() {
                 type="number"
                 value={rotationPlanId}
                 onChange={(event) => {
-                  setOffset(0);
+                  setCursor(null);
                   setRotationPlanId(event.target.value);
                 }}
                 placeholder="optional"
@@ -371,7 +374,7 @@ export function AdminSystemLogSection() {
                 type="text"
                 value={taskRef}
                 onChange={(event) => {
-                  setOffset(0);
+                  setCursor(null);
                   setTaskRef(event.target.value);
                 }}
                 placeholder="z. B. rot:123"
@@ -470,23 +473,24 @@ export function AdminSystemLogSection() {
           </div>
 
           <div className="action-row admin-system-log-pagination">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setOffset((current) => Math.max(0, current - limit))}
-              disabled={offset === 0}
-            >
-              Vorherige Seite
-            </button>
-            <span className="panel-note">Seite {currentPage}</span>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setOffset((current) => current + limit)}
-              disabled={entries.length < limit}
-            >
-              Nächste Seite
-            </button>
+            {cursor !== null ? (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setCursor(null)}
+              >
+                Zurück zum Anfang
+              </button>
+            ) : null}
+            {hasMore ? (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setCursor(nextCursor)}
+              >
+                Nächste Seite
+              </button>
+            ) : null}
           </div>
         </>
       ) : null}

@@ -20,7 +20,7 @@ internal static class AdminSystemLogEndpoints
             [FromQuery] long? rotationPlanId,
             [FromQuery] string? taskRef,
             [FromQuery] int? limit,
-            [FromQuery] int? offset,
+            [FromQuery] string? cursor,
             ISystemEventLogService systemEventLogService,
             IUserContext userContext,
             IAuthorizationPolicyService authorizationPolicy) =>
@@ -45,9 +45,9 @@ internal static class AdminSystemLogEndpoints
                 rotationPlanId,
                 taskRef,
                 limit,
-                offset);
+                cursor);
             return Results.Ok(await systemEventLogService.GetAdminLogsAsync(query));
-        }).Produces<List<AdminSystemLogEntryDto>>(StatusCodes.Status200OK)
+        }).Produces<CursorPageDto<AdminSystemLogEntryDto>>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
           .Produces(StatusCodes.Status401Unauthorized);
 
@@ -85,7 +85,7 @@ internal static class AdminSystemLogEndpoints
                 rotationPlanId,
                 taskRef,
                 null,
-                null);
+                null /* cursor not used in summary */);
             return Results.Ok(await systemEventLogService.GetAdminLogSummaryAsync(query));
         }).Produces<AdminSystemLogSummaryDto>(StatusCodes.Status200OK)
           .Produces(StatusCodes.Status403Forbidden)
@@ -105,7 +105,7 @@ internal static class AdminSystemLogEndpoints
         long? rotationPlanId,
         string? taskRef,
         int? limit,
-        int? offset)
+        string? cursor)
     {
         var severities = (severity ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -122,7 +122,7 @@ internal static class AdminSystemLogEndpoints
             RotationPlanId = rotationPlanId,
             TaskRef = taskRef,
             Limit = limit ?? 50,
-            Offset = offset ?? 0
+            Cursor = cursor
         };
     }
 

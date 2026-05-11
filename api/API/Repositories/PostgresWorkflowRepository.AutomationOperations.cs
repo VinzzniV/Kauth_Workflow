@@ -301,4 +301,23 @@ LIMIT 1;
 
         await transaction.CommitAsync(cancellationToken);
     }
+
+    public async Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await PostgresWorkflowAutomationOperations.SetAutomationJobStatusAsync(
+            connection,
+            transaction,
+            jobId,
+            PostgresWorkflowAutomationOperations.AutomationJobStatusPending,
+            startedAtUtc: null,
+            completedAtUtc: null,
+            availableAtUtc: DateTime.UtcNow,
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
 }

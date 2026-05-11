@@ -47,23 +47,22 @@ Schreibregel: jedes neue Review-Finding / jeder Slice muss neben dem technischen
 
 ## Aktueller Review-Status
 
-**Z19 aktiv (2026-05-11).** Backend Full Review / Holistic Audit. **Z19-S1 + S2 + S3 + S4 + S9/L1 + S9/L4 abgeschlossen 2026-05-11** (S2/S4/L4 als ein gebuendelter Commit; S3/L1 als ein gebuendelter Commit). Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
+**Z19 fast abgeschlossen (2026-05-11).** Backend Full Review / Holistic Audit. **S1..S5 + S7..S9 done**; einziger offener Slice: S6 (`AuthZ-Repo-Split`). Z18 + Entra-Retrofit-Block (A1, A2, A3, B, C) bleiben am 2026-05-08 abgeschlossen.
 
 **Aktive Arbeit:**
 
 | Slice | Inhalt | Prio | Modell/Effort | Status |
 |-------|--------|------|---------------|--------|
-| Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene und Test-Coverage. Findings in `CODE_REVIEW.md` § „Aktiver Zyklus 19 — S1 Ergebnis". | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
-| Z19-S2 | Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap, `CancelAfter`). | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
-| Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql` (Manifest `db/manual/manifest.json` + `SchemaParityTests.cs`). | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
-| Z19-S4 | `WorkflowLifecycleService` + `WorkflowRuntimeService` durchgaengig auf `CancellationToken`. | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Resthebel dokumentiert) |
-| Z19-S5 | `SystemEventLogService`: UndefinedTable-Swallow ersetzen, Cursor-Pagination, eigene Unit-Tests. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen — naechster Schritt |
-| Z19-S6 | `PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations nach Z9-Pattern aufteilen. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
-| Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
-| Z19-S8 | Verdikt fuer deferred Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot). | MEDIUM | (Doku-Entscheidung) | offen |
-| Z19-S9 | Hygiene-Batch (LOW): Stray `db/init/prod;C/`, doppeltes `Task.WhenAll` in `AdminRuntimeHealthService`, leerer Tombstone-Test, `WorkflowRuntimeService.GetWorkflowsAsync` Token-Propagation. | LOW | `claude-sonnet-4-6` + `--effort medium` | teil-erledigt 2026-05-11 (L1 Stray-Verzeichnis + L4 Token-Propagation done; L2/L3 weiterhin offen) |
+| Z19-S6 | `PostgresUserAuthorizationRepository` AdminOperations/AdminReadOperations nach Z9-Pattern aufteilen. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen — naechster Schritt |
 
-**Praktischer Nutzen:** breite Bestandsaufnahme nach den punktuellen Backend-Zyklen (Z8/Z9/Z11/Z12/Z13) hat 3 HIGH-, 4 MEDIUM- und 4 LOW-Findings sichtbar gemacht. Die HIGHs zielen direkt auf Betriebsfestigkeit (Sweep-Timeout, Schema-Drift, Transaktions-Abbruchpfad), die MEDIUMs auf Diagnose- und Wartbarkeitsluecken. Detail in `CODE_REVIEW.md` § „Aktiver Zyklus 19 — S1 Ergebnis".
+**Erledigt in diesem Bundle (2026-05-11):**
+- Z19-S5: `SystemEventLogService` UndefinedTable-Swallow + Cursor-Pagination + 67 Unit-Tests
+- Z19-S7: Failure-of-Failure + `UnclaimAutomationJobAsync` + neuer Test
+- Z19-S8: Z8-3.2/#8 und Z16-S4 formal deferred mit Begruendung (kein Code)
+- Z19-S9/L2: `AdminRuntimeHealthService` doppeltes `Task.WhenAll` bereinigt
+- Z19-S9/L3: Tombstone-Datei entfernt
+
+**Praktischer Nutzen:** alle MEDIUMs und alle LOWs abgearbeitet; einziger Rest ist der `AuthZ-Repo-Split` (MEDIUM, reine Code-Hygiene). Detail in `CODE_REVIEW.md` § Ergebnis-Bloecke.
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer, neue FE-Findings, Berechtigungsmodell-Aenderungen ohne konkretes Risiko.
 
