@@ -209,6 +209,8 @@ Solange das System nicht produktiv läuft, werden Schema- und Seed-Änderungen d
 
 ### Bestehende Datenbanken bei Schema-Renames
 
+Manuelle Inplace-Migrationen leben unter `db/manual/*.sql`. Jede Datei ist über `db/manual/manifest.json` registriert; der Test `api/API.Tests/SchemaParityTests.cs` prüft im normalen Testlauf, dass die End-Marker der Migration tatsächlich in `db/01_schema.sql` stehen und Alt-Marker (z. B. umbenannte Spalten) dort nicht mehr auftauchen. Damit fällt Schema-Drift früh im Testlauf auf, nicht erst beim Laufzeitfehler. Workflow- und Konventions-Details siehe `db/manual/README.md`.
+
 Wenn eine bestehende DB bereits mit einem älteren Schema läuft, reicht ein Container-/API-Neustart nicht. In dem Fall muss die vorhandene Datenbank einmalig inplace angepasst werden; ein Volume-Löschen ist nur für wegwerfbare Dev-Daten sinnvoll.
 
 Beispiel 2026-05-08:

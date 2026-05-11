@@ -82,13 +82,13 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 |-------|--------|------|---------------|--------|
 | Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. `db/manual/`-Workflow), Test-Coverage. **Doku-only.** | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
 | Z19-S2 | Sweep-Timeout fuer `DirectorySyncHostedService` (analog `RotationNotificationHostedService.SweepTimeout = 2h`). | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
-| Z19-S3 | Schema-Paritaets-Check `db/01_schema.sql` vs `db/manual/*.sql`. | HIGH | `claude-opus-4-7` + `--effort high` | offen — naechster Schritt |
+| Z19-S3 | Schema-Paritaets-Check `db/01_schema.sql` vs `db/manual/*.sql` (`db/manual/manifest.json` + `SchemaParityTests.cs`). | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** |
 | Z19-S4 | `CancellationToken`-Propagation in `WorkflowLifecycleService` + `WorkflowRuntimeService`. | HIGH | `claude-opus-4-7` + `--effort high` | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Resthebel dokumentiert) |
 | Z19-S5 | `SystemEventLogService`: UndefinedTable-Swallow, Cursor-Pagination, Unit-Tests. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
 | Z19-S6 | `PostgresUserAuthorizationRepository` Repo-Split nach Z9-Pattern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
 | Z19-S7 | `WorkflowAutomationService` Failure-of-Failure absichern. | MEDIUM | `claude-sonnet-4-6` + `--effort medium` | offen |
 | Z19-S8 | Verdikt fuer deferred Z8-3.2/#8 + Z16-S4. | MEDIUM | (Doku-Entscheidung) | offen |
-| Z19-S9 | Hygiene-Batch (L1–L4). | LOW | `claude-sonnet-4-6` + `--effort medium` | teil-erledigt 2026-05-11 (L4 done; L1/L2/L3 offen) |
+| Z19-S9 | Hygiene-Batch (L1–L4). | LOW | `claude-sonnet-4-6` + `--effort medium` | teil-erledigt 2026-05-11 (L1 + L4 done; L2/L3 offen) |
 
 ### Z19-S1 Findings (2026-05-11)
 
@@ -104,14 +104,14 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 - **M4** — Verdikt fuer deferred Z8-3.2/#8 + Z16-S4.
 
 **LOW:**
-- **L1** — Stray `db/init/prod;C/` Verzeichnis (Shell-Typo-Artefakt).
+- **L1** — Stray `db/init/prod;C/` Verzeichnis (Shell-Typo-Artefakt). **done 2026-05-11 (mit Z19-S3 gebuendelt).**
 - **L2** — `AdminRuntimeHealthService` doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync`.
 - **L3** — Leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs`.
 - **L4** — `WorkflowRuntimeService.GetWorkflowsAsync` propagiert empfangenen `CancellationToken` nicht ans Repository.
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Definition-/Runtime-/Automation-Layer, neue FE-Findings (Z18 abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigenstaendig).
 
-**Naechster Schritt:** Z19-S3 (Schema-Paritaets-Check `db/01_schema.sql` vs `db/manual/*.sql`) per CLI mit `--model claude-opus-4-7 --effort high`. S2 + S4 + S9/L4 wurden am 2026-05-11 als gebuendelter Commit erledigt.
+**Naechster Schritt:** Z19-S5 (`SystemEventLogService` UndefinedTable-Swallow + Cursor-Pagination + Unit-Tests) per CLI mit `--model claude-sonnet-4-6 --effort medium`. S2 + S4 + S9/L4 wurden am 2026-05-11 als gebuendelter Commit erledigt; S3 + S9/L1 ebenfalls 2026-05-11 als gebuendelter Commit (Manifest `db/manual/manifest.json` + `SchemaParityTests.cs` + Entfernung `db/init/prod;C/`).
 
 ---
 

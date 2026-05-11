@@ -84,13 +84,13 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 |-------|--------|------|--------|
 | Z19-S1 | Backend Full Review pass: Audit ueber `api/API/Endpoints`, `api/API/Repositories`, `api/API/Services`, `Authorization/`, `Auth/`, `Services/Directory/`, Background-/Sweep-Jobs, Schema-/Migrations-Hygiene (insb. DB-Drift-Pfad und `db/manual/`-Workflow), Test-Coverage-Luecken. Liefert priorisierte Findings (HIGH/MEDIUM/LOW) mit Begruendung, Bereich und vorgeschlagenem Slice-Schnitt. **Doku-only**, keine Code-Aenderung. | HIGH | **done 2026-05-11** |
 | Z19-S2 | Background-Sweep-Timeout fuer `DirectorySyncHostedService` analog `RotationNotificationHostedService.SweepTimeout` (2h-Cap). | HIGH | **done 2026-05-11** |
-| Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql` (oder Migrations-Manifest), damit DB-Drift nicht stillschweigend passiert. | HIGH | offen |
+| Z19-S3 | Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql` (Migrations-Manifest `db/manual/manifest.json` + `api/API.Tests/SchemaParityTests.cs`). | HIGH | **done 2026-05-11** |
 | Z19-S4 | `WorkflowLifecycleService` und `WorkflowRuntimeService` durchgaengig auf `CancellationToken` umstellen (HTTP-Abbruch erreicht offene DB-Transaktion). | HIGH | **done 2026-05-11** (Service-/Interface-/Endpoint-Ebene; tiefe statische Repo-Helfer als Restrest dokumentiert) |
 | Z19-S5 | `SystemEventLogService`: stilles Schlucken von `UndefinedTable` ersetzen, Cursor-Pagination statt LIMIT/OFFSET, eigene Unit-Tests fuer Redaction/Normalization/Filter. | MEDIUM | offen |
 | Z19-S6 | `PostgresUserAuthorizationRepository.AdminOperations.cs` (1886 LOC) + `…AdminReadOperations.cs` (1002 LOC) nach Z9-Pattern aufteilen. | MEDIUM | offen |
 | Z19-S7 | `WorkflowAutomationService.TryProcessNextPendingJobAsync` Failure-of-Failure absichern (Job-Claim leakt, wenn `CompleteAutomationJobFailure` selbst wirft). | MEDIUM | offen |
 | Z19-S8 | Verdikt fuer deferred Befunde Z8-3.2/#8 (`RegenerateDepartmentPlansAsync`) und Z16-S4 (Automation-Snapshot-Vertrag): explizit weiter deferred mit Frist, oder eigener Slice. | MEDIUM | offen |
-| Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` (Z. 37–41) zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` reicht den entgegengenommenen `CancellationToken` nicht ans Repository weiter. | LOW | teil-erledigt 2026-05-11 (L4 CancellationToken-Propagation done; L1/L2/L3 Hygiene-Punkte weiterhin offen) |
+| Z19-S9 | Hygiene-Batch: Stray-Verzeichnis `db/init/prod;C/` loeschen; doppeltes `Task.WhenAll` + serielles `BuildHostHealthAsync` in `AdminRuntimeHealthService` (Z. 37–41) zusammenfuehren; leerer 4-Zeilen-Tombstone `PostgresWorkflowRepositoryProcessTypeIntegrationTests.cs` entfernen; `WorkflowRuntimeService.GetWorkflowsAsync` reicht den entgegengenommenen `CancellationToken` nicht ans Repository weiter. | LOW | teil-erledigt 2026-05-11 (L1 Stray-Verzeichnis + L4 CancellationToken-Propagation done; L2/L3 Hygiene-Punkte weiterhin offen) |
 
 **Empfohlenes Modell/Effort fuer Folgeslices:**
 - **Z19-S1** (Audit, abgeschlossen): `claude-opus-4-7` + `--effort high`.
@@ -98,7 +98,7 @@ Eroeffnet 2026-05-11 als reiner Review-/Planungszyklus, analog zu Z18 (Frontend 
 
 **Bewusst NICHT in Z19:** breite Architektur-Umbauten am Workflow-Definition-/Runtime-/Automation-Layer (Migrationspfad-Arbeit bleibt eigenstaendig), neue Frontend-Findings (Z18 vollstaendig abgeschlossen), Berechtigungsmodell-Aenderungen ohne konkretes Risiko, Mobile-/Tablet-Layout (R10 bleibt eigener Backlog).
 
-**Naechster Schritt:** Z19-S3 (Schema-Paritaets-Check zwischen `db/01_schema.sql` und `db/manual/*.sql`) — nach Erledigung von S2 (Sweep-Timeout), S4 (CancellationToken-Propagation) und Z19-S9/L4 als gebuendeltem HIGH-Slice am 2026-05-11 ist S3 der naechste eigenstaendige HIGH-Hebel.
+**Naechster Schritt:** Z19-S5 (`SystemEventLogService`: UndefinedTable-Swallow ersetzen, Cursor-Pagination, eigene Unit-Tests) — alle drei HIGH-Slices (S2, S3, S4) und zwei der vier LOW-Punkte (L1, L4) sind am 2026-05-11 erledigt; MEDIUM-Phase beginnt.
 
 ---
 
@@ -167,12 +167,41 @@ S2, S4 und das L4-Sub-Item von S9 sind in einem einzigen gebuendelten Commit erl
 
 **Bewusst NICHT veraendert (Resthebel):**
 - Tiefe statische Repository-Helfer (`PostgresWorkflowRuntimeRepository.AdvanceRuntimeUntilWaitOrTerminal`, `CreateWorkflowNodeInstance`, `InsertWorkflowRuntimeEvent`, `LoadPublishedWorkflowDefinitionVersion`, einige Helfer in `PostgresRepositorySharedHelpers.*`) bekommen den Token nicht. **Praktisch:** ein abgebrochener Request schneidet jetzt zwar Verbindung und Transaktion am Commit-Punkt, die innerhalb der Tx bereits laufenden statischen Sub-Queries laufen aber bis zur naechsten `CommandText`-Grenze weiter. **Lohnenswert nicht jetzt:** das wuerde mehrere Hundert Signaturen anfassen und steht zur Z19-Slice-Definition explizit ausserhalb (siehe Brief). **Nutzen, wenn spaeter angegangen:** ehrliche End-to-End-Abbruchsemantik bis ins niedrigste DB-Lese-Statement; sinnvoll erst, wenn ein konkreter Lock-/Latenz-Befund das motiviert.
-- L1 (`db/init/prod;C/` Stray), L2 (`AdminRuntimeHealthService` doppeltes `Task.WhenAll` + serielles Probe) und L3 (Tombstone-Datei) bleiben als unbearbeiteter Rest von S9.
+- L2 (`AdminRuntimeHealthService` doppeltes `Task.WhenAll` + serielles Probe) und L3 (Tombstone-Datei) bleiben als unbearbeiteter Rest von S9. L1 (`db/init/prod;C/` Stray) wurde gemeinsam mit Z19-S3 am 2026-05-11 entfernt.
 
 **Tests:**
 - `dotnet build` (API + Tests, Verify-Ausgabepfad zwecks laufender Dev-API-Lock-Datei): grueen, 0 Warnungen, 0 Fehler.
 - `dotnet test … --filter "FullyQualifiedName~WorkflowLifecycleServiceTests|WorkflowEndpointsTests|AdminWorkflowDefinitionConfigEndpointsTests|DirectorySyncHostedServiceTests"`: 51/51 grueen.
 - `dotnet test … --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Concurrency"` (gesamter Non-Integration-Block): 440/440 grueen.
+
+---
+
+## Aktiver Zyklus 19 — S3 + L1 Ergebnis (2026-05-11)
+
+S3 (Schema-Paritaets-Check) und L1 (Stray-Verzeichnis) sind in einem gebuendelten Slice abgeschlossen; H2 ist damit als Befund abgehakt, L1 ebenfalls.
+
+**Praktisch:** Bisher hat ein neues `db/manual/<datum>_*.sql` darauf vertraut, dass alle Beteiligten gleichzeitig `db/01_schema.sql` angefasst haben — Drift ist erst beim naechsten Laufzeitfehler in einer bestehenden DB aufgefallen (z. B. `column "approval_spec_key" does not exist`). Ab jetzt prueft der normale `dotnet test`-Lauf, ob jede manuelle Migration ihren End-Stand wirklich in `db/01_schema.sql` widerspiegelt und ob alte Marker (z. B. umbenannte Spaltennamen) dort wirklich verschwunden sind.
+
+**Lohnenswert:** Zwei DB-Drift-Vorfaelle innerhalb einer Woche haben gezeigt, dass das „Codex/Claude denkt dran"-Pattern allein nicht traegt. Ein kleines Manifest plus 4 xUnit-Tests kostet quasi nichts, schliesst aber die konkrete Vorfallklasse vollstaendig.
+
+**Nutzen:** verlaesslicher Migrationspfad bis zur Live-Schaltung, keine stillschweigenden Schema-Abweichungen mehr, klare Andockflaeche fuer den spaeteren Wechsel auf additive Migrationen.
+
+**Was wurde geaendert:**
+- `db/manual/manifest.json` (neu) — registriert jede `*.sql`-Datei mit `expect_in_schema` (Substrings, die nach der Migration in `db/01_schema.sql` stehen muessen) und `forbid_in_schema` (Substrings, die nach einer Umbenennung/Loeschung dort nicht mehr auftauchen duerfen). Aktuell registriert: `2026-05-08_rename_approval_task_template_key_to_approval_spec_key.sql` und `2026-05-08_add_directory_identities_job_title.sql`.
+- `db/manual/README.md` (neu) — beschreibt Konvention, Workflow fuer neue Schema-Aenderungen und Verweis auf den Test.
+- `api/API.Tests/SchemaParityTests.cs` (neu) — 4 xUnit-Tests: (1) jede `*.sql` in `db/manual/` ist im Manifest gelistet; (2) jeder Manifest-Eintrag verweist auf eine existierende Datei; (3) jeder `expect_in_schema`-Substring steht in `db/01_schema.sql`; (4) kein `forbid_in_schema`-Substring steht in `db/01_schema.sql`.
+- `db/init/prod;C/` (entfernt) — leeres Stray-Shell-Typo-Verzeichnis ohne git-Tracking; L1 damit erledigt.
+- `KauthWorkflow/Betrieb/Setup.md` — Hinweis auf Manifest + Paritaets-Test im Setup-Block fuer bestehende DBs.
+
+**Bewusst NICHT veraendert:**
+- kein voller Postgres-Syntax-Parser; bewusst substring-basiert. Der Check macht keine Aussage darueber, ob die SQL syntaktisch korrekt ist, sondern nur darueber, ob ihr Soll-Endzustand in `db/01_schema.sql` sichtbar ist.
+- keine automatische Inplace-Anwendung; manuelle Migrationen bleiben absichtlich manuell ausfuehrbar (Backup/Snapshot vor Anwendung).
+- kein Migrations-Framework-Umbau (Flyway/EF Migrations). Der Wechsel auf additive Migrationen ist erst nach Live-Schaltung vorgesehen; bis dahin reicht der Manifest-/Test-Pfad als Drift-Sichtbarkeit.
+
+**Tests:**
+- `dotnet test api/API.Tests/API.Tests.csproj --filter "FullyQualifiedName~SchemaParityTests" -p:OutputPath=bin/Verify/`: 4/4 gruen.
+- `dotnet test api/API.Tests/API.Tests.csproj --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Concurrency" -p:OutputPath=bin/Verify/`: 444/444 gruen (440 vorher + 4 neu).
+- `OutputPath=bin/Verify/` weiterhin notwendig, weil der lokale Dev-API-Prozess die Default-Output-Pfade sperrt — kein Code-Problem.
 
 ---
 

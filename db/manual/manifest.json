@@ -1,0 +1,25 @@
+{
+  "_doc": "Manual-Migration-Manifest. Jede SQL-Datei in db/manual/ bekommt einen Eintrag. Die Felder beschreiben, was sich nach Anwendung der Migration in db/01_schema.sql wiederfinden muss (expect_in_schema) bzw. dort nicht mehr existieren darf (forbid_in_schema). Der Test 'SchemaParityTests' prueft beide Richtungen plus 1:1-Abdeckung zwischen Manifest und Verzeichnis. Workflow: neue Schema-Aenderung -> 01_schema.sql aktualisieren -> db/manual/<datum>_<name>.sql anlegen -> Eintrag hier ergaenzen. Siehe db/manual/README.md.",
+  "migrations": [
+    {
+      "file": "2026-05-08_rename_approval_task_template_key_to_approval_spec_key.sql",
+      "description": "Renames workflow_definitions.approval_task_template_key to approval_spec_key and the matching check constraint to ..._approval_spec.",
+      "expect_in_schema": [
+        "approval_spec_key character varying(120)",
+        "workflow_definitions_supervisor_step_requires_approval_spec"
+      ],
+      "forbid_in_schema": [
+        "approval_task_template_key",
+        "workflow_definitions_supervisor_step_requires_approval_task"
+      ]
+    },
+    {
+      "file": "2026-05-08_add_directory_identities_job_title.sql",
+      "description": "Adds directory_identities.job_title for Entra job-title import.",
+      "expect_in_schema": [
+        "job_title character varying(180)"
+      ],
+      "forbid_in_schema": []
+    }
+  ]
+}
