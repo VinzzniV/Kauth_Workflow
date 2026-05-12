@@ -32,11 +32,8 @@
 
 ## Current Focus
 
-- **Z21 PROD_TODO-Slice-Plan (S1..S6) abgeschlossen** am 2026-05-12. Detail-Belege in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21 (Done-Findings)". Aktive Resthebel stehen in `CODE_REVIEW.md` (offene Z21-Findings) und `TODO.md` (Z21-S4/S5/S6b/S7..S10).
-- **Naechste sinnvolle Slices** (aus `TODO.md`):
-  - `Z21-S4` Realer Automation-Pfad — **blockiert** bis Migrationspfad-Etappe 9a Schritt 1 entschieden ist (Worker-Deploymentmodell, Transport, AD-Schreibmechanik, Auth, Audit).
-  - `Z21-S5` Runtime-/Admin-Sicht fuer fehlgeschlagene Automation/Mailversand.
-  - `Z21-S6b` AND/OR-Mehrbedingungen am Decision-Edge (Runtime + Schema + FE).
+- **Z21 vollstaendig abgearbeitet** am 2026-05-12 bis auf den blockierten HIGH-Slice. Detail-Belege in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21". Verifikation via `./scripts/verify-prod-ready.sh` (alle 5 deterministischen Checkpoints gruen).
+- **Einziger aktiver offener Slice** in `TODO.md`: **Z21-S4 Realer Automation-Pfad** — **blockiert** bis Migrationspfad-Etappe 9a Schritt 1 entschieden ist (Worker-Deploymentmodell, Transport API↔Worker, AD-Schreibmechanik, Domaen-Authentisierung, Audit-Rueckkanal). Vor Code-Arbeit Plan-Mode-Slice (opus + plan-mode an) zur Festlegung der fuenf Sub-Entscheidungen.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

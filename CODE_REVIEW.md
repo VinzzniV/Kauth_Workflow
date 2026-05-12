@@ -6,48 +6,35 @@
 - Begruendung fuer den naechsten Arbeitszyklus
 - kompakter Status fuer Mensch und KI
 
-## Primaerquelle fuer
-
-- aktuellen Review-Fokus
-- Reihenfolge der Nacharbeit
-- offene zyklusuebergreifende Befunde
-
 ## Nicht verwenden fuer
 
-- kurzfristige Session-Notizen
-- tiefes Slice-fuer-Slice-History-Studium abgeschlossener Zyklen
-
-Dafuer sind `MEMORY.md`, `CODEX_SYNC.md` und `CODE_REVIEW_ARCHIVE.md` zustaendig.
-
-## Wann aktualisieren
-
-- wenn ein neuer Review-Zyklus eroeffnet wird
-- wenn sich Priorisierung oder Folge-Slices aendern
-- wenn ein aktiver Zyklus abgeschlossen wird
+- kurzfristige Session-Notizen → `MEMORY.md`
+- tiefes Slice-fuer-Slice-History-Studium abgeschlossener Zyklen → `CODE_REVIEW_ARCHIVE.md`
 
 ## Verwandte Dateien
 
-- `TODO.md`
-- `MEMORY.md`
-- `CODE_REVIEW_ARCHIVE.md`
+- `TODO.md` — aktiver, einziger offener Slice (Z21-S4, blockiert)
+- `PROD_TODO.md` — abgeschlossener Slice-Plan + Mapping
+- `MEMORY.md` — aktueller Fokus
+- `CODE_REVIEW_ARCHIVE.md` — vollstaendige Detail-Historie
 - `KauthWorkflow/Stand/Code-Review-Status.md`
-- `KauthWorkflow/Architektur/Migrationspfad.md`
+- `KauthWorkflow/Architektur/Migrationspfad.md` — Etappe 9a entscheidet Z21-S4
 
 ---
 
-## Schreibregel fuer Reviews und Findings (verbindlich)
+## Schreibregel (verbindlich)
 
-Jedes Review-Finding und jeder Slice in dieser Datei muss neben dem technischen Befund in kurzen Saetzen erklaeren:
+Jedes Review-Finding und jeder Slice muss neben dem technischen Befund kurz erklaeren:
 
-- **Was bedeutet das praktisch?** — was ein normal verstaendlicher Leser im Alltag merkt.
+- **Was bedeutet das praktisch?** — was ein normaler Leser im Alltag merkt.
 - **Warum lohnt es sich, das anzugehen?** — der konkrete Anlass oder das Risiko.
 - **Was wird dadurch besser, sicherer, schneller oder wartbarer?** — der erwartete Nutzen.
 
-Bei zyklusuebergreifend offenen Befunden reicht ein kurzer Hinweis, warum sie aktuell nicht angegangen werden. Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
+Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand**: 2026-05-12 — **Z21 PROD_TODO-Slice-Plan (S1..S6) abgeschlossen**. Offene Resthebel (P0-1 Automation real, P1-2 AND/OR-Mehrbedingungen, P1-3 Mail-Dispatch-Health, P2-3..P3-x) bleiben hier sichtbar. Detail-Belege zu Z21-S1..S6 sind in `CODE_REVIEW_ARCHIVE.md` (Abschnitt „Zyklus 21 (Done-Findings)").
+**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet bis auf den blockierten Folge-Slice. Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh`. Aktive Resthebel: P0-1 Automation-Layer real (haengt an Z21-S4), P0-2 Hybrid-AD-Implementation (eigene Etappe 9a), kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
 
 ---
 
@@ -60,101 +47,76 @@ Bei zyklusuebergreifend offenen Befunden reicht ein kurzer Hinweis, warum sie ak
 | Backend-Architektur | **A-** | Lifecycle-Service als Commit-Grenze, Repository-Monolith reduziert |
 | Datenbankdesign | **A-** | Solides Schema, Schema-Parity-Test gegen `db/manual/` |
 | Auth & Berechtigungen | **B+** | Permission-Audit mit Reason-Feld; Person-Matching-Audit live |
-| Rotation-Feature | **B+** | RotationTaskRegenerationEngine als pure Domain-Engine |
-| Testbarkeit | **B** | Testcontainers + Integration-Tests; 566 Backend-Tests gruen |
+| Rotation-Feature | **A-** | Plan-Activate erfordert Stationen + kein Aktiv-Konflikt (Z21-S7) |
+| Testbarkeit | **B** | Testcontainers + Integration-Tests; 566 Backend-Tests gruen (Z20-Stand) |
 | Skalierbarkeit | **B-** | Listen-/Sweep-/Dispatch-Pfade weiter Kandidaten fuer SQL-Pushdown |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert |
 
-### Produkt / Funktion / UX (Z21-Stand)
+### Produkt / Funktion / UX (Z21-Stand 2026-05-12)
 
 | Bereich | Note | Hauptbegruendung |
 |---------|------|------------------|
-| **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — im UI klar markiert (Z21-S1); produktiv unverantwortlich bis echte Handler existieren |
-| **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2: Windows-Worker, AD on-prem fuehrt) — Implementation offen |
-| Workflow-Storno | **A-** | `POST /workflows/{uid}/cancel` mit Pflicht-Grund + Audit (Z21-S3) |
-| Workflow-Builder | **B+** | Mapping-Labels + Wording „Schritt" (Z21-S5); AND/OR-Mehrbedingungen am Decision-Edge (Z21-S6b) |
-| Workflow-Detail | **A-** | Drei Tabs mit persistentem Header (Z21-S4) |
+| **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — UI-Markierung (Z21-S1) + Runtime-Fail-Sicht (TODO Z21-S5) erledigt; produktiv unverantwortlich bis echte Handler existieren |
+| **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2: Windows-Worker, AD on-prem fuehrt) — Implementation offen (Migrationspfad-Etappe 9a) |
+| Workflow-Storno | **A-** | `POST /workflows/{uid}/cancel` + Pflicht-Grund + Audit (Z21-S3); Storno-Banner im Detail-Header (Z21-S8) |
+| Workflow-Builder | **B+** | Mapping-Labels + Wording (Z21-S5); AND/OR-Mehrbedingungen am Decision-Edge (Z21-S6b) |
+| Workflow-Detail | **A-** | Drei Tabs + persistenter Header + Storno-Banner (Z21-S4 + S8) |
 | Listen-Trennung Worker/Manager | **B** | Worker-Persona sieht Aufgaben vor Workflows (Z21-S4) |
-| Mitarbeiter-/Personenverzeichnis | **B+** | `directory_only` in eigener Sektion (Z21-S4) |
-| Dashboard / Persona-Switcher | **B+** | Hinweistext „Nur Anzeige – keine Rechteaenderung" (Z21-S4) |
-| Notification-/Mail-Konfig | **A** | Microsoft-Graph-Versand real; Runtime-Failures als Stat-Tiles im Betriebsstatus (TODO.md Z21-S5, 2026-05-12) |
+| Mitarbeiter-/Personenverzeichnis | **A-** | `directory_only` eigene Sektion (Z21-S4); Inline-Styles auf CSS-Klassen (Z21-S9) |
+| Dashboard / Persona-Switcher | **B+** | Hinweistext „Nur Anzeige" (Z21-S4) |
+| Notification-/Mail-Konfig | **A** | Microsoft-Graph real; Runtime-Failures als Stat-Tiles (TODO Z21-S5) |
+| Durchlaufplanung | **A** | Activate-Pfad erfordert Stationen (Z21-S7); HR-Modus, Timeline, Audit |
 | Frontend-Architektur | **B+** | Saubere Services/Queries-Schichten; Builder-Refactor |
 | Administration | **B+** | Breit + strukturiert |
 | Laufende Vorgaenge | **A-** | Saved Views, Pagination, Split-Vorschau |
-| Durchlaufplanung | **A-** | HR-Modus, Stations-Timeline, Audit |
 | Meine Aufgaben | **A-** | Split-Detail, Counts, Approval-Pfad |
 
 ---
 
-## Offene Z21-Findings
+## Offene Findings
 
 #### 🔴 P0
 
 **Z21-P0-1 · Automation-Layer ist End-to-End nur Simulation**
 
-Sichtbare Markierung erledigt (Z21-S1). Echte Handler fehlen weiter — alle 5 registrierten Action-Handler erben von `SimulatedWorkflowAutomationActionHandler`, `EntraGraphClient` ist read-only.
+Sichtbare Markierung erledigt (Z21-S1); Runtime-Fehlersicht erledigt (TODO Z21-S5). Echte Handler fehlen weiter — alle 5 registrierten Action-Handler erben von `SimulatedWorkflowAutomationActionHandler`, `EntraGraphClient` ist read-only.
 
-**Praktisch:** Workflows mit `CreateAdUser` + `SendWelcomeMail` laufen „succeeded" durch, ohne dass in AD/Entra/Mail etwas passiert. Heute durch die „Simuliert"-Badge und das Admin-Banner sichtbar, aber nicht behoben.
+**Praktisch:** Workflows mit `CreateAdUser` + `SendWelcomeMail` laufen „succeeded" durch, ohne dass in AD/Entra/Mail etwas passiert. Heute durch Badge + Banner sichtbar, aber nicht behoben.
 
-**Warum lohnt es sich:** Falsche Erwartung an Automatisierung ist die schwerste Form von Bug.
-
-**Was wird besser:** Erst mit echtem Schreibpfad aus Z21-S2 (Windows-Worker / Migrationspfad-Etappe 9a) verschwindet das Risiko. Bis dahin bleibt der Banner aktiv.
+**Loest sich mit:** Z21-S4 nach Entscheidung Migrationspfad-Etappe 9a Schritt 1.
 
 **Z21-P0-2 · Hybrid-AD-Schreibpfad fehlt** — Richtung entschieden (Z21-S2), Implementation offen
 
-Entscheidung: AD on-prem fuehrt, Windows-Worker schreibt. Doku in `KauthWorkflow/Architektur/Entscheidungen.md` + `Migrationspfad.md` Etappe 9a + `PROJECT_CONTEXT.md`-Guardrail. Detail im Archiv.
+Entscheidung dokumentiert in `KauthWorkflow/Architektur/Entscheidungen.md` + `Migrationspfad.md` Etappe 9a + `PROJECT_CONTEXT.md`-Guardrail.
 
-**Resthebel:** Worker-Skeleton, Transport API↔Worker, AD-Schreibmechanik, Domaen-Authentisierung, Audit-Rueckkanal. Eigener Etappenpfad ausserhalb des Z21-Slice-Plans.
+**Resthebel:** Worker-Skeleton, Transport API↔Worker, AD-Schreibmechanik, Domaen-Authentisierung, Audit-Rueckkanal. Eigener Etappenpfad, vor Code-Arbeit Plan-Mode-Slice zur Festlegung der fuenf Sub-Entscheidungen.
 
 ---
 
 #### 🟠 P1
 
-**Z21-P1-2 · Workflow-Builder fachsprachlicher — Resthebel**
-
-UX-Teil erledigt (Z21-S5: Mapping-Labels mit Fach-/Technik-Optgroups, Wording „Schritt"). Offen:
-
-- ✅ **AND/OR-Mehrbedingungen am Decision-Edge — done 2026-05-12 (TODO.md Z21-S6b):** `WorkflowRuntimeEngine.ParseDecisionConditionExpression` + `EvaluateDecisionConditionExpression` mit Logic AND/OR und flachem Schema `{logic, conditions[]}`. Single-Form bleibt fuer bestehende Bedingungen akzeptiert. FE-Editor zeigt AND/OR-Toggle ab 2 Bedingungen, multi-aware `summarizeCondition` joint mit „UND"/„ODER".
-- 🟡 **Stammdaten „Technische Details"** — Feld `Definition-Schluessel` (Slug) ist in Section 1 weiter sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`). Bewusst nicht im UX-Slice, weil Schreibpfad-Thema (Slug-Editierbarkeit nach Erst-Anlage).
-
-**Z21-P1-3 · Mail-Dispatch-Health: Runtime-Sichtbarkeit — ✅ done 2026-05-12 (TODO.md Z21-S5)**
-
-`AdminRuntimeHealthDto` traegt jetzt `automationFailures` + `notificationFailures` (24-h-Fenster, COUNT + 5 juengste mit Label und gekuerztem Error). `DashboardAdminRuntimeHealthBlock` rendert beide als Stat-Tiles mit Severity-Toning und einer collapsible „Letzte Fehler anzeigen"-Liste. `overallSeverity` aggregiert Failures-Severity mit (warning ab 1 Fehler, critical ab 10). Damit sehen Admins fehlgeschlagene Automation-Jobs und Mail-Dispatches direkt im Betriebsstatus-Panel ohne Logsuche.
+**Z21-P1-2-Rest · Stammdaten „Technische Details"** — `Definition-Schluessel` (Slug) ist in Section 1 weiter sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`). Schreibpfad-Thema (Slug-Editierbarkeit nach Erst-Anlage), eigener Folge-Slice bei Bedarf.
 
 ---
 
 #### 🟡 P2
 
-- **Z21-P2-3** · Builder-Dirtystate ist vorhanden (Ungespeichert/Speichern/Verwerfen + Publish-Sperre). Optional staerkerer Page-Top-Banner — Komfort, kein Fehler.
-- **Z21-P2-4** · Frontend-Bundle 624 KB Hauptchunk + 242 KB AdminConfigPage. Fuer internes Netz vertretbar, am Handy spuerbar. Bessere `manualChunks` waeren moeglich.
-- **Z21-P2-5** · `tailwind.config.js` `extend: {}` leer, Tokens nur als CSS-Variablen. Bewusst nicht migriert (siehe `FRONTEND_TODO.md`). Kein konkreter Schmerz.
+- **Z21-P2-3** · Builder-Dirtystate ist vorhanden. Optional staerkerer Page-Top-Banner — Komfort, kein Fehler.
+- **Z21-P2-4** · Frontend-Bundle 624 KB Hauptchunk + 242 KB AdminConfigPage. Fuer internes Netz vertretbar, am Handy spuerbar. Bessere `manualChunks` waeren moeglich. (≡ TODO Z21-N1)
+- **Z21-P2-5** · `tailwind.config.js` `extend: {}` leer. Bewusst nicht migriert (siehe `FRONTEND_TODO.md`).
 
 ---
 
 #### 🟢 P3
 
-- **Z21-P3-1** · `PeopleDirectoryPage` Inline-Styles — ✅ done 2026-05-12 (TODO.md Z21-S9): Theme-relevante Werte in `people-card-*` / `people-department-*` CSS-Klassen gehoben.
 - **Z21-P3-3** · `R8` (Browser-Verifikation Form-Editor) + `R10` (Mobile-Layout) — Nutzer-Aufgaben, nicht code-pruefbar.
+- **Durchlaufplanung `?mode=create`-URL** — leichte Auffindbarkeit, kein konkreter Schmerz.
+- **Administration: Eingangstexte** — klarer wuenschenswert, kein Fehler.
 
 ---
 
-## Z21-Status nach Bereich (Kurzversion)
-
-| Bereich | Funktion | UX | Produktionsreif? |
-|---|---|---|---|
-| **Uebersicht** (Dashboard) | ✅ | ✅ (Z21-S4) | Ja |
-| **Workflow-Builder** | ✅ | 🟢 Labels + Wording (Z21-S5); AND/OR offen | Ja fuer Mappings; AND/OR-Folge offen |
-| **Laufende Vorgaenge** | ✅ + Storno (Z21-S3) | ✅ | Ja |
-| **Workflow-Detail** | ✅ + Storno (Z21-S3) | ✅ (Z21-S4) | Ja |
-| **Mitarbeiter** | ✅ | ✅ (Z21-S4); Inline-Styles offen (P3-1) | Ja |
-| **Durchlaufplanung** | ✅ | 🟡 `?mode=create` URL-versteckt | Ja |
-| **Wechsel & Aufgaben** | ✅ | ✅ (Z21-S4) | Ja |
-| **Meine Aufgaben** | ✅ | ✅ | Ja |
-| **Administration** | ✅ | 🟡 viele Sektionen | Ja, klarere Eingangstexte empfohlen |
-| **Automatisierung** | 🔴 nur Simulation | ✅ als Simulation markiert (Z21-S1) | ❌ bis echter Schreibpfad existiert |
-
-### Z21-Fazit Automation & Hybrid-AD
+## Z21-Fazit Automation & Hybrid-AD
 
 Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produktiv verantwortbar":
 
@@ -170,7 +132,7 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 ### Z21-Verifikationsluecken
 
 - **Browser-Verifikation**: nicht ausgefuehrt — UI-Aussagen aus Code abgeleitet.
-- **Tests**: nur Builds + Slice-spezifische Test-Suites ausgefuehrt; voller Backend-Lauf zuletzt Z20 (566 gruen).
+- **Tests**: Builds + Slice-spezifische Test-Suites ausgefuehrt via `./scripts/verify-prod-ready.sh` (323 FE-Tests gruen; Backend-Test-Build steht auf 7 pre-existing Stub-Errors aus frueheren Refactorings).
 - **DB-Lauf**: kein lokaler PostgreSQL-Lauf in Z21.
 - **Entra-Live-Verifikation**: Mail-Versand-Pfad nicht mit echten Credentials getestet.
 
@@ -178,9 +140,8 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 
 ## Archivstatus
 
-- Detailzyklen **Z8 bis Z20** + **Z21 Done-Findings (Z21-S1..S6)** liegen in `CODE_REVIEW_ARCHIVE.md`.
+- Detailzyklen **Z8 bis Z20** + **vollstaendige Z21-Detail-Historie** (alle Done-Slices S1..S10 + S5b/S6b) liegen in `CODE_REVIEW_ARCHIVE.md`.
 - Detailhistorie **Zyklus 7** in `CODE_REVIEW_ARCHIVE.md` + `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`.
-- In dieser Datei bleiben nur Gesamtbewertung, offene Z21-Findings, offene zyklusuebergreifende Befunde und grobe Historie.
 
 ---
 
@@ -202,4 +163,4 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 | 1–18 | 2026-04-23 .. 2026-05-08 | Code-Review/Hardening, HQ/LQ, Test-Coverage, Naming, Legacy-Abbau, Runtime-Lifecycle, Skalierbarkeit, Mehrrollen-Persona, Mitarbeiterakte, Theme-Leaks, Frontend Full Review |
 | 19 | 2026-05-11 | Backend Full Review / Holistic Audit — abgeschlossen |
 | 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — abgeschlossen |
-| **21** | **2026-05-12** | Produkt-/Funktions-/UX-Review — PROD_TODO-Slice-Plan abgeschlossen; Reste in offenen Findings + Folge-Slices |
+| **21** | **2026-05-12** | Produkt-/Funktions-/UX-Review — vollstaendig abgearbeitet bis auf Z21-S4 (blockiert) |

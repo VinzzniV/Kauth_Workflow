@@ -2,9 +2,9 @@
 
 ## Zweck
 
-Diese Datei ist der aktive Produkt- und Umsetzungsplan. Sie enthält nur Punkte, die direkt auf Endbenutzer-Nutzen, fachliche Funktion, Automatisierung oder Produktionsreife einzahlen.
+Aktiver Produkt- und Umsetzungsplan. Nur Punkte, die direkt auf Endbenutzer-Nutzen, fachliche Funktion, Automatisierung oder Produktionsreife einzahlen.
 
-Historie, erledigte Review-Zyklen und Detailnotizen gehoeren nicht hierher, sondern in `CODE_REVIEW.md`, `MEMORY.md`, `CODEX_SYNC.md` oder die Archivdateien.
+Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung").
 
 ## Leseregeln
 
@@ -13,58 +13,32 @@ Historie, erledigte Review-Zyklen und Detailnotizen gehoeren nicht hierher, sond
 3. Fuer UI-Arbeiten zusaetzlich `FRONTEND_TODO.md` lesen.
 4. Nach Umsetzung eines Punktes Status, Erkenntnisse und Folgepunkte hier aktualisieren.
 
-## Aktueller Zielzustand
+## Stand 2026-05-12
 
-Ziel ist ein Stand, der fuer normale Endbenutzer verstaendlich ist und fuer einen kontrollierten produktiven Einsatz verantwortbar vorbereitet ist.
+Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
+- API Release-Build: ✅ gruen
+- API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; keine neuen seit 2026-05-12)
+- FE-Build: ✅ gruen
+- FE-Tests: ✅ 323 passed
+- `start-vm.sh`-Syntax: ✅ gruen
 
-Nicht Ziel dieses Plans:
-- allgemeines Refactoring ohne Produktnutzen
-- reine Code-Stil-Themen
-- kosmetische UI-Experimente ohne Bedienverbesserung
-- alte erledigte Review-Punkte
-
-Zuletzt verifiziert:
-- Frontend Build: `npm run build` erfolgreich, aber groesse Warnung fuer grosse Chunks.
-- Frontend Tests: `npm test` erfolgreich.
-- API Build: `dotnet build api/API/API.csproj -c Release` erfolgreich.
-- Backend Integrationstests: lokal nicht voll verifizierbar, weil Docker/Testcontainers nicht verfuegbar war.
-
-## Zielplan zum produktionsfaehigen Stand
-
-| Phase | Ziel | Ergebnis |
-| --- | --- | --- |
-| 1 | Keine falschen Erwartungen an Automation | Simulierte Handler sind ueberall klar sichtbar; niemand kann Dev-Automation mit produktiver AD-Automation verwechseln. |
-| 2 | Workflow-Lebenszyklus vervollstaendigen | Laufende Vorgänge koennen kontrolliert storniert werden; Folgeaufgaben und Audit sind konsistent. |
-| 3 | Hybrid-AD-Entscheidung treffen | Architekturentscheidung: Entra/Graph-first oder on-prem AD Worker/Bridge. |
-| 4 | Reale Automation anschlussfaehig machen | Konkreter technischer Pfad fuer produktive Handler, Secrets, Berechtigungen, Fehlerbehandlung und Betrieb. |
-| 5 | Betriebsfaehigkeit herstellen | Admins sehen fehlgeschlagene Automation, blockierte Mailausgaenge und kritische Runtime-Zustaende ohne Logsuche. |
-| 6 | Endbenutzer-UX haerten | Builder, Detailseiten, Mitarbeiter, Durchlaufplanung und Navigation sind fachlich klar und fehlertolerant. |
-| 7 | Produktionscheck durchfuehren | Build, Tests, Browser-Smoke, Docker-Integrationstests und Betriebsdoku sind reproduzierbar gruen. |
+Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials.
 
 ## Aktive TODOs
 
-Z21-S1 (Simulation kennzeichnen), Z21-S2 (Storno) und Z21-S3 (Hybrid-AD-Entscheidung) sind 2026-05-12 abgeschlossen (Detail in `CODE_REVIEW_ARCHIVE.md`, Abschnitt „Zyklus 21 (Done-Findings)"). Z21-S6 ist im UX-Teil 2026-05-12 done; Rest steckt in `Z21-S6b`. Aktive offene Punkte:
-
 | ID | Aufgabe | Prio | Status | Nutzen |
 | --- | --- | --- | --- | --- |
-| Z21-S4 | Realen Automation-Pfad aus Z21-S3 ableiten: Handler-Vertrag, Ausfuehrungsort, Credentials, Secret-Rotation, Retry/Idempotenz, Audit und Rollback-Grenzen. | HIGH | offen — blockiert bis Migrationspfad-Etappe 9a Schritt 1 entschieden | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
-| Z21-S5 | Runtime-/Admin-Sicht fuer fehlgeschlagene Automation und Mailversand: failed/blocked Jobs, letzte Fehler, Retry-Status und Konfigurationsprobleme sichtbar machen. | HIGH | **done 2026-05-12**: `AdminRuntimeHealthDto.automationFailures` + `notificationFailures` (24h-Fenster, COUNT + 5 juengste mit Label + gekuerztem Error). Im `DashboardAdminRuntimeHealthBlock` als Stat-Tiles + collapsible Liste. `overallSeverity` aggregiert Failures mit. | Betrieb erkennt Ausfaelle im Produkt selbst, ohne DB/Logs durchsuchen zu muessen. |
-| Z21-S6b | Decision-Conditions: AND/OR-Mehrbedingungen am Edge — `WorkflowRuntimeEngine.ParseDecisionCondition` + Schema + FE-Editor. Rueckwaertskompat fuer Single-Condition. | MEDIUM | **done 2026-05-12**: `ParseDecisionConditionExpression` + `EvaluateDecisionConditionExpression` (Logic AND/OR, Single-Form bleibt akzeptiert). FE: `parseConditionExpression`/`serializeConditionExpression`/multi-aware `summarizeCondition`; Editor zeigt AND/OR-Toggle ab 2 Bedingungen, „+ Bedingung hinzufuegen" + Entfernen-Knopf. Serialisierung faellt auf Single-Form zurueck, wenn nur 1 gefuellte Bedingung + AND vorliegt. | Heute akzeptiert die Runtime nur eine einzelne Bedingung pro Verbindung; AND/OR-Faelle muessen heute ueber mehrere Decision-Schritte modelliert werden. |
-| Z21-S7 | Durchlaufplanung absichern: aktive Plaene ohne Stationen verhindern oder eindeutig als nicht produktiv/leer markieren. | MEDIUM | **done 2026-05-12**: Neue Plaene starten verpflichtend als `draft`. Neuer Endpoint `POST /rotation/plans/{id}/activate` flippt auf `active`, wenn ≥1 Station gepflegt ist und kein Aktiv-Konflikt fuer die Person besteht. FE: Status-Dropdown im Create-Formular weg, „Plan aktivieren"-Button im Detail mit Tooltip wenn keine Stationen. | Verhindert Planungszustaende, die fuer Nutzer aktiv wirken, aber keine Aufgaben erzeugen. |
-| Z21-S8 | Workflow-Detail und Listen ergonomischer machen: Status, Aufgaben, Anforderungen, Benachrichtigungen, Audit und Verwaltungsaktionen klarer trennen. | MEDIUM | **done 2026-05-12**: Hauptaufteilung bereits durch Z21-S4 Tabs erledigt. Resthebel ergaenzt: bei `cancelled`-Status zeigt der `WorkflowHeaderPanel` jetzt einen rot-eingefassten Storno-Banner mit Zeitpunkt, Reason-Label und Detail-Text — Bearbeiter sieht den Grund ohne Tab-Wechsel. | Laufende Vorgaenge werden fuer Bearbeiter und Admins schneller nachvollziehbar. |
-| Z21-S9 | Mitarbeiterbereich fachlich trennen: Mitarbeiterakten, importierte Directory-Identitaeten und Import-/Link-Aktionen deutlicher unterscheiden. | MEDIUM | **done 2026-05-12**: Fachliche Trennung schon durch Z21-S4 (eigene „Aus Entra noch nicht uebernommen"-Sektion) + ImportDirectoryButton erledigt. Resthebel P3-1 mitgenommen: ~90% der Inline-Styles in `PeopleDirectoryPage` (Card + DepartmentSection) auf CSS-Klassen in `components.css` gehoben — beendet das Theme-Drift-Risiko. | Verhindert Missverstaendnisse zwischen HR-Personen, Entra-Identitaeten und noch nicht verknuepften Accounts. |
-| Z21-S10 | Produktions-Verifikationslauf definieren und ausfuehren: Docker/Testcontainers, API Build, Frontend Build, Frontend Tests, Browser-Smoke und Graph-/Mail-Konfigurationscheck. | MEDIUM | **done 2026-05-12**: `scripts/verify-prod-ready.sh` durchlaeuft 5 deterministische Schritte: API Release-Build, API-Test-Build (Drift-Check gegen 7-Errors-Baseline), FE-Build, FE-Tests, start-vm.sh-Syntax. Exit 0 wenn alles gruen, sonst 1. Aufruf `./scripts/verify-prod-ready.sh`. Browser-Smoke + Graph-/Mail-Live-Verifikation bleiben Nutzer-Aufgaben (R8/R10/P3-3). | Ersetzt lokale Teilverifikation durch einen belastbaren Freigabecheck. |
+| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten: Handler-Vertrag, Ausfuehrungsort, Credentials, Secret-Rotation, Retry/Idempotenz, Audit und Rollback-Grenzen. | HIGH | offen — blockiert bis Migrationspfad-Etappe 9a Schritt 1 entschieden (Worker-Deployment, Transport, AD-Schreibmechanik, Auth, Audit-Rueckkanal) | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
 
 ## Nachgelagert
 
 | ID | Aufgabe | Prio | Status | Grund fuer Nachrang |
 | --- | --- | --- | --- | --- |
-| Z21-N1 | Bundle-Splitting fuer grosse Frontend-Chunks pruefen. | LOW | offen | Build funktioniert; Performance ist relevant, aber weniger kritisch als Automation, Storno und Betriebsfaehigkeit. |
-| Z21-N2 | Mobile Feinschliffe fuer Admin-/Builder-Masken pruefen. | LOW | offen | Primaerer Nutzungsfall ist Desktop; mobile Optimierung erst nach fachlicher Stabilisierung. |
-| Z21-N3 | Alte Demo-/Testdaten und unklare Beispielinhalte bereinigen. | LOW | offen | Sinnvoll vor Produktivnahme, aber nicht blockierend fuer die fachliche Architekturentscheidung. |
+| Z21-N1 | Bundle-Splitting fuer grosse Frontend-Chunks pruefen. | LOW | offen | Build funktioniert; Performance relevant, aber nicht produktionsblockierend. |
+| Z21-N2 | Mobile Feinschliffe fuer Admin-/Builder-Masken pruefen. | LOW | offen | Primaerer Nutzungsfall ist Desktop. |
+| Z21-N3 | Alte Demo-/Testdaten und unklare Beispielinhalte bereinigen. | LOW | offen | Sinnvoll vor Produktivnahme, aber nicht blockierend. |
 
 ## Bewusst entfernt aus dem aktiven Backlog
 
-- Bereits erledigte Builder-Fixes, Mail-Konfigurations-Fixes und FE-Review-Zyklen wurden aus der aktiven TODO-Liste entfernt.
-- Reine Stil-, Refactoring- und Kosmetikthemen ohne direkten Einfluss auf Endbenutzer, Betrieb oder Produktionsreife wurden nicht uebernommen.
-- Alte Review-Historie bleibt in den Review-/Sync-/Archivdateien nachvollziehbar, blockiert aber nicht mehr den aktuellen Plan.
+- Erledigte Z21-Slices wandern direkt nach Abschluss in `CODE_REVIEW_ARCHIVE.md`.
+- Reine Stil-, Refactoring- und Kosmetikthemen ohne direkten Einfluss auf Endbenutzer, Betrieb oder Produktionsreife sind nicht aufgenommen.

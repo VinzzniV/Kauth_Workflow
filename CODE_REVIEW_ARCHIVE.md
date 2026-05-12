@@ -320,3 +320,31 @@ Resthebel (Z21-S5b in `TODO.md`): AND/OR-Mehrbedingungen am Decision-Edge — Ru
 ### Z21-S6 (P1-5) — start-vm.sh dev-Vorab-Check — done 2026-05-12
 
 `scripts/start-vm.sh` hat `ensure_dev_prerequisites` bekommen, das `docker`, `dotnet`, `npm` vor jedem Dev-Start prueft. `require_command` akzeptiert jetzt einen Hint-Text und haengt automatisch den Verweis auf `KauthWorkflow/Betrieb/Setup.md` an. Fehlende Tools liefern spezifische Installmeldungen statt der bisherigen generischen Fehlermeldung. Prod-Pfad hat denselben Setup-Verweis bei fehlendem Docker.
+
+---
+
+## Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung
+
+### TODO.md Z21-S5 (≡ P1-3) — Runtime-Sicht fuer Failed-Automation + Mail — done 2026-05-12
+
+`AdminRuntimeHealthDto` erweitert um `automationFailures` und `notificationFailures` (24h-Fenster, COUNT + 5 juengste mit Label und gekuerztem Error). `DashboardAdminRuntimeHealthBlock` rendert beide als Stat-Tiles mit Severity-Toning und collapsible „Letzte Fehler anzeigen"-Liste. `overallSeverity` aggregiert Failures (warning ab 1, critical ab 10). Damit sehen Admins fehlgeschlagene Automation-Jobs und Mail-Dispatches direkt im Betriebsstatus-Panel ohne Logsuche. 5 neue Backend-Severity-Tests + 3 neue FE-Tests.
+
+### Z21-S6b (PROD_TODO Z21-S5b) — AND/OR-Mehrbedingungen Decision-Conditions — done 2026-05-12
+
+`WorkflowRuntimeEngine.ParseDecisionConditionExpression` akzeptiert Single-Form ({answerKey, operator, …}) plus Multi-Form ({logic: "AND"|"OR", conditions: […]}). `EvaluateDecisionConditionExpression` wendet Any/All je nach Logic an. FE-Helpers: `parseConditionExpression`, `serializeConditionExpression`, multi-aware `summarizeCondition` (joined mit „UND"/„ODER"). Editor mit AND/OR-Toggle ab 2 Bedingungen, „+ Bedingung hinzufuegen" + Entfernen-Knopf. Serialisierung schreibt kompakte Single-Form, wenn nur eine gefuellte Bedingung + AND. 9 Backend- + 16 FE-Tests. DB-Migration nicht noetig.
+
+### Z21-S7 — Durchlaufplanung absichern — done 2026-05-12
+
+Neue Pläne werden im Backend immer als `draft` angelegt; direktes `active` wird abgewiesen. Neuer Endpoint `POST /rotation/plans/{id}/activate` flippt auf `active`, wenn ≥1 Station gepflegt ist und kein Aktiv-Konflikt fuer die Person besteht. Outcome-Pattern: NotFound (404), NoStations (400), InvalidStatus (400), PersonHasActivePlan (409), Activated (200). Audit-Eintrag `rotation_plan_activated`. FE: Status-Dropdown im Create-Formular weg, „Plan aktivieren"-Button im Detail mit Tooltip wenn keine Stationen.
+
+### Z21-S8 — Workflow-Detail-Ergonomie-Resthebel — done 2026-05-12
+
+Hauptaufteilung bereits durch Z21-S4 Tabs erledigt. Resthebel: bei `cancelled`-Status zeigt der `WorkflowHeaderPanel` jetzt einen rot-eingefassten Storno-Banner mit Zeitpunkt, Reason-Label und Detail-Text — der Bearbeiter sieht den Grund ohne Tab-Wechsel.
+
+### Z21-S9 (≡ P3-1) — PeopleDirectoryPage Inline-Styles — done 2026-05-12
+
+Fachliche Trennung Mitarbeiterakte vs. directory_only-Eintrag schon durch Z21-S4 erledigt. Resthebel: ~90% der Inline-Styles in `PeopleDirectoryPage` (Card + DepartmentSection) auf CSS-Klassen `people-card-*` / `people-department-*` in `components.css` gehoben — beendet das Theme-Drift-Risiko.
+
+### Z21-S10 — Produktions-Verifikationslauf — done 2026-05-12
+
+`scripts/verify-prod-ready.sh` durchlaeuft 5 deterministische Freigabecheckpoints: API Release-Build, API-Test-Build (Drift-Check gegen 7-Errors-Baseline aus frueheren Refactorings), FE-Build, FE-Tests (vitest mit NO_COLOR fuer Summary-Parse), `start-vm.sh`-Syntax. Schreibt Tabelle Schritt|Status|Detail; Exit 0 bei allem gruen, sonst 1. Browser-Smoke und Graph-/Mail-Live-Verifikation bleiben Nutzer-Aufgaben (R8/R10/P3-3).
