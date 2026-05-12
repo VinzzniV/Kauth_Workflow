@@ -38,6 +38,7 @@ INNER JOIN workflow_node_actions wna ON wna.id = j.workflow_node_action_id
 INNER JOIN action_definitions ad ON ad.id = j.action_definition_id
 WHERE j.status = @pendingStatus
   AND j.available_at <= NOW()
+  AND j.target_runtime IS NULL  -- Linux-API zieht nur lokale Jobs; Windows-Worker hat eigenen Pfad (Etappe 9a Schritt 2)
 ORDER BY j.available_at, j.created_at, j.id
 FOR UPDATE SKIP LOCKED
 LIMIT 1;
@@ -104,6 +105,8 @@ LIMIT 1;
         WorkflowAutomationHandlerResult result,
         CancellationToken cancellationToken = default)
     {
+        // Lokaler Linux-Pfad: Worker hat NICHT geschrieben, also Attempt + Status + Logs hier persistieren,
+        // dann die Workflow-Fortschaltung an die scoped Finalize-Methode delegieren.
         await PostgresWorkflowAutomationOperations.CompleteAutomationAttemptAsync(
             connection,
             transaction,
@@ -111,7 +114,8 @@ LIMIT 1;
             job.AttemptNumber,
             PostgresWorkflowAutomationOperations.AutomationJobStatusSucceeded,
             errorMessage: null,
-            cancellationToken);
+            cancellationToken,
+            output: result.Output);
         await PostgresWorkflowAutomationOperations.SetAutomationJobStatusAsync(
             connection,
             transaction,
@@ -123,6 +127,20 @@ LIMIT 1;
             cancellationToken);
         await PostgresWorkflowAutomationOperations.InsertAutomationLogsAsync(connection, transaction, job.JobId, result.Logs, cancellationToken);
 
+        await FinalizeAutomationSuccessAfterRecordedAttemptInScope(connection, transaction, job, result.Output, cancellationToken);
+    }
+
+    // Workflow-Fortschritt nach erfolgreichem Automation-Job. Annahme: Attempt + Status + Logs sind
+    // bereits persistiert (entweder durch den lokalen Linux-Pfad oder durch den externen Worker, der
+    // direkt in die DB schreibt). Diese Methode macht NUR die Folge-Action-Erzeugung, Node-Done,
+    // Runtime-Event, AdvanceRuntime. Etappe 9a Schritt 2.
+    public async Task FinalizeAutomationSuccessAfterRecordedAttemptInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        ClaimedAutomationJobRecord job,
+        JsonElement? output,
+        CancellationToken cancellationToken = default)
+    {
         var nextAction = await PostgresWorkflowAutomationOperations.LoadNextAutomationNodeActionAsync(
             connection,
             transaction,
@@ -177,7 +195,7 @@ LIMIT 1;
             transaction,
             job.WorkflowNodeInstanceId,
             PostgresWorkflowRuntimeRepository.NodeInstanceStatusDone,
-            result.Output.HasValue ? JsonSerializer.Serialize(result.Output.Value) : PostgresWorkflowRuntimeRepository.CreateJsonbPayload(new { actionKey = job.ActionKey, succeeded = true }));
+            output.HasValue ? JsonSerializer.Serialize(output.Value) : PostgresWorkflowRuntimeRepository.CreateJsonbPayload(new { actionKey = job.ActionKey, succeeded = true }));
         await PostgresWorkflowRuntimeRepository.InsertWorkflowRuntimeEvent(
             connection,
             transaction,
@@ -255,6 +273,21 @@ LIMIT 1;
             return;
         }
 
+        await FinalizeAutomationFailureAfterRecordedAttemptInScope(connection, transaction, job, errorMessage, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    // Final-Fail-Folge nach einem Worker- oder Linux-Failure. Annahme: Attempt + Logs sind bereits
+    // persistiert; diese Methode setzt nur den Job-Status auf failed, cancelt pending Folge-Jobs
+    // am Node, markiert Node und Workflow als failed. Etappe 9a Schritt 2.
+    public async Task FinalizeAutomationFailureAfterRecordedAttemptInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        ClaimedAutomationJobRecord job,
+        string errorMessage,
+        CancellationToken cancellationToken = default)
+    {
         await PostgresWorkflowAutomationOperations.SetAutomationJobStatusAsync(
             connection,
             transaction,
@@ -298,8 +331,6 @@ LIMIT 1;
             job.WorkflowId,
             job.CreatedByUserId,
             errorMessage);
-
-        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default)
@@ -319,5 +350,246 @@ LIMIT 1;
             cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    // Etappe 9a Schritt 2: Two-Phase-Claim fuer den ExternalAutomationJobCompletionSweeper.
+    // Nur eine API-Instanz claimt einen Job pro Sweep-Zyklus; Stale-Claims (>5min alt) werden
+    // automatisch wieder freigegeben.
+    public async Task<IReadOnlyList<ExternalCompletionClaim>> ClaimExternalCompletionsBatchAsync(int limit, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        const string sql = """
+WITH candidate AS (
+    SELECT id
+    FROM automation_jobs
+    WHERE status IN ('succeeded','failed')
+      AND target_runtime IS NOT NULL
+      AND completion_processed_at IS NULL
+      AND (completion_claimed_at IS NULL OR completion_claimed_at < NOW() - INTERVAL '5 minutes')
+    ORDER BY completed_at NULLS LAST, id
+    LIMIT @limit
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE automation_jobs aj
+SET completion_claimed_at = NOW()
+FROM candidate c
+WHERE aj.id = c.id
+RETURNING aj.id, aj.status;
+""";
+
+        var claims = new List<ExternalCompletionClaim>();
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
+        {
+            command.Parameters.AddWithValue("limit", limit);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                claims.Add(new ExternalCompletionClaim
+                {
+                    JobId = reader.GetInt64(0),
+                    Status = reader.GetString(1)
+                });
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return claims;
+    }
+
+    public async Task<ExternalCompletionContext?> LoadExternalCompletionContextAsync(long jobId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+
+        const string sql = """
+SELECT j.status,
+       ad.is_idempotent,
+       (SELECT MAX(attempt_number) FROM automation_job_attempts WHERE automation_job_id = j.id) AS attempt_number
+FROM automation_jobs j
+INNER JOIN action_definitions ad ON ad.id = j.action_definition_id
+WHERE j.id = @jobId;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("jobId", jobId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new ExternalCompletionContext
+        {
+            JobId = jobId,
+            Status = reader.GetString(0),
+            IsIdempotent = reader.GetBoolean(1),
+            AttemptNumber = reader.IsDBNull(2) ? 0 : reader.GetInt32(2)
+        };
+    }
+
+    public async Task ApplyExternalCompletionSuccessAsync(long jobId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        var (job, output) = await LoadJobForExternalCompletionInScope(connection, transaction, jobId, cancellationToken)
+            ?? throw new InvalidOperationException($"External completion job {jobId} could not be loaded.");
+
+        await FinalizeAutomationSuccessAfterRecordedAttemptInScope(connection, transaction, job, output, cancellationToken);
+        await MarkCompletionProcessedInScope(connection, transaction, jobId, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task ApplyExternalCompletionFailureAsync(long jobId, WorkflowAutomationRetryOutcome outcome, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        var (job, _) = await LoadJobForExternalCompletionInScope(connection, transaction, jobId, cancellationToken)
+            ?? throw new InvalidOperationException($"External completion job {jobId} could not be loaded.");
+
+        if (outcome.Kind == WorkflowAutomationRetryOutcome.OutcomeKind.RetryAfter)
+        {
+            // Retry: Job zurueck auf pending mit available_at, Lease-Spalten freigeben.
+            // completion_processed_at bleibt NULL — Worker pickt erneut.
+            const string retrySql = """
+UPDATE automation_jobs
+SET status = 'pending',
+    available_at = NOW() + (@delaySeconds * INTERVAL '1 second'),
+    claimed_at = NULL,
+    claimed_by = NULL,
+    heartbeat_at = NULL,
+    completion_claimed_at = NULL,
+    completed_at = NULL
+WHERE id = @jobId;
+""";
+            await using var retryCommand = new NpgsqlCommand(retrySql, connection, transaction);
+            retryCommand.Parameters.AddWithValue("jobId", jobId);
+            retryCommand.Parameters.AddWithValue("delaySeconds", (int)outcome.Delay.TotalSeconds);
+            await retryCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            await PostgresWorkflowRuntimeRepository.InsertWorkflowRuntimeEvent(
+                connection,
+                transaction,
+                job.WorkflowId,
+                job.WorkflowNodeInstanceId,
+                "automation_retry_scheduled_external",
+                PostgresWorkflowRuntimeRepository.CreateJsonbPayload(new
+                {
+                    nodeKey = job.NodeKey,
+                    actionKey = job.ActionKey,
+                    delaySeconds = (int)outcome.Delay.TotalSeconds
+                }));
+        }
+        else
+        {
+            var errorMessage = await LoadLatestErrorMessageInScope(connection, transaction, jobId, cancellationToken)
+                ?? $"External worker reported job {jobId} as failed.";
+            await FinalizeAutomationFailureAfterRecordedAttemptInScope(connection, transaction, job, errorMessage, cancellationToken);
+            await MarkCompletionProcessedInScope(connection, transaction, jobId, cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task<(ClaimedAutomationJobRecord Job, JsonElement? Output)?> LoadJobForExternalCompletionInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long jobId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+SELECT
+    j.id, j.workflow_id, w.uid, j.workflow_node_instance_id,
+    ni.workflow_node_id, n.node_key, n.node_type,
+    j.workflow_node_action_id, wna.execution_order, wna.on_error_behavior,
+    ad.id, ad.action_key, ad.name, ad.handler_type, ad.is_idempotent,
+    j.payload_json::text, w.created_by_user_id,
+    (SELECT output_json::text FROM automation_job_attempts a WHERE a.automation_job_id = j.id ORDER BY attempt_number DESC LIMIT 1) AS latest_output,
+    (SELECT MAX(attempt_number) FROM automation_job_attempts WHERE automation_job_id = j.id) AS attempt_number
+FROM automation_jobs j
+INNER JOIN workflows w ON w.id = j.workflow_id
+INNER JOIN workflow_node_instances ni ON ni.id = j.workflow_node_instance_id
+INNER JOIN workflow_nodes n ON n.id = ni.workflow_node_id
+INNER JOIN workflow_node_actions wna ON wna.id = j.workflow_node_action_id
+INNER JOIN action_definitions ad ON ad.id = j.action_definition_id
+WHERE j.id = @jobId;
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("jobId", jobId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var job = new ClaimedAutomationJobRecord
+        {
+            JobId = reader.GetInt64(0),
+            WorkflowId = reader.GetInt64(1),
+            WorkflowUid = reader.GetGuid(2),
+            WorkflowNodeInstanceId = reader.GetInt64(3),
+            WorkflowNodeId = reader.GetInt64(4),
+            NodeKey = reader.GetString(5),
+            NodeType = reader.GetString(6),
+            WorkflowNodeActionId = reader.GetInt64(7),
+            ExecutionOrder = reader.GetInt32(8),
+            OnErrorBehavior = reader.GetString(9),
+            ActionDefinitionId = reader.GetInt64(10),
+            ActionKey = reader.GetString(11),
+            ActionName = reader.GetString(12),
+            HandlerType = reader.GetString(13),
+            IsIdempotent = reader.GetBoolean(14),
+            Payload = reader.IsDBNull(15) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(15)),
+            CreatedByUserId = reader.IsDBNull(16) ? null : reader.GetInt64(16),
+            AttemptNumber = reader.IsDBNull(18) ? 0 : reader.GetInt32(18)
+        };
+
+        JsonElement? output = reader.IsDBNull(17) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(17));
+        return (job, output);
+    }
+
+    private static async Task<string?> LoadLatestErrorMessageInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long jobId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+SELECT error_message
+FROM automation_job_attempts
+WHERE automation_job_id = @jobId
+ORDER BY attempt_number DESC
+LIMIT 1;
+""";
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("jobId", jobId);
+        var raw = await command.ExecuteScalarAsync(cancellationToken);
+        return raw is string s ? s : null;
+    }
+
+    private static async Task MarkCompletionProcessedInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long jobId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+UPDATE automation_jobs
+SET completion_processed_at = NOW(),
+    completion_claimed_at = NULL
+WHERE id = @jobId;
+""";
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("jobId", jobId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }

@@ -189,6 +189,13 @@ public sealed class WorkflowAutomationServiceTests
 
         public Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task<IReadOnlyList<ExternalCompletionClaim>> ClaimExternalCompletionsBatchAsync(int limit, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ExternalCompletionClaim>>([]);
+        public Task<ExternalCompletionContext?> LoadExternalCompletionContextAsync(long jobId, CancellationToken cancellationToken = default)
+            => Task.FromResult<ExternalCompletionContext?>(null);
+        public Task ApplyExternalCompletionSuccessAsync(long jobId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ApplyExternalCompletionFailureAsync(long jobId, WorkflowAutomationRetryOutcome outcome, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class StubWorkflowAutomationHandlerRegistry(Func<string, IWorkflowAutomationActionHandler> factory)
@@ -214,6 +221,8 @@ public sealed class WorkflowAutomationServiceTests
         public Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(long taskId, TaskApprovalDecisionRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<TaskWithWorkflowDto?> DecideTaskApprovalByRefAsync(string taskRef, TaskApprovalDecisionRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task OnAutomationJobCompletedAsync(ClaimedAutomationJobRecord job, WorkflowAutomationHandlerResult result, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task OnExternalAutomationJobSucceededAsync(long jobId, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task OnExternalAutomationJobFailedAsync(long jobId, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteApprovalNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeApprovalNodeRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
@@ -251,6 +260,13 @@ public sealed class WorkflowAutomationServiceTests
             UnclaimWasCalled = true;
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<ExternalCompletionClaim>> ClaimExternalCompletionsBatchAsync(int limit, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ExternalCompletionClaim>>([]);
+        public Task<ExternalCompletionContext?> LoadExternalCompletionContextAsync(long jobId, CancellationToken cancellationToken = default)
+            => Task.FromResult<ExternalCompletionContext?>(null);
+        public Task ApplyExternalCompletionSuccessAsync(long jobId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ApplyExternalCompletionFailureAsync(long jobId, WorkflowAutomationRetryOutcome outcome, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class StubSystemEventLogService : ISystemEventLogService

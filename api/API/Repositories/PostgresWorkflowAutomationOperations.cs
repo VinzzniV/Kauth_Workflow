@@ -80,13 +80,15 @@ VALUES (
         int attemptNumber,
         string status,
         string? errorMessage,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        JsonElement? output = null)
     {
         const string sql = """
 UPDATE automation_job_attempts
 SET
     status = @status,
     error_message = @errorMessage,
+    output_json = @outputJson,
     completed_at = NOW()
 WHERE automation_job_id = @jobId
   AND attempt_number = @attemptNumber;
@@ -97,6 +99,10 @@ WHERE automation_job_id = @jobId
         command.Parameters.AddWithValue("attemptNumber", attemptNumber);
         command.Parameters.AddWithValue("status", status);
         command.Parameters.AddWithValue("errorMessage", (object?)errorMessage ?? DBNull.Value);
+        command.Parameters.Add(new NpgsqlParameter("outputJson", NpgsqlDbType.Jsonb)
+        {
+            Value = output.HasValue ? (object)JsonSerializer.Serialize(output.Value) : DBNull.Value
+        });
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -336,17 +342,20 @@ INSERT INTO automation_jobs (
     action_definition_id,
     status,
     payload_json,
-    available_at
+    available_at,
+    target_runtime
 )
-VALUES (
+SELECT
     @workflowId,
     @workflowNodeInstanceId,
     @workflowNodeActionId,
     @actionDefinitionId,
     @status,
     @payloadJson,
-    NOW()
-)
+    NOW(),
+    ad.target_runtime
+FROM action_definitions ad
+WHERE ad.id = @actionDefinitionId
 RETURNING id;
 """;
 

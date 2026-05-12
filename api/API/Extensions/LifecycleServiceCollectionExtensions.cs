@@ -178,6 +178,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IDirectorySyncService, EntraDirectorySyncService>();
         services.AddHostedService<DirectorySyncHostedService>();
         services.AddHostedService<WorkflowAutomationHostedService>();
+        services.AddHostedService<ExternalAutomationJobCompletionSweeper>();
         services.AddHostedService<RotationNotificationHostedService>();
         services.AddHttpClient("health", client =>
         {

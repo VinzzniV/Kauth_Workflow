@@ -7,7 +7,9 @@ internal sealed class WorkflowLifecycleService(
     IWorkflowLifecycleScopedRepository scopedRepository,
     IWorkflowAuditWriteOperations auditWrite,
     IWorkflowStatusCalculationService statusCalculation,
-    IWorkflowNotificationDispatchOperations notificationDispatch) : IWorkflowLifecycleService
+    IWorkflowNotificationDispatchOperations notificationDispatch,
+    IWorkflowAutomationRepository automationRepository,
+    WorkflowAutomationRetrySettings retrySettings) : IWorkflowLifecycleService
 {
     public async Task<TaskWithWorkflowDto?> UpdateTaskStatusAsync(long taskId, string status, long actorUserId, CancellationToken cancellationToken = default)
     {
@@ -65,6 +67,26 @@ internal sealed class WorkflowLifecycleService(
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await scopedRepository.CompleteAutomationJobSuccessInScope(connection, transaction, job, result, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    // Etappe 9a Schritt 2: Externer Worker hat Attempt + Logs + Status bereits geschrieben.
+    // Wir machen nur den Workflow-Fortschritt + setzen completion_processed_at.
+    public Task OnExternalAutomationJobSucceededAsync(long jobId, CancellationToken cancellationToken)
+    {
+        return automationRepository.ApplyExternalCompletionSuccessAsync(jobId, cancellationToken);
+    }
+
+    public async Task OnExternalAutomationJobFailedAsync(long jobId, CancellationToken cancellationToken)
+    {
+        var context = await automationRepository.LoadExternalCompletionContextAsync(jobId, cancellationToken)
+            ?? throw new InvalidOperationException($"External completion context for job {jobId} could not be loaded.");
+
+        var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(
+            retrySettings,
+            context.AttemptNumber,
+            context.IsIdempotent);
+
+        await automationRepository.ApplyExternalCompletionFailureAsync(jobId, outcome, cancellationToken);
     }
 
     public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId, CancellationToken cancellationToken = default)

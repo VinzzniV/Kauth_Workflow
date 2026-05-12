@@ -71,9 +71,10 @@ internal sealed class WorkflowAutomationService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var shouldRetry = job.IsIdempotent && job.AttemptNumber < retrySettings.MaxAttempts;
+            var retryOutcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(retrySettings, job.AttemptNumber, job.IsIdempotent);
+            var shouldRetry = retryOutcome.Kind == WorkflowAutomationRetryOutcome.OutcomeKind.RetryAfter;
             DateTime? retryAvailableAt = shouldRetry
-                ? DateTime.UtcNow + retrySettings.ResolveRetryDelay(job.AttemptNumber)
+                ? DateTime.UtcNow + retryOutcome.Delay
                 : null;
 
             try

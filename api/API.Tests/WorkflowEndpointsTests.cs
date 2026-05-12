@@ -1409,6 +1409,8 @@ public sealed class WorkflowEndpointsTests
         public Task<TaskWithWorkflowDto?> DecideTaskApprovalAsync(long taskId, TaskApprovalDecisionRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<TaskWithWorkflowDto?> DecideTaskApprovalByRefAsync(string taskRef, TaskApprovalDecisionRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task OnAutomationJobCompletedAsync(ClaimedAutomationJobRecord job, WorkflowAutomationHandlerResult result, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task OnExternalAutomationJobSucceededAsync(long jobId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task OnExternalAutomationJobFailedAsync(long jobId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<WorkflowDefinitionRuntimeDetailDto> CreateWorkflowInstanceAsync(CreateWorkflowDefinitionInstanceRequest request, long actorUserId, CancellationToken cancellationToken = default)
             => Task.FromResult(repository.RuntimeWorkflowCreationResult);
         public Task<WorkflowDefinitionRuntimeDetailDto?> CompleteFormNodeAsync(Guid workflowUid, long nodeInstanceId, CompleteRuntimeFormNodeRequest request, long actorUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();

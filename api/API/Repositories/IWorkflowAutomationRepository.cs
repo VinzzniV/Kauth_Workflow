@@ -11,6 +11,26 @@ internal interface IWorkflowAutomationRepository
         IReadOnlyList<WorkflowAutomationLogEntry> logs,
         CancellationToken cancellationToken = default);
     Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default);
+
+    // Etappe 9a Schritt 2: Sweeper + External-Completion (Worker)
+    Task<IReadOnlyList<ExternalCompletionClaim>> ClaimExternalCompletionsBatchAsync(int limit, CancellationToken cancellationToken = default);
+    Task<ExternalCompletionContext?> LoadExternalCompletionContextAsync(long jobId, CancellationToken cancellationToken = default);
+    Task ApplyExternalCompletionSuccessAsync(long jobId, CancellationToken cancellationToken = default);
+    Task ApplyExternalCompletionFailureAsync(long jobId, WorkflowAutomationRetryOutcome outcome, CancellationToken cancellationToken = default);
+}
+
+internal sealed class ExternalCompletionClaim
+{
+    public required long JobId { get; init; }
+    public required string Status { get; init; }
+}
+
+internal sealed class ExternalCompletionContext
+{
+    public required long JobId { get; init; }
+    public required string Status { get; init; }
+    public required int AttemptNumber { get; init; }
+    public required bool IsIdempotent { get; init; }
 }
 
 internal sealed class ClaimedAutomationJobRecord
