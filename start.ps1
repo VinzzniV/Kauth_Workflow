@@ -88,6 +88,18 @@ function Get-AvailableDevWebPort {
     throw "Es konnte kein freier Web-Port aus der bevorzugten Liste ($($preferredPorts -join ', ')) gefunden werden."
 }
 
+function Get-AvailableDevDbPort {
+    $preferredPorts = @(26432, 35432, 35433, 36432, 36433, 45432, 45433)
+
+    foreach ($port in $preferredPorts) {
+        if (-not (Test-TcpPortInUse -Port $port) -and (Test-TcpPortUsable -Port $port)) {
+            return $port
+        }
+    }
+
+    throw "Es konnte kein freier Dev-DB-Port aus der bevorzugten Liste ($($preferredPorts -join ', ')) gefunden werden."
+}
+
 function Get-ComposeDbContainerId {
     $containerId = & docker compose -f compose.yml -f compose.dev-db.yml ps -q db
     if ($LASTEXITCODE -ne 0) {
@@ -99,6 +111,22 @@ function Get-ComposeDbContainerId {
     }
 
     return $containerId.Trim()
+}
+
+function Get-ComposeDbHostPort {
+    $mappedPort = & docker compose -f compose.yml -f compose.dev-db.yml port db 5432 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($mappedPort)) {
+        return $null
+    }
+
+    $trimmed = $mappedPort.Trim()
+    $portText = $trimmed.Substring($trimmed.LastIndexOf(":") + 1)
+    $parsedPort = 0
+    if ([int]::TryParse($portText, [ref]$parsedPort)) {
+        return $parsedPort
+    }
+
+    return $null
 }
 
 function Get-DockerContainerState {
@@ -146,33 +174,48 @@ function Wait-ForDevDatabase {
 }
 
 function Ensure-DevDatabaseReady {
-    $dbPort = 26432
     $containerId = Get-ComposeDbContainerId
 
     if ($containerId) {
         $state = Get-DockerContainerState -ContainerId $containerId
+        $mappedPort = Get-ComposeDbHostPort
 
         if ($state.Status -eq "running" -and $state.Health -eq "healthy") {
             Write-Host "Dev-Datenbank laeuft bereits und ist healthy."
-            return
+            return $mappedPort
         }
 
         if ($state.Status -eq "running") {
             Write-Host "Dev-Datenbank laeuft bereits, ist aber noch nicht healthy. Warte auf Bereitschaft ..."
             Wait-ForDevDatabase
-            return
+            return (Get-ComposeDbHostPort)
         }
     }
 
-    if (Test-TcpPortInUse -Port $dbPort) {
-        throw "Der Dev-DB-Port $dbPort ist bereits belegt. Beende den anderen Prozess oder passe das Port-Mapping in compose.dev-db.yml an."
+    $dbPort = Get-AvailableDevDbPort
+    $previousDevDbPort = $env:DEV_DB_PORT
+    $env:DEV_DB_PORT = $dbPort.ToString()
+
+    if ($dbPort -ne 26432) {
+        Write-Warning "Dev-DB-Port 26432 ist auf diesem Host nicht nutzbar. Verwende stattdessen Port $dbPort."
     }
 
     Write-Host "Starte Dev-Datenbank ueber Docker Compose ..."
-    Invoke-ExternalCommand -FilePath "docker" -Arguments @("compose", "-f", "compose.yml", "-f", "compose.dev-db.yml", "up", "-d", "db") -ActionDescription "Dev-Datenbankstart"
+    try {
+        Invoke-ExternalCommand -FilePath "docker" -Arguments @("compose", "-f", "compose.yml", "-f", "compose.dev-db.yml", "up", "-d", "db") -ActionDescription "Dev-Datenbankstart"
+    }
+    finally {
+        if ($null -eq $previousDevDbPort) {
+            Remove-Item Env:DEV_DB_PORT -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:DEV_DB_PORT = $previousDevDbPort
+        }
+    }
 
     Write-Host "Warte auf DB-Bereitschaft ..."
     Wait-ForDevDatabase
+    return (Get-ComposeDbHostPort)
 }
 
 function Start-PowershellWindow {
@@ -208,7 +251,7 @@ function Start-DevEnvironment {
     Assert-PathExists -Path (Join-Path $repoRoot "api/API/API.csproj") -Description "API-Projekt"
     Assert-PathExists -Path (Join-Path $repoRoot "web/package.json") -Description "web/package.json"
 
-    Ensure-DevDatabaseReady
+    $dbPort = Ensure-DevDatabaseReady
 
     $webEnvLocal = Join-Path $repoRoot "web/.env.local"
     if (-not (Test-Path $webEnvLocal)) {
@@ -216,7 +259,7 @@ function Start-DevEnvironment {
     }
 
     $webPort = Get-AvailableDevWebPort
-    $apiCommand = "Set-Location '$repoRoot'; dotnet run --project api/API/API.csproj --launch-profile API"
+    $apiCommand = "Set-Location '$repoRoot'; `$env:ASPNETCORE_ENVIRONMENT='Development'; `$env:ASPNETCORE_URLS='http://0.0.0.0:5001'; `$env:AUTH_MODE='dev-sim'; `$env:ConnectionStrings__Default='Host=localhost;Port=$dbPort;Username=app;Password=app_pw;Database=appdb;GSS Encryption Mode=Disable;SSL Mode=Disable'; `$env:PUBLIC_BASE_URL='http://localhost:$webPort'; `$env:Cors__AllowedOrigins__0='http://localhost:$webPort'; `$env:NotificationEmail__FrontendBaseUrl='http://localhost:$webPort'; `$env:DIRECTORY_GROUP_PREFIX='Onboarding-App-'; `$env:DIRECTORY_SYNC_SCHEDULED='true'; `$env:SWAGGER_ENABLED='true'; dotnet run --project api/API/API.csproj --no-launch-profile"
     $webCommand = "Set-Location '$repoRoot/web'; `$env:VITE_PORT='$webPort'; npm run dev -- --host 127.0.0.1 --port $webPort"
 
     Write-Host "Oeffne API-Fenster ..."
@@ -229,7 +272,11 @@ function Start-DevEnvironment {
     Write-Host "Dev-Start angestossen."
     Write-Host "API: http://127.0.0.1:5001"
     Write-Host "Web: http://127.0.0.1:$webPort"
-    Write-Host "DB:  localhost:26432"
+    Write-Host "DB:  localhost:$dbPort"
+
+    if ($dbPort -ne 26432) {
+        Write-Warning "DB-gebundene Tests erwarten standardmaessig Port 26432. Fuer Tests auf Port $dbPort setze ONBOARDING_TEST_CONNECTION_STRING entsprechend."
+    }
 }
 
 function Start-ProdEnvironment {

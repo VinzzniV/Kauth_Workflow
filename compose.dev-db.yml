@@ -1,7 +1,7 @@
 services:
   db:
     ports:
-      - "26432:5432"
+      - "${DEV_DB_PORT:-26432}:5432"
     volumes:
       - ./db/init/dev:/docker-entrypoint-initdb.d:ro
       - ./db:/docker-entrypoint-sql:ro

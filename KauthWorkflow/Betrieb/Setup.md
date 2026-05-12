@@ -22,7 +22,7 @@ Primärquelle im Repo war: `SETUP.md` (in Vault migriert)
 | Datei | Zweck |
 |-------|-------|
 | `compose.yml` | Gemeinsame Compose-Basis für `db`, `api`, `web` |
-| `compose.dev-db.yml` | Lokales Override nur für PostgreSQL (Port 26432) |
+| `compose.dev-db.yml` | Lokales Override nur fuer PostgreSQL; Host-Port per `DEV_DB_PORT`, Default `26432` |
 | `compose.prod.yml` | Produktionsnahes Override mit Entra-Auth, Caddy |
 | `.env.prod.example` | Vorlage für produktive Laufzeitvariablen |
 | `scripts/start-vm.sh` | Linux-VM-Helfer für `dev`/`prod` inkl. `status`, `logs`, `stop`, `restart` |
@@ -38,13 +38,20 @@ Primärquelle im Repo war: `SETUP.md` (in Vault migriert)
 docker compose -f compose.yml -f compose.dev-db.yml up -d db
 ```
 
+Optional mit abweichendem Host-Port, falls `26432` auf dem Host blockiert oder reserviert ist:
+
+```powershell
+$env:DEV_DB_PORT = "27432"
+docker compose -f compose.yml -f compose.dev-db.yml up -d db
+```
+
 ### Schritt 2 — API starten
 
 ```powershell
 dotnet run --project api/API/API.csproj --launch-profile API
 ```
 
-Das lokale Launch-Profil setzt:
+Das lokale Launch-Profil setzt bei manuellem Start:
 - `ASPNETCORE_ENVIRONMENT=Development`
 - `AUTH_MODE=dev-sim`
 - `ConnectionStrings__Default=Host=localhost;Port=26432;...;GSS Encryption Mode=Disable;SSL Mode=Disable`
@@ -56,6 +63,11 @@ Das lokale Launch-Profil setzt:
 - `HOST_RUNTIME_HEALTH_ENABLED` — optional (Default: false); `true` aktiviert den Host-/VM-Block im Admin-Dashboard (nur Linux; `scripts/start-vm.sh dev` setzt ihn automatisch auf `true`)
 - `HOST_RUNTIME_PROCFS_PATH` — optional (Default: `/proc`); Pfad zum procfs; auf Docker-VM typisch `/host-proc` (per `compose.prod.yml` gemoountet)
 - `HOST_RUNTIME_ROOT_PATH` — optional (Default: `/`); Pfad fuer Root-FS-Messung; auf Docker-VM typisch `/host-root`
+
+Hinweis zu `start.ps1`:
+- `.\start.ps1` waehlt fuer die Dev-DB automatisch einen nutzbaren Host-Port, wenn `26432` auf Windows durch einen Port-Exclusion-Range oder einen anderen Prozess blockiert ist.
+- Die API wird dabei automatisch mit einem passenden `ConnectionStrings__Default` gestartet.
+- Bei manuellem API-Start ausserhalb von `start.ps1` muss der Port in `ConnectionStrings__Default` zu deinem gewaehlten `DEV_DB_PORT` passen.
 
 Hinweise:
 - `automation`-Jobs werden von der API selbst gepollt
@@ -115,7 +127,7 @@ npm test
 npm run build
 ```
 
-> DB-gebundene Backend-Tests erwarten lokal PostgreSQL auf `127.0.0.1:26432`.
+> DB-gebundene Backend-Tests nutzen standardmaessig `127.0.0.1:26432`. Wenn die Dev-DB auf einem anderen Host-Port laeuft, setze vor dem Testlauf `ONBOARDING_TEST_CONNECTION_STRING`, z. B. `Host=localhost;Port=27432;Database=appdb;Username=app;Password=app_pw`.
 
 ---
 
