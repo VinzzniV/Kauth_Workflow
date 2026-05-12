@@ -118,4 +118,104 @@ describe("WorkflowBuilderConditionEditor", () => {
 
     screen.getByText(/Antwort-Key „missing_key" wurde im aktuellen Prozess nicht gefunden/i);
   });
+
+  // ── Multi-Condition (Z21-S6b: AND/OR) ────────────────────────────────────
+
+  it("does not show AND/OR toggle for a single condition", () => {
+    render(
+      <WorkflowBuilderConditionEditor
+        conditionExpression='{"answerKey":"has_laptop","operator":"is_true"}'
+        answerDefinitions={ANSWERS}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole("radiogroup", { name: /Verkn/i })).toBeNull();
+  });
+
+  it("adding a second condition reveals the AND/OR toggle and emits multi-form JSON", () => {
+    const onChange = vi.fn();
+    render(
+      <WorkflowBuilderConditionEditor
+        conditionExpression='{"answerKey":"has_laptop","operator":"is_true"}'
+        answerDefinitions={ANSWERS}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByText("+ Bedingung hinzufügen"));
+
+    expect(onChange).toHaveBeenCalled();
+    // Mit nur einer "gefuellten" Bedingung (zweite ist leer) bleibt Single-Form,
+    // weil serializeConditionExpression leere Eintraege filtert.
+    const lastJson = onChange.mock.calls[onChange.mock.calls.length - 1]![0];
+    const parsed = JSON.parse(lastJson);
+    expect(parsed.answerKey).toBe("has_laptop");
+  });
+
+  it("switches to OR logic when both conditions filled + Toggle clicked", () => {
+    const onChange = vi.fn();
+    render(
+      <WorkflowBuilderConditionEditor
+        conditionExpression='{"logic":"AND","conditions":[{"answerKey":"has_laptop","operator":"is_true"},{"answerKey":"comparison_user","operator":"is_not_null"}]}'
+        answerDefinitions={ANSWERS}
+        onChange={onChange}
+      />
+    );
+
+    const orButton = screen.getByRole("radio", { name: /ODER/ });
+    fireEvent.click(orButton);
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const parsed = JSON.parse(onChange.mock.calls[0]![0]);
+    expect(parsed.logic).toBe("OR");
+    expect(parsed.conditions).toHaveLength(2);
+  });
+
+  it("falls back to single-form serialization when only one condition is filled", () => {
+    const onChange = vi.fn();
+    render(
+      <WorkflowBuilderConditionEditor
+        conditionExpression='{"logic":"AND","conditions":[{"answerKey":"has_laptop","operator":"is_true"},{"answerKey":"","operator":"is_true"}]}'
+        answerDefinitions={ANSWERS}
+        onChange={onChange}
+      />
+    );
+
+    // Trigger any change to force serialization (Operator-Wechsel auf erster Zeile)
+    const operatorSelects = screen.getAllByLabelText("Operator wählen");
+    fireEvent.change(operatorSelects[0]!, { target: { value: "is_false" } });
+
+    const parsed = JSON.parse(onChange.mock.calls[0]![0]);
+    expect(parsed.conditions).toBeUndefined();
+    expect(parsed.answerKey).toBe("has_laptop");
+    expect(parsed.operator).toBe("is_false");
+  });
+
+  it("remove-button hides for single condition and removes second condition when shown", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <WorkflowBuilderConditionEditor
+        conditionExpression='{"answerKey":"has_laptop","operator":"is_true"}'
+        answerDefinitions={ANSWERS}
+        onChange={onChange}
+      />
+    );
+    expect(screen.queryAllByLabelText("Bedingung entfernen")).toHaveLength(0);
+
+    rerender(
+      <WorkflowBuilderConditionEditor
+        conditionExpression='{"logic":"AND","conditions":[{"answerKey":"has_laptop","operator":"is_true"},{"answerKey":"comparison_user","operator":"is_not_null"}]}'
+        answerDefinitions={ANSWERS}
+        onChange={onChange}
+      />
+    );
+    const removeButtons = screen.getAllByLabelText("Bedingung entfernen");
+    expect(removeButtons).toHaveLength(2);
+
+    fireEvent.click(removeButtons[1]!);
+    const parsed = JSON.parse(onChange.mock.calls[0]![0]);
+    // Nach Entfernen bleibt nur 1 → Single-Form
+    expect(parsed.answerKey).toBe("has_laptop");
+    expect(parsed.conditions).toBeUndefined();
+  });
 });

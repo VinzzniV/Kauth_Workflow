@@ -3806,6 +3806,53 @@
   cursor: not-allowed;
 }
 
+.wf-condition-logic-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  background: var(--surface-card-soft);
+  border: 1px solid var(--surface-card-border);
+  border-radius: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.wf-condition-logic-option {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.3rem;
+  cursor: pointer;
+}
+
+.wf-condition-logic-option.is-active {
+  background: var(--brand-soft);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.wf-condition-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wf-condition-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.wf-condition-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
 /* ─── Rotation Station Timeline (FE-24) ─── */
 .rotation-station-timeline {
   list-style: none;

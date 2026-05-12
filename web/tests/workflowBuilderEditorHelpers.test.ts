@@ -226,3 +226,104 @@ describe("stepConfigEditor parseConfig / writeString", () => {
     expect(result).toBe("");
   });
 });
+
+// ── parseConditionExpression / serializeConditionExpression / summarizeCondition Multi ──
+
+import {
+  parseConditionExpression,
+  serializeConditionExpression,
+  summarizeCondition,
+  type ParsedDecisionExpression,
+} from "../src/components/admin-config/workflowBuilderEditorHelpers";
+
+describe("conditionEditor multi-form (Z21-S6b)", () => {
+  it("parses single-form as one-condition AND expression", () => {
+    const parsed = parseConditionExpression('{"answerKey":"a","operator":"is_true"}');
+    expect(parsed).not.toBe("invalid");
+    if (parsed === "invalid") return;
+    expect(parsed.logic).toBe("AND");
+    expect(parsed.conditions).toHaveLength(1);
+  });
+
+  it("parses multi-form with logic AND", () => {
+    const parsed = parseConditionExpression('{"logic":"AND","conditions":[{"answerKey":"a","operator":"is_true"},{"answerKey":"b","operator":"is_false"}]}');
+    expect(parsed).not.toBe("invalid");
+    if (parsed === "invalid") return;
+    expect(parsed.logic).toBe("AND");
+    expect(parsed.conditions).toHaveLength(2);
+  });
+
+  it("parses multi-form with logic OR", () => {
+    const parsed = parseConditionExpression('{"logic":"OR","conditions":[{"answerKey":"a","operator":"is_true"}]}');
+    expect(parsed).not.toBe("invalid");
+    if (parsed === "invalid") return;
+    expect(parsed.logic).toBe("OR");
+  });
+
+  it("rejects multi-form with empty conditions array", () => {
+    expect(parseConditionExpression('{"logic":"AND","conditions":[]}')).toBe("invalid");
+  });
+
+  it("rejects multi-form with unknown logic", () => {
+    expect(parseConditionExpression('{"logic":"XOR","conditions":[{"answerKey":"a","operator":"is_true"}]}')).toBe("invalid");
+  });
+
+  it("serialize keeps single-form when only one condition + AND", () => {
+    const expr: ParsedDecisionExpression = {
+      logic: "AND",
+      conditions: [
+        { answerKey: "a", operator: "is_true", expectedValueText: "", expectedValueBoolean: null, expectedValueNumber: "" },
+      ],
+    };
+    const json = serializeConditionExpression(expr);
+    const parsed = JSON.parse(json);
+    expect(parsed.conditions).toBeUndefined();
+    expect(parsed.answerKey).toBe("a");
+  });
+
+  it("serialize emits multi-form when two filled conditions", () => {
+    const expr: ParsedDecisionExpression = {
+      logic: "OR",
+      conditions: [
+        { answerKey: "a", operator: "is_true", expectedValueText: "", expectedValueBoolean: null, expectedValueNumber: "" },
+        { answerKey: "b", operator: "is_false", expectedValueText: "", expectedValueBoolean: null, expectedValueNumber: "" },
+      ],
+    };
+    const json = serializeConditionExpression(expr);
+    const parsed = JSON.parse(json);
+    expect(parsed.logic).toBe("OR");
+    expect(parsed.conditions).toHaveLength(2);
+  });
+
+  it("serialize filters empty conditions", () => {
+    const expr: ParsedDecisionExpression = {
+      logic: "AND",
+      conditions: [
+        { answerKey: "a", operator: "is_true", expectedValueText: "", expectedValueBoolean: null, expectedValueNumber: "" },
+        { answerKey: "", operator: "is_true", expectedValueText: "", expectedValueBoolean: null, expectedValueNumber: "" },
+      ],
+    };
+    const json = serializeConditionExpression(expr);
+    const parsed = JSON.parse(json);
+    expect(parsed.answerKey).toBe("a");
+    expect(parsed.conditions).toBeUndefined();
+  });
+
+  it("summarizeCondition joins multi-conditions with UND/ODER", () => {
+    const andSummary = summarizeCondition('{"logic":"AND","conditions":[{"answerKey":"a","operator":"is_true"},{"answerKey":"b","operator":"is_false"}]}');
+    expect(andSummary).toContain("UND");
+    expect(andSummary).toContain("a");
+    expect(andSummary).toContain("b");
+
+    const orSummary = summarizeCondition('{"logic":"OR","conditions":[{"answerKey":"a","operator":"is_true"},{"answerKey":"b","operator":"is_false"}]}');
+    expect(orSummary).toContain("ODER");
+  });
+
+  it("summarizeCondition handles single-form unchanged", () => {
+    expect(summarizeCondition('{"answerKey":"a","operator":"is_true"}')).toContain("a");
+  });
+
+  it("summarizeCondition shows 'Ungültiger Ausdruck' for broken JSON", () => {
+    expect(summarizeCondition("not-json")).toBe("Ungültiger Ausdruck");
+  });
+});

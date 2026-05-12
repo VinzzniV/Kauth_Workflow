@@ -111,9 +111,7 @@ const CONDITION_OPERATOR_SHORT: Record<ConditionOperator, string> = {
   neq: "≠",
 };
 
-export function summarizeCondition(text: string): string {
-  const parsed = parseCondition(text);
-  if (parsed === "invalid") return "Ungültiger Ausdruck";
+function summarizeSingleCondition(parsed: ParsedCondition): string {
   if (!parsed.answerKey) return "Keine Bedingung";
   const opLabel = CONDITION_OPERATOR_SHORT[parsed.operator];
   const valueLabel = (() => {
@@ -130,6 +128,94 @@ export function summarizeCondition(text: string): string {
   return valueLabel
     ? `${parsed.answerKey} ${opLabel} ${valueLabel}`
     : `${parsed.answerKey} ${opLabel}`;
+}
+
+export function summarizeCondition(text: string): string {
+  const expr = parseConditionExpression(text);
+  if (expr === "invalid") return "Ungültiger Ausdruck";
+  if (expr.conditions.length === 0) return "Keine Bedingung";
+  if (expr.conditions.length === 1) return summarizeSingleCondition(expr.conditions[0]!);
+  const joiner = expr.logic === "OR" ? " ODER " : " UND ";
+  return expr.conditions.map(summarizeSingleCondition).join(joiner);
+}
+
+// ─── Decision condition expression (AND/OR-Mehrbedingungen, Z21-S6b) ────────
+
+export type DecisionConditionLogic = "AND" | "OR";
+
+export type ParsedDecisionExpression = {
+  logic: DecisionConditionLogic;
+  conditions: ParsedCondition[];
+};
+
+function emptyParsedCondition(): ParsedCondition {
+  return {
+    answerKey: "",
+    operator: "is_true",
+    expectedValueText: "",
+    expectedValueBoolean: null,
+    expectedValueNumber: "",
+  };
+}
+
+// Akzeptiert Single-Form ({answerKey, operator, ...}) und Multi-Form
+// ({logic, conditions: [...]}). Single-Form wird zu einer 1-Element-Liste
+// mit Logic="AND" gehoben. Backend-Parser akzeptiert beide Formen.
+export function parseConditionExpression(text: string): ParsedDecisionExpression | "invalid" {
+  if (!text.trim()) {
+    return { logic: "AND", conditions: [emptyParsedCondition()] };
+  }
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "invalid";
+    const obj = parsed as Record<string, unknown>;
+
+    if (Array.isArray(obj.conditions)) {
+      const rawLogic = typeof obj.logic === "string" ? obj.logic.trim().toUpperCase() : "AND";
+      if (rawLogic !== "AND" && rawLogic !== "OR") return "invalid";
+      const conditions: ParsedCondition[] = [];
+      for (const entry of obj.conditions) {
+        const single = parseConditionObject(entry);
+        if (single === null) return "invalid";
+        conditions.push(single);
+      }
+      if (conditions.length === 0) return "invalid";
+      return { logic: rawLogic, conditions };
+    }
+
+    const single = parseConditionObject(obj);
+    if (single === null) return "invalid";
+    return { logic: "AND", conditions: [single] };
+  } catch {
+    return "invalid";
+  }
+}
+
+function parseConditionObject(value: unknown): ParsedCondition | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const obj = value as Record<string, unknown>;
+  const operator = typeof obj.operator === "string" ? obj.operator.trim().toLowerCase() : "";
+  if (!isConditionOperator(operator)) return null;
+  return {
+    answerKey: typeof obj.answerKey === "string" ? obj.answerKey : "",
+    operator,
+    expectedValueText: typeof obj.expectedValueText === "string" ? obj.expectedValueText : "",
+    expectedValueBoolean: typeof obj.expectedValueBoolean === "boolean" ? obj.expectedValueBoolean : null,
+    expectedValueNumber:
+      typeof obj.expectedValueNumber === "number" ? String(obj.expectedValueNumber) : "",
+  };
+}
+
+// Schreibt Multi-Form nur, wenn mehrere Bedingungen vorliegen oder Logic="OR".
+// Sonst kompakte Single-Form fuer maximale Backwards-Kompat im DB-JSON.
+export function serializeConditionExpression(expr: ParsedDecisionExpression): string {
+  const filled = expr.conditions.filter((c) => c.answerKey.trim());
+  if (filled.length === 0) return "";
+  if (filled.length === 1 && expr.logic === "AND") {
+    return serializeCondition(filled[0]!);
+  }
+  const conditions = filled.map((c) => JSON.parse(serializeCondition(c)));
+  return JSON.stringify({ logic: expr.logic, conditions });
 }
 
 // ─── Action mapping editor ──────────────────────────────────────────────────

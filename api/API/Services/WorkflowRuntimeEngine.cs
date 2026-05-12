@@ -83,10 +83,10 @@ internal static class WorkflowRuntimeEngine
                 continue;
             }
 
-            TaskTemplateConditionRecord condition;
+            DecisionConditionExpressionRecord expression;
             try
             {
-                condition = ParseDecisionCondition(edge.ConditionExpression);
+                expression = ParseDecisionConditionExpression(edge.ConditionExpression);
             }
             catch (InvalidOperationException ex)
             {
@@ -96,7 +96,7 @@ internal static class WorkflowRuntimeEngine
                     $"Decision condition on edge '{sourceKey}' → '{targetKey}' is invalid: {ex.Message}", ex);
             }
 
-            if (TaskConditionEvaluator.EvaluateCondition(condition, answersByKey))
+            if (EvaluateDecisionConditionExpression(expression, answersByKey))
             {
                 selectedEdge = edge;
                 return graph.NodeById.GetValueOrDefault(edge.TargetNodeId);
@@ -112,7 +112,11 @@ internal static class WorkflowRuntimeEngine
         return null;
     }
 
-    public static TaskTemplateConditionRecord ParseDecisionCondition(string conditionExpression)
+    // Erlaubt zwei Formen:
+    //   Single (legacy):  { answerKey, operator, expectedValue* }
+    //   Multi:            { logic: "AND" | "OR", conditions: [ { answerKey, operator, ... }, ... ] }
+    // Single-Form bleibt fuer Rueckwaertskompat mit bestehenden gespeicherten Bedingungen.
+    public static DecisionConditionExpressionRecord ParseDecisionConditionExpression(string conditionExpression)
     {
         try
         {
@@ -123,45 +127,127 @@ internal static class WorkflowRuntimeEngine
                 throw new InvalidOperationException("Decision condition must be a JSON object.");
             }
 
-            if (!root.TryGetProperty("answerKey", out var answerKeyProperty)
-                || answerKeyProperty.ValueKind != JsonValueKind.String
-                || string.IsNullOrWhiteSpace(answerKeyProperty.GetString()))
+            if (root.TryGetProperty("conditions", out var conditionsProperty))
             {
-                throw new InvalidOperationException("Decision condition requires answerKey.");
+                return ParseMultiForm(root, conditionsProperty);
             }
 
-            if (!root.TryGetProperty("operator", out var operatorProperty)
-                || operatorProperty.ValueKind != JsonValueKind.String
-                || string.IsNullOrWhiteSpace(operatorProperty.GetString()))
+            return new DecisionConditionExpressionRecord
             {
-                throw new InvalidOperationException("Decision condition requires operator.");
-            }
-
-            return new TaskTemplateConditionRecord
-            {
-                TaskTemplateId = 0,
-                ConditionGroup = 0,
-                AnswerKey = answerKeyProperty.GetString()!.Trim(),
-                Operator = operatorProperty.GetString()!.Trim().ToLowerInvariant(),
-                ExpectedValueText = root.TryGetProperty("expectedValueText", out var expectedTextProperty)
-                    && expectedTextProperty.ValueKind == JsonValueKind.String
-                    ? expectedTextProperty.GetString()
-                    : null,
-                ExpectedValueBoolean = root.TryGetProperty("expectedValueBoolean", out var expectedBooleanProperty)
-                    && expectedBooleanProperty.ValueKind is JsonValueKind.True or JsonValueKind.False
-                    ? expectedBooleanProperty.GetBoolean()
-                    : null,
-                ExpectedValueNumber = root.TryGetProperty("expectedValueNumber", out var expectedNumberProperty)
-                    && expectedNumberProperty.ValueKind == JsonValueKind.Number
-                    && expectedNumberProperty.TryGetDecimal(out var expectedNumber)
-                        ? expectedNumber
-                        : null
+                Logic = DecisionConditionLogic.And,
+                Conditions = new List<TaskTemplateConditionRecord> { ParseConditionElement(root) }
             };
         }
         catch (JsonException ex)
         {
             throw new InvalidOperationException($"Decision condition is not valid JSON: {ex.Message}", ex);
         }
+    }
+
+    // Erhalten fuer abwaertskompatible Aufrufer. Wirft, wenn die Bedingung
+    // Multi-Form ist — Multi gehoert ueber ParseDecisionConditionExpression.
+    public static TaskTemplateConditionRecord ParseDecisionCondition(string conditionExpression)
+    {
+        var expression = ParseDecisionConditionExpression(conditionExpression);
+        if (expression.Conditions.Count == 1)
+        {
+            return expression.Conditions[0];
+        }
+        throw new InvalidOperationException("Decision condition has multiple sub-conditions. Use ParseDecisionConditionExpression.");
+    }
+
+    public static bool EvaluateDecisionConditionExpression(
+        DecisionConditionExpressionRecord expression,
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
+    {
+        if (expression.Conditions.Count == 0)
+        {
+            return false;
+        }
+
+        return expression.Logic == DecisionConditionLogic.Or
+            ? expression.Conditions.Any(c => TaskConditionEvaluator.EvaluateCondition(c, answersByKey))
+            : expression.Conditions.All(c => TaskConditionEvaluator.EvaluateCondition(c, answersByKey));
+    }
+
+    private static DecisionConditionExpressionRecord ParseMultiForm(JsonElement root, JsonElement conditionsProperty)
+    {
+        if (conditionsProperty.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidOperationException("Decision condition 'conditions' must be an array.");
+        }
+
+        var logic = DecisionConditionLogic.And;
+        if (root.TryGetProperty("logic", out var logicProperty)
+            && logicProperty.ValueKind == JsonValueKind.String)
+        {
+            var raw = logicProperty.GetString()!.Trim().ToUpperInvariant();
+            logic = raw switch
+            {
+                "AND" => DecisionConditionLogic.And,
+                "OR" => DecisionConditionLogic.Or,
+                _ => throw new InvalidOperationException($"Decision condition 'logic' must be AND or OR, got '{raw}'.")
+            };
+        }
+
+        var conditions = new List<TaskTemplateConditionRecord>();
+        foreach (var item in conditionsProperty.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                throw new InvalidOperationException("Decision condition entry must be a JSON object.");
+            }
+            conditions.Add(ParseConditionElement(item));
+        }
+
+        if (conditions.Count == 0)
+        {
+            throw new InvalidOperationException("Decision condition 'conditions' must contain at least one entry.");
+        }
+
+        return new DecisionConditionExpressionRecord
+        {
+            Logic = logic,
+            Conditions = conditions
+        };
+    }
+
+    private static TaskTemplateConditionRecord ParseConditionElement(JsonElement element)
+    {
+        if (!element.TryGetProperty("answerKey", out var answerKeyProperty)
+            || answerKeyProperty.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(answerKeyProperty.GetString()))
+        {
+            throw new InvalidOperationException("Decision condition requires answerKey.");
+        }
+
+        if (!element.TryGetProperty("operator", out var operatorProperty)
+            || operatorProperty.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(operatorProperty.GetString()))
+        {
+            throw new InvalidOperationException("Decision condition requires operator.");
+        }
+
+        return new TaskTemplateConditionRecord
+        {
+            TaskTemplateId = 0,
+            ConditionGroup = 0,
+            AnswerKey = answerKeyProperty.GetString()!.Trim(),
+            Operator = operatorProperty.GetString()!.Trim().ToLowerInvariant(),
+            ExpectedValueText = element.TryGetProperty("expectedValueText", out var expectedTextProperty)
+                && expectedTextProperty.ValueKind == JsonValueKind.String
+                ? expectedTextProperty.GetString()
+                : null,
+            ExpectedValueBoolean = element.TryGetProperty("expectedValueBoolean", out var expectedBooleanProperty)
+                && expectedBooleanProperty.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? expectedBooleanProperty.GetBoolean()
+                : null,
+            ExpectedValueNumber = element.TryGetProperty("expectedValueNumber", out var expectedNumberProperty)
+                && expectedNumberProperty.ValueKind == JsonValueKind.Number
+                && expectedNumberProperty.TryGetDecimal(out var expectedNumber)
+                    ? expectedNumber
+                    : null
+        };
     }
 
     public static WorkflowDefinitionSupervisorGatekeeperEvaluation EvaluateSupervisorGatekeeper(
@@ -655,4 +741,16 @@ internal sealed class ActiveRuntimeNodeRecord
     public required long NodeInstanceId { get; init; }
     public required string NodeKey { get; init; }
     public required string NodeType { get; init; }
+}
+
+internal enum DecisionConditionLogic
+{
+    And,
+    Or
+}
+
+internal sealed class DecisionConditionExpressionRecord
+{
+    public required DecisionConditionLogic Logic { get; init; }
+    public required IReadOnlyList<TaskTemplateConditionRecord> Conditions { get; init; }
 }

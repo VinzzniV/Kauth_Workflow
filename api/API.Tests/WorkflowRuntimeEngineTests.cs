@@ -505,4 +505,145 @@ public sealed class WorkflowRuntimeEngineTests
         var outcome = Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
         Assert.False(outcome.RequiresStatusRecalc);
     }
+
+    // ---- Decision condition parser (Z21-S6b: AND/OR-Mehrbedingungen) -----
+
+    [Fact]
+    public void ParseDecisionConditionExpression_SingleForm_ReturnsOneConditionWithAndLogic()
+    {
+        const string json = """{"answerKey":"x","operator":"is_true"}""";
+        var expr = WorkflowRuntimeEngine.ParseDecisionConditionExpression(json);
+        Assert.Equal(DecisionConditionLogic.And, expr.Logic);
+        Assert.Single(expr.Conditions);
+        Assert.Equal("x", expr.Conditions[0].AnswerKey);
+        Assert.Equal("is_true", expr.Conditions[0].Operator);
+    }
+
+    [Fact]
+    public void ParseDecisionConditionExpression_MultiFormWithAnd_ReturnsAllConditions()
+    {
+        const string json = """{"logic":"AND","conditions":[{"answerKey":"a","operator":"is_true"},{"answerKey":"b","operator":"is_false"}]}""";
+        var expr = WorkflowRuntimeEngine.ParseDecisionConditionExpression(json);
+        Assert.Equal(DecisionConditionLogic.And, expr.Logic);
+        Assert.Equal(2, expr.Conditions.Count);
+    }
+
+    [Fact]
+    public void ParseDecisionConditionExpression_MultiFormWithOr_ReturnsOrLogic()
+    {
+        const string json = """{"logic":"or","conditions":[{"answerKey":"a","operator":"is_true"}]}""";
+        var expr = WorkflowRuntimeEngine.ParseDecisionConditionExpression(json);
+        Assert.Equal(DecisionConditionLogic.Or, expr.Logic);
+    }
+
+    [Fact]
+    public void ParseDecisionConditionExpression_MultiFormWithoutLogic_DefaultsToAnd()
+    {
+        const string json = """{"conditions":[{"answerKey":"a","operator":"is_true"}]}""";
+        var expr = WorkflowRuntimeEngine.ParseDecisionConditionExpression(json);
+        Assert.Equal(DecisionConditionLogic.And, expr.Logic);
+    }
+
+    [Fact]
+    public void ParseDecisionConditionExpression_MultiFormWithEmptyConditions_Throws()
+    {
+        const string json = """{"logic":"AND","conditions":[]}""";
+        Assert.Throws<InvalidOperationException>(
+            () => WorkflowRuntimeEngine.ParseDecisionConditionExpression(json));
+    }
+
+    [Fact]
+    public void ParseDecisionConditionExpression_UnknownLogic_Throws()
+    {
+        const string json = """{"logic":"XOR","conditions":[{"answerKey":"a","operator":"is_true"}]}""";
+        Assert.Throws<InvalidOperationException>(
+            () => WorkflowRuntimeEngine.ParseDecisionConditionExpression(json));
+    }
+
+    [Fact]
+    public void EvaluateDecisionConditionExpression_AndAllTrue_ReturnsTrue()
+    {
+        var expr = new DecisionConditionExpressionRecord
+        {
+            Logic = DecisionConditionLogic.And,
+            Conditions = new[]
+            {
+                ConditionRecord("a", "is_true"),
+                ConditionRecord("b", "is_true")
+            }
+        };
+        var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
+        {
+            ["a"] = BoolAnswer("a", true),
+            ["b"] = BoolAnswer("b", true)
+        };
+        Assert.True(WorkflowRuntimeEngine.EvaluateDecisionConditionExpression(expr, answers));
+    }
+
+    [Fact]
+    public void EvaluateDecisionConditionExpression_AndOneFalse_ReturnsFalse()
+    {
+        var expr = new DecisionConditionExpressionRecord
+        {
+            Logic = DecisionConditionLogic.And,
+            Conditions = new[]
+            {
+                ConditionRecord("a", "is_true"),
+                ConditionRecord("b", "is_true")
+            }
+        };
+        var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
+        {
+            ["a"] = BoolAnswer("a", true),
+            ["b"] = BoolAnswer("b", false)
+        };
+        Assert.False(WorkflowRuntimeEngine.EvaluateDecisionConditionExpression(expr, answers));
+    }
+
+    [Fact]
+    public void EvaluateDecisionConditionExpression_OrOneTrue_ReturnsTrue()
+    {
+        var expr = new DecisionConditionExpressionRecord
+        {
+            Logic = DecisionConditionLogic.Or,
+            Conditions = new[]
+            {
+                ConditionRecord("a", "is_true"),
+                ConditionRecord("b", "is_true")
+            }
+        };
+        var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
+        {
+            ["a"] = BoolAnswer("a", false),
+            ["b"] = BoolAnswer("b", true)
+        };
+        Assert.True(WorkflowRuntimeEngine.EvaluateDecisionConditionExpression(expr, answers));
+    }
+
+    [Fact]
+    public void EvaluateDecisionConditionExpression_OrAllFalse_ReturnsFalse()
+    {
+        var expr = new DecisionConditionExpressionRecord
+        {
+            Logic = DecisionConditionLogic.Or,
+            Conditions = new[] { ConditionRecord("a", "is_true") }
+        };
+        var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
+        {
+            ["a"] = BoolAnswer("a", false)
+        };
+        Assert.False(WorkflowRuntimeEngine.EvaluateDecisionConditionExpression(expr, answers));
+    }
+
+    private static TaskTemplateConditionRecord ConditionRecord(string answerKey, string op)
+        => new()
+        {
+            TaskTemplateId = 0,
+            ConditionGroup = 0,
+            AnswerKey = answerKey,
+            Operator = op,
+            ExpectedValueText = null,
+            ExpectedValueBoolean = null,
+            ExpectedValueNumber = null
+        };
 }

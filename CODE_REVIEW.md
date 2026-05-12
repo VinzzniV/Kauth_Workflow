@@ -73,7 +73,7 @@ Bei zyklusuebergreifend offenen Befunden reicht ein kurzer Hinweis, warum sie ak
 | **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — im UI klar markiert (Z21-S1); produktiv unverantwortlich bis echte Handler existieren |
 | **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2: Windows-Worker, AD on-prem fuehrt) — Implementation offen |
 | Workflow-Storno | **A-** | `POST /workflows/{uid}/cancel` mit Pflicht-Grund + Audit (Z21-S3) |
-| Workflow-Builder | **B** | Mapping-Labels + Wording „Schritt" (Z21-S5); AND/OR-Mehrbedingungen offen |
+| Workflow-Builder | **B+** | Mapping-Labels + Wording „Schritt" (Z21-S5); AND/OR-Mehrbedingungen am Decision-Edge (Z21-S6b) |
 | Workflow-Detail | **A-** | Drei Tabs mit persistentem Header (Z21-S4) |
 | Listen-Trennung Worker/Manager | **B** | Worker-Persona sieht Aufgaben vor Workflows (Z21-S4) |
 | Mitarbeiter-/Personenverzeichnis | **B+** | `directory_only` in eigener Sektion (Z21-S4) |
@@ -115,7 +115,7 @@ Entscheidung: AD on-prem fuehrt, Windows-Worker schreibt. Doku in `KauthWorkflow
 
 UX-Teil erledigt (Z21-S5: Mapping-Labels mit Fach-/Technik-Optgroups, Wording „Schritt"). Offen:
 
-- 🟡 **AND/OR-Mehrbedingungen am Decision-Edge** — `WorkflowRuntimeEngine.ParseDecisionCondition` akzeptiert heute strikt eine Bedingung. Aufgenommen als Z21-S5b (PROD_TODO) / Z21-S6b (TODO.md). Runtime-Schema-Erweiterung mit Rueckwaertskompat zur Single-Form.
+- ✅ **AND/OR-Mehrbedingungen am Decision-Edge — done 2026-05-12 (TODO.md Z21-S6b):** `WorkflowRuntimeEngine.ParseDecisionConditionExpression` + `EvaluateDecisionConditionExpression` mit Logic AND/OR und flachem Schema `{logic, conditions[]}`. Single-Form bleibt fuer bestehende Bedingungen akzeptiert. FE-Editor zeigt AND/OR-Toggle ab 2 Bedingungen, multi-aware `summarizeCondition` joint mit „UND"/„ODER".
 - 🟡 **Stammdaten „Technische Details"** — Feld `Definition-Schluessel` (Slug) ist in Section 1 weiter sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`). Bewusst nicht im UX-Slice, weil Schreibpfad-Thema (Slug-Editierbarkeit nach Erst-Anlage).
 
 **Z21-P1-3 · Mail-Dispatch-Health: Runtime-Sichtbarkeit — ✅ done 2026-05-12 (TODO.md Z21-S5)**
