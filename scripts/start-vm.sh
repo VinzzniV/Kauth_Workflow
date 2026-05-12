@@ -35,7 +35,23 @@ fail() {
 
 require_command() {
     local name="$1"
-    command -v "$name" >/dev/null 2>&1 || fail "'$name' wurde nicht gefunden."
+    local hint="${2:-}"
+    if ! command -v "$name" >/dev/null 2>&1; then
+        if [[ -n "$hint" ]]; then
+            fail "'$name' wurde nicht gefunden. $hint Details: KauthWorkflow/Betrieb/Setup.md."
+        else
+            fail "'$name' wurde nicht gefunden."
+        fi
+    fi
+}
+
+ensure_dev_prerequisites() {
+    # Pre-check der minimalen Toolkette, damit das Skript nicht erst die DB
+    # hochfaehrt und dann am API-/Web-Start scheitert. Reihenfolge: docker zuerst
+    # (DB), dann dotnet (API), dann node/npm (Web).
+    require_command docker "Bitte Docker Engine + 'docker compose'-Plugin installieren."
+    require_command dotnet "Bitte .NET 8 SDK installieren (z. B. 'sudo apt install dotnet-sdk-8.0' oder ueber https://dot.net)."
+    require_command npm "Bitte Node.js 20.19+ inkl. npm installieren (siehe Setup-Doku, Abschnitt 'Vite-Dev-Server')."
 }
 
 sha256_file() {
@@ -636,9 +652,7 @@ dev_logs() {
 }
 
 start_dev_environment() {
-    require_command docker
-    require_command dotnet
-    require_command npm
+    ensure_dev_prerequisites
     assert_file "$REPO_ROOT/api/API/API.csproj"
     assert_file "$REPO_ROOT/web/package.json"
     ensure_dev_state_dir
@@ -675,7 +689,7 @@ start_prod_environment() {
 }
 
 ensure_prod_prerequisites() {
-    require_command docker
+    require_command docker "Bitte Docker Engine + 'docker compose'-Plugin installieren."
     assert_file "$REPO_ROOT/compose.yml"
     assert_file "$REPO_ROOT/compose.prod.yml"
     assert_file "$REPO_ROOT/.env.prod"

@@ -77,7 +77,7 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 | 3 | **Z21-S3** Workflow-Storno fuer laufende Vorgaenge | P0-3 | mittel-gross (~1–2 Tage) | high | opus | **an** | **done 2026-05-12** |
 | 4 | **Z21-S4** FE-UX-Buendel (Persona-Switcher, Workflow-Detail-Tabs, Listen-Trennung, directory_only) | P1-1 + P1-4 + P2-1 + P2-2 | mittel (~1 Tag) | medium | sonnet | aus | **done 2026-05-12** |
 | 5 | **Z21-S5** Builder fachsprachlicher (Mapping-Labels + Wording „Schritt") | P1-2 (UX-Teil) + P3-2 | mittel (~½–1 Tag) | high | opus | **an** | **done 2026-05-12 (UX-Teil)** |
-| 6 | **Z21-S6** `start-vm.sh dev`-Vorab-Check | P1-5 | klein (~½ h) | low | sonnet | aus | offen |
+| 6 | **Z21-S6** `start-vm.sh dev`-Vorab-Check | P1-5 | klein (~½ h) | low | sonnet | aus | **done 2026-05-12** |
 
 > Z21-S5 ist **nur der UX-Teil** des P1-2-Findings: Mapping-Editor mit Fach-/Technik-Optgroups + Wording-Vereinheitlichung. Der **AND/OR-Mehrbedingungen-Resthebel** im Condition-Editor (Runtime-Verhaltenswechsel in `WorkflowRuntimeEngine.ParseDecisionCondition`) ist eigener Folge-Slice und liegt als P1-2-Rest in `CODE_REVIEW.md` + Z21-S5b im aktiven Backlog (`TODO.md`).
 
@@ -163,19 +163,13 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 
 ---
 
-### Z21-S6 · `start-vm.sh dev`-Vorab-Check
+### Z21-S6 · `start-vm.sh dev`-Vorab-Check — done 2026-05-12
 
-**Praktisch:** Skript meldet sofort, wenn `dotnet`/`npm` fehlen, statt halb durchzulaufen.
-
-**Lohnenswert:** Spart Setup-Zeit bei Demo-/Test-VMs.
-
-**Nutzen:** Schneller produktiver Dev-Stand auf einer neuen Linux-VM.
-
-**Scope:**
-- `scripts/start-vm.sh`: `command -v dotnet` / `command -v npm` mit klarer Fehlermeldung und Verweis auf `KauthWorkflow/Betrieb/Setup.md`.
-- Setup-Doku-Hinweis prominenter.
-
-**Risiko/Reversibilitaet:** trivial.
+**Umgesetzt:**
+- `scripts/start-vm.sh` hat `ensure_dev_prerequisites` bekommen, das `docker`, `dotnet` und `npm` vor jedem Dev-Start prueft. `require_command` akzeptiert jetzt einen Hint-Text und haengt automatisch den Verweis auf `KauthWorkflow/Betrieb/Setup.md` an.
+- Fehlende Tools liefern Install-Hinweise (z. B. „Bitte .NET 8 SDK installieren (z. B. 'sudo apt install dotnet-sdk-8.0' oder ueber https://dot.net). Details: KauthWorkflow/Betrieb/Setup.md.") statt der bisherigen generischen Fehlermeldung.
+- Prod-Pfad hat denselben Setup-Verweis bei fehlendem Docker.
+- Syntax-Check `bash -n scripts/start-vm.sh` clean; Mock-Lauf mit leerem `PATH` liefert die neue Fehlermeldung statt eines Halb-Setups.
 
 ---
 
@@ -196,8 +190,8 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 1. **Z21-S1 zuerst.** ✅ erledigt 2026-05-12. Hoechster Risiko-Reduktionsnutzen pro Aufwand.
 2. **Z21-S2 parallel.** ✅ erledigt 2026-05-12 — Richtungsentscheidung steht (Option 2 / Windows-Worker). Folge-Slice „Schreibender Automation-Layer" (Migrationspfad-Etappe 9a) ist eigener Etappenpfad und **nicht Teil des Z21-Slice-Plans**.
 3. **Z21-S3.** ✅ erledigt 2026-05-12. Zweiter Show-Stopper raus.
-4. **Z21-S4** als spuerbarer UX-Sprung im Alltag.
-5. **Z21-S5** loest das Builder-Zielarchitektur-Versprechen ein.
-6. **Z21-S6** als Aufraeumarbeit.
+4. **Z21-S4** ✅ erledigt 2026-05-12. Spuerbarer UX-Sprung im Alltag.
+5. **Z21-S5** ✅ UX-Teil erledigt 2026-05-12. Builder-Zielarchitektur-Versprechen zur Haelfte eingeloest; Z21-S5b (AND/OR-Runtime) bleibt offen.
+6. **Z21-S6** ✅ erledigt 2026-05-12. Aufraeumarbeit.
 
 Abschluss eines Slices loescht den jeweiligen Eintrag aus der Tabelle oben und wandert als Abschnitt in den Z21-Block in `CODE_REVIEW.md` (mit „done"-Vermerk + Datum), nicht hierher.

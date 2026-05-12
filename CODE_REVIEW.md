@@ -202,15 +202,11 @@ Hinweistext „Nur Anzeige – keine Rechteaenderung" als `.persona-switcher__hi
 
 ---
 
-**Z21-P1-5 · Linux-VM `dev`-Pfad braucht zusaetzliche Tools, `prod`-Pfad nicht**
+**Z21-P1-5 · Linux-VM `dev`-Pfad braucht zusaetzliche Tools, `prod`-Pfad nicht — done 2026-05-12 (Z21-S6)**
 
-`KauthWorkflow/Betrieb/Setup.md:189-197`: Fuer `./scripts/start-vm.sh dev` muessen `dotnet` und `npm` extra auf der VM installiert werden. `prod` laeuft komplett in Containern.
+✅ `scripts/start-vm.sh` hat `ensure_dev_prerequisites` bekommen und prueft `docker`, `dotnet`, `npm` vor jedem Dev-Start. Fehlende Tools liefern eine spezifische Installmeldung und einen Verweis auf `KauthWorkflow/Betrieb/Setup.md`, statt die DB hochzufahren und am API-/Web-Start zu scheitern.
 
-**Was bedeutet das praktisch?** Wer dachte, dass eine Linux-VM mit Docker reicht, laeuft beim Wechsel auf `dev` in eine Wand.
-
-**Warum lohnt es sich?** Demo-/Test-Setups dauern unnoetig laenger.
-
-**Was wird besser?** Vorab-Check `command -v dotnet` im Skript mit klarer Fehlermeldung — oder `dev`-Pfad, der dotnet/npm auch in Containern faehrt.
+Resthebel (kein eigener Slice, eher Doku-Klarstellung): die Setup-Doku selbst koennte den dotnet/npm-Bedarf prominenter machen — aktuell steht der Hinweis erst in Abschnitt „Voraussetzungen" am Ende der Seite.
 
 ---
 
