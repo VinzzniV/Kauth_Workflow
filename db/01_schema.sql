@@ -293,7 +293,8 @@ CREATE TABLE public.action_definitions (
     requires_approval boolean DEFAULT false NOT NULL,
     is_idempotent boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    target_runtime character varying(40)
 );
 
 
@@ -701,6 +702,7 @@ CREATE TABLE public.automation_job_attempts (
     error_message text,
     started_at timestamp with time zone DEFAULT now() NOT NULL,
     completed_at timestamp with time zone,
+    output_json jsonb,
     CONSTRAINT automation_job_attempts_status_check CHECK (((status)::text = ANY ((ARRAY['running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[])))
 );
 
@@ -764,6 +766,12 @@ CREATE TABLE public.automation_jobs (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     started_at timestamp with time zone,
     completed_at timestamp with time zone,
+    target_runtime character varying(40),
+    claimed_at timestamp with time zone,
+    claimed_by character varying(120),
+    heartbeat_at timestamp with time zone,
+    completion_processed_at timestamp with time zone,
+    completion_claimed_at timestamp with time zone,
     CONSTRAINT automation_jobs_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'succeeded'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
 );
 
@@ -4809,3 +4817,46 @@ ALTER TABLE ONLY public.workflow_node_task_spec_dependencies
 ALTER TABLE ONLY public.workflow_tasks
     ADD CONSTRAINT workflow_tasks_workflow_node_task_spec_id_fkey
     FOREIGN KEY (workflow_node_task_spec_id) REFERENCES public.workflow_node_task_specs(id) ON DELETE SET NULL;
+
+
+--
+-- Name: idx_automation_jobs_windows_worker_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_automation_jobs_windows_worker_pending
+    ON public.automation_jobs (target_runtime, status, available_at);
+
+
+--
+-- Name: idx_automation_jobs_external_completion_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_automation_jobs_external_completion_pending
+    ON public.automation_jobs (status, target_runtime, completion_processed_at);
+
+
+--
+-- Name: automation_jobs_windows_worker; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE VIEW public.automation_jobs_windows_worker AS
+SELECT
+    id,
+    workflow_id,
+    workflow_node_instance_id,
+    workflow_node_action_id,
+    action_definition_id,
+    status,
+    payload_json,
+    available_at,
+    created_at,
+    started_at,
+    completed_at,
+    target_runtime,
+    claimed_at,
+    claimed_by,
+    heartbeat_at,
+    completion_processed_at,
+    completion_claimed_at
+FROM public.automation_jobs
+WHERE target_runtime = 'windows_worker';

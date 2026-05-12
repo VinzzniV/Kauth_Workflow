@@ -30,12 +30,15 @@ SET session_replication_role = replica;
 -- Data for Name: action_definitions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.action_definitions OVERRIDING SYSTEM VALUE VALUES
-	(1, 'CreateAdUser', 'Create AD User', 'Simulated creation of an Active Directory user.', 'simulated_directory', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00'),
-	(2, 'CreateMailbox', 'Create Mailbox', 'Simulated provisioning of a mailbox.', 'simulated_mailbox', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00'),
-	(3, 'AssignGroups', 'Assign Groups', 'Simulated assignment of directory groups.', 'simulated_directory_groups', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00'),
-	(4, 'CreateErpEmployee', 'Create ERP Employee', 'Simulated creation of an ERP employee.', 'simulated_erp', '{"type": "object", "additionalProperties": true}', true, false, false, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00'),
-	(5, 'SendWelcomeMail', 'Send Welcome Mail', 'Simulated sending of a welcome email.', 'simulated_notification', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00');
+INSERT INTO public.action_definitions
+	(id, action_key, name, description, handler_type, parameter_schema_json, is_active, requires_approval, is_idempotent, created_at, updated_at, target_runtime)
+OVERRIDING SYSTEM VALUE VALUES
+	(1, 'CreateAdUser', 'Create AD User', 'Simulated creation of an Active Directory user.', 'simulated_directory', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00', NULL),
+	(2, 'CreateMailbox', 'Create Mailbox', 'Simulated provisioning of a mailbox.', 'simulated_mailbox', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00', NULL),
+	(3, 'AssignGroups', 'Assign Groups', 'Simulated assignment of directory groups.', 'simulated_directory_groups', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00', NULL),
+	(4, 'CreateErpEmployee', 'Create ERP Employee', 'Simulated creation of an ERP employee.', 'simulated_erp', '{"type": "object", "additionalProperties": true}', true, false, false, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00', NULL),
+	(5, 'SendWelcomeMail', 'Send Welcome Mail', 'Simulated sending of a welcome email.', 'simulated_notification', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:07:09.400545+00', '2026-04-27 07:07:10.354481+00', NULL),
+	(6, 'SimulatedWindowsWorkerPing', 'Windows-Worker Ping (Skeleton-Test)', 'Simulierter Handler im Windows-Worker. Beweist den Transport- und Audit-Pfad ohne AD-Zugriff. Payload {"delaySeconds": N} verzoegert die Antwort fuer Stale-Claim-Tests.', 'simulated_windows_worker_ping', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-05-12 00:00:00+00', '2026-05-12 00:00:00+00', 'windows_worker');
 
 
 --

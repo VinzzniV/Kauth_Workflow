@@ -32,6 +32,23 @@
         "'cancelled'::character varying"
       ],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-12_automation_jobs_target_runtime.sql",
+      "description": "Adds Windows-Worker support to the Automation Layer (Migrationspfad-Etappe 9a Schritt 2): target_runtime/claimed_at/claimed_by/heartbeat_at/completion_processed_at/completion_claimed_at on automation_jobs, output_json on automation_job_attempts, target_runtime on action_definitions, plus polling indexes and the automation_jobs_windows_worker view.",
+      "expect_in_schema": [
+        "target_runtime character varying(40)",
+        "claimed_at timestamp with time zone",
+        "claimed_by character varying(120)",
+        "heartbeat_at timestamp with time zone",
+        "completion_processed_at timestamp with time zone",
+        "completion_claimed_at timestamp with time zone",
+        "output_json jsonb",
+        "idx_automation_jobs_windows_worker_pending",
+        "idx_automation_jobs_external_completion_pending",
+        "automation_jobs_windows_worker"
+      ],
+      "forbid_in_schema": []
     }
   ]
 }
