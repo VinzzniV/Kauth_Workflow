@@ -32,10 +32,11 @@
 
 ## Current Focus
 
-- Z21 Produkt-/Funktions-/UX-Review ist seit 2026-05-12 aktiv. Fokus: Endnutzer-Nutzbarkeit und Produktionsrisiken, nicht Codequalitaet.
-- Verifizierte P0: Automation ist nur Simulation und im UI nicht hart genug markiert; on-prem-AD-Schreibpfad fehlt; laufende Workflows haben keinen Cancel/Storno.
-- Naechster sinnvoller Schritt: zuerst `Z21-S1` Simulation klar markieren oder `Z21-S2` Storno implementieren. Vor echten Automationen muss `Z21-S3` Hybrid-AD-Entscheidung fallen.
-- Korrekturhinweise zu Claude-Z21: Builder hat bereits `Ungespeichert`/`Speichern`/`Verwerfen`; Mail-Konfiguration hat Admin-Warnungen und Save-Guards; Conditions haben Formularmodus, Mappings/technische Keys bleiben der echte UX-Hebel.
+- **Z21 PROD_TODO-Slice-Plan (S1..S6) abgeschlossen** am 2026-05-12. Detail-Belege in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21 (Done-Findings)". Aktive Resthebel stehen in `CODE_REVIEW.md` (offene Z21-Findings) und `TODO.md` (Z21-S4/S5/S6b/S7..S10).
+- **Naechste sinnvolle Slices** (aus `TODO.md`):
+  - `Z21-S4` Realer Automation-Pfad — **blockiert** bis Migrationspfad-Etappe 9a Schritt 1 entschieden ist (Worker-Deploymentmodell, Transport, AD-Schreibmechanik, Auth, Audit).
+  - `Z21-S5` Runtime-/Admin-Sicht fuer fehlgeschlagene Automation/Mailversand.
+  - `Z21-S6b` AND/OR-Mehrbedingungen am Decision-Edge (Runtime + Schema + FE).
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

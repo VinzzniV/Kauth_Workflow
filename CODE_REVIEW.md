@@ -43,15 +43,11 @@ Jedes Review-Finding und jeder Slice in dieser Datei muss neben dem technischen 
 - **Warum lohnt es sich, das anzugehen?** — der konkrete Anlass oder das Risiko.
 - **Was wird dadurch besser, sicherer, schneller oder wartbarer?** — der erwartete Nutzen.
 
-Reine Technik-Beschreibung ohne Nutzen-/Bedeutung-Erklaerung ist nicht ausreichend. Die Regel gilt fuer alle neuen Zyklen, fuer einzelne Befunde und fuer den jeweils gefuehrten Slice-Plan. Bei zyklusuebergreifend offenen Befunden reicht ein kurzer Hinweis, warum sie aktuell nicht angegangen werden.
-
-Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unter Codex-Orchestrierung verankert.
+Bei zyklusuebergreifend offenen Befunden reicht ein kurzer Hinweis, warum sie aktuell nicht angegangen werden. Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand**: 2026-05-12 — **Z21 eroeffnet** (Produkt-/Funktions-/UX-Review). Z20 und Z19 bleiben am 2026-05-11 vollstaendig abgeschlossen. Detailhistorie aller Backend-Zyklen liegt in `CODE_REVIEW_ARCHIVE.md`.
-
-**Letzte Reviews**: Claude (2026-04-23 Original; 2026-05-02..06 Z2–Z13; 2026-05-07 Z14; 2026-05-08 Z15–Z18 + A1/A2/A3/B/C; 2026-05-11 Z19 vollstaendig + Z20-S1/B1; 2026-05-12 Z21 Produkt-/UX-Review). Codex (2026-05-11 Z20-B2/B3/B4 Abschluss).
+**Stand**: 2026-05-12 — **Z21 PROD_TODO-Slice-Plan (S1..S6) abgeschlossen**. Offene Resthebel (P0-1 Automation real, P1-2 AND/OR-Mehrbedingungen, P1-3 Mail-Dispatch-Health, P2-3..P3-x) bleiben hier sichtbar. Detail-Belege zu Z21-S1..S6 sind in `CODE_REVIEW_ARCHIVE.md` (Abschnitt „Zyklus 21 (Done-Findings)").
 
 ---
 
@@ -61,211 +57,106 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 | Bereich | Note | Hauptbegruendung |
 |---------|------|------------------|
-| Backend-Architektur | **A-** | Lifecycle-Service ist echte Commit-Grenze, Repository-Monolith reduziert |
-| Datenbankdesign | **A-** | Solides Schema, gute Constraints, Schema-Parity-Test gegen `db/manual/` |
-| Auth & Berechtigungen | **B+** | Permission-Audit hat Reason-Feld; Person-Matching-Audit live |
-| Rotation-Feature | **B+** | RotationTaskRegenerationEngine als pure Domain-Engine; HQ5-Hooks getestet |
+| Backend-Architektur | **A-** | Lifecycle-Service als Commit-Grenze, Repository-Monolith reduziert |
+| Datenbankdesign | **A-** | Solides Schema, Schema-Parity-Test gegen `db/manual/` |
+| Auth & Berechtigungen | **B+** | Permission-Audit mit Reason-Feld; Person-Matching-Audit live |
+| Rotation-Feature | **B+** | RotationTaskRegenerationEngine als pure Domain-Engine |
 | Testbarkeit | **B** | Testcontainers + Integration-Tests; 566 Backend-Tests gruen |
-| Skalierbarkeit | **B-** | Mehrere Listen-/Sweep-/Dispatch-Pfade weiter Kandidaten fuer SQL-Pushdown |
+| Skalierbarkeit | **B-** | Listen-/Sweep-/Dispatch-Pfade weiter Kandidaten fuer SQL-Pushdown |
 | Sicherheit | **B+** | `/client/log-events` rate-limited; dev-sim-Guard hard-throw |
 | Lesbarkeit | **B+** | Konventionen durchgaengig; grobe Monolithen reduziert |
 
-### Produkt / Funktion / UX (Z21-Stand, 2026-05-12)
+### Produkt / Funktion / UX (Z21-Stand)
 
 | Bereich | Note | Hauptbegruendung |
 |---------|------|------------------|
-| **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — jetzt im UI klar markiert (Z21-S1); produktiv unverantwortlich bis echte Handler existieren |
-| **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2, 2026-05-12: Windows-Worker, AD on-prem fuehrt) — Implementation offen: kein Worker, kein LDAP/LDAPS-Adapter, `EntraGraphClient` weiter read-only |
-| Workflow-Storno (laufende Vorgaenge) | **A-** | `POST /workflows/{uid}/cancel` mit Pflicht-Grund (vordefinierte Liste + Freitext bei „Sonstiges"), terminaler Status `cancelled`, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag mit Reason-JSON (Z21-S3, 2026-05-12) |
-| Workflow-Builder (Conditions/Mappings) | **B-** | Canvas + DAG-Layout stark; Conditions haben Formularmodus, Mappings/technische Keys bleiben Power-User-lastig |
-| Workflow-Detail (Panelauswahl) | **A-** | Drei Tabs (Status & Aufgaben / Anforderungen / Audit & Links) mit persistentem Header-Panel (Z21-S4, 2026-05-12) |
-| Listen-Trennung Worker/Manager | **B** | Worker-Persona sieht Aufgaben vor Workflows; Beschreibungen klarer (Z21-S4, 2026-05-12) |
-| Mitarbeiter-/Personenverzeichnis | **B+** | 360°-Akte stark; `directory_only` klar in eigener Sektion abgetrennt (Z21-S4, 2026-05-12) |
-| Dashboard / Persona-Switcher | **B+** | Hinweistext „Nur Anzeige – keine Rechteaenderung" sichtbar (Z21-S4, 2026-05-12) |
-| Notification-/Mail-Konfig | **A-** | Microsoft-Graph-Versand real, Sandbox + Test-Senden; Admin-Warnungen vorhanden, Runtime-Fehler koennten noch sichtbarer sein |
-| Frontend-Architektur | **B+** | Saubere Services/Queries-Schichten; AdminConfig-Bundle-Refactor; Builder-Refactor |
-| Administration (Konfig-Breite) | **B+** | Breit + strukturiert; einzelne Einstiegstexte koennten klarer sein |
-| Laufende Vorgaenge (Liste + Filter) | **A-** | Saved Views, Pagination, Karten-/Tabellenmodus, Split-Vorschau |
-| Durchlaufplanung (Rotation) | **A-** | HR-Modus, Stations-Timeline, Kalender, Audit, Notifications |
-| Meine Aufgaben (Worker-Inbox) | **A-** | Split-Detail, Counts, Kommentar-Drafts, Approval-Pfad |
+| **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — im UI klar markiert (Z21-S1); produktiv unverantwortlich bis echte Handler existieren |
+| **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2: Windows-Worker, AD on-prem fuehrt) — Implementation offen |
+| Workflow-Storno | **A-** | `POST /workflows/{uid}/cancel` mit Pflicht-Grund + Audit (Z21-S3) |
+| Workflow-Builder | **B** | Mapping-Labels + Wording „Schritt" (Z21-S5); AND/OR-Mehrbedingungen offen |
+| Workflow-Detail | **A-** | Drei Tabs mit persistentem Header (Z21-S4) |
+| Listen-Trennung Worker/Manager | **B** | Worker-Persona sieht Aufgaben vor Workflows (Z21-S4) |
+| Mitarbeiter-/Personenverzeichnis | **B+** | `directory_only` in eigener Sektion (Z21-S4) |
+| Dashboard / Persona-Switcher | **B+** | Hinweistext „Nur Anzeige – keine Rechteaenderung" (Z21-S4) |
+| Notification-/Mail-Konfig | **A-** | Microsoft-Graph-Versand real; Resthebel Runtime-Sichtbarkeit blockierter Dispatches |
+| Frontend-Architektur | **B+** | Saubere Services/Queries-Schichten; Builder-Refactor |
+| Administration | **B+** | Breit + strukturiert |
+| Laufende Vorgaenge | **A-** | Saved Views, Pagination, Split-Vorschau |
+| Durchlaufplanung | **A-** | HR-Modus, Stations-Timeline, Audit |
+| Meine Aufgaben | **A-** | Split-Detail, Counts, Approval-Pfad |
 
 ---
 
-## Aktiver Zyklus 21 — Produkt-/Funktions-/UX-Review (eroeffnet 2026-05-12)
+## Offene Z21-Findings
 
-**Praktisch:** Erster zusammenhaengender Produkt-Review nach Z19/Z20-Backend-Abschluss. Fokus auf reale Nutzbarkeit fuer Endbenutzer und Produktionsrisiken — nicht auf Codequalitaet oder Stil. Geprueft anhand von Code + Doku + lokalem Build; **API-Release-Build und Frontend-Build gruen**, Tests nicht ausgefuehrt, Browser-Verifikation offen.
+#### 🔴 P0
 
-**Lohnenswert:** Das technische Fundament steht — die naechste Frage ist nicht „ist der Code sauber" sondern „funktioniert das fuer einen normalen Benutzer und kann es produktiv betrieben werden". Genau diese Trennung war bisher nicht zusammenhaengend bewertet.
+**Z21-P0-1 · Automation-Layer ist End-to-End nur Simulation**
 
-**Nutzen:** Klare Priorisierung, was den Schritt von „funktioniert im Dev-Modus" zu „produktiv verantwortbar" tatsaechlich blockiert. Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produktiv verantwortbar" macht falsche Erwartungen sichtbar.
+Sichtbare Markierung erledigt (Z21-S1). Echte Handler fehlen weiter — alle 5 registrierten Action-Handler erben von `SimulatedWorkflowAutomationActionHandler`, `EntraGraphClient` ist read-only.
 
-### Z21-Findings nach Schwere
+**Praktisch:** Workflows mit `CreateAdUser` + `SendWelcomeMail` laufen „succeeded" durch, ohne dass in AD/Entra/Mail etwas passiert. Heute durch die „Simuliert"-Badge und das Admin-Banner sichtbar, aber nicht behoben.
 
-#### 🔴 P0 — Show-Stopper fuer Produktivnutzung
+**Warum lohnt es sich:** Falsche Erwartung an Automatisierung ist die schwerste Form von Bug.
 
-**Z21-P0-1 · Automation-Layer ist End-to-End nur eine Simulation, aber im UI nicht als solche markiert**
+**Was wird besser:** Erst mit echtem Schreibpfad aus Z21-S2 (Windows-Worker / Migrationspfad-Etappe 9a) verschwindet das Risiko. Bis dahin bleibt der Banner aktiv.
 
-- Alle 5 registrierten Action-Handler (`CreateAdUser`, `CreateMailbox`, `AssignGroups`, `CreateErpEmployee`, `SendWelcomeMail`) erben von `SimulatedWorkflowAutomationActionHandler` und geben nur `simulated:true`-Objekte zurueck. Belege: `api/API/Services/SimulatedWorkflowAutomationHandlers.cs:5-80`, DI-Registrierung in `api/API/Extensions/LifecycleServiceCollectionExtensions.cs:154-158`.
-- Im Action-Katalog (Seed + Prod-Bootstrap) ist als technische Bindung `simulated_directory`, `simulated_mailbox`, … eingetragen — auch fuer die produktionsnahe Bootstrap-DB. Belege: `db/02_dev_seed.sql:34-38`, `db/02_bootstrap.sql:28-32`.
-- `EntraGraphClient` hat **ausschliesslich Lese-Operationen** (`LoadSecurityGroupsAsync`, `LoadGroupMembersAsync`). Kein `CreateUser`, kein `Update`, kein `AddMember`. Beleg: `api/API/Services/Directory/IEntraGraphClient.cs:31-37`.
-- Im Builder-UI (`web/src/components/admin-config/WorkflowBuilderActionEditor.tsx:62-79`) sieht der Admin „Create AD User" oder „Send Welcome Mail" — **ohne sichtbaren Hinweis**, dass die Aktion eine Simulation ist. Nur die englische Beschreibung in der Detailansicht enthaelt das Wort „Simulated".
+**Z21-P0-2 · Hybrid-AD-Schreibpfad fehlt** — Richtung entschieden (Z21-S2), Implementation offen
 
-**Was bedeutet das praktisch?** Wenn ein Admin im Builder einen Onboarding-Workflow mit `CreateAdUser` + `SendWelcomeMail` baut und in Produktion startet, passiert in AD/Entra/Mail genau **nichts** — das Job-Log meldet aber „succeeded". Die Aufgaben wirken erledigt, das Konto existiert nicht. Bemerkt wird das erst, wenn ein neuer Mitarbeiter sich nicht anmelden kann.
+Entscheidung: AD on-prem fuehrt, Windows-Worker schreibt. Doku in `KauthWorkflow/Architektur/Entscheidungen.md` + `Migrationspfad.md` Etappe 9a + `PROJECT_CONTEXT.md`-Guardrail. Detail im Archiv.
 
-**Warum lohnt es sich?** Falsche Erwartung an Automatisierung ist die schwerste Form von Bug — sie wird erst nach Tagen entdeckt. Bis dahin sind weitere Workflows durchgelaufen und das Vertrauen ist weg.
-
-**Was wird besser?** Saubere Trennung „aktiv produktiv" vs. „nur Simulation" bewahrt vor Fehlbedienung. Entweder Simulation deutlich machen oder echte Handler liefern.
+**Resthebel:** Worker-Skeleton, Transport API↔Worker, AD-Schreibmechanik, Domaen-Authentisierung, Audit-Rueckkanal. Eigener Etappenpfad ausserhalb des Z21-Slice-Plans.
 
 ---
 
-**Z21-P0-2 · Hybrid-AD-Frage: Im Projekt fehlt ein on-prem-AD-Schreibpfad** — ✅ Richtung entschieden 2026-05-12 (Z21-S2)
+#### 🟠 P1
 
-**Entscheidung:** Option 2 — AD on-prem fuehrt, schreibende Aktionen laufen ueber einen dedizierten Windows-Worker. `EntraGraphClient` bleibt read-only. Belegt in `KauthWorkflow/Architektur/Entscheidungen.md` Abschnitt „AD/Entra-Schreibrichtung" und `KauthWorkflow/Architektur/Migrationspfad.md` Etappe 9a. Guardrail in `PROJECT_CONTEXT.md` ergaenzt. Der Schreibpfad selbst (Worker-Skeleton, echter Handler) ist eigener Etappenpfad ausserhalb des Z21-Slice-Plans. Bis dahin bleibt der Automation-Layer im Simulationsmodus (Z21-S1-Banner aktiv).
+**Z21-P1-2 · Workflow-Builder fachsprachlicher — Resthebel**
 
-Urspruengliche Befundlage:
+UX-Teil erledigt (Z21-S5: Mapping-Labels mit Fach-/Technik-Optgroups, Wording „Schritt"). Offen:
 
-- Es gibt **keinen** on-prem-AD-Adapter. Kein LDAP-Client, kein PowerShell-Worker, kein AD-PowerShell-Remoting-Aufruf, kein `System.DirectoryServices`-Code im Repo.
-- Der Automation-Layer laeuft als Hosted-Service in der API (`KauthWorkflow/Betrieb/Setup.md`). Das ist auf einer Linux-VM in Containern. Linux kann grundsaetzlich per LDAP/LDAPS oder ueber einen separaten Worker mit on-prem AD sprechen; **dieses Projekt implementiert diesen Pfad aber nicht**:
-  - kein Adapter fuer LDAP-Bind oder Kerberos zur on-prem-DC,
-  - kein „Hybrid-Worker"-Konzept (Helper auf Windows-Server, der die Jobs ausfuehrt),
-  - keine Queue-/Tunneling-Loesung Richtung interne AD-Server.
-- Entra-Schreibpfade fehlen ebenfalls (siehe Z21-P0-1).
+- 🟡 **AND/OR-Mehrbedingungen am Decision-Edge** — `WorkflowRuntimeEngine.ParseDecisionCondition` akzeptiert heute strikt eine Bedingung. Aufgenommen als Z21-S5b (PROD_TODO) / Z21-S6b (TODO.md). Runtime-Schema-Erweiterung mit Rueckwaertskompat zur Single-Form.
+- 🟡 **Stammdaten „Technische Details"** — Feld `Definition-Schluessel` (Slug) ist in Section 1 weiter sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`). Bewusst nicht im UX-Slice, weil Schreibpfad-Thema (Slug-Editierbarkeit nach Erst-Anlage).
 
-**Was bedeutet das praktisch?** Aus der aktuellen App kann **nichts** an on-prem AD veraendert werden. Das ist nicht „nur teilweise fertig", sondern im Repo nicht angelegt. „AD on-prem als fuehrende technische Aenderungsquelle" + „aus dieser App heraus konsistent aendern" ist im aktuellen Stand **nicht abbildbar**.
+**Z21-P1-3 · Mail-Dispatch-Health: Runtime-Sichtbarkeit fehlt**
 
-**Warum lohnt es sich?** Jede Implementierung ohne klare Architektur-Entscheidung wird teuer verworfen. Erst entscheiden, dann bauen.
+Konfiguration und Versandpfad sind real und mit Warnungen versehen (Z21-S1 hat das Konfig-Stueck mit abgedeckt). Was fehlt: rotes Stat-Tile oder Health-Hinweis fuer aktuell fehlgeschlagene Dispatches im operativen Dashboard, nicht nur fuer statische Konfigluecken. Aufgenommen als `Z21-S5` in `TODO.md`.
 
-**Was wird besser?** Klare Entscheidung zwischen den realistischen Optionen:
-1. **Entra fuehrt, on-prem AD ist nachgefuehrt** ueber AD Connect → App schreibt nur gegen Graph. Linux-VM-Stack reicht. Realistisch in Wochen.
-2. **AD on-prem fuehrt** → braucht eigenen Windows-Worker als zusaetzlichen Stack-Bestandteil. Groesserer Umbau, groessere Betriebskosten.
-3. **Beidseitige Spiegelung** → praktisch nie wirklich „beides fuehrend".
+**Praktisch:** Endbenutzer merken fehlende Mails spaet, wenn Runtime-Fehler nur im Log sichtbar bleiben.
 
-Was fehlt konkret technisch fuer Option 2: schreibender Worker-Service (DB-Poll → AD-Operation), Authentisierung des Workers, sicherer Kanal von Linux-VM zum Worker, Idempotenz + Audit-Pflicht, UI-Trennung „live" vs. „Simulation".
+**Was wird besser:** Sichtbarkeit fehlgeschlagener/blockierter Dispatches im Admin-Dashboard ohne Logsuche.
 
 ---
 
-**Z21-P0-3 · Aktive Workflow-Instanzen lassen sich nicht abbrechen** — ✅ done 2026-05-12 (Z21-S3)
+#### 🟡 P2
 
-**Umgesetzt:** Neuer Endpunkt `POST /workflows/{uid}/cancel` mit Pflicht-Grund (`reasonCode` aus vordefinierter Liste + optional `reasonDetail`; bei `other` ist Detail Pflicht). Stornierbar nur aus den aktiven Status `in_progress`, `waiting_for_supervisor`, `waiting_for_department`. Lifecycle-Wirkung in einer Transaktion: Workflow → `cancelled` + Zeitstempel/Person/Reason, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag `workflow_cancelled` mit JSON-Detail. AuthZ: HR + Admin global, Manager nur bei eigener Abteilung (`AuthorizationPolicyService.CanCancelWorkflow`). FE: Storno-Button im `WorkflowManagementPanel` + bespoke `CancelWorkflowDialog` mit Pflicht-Select und conditional Pflicht-Textarea; Anzeige des Reason im storno-readonly-Block. Schema-Migration `db/manual/2026-05-12_workflow_cancellation.sql` + 4 neue Spalten + Status-Constraints erweitert. Tests: 13 backend (`WorkflowCancellationReasonCodesTests`, `WorkflowStatusRulesTests`-Erweiterungen, `AuthorizationPolicyServiceTests`-Erweiterungen) + 15 FE (`CancelWorkflowDialog.test.tsx`, `WorkflowManagementPanel.cancel.test.tsx`).
-
-Urspruengliche Befundlage:
-
-Die Workflow-Lifecycle-API kannte vor Z21-S3 nur:
-- `POST /workflows/{uid}/archive` — nur fuer **completed**-Status erlaubt (`api/API/Endpoints/WorkflowEndpoints.cs:239-263`).
-- `DELETE /workflows/{uid}` — nur fuer **draft**-Status erlaubt (`api/API/Endpoints/WorkflowEndpoints.cs:265-289`).
-- Keinen Endpunkt fuer `cancel`, `abort` oder „stoppen". Grep nach `cancelWorkflow|cancel_workflow|cancelInstance` im `api/API`-Verzeichnis: 0 Treffer.
-
-**Was bedeutet das praktisch?** Wenn HR aus Versehen ein Onboarding fuer die falsche Person startet, oder wenn ein Mitarbeiter doch nicht eintritt, gibt es keinen kontrollierten Weg, den laufenden Vorgang sauber zu beenden. Aufgaben bleiben offen, Benachrichtigungen feuern weiter, Statistiken werden verzerrt.
-
-**Warum lohnt es sich?** Stornieren ist in jedem realen HR-Workflow taeglicher Edge-Case (Probearbeit abgesagt, Eintritt verschoben, falsche Stammdaten). Ohne Storno hilft sich der Betrieb mit Workarounds (Tasks einzeln abhaken, Person loeschen, Datenmuell) — die alle den Audit-Pfad zerstoeren.
-
-**Was wird besser?** Expliziter Cancel-Endpunkt mit Grund-Pflichtfeld und sauberem Uebergang auf `cancelled`-Status macht den Audit-Trail vollstaendig und nimmt manuelle Reparatur-Workarounds aus dem Betrieb.
+- **Z21-P2-3** · Builder-Dirtystate ist vorhanden (Ungespeichert/Speichern/Verwerfen + Publish-Sperre). Optional staerkerer Page-Top-Banner — Komfort, kein Fehler.
+- **Z21-P2-4** · Frontend-Bundle 624 KB Hauptchunk + 242 KB AdminConfigPage. Fuer internes Netz vertretbar, am Handy spuerbar. Bessere `manualChunks` waeren moeglich.
+- **Z21-P2-5** · `tailwind.config.js` `extend: {}` leer, Tokens nur als CSS-Variablen. Bewusst nicht migriert (siehe `FRONTEND_TODO.md`). Kein konkreter Schmerz.
 
 ---
 
-#### 🟠 P1 — Verdeckt Bedienprobleme oder Risiken
+#### 🟢 P3
 
-**Z21-P1-1 · `directory_only` und echte Mitarbeiterkarten im selben Listenbereich gemischt** — ✅ done 2026-05-12 (Z21-S4)
-
-`PeopleDirectoryPage` zeigt jetzt echte Mitarbeitende in Abteilungsgruppen und `directory_only`-Eintraege in separater Sektion „Aus Entra noch nicht uebernommen" mit Erklaerungstext. P3-1 (Inline-Styles) bewusst nicht in diesem Slice.
-
----
-
-**Z21-P1-2 · Workflow-Builder ist fuer „Nicht-Entwickler" deklariert, Mappings bleiben aber technisch — teilweise done 2026-05-12 (Z21-S5)**
-
-- ✅ **UX-Teil:** Mapping-Editor zeigt deutsche Labels mit `<optgroup>`-Trennung „Fachfelder" / „Technische Felder". ID-Felder sind im Backend-Catalog (`AutomationPropertyCatalog.cs`) als `kind: "technical"` markiert und landen am Ende der Liste. Source-of-truth bleibt das Backend; FE rendert nur. Unbekannte Properties graceful als `(unbekannt)`-Marker.
-- ✅ **Wording (P3-2):** „Knoten" → „Schritt" im Builder-UI (`AdminWorkflowBuilderFormSection.tsx`, `WorkflowBuilderStepCard.tsx`). „Maßnahmen-Baustein" bleibt fachlich verankert.
-- 🟡 **Rest — AND/OR-Mehrbedingungen:** Condition-Editor erlaubt heute nur eine einzelne Bedingung pro Edge; Runtime (`WorkflowRuntimeEngine.ParseDecisionCondition`) waere ein echter Verhaltenswechsel und braucht eigenen Slice mit Schema- + Rueckwaertskompat-Pfad. Aufgenommen als `Z21-S5b` in `TODO.md`/Folge-Backlog.
-- 🟡 **Rest — Stammdaten „Technische Details":** Feld `Definition-Schluessel` (technischer Slug) ist in Section 1 weiterhin sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`). Bewusst nicht in diesem Slice, weil es ein Schreibpfad-Thema ist (Slug-Editierbarkeit nach Erst-Anlage), nicht reines Wording.
+- **Z21-P3-1** · `PeopleDirectoryPage` Inline-Styles (`PeopleDirectoryPage.tsx:307-422`) — Theme-Drift-Risiko, Backlog.
+- **Z21-P3-3** · `R8` (Browser-Verifikation Form-Editor) + `R10` (Mobile-Layout) — Nutzer-Aufgaben, nicht code-pruefbar.
 
 ---
 
-**Z21-P1-3 · Notification-Versand: Konfiguration ist real; Resthebel ist Runtime-Sichtbarkeit**
+## Z21-Status nach Bereich (Kurzversion)
 
-Mail-Versand ueber Microsoft Graph ist **echt** (`api/API/Services/GraphWorkflowEmailNotificationSender.cs:28-105`). Konfigurierbar in `Administration > System > System-Konfiguration`. Gut: `disabled`-Pfad, Sandbox-Redirect, Test-Versand, Audit im `system_event_log`.
-
-Korrektur zur ersten Z21-Einschaetzung: Der Admin-Bereich zeigt bereits Statuskarten und Warnungen fuer unvollstaendige Mail-Konfiguration bzw. aktiven Versand ohne Sandbox. Das Speichern blockiert zudem `enabled=true`, wenn Pflichtwerte fehlen. Was bleibt: fehlgeschlagene Dispatches oder Runtime-Blockaden koennten im operativen Dashboard noch deutlicher als aktuelle Stoerung auftauchen.
-
-**Was bedeutet das praktisch?** „Konfiguration vorhanden" heisst nicht automatisch „letzte Versandversuche liefen erfolgreich". Endbenutzer merken fehlende Mails spaet, wenn Runtime-Fehler nur im Log sichtbar bleiben.
-
-**Warum lohnt es sich?** Workflows ohne Benachrichtigung blockieren menschliche Tasks — niemand weiss, dass er dran ist.
-
-**Was wird besser?** Rotes Stat-Tile oder Health-Hinweis fuer aktuelle Versandfehler/blocked dispatches, nicht nur fuer statische Konfigurationsluecken.
-
----
-
-**Z21-P1-4 · Persona-Switcher fuer Mehrrollen-User nur teilweise selbsterklaerend** — ✅ done 2026-05-12 (Z21-S4)
-
-Hinweistext „Nur Anzeige – keine Rechteaenderung" als `.persona-switcher__hint` unter den Buttons eingefuegt. `PersonaSwitcher.tsx` + `dashboard.css`.
-
-~~`web/src/components/dashboard/DashboardOverview.tsx:84-91` schaltet je nach `dashboardPersona` einen komplett anderen Bildschirm. `PersonaSwitcher` hat bereits sichtbare Beschriftung/ARIA, erklaert aber nicht, dass nur die Dashboard-Ansicht und nicht die Rechte gewechselt werden.~~
-
----
-
-**Z21-P1-5 · Linux-VM `dev`-Pfad braucht zusaetzliche Tools, `prod`-Pfad nicht — done 2026-05-12 (Z21-S6)**
-
-✅ `scripts/start-vm.sh` hat `ensure_dev_prerequisites` bekommen und prueft `docker`, `dotnet`, `npm` vor jedem Dev-Start. Fehlende Tools liefern eine spezifische Installmeldung und einen Verweis auf `KauthWorkflow/Betrieb/Setup.md`, statt die DB hochzufahren und am API-/Web-Start zu scheitern.
-
-Resthebel (kein eigener Slice, eher Doku-Klarstellung): die Setup-Doku selbst koennte den dotnet/npm-Bedarf prominenter machen — aktuell steht der Hinweis erst in Abschnitt „Voraussetzungen" am Ende der Seite.
-
----
-
-#### 🟡 P2 — Bedienkomfort und Konsistenz
-
-**Z21-P2-1 · Drei sehr aehnliche Listenbereiche fuer Worker/Manager** — ✅ done 2026-05-12 (Z21-S4)
-
-`deriveNavigationContext` hat klarere, aktionsorientierte Beschreibungen. `collectActionKeys` fuer Pure-Worker-Persona platziert `departmentTasks` und `rotationOperations` vor `hrWorkflows`, sodass Worker ihren primären Einstieg zuerst sehen. `useRoleAwareNavigation.ts`.
-
----
-
-**Z21-P2-2 · Workflow-Detailseite: sechs+ Panels untereinander, Reihenfolge nicht offensichtlich** — ✅ done 2026-05-12 (Z21-S4)
-
-`WorkflowDetailPage` hat jetzt drei Tabs („Status & Aufgaben" / „Anforderungen" / „Audit & Links") mit bestehendem `.admin-tab-strip`/`.admin-tab`-CSS. `WorkflowHeaderPanel` bleibt persistent oberhalb der Tabs sichtbar. `WorkflowDetailPage.tsx`.
-
----
-
-**Z21-P2-3 · Korrigiert: Builder-Dirtystate ist vorhanden; nur optional staerkerer Banner**
-
-Die urspruengliche Einschaetzung war falsch positiv. `AdminWorkflowBuilderFormSection.tsx` zeigt bereits „Ungespeichert", hat `Speichern` und `Verwerfen`, und Publish ist bei ungespeicherten Aenderungen mit Tooltip gesperrt. `hasUnsavedChanges` wirkt nicht nur als Disable am Loeschen-Button.
-
-**Was wird besser?** Optional koennte ein Page-Top-Banner den Zustand noch auffaelliger machen. Das ist Komfort, kein aktiver Fehler.
-
----
-
-**Z21-P2-4 · Frontend-Bundle 623 KB Hauptchunk + 241 KB AdminConfigPage**
-
-Output `npm run build`. Vite-Warning erscheint. Fuer internes Netz vertretbar, am Handy spuerbar.
-
-**Was wird besser?** Bessere `manualChunks`-Konfiguration koennte den Index-Bundle weiter teilen.
-
----
-
-**Z21-P2-5 · `tailwind.config.js` `extend: {}` leer, Tokens nur als CSS-Variablen**
-
-Bewusst nicht migriert (siehe `FRONTEND_TODO.md:52`). Heute kein konkreter Schmerz; nur wenn jemand „mit Tailwind-Reflex" neu baut, fehlt der Theme-Bezug.
-
----
-
-#### 🟢 P3 — Cosmetics / Detail
-
-- **Z21-P3-1** · `PeopleDirectoryPage` hat viele harte Inline-Styles (`PeopleDirectoryPage.tsx:307-422`) — Theme-Drift-Risiko.
-- **Z21-P3-2** · Builder-Wording schwankt zwischen „Schritt", „Knoten", „Baustein". ✅ done 2026-05-12 (Z21-S5). „Knoten" im Builder-UI auf „Schritt" gehoben, „Maßnahmen-Baustein" bleibt fachlich.
-- **Z21-P3-3** · `R8` (Browser-Verifikation Form-Editor) und `R10` (Mobile-Layout) sind in `TODO.md` als offen markiert — explizit nicht code-pruefbar.
-
-### Bereich-fuer-Bereich-Bewertung
-
-| Bereich | Fachliche Funktion | UX-Verstaendlichkeit | UI-Qualitaet | Produktionsreif? |
-|---|---|---|---|---|
-| **Uebersicht** (Dashboard) | ✅ Solide, persona-spezifisch | 🟡 Persona-Switcher-Wirkung nur teilweise erklaert (P1-4) | ✅ Zone-Struktur | **Ja, mit Hinweis Persona-Switcher** |
-| **Workflow-Builder** | ✅ Versionierte Definitions + DAG-Canvas | 🟢 Mapping-Labels + Wording „Schritt" (Z21-S5); AND/OR-Mehrbedingungen offen | ✅ Dirtystate/Speichern/Verwerfen vorhanden | **Ja fuer fachliche Mappings; AND/OR-Folge-Slice ausstehend** |
-| **Laufende Vorgaenge** | ✅ Saved-Views, Pagination, Vorschau-Split, Storno (Z21-S3) | ✅ Klar | ✅ Karten + Tabelle | **Ja** |
-| **Workflow-Detail** | ✅ Header/Requirements/TaskAreas/… + Storno (Z21-S3) | 🟡 viele Panels untereinander (P2-2) | ✅ Saubere Komponenten | **Ja** |
-| **Mitarbeiter** | ✅ HR-/Admin-Liste + 360°-Akte mit Tabs | 🟡 `directory_only` und Personen gemischt (P1-1) | 🟡 Inline-Styles (P3-1) | **Ja, kleinere UX-Klaerungen** |
-| **Durchlaufplanung** | ✅ HR-Modus, Stations-Timeline, Audit | 🟡 `?mode=create` URL-versteckt | ✅ Kalender + Timeline | **Ja** |
-| **Wechsel & Aufgaben** | ✅ Filter, Karten/Tabelle, IT-/eigene-Abt. | 🟡 Ueberlappung mit „Meine Aufgaben" (P2-1) | ✅ Strukturierte Sicht | **Ja** |
-| **Meine Aufgaben** | ✅ Split-Detail, Kommentar-Drafts, Approval | ✅ Klar | ✅ Kompakt | **Ja** |
-| **Administration** | ✅ Breit + strukturiert | 🟡 viele Sektionen | ✅ Workspace-Bundles | **Ja**, klarere Eingangstexte empfohlen |
-| **Automatisierung** | 🔴 **NUR Simulation** | 🔴 nicht als Simulation gekennzeichnet (P0-1) | 🟡 UI vorhanden, aber technisch | **❌ NICHT produktionsreif** |
+| Bereich | Funktion | UX | Produktionsreif? |
+|---|---|---|---|
+| **Uebersicht** (Dashboard) | ✅ | ✅ (Z21-S4) | Ja |
+| **Workflow-Builder** | ✅ | 🟢 Labels + Wording (Z21-S5); AND/OR offen | Ja fuer Mappings; AND/OR-Folge offen |
+| **Laufende Vorgaenge** | ✅ + Storno (Z21-S3) | ✅ | Ja |
+| **Workflow-Detail** | ✅ + Storno (Z21-S3) | ✅ (Z21-S4) | Ja |
+| **Mitarbeiter** | ✅ | ✅ (Z21-S4); Inline-Styles offen (P3-1) | Ja |
+| **Durchlaufplanung** | ✅ | 🟡 `?mode=create` URL-versteckt | Ja |
+| **Wechsel & Aufgaben** | ✅ | ✅ (Z21-S4) | Ja |
+| **Meine Aufgaben** | ✅ | ✅ | Ja |
+| **Administration** | ✅ | 🟡 viele Sektionen | Ja, klarere Eingangstexte empfohlen |
+| **Automatisierung** | 🔴 nur Simulation | ✅ als Simulation markiert (Z21-S1) | ❌ bis echter Schreibpfad existiert |
 
 ### Z21-Fazit Automation & Hybrid-AD
 
@@ -273,39 +164,27 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 
 | Aspekt | Bewertung | Beleg |
 |---|---|---|
-| Fachlich vorgesehen | ✅ Ja — `action_definitions`, Mapping, Retry, Logging, Handler-Registry, Audit | `KauthWorkflow/Domäne/Automation.md`, `AutomationPropertyCatalog.cs` |
-| Im Code vorbereitet | ✅ Datenmodell + Hosted Service + Job-Worker, Handler werden korrekt aufgeloest | `WorkflowAutomationService.cs`, `WorkflowAutomationHandlerRegistry.cs` |
-| Real lauffaehig | 🟡 Ja, aber **nur als Simulation** | `SimulatedWorkflowAutomationHandlers.cs:76-80` |
-| Produktiv verantwortbar | ❌ **Nein.** Admin glaubt, AD-User wird angelegt — tatsaechlich passiert nichts | siehe Z21-P0-1 |
+| Fachlich vorgesehen | ✅ | `KauthWorkflow/Domäne/Automation.md`, `AutomationPropertyCatalog.cs` |
+| Im Code vorbereitet | ✅ | `WorkflowAutomationService.cs`, `WorkflowAutomationHandlerRegistry.cs` |
+| Real lauffaehig | 🟡 nur als Simulation | `SimulatedWorkflowAutomationHandlers.cs:76-80` |
+| Produktiv verantwortbar | ❌ | siehe Z21-P0-1 |
 
-**Schreibrichtung entschieden (Z21-S2, 2026-05-12):** AD on-prem fuehrt; schreibende Aktionen laufen ueber einen Windows-Worker (Migrationspfad-Etappe 9a). `EntraGraphClient` bleibt read-only — kein direkter Graph-Schreibpfad.
-
-**Aus Linux-VM Richtung Entra/Graph (Cloud):** explizit verworfen als Schreibpfad. Read-only bleibt.
-
-**Aus Linux-VM Richtung on-prem AD direkt:** weiterhin nicht abbildbar — Architektur sieht das auch nicht vor. Schreiben gehoert in den Windows-Worker.
+**Schreibrichtung:** AD on-prem fuehrt; schreibende Aktionen ueber Windows-Worker (Migrationspfad-Etappe 9a). `EntraGraphClient` bleibt read-only.
 
 ### Z21-Verifikationsluecken
 
-- **Browser-Verifikation**: Nicht ausgefuehrt — UI-Aussagen aus Code-Struktur und Klassen abgeleitet, nicht aus gerenderten Screens.
-- **Tests**: Nicht ausgefuehrt — nur Builds (API Release + Vite). Letzter dokumentierter Stand: 566 Backend-Tests gruen (Z20).
-- **DB-Lauf**: Kein lokaler PostgreSQL-Lauf — Storno-Befund nur ueber Endpunkt-Grep ausgeschlossen.
-- **Entra-Live-Verifikation**: Mail-Versand-Pfad nicht mit echten Credentials getestet — Code-Pfad ist da.
-
-### Z21-Naechste Schritte (priorisiert nach Endnutzer-/Produktionsnutzen)
-
-1. **✅ Z21-S1 done (2026-05-12) · Simulation klar als Simulation markieren.** `ActionDefinitionDto.IsSimulated` (abgeleitet aus `handler_type LIKE 'simulated_%'`) im Backend. FE: „Simuliert"-Badge im `WorkflowBuilderActionEditor` neben jeder simulierten Aktion + Hinweis im Dropdown. Admin-Dashboard: Simulation-Hinweis-Banner im `AdminOverviewWorkspaceSection` mit Link zum Aktionskatalog. CSS: `.wf-action-sim-badge`, `.admin-sim-notice`. Tests: `ActionDefinitionDto_IsSimulated_DerivedFromHandlerType` (Theory, 6 Faelle).
-2. **✅ Z21-S3 done (2026-05-12) · Storno fuer laufende Workflows.** `POST /workflows/{uid}/cancel` mit Pflicht-Reason-Code (vordefinierte Liste + Freitext bei „other"), Status terminal nach `cancelled`, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag `workflow_cancelled` mit JSON-Detail. AuthZ: HR/Admin global, Manager nur eigene Abteilung. FE: bespoke `CancelWorkflowDialog` + Button im `WorkflowManagementPanel` + Storno-Readonly-Block fuer abgeschlossene Stornierungen. Schema-Migration `db/manual/2026-05-12_workflow_cancellation.sql`.
-3. **✅ Z21-S2 done (2026-05-12) · Hybrid-AD-Architekturentscheidung getroffen.** AD on-prem fuehrt; schreibende Lifecycle-Aktionen laufen ueber einen dedizierten Windows-Worker, `EntraGraphClient` bleibt read-only. Doku in `KauthWorkflow/Architektur/Entscheidungen.md` (Abschnitt „AD/Entra-Schreibrichtung") + `KauthWorkflow/Architektur/Migrationspfad.md` (Etappe 9a mit 4-Schritte-Zielbild) + `PROJECT_CONTEXT.md` (Guardrail). Sub-Entscheidungen (Deployment / Transport / Schreibmechanik / Auth / Audit) bewusst offen — eigener Plan-Mode-Slice vor Code-Arbeit.
-4. **🟠 Builder fachsprachlicher machen.** Mapping-Editor mit menschlich lesbaren Labels, Condition-Wording weniger technisch, technische Keys nur im Power-Modus.
-5. **🟡 Workflow-Detail- und Listen-Ergonomie auflockern.** Tabs auf Workflow-Detail, klarere Listen-Trennung Worker/Manager, Runtime-Sichtbarkeit fuer blockierte/fehlgeschlagene Mail-Dispatches.
+- **Browser-Verifikation**: nicht ausgefuehrt — UI-Aussagen aus Code abgeleitet.
+- **Tests**: nur Builds + Slice-spezifische Test-Suites ausgefuehrt; voller Backend-Lauf zuletzt Z20 (566 gruen).
+- **DB-Lauf**: kein lokaler PostgreSQL-Lauf in Z21.
+- **Entra-Live-Verifikation**: Mail-Versand-Pfad nicht mit echten Credentials getestet.
 
 ---
 
 ## Archivstatus
 
-- Die Detailzyklen **Z8 bis Z20** liegen in `CODE_REVIEW_ARCHIVE.md`.
-- Die Detailhistorie von **Zyklus 7** liegt in `CODE_REVIEW_ARCHIVE.md` und `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`.
-- In dieser aktiven Datei bleiben nur Gesamtbewertung, aktiver Z21-Zyklus, offene zyklusuebergreifende Befunde und die grobe Historie.
+- Detailzyklen **Z8 bis Z20** + **Z21 Done-Findings (Z21-S1..S6)** liegen in `CODE_REVIEW_ARCHIVE.md`.
+- Detailhistorie **Zyklus 7** in `CODE_REVIEW_ARCHIVE.md` + `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`.
+- In dieser Datei bleiben nur Gesamtbewertung, offene Z21-Findings, offene zyklusuebergreifende Befunde und grobe Historie.
 
 ---
 
@@ -313,7 +192,7 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 
 | ID | Aufgabe | Status | Quelle |
 |----|---------|--------|--------|
-| R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | offen — Nutzer-Aufgabe, KI kann nicht pruefen | L7 |
+| R8 | Browser-Verifikation Form-Editor (alle 12 Schritt-Typen) | offen — Nutzer-Aufgabe | L7 |
 | R10 | Handy/Tablet-Layout fuer Form-Editor (≥1024px aktuell) | backlog — kein konkreter Bedarf | L7 |
 | L2 | Datenbereinigung fuer Drafts/abgebrochene Plaene/stornierte Aufgaben | deferred — wartet auf Produkt-Entscheidung | Zyklus 1 |
 | Z8-3.2/#8 | `RotationTaskGenerationService.RegenerateDepartmentPlansAsync` Schleife | deferred — admin-getriggert, kein Hot-Path | Zyklus 8 |
@@ -324,25 +203,7 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 
 | Zyklus | Datum | Hauptthema |
 |--------|-------|------------|
-| 1 | 2026-04-23 | Code-Review + Hardening (C1–C4, H1–H7, L1/L3/L5/L6) |
-| 2 | 2026-05-02 | HQ1–HQ5 + LQ1–LQ7: Decision-Migration, SQL-Task-Filter, Audit-Trail, Testcontainers, Page-Refactor |
-| 3 | 2026-05-02 | Test-Coverage + Wartbarkeits-Split: Hook-Tests, Repo-Splits, Hook-Zerlegung |
-| 4 | 2026-05-02 | Naming + Haertungen: LegacyProcessTypeKey, effectiveResponsibilityIds, Error-Boundaries |
-| 5 | 2026-05-02..03 | Legacy-Abbau (LA1–LA5): LegacyWorkflowStatus, setup-Node, definition_key, HasLegacyRolePermission, Specs am Node |
-| 6 | 2026-05-03..04 | Runtime-Lifecycle (Schritt 7): Engine-Extraktion + Lifecycle-Service mit Conn+Tx-Scope |
-| 7 | 2026-05-05 | Lifecycle-Service-Konsolidierung + Validation-Split |
-| 8 | 2026-05-05 | Skalierbarkeits- & Last-Haertung — abgeschlossen |
-| 9 | 2026-05-05 | `EntraDirectorySyncService`-Split / Testbarkeit — abgeschlossen |
-| 10 | 2026-05-05 | Master-Data-/Admin-Listen-Wachstum, Pagination-/Such-Vertraege — abgeschlossen |
-| 11 | 2026-05-05..06 | Admin-/Master-Data-Listen-Vertraege — abgeschlossen |
-| 12 | 2026-05-06 | Admin-Dashboard-Betriebsblock fuer Runtime-/System-Health — abgeschlossen |
-| 13 | 2026-05-06 | Echte Linux-Host-/VM-Metriken im Admin-Runtime-Health-Block — abgeschlossen |
-| 14 | 2026-05-07 | Mehrrollen-Persona-Kollisionen in Uebersicht / Navigation — abgeschlossen |
-| 15 | 2026-05-08 | Implementierung Mehrrollen-Persona — vollstaendig abgeschlossen |
-| 16 | 2026-05-08 | Mitarbeiterakte als eigener Navigationsbereich + Identity-/Permission-Vertrag — vollstaendig abgeschlossen |
-| 17 | 2026-05-08 | Light/Dark-Mode-Theme-Leaks — abgeschlossen |
-| 18 | 2026-05-08 | Frontend Full Review — vollstaendig abgeschlossen |
-| A1–C | 2026-05-08 | People-Import, Entra-Stellen-Import, Mitarbeiterkarten-Felder, Verzeichnis-Sicht — abgeschlossen |
-| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — vollstaendig abgeschlossen |
-| 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — vollstaendig abgeschlossen |
-| **21** | **2026-05-12** | **Produkt-/Funktions-/UX-Review — eroeffnet** |
+| 1–18 | 2026-04-23 .. 2026-05-08 | Code-Review/Hardening, HQ/LQ, Test-Coverage, Naming, Legacy-Abbau, Runtime-Lifecycle, Skalierbarkeit, Mehrrollen-Persona, Mitarbeiterakte, Theme-Leaks, Frontend Full Review |
+| 19 | 2026-05-11 | Backend Full Review / Holistic Audit — abgeschlossen |
+| 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — abgeschlossen |
+| **21** | **2026-05-12** | Produkt-/Funktions-/UX-Review — PROD_TODO-Slice-Plan abgeschlossen; Reste in offenen Findings + Folge-Slices |

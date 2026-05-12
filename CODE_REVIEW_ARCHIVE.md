@@ -277,3 +277,46 @@ Der frühere Monolith `WorkflowDefinitionValidationService.cs` wurde in:
 - `WorkflowDefinitionDraftValidator`
 
 geschnitten. Der Service ist jetzt eine duenne Facade.
+
+---
+
+## Zyklus 21 (Done-Findings) — ausgelagert aus aktiver Review-Datei am 2026-05-12
+
+Detail-Originaltext zu den im aktiven `CODE_REVIEW.md` als done gefuehrten Z21-Findings. Aktiver Status (Resthebel, Score, naechste Schritte) bleibt in `CODE_REVIEW.md`.
+
+### Z21-S1 (P0-1 + P1-3 sichtbares Stueck) — done 2026-05-12
+
+`ActionDefinitionDto.IsSimulated` (abgeleitet aus `handler_type LIKE 'simulated_%'`) im Backend. FE: „Simuliert"-Badge im `WorkflowBuilderActionEditor` neben jeder simulierten Aktion + Hinweis im Dropdown. Admin-Dashboard: Simulation-Hinweis-Banner im `AdminOverviewWorkspaceSection` mit Link zum Aktionskatalog. CSS: `.wf-action-sim-badge`, `.admin-sim-notice`. Tests: `ActionDefinitionDto_IsSimulated_DerivedFromHandlerType` (Theory, 6 Faelle).
+
+Resthebel P1-3 (Runtime-Sichtbarkeit fehlgeschlagener Dispatches) bleibt offen — siehe TODO.md Z21-S5.
+
+### Z21-S2 (P0-2) — Hybrid-AD-Architekturentscheidung — done 2026-05-12
+
+Entscheidung: Option 2 — AD on-prem fuehrt, schreibende Lifecycle-Aktionen laufen ueber einen dedizierten Windows-Worker. `EntraGraphClient` bleibt read-only. Doku in `KauthWorkflow/Architektur/Entscheidungen.md` (Abschnitt „AD/Entra-Schreibrichtung") + `KauthWorkflow/Architektur/Migrationspfad.md` (Etappe 9a mit 4-Schritte-Zielbild) + `PROJECT_CONTEXT.md` (Guardrail). Sub-Entscheidungen (Deployment / Transport / Schreibmechanik / Auth / Audit) bewusst offen — eigener Plan-Mode-Slice vor Code-Arbeit. Implementation des Schreibpfads ist Etappenpfad ausserhalb des Z21-Slice-Plans.
+
+### Z21-S3 (P0-3) — Workflow-Storno — done 2026-05-12
+
+Neuer Endpunkt `POST /workflows/{uid}/cancel` mit Pflicht-Grund (`reasonCode` aus vordefinierter Liste + optional `reasonDetail`; bei `other` ist Detail Pflicht). Stornierbar nur aus den aktiven Status `in_progress`, `waiting_for_supervisor`, `waiting_for_department`. Lifecycle-Wirkung in einer Transaktion: Workflow → `cancelled` + Zeitstempel/Person/Reason, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag `workflow_cancelled` mit JSON-Detail. AuthZ: HR + Admin global, Manager nur bei eigener Abteilung (`AuthorizationPolicyService.CanCancelWorkflow`). FE: Storno-Button im `WorkflowManagementPanel` + bespoke `CancelWorkflowDialog` mit Pflicht-Select und conditional Pflicht-Textarea; Anzeige des Reason im storno-readonly-Block. Schema-Migration `db/manual/2026-05-12_workflow_cancellation.sql` + 4 neue Spalten + Status-Constraints erweitert. Tests: 13 backend + 15 FE.
+
+### Z21-S4 (P1-1 + P1-4 + P2-1 + P2-2) — FE-UX-Buendel — done 2026-05-12
+
+- P1-4 Persona-Switcher: Hinweistext „Nur Anzeige – keine Rechteaenderung" als `.persona-switcher__hint`.
+- P2-2 Workflow-Detail-Tabs: drei Tabs („Status & Aufgaben" / „Anforderungen" / „Audit & Links") via `.admin-tab-strip`/`.admin-tab`. `WorkflowHeaderPanel` persistent oberhalb.
+- P1-1 directory_only-Trennung: eigene Sektion „Aus Entra noch nicht uebernommen" in `PeopleDirectoryPage`. P3-1 (Inline-Styles) bewusst nicht mitgenommen.
+- P2-1 Listen-Trennung: `deriveNavigationContext` mit aktionsorientierten Beschreibungen; Pure-Worker sieht `departmentTasks` + `rotationOperations` vor `hrWorkflows`.
+
+Belegt in `PersonaSwitcher.tsx` + `dashboard.css`, `WorkflowDetailPage.tsx`, `PeopleDirectoryPage.tsx`, `useRoleAwareNavigation.ts`. FE-Build clean, 300 Tests gruen.
+
+### Z21-S5 (P1-2 UX-Teil + P3-2) — Builder fachsprachlicher — done 2026-05-12 (UX-Teil)
+
+- Mapping-Labels (Backend-DTO): `AutomationPropertyCatalog.cs` erweitert um `AutomationPropertyCatalogPropertyDto { Key, Label, Kind }`. ID-Felder → `kind: "technical"`, Fachfelder → `"business"`.
+- Mapping-Editor UX: `PropertyDropdown` rendert zwei `<optgroup>` (Fachfelder zuerst, Technische Felder am Ende). Unbekannte gemappte Properties → `(unbekannt)`-Suffix.
+- Wording: „Knoten" → „Schritt" im Builder-UI. „Maßnahmen-Baustein" bleibt fachlich.
+- Tests: `AutomationPropertyCatalogTests.cs` (5 backend) + `WorkflowBuilderActionMappingEditor.labels.test.tsx` (4 FE).
+- Backend-Build 0 Errors, FE-Build clean, 304 FE-Tests gruen. Backend-Test-Build steht auf bekannten 7 pre-existing Stub-Errors — Z21-S5 fuegt 0 neue hinzu.
+
+Resthebel (Z21-S5b in `TODO.md`): AND/OR-Mehrbedingungen am Decision-Edge — Runtime + Schema + FE-Editor mit Rueckwaertskompat.
+
+### Z21-S6 (P1-5) — start-vm.sh dev-Vorab-Check — done 2026-05-12
+
+`scripts/start-vm.sh` hat `ensure_dev_prerequisites` bekommen, das `docker`, `dotnet`, `npm` vor jedem Dev-Start prueft. `require_command` akzeptiert jetzt einen Hint-Text und haengt automatisch den Verweis auf `KauthWorkflow/Betrieb/Setup.md` an. Fehlende Tools liefern spezifische Installmeldungen statt der bisherigen generischen Fehlermeldung. Prod-Pfad hat denselben Setup-Verweis bei fehlendem Docker.
