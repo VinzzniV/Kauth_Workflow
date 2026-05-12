@@ -319,6 +319,14 @@ public sealed class AdminRuntimeHealthEndpointsTests
             PendingImportsCount = 0
         };
 
+        var emptyFailures = new RuntimeFailuresHealthDto
+        {
+            Severity = "ok",
+            WindowHours = 24,
+            TotalCount = 0,
+            RecentFailures = new List<RuntimeFailureItemDto>()
+        };
+
         return new AdminRuntimeHealthDto
         {
             GeneratedAt = ts,
@@ -327,7 +335,9 @@ public sealed class AdminRuntimeHealthEndpointsTests
             Dependencies = dependencies,
             Directory = directory,
             Storage = [],
-            Host = null
+            Host = null,
+            AutomationFailures = emptyFailures,
+            NotificationFailures = emptyFailures
         };
     }
 
@@ -422,6 +432,49 @@ public sealed class AdminRuntimeHealthEndpointsTests
     public void ComputeOverallSeverity_WithNullHost_ExcludesHost()
     {
         var result = AdminRuntimeHealthService.ComputeOverallSeverity("ok", "ok", "ok", [], "dev-sim", null);
+        Assert.Equal("ok", result);
+    }
+
+    // --- Failures severity ---
+
+    [Theory]
+    [InlineData(0, "ok")]
+    [InlineData(1, "warning")]
+    [InlineData(9, "warning")]
+    [InlineData(10, "critical")]
+    [InlineData(50, "critical")]
+    public void ComputeFailuresSeverity_MatchesThresholds(int totalCount, string expected)
+    {
+        Assert.Equal(expected, AdminRuntimeHealthService.ComputeFailuresSeverity(totalCount));
+    }
+
+    [Fact]
+    public void ComputeOverallSeverity_WithCriticalAutomationFailures_ReturnsCritical()
+    {
+        var result = AdminRuntimeHealthService.ComputeOverallSeverity(
+            "ok", "ok", "ok", [], "dev-sim", null,
+            automationFailuresSeverity: "critical",
+            notificationFailuresSeverity: "ok");
+        Assert.Equal("critical", result);
+    }
+
+    [Fact]
+    public void ComputeOverallSeverity_WithWarningNotificationFailures_ReturnsWarning()
+    {
+        var result = AdminRuntimeHealthService.ComputeOverallSeverity(
+            "ok", "ok", "ok", [], "dev-sim", null,
+            automationFailuresSeverity: "ok",
+            notificationFailuresSeverity: "warning");
+        Assert.Equal("warning", result);
+    }
+
+    [Fact]
+    public void ComputeOverallSeverity_WithBothFailuresOk_StaysOk()
+    {
+        var result = AdminRuntimeHealthService.ComputeOverallSeverity(
+            "ok", "ok", "ok", [], "dev-sim", null,
+            automationFailuresSeverity: "ok",
+            notificationFailuresSeverity: "ok");
         Assert.Equal("ok", result);
     }
 

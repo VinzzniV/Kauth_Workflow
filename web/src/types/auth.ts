@@ -483,6 +483,22 @@ export type AdminRuntimeHealth = {
   directory: DirectoryRuntimeHealth;
   storage: StorageRuntimeHealth[];
   host: HostRuntimeHealth | null;
+  automationFailures: RuntimeFailuresHealth;
+  notificationFailures: RuntimeFailuresHealth;
+};
+
+export type RuntimeFailuresHealth = {
+  severity: RuntimeHealthSeverity;
+  windowHours: number;
+  totalCount: number;
+  recentFailures: RuntimeFailureItem[];
+};
+
+export type RuntimeFailureItem = {
+  id: number;
+  occurredAt: string;
+  label: string;
+  errorMessage: string | null;
 };
 
 export type ApplicationRuntimeHealth = {

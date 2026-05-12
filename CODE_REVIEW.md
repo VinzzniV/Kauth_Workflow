@@ -78,7 +78,7 @@ Bei zyklusuebergreifend offenen Befunden reicht ein kurzer Hinweis, warum sie ak
 | Listen-Trennung Worker/Manager | **B** | Worker-Persona sieht Aufgaben vor Workflows (Z21-S4) |
 | Mitarbeiter-/Personenverzeichnis | **B+** | `directory_only` in eigener Sektion (Z21-S4) |
 | Dashboard / Persona-Switcher | **B+** | Hinweistext „Nur Anzeige – keine Rechteaenderung" (Z21-S4) |
-| Notification-/Mail-Konfig | **A-** | Microsoft-Graph-Versand real; Resthebel Runtime-Sichtbarkeit blockierter Dispatches |
+| Notification-/Mail-Konfig | **A** | Microsoft-Graph-Versand real; Runtime-Failures als Stat-Tiles im Betriebsstatus (TODO.md Z21-S5, 2026-05-12) |
 | Frontend-Architektur | **B+** | Saubere Services/Queries-Schichten; Builder-Refactor |
 | Administration | **B+** | Breit + strukturiert |
 | Laufende Vorgaenge | **A-** | Saved Views, Pagination, Split-Vorschau |
@@ -118,13 +118,9 @@ UX-Teil erledigt (Z21-S5: Mapping-Labels mit Fach-/Technik-Optgroups, Wording �
 - 🟡 **AND/OR-Mehrbedingungen am Decision-Edge** — `WorkflowRuntimeEngine.ParseDecisionCondition` akzeptiert heute strikt eine Bedingung. Aufgenommen als Z21-S5b (PROD_TODO) / Z21-S6b (TODO.md). Runtime-Schema-Erweiterung mit Rueckwaertskompat zur Single-Form.
 - 🟡 **Stammdaten „Technische Details"** — Feld `Definition-Schluessel` (Slug) ist in Section 1 weiter sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`). Bewusst nicht im UX-Slice, weil Schreibpfad-Thema (Slug-Editierbarkeit nach Erst-Anlage).
 
-**Z21-P1-3 · Mail-Dispatch-Health: Runtime-Sichtbarkeit fehlt**
+**Z21-P1-3 · Mail-Dispatch-Health: Runtime-Sichtbarkeit — ✅ done 2026-05-12 (TODO.md Z21-S5)**
 
-Konfiguration und Versandpfad sind real und mit Warnungen versehen (Z21-S1 hat das Konfig-Stueck mit abgedeckt). Was fehlt: rotes Stat-Tile oder Health-Hinweis fuer aktuell fehlgeschlagene Dispatches im operativen Dashboard, nicht nur fuer statische Konfigluecken. Aufgenommen als `Z21-S5` in `TODO.md`.
-
-**Praktisch:** Endbenutzer merken fehlende Mails spaet, wenn Runtime-Fehler nur im Log sichtbar bleiben.
-
-**Was wird besser:** Sichtbarkeit fehlgeschlagener/blockierter Dispatches im Admin-Dashboard ohne Logsuche.
+`AdminRuntimeHealthDto` traegt jetzt `automationFailures` + `notificationFailures` (24-h-Fenster, COUNT + 5 juengste mit Label und gekuerztem Error). `DashboardAdminRuntimeHealthBlock` rendert beide als Stat-Tiles mit Severity-Toning und einer collapsible „Letzte Fehler anzeigen"-Liste. `overallSeverity` aggregiert Failures-Severity mit (warning ab 1 Fehler, critical ab 10). Damit sehen Admins fehlgeschlagene Automation-Jobs und Mail-Dispatches direkt im Betriebsstatus-Panel ohne Logsuche.
 
 ---
 

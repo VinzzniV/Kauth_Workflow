@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import type { AuthDependencyRuntimeHealth, DependenciesRuntimeHealth, HostRuntimeHealth } from "../../types/auth";
+import type {
+  AuthDependencyRuntimeHealth,
+  DependenciesRuntimeHealth,
+  HostRuntimeHealth,
+  RuntimeFailuresHealth,
+} from "../../types/auth";
 import { getAdminRuntimeHealth } from "../../services/adminApi";
 import { queryKeys } from "../../services/queryKeys";
 
@@ -164,8 +169,82 @@ export default function DashboardAdminRuntimeHealthBlock() {
               </p>
             </div>
           ) : null}
+
+          <FailuresMetric
+            title="Automation-Fehler"
+            description="Fehlgeschlagene Automation-Jobs"
+            failures={health.automationFailures}
+          />
+
+          <FailuresMetric
+            title="Mail-Versand-Fehler"
+            description="Fehlgeschlagene Notification-Dispatches"
+            failures={health.notificationFailures}
+          />
         </div>
+      ) : null}
+
+      {(health && (health.automationFailures.recentFailures.length > 0 || health.notificationFailures.recentFailures.length > 0)) ? (
+        <details className="admin-health-failures-details">
+          <summary>Letzte Fehler anzeigen</summary>
+          {health.automationFailures.recentFailures.length > 0 ? (
+            <FailureList title="Automation" failures={health.automationFailures} />
+          ) : null}
+          {health.notificationFailures.recentFailures.length > 0 ? (
+            <FailureList title="Mail-Versand" failures={health.notificationFailures} />
+          ) : null}
+        </details>
       ) : null}
     </section>
   );
+}
+
+function FailuresMetric({
+  title,
+  description,
+  failures,
+}: {
+  title: string;
+  description: string;
+  failures: RuntimeFailuresHealth;
+}) {
+  const tone = severityToTone(failures.severity);
+  const headline = failures.totalCount === 0
+    ? "Keine in 24 h"
+    : failures.totalCount === 1
+      ? "1 in 24 h"
+      : `${failures.totalCount} in ${failures.windowHours} h`;
+
+  return (
+    <div className={`admin-health-metric admin-health-metric--${tone}`}>
+      <span>{title}</span>
+      <strong>{headline}</strong>
+      <p className="admin-health-metric-detail">{description}</p>
+    </div>
+  );
+}
+
+function FailureList({ title, failures }: { title: string; failures: RuntimeFailuresHealth }) {
+  return (
+    <div className="admin-health-failures-list">
+      <h3>{title} — letzte {failures.recentFailures.length} von {failures.totalCount}</h3>
+      <ul>
+        {failures.recentFailures.map((item) => (
+          <li key={`${title}-${item.id}`}>
+            <span className="admin-health-failure-label">{item.label}</span>
+            <span className="admin-health-failure-time">{formatOccurredAt(item.occurredAt)}</span>
+            {item.errorMessage ? (
+              <span className="admin-health-failure-error">{item.errorMessage}</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function formatOccurredAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
 }

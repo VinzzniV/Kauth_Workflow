@@ -24,6 +24,9 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         _httpClientFactory = httpClientFactory;
     }
 
+    internal const int FailuresWindowHours = 24;
+    internal const int FailuresRecentLimit = 5;
+
     public async Task<AdminRuntimeHealthDto> GetRuntimeHealthAsync(CancellationToken cancellationToken = default)
     {
         var generatedAt = DateTime.UtcNow;
@@ -34,8 +37,12 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         var syncStatusTask = _directorySyncService.GetSyncStatusAsync(cancellationToken);
         var pendingImportsTask = _directorySyncService.GetPendingImportsAsync(cancellationToken);
         var hostTask = BuildHostHealthAsync(cancellationToken);
+        var automationFailuresTask = LoadAutomationFailuresAsync(cancellationToken);
+        var notificationFailuresTask = LoadNotificationFailuresAsync(cancellationToken);
 
-        await Task.WhenAll(dbCheckTask, authCheckTask, mailConfigTask, syncStatusTask, pendingImportsTask, hostTask);
+        await Task.WhenAll(
+            dbCheckTask, authCheckTask, mailConfigTask, syncStatusTask, pendingImportsTask, hostTask,
+            automationFailuresTask, notificationFailuresTask);
 
         var application = BuildApplicationHealth();
         var database = BuildDatabaseHealth(await dbCheckTask);
@@ -45,8 +52,18 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         var directory = BuildDirectoryHealth(await syncStatusTask, (await pendingImportsTask).TotalCount);
         var storage = BuildStorageHealth();
         var host = await hostTask;
+        var automationFailures = await automationFailuresTask;
+        var notificationFailures = await notificationFailuresTask;
 
-        var overallSeverity = ComputeOverallSeverity(application.Severity, dependencies.Severity, directory.Severity, storage, auth.Mode, host);
+        var overallSeverity = ComputeOverallSeverity(
+            application.Severity,
+            dependencies.Severity,
+            directory.Severity,
+            storage,
+            auth.Mode,
+            host,
+            automationFailures.Severity,
+            notificationFailures.Severity);
 
         return new AdminRuntimeHealthDto
         {
@@ -56,7 +73,9 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
             Dependencies = dependencies,
             Directory = directory,
             Storage = storage,
-            Host = host
+            Host = host,
+            AutomationFailures = automationFailures,
+            NotificationFailures = notificationFailures
         };
     }
 
@@ -521,7 +540,9 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
         string directorySeverity,
         IReadOnlyList<StorageHealthDto> storage,
         string authMode,
-        HostHealthDto? host = null)
+        HostHealthDto? host = null,
+        string? automationFailuresSeverity = null,
+        string? notificationFailuresSeverity = null)
     {
         var severities = new List<string> { applicationSeverity, dependenciesSeverity, directorySeverity };
         foreach (var s in storage)
@@ -534,7 +555,196 @@ internal sealed class AdminRuntimeHealthService : IAdminRuntimeHealthService
             severities.Add(host.Severity);
         }
 
+        if (automationFailuresSeverity != null)
+        {
+            severities.Add(automationFailuresSeverity);
+        }
+
+        if (notificationFailuresSeverity != null)
+        {
+            severities.Add(notificationFailuresSeverity);
+        }
+
         return AggregateSeverities([.. severities]);
+    }
+
+    internal static string ComputeFailuresSeverity(int totalCount)
+    {
+        if (totalCount <= 0) return "ok";
+        if (totalCount >= 10) return "critical";
+        return "warning";
+    }
+
+    private async Task<RuntimeFailuresHealthDto> LoadAutomationFailuresAsync(CancellationToken cancellationToken)
+    {
+        var connectionString = _runtimeSettings.ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return EmptyFailures();
+        }
+
+        try
+        {
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            const string countSql = """
+SELECT COUNT(*)::int
+FROM automation_jobs
+WHERE status = 'failed'
+  AND COALESCE(completed_at, created_at) >= NOW() - make_interval(hours => @windowHours);
+""";
+
+            int totalCount;
+            await using (var countCmd = new NpgsqlCommand(countSql, connection))
+            {
+                countCmd.Parameters.AddWithValue("windowHours", FailuresWindowHours);
+                var raw = await countCmd.ExecuteScalarAsync(cancellationToken);
+                totalCount = raw is int n ? n : 0;
+            }
+
+            var items = new List<RuntimeFailureItemDto>();
+            if (totalCount > 0)
+            {
+                const string recentSql = """
+SELECT aj.id,
+       COALESCE(aj.completed_at, aj.created_at) AS occurred_at,
+       ad.action_key,
+       (
+           SELECT error_message FROM automation_job_attempts a2
+           WHERE a2.automation_job_id = aj.id AND a2.status = 'failed'
+           ORDER BY a2.attempt_number DESC
+           LIMIT 1
+       ) AS error_message
+FROM automation_jobs aj
+JOIN action_definitions ad ON ad.id = aj.action_definition_id
+WHERE aj.status = 'failed'
+  AND COALESCE(aj.completed_at, aj.created_at) >= NOW() - make_interval(hours => @windowHours)
+ORDER BY COALESCE(aj.completed_at, aj.created_at) DESC
+LIMIT @limit;
+""";
+
+                await using var cmd = new NpgsqlCommand(recentSql, connection);
+                cmd.Parameters.AddWithValue("windowHours", FailuresWindowHours);
+                cmd.Parameters.AddWithValue("limit", FailuresRecentLimit);
+                await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    items.Add(new RuntimeFailureItemDto
+                    {
+                        Id = reader.GetInt64(0),
+                        OccurredAt = reader.GetDateTime(1).ToUniversalTime(),
+                        Label = reader.GetString(2),
+                        ErrorMessage = reader.IsDBNull(3) ? null : TruncateError(reader.GetString(3))
+                    });
+                }
+            }
+
+            return new RuntimeFailuresHealthDto
+            {
+                Severity = ComputeFailuresSeverity(totalCount),
+                WindowHours = FailuresWindowHours,
+                TotalCount = totalCount,
+                RecentFailures = items
+            };
+        }
+        catch
+        {
+            // DB-Fehler werden bereits ueber Database-Health sichtbar.
+            return EmptyFailures();
+        }
+    }
+
+    private async Task<RuntimeFailuresHealthDto> LoadNotificationFailuresAsync(CancellationToken cancellationToken)
+    {
+        var connectionString = _runtimeSettings.ConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return EmptyFailures();
+        }
+
+        try
+        {
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            const string countSql = """
+SELECT COUNT(*)::int
+FROM workflow_notifications
+WHERE status = 'failed'
+  AND COALESCE(sent_at, created_at) >= NOW() - make_interval(hours => @windowHours);
+""";
+
+            int totalCount;
+            await using (var countCmd = new NpgsqlCommand(countSql, connection))
+            {
+                countCmd.Parameters.AddWithValue("windowHours", FailuresWindowHours);
+                var raw = await countCmd.ExecuteScalarAsync(cancellationToken);
+                totalCount = raw is int n ? n : 0;
+            }
+
+            var items = new List<RuntimeFailureItemDto>();
+            if (totalCount > 0)
+            {
+                const string recentSql = """
+SELECT id,
+       COALESCE(sent_at, created_at) AS occurred_at,
+       notification_type,
+       last_error
+FROM workflow_notifications
+WHERE status = 'failed'
+  AND COALESCE(sent_at, created_at) >= NOW() - make_interval(hours => @windowHours)
+ORDER BY COALESCE(sent_at, created_at) DESC
+LIMIT @limit;
+""";
+
+                await using var cmd = new NpgsqlCommand(recentSql, connection);
+                cmd.Parameters.AddWithValue("windowHours", FailuresWindowHours);
+                cmd.Parameters.AddWithValue("limit", FailuresRecentLimit);
+                await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    items.Add(new RuntimeFailureItemDto
+                    {
+                        Id = reader.GetInt64(0),
+                        OccurredAt = reader.GetDateTime(1).ToUniversalTime(),
+                        Label = reader.GetString(2),
+                        ErrorMessage = reader.IsDBNull(3) ? null : TruncateError(reader.GetString(3))
+                    });
+                }
+            }
+
+            return new RuntimeFailuresHealthDto
+            {
+                Severity = ComputeFailuresSeverity(totalCount),
+                WindowHours = FailuresWindowHours,
+                TotalCount = totalCount,
+                RecentFailures = items
+            };
+        }
+        catch
+        {
+            return EmptyFailures();
+        }
+    }
+
+    private static RuntimeFailuresHealthDto EmptyFailures() => new()
+    {
+        Severity = "ok",
+        WindowHours = FailuresWindowHours,
+        TotalCount = 0,
+        RecentFailures = new List<RuntimeFailureItemDto>()
+    };
+
+    private static string TruncateError(string error)
+    {
+        const int maxLen = 240;
+        var trimmed = error.Trim();
+        if (trimmed.Length <= maxLen)
+        {
+            return trimmed;
+        }
+        return trimmed[..maxLen] + "…";
     }
 
     internal static string AggregateSeverities(params string[] severities)

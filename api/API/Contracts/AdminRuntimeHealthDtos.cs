@@ -10,6 +10,26 @@ public sealed class AdminRuntimeHealthDto
     public required List<StorageHealthDto> Storage { get; init; }
     // null when HOST_RUNTIME_HEALTH_ENABLED is false, not Linux, or metrics unreadable
     public HostHealthDto? Host { get; init; }
+    public required RuntimeFailuresHealthDto AutomationFailures { get; init; }
+    public required RuntimeFailuresHealthDto NotificationFailures { get; init; }
+}
+
+// Aggregat ueber kuerzlich fehlgeschlagene Automation-Jobs bzw. Mail-Dispatches.
+// Der Admin sieht damit "letzte 24h" + die juengsten Fehler ohne Logsuche.
+public sealed class RuntimeFailuresHealthDto
+{
+    public required string Severity { get; init; }
+    public required int WindowHours { get; init; }
+    public required int TotalCount { get; init; }
+    public required List<RuntimeFailureItemDto> RecentFailures { get; init; }
+}
+
+public sealed class RuntimeFailureItemDto
+{
+    public required long Id { get; init; }
+    public required DateTime OccurredAt { get; init; }
+    public required string Label { get; init; }
+    public string? ErrorMessage { get; init; }
 }
 
 public sealed class ApplicationHealthDto
