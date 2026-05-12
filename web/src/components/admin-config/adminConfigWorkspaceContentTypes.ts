@@ -35,6 +35,7 @@ export type AdminConfigMetaBundle = {
   organizationEntity: AdminOrganizationEntity;
   selectedEntityId: number | null;
   warnings: AdminWorkspaceWarning[];
+  hasSimulatedAutomation: boolean;
   onSelectSection: (section: AdminWorkspaceSection) => void;
   onOpenOrganization: (entity: AdminOrganizationEntity, id?: number | null) => void;
   onNotice: (message: string | null) => void;

@@ -90,6 +90,11 @@ export function WorkflowBuilderActionEditor({
                       </option>
                     ))}
                   </select>
+                  {def?.isSimulated && (
+                    <span className="wf-action-sim-badge" title="Diese Aktion ist simuliert — es werden keine echten externen Änderungen vorgenommen.">
+                      Simuliert
+                    </span>
+                  )}
                   <div className="wf-action-item-actions">
                     <button
                       type="button"
@@ -167,6 +172,7 @@ export function WorkflowBuilderActionEditor({
                     }}
                   >
                     {d.displayName}{d.isActive ? "" : " (inaktiv)"}
+                    {d.isSimulated ? " · Simuliert" : ""}
                   </button>
                 ))
               )}

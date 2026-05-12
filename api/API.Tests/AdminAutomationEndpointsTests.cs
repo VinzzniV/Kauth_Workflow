@@ -25,6 +25,7 @@ public sealed class AdminAutomationEndpointsTests
                     Name = "Create AD User",
                     Description = "Simulated",
                     HandlerType = "simulated_directory",
+                    IsSimulated = true,
                     ParameterSchema = JsonDocument.Parse("""{"type":"object"}""").RootElement.Clone(),
                     IsActive = true,
                     RequiresApproval = false,
@@ -43,6 +44,34 @@ public sealed class AdminAutomationEndpointsTests
 
         Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
         Assert.Equal(1, automationService.GetActionDefinitionsCallCount);
+    }
+
+    [Theory]
+    [InlineData("simulated_directory", true)]
+    [InlineData("simulated_mailbox", true)]
+    [InlineData("simulated_directory_groups", true)]
+    [InlineData("SIMULATED_ERP", true)]
+    [InlineData("real_ad_write", false)]
+    [InlineData("graph_mail", false)]
+    public void ActionDefinitionDto_IsSimulated_DerivedFromHandlerType(string handlerType, bool expectedIsSimulated)
+    {
+        var dto = new ActionDefinitionDto
+        {
+            Id = 1,
+            Key = "TestAction",
+            Name = "Test",
+            Description = null,
+            HandlerType = handlerType,
+            IsSimulated = handlerType.StartsWith("simulated", StringComparison.OrdinalIgnoreCase),
+            ParameterSchema = null,
+            IsActive = true,
+            RequiresApproval = false,
+            IsIdempotent = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        Assert.Equal(expectedIsSimulated, dto.IsSimulated);
     }
 
     [Fact]

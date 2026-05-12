@@ -41,6 +41,7 @@ export function renderOverviewWorkspace(props: AdminConfigWorkspaceContentProps)
   return (
     <AdminOverviewWorkspaceSection
       warningCount={meta.warnings.length}
+      hasSimulatedAutomation={meta.hasSimulatedAutomation}
       notificationEmailConfiguration={notification.notificationEmailConfiguration}
       directoryStatus={directory.directoryStatus}
       directoryPendingImports={directory.directoryPendingImports}

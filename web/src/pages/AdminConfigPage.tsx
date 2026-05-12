@@ -36,6 +36,7 @@ import { useAdminNotificationTemplates } from "../hooks/useAdminNotificationTemp
 import { useAdminOrganizationManagement } from "../hooks/useAdminOrganizationManagement";
 import { useAdminPermissionManagement } from "../hooks/useAdminPermissionManagement";
 import { useAdminUserManagement } from "../hooks/useAdminUserManagement";
+import { getAdminWorkflowActionDefinitions } from "../services/adminConfigApi";
 import { reportUserVisibleError } from "../services/systemLogReporter";
 
 export default function AdminConfigPage() {
@@ -43,6 +44,13 @@ export default function AdminConfigPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [hasSimulatedAutomation, setHasSimulatedAutomation] = useState(false);
+
+  useEffect(() => {
+    getAdminWorkflowActionDefinitions({ limit: 50 })
+      .then((page) => setHasSimulatedAutomation(page.items.some((d) => d.isSimulated)))
+      .catch(() => { /* non-critical, leave false */ });
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -167,6 +175,7 @@ export default function AdminConfigPage() {
       organizationEntity,
       selectedEntityId,
       warnings: view.warnings,
+      hasSimulatedAutomation,
       onSelectSection: view.handleSelectSection,
       onOpenOrganization: view.handleOpenOrganization,
       onNotice: setNotice,
@@ -174,6 +183,7 @@ export default function AdminConfigPage() {
     }),
     [
       handleError,
+      hasSimulatedAutomation,
       organizationEntity,
       section,
       selectedEntityId,

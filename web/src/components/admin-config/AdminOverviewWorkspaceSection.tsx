@@ -19,6 +19,7 @@ type HealthTone = "neutral" | "success" | "warning" | "danger";
 
 type AdminOverviewWorkspaceSectionProps = {
   warningCount: number;
+  hasSimulatedAutomation: boolean;
   notificationEmailConfiguration: AdminNotificationEmailConfiguration | null;
   directoryStatus: AdminDirectorySyncStatus | null;
   directoryPendingImports: DirectoryPendingImports | null;
@@ -77,6 +78,7 @@ function getWarningTone(warningCount: number): HealthTone {
 
 export function AdminOverviewWorkspaceSection({
   warningCount,
+  hasSimulatedAutomation,
   notificationEmailConfiguration,
   directoryStatus,
   directoryPendingImports,
@@ -111,6 +113,19 @@ export function AdminOverviewWorkspaceSection({
 
   return (
     <div className="content-stack">
+      {hasSimulatedAutomation && (
+        <div className="admin-sim-notice" role="alert">
+          <strong>Automation läuft im Simulationsmodus.</strong>
+          {" "}Alle konfigurierten Automation-Aktionen sind simuliert — es werden keine echten AD-, Mailbox- oder ERP-Einträge erstellt. Produktiv einsetzbare Handler müssen separat implementiert und aktiviert werden.
+          <button
+            type="button"
+            className="btn btn-secondary admin-sim-notice-btn"
+            onClick={() => onOpenSection("builder")}
+          >
+            Aktionskatalog prüfen
+          </button>
+        </div>
+      )}
       <section className={`panel admin-health-panel ${warningCount === 0 ? "admin-health-panel--clear" : "admin-health-panel--warning"}`}>
         <SectionHeader
           title="Systemstatus"

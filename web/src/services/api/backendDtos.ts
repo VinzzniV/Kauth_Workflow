@@ -506,6 +506,7 @@ export type BackendAdminWorkflowActionDefinitionDto = {
   name: string;
   description: string | null;
   handlerType: string;
+  isSimulated: boolean;
   parameterSchema: Record<string, unknown> | null;
   isActive: boolean;
   requiresApproval: boolean;

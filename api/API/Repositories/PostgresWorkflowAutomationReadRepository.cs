@@ -53,13 +53,15 @@ LIMIT @limit OFFSET @offset;";
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
+                var handlerType = reader.GetString(4);
                 results.Add(new ActionDefinitionDto
                 {
                     Id = reader.GetInt64(0),
                     Key = reader.GetString(1),
                     Name = reader.GetString(2),
                     Description = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    HandlerType = reader.GetString(4),
+                    HandlerType = handlerType,
+                    IsSimulated = handlerType.StartsWith("simulated", StringComparison.OrdinalIgnoreCase),
                     ParameterSchema = reader.IsDBNull(5) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(5)),
                     IsActive = reader.GetBoolean(6),
                     RequiresApproval = reader.GetBoolean(7),

@@ -258,6 +258,26 @@
   box-shadow: var(--surface-card-shadow);
 }
 
+.admin-sim-notice {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border-caution) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-card-warning, #fff8ec) 60%, var(--surface-panel));
+  color: var(--text-warning, #92400e);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.admin-sim-notice-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .admin-health-panel {
   display: grid;
   gap: 1rem;

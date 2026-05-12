@@ -755,6 +755,7 @@ export type AdminWorkflowActionDefinition = {
   displayName: string;
   description: string | null;
   handlerKey: string;
+  isSimulated: boolean;
   isIdempotent: boolean;
   isActive: boolean;
   requiresApproval: boolean;

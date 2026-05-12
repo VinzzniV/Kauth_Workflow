@@ -74,7 +74,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 | Bereich | Note | Hauptbegruendung |
 |---------|------|------------------|
-| **Automatisierung (Layer + Handler)** | **F** | Layer fachlich richtig, aber **alle Handler nur Simulation**, im UI nicht erkennbar — produktiv unverantwortlich |
+| **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — jetzt im UI klar markiert (Z21-S1); produktiv unverantwortlich bis echte Handler existieren |
 | **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Kein implementierter on-prem-AD-Schreibpfad: kein Worker, kein LDAP/LDAPS-Adapter, `EntraGraphClient` liest nur |
 | Workflow-Storno (laufende Vorgaenge) | **D** | Kein Cancel-Endpunkt, nur `archive` (completed) und `delete` (draft) — taeglicher Edge-Case nicht abgedeckt |
 | Workflow-Builder (Conditions/Mappings) | **B-** | Canvas + DAG-Layout stark; Conditions haben Formularmodus, Mappings/technische Keys bleiben Power-User-lastig |
@@ -309,7 +309,7 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 
 ### Z21-Naechste Schritte (priorisiert nach Endnutzer-/Produktionsnutzen)
 
-1. **🔴 Simulation klar als Simulation markieren — sofort.** Im Builder-Action-Editor und im Action-Katalog rot/orange „Simuliert — keine echte Wirkung in AD/Mail/ERP". Im Admin-Dashboard-Warnings-Block prominent. Aufwand 1–2 Tage, kein Backend-Umbau. Verhindert produktive Fehlbedienung.
+1. **✅ Z21-S1 done (2026-05-12) · Simulation klar als Simulation markieren.** `ActionDefinitionDto.IsSimulated` (abgeleitet aus `handler_type LIKE 'simulated_%'`) im Backend. FE: „Simuliert"-Badge im `WorkflowBuilderActionEditor` neben jeder simulierten Aktion + Hinweis im Dropdown. Admin-Dashboard: Simulation-Hinweis-Banner im `AdminOverviewWorkspaceSection` mit Link zum Aktionskatalog. CSS: `.wf-action-sim-badge`, `.admin-sim-notice`. Tests: `ActionDefinitionDto_IsSimulated_DerivedFromHandlerType` (Theory, 6 Faelle).
 2. **🔴 Storno fuer laufende Workflows einfuehren.** Neuer `POST /workflows/{uid}/cancel` mit Grund-Pflichtfeld, Uebergang in `cancelled`, Tasks automatisch `cancelled`, Notifications stoppen, Audit-Eintrag. UI-Button in `WorkflowManagementPanel` fuer HR/Admin bei `running`-Status.
 3. **🟠 Hybrid-AD-Architekturentscheidung treffen — vor jeder weiteren Automation-Arbeit.** „Entra fuehrt, AD Connect zieht zurueck" vs. „AD on-prem fuehrt + Windows-Worker". Beide Pfade dokumentieren in `KauthWorkflow/Architektur/Entscheidungen.md`.
 4. **🟠 Builder fachsprachlicher machen.** Mapping-Editor mit menschlich lesbaren Labels, Condition-Wording weniger technisch, technische Keys nur im Power-Modus.

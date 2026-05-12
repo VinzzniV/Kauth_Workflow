@@ -567,6 +567,7 @@ export async function getAdminWorkflowActionDefinitions(
       displayName: definition.name,
       description: definition.description,
       handlerKey: definition.handlerType,
+      isSimulated: definition.isSimulated,
       isIdempotent: definition.isIdempotent,
       isActive: definition.isActive,
       requiresApproval: definition.requiresApproval,
