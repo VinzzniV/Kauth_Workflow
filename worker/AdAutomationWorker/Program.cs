@@ -1,4 +1,5 @@
 using AdAutomationWorker;
+using AdAutomationWorker.Configuration;
 using AdAutomationWorker.Core.Configuration;
 using AdAutomationWorker.Core.Handlers;
 using AdAutomationWorker.Core.Handlers.Simulated;
@@ -11,6 +12,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.Configure<WorkerSettings>(builder.Configuration.GetSection("Worker"));
 
+builder.Services.AddSingleton<IDbConfigDecryptor, WindowsDpapiDecryptor>();
 builder.Services.AddSingleton<DbConnectionStringLoader>();
 builder.Services.AddSingleton<IWorkerJobStore>(sp =>
 {

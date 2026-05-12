@@ -1,8 +1,8 @@
-# Worker-Setup (Etappe 9a Schritt 2 — Skeleton)
+# Worker-Setup (Stand Etappe 9a Schritt 3)
 
 Dieser Ordner enthaelt die manuellen Installationsskripte fuer den Windows-Worker auf einer
-Test-VM. **Skeleton-Stand:** der Pfad ist absichtlich noch nicht hart abgesichert; mehrere
-Schritte sind Stubs, die in Etappe 9a Schritt 3 verschaerft werden.
+Test-VM. Seit Schritt 3 ist der DPAPI-Schreibpfad **Default** und produktiv lauffaehig; gMSA-
+Service-Account-Switch ist mit dabei.
 
 ## Voraussetzungen
 
@@ -17,35 +17,65 @@ Schritte sind Stubs, die in Etappe 9a Schritt 3 verschaerft werden.
 ## Installation
 
 ```powershell
-# 1. DB-Konfig schreiben (Skeleton: KLARTEXT in %ProgramData%\KauthWorker\db.config.json)
+# 1. DB-Konfig schreiben (Default: DPAPI in %ProgramData%\KauthWorker\db.config.dpapi)
 .\install-db-config.ps1 `
     -DbHost postgres.example.local `
     -Database kauth_workflow `
     -Username kauth_worker `
     -Password <secret>
 
+# Dev-Alternative: Klartext-JSON (loud warning beim Service-Start)
+# .\install-db-config.ps1 -DbHost ... -Password ... -PlainJson
+
 # 2. Worker veroeffentlichen (auf einer Build-Maschine)
 dotnet publish ..\AdAutomationWorker\AdAutomationWorker.csproj -c Release -o C:\Apps\KauthWorker
 
-# 3. Service registrieren
-.\install-windows-service.ps1 -BinaryPath C:\Apps\KauthWorker\AdAutomationWorker.exe
+# 3. gMSA einrichten (siehe Abschnitt unten), dann Service registrieren
+.\install-windows-service.ps1 `
+    -BinaryPath C:\Apps\KauthWorker\AdAutomationWorker.exe `
+    -ServiceAccount 'DOMAIN\kauth-worker$'
 
 # 4. Service starten
 Start-Service KauthAdAutomationWorker
 ```
 
-## Was im Skeleton noch fehlt — Pflicht-Zuege fuer Etappe 9a Schritt 3
+## gMSA einrichten (Pflicht fuer Schritt 3)
 
-- **DPAPI-Encryption der DB-Konfig.** Aktuell wird `db.config.json` im Klartext geschrieben.
-  Der Loader meldet das als WARN-Log; das ist ok fuer Skeleton/Dev, aber nicht fuer Prod.
-  Schritt 3 fuegt einen `db.config.dpapi`-Pfad hinzu (ProtectedData, LocalMachine-Scope), der
-  vom Loader bevorzugt vor dem Plain-JSON gelesen wird.
-- **gMSA-Service-Account.** Aktuell laeuft der Service unter dem Default-Account. Schritt 3
-  setzt `-Credential` auf den gMSA, sobald der erste echte AD-Handler kommt (LDAPS gegen den
-  Test-DC).
-- **Echte AD-Handler.** Aktuell ist nur `SimulatedWindowsWorkerPingHandler` registriert. Er
-  beweist den Transport-/Audit-Pfad ohne AD-Zugriff. `CreateAdUserHandler` etc. kommen in
-  Schritt 3.
+Schreibende AD-Handler (`CreateAdUserLdaps` und Folge-Handler in Schritt 4) brauchen einen
+gMSA-Kontext. AD-Auth laeuft transparent ueber `AuthType.Negotiate` — kein Secret im Service.
+
+```powershell
+# Auf einem DC (Domain-Admin):
+New-ADServiceAccount `
+    -Name kauth-worker `
+    -DNSHostName worker-vm.example.local `
+    -PrincipalsAllowedToRetrieveManagedPassword 'WorkerVm-Hostgroup'
+
+# Auf der Worker-VM (Admin, RSAT-AD-PowerShell vorausgesetzt):
+Install-ADServiceAccount kauth-worker
+Test-ADServiceAccount kauth-worker   # muss True liefern
+
+# Anschliessend Service-Installation mit gMSA:
+.\install-windows-service.ps1 -BinaryPath C:\Apps\KauthWorker\AdAutomationWorker.exe `
+                              -ServiceAccount 'DOMAIN\kauth-worker$'
+```
+
+**Delegated-Rechte (Pflicht):** Der gMSA braucht auf der Ziel-OU
+- `Create Child Objects` (Klasse `user`)
+- `Reset Password` auf user-Objekten
+
+Diese Rechte werden in `dsa.msc` ueber die OU-Delegation gesetzt.
+
+## DPAPI-Hinweise
+
+- `install-db-config.ps1` verwendet `DataProtectionScope.LocalMachine`. Damit ist die Datei
+  an die Maschine gebunden, nicht an einen einzelnen User — der gMSA-Service-User kann sie
+  ohne Spezial-Setup entschluesseln.
+- **Maschinenwechsel = neuer Setup-Lauf.** Wenn die VM migriert wird, ist die `.dpapi`-Datei
+  auf der neuen Maschine nicht mehr entschluesselbar. Der Loader liefert eine klare Fehler-
+  meldung mit Verweis auf `install-db-config.ps1`.
+- Klartext-Pfad mit `-PlainJson` bleibt fuer Dev. Der Loader gibt dann eine `WARNING`-Logzeile
+  aus und priorisiert den DPAPI-Pfad, falls beide existieren.
 
 ## Verifikation (Skeleton-E2E)
 
