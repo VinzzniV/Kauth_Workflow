@@ -170,7 +170,7 @@ Die in Z21-S2 parkierten Sub-Entscheidungen sind festgezurrt, ergänzt um zwei z
 - Domain-Admin legt `gMSA-KauthWorker$` an und installiert es per `Install-ADServiceAccount` auf der Worker-VM.
 - Postgres-User `kauth_worker` anlegen + DPAPI-Setup-Skript auf der Worker-VM.
 
-**Folge-Slice:** Etappe 9a Schritt 2 (Worker-Skeleton) — Windows-Service in eigenem Repo-Verzeichnis, DB-Migration für die genannten Spalten, ein simulierter Handler. Eigener Plan-Mode-Slice vor Start.
+**Folge-Slice:** Etappe 9a Schritt 2 (Worker-Skeleton) — ✓ 2026-05-12 umgesetzt. Konkrete Lease-Werte: Heartbeat 30s, Stale-Timeout 5min, Lazy-Cleanup im Worker selbst (`ReleaseStaleClaimsAsync` vor jedem Claim). GRANT-Form V1: View `automation_jobs_windows_worker` für SELECT + UPDATE-Grants auf der Basistabelle (hartes Row-Level-Filtering ist bewusst Folge-Slice, sobald der erste echte AD-Schreib-Handler kommt). Worker-Layout: eigene `worker/Worker.sln` mit `AdAutomationWorker.Core` (net8.0, plattform-neutral) + `AdAutomationWorker` (net8.0-windows-Host) + `AdAutomationWorker.Tests`. External-Completion-Pfad in der Linux-API: dedizierter `ExternalAutomationJobCompletionSweeper` triggert `OnExternalAutomationJobSucceededAsync`/`OnExternalAutomationJobFailedAsync`; gemeinsame Retry-Quelle in `WorkflowAutomationRetryPolicy`. **Nächster Slice:** Etappe 9a Schritt 3 (erster echter Handler `CreateAdUser` gegen Test-DC, LDAPS, gMSA-Live, DPAPI-Encryption produktiv, Linux-API-Sweep für stale Worker-Claims).
 
 ---
 

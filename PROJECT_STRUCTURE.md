@@ -98,6 +98,10 @@ Backend-Solution, API-Projekt und Backend-Tests.
 `web/`
 Frontend-Projekt auf Basis von React, Vite und React Query.
 
+`worker/`
+Windows-Worker fuer den schreibenden AD-Automation-Pfad (Etappe 9a Schritt 2 — Skeleton).
+`Worker.sln` mit drei Projekten: `AdAutomationWorker.Core` (net8.0, plattform-neutral: Polling, Lease, Handler-Vertrag), `AdAutomationWorker` (net8.0-windows, Service-Host) und `AdAutomationWorker.Tests`. Setup-Skripte und Inbetriebnahme-Doku unter `worker/setup/`.
+
 ## Vault: `KauthWorkflow/`
 
 `00 Start.md`
@@ -188,3 +192,14 @@ Unit- und integrationsnahe Tests fuer:
 - Workflow-Repositories
 - Audit-Log und Workflow-Links
 - Notification-Logik
+
+## Worker: `worker/`
+
+Schreibender AD-Automation-Worker (Etappe 9a Schritt 2 — Skeleton).
+
+- `AdAutomationWorker.Core/Polling/` — `IWorkerJobStore` + `PostgresWorkerJobStore` (atomarer Claim mit `FOR UPDATE SKIP LOCKED`, Heartbeat, Stale-Release, Complete-Pfad mit Logs). `WorkerHeartbeatLoop` als Begleitschleife waehrend Handler laeuft.
+- `AdAutomationWorker.Core/Handlers/` — `IWorkerHandler` (Worker-eigener Vertrag), `HandlerRegistry` und `Simulated/SimulatedWindowsWorkerPingHandler` (Skeleton ohne AD-Zugriff, mit optionalem `delaySeconds`-Payload fuer Stale-Tests).
+- `AdAutomationWorker.Core/Configuration/` — `WorkerSettings` und `DbConnectionStringLoader` (3-Pfad-Loader: env, DPAPI-stub, JSON-Fallback).
+- `AdAutomationWorker/` — Windows-Service-Host (`net8.0-windows`) mit `Program.cs` + `WorkerHostedService`.
+- `AdAutomationWorker.Tests/` — 20 Tests, decken Handler-Registry, Ping-Handler, Job-Store-Vertrag, Heartbeat-Loop, Connection-String-Loader ab.
+- `setup/install-db-config.ps1` (DB-Konfig schreiben, V1 Klartext), `setup/install-windows-service.ps1` (Service registrieren), `setup/README.md` (Inbetriebnahme + Skeleton-E2E).

@@ -118,23 +118,21 @@ Der Worker authentisiert gegen die zentrale Postgres-DB mit einem eigenen, dediz
 
 ---
 
-## 7. Job-Claim-Sicherheit (Lease/Heartbeat/Timeout/Requeue) — Rahmen, Details in Schritt 2
+## 7. Job-Claim-Sicherheit (Lease/Heartbeat/Timeout/Requeue) — konkret entschieden in Schritt 2 (2026-05-12)
 
 Beim Polling muss klar sein, was passiert, wenn der Worker einen Job abholt und dann abstürzt, bevor er den Status aktualisiert. Sonst bleibt der Job auf `running` hängen und niemand picked ihn wieder auf.
 
-**Festgelegt jetzt (Rahmen):**
-- Worker-Claim per `SELECT … FOR UPDATE SKIP LOCKED` mit anschließendem Status-Wechsel auf `running` plus Setzen eines `claimed_at`-Zeitstempels und `claimed_by`-Worker-ID — alles in einer Transaktion. Diese Spalten gehören zur `target_runtime`-Migration im Schritt 2.
-- Bei `running`-Jobs älter als ein konfigurierbarer Schwellwert (z. B. 15 Minuten ohne Heartbeat) re-claimed der Worker (oder ein Sweep-Job in der Linux-API) den Eintrag.
-
-**Bewusst offen für Schritt 2:**
-- Wer schreibt den Heartbeat — Worker per `UPDATE … SET heartbeat_at = NOW()` im 30-Sekunden-Takt, oder nur `claimed_at` + Timeout-Fenster?
-- Wer macht den Requeue — Worker bei Polling-Start (Lazy-Cleanup) oder Linux-API als zentrale Sweep-Logik?
-- Konkreter Timeout-Schwellwert (5/10/15 Minuten) — abhängig von typischer Job-Dauer der echten Handler, die aktuell noch nicht existieren.
+**Festgelegt:**
+- Worker-Claim per `SELECT … FOR UPDATE SKIP LOCKED` auf View `automation_jobs_windows_worker` plus `UPDATE` auf die Basistabelle (Status `running`, `claimed_at = NOW()`, `claimed_by = <hostname>:<pid>:<startup-uuid>`, `heartbeat_at = NOW()`) plus Attempt-Insert — alles in einer Transaktion.
+- **Heartbeat:** Worker schreibt `UPDATE … SET heartbeat_at = NOW() WHERE id = @jobId AND claimed_by = @workerId` im **30-Sekunden-Takt** (`WorkerHeartbeatLoop`). Der `claimed_by`-Filter ist Lease-Schutz: wenn der StaleReleaser zwischendurch andere Worker den Job übernommen hat, geht der alte Heartbeat nicht durch.
+- **Stale-Timeout:** **5 Minuten** ohne Heartbeat — ein Job mit `status='running' AND heartbeat_at < NOW() - INTERVAL '5 minutes'` gilt als verwaist.
+- **Requeue:** **Lazy-Cleanup im Worker selbst** vor jedem Polling-Zyklus (`ReleaseStaleClaimsAsync` setzt Status zurück auf `pending`, leert Lease-Spalten). Keine separate Sweep-Logik in der Linux-API in dieser Etappe — kommt erst in Schritt 3, wenn echte AD-Handler im Spiel sind und Multi-Worker zur Pflicht wird.
+- **Sweeper-Two-Phase-Claim (Linux-API-Seite):** Für extern finalisierte Jobs (`status='succeeded'/'failed' AND target_runtime IS NOT NULL`) atomares `UPDATE … SET completion_claimed_at = NOW() … FOR UPDATE SKIP LOCKED` plus 5-min-Stale-Timeout, damit Mehrfach-API-Instanzen sich nicht denselben Job greifen.
 
 ---
 
 ## Verwandte Notizen
 
 - [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2
-- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1, freigegebenem Schritt 2
+- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + Schritt 2 (✓ 2026-05-12)
 - [[Automation]] — Automation-Layer-Modell, in das der Worker einklinkt

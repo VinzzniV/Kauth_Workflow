@@ -92,7 +92,9 @@ Entscheidung dokumentiert in `KauthWorkflow/Architektur/Entscheidungen.md` (Z21-
 
 **Etappe 9a Schritt 1 ✓ 2026-05-12** — Sub-Architektur entschieden (VM/DB-Polling/LDAPS/gMSA/Direkt-Audit/DPAPI/Lease-Rahmen).
 
-**Resthebel ab jetzt:** Worker-Skeleton (Schritt 2: Windows-Service-Skeleton + DB-Migration fuer `target_runtime`/Lease-Spalten + simulierter Handler), erster echter Handler (Schritt 3), Migration der `simulated_*`-Handler (Schritt 4).
+**Etappe 9a Schritt 2 ✓ 2026-05-12** — Worker-Skeleton + DB-Migration `target_runtime`/Lease-/Sweeper-Spalten + External-Completion-Sweeper + RetryPolicy-Shared. `worker/Worker.sln` mit Core/Host/Tests, simulierter Handler `simulated_windows_worker_ping`, verifier-Gate baut Core+Tests unter Linux.
+
+**Resthebel ab jetzt:** Erster echter Handler `CreateAdUser` gegen Test-DC (Schritt 3: LDAPS, gMSA-Live, DPAPI-Encryption produktiv, Linux-API-Sweep fuer stale Worker-Claims), danach Migration der `simulated_*`-Handler (Schritt 4).
 
 ---
 

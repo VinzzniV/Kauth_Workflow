@@ -93,6 +93,32 @@ else
     mark "start-vm.sh syntax" "FAIL" "bash -n fail"
 fi
 
+# 6. Worker Core + Tests build (Linux-bar; Etappe 9a Schritt 2).
+# Bewusst NICHT mitgebaut: worker/AdAutomationWorker.csproj (Target net8.0-windows; Host-Build
+# ist Windows-Pflicht und Teil der manuellen Inbetriebnahme). Die portable Engine .Core + .Tests
+# deckt 100 % der Worker-Geschaeftslogik ab — kein "skip silent".
+section "Worker Core + Tests build (cross-platform)"
+(cd "$REPO_ROOT" \
+    && dotnet build worker/AdAutomationWorker.Core/AdAutomationWorker.Core.csproj --nologo 2>&1 \
+    && dotnet build worker/AdAutomationWorker.Tests/AdAutomationWorker.Tests.csproj --nologo 2>&1) \
+    | tee /tmp/verify-worker-build.log | tail -n 5
+if grep -qE "0 Error\(s\)" /tmp/verify-worker-build.log; then
+    mark "Worker Core+Tests build" "PASS"
+else
+    mark "Worker Core+Tests build" "FAIL" "siehe /tmp/verify-worker-build.log"
+fi
+
+# 7. Worker Core tests
+section "Worker Core tests"
+(cd "$REPO_ROOT" && dotnet test worker/AdAutomationWorker.Tests/AdAutomationWorker.Tests.csproj --nologo --no-build 2>&1) \
+    | tee /tmp/verify-worker-tests.log | tail -n 5
+if grep -qE "Passed!.*Failed: *0" /tmp/verify-worker-tests.log; then
+    TEST_SUMMARY=$(grep -E "Passed!|Failed!" /tmp/verify-worker-tests.log | tail -n 1 | tr -s ' ')
+    mark "Worker Core tests" "PASS" "$TEST_SUMMARY"
+else
+    mark "Worker Core tests" "FAIL" "siehe /tmp/verify-worker-tests.log"
+fi
+
 # ─────────────────────────────────────────────────────────────────────────
 section "Zusammenfassung"
 printf "%-32s %-6s %s\n" "Schritt" "Status" "Detail"
