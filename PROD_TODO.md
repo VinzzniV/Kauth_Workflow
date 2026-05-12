@@ -76,8 +76,10 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 | 2 | **Z21-S2** Hybrid-AD-Architekturentscheidung | P0-2 | klein in Zeilen, gross in Tragweite | high | opus | **an** | **done 2026-05-12** |
 | 3 | **Z21-S3** Workflow-Storno fuer laufende Vorgaenge | P0-3 | mittel-gross (~1–2 Tage) | high | opus | **an** | **done 2026-05-12** |
 | 4 | **Z21-S4** FE-UX-Buendel (Persona-Switcher, Workflow-Detail-Tabs, Listen-Trennung, directory_only) | P1-1 + P1-4 + P2-1 + P2-2 | mittel (~1 Tag) | medium | sonnet | aus | **done 2026-05-12** |
-| 5 | **Z21-S5** Builder fachsprachlicher (Mapping-Labels + Condition-Wording) | P1-2 | mittel (~1 Tag) | high | opus | **an** | offen |
+| 5 | **Z21-S5** Builder fachsprachlicher (Mapping-Labels + Wording „Schritt") | P1-2 (UX-Teil) + P3-2 | mittel (~½–1 Tag) | high | opus | **an** | **done 2026-05-12 (UX-Teil)** |
 | 6 | **Z21-S6** `start-vm.sh dev`-Vorab-Check | P1-5 | klein (~½ h) | low | sonnet | aus | offen |
+
+> Z21-S5 ist **nur der UX-Teil** des P1-2-Findings: Mapping-Editor mit Fach-/Technik-Optgroups + Wording-Vereinheitlichung. Der **AND/OR-Mehrbedingungen-Resthebel** im Condition-Editor (Runtime-Verhaltenswechsel in `WorkflowRuntimeEngine.ParseDecisionCondition`) ist eigener Folge-Slice und liegt als P1-2-Rest in `CODE_REVIEW.md` + Z21-S5b im aktiven Backlog (`TODO.md`).
 
 ### Z21-S1 · Simulation deutlich markieren + Mail-Dispatch-Health
 
@@ -147,23 +149,17 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 
 ---
 
-### Z21-S5 · Builder fachsprachlicher (Mapping-Labels + Condition-Wording)
+### Z21-S5 · Builder fachsprachlicher — UX-Teil done 2026-05-12
 
-**Praktisch:** Mapping-Editor zeigt menschlich lesbare Labels statt Backend-Property-Pfade; Condition-Editor wird sprachlich naeher an Fachanwendung.
+**Umgesetzt:**
 
-**Lohnenswert:** Erfuellt das Zielarchitektur-Versprechen „Nicht-Entwickler konfiguriert" deutlicher. Heutiger Stand ist Power-User-tauglich, nicht Fachanwender-tauglich.
+- **Mapping-Labels (Backend-DTO):** `AutomationPropertyCatalog.cs` erweitert um `AutomationPropertyCatalogPropertyDto { Key, Label, Kind }`. Jede bekannte Property hat ein deutsches Label und ein `kind` (`"business"` oder `"technical"`). ID-Felder (`workflowId`, `personId`, `directoryIdentityId`, `appUserId`, `departmentId`, `roleId`, ...) sind als `technical` markiert, Fachfelder (`firstName`, `email`, `entryDate`, ...) als `business`.
+- **Mapping-Editor UX:** `WorkflowBuilderActionMappingEditor.PropertyDropdown` rendert zwei `<optgroup>`: „Fachfelder" zuerst, „Technische Felder" am Ende. Wenn ein bereits gemapptes Property nicht (mehr) im Catalog steht, wird es unter „Technische Felder" mit `(unbekannt)`-Suffix gezeigt — verhindert stille Wertwechsel beim Reload.
+- **P3-2 Wording „Schritt":** 2 Stellen im Builder-UI (`AdminWorkflowBuilderFormSection.tsx:1522`, `WorkflowBuilderStepCard.tsx:200`) von „Knoten" auf „Schritt" gehoben. „Maßnahmen-Baustein" bleibt unveraendert (fachlich verankert in `PROJECT_CONTEXT.md` § Phasenfluss).
 
-**Nutzen:** Breiterer Admin-Personenkreis kann den Builder ohne Schulung bedienen.
+**Belegt in:** `AutomationPropertyCatalog.cs`, `AutomationPropertyCatalogTests.cs` (neu), `adminConfigApi.ts`, `WorkflowBuilderActionMappingEditor.tsx`, `WorkflowBuilderActionMappingEditor.labels.test.tsx` (neu, 4 Tests gruen), `AdminWorkflowBuilderFormSection.tsx`, `WorkflowBuilderStepCard.tsx`. Backend-Build 0 Errors. FE-Build clean, 304 Tests gruen. Backend-Test-Build steht auf bekannten 7 pre-existing Errors aus frueheren Refactorings — Z21-S5 fuegt 0 neue Errors hinzu.
 
-**Scope:**
-- Mapping-Editor (`WorkflowBuilderActionMappingEditor.tsx`): Labels aus dem Catalog-DTO (Backend liefert `Label` zusaetzlich zu `Properties`) oder FE-Lookup-Tabelle. JSON-Power-Modus bleibt Opt-In.
-- Conditions (`WorkflowBuilderConditionEditor.tsx`): Standard-Modus weiter ausbauen, Operatoren mit fachlichen Texten („ist gleich" statt `eq`).
-- Optional `P3-2` mitnehmen (Wording Schritt/Knoten/Baustein vereinheitlichen).
-- Tests: Catalog-Endpunkt + Mapping-Editor-Snapshot.
-
-**Plan-Mode AN:** Vorab klaeren —
-- Labels im Backend-DTO vs. FE-Lookup? (Backend ist source-of-truth-konsistenter, FE ist schneller iterierbar.)
-- Wie mit unbekannten Properties umgehen, fuer die kein Label existiert?
+**Resthebel — eigener Folge-Slice (Z21-S5b in `TODO.md`):** AND/OR-Mehrbedingungen im Decision-Condition-Editor. Heute akzeptiert `WorkflowRuntimeEngine.ParseDecisionCondition` strikt nur eine einzelne Bedingung pro Edge — Mehrbedingungen waeren ein echter Runtime-Verhaltenswechsel mit Schema-/Rueckwaertskompat-Bedarf, gehoeren nicht in diesen UX-Slice.
 
 ---
 

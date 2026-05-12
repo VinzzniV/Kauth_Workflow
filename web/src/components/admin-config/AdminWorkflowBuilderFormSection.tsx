@@ -1519,7 +1519,7 @@ function ConditionEditorDrawer({
 
         <div className="admin-drawer-body content-stack">
           <p className="wf-form-field-hint">
-            Diese Bedingung steuert, ob dieser Pfad ausgeführt wird, wenn der Decision-Knoten erreicht wird.
+            Diese Bedingung steuert, ob dieser Pfad ausgeführt wird, wenn der Decision-Schritt erreicht wird.
             Pfade werden in der Reihenfolge ihrer „Pfad-Reihenfolge" geprüft.
           </p>
 

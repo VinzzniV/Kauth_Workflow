@@ -171,18 +171,12 @@ Die Workflow-Lifecycle-API kannte vor Z21-S3 nur:
 
 ---
 
-**Z21-P1-2 · Workflow-Builder ist fuer „Nicht-Entwickler" deklariert, Mappings bleiben aber technisch**
+**Z21-P1-2 · Workflow-Builder ist fuer „Nicht-Entwickler" deklariert, Mappings bleiben aber technisch — teilweise done 2026-05-12 (Z21-S5)**
 
-- Conditions haben bereits einen Formularmodus mit Antwortauswahl, Operator und Wert (`web/src/components/admin-config/WorkflowBuilderConditionEditor.tsx`). Der JSON-/Power-Modus ist nicht der Standard, bleibt aber sichtbar, sobald Rohdaten oder Spezialfaelle noetig sind.
-- Action-Mappings zeigen direkt Backend-Property-Pfade wie `target_person.firstName`, `directory_identity.userPrincipalName`, `workflow.definitionKey` (`web/src/components/admin-config/WorkflowBuilderActionMappingEditor.tsx:14-41`).
-- Section 1 „Stammdaten" hat unter „Technische Details" Felder wie `Definition-Schluessel` (technische Slug) sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`).
-- Connect-Mode (Verbindungen ziehen) braucht zwingend gesetzte `nodeKey`-Werte — Fehlermeldung „Der Quell-Schritt braucht einen Schritt-Key" begreift ein Fachanwender nicht ohne Erklaerung.
-
-**Was bedeutet das praktisch?** Der Builder ist gut fuer einen geschulten Power-User. Fuer einen HR-Admin ohne technische Vorpraegung sind vor allem Mapping-Editor, technische Keys und Operator-Begriffe Stolperfallen; der Conditions-Bereich ist besser als urspruenglich bewertet, aber noch nicht komplett fachsprachlich.
-
-**Warum lohnt es sich?** Die Zielarchitektur sagt explizit: „Ein Nicht-Entwickler soll fachliche Workflows aus sicheren Bausteinen konfigurieren koennen". Das Versprechen wird heute nur teilweise eingeloest.
-
-**Was wird besser?** Mapping als „aus diesem Feld der Person" mit menschlich lesbarem Label, Condition-Wording naeher an „Wenn Antwort X = Wert Y" statt Operator + answerKey + expectedValue.
+- ✅ **UX-Teil:** Mapping-Editor zeigt deutsche Labels mit `<optgroup>`-Trennung „Fachfelder" / „Technische Felder". ID-Felder sind im Backend-Catalog (`AutomationPropertyCatalog.cs`) als `kind: "technical"` markiert und landen am Ende der Liste. Source-of-truth bleibt das Backend; FE rendert nur. Unbekannte Properties graceful als `(unbekannt)`-Marker.
+- ✅ **Wording (P3-2):** „Knoten" → „Schritt" im Builder-UI (`AdminWorkflowBuilderFormSection.tsx`, `WorkflowBuilderStepCard.tsx`). „Maßnahmen-Baustein" bleibt fachlich verankert.
+- 🟡 **Rest — AND/OR-Mehrbedingungen:** Condition-Editor erlaubt heute nur eine einzelne Bedingung pro Edge; Runtime (`WorkflowRuntimeEngine.ParseDecisionCondition`) waere ein echter Verhaltenswechsel und braucht eigenen Slice mit Schema- + Rueckwaertskompat-Pfad. Aufgenommen als `Z21-S5b` in `TODO.md`/Folge-Backlog.
+- 🟡 **Rest — Stammdaten „Technische Details":** Feld `Definition-Schluessel` (technischer Slug) ist in Section 1 weiterhin sichtbar (`AdminWorkflowBuilderFormSection.tsx:610-642`). Bewusst nicht in diesem Slice, weil es ein Schreibpfad-Thema ist (Slug-Editierbarkeit nach Erst-Anlage), nicht reines Wording.
 
 ---
 
@@ -259,7 +253,7 @@ Bewusst nicht migriert (siehe `FRONTEND_TODO.md:52`). Heute kein konkreter Schme
 #### 🟢 P3 — Cosmetics / Detail
 
 - **Z21-P3-1** · `PeopleDirectoryPage` hat viele harte Inline-Styles (`PeopleDirectoryPage.tsx:307-422`) — Theme-Drift-Risiko.
-- **Z21-P3-2** · Builder-Wording schwankt zwischen „Schritt", „Knoten", „Baustein".
+- **Z21-P3-2** · Builder-Wording schwankt zwischen „Schritt", „Knoten", „Baustein". ✅ done 2026-05-12 (Z21-S5). „Knoten" im Builder-UI auf „Schritt" gehoben, „Maßnahmen-Baustein" bleibt fachlich.
 - **Z21-P3-3** · `R8` (Browser-Verifikation Form-Editor) und `R10` (Mobile-Layout) sind in `TODO.md` als offen markiert — explizit nicht code-pruefbar.
 
 ### Bereich-fuer-Bereich-Bewertung
@@ -267,7 +261,7 @@ Bewusst nicht migriert (siehe `FRONTEND_TODO.md:52`). Heute kein konkreter Schme
 | Bereich | Fachliche Funktion | UX-Verstaendlichkeit | UI-Qualitaet | Produktionsreif? |
 |---|---|---|---|---|
 | **Uebersicht** (Dashboard) | ✅ Solide, persona-spezifisch | 🟡 Persona-Switcher-Wirkung nur teilweise erklaert (P1-4) | ✅ Zone-Struktur | **Ja, mit Hinweis Persona-Switcher** |
-| **Workflow-Builder** | ✅ Versionierte Definitions + DAG-Canvas | 🟡 Mappings/Keys technisch (P1-2) | ✅ Dirtystate/Speichern/Verwerfen vorhanden | **Teilweise — fuer Power-User ok, nicht fuer jeden Admin** |
+| **Workflow-Builder** | ✅ Versionierte Definitions + DAG-Canvas | 🟢 Mapping-Labels + Wording „Schritt" (Z21-S5); AND/OR-Mehrbedingungen offen | ✅ Dirtystate/Speichern/Verwerfen vorhanden | **Ja fuer fachliche Mappings; AND/OR-Folge-Slice ausstehend** |
 | **Laufende Vorgaenge** | ✅ Saved-Views, Pagination, Vorschau-Split, Storno (Z21-S3) | ✅ Klar | ✅ Karten + Tabelle | **Ja** |
 | **Workflow-Detail** | ✅ Header/Requirements/TaskAreas/… + Storno (Z21-S3) | 🟡 viele Panels untereinander (P2-2) | ✅ Saubere Komponenten | **Ja** |
 | **Mitarbeiter** | ✅ HR-/Admin-Liste + 360°-Akte mit Tabs | 🟡 `directory_only` und Personen gemischt (P1-1) | 🟡 Inline-Styles (P3-1) | **Ja, kleinere UX-Klaerungen** |

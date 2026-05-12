@@ -579,10 +579,18 @@ export async function getAdminWorkflowActionDefinitions(
   };
 }
 
+export type AdminAutomationPropertyCatalogPropertyKind = "business" | "technical";
+
+export type AdminAutomationPropertyCatalogProperty = {
+  key: string;
+  label: string;
+  kind: AdminAutomationPropertyCatalogPropertyKind;
+};
+
 export type AdminAutomationPropertyCatalogSource = {
   source: string;
   label: string;
-  properties: string[];
+  properties: AdminAutomationPropertyCatalogProperty[];
 };
 
 export type AdminAutomationPropertyCatalog = {

@@ -1,7 +1,10 @@
 import { useMemo } from "react";
 import { X } from "lucide-react";
 import type { AdminAnswerDefinition, AdminWorkflowActionDefinition } from "../../types/auth";
-import type { AdminAutomationPropertyCatalog } from "../../services/adminConfigApi";
+import type {
+  AdminAutomationPropertyCatalog,
+  AdminAutomationPropertyCatalogProperty,
+} from "../../services/adminConfigApi";
 import {
   entryToJson,
   parseMapping,
@@ -22,28 +25,54 @@ const SOURCE_OPTIONS: { value: MappingSource; label: string }[] = [
 // Fallback-Listen, falls der `/admin/config/automation-property-catalog`-Endpoint
 // (LQ1) nicht erreichbar ist. Source-of-truth ist immer der Backend-Resolver in
 // PostgresWorkflowAutomationOperations.ResolveAutomationReference. Die Listen hier
-// werden nur genutzt, wenn `propertyCatalog` null ist.
-const FALLBACK_WORKFLOW_PROPERTIES = [
-  "workflowId", "workflowUid", "definitionKey", "departmentId", "roleId",
-  "firstName", "lastName", "employeeNumber", "badgeNumber", "deadlineDate", "targetPersonId",
+// werden nur genutzt, wenn `propertyCatalog` null ist; sie haben kein Label, weil
+// sie nur die Existenz der Keys absichern.
+const FALLBACK_WORKFLOW_PROPERTIES: AdminAutomationPropertyCatalogProperty[] = [
+  { key: "workflowId", label: "workflowId", kind: "technical" },
+  { key: "workflowUid", label: "workflowUid", kind: "technical" },
+  { key: "definitionKey", label: "definitionKey", kind: "technical" },
+  { key: "departmentId", label: "departmentId", kind: "technical" },
+  { key: "roleId", label: "roleId", kind: "technical" },
+  { key: "firstName", label: "firstName", kind: "business" },
+  { key: "lastName", label: "lastName", kind: "business" },
+  { key: "employeeNumber", label: "employeeNumber", kind: "business" },
+  { key: "badgeNumber", label: "badgeNumber", kind: "business" },
+  { key: "deadlineDate", label: "deadlineDate", kind: "business" },
+  { key: "targetPersonId", label: "targetPersonId", kind: "technical" },
 ];
 
-const FALLBACK_PERSON_PROPERTIES = [
-  "personId", "departmentId", "roleId", "appUserId", "directoryIdentityId",
-  "firstName", "lastName", "employeeNumber", "badgeNumber",
-  "employmentStatus", "entryDate", "exitDate", "displayName", "email",
+const FALLBACK_PERSON_PROPERTIES: AdminAutomationPropertyCatalogProperty[] = [
+  { key: "personId", label: "personId", kind: "technical" },
+  { key: "departmentId", label: "departmentId", kind: "technical" },
+  { key: "roleId", label: "roleId", kind: "technical" },
+  { key: "appUserId", label: "appUserId", kind: "technical" },
+  { key: "directoryIdentityId", label: "directoryIdentityId", kind: "technical" },
+  { key: "firstName", label: "firstName", kind: "business" },
+  { key: "lastName", label: "lastName", kind: "business" },
+  { key: "employeeNumber", label: "employeeNumber", kind: "business" },
+  { key: "badgeNumber", label: "badgeNumber", kind: "business" },
+  { key: "employmentStatus", label: "employmentStatus", kind: "business" },
+  { key: "entryDate", label: "entryDate", kind: "business" },
+  { key: "exitDate", label: "exitDate", kind: "business" },
+  { key: "displayName", label: "displayName", kind: "business" },
+  { key: "email", label: "email", kind: "business" },
 ];
 
-const FALLBACK_DIRECTORY_PROPERTIES = [
-  "directoryIdentityId", "userPrincipalName", "mail", "displayName",
-  "departmentName", "employeeNumber", "accountEnabled",
+const FALLBACK_DIRECTORY_PROPERTIES: AdminAutomationPropertyCatalogProperty[] = [
+  { key: "directoryIdentityId", label: "directoryIdentityId", kind: "technical" },
+  { key: "userPrincipalName", label: "userPrincipalName", kind: "business" },
+  { key: "mail", label: "mail", kind: "business" },
+  { key: "displayName", label: "displayName", kind: "business" },
+  { key: "departmentName", label: "departmentName", kind: "business" },
+  { key: "employeeNumber", label: "employeeNumber", kind: "business" },
+  { key: "accountEnabled", label: "accountEnabled", kind: "business" },
 ];
 
 function resolveProperties(
   catalog: AdminAutomationPropertyCatalog | null,
   source: string,
-  fallback: string[],
-): string[] {
+  fallback: AdminAutomationPropertyCatalogProperty[],
+): AdminAutomationPropertyCatalogProperty[] {
   const found = catalog?.sources.find((s) => s.source === source)?.properties;
   return found && found.length > 0 ? found : fallback;
 }
@@ -206,9 +235,9 @@ function ParameterRow({
   isInSchema: boolean;
   entry: MappingEntry | null;
   answerDefinitions: AdminAnswerDefinition[];
-  workflowProperties: string[];
-  personProperties: string[];
-  directoryProperties: string[];
+  workflowProperties: AdminAutomationPropertyCatalogProperty[];
+  personProperties: AdminAutomationPropertyCatalogProperty[];
+  directoryProperties: AdminAutomationPropertyCatalogProperty[];
   onChange: (next: MappingEntry) => void;
   onRemove: (() => void) | null;
   disabled?: boolean;
@@ -320,10 +349,27 @@ function PropertyDropdown({
   disabled,
 }: {
   value: string;
-  options: string[];
+  options: AdminAutomationPropertyCatalogProperty[];
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
+  // Wenn ein bereits gemapptes Property nicht (mehr) im Catalog steht — z. B. weil
+  // das Backend ein Property entfernt oder umbenannt hat — wird der Wert trotzdem
+  // sichtbar bleiben (unter „Technische Felder" mit `(unbekannt)`-Suffix), damit
+  // der Builder nicht stillschweigend einen anderen Wert auswaehlt.
+  const optionsWithUnknown: AdminAutomationPropertyCatalogProperty[] = useMemo(() => {
+    if (!value || options.some((opt) => opt.key === value)) {
+      return options;
+    }
+    return [
+      ...options,
+      { key: value, label: `${value} (unbekannt)`, kind: "technical" as const },
+    ];
+  }, [options, value]);
+
+  const businessOptions = optionsWithUnknown.filter((opt) => opt.kind === "business");
+  const technicalOptions = optionsWithUnknown.filter((opt) => opt.kind === "technical");
+
   return (
     <select
       className="form-select"
@@ -332,9 +378,20 @@ function PropertyDropdown({
       disabled={disabled}
     >
       <option value="">– Feld wählen –</option>
-      {options.map((opt) => (
-        <option key={opt} value={opt}>{opt}</option>
-      ))}
+      {businessOptions.length > 0 && (
+        <optgroup label="Fachfelder">
+          {businessOptions.map((opt) => (
+            <option key={opt.key} value={opt.key}>{opt.label}</option>
+          ))}
+        </optgroup>
+      )}
+      {technicalOptions.length > 0 && (
+        <optgroup label="Technische Felder">
+          {technicalOptions.map((opt) => (
+            <option key={opt.key} value={opt.key}>{opt.label}</option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }
