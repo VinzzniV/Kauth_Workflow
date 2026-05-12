@@ -307,6 +307,46 @@ RETURNING id;";
         return createdPlan ?? throw new InvalidOperationException("Created rotation plan could not be loaded afterwards.");
     }
 
+    public async Task<RotationPlanDetailDto?> ActivateRotationPlan(long planId, long actorUserId)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        const string sql = @"
+UPDATE rotation_plans
+SET status = 'active',
+    updated_at = NOW()
+WHERE id = @planId
+  AND status = 'draft'
+RETURNING id;";
+
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
+        {
+            command.Parameters.AddWithValue("planId", planId);
+            var scalar = await command.ExecuteScalarAsync();
+            if (scalar is not long)
+            {
+                return null;
+            }
+        }
+
+        await InsertRotationAuditEntry(
+            connection,
+            transaction,
+            planId,
+            null,
+            null,
+            actorUserId,
+            "rotation_plan_activated",
+            new { status = "draft" },
+            new { status = "active" },
+            null);
+
+        await transaction.CommitAsync();
+        return await GetRotationPlan(planId);
+    }
+
     public async Task<List<RotationStationDto>> GetRotationStations(long planId)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());

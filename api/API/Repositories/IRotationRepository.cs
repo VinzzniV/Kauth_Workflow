@@ -15,6 +15,7 @@ internal interface IRotationRepository
     Task<List<RotationPlanListItemDto>> GetRotationPlans(long? personId, IReadOnlyCollection<int>? observableDepartmentIds = null);
     Task<RotationPlanDetailDto?> GetRotationPlan(long planId);
     Task<RotationPlanDetailDto> CreateRotationPlan(CreateRotationPlanRequest request, long createdByUserId);
+    Task<RotationPlanDetailDto?> ActivateRotationPlan(long planId, long actorUserId);
     Task<List<RotationStationDto>> GetRotationStations(long planId);
     Task<RotationStationDto?> GetRotationStation(long stationId);
     Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request, long actorUserId);

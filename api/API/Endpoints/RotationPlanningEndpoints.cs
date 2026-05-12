@@ -211,6 +211,50 @@ internal static class RotationPlanningEndpoints
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden);
 
+        // Z21-S7: Aktivierung eines Entwurfs nur, wenn mindestens eine Station vorhanden ist.
+        app.MapPost("/rotation/plans/{planId:long}/activate", async (
+            long planId,
+            IRotationPlanningService rotationPlanningService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanCreateWorkflow,
+                "HR, Abteilungsleitung oder Admin role is required.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var result = await rotationPlanningService.ActivateRotationPlanAsync(planId, access.User!);
+            return result.Kind switch
+            {
+                RotationPlanActivationResult.ResultKind.Activated => Results.Ok(result.Plan),
+                RotationPlanActivationResult.ResultKind.NotFound => Results.NotFound(),
+                RotationPlanActivationResult.ResultKind.NoStations => Results.BadRequest(new
+                {
+                    message = "Durchlaufplan ohne Stationen kann nicht aktiviert werden.",
+                    code = "no_stations"
+                }),
+                RotationPlanActivationResult.ResultKind.InvalidStatus => Results.BadRequest(new
+                {
+                    message = $"Durchlaufplan im Status '{result.CurrentStatus}' kann nicht aktiviert werden.",
+                    code = "invalid_status",
+                    currentStatus = result.CurrentStatus
+                }),
+                RotationPlanActivationResult.ResultKind.PersonHasActivePlan => Results.Conflict(new
+                {
+                    message = "Für diese Person existiert bereits ein aktiver Durchlaufplan.",
+                    code = "person_has_active_plan"
+                }),
+                _ => Results.StatusCode(500)
+            };
+        }).Produces<RotationPlanDetailDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden);
+
         app.MapGet("/rotation/plans/{planId:long}/stations", async (
             long planId,
             IRotationPlanningService rotationPlanningService,

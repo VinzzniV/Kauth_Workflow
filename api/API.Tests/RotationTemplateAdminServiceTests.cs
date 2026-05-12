@@ -251,6 +251,9 @@ public sealed class RotationTemplateAdminServiceTests
         public Task<RotationPlanDetailDto> CreateRotationPlan(CreateRotationPlanRequest request, long createdByUserId)
             => throw new NotSupportedException();
 
+        public Task<RotationPlanDetailDto?> ActivateRotationPlan(long planId, long actorUserId)
+            => Task.FromResult<RotationPlanDetailDto?>(null);
+
         public Task<List<RotationStationDto>> GetRotationStations(long planId)
             => Task.FromResult(new List<RotationStationDto>());
 

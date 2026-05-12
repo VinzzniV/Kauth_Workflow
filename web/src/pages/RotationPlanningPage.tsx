@@ -65,7 +65,6 @@ export default function RotationPlanningPage() {
   const [planSearch, setPlanSearch] = useState("");
   const [selectedPerson, setSelectedPerson] = useState<RotationEligiblePerson | null>(null);
   const [planTitle, setPlanTitle] = useState("");
-  const [planStatus, setPlanStatus] = useState<RotationPlanStatus>("draft");
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
 
   const eligiblePeopleQuery = useRotationEligiblePeople(search, isCreateMode);
@@ -106,11 +105,13 @@ export default function RotationPlanningPage() {
 
     setIsCreatingPlan(true);
     try {
+      // Z21-S7: Neue Plaene starten immer als Entwurf. Aktivierung erfolgt im
+      // Detail-Screen, sobald mindestens eine Station gepflegt ist.
       const createdPlan = await createRotationPlan({
         personId: selectedPerson.personId,
         sourceWorkflowUid: selectedPerson.latestSourceWorkflowUid,
         title: planTitle.trim() || undefined,
-        status: planStatus,
+        status: "draft",
       });
 
       await Promise.all([
@@ -264,7 +265,6 @@ export default function RotationPlanningPage() {
                       onClick={() => {
                         setSelectedPerson(entry);
                         setPlanTitle("");
-                        setPlanStatus("draft");
                       }}
                     >
                       {isSelected ? "Ausgewählt" : "Person öffnen"}
@@ -347,16 +347,9 @@ export default function RotationPlanningPage() {
                     />
                   </label>
 
-                  <label className="field compact">
-                    <span>Status</span>
-                    <select
-                      value={planStatus}
-                      onChange={(event) => setPlanStatus(event.target.value as RotationPlanStatus)}
-                    >
-                      <option value="draft">Entwurf</option>
-                      <option value="active">Aktiv</option>
-                    </select>
-                  </label>
+                  <p className="panel-note">
+                    Neue Durchlaufpläne werden als Entwurf angelegt. Aktivierung erfolgt im Plan-Detail, sobald mindestens eine Station gepflegt ist.
+                  </p>
 
                   <div className="action-row">
                     <button

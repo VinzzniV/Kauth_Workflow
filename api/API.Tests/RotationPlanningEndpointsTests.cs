@@ -369,6 +369,9 @@ public sealed class RotationPlanningEndpointsTests
         public Task<IReadOnlyList<RotationStationDto>?> GetRotationStationsAsync(long planId, CurrentUser currentUser, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Task<RotationPlanActivationResult> ActivateRotationPlanAsync(long planId, CurrentUser currentUser, CancellationToken cancellationToken = default)
+            => Task.FromResult(RotationPlanActivationResult.NotFound());
+
         public Task<RotationStationDto?> CreateRotationStationAsync(long planId, RotationStationUpsertRequest request, CurrentUser currentUser, CancellationToken cancellationToken = default)
         {
             CreateRotationStationCallCount += 1;

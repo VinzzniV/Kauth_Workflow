@@ -52,6 +52,12 @@ export async function createRotationPlan(payload: CreateRotationPlanPayload): Pr
   });
 }
 
+export async function activateRotationPlan(planId: number): Promise<RotationPlanDetail> {
+  return requestJson<RotationPlanDetail>(`/rotation/plans/${encodeId(planId)}/activate`, {
+    method: "POST",
+  });
+}
+
 export async function createRotationStation(
   planId: number,
   payload: RotationStationUpsertPayload

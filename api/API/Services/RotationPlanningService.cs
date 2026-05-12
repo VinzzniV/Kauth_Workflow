@@ -122,11 +122,17 @@ internal sealed class RotationPlanningService(
         }
 
         var normalizedStatus = NormalizePlanStatus(request.Status);
-        var conflictState = await rotationRepository.GetRotationPlanConflictState(request.PersonId, request.SourceWorkflowUid);
-        if (normalizedStatus == RotationPlanStatuses.Active && conflictState.HasActivePlanForPerson)
+        // Z21-S7: Direkt-aktivieren beim Anlegen ist nicht mehr erlaubt — ein Plan
+        // ohne Stationen kann fachlich nicht "aktiv" sein. Activate-Endpoint flippt
+        // den Status, wenn mindestens eine Station existiert und keine andere
+        // aktive Person-Plan-Kollision besteht.
+        if (normalizedStatus != RotationPlanStatuses.Draft)
         {
-            throw new InvalidOperationException("Für diese Person existiert bereits ein aktiver Durchlaufplan.");
+            throw new InvalidOperationException(
+                "Neue Durchlaufpläne werden als Entwurf angelegt. Aktivierung erfolgt über /rotation/plans/{id}/activate sobald mindestens eine Station vorhanden ist.");
         }
+
+        var conflictState = await rotationRepository.GetRotationPlanConflictState(request.PersonId, request.SourceWorkflowUid);
 
         if (conflictState.HasOpenPlanForSourceWorkflow)
         {
@@ -164,6 +170,49 @@ internal sealed class RotationPlanningService(
     {
         var plan = await GetRotationPlanAsync(planId, currentUser, cancellationToken);
         return plan?.Stations;
+    }
+
+    // Z21-S7: Aktivierung eines Entwurfs ist nur erlaubt, wenn mindestens eine
+    // Station gepflegt ist. Dadurch koennen "leere aktive" Plaene nicht entstehen.
+    public async Task<RotationPlanActivationResult> ActivateRotationPlanAsync(
+        long planId,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = await GetRotationPlanAsync(planId, currentUser, cancellationToken);
+        if (plan is null)
+        {
+            return RotationPlanActivationResult.NotFound();
+        }
+
+        if (plan.Status != RotationPlanStatuses.Draft)
+        {
+            return RotationPlanActivationResult.InvalidStatus(plan.Status);
+        }
+
+        if (plan.Stations.Count == 0)
+        {
+            return RotationPlanActivationResult.NoStations();
+        }
+
+        var conflictState = await rotationRepository.GetRotationPlanConflictState(plan.PersonId, plan.SourceWorkflowUid);
+        if (conflictState.HasActivePlanForPerson)
+        {
+            return RotationPlanActivationResult.PersonHasActivePlan();
+        }
+
+        var activated = await rotationRepository.ActivateRotationPlan(planId, currentUser.UserId);
+        if (activated is null)
+        {
+            return RotationPlanActivationResult.NotFound();
+        }
+
+        logger.LogInformation(
+            "Rotation plan {RotationPlanId} activated by user {UserId} ({StationCount} Stationen).",
+            planId,
+            currentUser.UserId,
+            plan.Stations.Count);
+        return RotationPlanActivationResult.Activated(activated);
     }
 
     public async Task<RotationStationDto?> CreateRotationStationAsync(
@@ -412,4 +461,35 @@ internal sealed class RotationPlanningService(
                 "Stationen koennen nur in Durchlaufplaenen mit Status draft oder active geaendert werden.");
         }
     }
+}
+
+internal sealed class RotationPlanActivationResult
+{
+    public enum ResultKind
+    {
+        Activated,
+        NotFound,
+        NoStations,
+        InvalidStatus,
+        PersonHasActivePlan
+    }
+
+    public required ResultKind Kind { get; init; }
+    public RotationPlanDetailDto? Plan { get; init; }
+    public string? CurrentStatus { get; init; }
+
+    public static RotationPlanActivationResult Activated(RotationPlanDetailDto plan) =>
+        new() { Kind = ResultKind.Activated, Plan = plan };
+
+    public static RotationPlanActivationResult NotFound() =>
+        new() { Kind = ResultKind.NotFound };
+
+    public static RotationPlanActivationResult NoStations() =>
+        new() { Kind = ResultKind.NoStations };
+
+    public static RotationPlanActivationResult InvalidStatus(string currentStatus) =>
+        new() { Kind = ResultKind.InvalidStatus, CurrentStatus = currentStatus };
+
+    public static RotationPlanActivationResult PersonHasActivePlan() =>
+        new() { Kind = ResultKind.PersonHasActivePlan };
 }

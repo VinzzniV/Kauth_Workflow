@@ -27,15 +27,13 @@ public sealed class RotationPlanningServiceTests
     }
 
     [Fact]
-    public async Task CreateRotationPlanAsync_RejectsSecondActivePlanForPerson()
+    public async Task CreateRotationPlanAsync_RejectsActiveStatusOnCreate()
     {
+        // Z21-S7: Neue Plaene starten immer als Entwurf. Direkt-aktivieren ist
+        // unterbunden, weil ein Plan ohne Stationen fachlich nicht aktiv sein darf.
         var repository = new StubRotationRepository
         {
-            SourceWorkflow = CreateSource(personId: 10, departmentId: 2),
-            ConflictState = new RotationPlanConflictState
-            {
-                HasActivePlanForPerson = true
-            }
+            SourceWorkflow = CreateSource(personId: 10, departmentId: 2)
         };
         var service = CreateService(repository);
 
@@ -48,7 +46,112 @@ public sealed class RotationPlanningServiceTests
             },
             CreateUser()));
 
-        Assert.Contains("aktiver Durchlaufplan", ex.Message);
+        Assert.Contains("Entwurf", ex.Message);
+    }
+
+    // Z21-S7: Activate-Pfad-Tests
+
+    [Fact]
+    public async Task ActivateRotationPlanAsync_ReturnsNoStations_WhenPlanHasNoStations()
+    {
+        var repository = new StubRotationRepository
+        {
+            Plan = CreatePlanWithStations()
+        };
+        var service = CreateService(repository);
+
+        var result = await service.ActivateRotationPlanAsync(42, CreateUser());
+
+        Assert.Equal(RotationPlanActivationResult.ResultKind.NoStations, result.Kind);
+        Assert.Equal(0, repository.ActivateCallCount);
+    }
+
+    [Fact]
+    public async Task ActivateRotationPlanAsync_ReturnsPersonHasActivePlan_WhenConflictExists()
+    {
+        var repository = new StubRotationRepository
+        {
+            Plan = CreatePlanWithStations(
+                new RotationStationDto
+                {
+                    Id = 1,
+                    RotationPlanId = 42,
+                    DepartmentId = 3,
+                    DepartmentName = "IT",
+                    StartDate = new DateOnly(2026, 6, 1),
+                    EndDate = new DateOnly(2026, 6, 20),
+                    OrderIndex = 0,
+                    Status = "planned",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                }),
+            ConflictState = new RotationPlanConflictState
+            {
+                HasActivePlanForPerson = true
+            }
+        };
+        var service = CreateService(repository);
+
+        var result = await service.ActivateRotationPlanAsync(42, CreateUser());
+
+        Assert.Equal(RotationPlanActivationResult.ResultKind.PersonHasActivePlan, result.Kind);
+        Assert.Equal(0, repository.ActivateCallCount);
+    }
+
+    [Fact]
+    public async Task ActivateRotationPlanAsync_ReturnsInvalidStatus_WhenPlanIsNotDraft()
+    {
+        var plan = CreatePlanWithStations(
+            new RotationStationDto
+            {
+                Id = 1,
+                RotationPlanId = 42,
+                DepartmentId = 3,
+                DepartmentName = "IT",
+                StartDate = new DateOnly(2026, 6, 1),
+                EndDate = new DateOnly(2026, 6, 20),
+                OrderIndex = 0,
+                Status = "planned",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+        plan = plan with { Status = "active" };
+        var repository = new StubRotationRepository { Plan = plan };
+        var service = CreateService(repository);
+
+        var result = await service.ActivateRotationPlanAsync(42, CreateUser());
+
+        Assert.Equal(RotationPlanActivationResult.ResultKind.InvalidStatus, result.Kind);
+        Assert.Equal("active", result.CurrentStatus);
+        Assert.Equal(0, repository.ActivateCallCount);
+    }
+
+    [Fact]
+    public async Task ActivateRotationPlanAsync_Activates_WhenStationsExistAndNoConflict()
+    {
+        var repository = new StubRotationRepository
+        {
+            Plan = CreatePlanWithStations(
+                new RotationStationDto
+                {
+                    Id = 1,
+                    RotationPlanId = 42,
+                    DepartmentId = 3,
+                    DepartmentName = "IT",
+                    StartDate = new DateOnly(2026, 6, 1),
+                    EndDate = new DateOnly(2026, 6, 20),
+                    OrderIndex = 0,
+                    Status = "planned",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                })
+        };
+        var service = CreateService(repository);
+
+        var result = await service.ActivateRotationPlanAsync(42, CreateUser());
+
+        Assert.Equal(RotationPlanActivationResult.ResultKind.Activated, result.Kind);
+        Assert.Equal(1, repository.ActivateCallCount);
     }
 
     [Fact]
@@ -318,6 +421,15 @@ public sealed class RotationPlanningServiceTests
 
         public Task<RotationPlanDetailDto> CreateRotationPlan(CreateRotationPlanRequest request, long createdByUserId)
             => Task.FromResult(Plan ?? throw new NotSupportedException());
+
+        public int ActivateCallCount { get; private set; }
+        public RotationPlanDetailDto? ActivatedPlan { get; set; }
+
+        public Task<RotationPlanDetailDto?> ActivateRotationPlan(long planId, long actorUserId)
+        {
+            ActivateCallCount++;
+            return Task.FromResult(ActivatedPlan ?? Plan);
+        }
 
         public Task<List<RotationStationDto>> GetRotationStations(long planId)
             => Task.FromResult(Plan?.Stations ?? new List<RotationStationDto>());

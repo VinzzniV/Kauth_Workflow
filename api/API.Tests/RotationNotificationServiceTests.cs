@@ -195,6 +195,7 @@ public sealed class RotationNotificationServiceTests
         public Task<List<RotationPlanListItemDto>> GetRotationPlans(long? personId, IReadOnlyCollection<int>? observableDepartmentIds = null) => Task.FromResult(new List<RotationPlanListItemDto>());
         public Task<RotationPlanDetailDto?> GetRotationPlan(long planId) => Task.FromResult<RotationPlanDetailDto?>(null);
         public Task<RotationPlanDetailDto> CreateRotationPlan(CreateRotationPlanRequest request, long createdByUserId) => throw new NotSupportedException();
+        public Task<RotationPlanDetailDto?> ActivateRotationPlan(long planId, long actorUserId) => Task.FromResult<RotationPlanDetailDto?>(null);
         public Task<List<RotationStationDto>> GetRotationStations(long planId) => Task.FromResult(new List<RotationStationDto>());
         public Task<RotationStationDto?> GetRotationStation(long stationId) => Task.FromResult<RotationStationDto?>(null);
         public Task<RotationStationDto?> CreateRotationStation(long planId, RotationStationUpsertRequest request, long actorUserId) => Task.FromResult<RotationStationDto?>(null);

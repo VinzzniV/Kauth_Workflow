@@ -36,6 +36,11 @@ internal interface IRotationPlanningService
         CurrentUser currentUser,
         CancellationToken cancellationToken = default);
 
+    Task<RotationPlanActivationResult> ActivateRotationPlanAsync(
+        long planId,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default);
+
     Task<RotationStationDto?> CreateRotationStationAsync(
         long planId,
         RotationStationUpsertRequest request,

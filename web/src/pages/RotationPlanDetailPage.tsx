@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
 import PageHeader from "../components/layout/PageHeader";
@@ -21,6 +22,9 @@ import {
   useRotationPlanDetail,
 } from "../services/queries/rotationQueries";
 import { useDepartments } from "../services/queries/roleQueries";
+import { activateRotationPlan } from "../services/rotationApi";
+import { queryKeys } from "../services/queryKeys";
+import { useToast } from "../components/feedback/useToast";
 import { formatDate, formatDateTime } from "../utils/dateFormat";
 
 export default function RotationPlanDetailPage() {
@@ -66,6 +70,32 @@ export default function RotationPlanDetailPage() {
     personId: plan?.personId ?? null,
     orderedStations,
   });
+
+  const queryClient = useQueryClient();
+  const { showError, showSuccess } = useToast();
+  const [isActivating, setIsActivating] = useState(false);
+
+  const canActivate = plan?.status === "draft" && orderedStations.length > 0;
+  const activateDisabledReason =
+    plan?.status === "draft" && orderedStations.length === 0
+      ? "Mindestens eine Station erforderlich, bevor der Plan aktiviert werden kann."
+      : null;
+
+  const handleActivatePlan = async () => {
+    if (!isValidPlanId) return;
+    setIsActivating(true);
+    try {
+      await activateRotationPlan(numericPlanId);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.rotation.planDetail(numericPlanId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.rotation.plans(plan?.personId ?? null) });
+      showSuccess("Durchlaufplan wurde aktiviert.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Aktivierung fehlgeschlagen.";
+      showError(message);
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   if (!isValidPlanId) {
     return (
@@ -115,6 +145,17 @@ export default function RotationPlanDetailPage() {
               description={`${plan.displayName} · ${plan.departmentName ?? "ohne Abteilung"} · ${getPlanStatusLabel(plan.status)}`}
               actions={
                 <div className="action-row">
+                  {plan.status === "draft" ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => void handleActivatePlan()}
+                      disabled={!canActivate || isActivating}
+                      title={activateDisabledReason ?? undefined}
+                    >
+                      {isActivating ? "Aktiviere..." : "Plan aktivieren"}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="btn btn-secondary"
