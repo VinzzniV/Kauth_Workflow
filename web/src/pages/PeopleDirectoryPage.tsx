@@ -202,75 +202,34 @@ function PersonCard({
   const directoryOnly = isDirectoryOnlyEntry(person);
   const content = (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+      <div className="people-card-row">
         <PersonAvatar name={person.displayName} size={38} />
-        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "0.1rem" }}>
-          <span
-            className={directoryOnly ? undefined : "table-link"}
-            style={{
-              fontWeight: 600,
-              fontSize: "0.875rem",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <div className="people-card-meta">
+          <span className={`people-card-name${directoryOnly ? "" : " table-link"}`}>
             {person.displayName}
           </span>
           {person.jobTitle ? (
-            <span
-              style={{
-                fontSize: "0.75rem",
-                color: "var(--text-secondary)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {person.jobTitle}
-            </span>
+            <span className="people-card-jobtitle">{person.jobTitle}</span>
           ) : (
-            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
-              Keine Stellenbezeichnung
-            </span>
+            <span className="people-card-jobtitle--missing">Keine Stellenbezeichnung</span>
           )}
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "0.5rem",
-        }}
-      >
+      <div className="people-card-status-row">
         <span className={getEmploymentStatusClass(person.employmentStatus)}>
           {formatEmploymentStatus(person.employmentStatus)}
         </span>
         {person.entryDate ? (
-          <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", flexShrink: 0 }}>
-            ab {formatDate(person.entryDate)}
-          </span>
+          <span className="people-card-date">ab {formatDate(person.entryDate)}</span>
         ) : directoryOnly ? (
-          <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", flexShrink: 0 }}>
-            Noch nicht importiert
-          </span>
+          <span className="people-card-date">Noch nicht importiert</span>
         ) : null}
       </div>
 
       {directoryOnly ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-          }}
-        >
-          <span className="panel-note" style={{ margin: 0 }}>
-            Nur im Verzeichnis sichtbar
-          </span>
+        <div className="people-card-directory-row">
+          <span className="panel-note people-card-directory-note">Nur im Verzeichnis sichtbar</span>
           <ImportDirectoryButton
             directoryIdentityId={person.directoryIdentityId}
             isImporting={isImporting}
@@ -283,36 +242,13 @@ function PersonCard({
 
   if (person.personId !== null) {
     return (
-      <Link
-        to={`/people/${person.personId}`}
-        className="card-list"
-        style={{
-          textDecoration: "none",
-          color: "inherit",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.625rem",
-          padding: "0.875rem",
-        }}
-      >
+      <Link to={`/people/${person.personId}`} className="card-list people-card people-card--link">
         {content}
       </Link>
     );
   }
 
-  return (
-    <article
-      className="card-list"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.625rem",
-        padding: "0.875rem",
-      }}
-    >
-      {content}
-    </article>
-  );
+  return <article className="card-list people-card">{content}</article>;
 }
 
 function PersonRow({
@@ -376,35 +312,16 @@ function DepartmentSection({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <section className="panel" style={{ overflow: "hidden" }}>
+    <section className="panel people-department-section">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          background: "none",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          color: "inherit",
-        }}
+        className="people-department-toggle"
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "1rem",
-              fontWeight: 600,
-              color: "var(--text-primary)",
-            }}
-          >
-            {name}
-          </h2>
-          <span className="panel-head-meta" style={{ fontWeight: 500 }}>
+        <div className="people-department-title-row">
+          <h2 className="people-department-title">{name}</h2>
+          <span className="panel-head-meta">
             {people.length} {people.length === 1 ? "Person" : "Personen"}
           </span>
         </div>
@@ -412,15 +329,9 @@ function DepartmentSection({
       </button>
 
       {expanded ? (
-        <div style={{ marginTop: "1rem" }}>
+        <div className="people-department-body">
           {viewMode === "cards" ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(195px, 1fr))",
-                gap: "0.625rem",
-              }}
-            >
+            <div className="people-department-cards">
               {people.map((person) => (
                 <PersonCard
                   key={getDirectoryEntryKey(person)}

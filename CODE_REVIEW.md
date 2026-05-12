@@ -134,7 +134,7 @@ UX-Teil erledigt (Z21-S5: Mapping-Labels mit Fach-/Technik-Optgroups, Wording �
 
 #### 🟢 P3
 
-- **Z21-P3-1** · `PeopleDirectoryPage` Inline-Styles (`PeopleDirectoryPage.tsx:307-422`) — Theme-Drift-Risiko, Backlog.
+- **Z21-P3-1** · `PeopleDirectoryPage` Inline-Styles — ✅ done 2026-05-12 (TODO.md Z21-S9): Theme-relevante Werte in `people-card-*` / `people-department-*` CSS-Klassen gehoben.
 - **Z21-P3-3** · `R8` (Browser-Verifikation Form-Editor) + `R10` (Mobile-Layout) — Nutzer-Aufgaben, nicht code-pruefbar.
 
 ---
