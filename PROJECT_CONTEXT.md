@@ -145,6 +145,8 @@ Die Zielarchitektur besteht aus diesen Schichten:
 - Kein freies SQL
 - Keine beliebigen HTTP-Requests mit Secrets aus dem Admin-UI
 - Nur freigegebene, validierte Actions
+- Schreibrichtung ist on-prem-AD-fuehrend: schreibende Lifecycle-Aktionen laufen ueber einen dedizierten Windows-Worker, nicht direkt aus der Linux-API
+- Kein direkter Graph-Schreibpfad: `EntraGraphClient` bleibt read-only, Entra wird ausschliesslich ueber AD Connect nachgefuehrt
 
 ### Migration statt Big Bang
 - Bestehende Prozesse bleiben zunaechst lauffaehig.

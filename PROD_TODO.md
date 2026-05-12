@@ -55,7 +55,7 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 | # | Slice | Findings | Aufwand | Reasoning | Modell | Plan-Mode | Status |
 |---|---|---|---|---|---|---|---|
 | 1 | **Z21-S1** Simulation deutlich markieren + Mail-Dispatch-Health | P0-1 + P1-3 | klein-mittel (~½–1 Tag) | medium | sonnet | aus | **done 2026-05-12** |
-| 2 | **Z21-S2** Hybrid-AD-Architekturentscheidung | P0-2 | klein in Zeilen, gross in Tragweite | high | opus | **an** | offen |
+| 2 | **Z21-S2** Hybrid-AD-Architekturentscheidung | P0-2 | klein in Zeilen, gross in Tragweite | high | opus | **an** | **done 2026-05-12** |
 | 3 | **Z21-S3** Workflow-Storno fuer laufende Vorgaenge | P0-3 | mittel-gross (~1–2 Tage) | high | opus | **an** | offen |
 | 4 | **Z21-S4** FE-UX-Buendel (Persona-Switcher, Workflow-Detail-Tabs, Listen-Trennung, directory_only) | P1-1 + P1-4 + P2-1 + P2-2 | mittel (~1 Tag) | medium | sonnet | aus | offen |
 | 5 | **Z21-S5** Builder fachsprachlicher (Mapping-Labels + Condition-Wording) | P1-2 | mittel (~1 Tag) | high | opus | **an** | offen |
@@ -81,24 +81,23 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 
 ---
 
-### Z21-S2 · Hybrid-AD-Architekturentscheidung
+### Z21-S2 · Hybrid-AD-Architekturentscheidung — done 2026-05-12
 
-**Reine Doku-/Entscheidungsslice.** Kein Code.
+**Entschieden:** Option 2 — AD on-prem fuehrt, schreibende Lifecycle-Aktionen laufen ueber einen dedizierten Windows-Worker. Entra wird ueber AD Connect nachgefuehrt. `EntraGraphClient` bleibt read-only.
 
-**Praktisch:** Vor jeder echten Automation-Handler-Arbeit muss klar sein, welcher Schreibweg gilt: Entra-fuehrt (Linux-Stack reicht) vs. AD-on-prem-fuehrt (Windows-Worker noetig) vs. Spiegelung.
+**Belegt in:**
+- `KauthWorkflow/Architektur/Entscheidungen.md` → Abschnitt „AD/Entra-Schreibrichtung: on-prem AD fuehrt via Windows-Worker (2026-05-12, Z21-S2)"
+- `KauthWorkflow/Architektur/Migrationspfad.md` → neue Etappe 9a in der Reihenfolge-Tabelle + Detailblock „Etappe 9a · Schreibender Automation-Layer" mit 4-Schritte-Zielbild
+- `PROJECT_CONTEXT.md` → Guardrail-Block „Automationen bleiben kontrolliert" um 2 Zeilen ergaenzt (Schreibrichtung + Kein-Graph-Schreibpfad)
+- `CODE_REVIEW.md` → Z21-P0-2 als done markiert mit Verweis auf Entscheidungen.md/Migrationspfad.md
 
-**Lohnenswert:** Jede Implementierung ohne Entscheidung wird teuer verworfen. Auch Z21-S1 trifft hier indirekt zu (was an echten Handlern danach kommt).
+**Verworfen:**
+- Option 1 (Entra fuehrt, Graph-only): widerspricht on-prem-Primat
+- Option 3 (Beidseitige Spiegelung): doppelte Idempotenz ohne Mehrwert ueber AD Connect
 
-**Nutzen:** Klare Richtung; danach kann S5 und ein moegliches „echte Handler"-Folgeslice methodisch gestartet werden.
+**Folge-Sub-Entscheidungen** (bewusst NICHT in diesem Slice festgelegt, dokumentiert in Migrationspfad-Etappe 9a Schritt 1): Worker-Deploymentmodell, Transport API↔Worker, AD-Schreibmechanik, Domaen-Authentisierung, Audit-Rueckkanal. Diese sind eigener Plan-Mode-Slice vor jeder Code-Arbeit.
 
-**Scope:**
-- `KauthWorkflow/Architektur/Entscheidungen.md` Abschnitt „AD/Entra-Schreibrichtung" mit gewaehlter Option + Begruendung.
-- `KauthWorkflow/Architektur/Migrationspfad.md` neue Etappe „Schreibender Automation-Layer".
-- Ggf. `PROJECT_CONTEXT.md` Guardrail-Block.
-
-**Plan-Mode AN:** vor Schreibarbeit eine der drei Optionen waehlen (Frage an Produkt/Stakeholder).
-
-**Blockiert:** echte Automation-Handler-Implementation und damit den Schritt aus dem F-Status in der Z21-Produkttabelle.
+**Wirkt blockierend auf:** Z21-S5 „echte Handler" als denkbares Folgeslice — bleibt bis Etappe 9a abgeschlossen ist im Simulationsmodus. Z21-S1-Banner bleibt aktiv bis Action-Katalog kein `simulated_*` mehr enthaelt.
 
 ---
 
@@ -197,8 +196,8 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 
 ## Reihenfolge-Empfehlung
 
-1. **Z21-S1 zuerst.** Hoechster Risiko-Reduktionsnutzen pro Aufwand. Sofort starten.
-2. **Z21-S2 parallel** als Entscheidungs-Trigger (Produkt-/Stakeholder-Frage stellen, damit S5 und ein moegliches „echte Handler"-Folgeslice nicht spaeter blockiert sind).
+1. **Z21-S1 zuerst.** ✅ erledigt 2026-05-12. Hoechster Risiko-Reduktionsnutzen pro Aufwand.
+2. **Z21-S2 parallel.** ✅ erledigt 2026-05-12 — Richtungsentscheidung steht (Option 2 / Windows-Worker). Folge-Slice „Schreibender Automation-Layer" (Migrationspfad-Etappe 9a) ist eigener Etappenpfad und **nicht Teil des Z21-Slice-Plans**.
 3. **Z21-S3** als zweiter Show-Stopper aus dem Weg raeumen.
 4. **Z21-S4** als spuerbarer UX-Sprung im Alltag.
 5. **Z21-S5** loest das Builder-Zielarchitektur-Versprechen ein.

@@ -46,6 +46,7 @@ Primärquelle im Repo: `PROJECT_CONTEXT.md`
 | 7 | Task-System an Node-Runtime anbinden | ✓ erledigt (Zyklus 7, 2026-05-05: Lifecycle-Service als Commit-Grenze + Validation-Split abgeschlossen) |
 | 8 | Generische Validierung einführen | ✓ erledigt (CLA-4, DAG-Erreichbarkeitscheck + Publish-Guard) |
 | 9 | Automation Layer bauen | Basis da, echte Handler fehlen |
+| 9a | Schreibender Automation-Layer (Windows-Worker, AD on-prem führt) | offen — Architektur entschieden 2026-05-12 (Z21-S2), Sub-Entscheidungen offen |
 | 10 | Guided Builder ausbauen | Basis da |
 | 11 | Altwelt gezielt zurückbauen | nach Parität |
 
@@ -82,6 +83,28 @@ Der Rotation-Slice wurde aus dem Monolithen herausgeschnitten:
 - `PostgresWorkflowRepository` delegiert Rotation-Task-Routing über ctor-injiziertes `IRotationRepository`
 
 Noch ausstehend: weitere fachlich motivierte Schnitte um `PostgresWorkflowRepository` bzw. verbleibende große Partials. Reine Split-Arbeit ohne Last-, Runtime- oder Wartbarkeits-Trigger ist derzeit nicht der naechste Hebel.
+
+---
+
+## Etappe 9a · Schreibender Automation-Layer
+
+Architekturrichtung entschieden 2026-05-12 (Z21-S2): **AD on-prem führt**, schreibende Lifecycle-Aktionen laufen über einen dedizierten Windows-Worker. Begründung und verworfene Alternativen in [[Entscheidungen]] → "AD/Entra-Schreibrichtung".
+
+Bis Etappe 9a abgeschlossen ist, bleibt der Automation-Layer offiziell im Simulationsmodus. Z21-S1 hat das im UI als Banner + Badge sichtbar gemacht; der Action-Katalog ist weiter `simulated_*`-getrieben.
+
+**Zielbild in vier Schritten:**
+
+1. **Sub-Architekturfragen klären** (eigener Plan-Mode-Slice, vor jeder Code-Arbeit):
+   - Worker-Deploymentmodell: Windows-VM vs. domain-joined Container vs. Azure-Hybrid-Worker
+   - Transport API↔Worker: DB-Polling über Tunnel vs. HTTPS-Pull vs. Service-Bus/Queue
+   - Schreibmechanik: `System.DirectoryServices.Protocols` (LDAPS) vs. PowerShell `ActiveDirectory` vs. ADSI
+   - Authentisierung in der Domäne: Service-Account vs. gMSA
+   - Audit-Rückkanal: wer schreibt `automation_job_attempts`/`_logs` in die zentrale DB
+2. **Worker-Skeleton:** Windows-Service-Skeleton, ein simulierter Handler, funktionierender Audit-Rückkanal in die zentrale `automation_jobs`-Tabelle. Noch kein realer AD-Zugriff — nur der Transport- und Audit-Pfad steht.
+3. **Erster echter Handler:** `CreateAdUser` als LDAP- bzw. PowerShell-Schreiber gegen einen Test-DC. Idempotenz, Retry, Audit, klare Fehlerklassifikation.
+4. **Migration der `simulated_*`-Handler:** schrittweise Ablösung von `simulated_directory`, `simulated_mailbox`, `simulated_directory_groups`, `simulated_erp`, `simulated_welcome_mail`. Action-Katalog enthält am Ende keinen `simulated_*`-Eintrag mehr, die `IsSimulated`-Banner aus Z21-S1 verschwinden naturgemäß.
+
+**Beleg für Z21-S1-Brücke:** Das Backend leitet `IsSimulated` aus `action_definitions.handler_type LIKE 'simulated_%'` ab. Sobald ein Handler aus simulated zu real wechselt, fällt der UI-Marker automatisch weg — keine Doppelpflege.
 
 ---
 

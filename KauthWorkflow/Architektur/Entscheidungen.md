@@ -121,6 +121,33 @@ Der Directory-Sync-Zyklus aktualisiert ausschließlich Identitätsdaten (`direct
 
 **Konsequenz:** Admins weisen Abteilungsleitungen und Approver manuell zu. Der Sync liefert nur noch die Kandidaten-Basis (wer existiert, ist aktiv, in welcher Gruppe). Eine informative Anzeige ("X Personen in Entra-Gruppen ohne Zuweisung") unterstützt Admins dabei, offene Zuweisungen zu erkennen.
 
+### AD/Entra-Schreibrichtung: on-prem AD führt via Windows-Worker (2026-05-12, Z21-S2)
+
+Schreibende Lifecycle-Aktionen (Konto anlegen/deaktivieren, Gruppenmitgliedschaften pflegen, Postfach steuern) gehen ausschließlich gegen **on-prem AD**, ausgeführt von einem **dedizierten Windows-Worker-Service**. Entra-ID wird über AD Connect nachgeführt — die App schreibt **nicht** direkt gegen Microsoft Graph.
+
+**Warum:** Die produktive IT-Landschaft hat on-prem-Primat. Ein Cloud-only-Schreibpfad (Graph) würde die Schreibhoheit umkehren und ist organisatorisch nicht tragbar. Beidseitige Spiegelung wurde verworfen, weil sie in der Praxis nie sauber "beides führend" hält.
+
+**Konsequenz:**
+
+- Der Stack wächst um eine zweite Laufzeitkomponente: eine Windows-VM bzw. ein domain-gebundener Windows-Service. Höhere Betriebskosten werden bewusst akzeptiert.
+- Der bestehende `WorkflowAutomationHostedService` (Linux-API) bleibt **Orchestrator** und delegiert schreibende Jobs an den Worker. Er wird **nicht** zu einem Linux→AD-Schreiber umgebaut.
+- `EntraGraphClient` bleibt strikt read-only (Sync-Quelle für `directory_identities`, `directory_groups`). Es entsteht **kein** schreibender Graph-Pfad.
+- "Linux-only-Schreibhandler direkt aus dem API-Container" ist explizit verboten (siehe Guardrail in `PROJECT_CONTEXT.md`).
+- Bis der Windows-Worker steht, bleibt der Automation-Layer offiziell im Simulationsmodus — Z21-S1 markiert das im UI sichtbar.
+
+**Verworfen wurde:**
+
+- **Option 1 (Entra führt, Graph-only):** technisch leichter und in Wochen machbar, widerspricht aber dem on-prem-Primat der IT-Landschaft.
+- **Option 3 (Beidseitige Spiegelung):** doppelte Idempotenz, komplexe Konfliktauflösung, kein realer Mehrwert gegenüber AD Connect.
+
+**Folge-Entscheidungen offen** (parkiert in [[Migrationspfad]] Etappe 9a — bewusst nicht in diesem Slice festgelegt):
+
+- Worker-Deploymentmodell: dedizierte Windows-VM vs. domain-joined Container vs. Azure-Hybrid-Worker
+- Kommunikationsweg API↔Worker: DB-Polling über Tunnel vs. HTTPS-Pull vs. Service-Bus/Queue
+- AD-Schreibmechanik: `System.DirectoryServices.Protocols` (LDAPS) vs. PowerShell-Modul `ActiveDirectory` vs. ADSI
+- Authentisierung des Workers in der Domäne: Service-Account vs. Group Managed Service Account (gMSA)
+- Audit-Rückkanal: wer schreibt `automation_job_attempts`/`_logs` zurück in die zentrale Postgres-DB
+
 ---
 
 ## Dokumentation & Prozess

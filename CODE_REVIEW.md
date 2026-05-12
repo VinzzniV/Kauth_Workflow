@@ -75,7 +75,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | Bereich | Note | Hauptbegruendung |
 |---------|------|------------------|
 | **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — jetzt im UI klar markiert (Z21-S1); produktiv unverantwortlich bis echte Handler existieren |
-| **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Kein implementierter on-prem-AD-Schreibpfad: kein Worker, kein LDAP/LDAPS-Adapter, `EntraGraphClient` liest nur |
+| **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2, 2026-05-12: Windows-Worker, AD on-prem fuehrt) — Implementation offen: kein Worker, kein LDAP/LDAPS-Adapter, `EntraGraphClient` weiter read-only |
 | Workflow-Storno (laufende Vorgaenge) | **D** | Kein Cancel-Endpunkt, nur `archive` (completed) und `delete` (draft) — taeglicher Edge-Case nicht abgedeckt |
 | Workflow-Builder (Conditions/Mappings) | **B-** | Canvas + DAG-Layout stark; Conditions haben Formularmodus, Mappings/technische Keys bleiben Power-User-lastig |
 | Workflow-Detail (Panelauswahl) | **B-** | Sechs+ Panels untereinander, „was ist offen?" verteilt sich |
@@ -118,9 +118,11 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 
 ---
 
-**Z21-P0-2 · Hybrid-AD-Frage: Im Projekt fehlt ein on-prem-AD-Schreibpfad**
+**Z21-P0-2 · Hybrid-AD-Frage: Im Projekt fehlt ein on-prem-AD-Schreibpfad** — ✅ Richtung entschieden 2026-05-12 (Z21-S2)
 
-Direkt aus Z21-P0-1 abgeleitet, aber als eigene Frage relevant:
+**Entscheidung:** Option 2 — AD on-prem fuehrt, schreibende Aktionen laufen ueber einen dedizierten Windows-Worker. `EntraGraphClient` bleibt read-only. Belegt in `KauthWorkflow/Architektur/Entscheidungen.md` Abschnitt „AD/Entra-Schreibrichtung" und `KauthWorkflow/Architektur/Migrationspfad.md` Etappe 9a. Guardrail in `PROJECT_CONTEXT.md` ergaenzt. Der Schreibpfad selbst (Worker-Skeleton, echter Handler) ist eigener Etappenpfad ausserhalb des Z21-Slice-Plans. Bis dahin bleibt der Automation-Layer im Simulationsmodus (Z21-S1-Banner aktiv).
+
+Urspruengliche Befundlage:
 
 - Es gibt **keinen** on-prem-AD-Adapter. Kein LDAP-Client, kein PowerShell-Worker, kein AD-PowerShell-Remoting-Aufruf, kein `System.DirectoryServices`-Code im Repo.
 - Der Automation-Layer laeuft als Hosted-Service in der API (`KauthWorkflow/Betrieb/Setup.md`). Das ist auf einer Linux-VM in Containern. Linux kann grundsaetzlich per LDAP/LDAPS oder ueber einen separaten Worker mit on-prem AD sprechen; **dieses Projekt implementiert diesen Pfad aber nicht**:
@@ -296,9 +298,11 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 | Real lauffaehig | 🟡 Ja, aber **nur als Simulation** | `SimulatedWorkflowAutomationHandlers.cs:76-80` |
 | Produktiv verantwortbar | ❌ **Nein.** Admin glaubt, AD-User wird angelegt — tatsaechlich passiert nichts | siehe Z21-P0-1 |
 
-**Aus Linux-VM Richtung Entra/Graph (Cloud):** wuerde funktionieren, sobald echte Handler kommen. Architektur traegt das.
+**Schreibrichtung entschieden (Z21-S2, 2026-05-12):** AD on-prem fuehrt; schreibende Aktionen laufen ueber einen Windows-Worker (Migrationspfad-Etappe 9a). `EntraGraphClient` bleibt read-only — kein direkter Graph-Schreibpfad.
 
-**Aus Linux-VM Richtung on-prem AD direkt:** **nicht abbildbar** ohne neuen Worker-Bestandteil. Heute weder im Code noch in der Doku angelegt.
+**Aus Linux-VM Richtung Entra/Graph (Cloud):** explizit verworfen als Schreibpfad. Read-only bleibt.
+
+**Aus Linux-VM Richtung on-prem AD direkt:** weiterhin nicht abbildbar — Architektur sieht das auch nicht vor. Schreiben gehoert in den Windows-Worker.
 
 ### Z21-Verifikationsluecken
 
@@ -311,7 +315,7 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 
 1. **✅ Z21-S1 done (2026-05-12) · Simulation klar als Simulation markieren.** `ActionDefinitionDto.IsSimulated` (abgeleitet aus `handler_type LIKE 'simulated_%'`) im Backend. FE: „Simuliert"-Badge im `WorkflowBuilderActionEditor` neben jeder simulierten Aktion + Hinweis im Dropdown. Admin-Dashboard: Simulation-Hinweis-Banner im `AdminOverviewWorkspaceSection` mit Link zum Aktionskatalog. CSS: `.wf-action-sim-badge`, `.admin-sim-notice`. Tests: `ActionDefinitionDto_IsSimulated_DerivedFromHandlerType` (Theory, 6 Faelle).
 2. **🔴 Storno fuer laufende Workflows einfuehren.** Neuer `POST /workflows/{uid}/cancel` mit Grund-Pflichtfeld, Uebergang in `cancelled`, Tasks automatisch `cancelled`, Notifications stoppen, Audit-Eintrag. UI-Button in `WorkflowManagementPanel` fuer HR/Admin bei `running`-Status.
-3. **🟠 Hybrid-AD-Architekturentscheidung treffen — vor jeder weiteren Automation-Arbeit.** „Entra fuehrt, AD Connect zieht zurueck" vs. „AD on-prem fuehrt + Windows-Worker". Beide Pfade dokumentieren in `KauthWorkflow/Architektur/Entscheidungen.md`.
+3. **✅ Z21-S2 done (2026-05-12) · Hybrid-AD-Architekturentscheidung getroffen.** AD on-prem fuehrt; schreibende Lifecycle-Aktionen laufen ueber einen dedizierten Windows-Worker, `EntraGraphClient` bleibt read-only. Doku in `KauthWorkflow/Architektur/Entscheidungen.md` (Abschnitt „AD/Entra-Schreibrichtung") + `KauthWorkflow/Architektur/Migrationspfad.md` (Etappe 9a mit 4-Schritte-Zielbild) + `PROJECT_CONTEXT.md` (Guardrail). Sub-Entscheidungen (Deployment / Transport / Schreibmechanik / Auth / Audit) bewusst offen — eigener Plan-Mode-Slice vor Code-Arbeit.
 4. **🟠 Builder fachsprachlicher machen.** Mapping-Editor mit menschlich lesbaren Labels, Condition-Wording weniger technisch, technische Keys nur im Power-Modus.
 5. **🟡 Workflow-Detail- und Listen-Ergonomie auflockern.** Tabs auf Workflow-Detail, klarere Listen-Trennung Worker/Manager, Runtime-Sichtbarkeit fuer blockierte/fehlgeschlagene Mail-Dispatches.
 
