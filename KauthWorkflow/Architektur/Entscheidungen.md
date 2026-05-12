@@ -140,13 +140,37 @@ Schreibende Lifecycle-Aktionen (Konto anlegen/deaktivieren, Gruppenmitgliedschaf
 - **Option 1 (Entra führt, Graph-only):** technisch leichter und in Wochen machbar, widerspricht aber dem on-prem-Primat der IT-Landschaft.
 - **Option 3 (Beidseitige Spiegelung):** doppelte Idempotenz, komplexe Konfliktauflösung, kein realer Mehrwert gegenüber AD Connect.
 
-**Folge-Entscheidungen offen** (parkiert in [[Migrationspfad]] Etappe 9a — bewusst nicht in diesem Slice festgelegt):
+**Folge-Entscheidungen:** entschieden 2026-05-12 als Migrationspfad-Etappe 9a Schritt 1 — siehe nächster Abschnitt "Hybrid-Worker-Sub-Architektur".
 
-- Worker-Deploymentmodell: dedizierte Windows-VM vs. domain-joined Container vs. Azure-Hybrid-Worker
-- Kommunikationsweg API↔Worker: DB-Polling über Tunnel vs. HTTPS-Pull vs. Service-Bus/Queue
-- AD-Schreibmechanik: `System.DirectoryServices.Protocols` (LDAPS) vs. PowerShell-Modul `ActiveDirectory` vs. ADSI
-- Authentisierung des Workers in der Domäne: Service-Account vs. Group Managed Service Account (gMSA)
-- Audit-Rückkanal: wer schreibt `automation_job_attempts`/`_logs` zurück in die zentrale Postgres-DB
+---
+
+### Hybrid-Worker-Sub-Architektur (2026-05-12, Migrationspfad-Etappe 9a Schritt 1)
+
+Die in Z21-S2 parkierten Sub-Entscheidungen sind festgezurrt, ergänzt um zwei zusätzliche Punkte (Postgres-Auth, Job-Claim-Sicherheit), die im Plan-Review aufgekommen sind. Stakeholder-Inputs: Linux-API und Windows-Worker beide on-prem im selben Subnetz/VPN; AD-Domäne ≥ 2012R2 mit gMSA-Unterstützung.
+
+1. **Worker-Deployment**: dedizierte Windows-Server-VM (domain-joined). Domain-joined Container und Azure-Hybrid-Worker verworfen.
+2. **Transport API↔Worker**: DB-Polling auf zentrale Postgres mit `target_runtime`-Diskriminator. HTTPS-Pull und Message-Queue verworfen.
+3. **AD-Schreibmechanik**: `System.DirectoryServices.Protocols` (LDAPS) auf .NET 8. Worker läuft unter gMSA-Kontext, `AuthType.Negotiate` nutzt diesen Kontext transparent — keine expliziten Credentials. PowerShell-Modul und ADSI verworfen.
+4. **Domänen-Auth**: gMSA. Löst ausschließlich die AD-Authentisierung, nicht die DB-Auth.
+5. **Audit-Rückkanal**: Worker schreibt direkt in zentrale `automation_jobs` + `automation_job_attempts`. HTTP-Callback und lokales Logfile + Sync verworfen. Konkrete GRANT-Form (View vs. Row Level Security vs. breitere Rechte) gehört in den Schritt-2-Slice.
+6. **Postgres-Auth des Workers**: eigener DB-Login `kauth_worker` mit Passwort in DPAPI-geschützter Konfig auf der Worker-VM (maschinen- und service-user-gebunden). Postgres-GSSAPI als denkbarer Folge-Slice, wenn die DB-Umgebung das trägt — bis dahin DPAPI.
+7. **Job-Claim-Sicherheit**: `SELECT … FOR UPDATE SKIP LOCKED` + `claimed_at`/`claimed_by`-Spalten in der `target_runtime`-Migration. Heartbeat-Frequenz, Timeout-Schwellwert und Requeue-Verantwortung werden im Schritt-2-Slice konkretisiert.
+
+**Warum:** Diese sieben Entscheidungen bilden zusammen die Architektur des Windows-Workers vollständig ab. Mit ihnen ist Etappe 9a Schritt 2 (Worker-Skeleton) als Code-Slice konkret beschreibbar, und damit löst sich auch der einzige offene HIGH-Slice `TODO.md Z21-S4` aus seiner Blockierung.
+
+**Konsequenz:**
+- Der Stack bekommt eine neue Windows-Server-VM. Betriebskosten und Patching-Pflicht werden bewusst akzeptiert.
+- Schema-Migration in Schritt 2: `automation_jobs` bekommt `target_runtime`, `claimed_at`, `claimed_by`, `heartbeat_at`.
+- Der `WorkflowAutomationHostedService` (Linux-API) bleibt **Orchestrator**: erstellt Jobs mit `target_runtime='windows_worker'`, der Worker holt sie. Linux-API führt weiter `target_runtime IS NULL`-Jobs selbst aus (Simulationsmodus + alle künftigen Linux-fähigen Handler).
+- gMSA und DB-Login sind **getrennte** Auth-Pfade. AD-Auth läuft transparent (kein Secret), DB-Auth über DPAPI-geschützte Konfig.
+
+**Verworfen** (Details in [[Hybrid-Worker-Sub-Architektur]]): Windows-Container für gMSA, HTTPS-Pull-Transport, PowerShell-AD-Modul, klassischer Service-Account, Postgres-GSSAPI als V1 (zu viele Vorbedingungen am Postgres-Host), Plain-Text-DB-Konfig, Vault-Secret-Store.
+
+**Vorbedingungen für Live-Inbetriebnahme** (nicht für Code-Skeleton):
+- Domain-Admin legt `gMSA-KauthWorker$` an und installiert es per `Install-ADServiceAccount` auf der Worker-VM.
+- Postgres-User `kauth_worker` anlegen + DPAPI-Setup-Skript auf der Worker-VM.
+
+**Folge-Slice:** Etappe 9a Schritt 2 (Worker-Skeleton) — Windows-Service in eigenem Repo-Verzeichnis, DB-Migration für die genannten Spalten, ein simulierter Handler. Eigener Plan-Mode-Slice vor Start.
 
 ---
 

@@ -28,7 +28,7 @@ Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mo
 
 | ID | Aufgabe | Prio | Status | Nutzen |
 | --- | --- | --- | --- | --- |
-| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten: Handler-Vertrag, Ausfuehrungsort, Credentials, Secret-Rotation, Retry/Idempotenz, Audit und Rollback-Grenzen. | HIGH | offen — blockiert bis Migrationspfad-Etappe 9a Schritt 1 entschieden (Worker-Deployment, Transport, AD-Schreibmechanik, Auth, Audit-Rueckkanal) | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
+| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten: Handler-Vertrag, Ausfuehrungsort, Credentials, Secret-Rotation, Retry/Idempotenz, Audit und Rollback-Grenzen. | HIGH | **Etappe 9a Schritt 1 ✓ 2026-05-12** (Sub-Architektur entschieden: VM, DB-Polling, LDAPS, gMSA, Direkt-Audit, DPAPI-DB-Auth, Lease-Rahmen). Naechster Code-Slice: **Etappe 9a Schritt 2** (Worker-Skeleton + DB-Migration `target_runtime`/`claimed_at`/`heartbeat_at` + simulierter Handler + Audit-Rueckkanal). Vor Live-Inbetriebnahme (nicht vor Skeleton): gMSA in der Domaene anlegen + `Install-ADServiceAccount`; Postgres-User `kauth_worker` + DPAPI-Setup-Skript auf der Worker-VM. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
 
 ## Nachgelagert
 

@@ -147,6 +147,8 @@ Die Zielarchitektur besteht aus diesen Schichten:
 - Nur freigegebene, validierte Actions
 - Schreibrichtung ist on-prem-AD-fuehrend: schreibende Lifecycle-Aktionen laufen ueber einen dedizierten Windows-Worker, nicht direkt aus der Linux-API
 - Kein direkter Graph-Schreibpfad: `EntraGraphClient` bleibt read-only, Entra wird ausschliesslich ueber AD Connect nachgefuehrt
+- Schreibender Worker laeuft unter gMSA-Kontext und schreibt per LDAPS (`System.DirectoryServices.Protocols`) — kein Klartext-Service-Account in AD, kein PowerShell-Subprozess, kein Graph-Schreibpfad
+- Postgres-Zugriff des Workers nutzt einen eigenen DB-Login mit Passwort aus DPAPI-geschuetzter Konfig (maschinen- und service-user-gebunden) — gMSA loest AD-Auth, nicht DB-Auth
 
 ### Migration statt Big Bang
 - Bestehende Prozesse bleiben zunaechst lauffaehig.

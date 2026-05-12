@@ -33,7 +33,7 @@
 ## Current Focus
 
 - **Z21 vollstaendig abgearbeitet** am 2026-05-12 bis auf den blockierten HIGH-Slice. Detail-Belege in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21". Verifikation via `./scripts/verify-prod-ready.sh` (alle 5 deterministischen Checkpoints gruen).
-- **Einziger aktiver offener Slice** in `TODO.md`: **Z21-S4 Realer Automation-Pfad** — **blockiert** bis Migrationspfad-Etappe 9a Schritt 1 entschieden ist (Worker-Deploymentmodell, Transport API↔Worker, AD-Schreibmechanik, Domaen-Authentisierung, Audit-Rueckkanal). Vor Code-Arbeit Plan-Mode-Slice (opus + plan-mode an) zur Festlegung der fuenf Sub-Entscheidungen.
+- **Einziger aktiver offener Slice** in `TODO.md`: **Z21-S4 Realer Automation-Pfad**. **Etappe 9a Schritt 1 ✓ entschieden 2026-05-12** — siehe `KauthWorkflow/Architektur/Entscheidungen.md` § "Hybrid-Worker-Sub-Architektur" (7 Sub-Entscheidungen: VM/DB-Polling/LDAPS/gMSA/Direkt-Audit/DPAPI-DB-Auth/Lease-Rahmen). Naechster Code-Slice ist **Etappe 9a Schritt 2 (Worker-Skeleton)**: Windows-Service in eigenem Repo-Verzeichnis (z. B. `worker/AdAutomationWorker/`), DB-Migration fuer `target_runtime`+`claimed_at`+`claimed_by`+`heartbeat_at`, ein simulierter Handler, DPAPI-Setup-Skript. Aufwand ~2–3 Tage, eigener Plan-Mode-Slice vor Start.
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

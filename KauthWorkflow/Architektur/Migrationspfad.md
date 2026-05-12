@@ -46,7 +46,7 @@ Primärquelle im Repo: `PROJECT_CONTEXT.md`
 | 7 | Task-System an Node-Runtime anbinden | ✓ erledigt (Zyklus 7, 2026-05-05: Lifecycle-Service als Commit-Grenze + Validation-Split abgeschlossen) |
 | 8 | Generische Validierung einführen | ✓ erledigt (CLA-4, DAG-Erreichbarkeitscheck + Publish-Guard) |
 | 9 | Automation Layer bauen | Basis da, echte Handler fehlen |
-| 9a | Schreibender Automation-Layer (Windows-Worker, AD on-prem führt) | offen — Architektur entschieden 2026-05-12 (Z21-S2), Sub-Entscheidungen offen |
+| 9a | Schreibender Automation-Layer (Windows-Worker, AD on-prem führt) | Sub-Architektur entschieden 2026-05-12; Schritt 2 (Worker-Skeleton) freigegeben |
 | 10 | Guided Builder ausbauen | Basis da |
 | 11 | Altwelt gezielt zurückbauen | nach Parität |
 
@@ -94,12 +94,14 @@ Bis Etappe 9a abgeschlossen ist, bleibt der Automation-Layer offiziell im Simula
 
 **Zielbild in vier Schritten:**
 
-1. **Sub-Architekturfragen klären** (eigener Plan-Mode-Slice, vor jeder Code-Arbeit):
-   - Worker-Deploymentmodell: Windows-VM vs. domain-joined Container vs. Azure-Hybrid-Worker
-   - Transport API↔Worker: DB-Polling über Tunnel vs. HTTPS-Pull vs. Service-Bus/Queue
-   - Schreibmechanik: `System.DirectoryServices.Protocols` (LDAPS) vs. PowerShell `ActiveDirectory` vs. ADSI
-   - Authentisierung in der Domäne: Service-Account vs. gMSA
-   - Audit-Rückkanal: wer schreibt `automation_job_attempts`/`_logs` in die zentrale DB
+1. **Sub-Architekturfragen klären** ✓ entschieden 2026-05-12 — siehe [[Entscheidungen]] § "Hybrid-Worker-Sub-Architektur":
+   - Worker-Deployment: dedizierte Windows-VM (domain-joined)
+   - Transport: DB-Polling auf zentrale Postgres mit `target_runtime`-Diskriminator
+   - AD-Schreibmechanik: `System.DirectoryServices.Protocols` (LDAPS), `AuthType.Negotiate` unter gMSA-Kontext
+   - Domänen-Auth: gMSA
+   - Audit-Rückkanal: direkt in `automation_jobs` + `automation_job_attempts`
+   - Postgres-Auth des Workers: eigener Login `kauth_worker` + DPAPI-Konfig
+   - Job-Claim-Sicherheit: `FOR UPDATE SKIP LOCKED` + Lease-Spalten; Heartbeat-Detail in Schritt 2
 2. **Worker-Skeleton:** Windows-Service-Skeleton, ein simulierter Handler, funktionierender Audit-Rückkanal in die zentrale `automation_jobs`-Tabelle. Noch kein realer AD-Zugriff — nur der Transport- und Audit-Pfad steht.
 3. **Erster echter Handler:** `CreateAdUser` als LDAP- bzw. PowerShell-Schreiber gegen einen Test-DC. Idempotenz, Retry, Audit, klare Fehlerklassifikation.
 4. **Migration der `simulated_*`-Handler:** schrittweise Ablösung von `simulated_directory`, `simulated_mailbox`, `simulated_directory_groups`, `simulated_erp`, `simulated_welcome_mail`. Action-Katalog enthält am Ende keinen `simulated_*`-Eintrag mehr, die `IsSimulated`-Banner aus Z21-S1 verschwinden naturgemäß.

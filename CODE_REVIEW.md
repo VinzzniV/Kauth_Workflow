@@ -86,11 +86,13 @@ Sichtbare Markierung erledigt (Z21-S1); Runtime-Fehlersicht erledigt (TODO Z21-S
 
 **Loest sich mit:** Z21-S4 nach Entscheidung Migrationspfad-Etappe 9a Schritt 1.
 
-**Z21-P0-2 · Hybrid-AD-Schreibpfad fehlt** — Richtung entschieden (Z21-S2), Implementation offen
+**Z21-P0-2 · Hybrid-AD-Schreibpfad fehlt** — Richtung + Sub-Architektur entschieden, Code-Implementation offen
 
-Entscheidung dokumentiert in `KauthWorkflow/Architektur/Entscheidungen.md` + `Migrationspfad.md` Etappe 9a + `PROJECT_CONTEXT.md`-Guardrail.
+Entscheidung dokumentiert in `KauthWorkflow/Architektur/Entscheidungen.md` (Z21-S2 + Hybrid-Worker-Sub-Architektur 2026-05-12) + `Migrationspfad.md` Etappe 9a + `PROJECT_CONTEXT.md`-Guardrail.
 
-**Resthebel:** Worker-Skeleton, Transport API↔Worker, AD-Schreibmechanik, Domaen-Authentisierung, Audit-Rueckkanal. Eigener Etappenpfad, vor Code-Arbeit Plan-Mode-Slice zur Festlegung der fuenf Sub-Entscheidungen.
+**Etappe 9a Schritt 1 ✓ 2026-05-12** — Sub-Architektur entschieden (VM/DB-Polling/LDAPS/gMSA/Direkt-Audit/DPAPI/Lease-Rahmen).
+
+**Resthebel ab jetzt:** Worker-Skeleton (Schritt 2: Windows-Service-Skeleton + DB-Migration fuer `target_runtime`/Lease-Spalten + simulierter Handler), erster echter Handler (Schritt 3), Migration der `simulated_*`-Handler (Schritt 4).
 
 ---
 
