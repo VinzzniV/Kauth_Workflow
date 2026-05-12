@@ -24,6 +24,9 @@ For rotation / department-rotation work also read:
 - `CODE_REVIEW.md`
 - `TODO.md`
 
+For product / UX / production-readiness slices from the active Z21 review also read:
+- `PROD_TODO.md` (Slice-Reihenfolge, Aufwand, Reasoning-/Modell-/Plan-Mode-Empfehlung pro Slice)
+
 For architecture, migration, runtime, or data-model work also read:
 - `KauthWorkflow/Architektur/Zielarchitektur.md`
 - `KauthWorkflow/Architektur/Entscheidungen.md`

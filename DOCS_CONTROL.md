@@ -33,6 +33,7 @@ Vor allen nicht-trivialen Aenderungen:
 
 Zusaetzlich je nach Aufgabe:
 - `CODE_REVIEW.md` und `TODO.md` bei allen Aufgaben zum Rotations-/Durchlauf-Feature oder bei Review-Nacharbeit
+- `PROD_TODO.md` bei allen Produkt-/UX-/Produktionsreife-Slices aus dem aktiven Z21-Review (Slice-Reihenfolge + Reasoning-/Modell-Empfehlung pro Slice)
 - `PROJECT_STRUCTURE.md` fuer Dateilayout, Module und Einstiegspunkte
 - `KauthWorkflow/00 Start.md` fuer Vault-Navigation und Lesepfade
 - `KauthWorkflow/Architektur/Zielarchitektur.md` fuer das stabile Sollbild
@@ -68,6 +69,7 @@ Verwende diese Dateien bewusst:
 - aeltere Claude/Codex-Handoffs → `CODEX_SYNC_ARCHIVE.md`
 - lokale Setup-, Deploy- und Laufzeitdoku → `KauthWorkflow/Betrieb/Setup.md`
 - priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature → `TODO.md`
+- Produkt-/UX-/Produktionsreife-Slices aus Z21 (Reihenfolge + Reasoning-/Modell-Profil) → `PROD_TODO.md`
 - Claude-Steuerung unter Codex-Orchestrierung → `CLAUDE_CONTROL.md`
 - Frontend-spezifische Orientierung → `web/README.md`
 
