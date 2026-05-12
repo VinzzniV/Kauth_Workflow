@@ -26,7 +26,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 
 ---
 
-## Gesamtbewertung (Stand 2026-05-11 — **Z20 vollstaendig abgeschlossen**, S1+B1+B2+B3+B4 done; Z19 vollstaendig abgeschlossen 2026-05-11; Z18 + Entra-Retrofit-Block am 2026-05-08 abgeschlossen.)
+## Gesamtbewertung (Stand 2026-05-12 — **Z21 Produkt-/Funktions-/UX-Review aktiv**; Z20 vollstaendig abgeschlossen 2026-05-11; Z19 vollstaendig abgeschlossen 2026-05-11; Z18 + Entra-Retrofit-Block am 2026-05-08 abgeschlossen.)
 
 | Bereich | Note | Hauptgrund |
 |---------|------|-----------|
@@ -39,6 +39,22 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | Skalierbarkeit | B- | Workflow-Task-Filter SQL-pre-narrowed |
 | Sicherheit | B+ | `/client/log-events` rate-limited; dev-sim-Guard verifiziert |
 | Lesbarkeit | B+ | Konventionen durchgaengig; grobe Monolithen reduziert, Resthebel liegen eher bei Lastpfaden als bei Strukturhygiene |
+
+---
+
+## Aktiver Zyklus 21 — Produkt-/Funktions-/UX-Review (2026-05-12)
+
+**Praktisch:** Der Code-Stand ist technisch weit, aber die Frage ist jetzt, ob Endnutzer die Funktionen sicher verwenden koennen und ob der Betrieb produktiv verantwortbar ist.
+
+**Verifizierte Hauptbefunde:**
+- **P0:** Automation ist aktuell nur Simulation (`SimulatedWorkflowAutomationHandlers`) und im Builder/Action-Katalog nicht unuebersehbar als Simulation markiert.
+- **P0:** Fuer on-prem AD gibt es keinen implementierten Schreibpfad, keinen LDAP-/PowerShell-/Windows-Worker und keinen sicheren Kanal. Linux-AD-Zugriff waere technisch moeglich, ist in diesem Projekt aber nicht gebaut.
+- **P0:** Laufende Workflow-Instanzen haben keinen Cancel-/Storno-Endpunkt; `archive` gilt nur fuer completed, `delete` nur fuer draft.
+- **P1:** Der Workflow-Builder ist fuer Power-User brauchbar, bleibt aber bei Mappings und technischen Keys zu entwicklernah.
+
+**Korrigierte Claude-Einschaetzungen:** Builder-Dirtystate ist bereits sichtbar (`Ungespeichert`, `Speichern`, `Verwerfen`); Mail-Konfiguration hat Admin-Warnungen und Save-Guards; Conditions haben einen Formularmodus. Diese Punkte sind keine harten aktiven Fehler, sondern hoechstens Resthebel.
+
+**Naechster Schritt:** Entweder Z21-P0-1 Simulation klar markieren oder Z21-P0-3 Workflow-Storno bauen. Echte Automation erst nach dokumentierter Hybrid-AD-Entscheidung.
 
 ---
 
@@ -66,6 +82,7 @@ Jedes Review-Finding und jeder Slice in dieser Datei wird neben dem technischen 
 | 18 | 2026-05-08 | Frontend Full Review — **vollstaendig abgeschlossen** (alle 9 Findings: S2 Batch A, S3 Batch B, S4 F4 Redirect) |
 | 19 | 2026-05-11 | Backend Full Review / Holistic Audit — **vollstaendig abgeschlossen 2026-05-11** (alle Slices S1..S9 done) |
 | 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — **vollstaendig abgeschlossen** (S1+B1+B2+B3+B4 done) |
+| 21 | 2026-05-12 | Produkt-/Funktions-/UX-Review — **aktiv** (Automation-Simulation, Hybrid-AD, Workflow-Storno, Builder-UX) |
 
 ---
 
