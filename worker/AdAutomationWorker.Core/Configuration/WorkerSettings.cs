@@ -15,4 +15,22 @@ public sealed class WorkerSettings
     public int StaleClaimTimeoutMinutes { get; set; } = 5;
 
     public int ClaimBatchSize { get; set; } = 1;
+
+    public AdSettings Ad { get; set; } = new();
 }
+
+// Konfig fuer LDAPS-Verbindungen. Wird vom Host-Adapter `LdapsAdUserWriter` konsumiert; der
+// Core selbst macht damit nichts.
+public sealed class AdSettings
+{
+    // FQDN eines erreichbaren DCs, z.B. "dc01.example.local". Wird im Klartext fuer die LDAPS-
+    // Connection benutzt. Kein Plural-Failover in V1 — fuer Multi-DC kommt in einem Folge-Slice
+    // ein dedizierter Connection-Pool.
+    public string DcHost { get; set; } = string.Empty;
+
+    // Base-DN fuer Pre-Search (z.B. "DC=example,DC=local"). Subtree-Scope.
+    public string BaseDn { get; set; } = string.Empty;
+
+    public int ConnectionTimeoutSeconds { get; set; } = 30;
+}
+

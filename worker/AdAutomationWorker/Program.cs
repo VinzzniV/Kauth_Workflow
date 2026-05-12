@@ -1,5 +1,7 @@
 using AdAutomationWorker;
+using AdAutomationWorker.Ad;
 using AdAutomationWorker.Configuration;
+using AdAutomationWorker.Core.Ad;
 using AdAutomationWorker.Core.Configuration;
 using AdAutomationWorker.Core.Handlers;
 using AdAutomationWorker.Core.Handlers.Simulated;
@@ -20,7 +22,9 @@ builder.Services.AddSingleton<IWorkerJobStore>(sp =>
     return new PostgresWorkerJobStore(loader.Load());
 });
 
+builder.Services.AddSingleton<IAdUserWriter, LdapsAdUserWriter>();
 builder.Services.AddSingleton<IWorkerHandler, SimulatedWindowsWorkerPingHandler>();
+builder.Services.AddSingleton<IWorkerHandler, CreateAdUserLdapsHandler>();
 builder.Services.AddSingleton<HandlerRegistry>();
 builder.Services.AddSingleton<WorkerHeartbeatLoop>();
 builder.Services.AddHostedService<WorkerHostedService>();

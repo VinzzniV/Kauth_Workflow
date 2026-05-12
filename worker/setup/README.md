@@ -107,3 +107,29 @@ Workflow mit Payload `{"delaySeconds": 120}` starten. Sobald der Worker den Job 
 Delay ist, Worker per Ctrl-C killen. `automation_jobs.status` bleibt `running`, `heartbeat_at`
 veraltet. Worker neu starten — der `ReleaseStaleClaimsAsync`-Schritt setzt den Job vor dem
 naechsten Claim auf `pending` zurueck, der Worker pickt erneut, faehrt durch.
+
+## E2E `CreateAdUserLdaps` gegen Test-DC (Schritt 3, Pflicht-Verifikation)
+
+1. DB-Seed sicherstellen (`db/manual/2026-05-12_seed_create_ad_user_ldaps_action.sql` einspielen
+   oder Dev-Seed neu laden).
+2. Worker `appsettings.Development.json` (oder Prod-`appsettings.json`) auf den Test-DC zeigen
+   lassen: `Worker.Ad.DcHost`, `Worker.Ad.BaseDn` ausfuellen.
+3. gMSA-Setup wie oben durchgefuehrt; Service unter dem gMSA gestartet.
+4. Im Builder Workflow bauen mit Action `CreateAdUserLdaps`. Pflicht-Input-Mapping:
+   - `samAccountName` (z. B. aus `target_person.employeeNumber`-Mapping mit deterministischer Praefixierung)
+   - `userPrincipalName` (aus `directory_identity.userPrincipalName` oder konstruiert)
+   - `displayName`, `givenName`, `surname`, `mail`
+   - `targetOu` als Distinguished Name der Ziel-OU, z. B. `OU=Test-Sales,OU=Users,DC=test,DC=local`
+   - optional `employeeNumber`
+5. Workflow starten. In DB:
+   - `automation_jobs.target_runtime='windows_worker'`, durchlaeuft pending → running → succeeded.
+   - `automation_job_attempts.output_json` enthaelt `distinguishedName`, `samAccountName`,
+     `userPrincipalName`, `temporaryPassword`, `mustChangePasswordAtNextLogon=true`.
+   - `completion_processed_at` wird vom Sweeper gesetzt, Workflow ist am Automation-Node vorbei.
+6. In AD: `Get-ADUser <sam> -Properties pwdLastSet,userAccountControl,mail,employeeID` zeigt
+   den User mit `pwdLastSet=0` und aktivem Account.
+7. **Idempotenz-Test:** Workflow erneut starten (selbe Person) → Output liefert
+   `alreadyExisted: true`, kein zweiter Eintrag, kein `temporaryPassword`.
+8. **Permanent-Fail-Test:** Workflow mit ungueltigem `targetOu` (`OU=Nope,DC=test,DC=local`) →
+   Job `failed`, `error_message` enthaelt `LDAP 32`. Sweeper finalisiert, Workflow geht in den
+   konfigurierten Fehler-Pfad.
