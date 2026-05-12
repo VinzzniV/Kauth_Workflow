@@ -13,12 +13,12 @@
 
 ## Verwandte Dateien
 
-- `TODO.md` — aktiver, einziger offener Slice (Z21-S4, blockiert)
-- `PROD_TODO.md` — abgeschlossener Slice-Plan + Mapping
+- `TODO.md` — aktiver, einziger offener Slice (Z21-S4, Etappe 9a Schritt 3 als naechster Code-Slice)
+- `PROD_TODO.md` — abgeschlossener Slice-Plan + Mapping zwischen den Z21-Nummerierungen
 - `MEMORY.md` — aktueller Fokus
 - `CODE_REVIEW_ARCHIVE.md` — vollstaendige Detail-Historie
 - `KauthWorkflow/Stand/Code-Review-Status.md`
-- `KauthWorkflow/Architektur/Migrationspfad.md` — Etappe 9a entscheidet Z21-S4
+- `KauthWorkflow/Architektur/Migrationspfad.md` — Etappe 9a-Detail
 
 ---
 
@@ -34,7 +34,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet bis auf den blockierten Folge-Slice. Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh`. Aktive Resthebel: P0-1 Automation-Layer real (haengt an Z21-S4), P0-2 Hybrid-AD-Implementation (eigene Etappe 9a), kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
+**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet. Migrationspfad-Etappe 9a Schritt 1 (Sub-Architektur) und Schritt 2 (Worker-Skeleton + External-Completion-Sweeper) sind durch. Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh` (jetzt 7 Checkpoints inkl. Worker.Core-Build + Worker-Tests). Aktive Resthebel: P0-1/P0-2 Etappe 9a Schritt 3 (erster echter Handler `CreateAdUser`), plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
 
 ---
 
@@ -80,11 +80,11 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 **Z21-P0-1 · Automation-Layer ist End-to-End nur Simulation**
 
-Sichtbare Markierung erledigt (Z21-S1); Runtime-Fehlersicht erledigt (TODO Z21-S5). Echte Handler fehlen weiter — alle 5 registrierten Action-Handler erben von `SimulatedWorkflowAutomationActionHandler`, `EntraGraphClient` ist read-only.
+Sichtbare Markierung erledigt (Z21-S1); Runtime-Fehlersicht erledigt (TODO Z21-S5). Echte Handler fehlen weiter — die Linux-API-Handler erben von `SimulatedWorkflowAutomationActionHandler`, `EntraGraphClient` ist read-only. Der Windows-Worker hat seit Schritt 2 ein lauffaehiges Skeleton + einen simulierten Handler (`simulated_windows_worker_ping`); der erste echte AD-Handler kommt in Schritt 3.
 
 **Praktisch:** Workflows mit `CreateAdUser` + `SendWelcomeMail` laufen „succeeded" durch, ohne dass in AD/Entra/Mail etwas passiert. Heute durch Badge + Banner sichtbar, aber nicht behoben.
 
-**Loest sich mit:** Z21-S4 nach Entscheidung Migrationspfad-Etappe 9a Schritt 1.
+**Loest sich mit:** Migrationspfad-Etappe 9a Schritt 3.
 
 **Z21-P0-2 · Hybrid-AD-Schreibpfad fehlt** — Richtung + Sub-Architektur entschieden, Code-Implementation offen
 

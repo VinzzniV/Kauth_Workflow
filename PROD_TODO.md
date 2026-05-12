@@ -4,7 +4,7 @@
 
 Der Z21-Slice-Plan (PROD_TODO Z21-S1..S6 + S5b) ist vollständig durch. Detail-Belege liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung"). Commit-Spuren via `git log --grep "Z21-S"`.
 
-Aktiver, offener Folge-Slice (HIGH) ist **TODO.md Z21-S4 „Realer Automation-Pfad"** — blockiert bis Migrationspfad-Etappe 9a Schritt 1 (Worker-Deployment, Transport, AD-Schreibmechanik, Auth, Audit-Rückkanal) entschieden ist.
+Aktiver, offener Folge-Slice (HIGH) ist **TODO.md Z21-S4 „Realer Automation-Pfad"** — Migrationspfad-Etappe 9a Schritt 1 (Sub-Architektur) + Schritt 2 (Worker-Skeleton + External-Completion-Sweeper) sind 2026-05-12 durch; naechster Code-Slice ist Schritt 3 (erster echter Handler `CreateAdUser` gegen Test-DC, LDAPS, gMSA-Live, DPAPI-Encryption produktiv, Linux-API-Sweep fuer stale Worker-Claims).
 
 ## Verhältnis zu `TODO.md`
 
@@ -25,7 +25,7 @@ Aktiver, offener Folge-Slice (HIGH) ist **TODO.md Z21-S4 „Realer Automation-Pf
 ## Verwandte Dateien
 
 - `CODE_REVIEW.md` — aktive offene Findings (P0-1 Automation real, P0-2 Hybrid-AD-Implementierung)
-- `TODO.md` — aktiver Plan, einzig offener Punkt Z21-S4
+- `TODO.md` — aktiver Plan, einzig offener Punkt Z21-S4 (Schritt 3)
 - `CODE_REVIEW_ARCHIVE.md` — vollstaendige Z21-Done-Historie
 - `MEMORY.md` — aktueller Fokus
 - `DOCS_CONTROL.md` — Lesereihenfolge

@@ -15,20 +15,22 @@ Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „
 
 ## Stand 2026-05-12
 
-Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
+Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 ebenfalls am 2026-05-12 durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
 - API Release-Build: ✅ gruen
 - API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; keine neuen seit 2026-05-12)
 - FE-Build: ✅ gruen
 - FE-Tests: ✅ 323 passed
 - `start-vm.sh`-Syntax: ✅ gruen
+- Worker.Core + Worker.Tests Build: ✅ gruen (deterministisch, Linux)
+- Worker Core tests: ✅ 20 passed
 
-Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials.
+Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials, Worker-Host-Build (net8.0-windows) auf einer Windows-Maschine, Skeleton-E2E mit Worker + Sweeper + Stale-Claim-Test.
 
 ## Aktive TODOs
 
 | ID | Aufgabe | Prio | Status | Nutzen |
 | --- | --- | --- | --- | --- |
-| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten: Handler-Vertrag, Ausfuehrungsort, Credentials, Secret-Rotation, Retry/Idempotenz, Audit und Rollback-Grenzen. | HIGH | **Etappe 9a Schritt 1 ✓ 2026-05-12** (Sub-Architektur entschieden). **Etappe 9a Schritt 2 ✓ 2026-05-12** (Worker-Skeleton + DB-Migration + External-Completion-Sweeper + RetryPolicy-Shared). Naechster Code-Slice: **Etappe 9a Schritt 3** — erster echter Handler `CreateAdUser` gegen Test-DC, LDAPS, gMSA-Live, DPAPI-Encryption produktiv, Linux-API-Sweep fuer stale Worker-Claims, klare Error-Codes. Eigener Plan-Mode-Slice vor Start; Aufwand ~3–5 Tage. Vor Live-Inbetriebnahme (nicht vor Skeleton-E2E): gMSA in der Domaene anlegen + `Install-ADServiceAccount`; Postgres-User `kauth_worker` mit den GRANTs aus dem Skeleton-Plan auf der Worker-VM. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
+| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 ✓ 2026-05-12. **Naechster Code-Slice: Etappe 9a Schritt 3** — erster echter Handler `CreateAdUser` gegen Test-DC (LDAPS, gMSA-Live, DPAPI-Encryption produktiv, Linux-API-Sweep fuer stale Worker-Claims, klare Error-Codes). Eigener Plan-Mode-Slice vor Start; Aufwand ~3–5 Tage. Vor Live-Inbetriebnahme: gMSA in der Domaene anlegen + `Install-ADServiceAccount`; Postgres-User `kauth_worker` mit den GRANTs aus dem Skeleton-Plan auf der Worker-VM. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
 
 ## Nachgelagert
 
