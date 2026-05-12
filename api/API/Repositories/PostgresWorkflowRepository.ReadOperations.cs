@@ -20,7 +20,8 @@ internal sealed partial class PostgresWorkflowRepository
     {
         var narrowingClause = narrowing.HasValue
             ? @"
-  AND w.status <> 'completed'
+  AND w.status NOT IN ('completed', 'cancelled')
+  AND t.status <> 'cancelled'
   AND EXISTS (
       SELECT 1
       FROM task_assignments wta

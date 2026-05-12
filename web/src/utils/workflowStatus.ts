@@ -8,7 +8,7 @@ function normalizeWorkflowStatus(status: string): string {
 
 export function isWorkflowTerminalStatus(status: string): boolean {
   const normalized = normalizeWorkflowStatus(status);
-  return normalized === "completed";
+  return normalized === "completed" || normalized === "cancelled";
 }
 
 export function isDepartmentWorkflowPhase(status: string): boolean {
@@ -25,6 +25,7 @@ function normalizeWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus |
     case "waiting_for_supervisor":
     case "waiting_for_department":
     case "completed":
+    case "cancelled":
       return normalized;
     default:
       return null;
@@ -44,6 +45,8 @@ export function getWorkflowRuntimeStatusPillClass(status: string): string {
   switch (runtimeStatus) {
     case "completed":
       return "completed";
+    case "cancelled":
+      return "cancelled";
     case "draft":
       return "open";
     case "waiting_for_supervisor":
@@ -70,6 +73,8 @@ export function getWorkflowRuntimeStatusLabel(
       return variant === "action" ? "Fachbereiche bearbeiten Aufgaben" : "Fachbereiche offen";
     case "completed":
       return "Abgeschlossen";
+    case "cancelled":
+      return "Storniert";
     default:
       return status;
   }

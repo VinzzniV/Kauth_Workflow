@@ -13,7 +13,8 @@ public static class TaskStatusRules
 
     public static readonly HashSet<string> TerminalTaskStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "done"
+        "done",
+        "cancelled"
     };
 
     public static readonly IReadOnlyDictionary<string, HashSet<string>> AllowedTaskTransitions =

@@ -104,6 +104,9 @@ export function useCancelWorkflow() {
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.tasks(uid) });
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.auditLog(uid, 50, 0) });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
+      // Storno blendet offene Tasks aus Worker-Inbox + Supervisor-Workflows aus.
+      queryClient.invalidateQueries({ queryKey: queryKeys.myTasks() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.supervisorWorkflows() });
     },
   });
 }
