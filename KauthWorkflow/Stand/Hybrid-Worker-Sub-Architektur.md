@@ -131,8 +131,14 @@ Beim Polling muss klar sein, was passiert, wenn der Worker einen Job abholt und 
 
 ---
 
+## Schritt 3 (✓ 2026-05-12) — Erster echter LDAPS-Handler + DPAPI produktiv
+
+`CreateAdUserLdaps` (Action ID 7, parallel zur Simulation ID 1) schreibt AD-User via LDAPS unter dem gMSA-Kontext. Layering: `IAdUserWriter`/`AdUserSpec`/`AdWriteOutcome` plattform-neutral im Core, `LdapsAdUserWriter` (`System.DirectoryServices.Protocols`, `AuthType.Negotiate`) im net8.0-Windows-Host. Idempotenz: Pre-Search + Race-Fallback bei `EntryAlreadyExists` (Code 68). Initial: Enabled mit CSPRNG-Random-Passwort + `pwdLastSet=0`. Minimal-Whitelist im Writer: Codes 49/50/32/21/19 → `PermanentFailure`, sonst `TransientFailure`. Bewusst akzeptierte Trade-offs (siehe [[Entscheidungen]]): `temporaryPassword` im `output_json`, `is_idempotent=true` ohne differenzierte Klassifikation.
+
+DPAPI: `IDbConfigDecryptor` im Core, `WindowsDpapiDecryptor` (Scope LocalMachine) im Host. `install-db-config.ps1` Default schreibt `db.config.dpapi`; `-PlainJson` bleibt als Dev-Fallback mit Warn-Log. `install-windows-service.ps1` setzt den gMSA via `sc.exe config obj=`.
+
 ## Verwandte Notizen
 
-- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2
-- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + Schritt 2 (✓ 2026-05-12)
+- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3-Update
+- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + Schritt 2 + Schritt 3 (✓ 2026-05-12)
 - [[Automation]] — Automation-Layer-Modell, in das der Worker einklinkt

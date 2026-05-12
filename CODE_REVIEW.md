@@ -34,7 +34,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet. Migrationspfad-Etappe 9a Schritt 1 (Sub-Architektur) und Schritt 2 (Worker-Skeleton + External-Completion-Sweeper) sind durch. Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh` (jetzt 7 Checkpoints inkl. Worker.Core-Build + Worker-Tests). Aktive Resthebel: P0-1/P0-2 Etappe 9a Schritt 3 (erster echter Handler `CreateAdUser`), plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
+**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 sind durch (Sub-Architektur, Worker-Skeleton + External-Completion-Sweeper, erster echter LDAPS-Handler `CreateAdUserLdaps` + DPAPI produktiv + gMSA-Switch). Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh` (7 Checkpoints; Worker-Tests jetzt 38 statt 20). Aktive Resthebel: P0-1/P0-2 Etappe 9a Schritt 4 (Error-Klassifikation generalisieren, Linux-Stale-Sweep, Vault-Pointer, Migration der restlichen `simulated_*`-Handler), plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
 
 ---
 
@@ -80,11 +80,11 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 **Z21-P0-1 · Automation-Layer ist End-to-End nur Simulation**
 
-Sichtbare Markierung erledigt (Z21-S1); Runtime-Fehlersicht erledigt (TODO Z21-S5). Echte Handler fehlen weiter — die Linux-API-Handler erben von `SimulatedWorkflowAutomationActionHandler`, `EntraGraphClient` ist read-only. Der Windows-Worker hat seit Schritt 2 ein lauffaehiges Skeleton + einen simulierten Handler (`simulated_windows_worker_ping`); der erste echte AD-Handler kommt in Schritt 3.
+Sichtbare Markierung erledigt (Z21-S1); Runtime-Fehlersicht erledigt (TODO Z21-S5). Mit Schritt 3 ist der **erste echte Handler** `CreateAdUserLdaps` (Action ID 7) als parallele AD-Anlage via LDAPS produktiv — die Migration der weiteren Handler (`CreateMailbox`, `AssignGroups`, `CreateErpEmployee`, `SendWelcomeMail`) kommt in Schritt 4.
 
-**Praktisch:** Workflows mit `CreateAdUser` + `SendWelcomeMail` laufen „succeeded" durch, ohne dass in AD/Entra/Mail etwas passiert. Heute durch Badge + Banner sichtbar, aber nicht behoben.
+**Praktisch:** Workflows mit den klassischen Actions (`CreateAdUser` ID 1, `SendWelcomeMail` etc.) laufen weiter als Simulation; Workflows, die die neue `CreateAdUserLdaps` referenzieren, schreiben echt nach AD. UI zeigt das per `IsSimulated`-Badge (Z21-S1) automatisch korrekt an, weil der Marker aus `action_definitions.handler_type LIKE 'simulated_%'` abgeleitet wird.
 
-**Loest sich mit:** Migrationspfad-Etappe 9a Schritt 3.
+**Loest sich mit:** Migrationspfad-Etappe 9a Schritt 4 (Migration der restlichen `simulated_*`-Handler).
 
 **Z21-P0-2 · Hybrid-AD-Schreibpfad fehlt** — Richtung + Sub-Architektur entschieden, Code-Implementation offen
 
@@ -92,9 +92,11 @@ Entscheidung dokumentiert in `KauthWorkflow/Architektur/Entscheidungen.md` (Z21-
 
 **Etappe 9a Schritt 1 ✓ 2026-05-12** — Sub-Architektur entschieden (VM/DB-Polling/LDAPS/gMSA/Direkt-Audit/DPAPI/Lease-Rahmen).
 
-**Etappe 9a Schritt 2 ✓ 2026-05-12** — Worker-Skeleton + DB-Migration `target_runtime`/Lease-/Sweeper-Spalten + External-Completion-Sweeper + RetryPolicy-Shared. `worker/Worker.sln` mit Core/Host/Tests, simulierter Handler `simulated_windows_worker_ping`, verifier-Gate baut Core+Tests unter Linux.
+**Etappe 9a Schritt 2 ✓ 2026-05-12** — Worker-Skeleton + DB-Migration `target_runtime`/Lease-/Sweeper-Spalten + External-Completion-Sweeper + RetryPolicy-Shared.
 
-**Resthebel ab jetzt:** Erster echter Handler `CreateAdUser` gegen Test-DC (Schritt 3: LDAPS, gMSA-Live, DPAPI-Encryption produktiv, Linux-API-Sweep fuer stale Worker-Claims), danach Migration der `simulated_*`-Handler (Schritt 4).
+**Etappe 9a Schritt 3 ✓ 2026-05-12** — Erster echter LDAPS-Handler `CreateAdUserLdaps` (Action ID 7, parallel zur Simulation ID 1) gegen on-prem-DC. Layering: Core-Handler + Windows-Host-Adapter (`System.DirectoryServices.Protocols`, `AuthType.Negotiate`, gMSA-Kontext). Idempotenz via Pre-Search + EntryAlreadyExists-Race-Fallback. CSPRNG-Random-Password mit `pwdLastSet=0` (Force-Change). DPAPI-Encryption produktiv via `IDbConfigDecryptor`+`WindowsDpapiDecryptor` (LocalMachine-Scope); `install-db-config.ps1` schreibt jetzt `db.config.dpapi` als Default. gMSA-Service-Switch via `sc.exe config obj=` in `install-windows-service.ps1`.
+
+**Resthebel ab jetzt:** Etappe 9a Schritt 4 — Error-Klassifikation generalisieren, Linux-API Stale-Worker-Claim-Sweep, Temporary-Credentials-Vault statt Klartext-Passwort im `output_json`, Migration der restlichen `simulated_*`-Handler.
 
 ---
 

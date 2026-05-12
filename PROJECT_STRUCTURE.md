@@ -195,11 +195,14 @@ Unit- und integrationsnahe Tests fuer:
 
 ## Worker: `worker/`
 
-Schreibender AD-Automation-Worker (Etappe 9a Schritt 2 — Skeleton).
+Schreibender AD-Automation-Worker (Etappe 9a Schritt 3 — erster echter LDAPS-Handler + DPAPI produktiv).
 
 - `AdAutomationWorker.Core/Polling/` — `IWorkerJobStore` + `PostgresWorkerJobStore` (atomarer Claim mit `FOR UPDATE SKIP LOCKED`, Heartbeat, Stale-Release, Complete-Pfad mit Logs). `WorkerHeartbeatLoop` als Begleitschleife waehrend Handler laeuft.
-- `AdAutomationWorker.Core/Handlers/` — `IWorkerHandler` (Worker-eigener Vertrag), `HandlerRegistry` und `Simulated/SimulatedWindowsWorkerPingHandler` (Skeleton ohne AD-Zugriff, mit optionalem `delaySeconds`-Payload fuer Stale-Tests).
-- `AdAutomationWorker.Core/Configuration/` — `WorkerSettings` und `DbConnectionStringLoader` (3-Pfad-Loader: env, DPAPI-stub, JSON-Fallback).
-- `AdAutomationWorker/` — Windows-Service-Host (`net8.0-windows`) mit `Program.cs` + `WorkerHostedService`.
-- `AdAutomationWorker.Tests/` — 20 Tests, decken Handler-Registry, Ping-Handler, Job-Store-Vertrag, Heartbeat-Loop, Connection-String-Loader ab.
-- `setup/install-db-config.ps1` (DB-Konfig schreiben, V1 Klartext), `setup/install-windows-service.ps1` (Service registrieren), `setup/README.md` (Inbetriebnahme + Skeleton-E2E).
+- `AdAutomationWorker.Core/Handlers/` — `IWorkerHandler` (Worker-eigener Vertrag), `HandlerRegistry`, `Simulated/SimulatedWindowsWorkerPingHandler` (Transport-/Audit-Test ohne AD) und `CreateAdUserLdapsHandler` (fachliche Logik fuer den ersten echten AD-User-Write; konsumiert `IAdUserWriter`).
+- `AdAutomationWorker.Core/Ad/` — plattform-neutrale AD-Vertraege: `IAdUserWriter`, `AdUserSpec`, `AdWriteOutcome` (DU: Created/AlreadyExists/Transient/Permanent), `AdPasswordGenerator` (CSPRNG, 4 Komplexitaetsklassen).
+- `AdAutomationWorker.Core/Configuration/` — `WorkerSettings` + `AdSettings`, `DbConnectionStringLoader` (3-Pfad: env, DPAPI, JSON-Fallback), `IDbConfigDecryptor` (Interface fuer DPAPI-Decrypt).
+- `AdAutomationWorker/Ad/LdapsAdUserWriter.cs` — Windows-only Implementierung des Writers (`System.DirectoryServices.Protocols`, LDAPS, gMSA via `AuthType.Negotiate`).
+- `AdAutomationWorker/Configuration/WindowsDpapiDecryptor.cs` — Windows-only DPAPI-Decrypt-Adapter (`ProtectedData.Unprotect`, Scope LocalMachine).
+- `AdAutomationWorker/` — Windows-Service-Host (`net8.0-windows`) mit `Program.cs` + `WorkerHostedService` + `appsettings(.Development).json` inkl. `Ad`-Block.
+- `AdAutomationWorker.Tests/` — 38 Tests, decken Handler-Registry, Ping-Handler, Job-Store-Vertrag, Heartbeat-Loop, Connection-String-Loader, AdPasswordGenerator und `CreateAdUserLdapsHandler` (alle Outcome-Varianten + Payload-Validierung + Password-Not-In-Log) ab.
+- `setup/install-db-config.ps1` (DPAPI-Default, `-PlainJson` als Dev-Fallback), `setup/install-windows-service.ps1` (mit gMSA-Switch via `sc.exe config obj=`), `setup/README.md` (Inbetriebnahme inkl. gMSA, DPAPI-Hinweise, E2E `CreateAdUserLdaps` gegen Test-DC).

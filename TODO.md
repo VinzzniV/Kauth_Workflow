@@ -15,22 +15,22 @@ Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „
 
 ## Stand 2026-05-12
 
-Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 ebenfalls am 2026-05-12 durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
+Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 ebenfalls am 2026-05-12 durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
 - API Release-Build: ✅ gruen
 - API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; keine neuen seit 2026-05-12)
 - FE-Build: ✅ gruen
 - FE-Tests: ✅ 323 passed
 - `start-vm.sh`-Syntax: ✅ gruen
 - Worker.Core + Worker.Tests Build: ✅ gruen (deterministisch, Linux)
-- Worker Core tests: ✅ 20 passed
+- Worker Core tests: ✅ 38 passed (20 Skeleton + 3 DPAPI-Loader + 5 PasswordGenerator + 10 CreateAdUserLdapsHandler)
 
-Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials, Worker-Host-Build (net8.0-windows) auf einer Windows-Maschine, Skeleton-E2E mit Worker + Sweeper + Stale-Claim-Test.
+Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials, Worker-Host-Build (net8.0-windows) auf einer Windows-Maschine, Skeleton-E2E mit Worker + Sweeper + Stale-Claim-Test, E2E `CreateAdUserLdaps` gegen Test-DC + DPAPI-Setup unter gMSA.
 
 ## Aktive TODOs
 
 | ID | Aufgabe | Prio | Status | Nutzen |
 | --- | --- | --- | --- | --- |
-| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 ✓ 2026-05-12. **Naechster Code-Slice: Etappe 9a Schritt 3** — erster echter Handler `CreateAdUser` gegen Test-DC (LDAPS, gMSA-Live, DPAPI-Encryption produktiv, Linux-API-Sweep fuer stale Worker-Claims, klare Error-Codes). Eigener Plan-Mode-Slice vor Start; Aufwand ~3–5 Tage. Vor Live-Inbetriebnahme: gMSA in der Domaene anlegen + `Install-ADServiceAccount`; Postgres-User `kauth_worker` mit den GRANTs aus dem Skeleton-Plan auf der Worker-VM. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
+| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 + 3 ✓ 2026-05-12 (`CreateAdUserLdaps` produktiv, DPAPI-Default, gMSA-Switch dokumentiert). **Naechster Code-Slice: Etappe 9a Schritt 4** — Error-Klassifikation generalisieren (Konfig pro Handler-Type), Linux-API Stale-Worker-Claim-Sweep, Temporary-Credentials-Vault statt Klartext-Passwort im `output_json`, Migration der restlichen `simulated_*`-Handler. Eigener Plan-Mode-Slice vor Start; Aufwand ~3–5 Tage. Vor Live-Inbetriebnahme (nicht vor Slice-Beginn): gMSA in der Domaene anlegen + `Install-ADServiceAccount` auf der Worker-VM; Postgres-User `kauth_worker` mit den GRANTs aus dem Skeleton-Plan; `install-db-config.ps1` DPAPI-Lauf; Delegated-Rechte (Create Child + Reset Password) auf der Ziel-OU. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
 
 ## Nachgelagert
 
