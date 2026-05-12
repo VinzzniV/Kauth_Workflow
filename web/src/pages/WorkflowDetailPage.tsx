@@ -1,5 +1,5 @@
 // Detailansicht fuer einen einzelnen Vorgang mit Antworten, Aufgaben und Verwaltungsinformationen.
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import WorkflowAuditLog from "../components/workflow-detail/WorkflowAuditLog";
@@ -34,9 +34,12 @@ import { isWorkflowTerminalStatus } from "../utils/workflowStatus";
 import { useTaskInteraction } from "../hooks/useTaskInteraction";
 import { useRequirementEditor } from "../hooks/useRequirementEditor";
 
+type DetailTab = "tasks" | "requirements" | "audit";
+
 export default function WorkflowDetailPage() {
   const { uid = "" } = useParams<{ uid: string }>();
   const { capabilities } = useCurrentUser();
+  const [activeTab, setActiveTab] = useState<DetailTab>("tasks");
   const isReaderOnlyView =
     capabilities.hasReaderRole && !capabilities.hasProcessActorRole && !capabilities.canManageAdminConfiguration;
   const canViewAuditLog =
@@ -285,64 +288,100 @@ export default function WorkflowDetailPage() {
               currentOwnerText={currentOwnerText}
             />
 
-            <WorkflowRequirementsPanel
-              workflow={workflow}
-              canEditSupervisorRequirements={canEditSupervisorRequirements}
-              requirementSelections={requirementSelections}
-              isSavingRequirements={isSavingRequirements}
-              canSaveSupervisorRequirements={canSaveSupervisorRequirements}
-              onToggleBoolean={setRequirementBoolean}
-              onTextChange={setRequirementText}
-              onSelectOption={setRequirementSelectedOption}
-              onToggleMultiOption={toggleRequirementSelectedOption}
-              onSave={handleRequirementSave}
-            />
+            <div className="admin-tab-strip" role="tablist" aria-label="Vorgangsdetails">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "tasks"}
+                className={`admin-tab${activeTab === "tasks" ? " active" : ""}`}
+                onClick={() => setActiveTab("tasks")}
+              >
+                Status & Aufgaben
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "requirements"}
+                className={`admin-tab${activeTab === "requirements" ? " active" : ""}`}
+                onClick={() => setActiveTab("requirements")}
+              >
+                Anforderungen
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "audit"}
+                className={`admin-tab${activeTab === "audit" ? " active" : ""}`}
+                onClick={() => setActiveTab("audit")}
+              >
+                Audit & Links
+              </button>
+            </div>
 
-            <AppErrorBoundary scope="WorkflowDetailPage/tasks" inline>
-              <WorkflowTaskAreasSection
-                tasksByArea={tasksByArea}
-                savingTaskIds={savingTaskIds}
-                savingApprovalTaskIds={savingApprovalTaskIds}
-                commentDrafts={commentDrafts}
-                savingCommentTaskIds={savingCommentTaskIds}
-                usesAdminOverride={usesAdminOverride}
-                canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
-                isReaderOnlyView={isReaderOnlyView}
-                onTaskStatusChange={(taskId, status, currentStatus) =>
-                  handleStatusChange({ taskId, workflowUid: uid, status, currentStatus })
-                }
-                onTaskApprovalDecision={(taskId, approved) =>
-                  handleApprovalDecision({ taskId, workflowUid: uid, approved })
-                }
-                onCommentDraftChange={handleCommentDraftChange}
-                onTaskCommentSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid: uid })}
-                emptyStateDescription={taskAreasEmptyStateDescription}
-              />
-            </AppErrorBoundary>
-
-            <AppErrorBoundary scope="WorkflowDetailPage/secondary" inline>
-              <section className="workflow-detail-secondary-stack">
-                <WorkflowLinksPanel uid={uid} />
-
-                <WorkflowManagementPanel
-                  uid={uid}
-                  workflow={workflow}
-                  capabilities={capabilities}
+            {activeTab === "tasks" ? (
+              <AppErrorBoundary scope="WorkflowDetailPage/tasks" inline>
+                <WorkflowTaskAreasSection
+                  tasksByArea={tasksByArea}
+                  savingTaskIds={savingTaskIds}
+                  savingApprovalTaskIds={savingApprovalTaskIds}
+                  commentDrafts={commentDrafts}
+                  savingCommentTaskIds={savingCommentTaskIds}
+                  usesAdminOverride={usesAdminOverride}
+                  canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
+                  isReaderOnlyView={isReaderOnlyView}
+                  onTaskStatusChange={(taskId, status, currentStatus) =>
+                    handleStatusChange({ taskId, workflowUid: uid, status, currentStatus })
+                  }
+                  onTaskApprovalDecision={(taskId, approved) =>
+                    handleApprovalDecision({ taskId, workflowUid: uid, approved })
+                  }
+                  onCommentDraftChange={handleCommentDraftChange}
+                  onTaskCommentSubmit={(taskId) => handleTaskCommentSubmit({ taskId, workflowUid: uid })}
+                  emptyStateDescription={taskAreasEmptyStateDescription}
                 />
+              </AppErrorBoundary>
+            ) : null}
 
-                {capabilities.canManageAdminConfiguration ? (
-                  <WorkflowNotificationsPanel notifications={workflow.notifications} />
-                ) : null}
+            {activeTab === "requirements" ? (
+              <WorkflowRequirementsPanel
+                workflow={workflow}
+                canEditSupervisorRequirements={canEditSupervisorRequirements}
+                requirementSelections={requirementSelections}
+                isSavingRequirements={isSavingRequirements}
+                canSaveSupervisorRequirements={canSaveSupervisorRequirements}
+                onToggleBoolean={setRequirementBoolean}
+                onTextChange={setRequirementText}
+                onSelectOption={setRequirementSelectedOption}
+                onToggleMultiOption={toggleRequirementSelectedOption}
+                onSave={handleRequirementSave}
+              />
+            ) : null}
 
-                {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (
-                  <WorkflowAuditLog
-                    entries={auditEntries}
-                    isLoading={isLoadingAuditLog}
-                    error={auditLogError}
+            {activeTab === "audit" ? (
+              <AppErrorBoundary scope="WorkflowDetailPage/secondary" inline>
+                <section className="workflow-detail-secondary-stack">
+                  <WorkflowLinksPanel uid={uid} />
+
+                  <WorkflowManagementPanel
+                    uid={uid}
+                    workflow={workflow}
+                    capabilities={capabilities}
                   />
-                ) : null}
-              </section>
-            </AppErrorBoundary>
+
+                  {capabilities.canManageAdminConfiguration ? (
+                    <WorkflowNotificationsPanel notifications={workflow.notifications} />
+                  ) : null}
+
+                  {capabilities.hasHrRole || capabilities.hasManagerRole || capabilities.canManageAdminConfiguration ? (
+                    <WorkflowAuditLog
+                      entries={auditEntries}
+                      isLoading={isLoadingAuditLog}
+                      error={auditLogError}
+                    />
+                  ) : null}
+                </section>
+              </AppErrorBoundary>
+            ) : null}
           </>
         ) : null}
       </div>

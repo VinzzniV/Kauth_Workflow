@@ -44,6 +44,7 @@ export default function PersonaSwitcher() {
           {label}
         </button>
       ))}
+      <span className="persona-switcher__hint">Nur Anzeige – keine Rechteänderung</span>
     </div>
   );
 }

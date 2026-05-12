@@ -585,4 +585,11 @@
   margin-right: 0.25rem;
   flex-shrink: 0;
 }
+
+.persona-switcher__hint {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  flex-basis: 100%;
+  padding-top: 0.1rem;
+}
 }

@@ -78,10 +78,10 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 | **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2, 2026-05-12: Windows-Worker, AD on-prem fuehrt) — Implementation offen: kein Worker, kein LDAP/LDAPS-Adapter, `EntraGraphClient` weiter read-only |
 | Workflow-Storno (laufende Vorgaenge) | **A-** | `POST /workflows/{uid}/cancel` mit Pflicht-Grund (vordefinierte Liste + Freitext bei „Sonstiges"), terminaler Status `cancelled`, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag mit Reason-JSON (Z21-S3, 2026-05-12) |
 | Workflow-Builder (Conditions/Mappings) | **B-** | Canvas + DAG-Layout stark; Conditions haben Formularmodus, Mappings/technische Keys bleiben Power-User-lastig |
-| Workflow-Detail (Panelauswahl) | **B-** | Sechs+ Panels untereinander, „was ist offen?" verteilt sich |
-| Listen-Trennung Worker/Manager | **B-** | `/workflows`, `/tasks/my`, `/rotation/operations` ueberlappen fuer Mehrrollen-User |
-| Mitarbeiter-/Personenverzeichnis | **B** | 360°-Akte stark; `directory_only` und echte Karten visuell zu eng gemischt |
-| Dashboard / Persona-Switcher | **B** | Zone-Struktur klar; Persona-Switcher beschriftet, Wirkung „nur Ansicht, keine Rechteaenderung" aber nicht erklaert |
+| Workflow-Detail (Panelauswahl) | **A-** | Drei Tabs (Status & Aufgaben / Anforderungen / Audit & Links) mit persistentem Header-Panel (Z21-S4, 2026-05-12) |
+| Listen-Trennung Worker/Manager | **B** | Worker-Persona sieht Aufgaben vor Workflows; Beschreibungen klarer (Z21-S4, 2026-05-12) |
+| Mitarbeiter-/Personenverzeichnis | **B+** | 360°-Akte stark; `directory_only` klar in eigener Sektion abgetrennt (Z21-S4, 2026-05-12) |
+| Dashboard / Persona-Switcher | **B+** | Hinweistext „Nur Anzeige – keine Rechteaenderung" sichtbar (Z21-S4, 2026-05-12) |
 | Notification-/Mail-Konfig | **A-** | Microsoft-Graph-Versand real, Sandbox + Test-Senden; Admin-Warnungen vorhanden, Runtime-Fehler koennten noch sichtbarer sein |
 | Frontend-Architektur | **B+** | Saubere Services/Queries-Schichten; AdminConfig-Bundle-Refactor; Builder-Refactor |
 | Administration (Konfig-Breite) | **B+** | Breit + strukturiert; einzelne Einstiegstexte koennten klarer sein |
@@ -165,15 +165,9 @@ Die Workflow-Lifecycle-API kannte vor Z21-S3 nur:
 
 #### 🟠 P1 — Verdeckt Bedienprobleme oder Risiken
 
-**Z21-P1-1 · `directory_only` und echte Mitarbeiterkarten im selben Listenbereich gemischt**
+**Z21-P1-1 · `directory_only` und echte Mitarbeiterkarten im selben Listenbereich gemischt** — ✅ done 2026-05-12 (Z21-S4)
 
-`web/src/pages/PeopleDirectoryPage.tsx:300-360` und `web/src/components/admin-config/AdminEntraImportSection.tsx` bieten zwei parallele Wege, einen Verzeichnis-Eintrag in eine echte Mitarbeiterakte zu konvertieren: Inline-Import in der Mitarbeiter-Liste und Bulk-Import im Admin.
-
-**Was bedeutet das praktisch?** Ein Nutzer sieht teilweise „Personen" mit „Detail oeffnen"-Link, teilweise nur „Importieren"-Button (`directory_only`). Es ist nicht sofort klar, wann welche Aktion gemeint ist. Der Importpfad dedupliziert technisch ueber `directory_identity_id`, `employee_number` und `app_user_id`; das Hauptproblem ist deshalb eher UX-Verwirrung und vergessene Importe als massenhafte Duplikate.
-
-**Warum lohnt es sich?** Personen-Anker ist der fachliche Primaeranker — Duplikate hier verzerren spaeter alle Workflows und Reports.
-
-**Was wird besser?** Klare visuelle Trennung (eigene Sektion „Aus Entra noch nicht uebernommen") + ein einziger primaerer Import-Einstiegspunkt.
+`PeopleDirectoryPage` zeigt jetzt echte Mitarbeitende in Abteilungsgruppen und `directory_only`-Eintraege in separater Sektion „Aus Entra noch nicht uebernommen" mit Erklaerungstext. P3-1 (Inline-Styles) bewusst nicht in diesem Slice.
 
 ---
 
@@ -206,15 +200,11 @@ Korrektur zur ersten Z21-Einschaetzung: Der Admin-Bereich zeigt bereits Statuska
 
 ---
 
-**Z21-P1-4 · Persona-Switcher fuer Mehrrollen-User nur teilweise selbsterklaerend**
+**Z21-P1-4 · Persona-Switcher fuer Mehrrollen-User nur teilweise selbsterklaerend** — ✅ done 2026-05-12 (Z21-S4)
 
-`web/src/components/dashboard/DashboardOverview.tsx:84-91` schaltet je nach `dashboardPersona` einen komplett anderen Bildschirm. `PersonaSwitcher` hat bereits sichtbare Beschriftung/ARIA („Ansicht wechseln", „Ansicht:"), erklaert aber nicht, dass nur die Dashboard-Ansicht und nicht die Rechte gewechselt werden.
+Hinweistext „Nur Anzeige – keine Rechteaenderung" als `.persona-switcher__hint` unter den Buttons eingefuegt. `PersonaSwitcher.tsx` + `dashboard.css`.
 
-**Was bedeutet das praktisch?** Mehrrollen-User (z. B. Admin + HR) sehen den Switcher und koennen sich vertippen — die Uebersicht passt dann nicht zur Erwartung. Risiko fuer Anrufe „warum sehe ich das Falsche?".
-
-**Warum lohnt es sich?** Kleine Klarheit hier verhindert Support-Aufwand bei jeder Persona-Verwechslung.
-
-**Was wird besser?** Beschriftung „Ansicht wechseln (nur Anzeige, keine Rechtsaenderung)" oder Visualisierung der aktiven Rolle als Badge.
+~~`web/src/components/dashboard/DashboardOverview.tsx:84-91` schaltet je nach `dashboardPersona` einen komplett anderen Bildschirm. `PersonaSwitcher` hat bereits sichtbare Beschriftung/ARIA, erklaert aber nicht, dass nur die Dashboard-Ansicht und nicht die Rechte gewechselt werden.~~
 
 ---
 
@@ -232,19 +222,15 @@ Korrektur zur ersten Z21-Einschaetzung: Der Admin-Bereich zeigt bereits Statuska
 
 #### 🟡 P2 — Bedienkomfort und Konsistenz
 
-**Z21-P2-1 · Drei sehr aehnliche Listenbereiche fuer Worker/Manager**
+**Z21-P2-1 · Drei sehr aehnliche Listenbereiche fuer Worker/Manager** — ✅ done 2026-05-12 (Z21-S4)
 
-`web/src/navigation/useRoleAwareNavigation.ts:113-191`: Je nach Rollenmix bis zu fuenf Listen-Ansichten (`/workflows`, `/tasks/my`, `/rotation/operations`, `/supervisor`, `/people`) mit ueberlappender Logik. „Laufende Vorgaenge" und „Meine Aufgaben" sind aus Worker-Sicht nicht klar abgegrenzt.
-
-**Was wird besser?** Klare Zwei-Klick-Regel — Manager/HR landen auf Workflows, Worker auf Aufgaben. Heute wirkt es wie „alle sehen alles, jeder darf alles filtern".
+`deriveNavigationContext` hat klarere, aktionsorientierte Beschreibungen. `collectActionKeys` fuer Pure-Worker-Persona platziert `departmentTasks` und `rotationOperations` vor `hrWorkflows`, sodass Worker ihren primären Einstieg zuerst sehen. `useRoleAwareNavigation.ts`.
 
 ---
 
-**Z21-P2-2 · Workflow-Detailseite: sechs+ Panels untereinander, Reihenfolge nicht offensichtlich**
+**Z21-P2-2 · Workflow-Detailseite: sechs+ Panels untereinander, Reihenfolge nicht offensichtlich** — ✅ done 2026-05-12 (Z21-S4)
 
-`web/src/pages/WorkflowDetailPage.tsx` rendert `WorkflowHeaderPanel`, `WorkflowRequirementsPanel`, `WorkflowTaskAreasSection`, `WorkflowNotificationsPanel`, `WorkflowLinksPanel`, `WorkflowManagementPanel`, `WorkflowAuditLog`.
-
-**Was wird besser?** Tabs („Status & Aufgaben" / „Anforderungen" / „Audit & Links") wie auf `PersonWorkflowHistoryPage`. Selbe Idee dort funktioniert, beim Workflow-Detail fehlt sie.
+`WorkflowDetailPage` hat jetzt drei Tabs („Status & Aufgaben" / „Anforderungen" / „Audit & Links") mit bestehendem `.admin-tab-strip`/`.admin-tab`-CSS. `WorkflowHeaderPanel` bleibt persistent oberhalb der Tabs sichtbar. `WorkflowDetailPage.tsx`.
 
 ---
 

@@ -214,8 +214,9 @@ function toHeaderNavItem(actionKey: ActionKey): HeaderNavItem {
 function collectActionKeys(args: {
   capabilities: RoleCapabilities;
   canAccessFeature: (feature: AppFeature) => boolean;
+  persona?: DashboardPersona;
 }): ActionKey[] {
-  const { capabilities, canAccessFeature } = args;
+  const { capabilities, canAccessFeature, persona } = args;
   const keys: ActionKey[] = [];
   const addKey = (actionKey: ActionKey, isAllowed: boolean) => {
     if (!isAllowed || keys.includes(actionKey)) {
@@ -225,18 +226,23 @@ function collectActionKeys(args: {
     keys.push(actionKey);
   };
 
+  const isPureWorker = persona === "worker" && !capabilities.hasHrRole && !capabilities.hasManagerRole && !capabilities.hasAdminRole;
+
   addKey("dashboard", canAccessFeature("dashboard"));
   addKey("hrCreate", capabilities.hasHrRole && canAccessFeature("workflowCreate"));
   addKey("managerCreate", capabilities.hasManagerRole && !capabilities.hasHrRole && canAccessFeature("workflowCreate"));
   addKey("workflowBuilder", canAccessFeature("workflowBuilder"));
+
+  // Worker-Einstieg: Aufgaben vor Workflows, um den direkten Weg zu betonen.
+  if (isPureWorker) {
+    addKey("departmentTasks", canAccessFeature("technicalTasks"));
+    addKey("rotationOperations", canAccessFeature("technicalTasks"));
+  }
+
   addKey("hrWorkflows", canAccessFeature("workflowOverview"));
   addKey("peopleDirectory", canAccessFeature("peopleDirectory"));
-  addKey(
-    "rotationPlanning",
-    canAccessFeature("rotationPlanning")
-  );
+  addKey("rotationPlanning", canAccessFeature("rotationPlanning"));
   addKey("rotationOperations", canAccessFeature("technicalTasks"));
-
   addKey("supervisorInbox", capabilities.hasManagerRole && canAccessFeature("supervisorStep"));
   addKey("departmentTasks", canAccessFeature("technicalTasks"));
   addKey("adminConfig", capabilities.canManageAdminConfiguration && canAccessFeature("adminConfig"));
@@ -254,17 +260,17 @@ export function deriveNavigationContext(persona: DashboardPersona): NavigationCo
     case "hr":
       return {
         title: "HR-Übersicht",
-        description: "Starten Sie neue Vorgänge und behalten Sie laufende Fälle im Blick.",
+        description: "Neue Vorgänge starten, laufende Fälle verfolgen und Mitarbeitende verwalten.",
       };
     case "manager":
       return {
         title: "Vorgänge meiner Mitarbeitenden",
-        description: "Starten Sie Änderungen für Ihre Mitarbeitenden, bearbeiten Sie offene Anforderungen und beobachten Sie den Fortschritt.",
+        description: "Änderungen starten, offene Anforderungen bearbeiten und Fortschritt beobachten.",
       };
     case "worker":
       return {
         title: "Meine Aufgaben",
-        description: "Hier bearbeiten Sie die offenen Aufgaben Ihrer Fachbereiche.",
+        description: "Offene Aufgaben Ihrer Fachbereiche — \"Meine Aufgaben\" ist Ihr direkter Einstieg.",
       };
     case "reader":
       return {
@@ -289,8 +295,9 @@ export function useRoleAwareNavigation() {
     return collectActionKeys({
       capabilities,
       canAccessFeature,
+      persona: dashboardPersona,
     }).map(toAction);
-  }, [canAccessFeature, capabilities]);
+  }, [canAccessFeature, capabilities, dashboardPersona]);
 
   const secondaryDashboardActions = useMemo<DashboardAction[]>(() => {
     // Bewusst leer: keine technische Neben-Navigation im Standard-Dashboard.
@@ -308,8 +315,9 @@ export function useRoleAwareNavigation() {
     return collectActionKeys({
       capabilities,
       canAccessFeature,
+      persona: dashboardPersona,
     }).map(toHeaderNavItem);
-  }, [canAccessFeature, capabilities]);
+  }, [canAccessFeature, capabilities, dashboardPersona]);
 
   return {
     headerNavItems,

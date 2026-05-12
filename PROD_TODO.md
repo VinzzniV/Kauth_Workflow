@@ -57,7 +57,7 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 | 1 | **Z21-S1** Simulation deutlich markieren + Mail-Dispatch-Health | P0-1 + P1-3 | klein-mittel (~½–1 Tag) | medium | sonnet | aus | **done 2026-05-12** |
 | 2 | **Z21-S2** Hybrid-AD-Architekturentscheidung | P0-2 | klein in Zeilen, gross in Tragweite | high | opus | **an** | **done 2026-05-12** |
 | 3 | **Z21-S3** Workflow-Storno fuer laufende Vorgaenge | P0-3 | mittel-gross (~1–2 Tage) | high | opus | **an** | **done 2026-05-12** |
-| 4 | **Z21-S4** FE-UX-Buendel (Persona-Switcher, Workflow-Detail-Tabs, Listen-Trennung, directory_only) | P1-1 + P1-4 + P2-1 + P2-2 | mittel (~1 Tag) | medium | sonnet | aus | offen |
+| 4 | **Z21-S4** FE-UX-Buendel (Persona-Switcher, Workflow-Detail-Tabs, Listen-Trennung, directory_only) | P1-1 + P1-4 + P2-1 + P2-2 | mittel (~1 Tag) | medium | sonnet | aus | **done 2026-05-12** |
 | 5 | **Z21-S5** Builder fachsprachlicher (Mapping-Labels + Condition-Wording) | P1-2 | mittel (~1 Tag) | high | opus | **an** | offen |
 | 6 | **Z21-S6** `start-vm.sh dev`-Vorab-Check | P1-5 | klein (~½ h) | low | sonnet | aus | offen |
 
@@ -116,23 +116,16 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 
 ---
 
-### Z21-S4 · FE-UX-Buendel
+### Z21-S4 · FE-UX-Buendel — done 2026-05-12
 
-**Buendelung:** Alles reine Frontend-UX/Wording/Layout-Arbeit, keine Backend-Vertraege.
+**Umgesetzt:** 4 Sub-Slices in einem Commit.
 
-**Praktisch:** Mehrere kleine taegliche Reibungspunkte gleichzeitig entschaerfen.
+- **P1-4 Persona-Switcher**: Hinweistext „Nur Anzeige – keine Rechteaenderung" als `.persona-switcher__hint` unter den Buttons (CSS: `flex-basis: 100%`, `color: var(--text-tertiary)`).
+- **P2-2 Workflow-Detail-Tabs**: `WorkflowDetailPage` hat jetzt drei Tabs mit `.admin-tab-strip`/`.admin-tab`-Pattern. Tab „Status & Aufgaben" zeigt `WorkflowTaskAreasSection`, Tab „Anforderungen" zeigt `WorkflowRequirementsPanel`, Tab „Audit & Links" zeigt `WorkflowLinksPanel` + `WorkflowManagementPanel` + Notifications + AuditLog. `WorkflowHeaderPanel` bleibt immer sichtbar oberhalb der Tabs.
+- **P1-1 directory_only-Trennung**: `PeopleDirectoryPage` trennt `isDirectoryOnlyEntry`-Eintraege in eigene Sektion „Aus Entra noch nicht uebernommen" mit Erklaerungstext. Abteilungsgruppen zeigen nur echte Mitarbeitende. P3-1 (Inline-Styles) bewusst nicht mitgenommen.
+- **P2-1 Listen-Trennung**: `deriveNavigationContext` mit praegnanten, aktionsorientierten Beschreibungen. `collectActionKeys` fuer Pure-Worker-Persona: `departmentTasks` und `rotationOperations` werden vor `hrWorkflows` eingefuegt.
 
-**Lohnenswert:** Jeder einzelne Punkt zu klein fuer eigenen Zyklus, gebuendelt ein spuerbar besseres Tagesgefuehl.
-
-**Nutzen:** Klarere Navigation, klarere Workflow-Detail, klarere Mitarbeiter-Liste, klarerer Persona-Switcher.
-
-**Scope (4 Sub-Slices, 1 PR oder 4 Mini-PRs):**
-- **P1-4 Persona-Switcher**: Hinweistext „Ansicht wechseln (nur Anzeige, keine Rechteaenderung)" + Active-Role-Badge.
-- **P2-2 Workflow-Detail-Tabs**: `WorkflowDetailPage` mit Tabs („Status & Aufgaben" / „Anforderungen" / „Audit & Links") analog `PersonWorkflowHistoryPage`.
-- **P1-1 directory_only-Trennung**: eigene Sektion „Aus Entra noch nicht uebernommen" in `PeopleDirectoryPage`; primaerer Import-Einstiegspunkt klaeren. Optional `P3-1` mitnehmen (Inline-Styles raus).
-- **P2-1 Listen-Trennung**: rollenspezifische Default-Einstiege, klarere Page-Subheads, ggf. ergaenzende Beschreibungstexte in `useRoleAwareNavigation.ts`.
-
-**Risiko/Reversibilitaet:** klein-mittel, reversibel, kein Datenpfad.
+**Belegt in:** `PersonaSwitcher.tsx` + `dashboard.css`, `WorkflowDetailPage.tsx`, `PeopleDirectoryPage.tsx`, `useRoleAwareNavigation.ts`. FE-Build clean, 300 Tests gruen.
 
 ---
 

@@ -530,9 +530,11 @@ export default function PeopleDirectoryPage() {
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const hasPrev = offset > 0;
   const hasNext = offset + PAGE_SIZE < total;
-  const grouped = groupByDepartment(items);
+  const realPeople = items.filter((p) => !isDirectoryOnlyEntry(p));
+  const directoryOnlyPeople = items.filter(isDirectoryOnlyEntry);
+  const grouped = groupByDepartment(realPeople);
   const departmentCount = grouped.filter(([department]) => department !== NO_DEPT_KEY).length;
-  const directoryOnlyCount = items.filter(isDirectoryOnlyEntry).length;
+  const directoryOnlyCount = directoryOnlyPeople.length;
   const importingDirectoryIdentityId = importMutation.isPending ? importMutation.variables ?? null : null;
 
   function handleImport(directoryIdentityId: number) {
@@ -670,6 +672,62 @@ export default function PeopleDirectoryPage() {
                 />
               ))}
             </div>
+
+            {directoryOnlyCount > 0 ? (
+              <section className="panel" style={{ marginTop: "0.5rem" }}>
+                <div className="panel-head">
+                  <h2>Aus Entra noch nicht übernommen</h2>
+                  <span className="panel-head-meta">{directoryOnlyCount} {directoryOnlyCount === 1 ? "Eintrag" : "Einträge"}</span>
+                </div>
+                <p className="panel-note">
+                  Diese Personen sind in Entra vorhanden, wurden aber noch nicht als Mitarbeitende importiert.
+                  Über „Importieren" wird ein vollständiger Personendatensatz angelegt.
+                </p>
+                {viewMode === "cards" ? (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(195px, 1fr))",
+                      gap: "0.625rem",
+                    }}
+                  >
+                    {directoryOnlyPeople.map((person) => (
+                      <PersonCard
+                        key={getDirectoryEntryKey(person)}
+                        person={person}
+                        onImport={handleImport}
+                        isImporting={importingDirectoryIdentityId === person.directoryIdentityId}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="table-wrapper">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Name</th>
+                          <th scope="col">Stelle</th>
+                          <th scope="col">Status</th>
+                          <th scope="col">Eintrittsdatum</th>
+                          <th scope="col">Verzeichnis</th>
+                          <th scope="col">Aktion</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {directoryOnlyPeople.map((person) => (
+                          <PersonRow
+                            key={getDirectoryEntryKey(person)}
+                            person={person}
+                            onImport={handleImport}
+                            isImporting={importingDirectoryIdentityId === person.directoryIdentityId}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            ) : null}
 
             {totalPages > 1 ? (
               <div className="pagination-row">
