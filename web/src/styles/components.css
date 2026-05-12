@@ -517,6 +517,35 @@
   color: var(--text-primary);
 }
 
+.workflow-detail-cancellation-banner {
+  border: 1px solid var(--text-danger);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--text-danger) 7%, var(--surface-elevated));
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.workflow-detail-cancellation-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-danger);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.workflow-detail-cancellation-meta {
+  margin-top: 0.2rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.workflow-detail-cancellation-detail {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
 .next-action-link {
   text-decoration: underline;
   text-underline-offset: 0.15em;

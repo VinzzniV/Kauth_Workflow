@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { WorkflowDetail } from "../../types/workflow";
-import { formatDate, toRuntimeStatusLabel } from "./workflowDetailModel";
+import { WORKFLOW_CANCELLATION_REASON_OPTIONS } from "./CancelWorkflowDialog";
+import { formatDate, formatDateTime, toRuntimeStatusLabel } from "./workflowDetailModel";
 
 type WorkflowHeaderPanelProps = {
   workflow: WorkflowDetail;
@@ -36,10 +37,25 @@ export default function WorkflowHeaderPanel({
             <span className="chip" aria-label={`Aktuelle Phase: ${regularEditingText}`}>Phase: {regularEditingText}</span>
           </div>
 
-          <div className="next-action-callout">
-            <p className="next-action-label">Nächste nötige Aktion</p>
-            <p className="next-action-text">{nextActionText}</p>
-          </div>
+          {workflow.workflowStatus === "cancelled" && workflow.cancelledAt ? (
+            <div className="workflow-detail-cancellation-banner" role="status">
+              <p className="workflow-detail-cancellation-title">Vorgang storniert</p>
+              <p className="workflow-detail-cancellation-meta">
+                {formatDateTime(workflow.cancelledAt)}
+                {workflow.cancellationReasonCode ? (
+                  <> · Grund: {WORKFLOW_CANCELLATION_REASON_OPTIONS.find((option) => option.code === workflow.cancellationReasonCode)?.label ?? workflow.cancellationReasonCode}</>
+                ) : null}
+              </p>
+              {workflow.cancellationReasonDetail ? (
+                <p className="workflow-detail-cancellation-detail">{workflow.cancellationReasonDetail}</p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="next-action-callout">
+              <p className="next-action-label">Nächste nötige Aktion</p>
+              <p className="next-action-text">{nextActionText}</p>
+            </div>
+          )}
 
         </div>
 
