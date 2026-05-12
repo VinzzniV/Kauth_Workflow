@@ -108,10 +108,26 @@ public sealed class SchemaParityTests
         {
             Assert.False(string.IsNullOrWhiteSpace(entry.File), "Manifest-Eintrag ohne 'file'.");
             Assert.False(string.IsNullOrWhiteSpace(entry.Description), $"Manifest-Eintrag ohne 'description': {entry.File}.");
+
+            var kind = string.IsNullOrWhiteSpace(entry.Kind) ? "schema" : entry.Kind!.Trim().ToLowerInvariant();
             Assert.True(
-                entry.ExpectInSchema.Count > 0 || entry.ForbidInSchema.Count > 0,
-                $"Manifest-Eintrag ohne 'expect_in_schema' und ohne 'forbid_in_schema': {entry.File}. " +
-                "Mindestens ein Marker pro Eintrag ist Pflicht, sonst greift der Paritaets-Check nicht.");
+                kind is "schema" or "data",
+                $"Manifest-Eintrag mit unbekanntem 'kind': {entry.File} (gefunden: '{entry.Kind}'). Erlaubt: 'schema' (default) oder 'data'.");
+
+            if (kind == "schema")
+            {
+                Assert.True(
+                    entry.ExpectInSchema.Count > 0 || entry.ForbidInSchema.Count > 0,
+                    $"Manifest-Eintrag ohne 'expect_in_schema' und ohne 'forbid_in_schema': {entry.File}. " +
+                    "Mindestens ein Marker pro Schema-Eintrag ist Pflicht, sonst greift der Paritaets-Check nicht. " +
+                    "Reine Daten-Migrationen muessen 'kind': 'data' setzen.");
+            }
+            else
+            {
+                Assert.True(
+                    entry.ExpectInSchema.Count == 0 && entry.ForbidInSchema.Count == 0,
+                    $"Daten-Migration {entry.File} darf keine expect_in_schema/forbid_in_schema-Marker tragen (kind=data).");
+            }
         }
     }
 
@@ -177,6 +193,9 @@ public sealed class SchemaParityTests
 
         [JsonPropertyName("description")]
         public string Description { get; init; } = string.Empty;
+
+        [JsonPropertyName("kind")]
+        public string? Kind { get; init; }
 
         [JsonPropertyName("expect_in_schema")]
         public List<string> ExpectInSchema { get; init; } = new();

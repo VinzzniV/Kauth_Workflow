@@ -12,6 +12,7 @@ Die `db/manual/*.sql`-Dateien sind genau das: idempotente, manuell auszufuehrend
 - Idempotent schreiben (`ADD COLUMN IF NOT EXISTS`, `RENAME` nur, wenn die alte Form noch existiert).
 - Header mit Verwendungshinweis (`psql "$DATABASE_URL" -f db/manual/<datei>.sql`).
 - **Pflicht**: Eintrag in `manifest.json` mit `expect_in_schema` (Marker, die nach der Migration in `db/01_schema.sql` stehen muessen) und `forbid_in_schema` (Marker, die nach einer Umbenennung/Loeschung dort nicht mehr stehen duerfen).
+- Reine **Daten-Migrationen** (z. B. Seed-Inserts, Backfill-Updates) markiert man im Manifest mit `"kind": "data"` und laesst beide Marker-Listen leer. Der Paritaets-Test prueft fuer Daten-Eintraege nur Existenz + Beschreibung.
 
 ## Paritaets-Check
 

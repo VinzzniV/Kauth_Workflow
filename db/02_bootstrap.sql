@@ -32,7 +32,8 @@ OVERRIDING SYSTEM VALUE VALUES
 	(3, 'AssignGroups', 'Assign Groups', 'Simulated assignment of directory groups.', 'simulated_directory_groups', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:05:50.927528+00', '2026-04-27 07:05:51.998735+00', NULL),
 	(4, 'CreateErpEmployee', 'Create ERP Employee', 'Simulated creation of an ERP employee.', 'simulated_erp', '{"type": "object", "additionalProperties": true}', true, false, false, '2026-04-27 07:05:50.927528+00', '2026-04-27 07:05:51.998735+00', NULL),
 	(5, 'SendWelcomeMail', 'Send Welcome Mail', 'Simulated sending of a welcome email.', 'simulated_notification', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-04-27 07:05:50.927528+00', '2026-04-27 07:05:51.998735+00', NULL),
-	(6, 'SimulatedWindowsWorkerPing', 'Windows-Worker Ping (Skeleton-Test)', 'Simulierter Handler im Windows-Worker. Beweist den Transport- und Audit-Pfad ohne AD-Zugriff.', 'simulated_windows_worker_ping', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-05-12 00:00:00+00', '2026-05-12 00:00:00+00', 'windows_worker');
+	(6, 'SimulatedWindowsWorkerPing', 'Windows-Worker Ping (Skeleton-Test)', 'Simulierter Handler im Windows-Worker. Beweist den Transport- und Audit-Pfad ohne AD-Zugriff.', 'simulated_windows_worker_ping', '{"type": "object", "additionalProperties": true}', true, false, true, '2026-05-12 00:00:00+00', '2026-05-12 00:00:00+00', 'windows_worker'),
+	(7, 'CreateAdUserLdaps', 'Create AD User (LDAPS)', 'Echte AD-User-Anlage via LDAPS gegen on-prem-DC. Laeuft im Windows-Worker unter gMSA.', 'windows_worker_ldaps', '{"type":"object","required":["samAccountName","userPrincipalName","displayName","givenName","surname","mail","targetOu"],"additionalProperties":true}', true, false, true, '2026-05-12 00:00:00+00', '2026-05-12 00:00:00+00', 'windows_worker');
 
 
 --
