@@ -14,6 +14,7 @@ import type {
   TaskWithWorkflow,
   TaskWorkflowContext,
   WorkflowAuditEntry,
+  WorkflowCancellationReasonCode,
   WorkflowConfig,
   WorkflowDetail,
   WorkflowNotification,
@@ -104,9 +105,29 @@ function toWorkflowRuntimeStatus(status: string): WorkflowRuntimeStatus {
     case "waiting_for_supervisor":
     case "waiting_for_department":
     case "completed":
+    case "cancelled":
       return normalized;
     default:
       return "in_progress";
+  }
+}
+
+function toWorkflowCancellationReasonCode(
+  reasonCode: string | null,
+): WorkflowCancellationReasonCode | null {
+  if (reasonCode == null) {
+    return null;
+  }
+  const normalized = normalizeStatus(reasonCode);
+  switch (normalized) {
+    case "entry_cancelled":
+    case "entry_postponed":
+    case "wrong_person":
+    case "started_by_mistake":
+    case "other":
+      return normalized;
+    default:
+      return "other";
   }
 }
 
@@ -381,6 +402,10 @@ export function mapWorkflowDetail(dto: BackendWorkflowDetailDto): WorkflowDetail
     createdAt: dto.createdAt,
     deadlineDate: dto.deadlineDate,
     archivedAt: dto.archivedAt,
+    cancelledAt: dto.cancelledAt,
+    cancelledByPersonId: dto.cancelledByPersonId,
+    cancellationReasonCode: toWorkflowCancellationReasonCode(dto.cancellationReasonCode),
+    cancellationReasonDetail: dto.cancellationReasonDetail,
     targetPersonId: dto.targetPersonId,
     requirements: dto.requirements.map(mapWorkflowRequirement),
     requirementSummary: mapWorkflowRequirementSummary(dto.requirementSummary),

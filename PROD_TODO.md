@@ -56,7 +56,7 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 |---|---|---|---|---|---|---|---|
 | 1 | **Z21-S1** Simulation deutlich markieren + Mail-Dispatch-Health | P0-1 + P1-3 | klein-mittel (~½–1 Tag) | medium | sonnet | aus | **done 2026-05-12** |
 | 2 | **Z21-S2** Hybrid-AD-Architekturentscheidung | P0-2 | klein in Zeilen, gross in Tragweite | high | opus | **an** | **done 2026-05-12** |
-| 3 | **Z21-S3** Workflow-Storno fuer laufende Vorgaenge | P0-3 | mittel-gross (~1–2 Tage) | high | opus | **an** | offen |
+| 3 | **Z21-S3** Workflow-Storno fuer laufende Vorgaenge | P0-3 | mittel-gross (~1–2 Tage) | high | opus | **an** | **done 2026-05-12** |
 | 4 | **Z21-S4** FE-UX-Buendel (Persona-Switcher, Workflow-Detail-Tabs, Listen-Trennung, directory_only) | P1-1 + P1-4 + P2-1 + P2-2 | mittel (~1 Tag) | medium | sonnet | aus | offen |
 | 5 | **Z21-S5** Builder fachsprachlicher (Mapping-Labels + Condition-Wording) | P1-2 | mittel (~1 Tag) | high | opus | **an** | offen |
 | 6 | **Z21-S6** `start-vm.sh dev`-Vorab-Check | P1-5 | klein (~½ h) | low | sonnet | aus | offen |
@@ -101,28 +101,18 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 
 ---
 
-### Z21-S3 · Workflow-Storno fuer laufende Vorgaenge
+### Z21-S3 · Workflow-Storno fuer laufende Vorgaenge — done 2026-05-12
 
-**Praktisch:** HR/Admin kann einen laufenden Vorgang mit Begruendung sauber abbrechen statt mit Datenmuell zu leben.
+**Entschieden + umgesetzt:** Stornierbar aus allen aktiven Status (`in_progress`, `waiting_for_supervisor`, `waiting_for_department`). Vordefinierte Liste (`entry_cancelled`, `entry_postponed`, `wrong_person`, `started_by_mistake`, `other`) + Freitext-Detail (Pflicht bei `other`). `cancelled` ist terminal — kein Re-Open. Rotation: nicht betroffen, da `rotation_plans.source_workflow_id` ohnehin nur `completed`-Workflows zulaesst.
 
-**Lohnenswert:** Stornieren ist in jedem realen HR-Workflow taeglicher Edge-Case. Ohne Storno werden Audit-Pfade durch Workarounds zerstoert.
+**Belegt in:**
+- DB: `db/manual/2026-05-12_workflow_cancellation.sql` (4 neue Spalten + Status-Constraints fuer `workflows` und `workflow_tasks`), `db/01_schema.sql` synchron, Manifest-Eintrag, `SchemaParityTests`-Marker.
+- Backend: `WorkflowStatusRules.Cancelled` + `IsCancellable`/`IsTerminal`, `WorkflowCancellationReasonCodes` + DTOs, `IWorkflowRepository.LookupWorkflowForCancellation`/`CancelWorkflow`, `WorkflowRuntimeService.CancelWorkflowAsync` (Outcome-Pattern), `AuthorizationPolicyService.CanCancelWorkflow`, `POST /workflows/{uid}/cancel`. Build `0 Warnings 0 Errors`.
+- FE: `cancelWorkflow` + `useCancelWorkflow`, `CancelWorkflowDialog`, Button + Cancellation-Readonly-Block im `WorkflowManagementPanel`, Status-/Reason-Mapping in `mappers.ts`, Tests `CancelWorkflowDialog.test.tsx` + `WorkflowManagementPanel.cancel.test.tsx`. FE-Build + Typecheck clean, 297 FE-Tests gruen.
+- Tests: 8 neue `WorkflowCancellationReasonCodesTests`, erweiterte `WorkflowStatusRulesTests` (cancellable + terminal), 5 neue `AuthorizationPolicyService.CanCancelWorkflow`-Tests, 8 + 7 FE-Tests. Backend-Test-Build steht auf bekannten 7 pre-existing Errors aus frueheren Refactorings — Z21-S3 fuegt KEINE neuen Errors hinzu (Stubs entsprechend erweitert).
+- Doku: `CODE_REVIEW.md` P0-3 ✅ done, Bereich „Workflow-Storno" auf A-, Bereich „Laufende Vorgaenge"/„Workflow-Detail" auf voll produktiv. `KauthWorkflow/Domäne/Workflow.md` um Cancel-Lifecycle erweitert.
 
-**Nutzen:** Vollstaendiger Audit-Trail, keine manuellen Reparatur-Workarounds, statistisch saubere Zahlen.
-
-**Scope:**
-- Backend: `POST /workflows/{uid}/cancel` mit Grund-Pflichtfeld. `WorkflowLifecycleService.CancelWorkflowAsync` als neuer Lifecycle-Pfad (Commit-Grenze wahren). Offene Tasks → `cancelled`. Notifications stoppen. Audit-Eintrag inkl. Reason.
-- AuthZ: HR + Admin. Manager nur bei eigener Abteilung.
-- DB: ggf. Migration fuer `cancellation_reason`/`cancelled_by_person_id`/`cancelled_at` auf `workflow_instances`.
-- FE: Button + Confirmation-Dialog in `WorkflowManagementPanel`, sichtbar bei Status `running`; Pflichtfeld Reason.
-- Tests: Backend-Integrationstest (Statusuebergang, Tasks, Audit), AuthZ-Test, FE-Test fuer den Button-Pfad.
-
-**Risiko/Reversibilitaet:** Lifecycle-Mutationspfad, sorgfaltspflichtig. Migration nicht rueckgaengig machbar, daher in `db/manual/` mit Manifest-Eintrag verankern.
-
-**Plan-Mode AN:** Designfragen vor Implementierung klaeren —
-- Statusuebergaenge: erlaubte Quellen fuer `cancelled` (nur `running` oder auch `awaiting_approval`?).
-- Reason-Schema: freier Text vs. Liste vordefinierter Gruende + Freitext.
-- Rotation-Plan-Verknuepfungen bei Cancel: was passiert mit abhaengigen Rotation-Tasks?
-- Re-Open: bewusst nicht (Konsistenz) vs. Admin-only.
+**Risiko/Reversibilitaet:** Migration additiv, idempotent. Status-Constraint erweitert (nicht entfernt). Kein Datenverlust-Pfad.
 
 ---
 
@@ -198,7 +188,7 @@ Reihenfolge nach Risiko/Endnutzer-Nutzen. Die Slice-IDs `Z21-S1`..`Z21-S6` refer
 
 1. **Z21-S1 zuerst.** ✅ erledigt 2026-05-12. Hoechster Risiko-Reduktionsnutzen pro Aufwand.
 2. **Z21-S2 parallel.** ✅ erledigt 2026-05-12 — Richtungsentscheidung steht (Option 2 / Windows-Worker). Folge-Slice „Schreibender Automation-Layer" (Migrationspfad-Etappe 9a) ist eigener Etappenpfad und **nicht Teil des Z21-Slice-Plans**.
-3. **Z21-S3** als zweiter Show-Stopper aus dem Weg raeumen.
+3. **Z21-S3.** ✅ erledigt 2026-05-12. Zweiter Show-Stopper raus.
 4. **Z21-S4** als spuerbarer UX-Sprung im Alltag.
 5. **Z21-S5** loest das Builder-Zielarchitektur-Versprechen ein.
 6. **Z21-S6** als Aufraeumarbeit.

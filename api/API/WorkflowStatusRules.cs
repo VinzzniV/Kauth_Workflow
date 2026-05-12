@@ -7,6 +7,14 @@ internal static class WorkflowStatusRules
     public const string WaitingForDepartment = "waiting_for_department";
     public const string InProgress = "in_progress";
     public const string Completed = "completed";
+    public const string Cancelled = "cancelled";
+
+    public static readonly IReadOnlySet<string> CancellableSourceStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        InProgress,
+        WaitingForSupervisor,
+        WaitingForDepartment
+    };
 
     public static string Normalize(string workflowStatus)
     {
@@ -16,7 +24,12 @@ internal static class WorkflowStatusRules
     public static bool IsTerminal(string workflowStatus)
     {
         var normalized = Normalize(workflowStatus);
-        return normalized == Completed;
+        return normalized is Completed or Cancelled;
+    }
+
+    public static bool IsCancellable(string workflowStatus)
+    {
+        return CancellableSourceStatuses.Contains(Normalize(workflowStatus));
     }
 
     public static bool IsWaitingForSupervisor(string workflowStatus)

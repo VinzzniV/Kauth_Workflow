@@ -704,6 +704,58 @@ public sealed class AuthorizationPolicyServiceTests
         Assert.False(_sut.CanAddTaskComment(user, task));
     }
 
+    // --- CanCancelWorkflow ---
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Hr)]
+    [InlineData(AuthorizationRoles.Admin)]
+    public void CanCancelWorkflow_AllowsHrAndAdmin_Globally(string role)
+    {
+        var user = CreateUser(role);
+        Assert.True(_sut.CanCancelWorkflow(user, workflowDepartmentId: 42, observableDepartmentIds: null));
+    }
+
+    [Fact]
+    public void CanCancelWorkflow_AllowsManager_WhenWorkflowDepartmentIsObservable()
+    {
+        var user = CreateUser(AuthorizationRoles.Manager);
+        var observable = new HashSet<int> { 7, 42 };
+        Assert.True(_sut.CanCancelWorkflow(user, workflowDepartmentId: 42, observableDepartmentIds: observable));
+    }
+
+    [Fact]
+    public void CanCancelWorkflow_DeniesManager_WhenWorkflowDepartmentIsNotObservable()
+    {
+        var user = CreateUser(AuthorizationRoles.Manager);
+        var observable = new HashSet<int> { 7 };
+        Assert.False(_sut.CanCancelWorkflow(user, workflowDepartmentId: 42, observableDepartmentIds: observable));
+    }
+
+    [Fact]
+    public void CanCancelWorkflow_DeniesManager_WhenObservableIsNull()
+    {
+        var user = CreateUser(AuthorizationRoles.Manager);
+        Assert.False(_sut.CanCancelWorkflow(user, workflowDepartmentId: 42, observableDepartmentIds: null));
+    }
+
+    [Fact]
+    public void CanCancelWorkflow_AllowsDepartmentLeadResponsibility_WhenWorkflowDepartmentIsObservable()
+    {
+        var user = CreateUserWithResponsibility(AuthorizationRoles.Reader, responsibilityId: 5, responsibilityType: "department_lead");
+        var observable = new HashSet<int> { 42 };
+        Assert.True(_sut.CanCancelWorkflow(user, workflowDepartmentId: 42, observableDepartmentIds: observable));
+    }
+
+    [Theory]
+    [InlineData(AuthorizationRoles.Worker)]
+    [InlineData(AuthorizationRoles.Reader)]
+    public void CanCancelWorkflow_DeniesUnrelatedRoles(string role)
+    {
+        var user = CreateUser(role);
+        var observable = new HashSet<int> { 42 };
+        Assert.False(_sut.CanCancelWorkflow(user, workflowDepartmentId: 42, observableDepartmentIds: observable));
+    }
+
     // --- Helpers ---
 
     private static CurrentUser CreateUser(string roleKey, long userId = 1)

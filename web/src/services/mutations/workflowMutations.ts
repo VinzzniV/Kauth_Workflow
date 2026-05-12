@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   archiveWorkflow,
+  cancelWorkflow,
   deleteWorkflow,
   updateWorkflowSupervisorStep,
 } from "../workflowApi";
@@ -13,7 +14,11 @@ import {
   updateTaskStatusByRef,
 } from "../taskApi";
 import { queryKeys } from "../queryKeys";
-import type { RequirementSelectionPayload, TaskStatus } from "../../types/workflow";
+import type {
+  RequirementSelectionPayload,
+  TaskStatus,
+  WorkflowCancellationRequest,
+} from "../../types/workflow";
 
 type TaskMutationVariables = {
   workflowUid?: string | null;
@@ -78,6 +83,26 @@ export function useDeleteWorkflow() {
     onSuccess: (_, uid) => {
       queryClient.removeQueries({ queryKey: queryKeys.workflows.detail(uid) });
       queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
+    },
+  });
+}
+
+type CancelWorkflowVariables = {
+  uid: string;
+  request: WorkflowCancellationRequest;
+};
+
+export function useCancelWorkflow() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ uid, request }: CancelWorkflowVariables) => cancelWorkflow(uid, request),
+    onSuccess: (_, { uid }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.detail(uid) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.tasks(uid) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.workflows.auditLog(uid, 50, 0) });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
     },
   });

@@ -84,6 +84,7 @@ export function WorkflowListFilters({
     waiting_for_department: "Fachbereiche offen",
     in_progress: "Fachbereiche in Bearbeitung",
     completed: "Abgeschlossen",
+    cancelled: "Storniert",
   };
   const hasActiveFilters =
     search.trim().length > 0 ||

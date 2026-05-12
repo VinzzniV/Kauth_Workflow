@@ -472,6 +472,10 @@ public sealed class WorkflowDetailDto
     public required DateTime CreatedAt { get; init; }
     public DateOnly? DeadlineDate { get; init; }
     public DateTime? ArchivedAt { get; init; }
+    public DateTime? CancelledAt { get; init; }
+    public long? CancelledByPersonId { get; init; }
+    public string? CancellationReasonCode { get; init; }
+    public string? CancellationReasonDetail { get; init; }
     public long? TargetPersonId { get; init; }
     public required List<WorkflowRequirementSnapshotDto> Requirements { get; init; }
     public required WorkflowRequirementSummaryDto RequirementSummary { get; set; }
@@ -479,6 +483,91 @@ public sealed class WorkflowDetailDto
     public required WorkflowTaskMetricsDto TaskMetrics { get; set; }
     public required List<WorkflowTaskAreaSummaryDto> TaskAreas { get; set; }
     public required List<WorkflowNotificationDto> Notifications { get; init; }
+}
+
+public sealed class WorkflowCancellationRequest
+{
+    public required string ReasonCode { get; init; }
+    public string? ReasonDetail { get; init; }
+}
+
+public sealed class WorkflowCancellationResultDto
+{
+    public required Guid Uid { get; init; }
+    public required string PreviousStatus { get; init; }
+    public required int CancelledTaskCount { get; init; }
+    public required int DisabledNotificationCount { get; init; }
+}
+
+public sealed class WorkflowCancellationLookupDto
+{
+    public required long WorkflowId { get; init; }
+    public required int DepartmentId { get; init; }
+    public required string WorkflowStatus { get; init; }
+    public required long? TargetPersonId { get; init; }
+}
+
+public enum WorkflowCancellationOutcomeStatus
+{
+    Success,
+    NotFound,
+    Forbidden,
+    InvalidStatus,
+    InvalidReason
+}
+
+public sealed class WorkflowCancellationOutcome
+{
+    public required WorkflowCancellationOutcomeStatus Status { get; init; }
+    public WorkflowCancellationResultDto? Result { get; init; }
+    public string? ErrorMessage { get; init; }
+}
+
+public static class WorkflowCancellationReasonCodes
+{
+    public const string EntryCancelled = "entry_cancelled";
+    public const string EntryPostponed = "entry_postponed";
+    public const string WrongPerson = "wrong_person";
+    public const string StartedByMistake = "started_by_mistake";
+    public const string Other = "other";
+
+    public static readonly IReadOnlySet<string> Allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        EntryCancelled,
+        EntryPostponed,
+        WrongPerson,
+        StartedByMistake,
+        Other
+    };
+
+    public const int MaxDetailLength = 500;
+
+    public static (string NormalizedCode, string? NormalizedDetail, string? ValidationError) Validate(WorkflowCancellationRequest? request)
+    {
+        if (request is null)
+        {
+            return (string.Empty, null, "Storno-Grund ist erforderlich.");
+        }
+
+        var code = (request.ReasonCode ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(code) || !Allowed.Contains(code))
+        {
+            return (code, null, "Unbekannter Storno-Grund. Erlaubte Werte: entry_cancelled, entry_postponed, wrong_person, started_by_mistake, other.");
+        }
+
+        var detail = string.IsNullOrWhiteSpace(request.ReasonDetail) ? null : request.ReasonDetail.Trim();
+        if (detail is not null && detail.Length > MaxDetailLength)
+        {
+            return (code, null, $"Storno-Grund-Detail darf maximal {MaxDetailLength} Zeichen lang sein.");
+        }
+
+        if (string.Equals(code, Other, StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(detail))
+        {
+            return (code, null, "Bei Grund 'other' ist eine Detailbeschreibung erforderlich.");
+        }
+
+        return (code, detail, null);
+    }
 }
 
 public sealed class WorkflowNotificationDispatchTarget

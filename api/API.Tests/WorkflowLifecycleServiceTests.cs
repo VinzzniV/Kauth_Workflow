@@ -660,6 +660,8 @@ public sealed class WorkflowLifecycleServiceTests
         public Task<TaskWithWorkflowDto?> AddTaskCommentByRef(string taskRef, string commentText, long actorUserId) => throw new NotSupportedException();
         public Task<bool> ArchiveWorkflow(Guid workflowUid, long actorUserId) => throw new NotSupportedException();
         public Task<bool> DeleteDraftWorkflow(Guid workflowUid) => throw new NotSupportedException();
+        public Task<WorkflowCancellationLookupDto?> LookupWorkflowForCancellation(Guid workflowUid) => throw new NotSupportedException();
+        public Task<WorkflowCancellationResultDto?> CancelWorkflow(Guid workflowUid, string reasonCode, string? reasonDetail, long actorUserId) => throw new NotSupportedException();
         public Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId) => throw new NotSupportedException();
         public Task<List<WorkflowLinkDto>> GetWorkflowLinks(Guid workflowUid) => throw new NotSupportedException();
         public Task<List<RelatedWorkflowSummaryDto>> GetRelatedWorkflows(Guid workflowUid) => throw new NotSupportedException();

@@ -76,7 +76,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht fuer Claude unte
 |---------|------|------------------|
 | **Automatisierung (Layer + Handler)** | **D** | Layer fachlich richtig, alle Handler Simulation — jetzt im UI klar markiert (Z21-S1); produktiv unverantwortlich bis echte Handler existieren |
 | **Hybrid-AD-Faehigkeit (on-prem)** | **F** | Richtung entschieden (Z21-S2, 2026-05-12: Windows-Worker, AD on-prem fuehrt) — Implementation offen: kein Worker, kein LDAP/LDAPS-Adapter, `EntraGraphClient` weiter read-only |
-| Workflow-Storno (laufende Vorgaenge) | **D** | Kein Cancel-Endpunkt, nur `archive` (completed) und `delete` (draft) — taeglicher Edge-Case nicht abgedeckt |
+| Workflow-Storno (laufende Vorgaenge) | **A-** | `POST /workflows/{uid}/cancel` mit Pflicht-Grund (vordefinierte Liste + Freitext bei „Sonstiges"), terminaler Status `cancelled`, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag mit Reason-JSON (Z21-S3, 2026-05-12) |
 | Workflow-Builder (Conditions/Mappings) | **B-** | Canvas + DAG-Layout stark; Conditions haben Formularmodus, Mappings/technische Keys bleiben Power-User-lastig |
 | Workflow-Detail (Panelauswahl) | **B-** | Sechs+ Panels untereinander, „was ist offen?" verteilt sich |
 | Listen-Trennung Worker/Manager | **B-** | `/workflows`, `/tasks/my`, `/rotation/operations` ueberlappen fuer Mehrrollen-User |
@@ -144,9 +144,13 @@ Was fehlt konkret technisch fuer Option 2: schreibender Worker-Service (DB-Poll 
 
 ---
 
-**Z21-P0-3 · Aktive Workflow-Instanzen lassen sich nicht abbrechen**
+**Z21-P0-3 · Aktive Workflow-Instanzen lassen sich nicht abbrechen** — ✅ done 2026-05-12 (Z21-S3)
 
-Die Workflow-Lifecycle-API kennt nur:
+**Umgesetzt:** Neuer Endpunkt `POST /workflows/{uid}/cancel` mit Pflicht-Grund (`reasonCode` aus vordefinierter Liste + optional `reasonDetail`; bei `other` ist Detail Pflicht). Stornierbar nur aus den aktiven Status `in_progress`, `waiting_for_supervisor`, `waiting_for_department`. Lifecycle-Wirkung in einer Transaktion: Workflow → `cancelled` + Zeitstempel/Person/Reason, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag `workflow_cancelled` mit JSON-Detail. AuthZ: HR + Admin global, Manager nur bei eigener Abteilung (`AuthorizationPolicyService.CanCancelWorkflow`). FE: Storno-Button im `WorkflowManagementPanel` + bespoke `CancelWorkflowDialog` mit Pflicht-Select und conditional Pflicht-Textarea; Anzeige des Reason im storno-readonly-Block. Schema-Migration `db/manual/2026-05-12_workflow_cancellation.sql` + 4 neue Spalten + Status-Constraints erweitert. Tests: 13 backend (`WorkflowCancellationReasonCodesTests`, `WorkflowStatusRulesTests`-Erweiterungen, `AuthorizationPolicyServiceTests`-Erweiterungen) + 15 FE (`CancelWorkflowDialog.test.tsx`, `WorkflowManagementPanel.cancel.test.tsx`).
+
+Urspruengliche Befundlage:
+
+Die Workflow-Lifecycle-API kannte vor Z21-S3 nur:
 - `POST /workflows/{uid}/archive` — nur fuer **completed**-Status erlaubt (`api/API/Endpoints/WorkflowEndpoints.cs:239-263`).
 - `DELETE /workflows/{uid}` — nur fuer **draft**-Status erlaubt (`api/API/Endpoints/WorkflowEndpoints.cs:265-289`).
 - Keinen Endpunkt fuer `cancel`, `abort` oder „stoppen". Grep nach `cancelWorkflow|cancel_workflow|cancelInstance` im `api/API`-Verzeichnis: 0 Treffer.
@@ -278,8 +282,8 @@ Bewusst nicht migriert (siehe `FRONTEND_TODO.md:52`). Heute kein konkreter Schme
 |---|---|---|---|---|
 | **Uebersicht** (Dashboard) | ✅ Solide, persona-spezifisch | 🟡 Persona-Switcher-Wirkung nur teilweise erklaert (P1-4) | ✅ Zone-Struktur | **Ja, mit Hinweis Persona-Switcher** |
 | **Workflow-Builder** | ✅ Versionierte Definitions + DAG-Canvas | 🟡 Mappings/Keys technisch (P1-2) | ✅ Dirtystate/Speichern/Verwerfen vorhanden | **Teilweise — fuer Power-User ok, nicht fuer jeden Admin** |
-| **Laufende Vorgaenge** | ✅ Saved-Views, Pagination, Vorschau-Split | ✅ Klar | ✅ Karten + Tabelle | **Ja** — aber kein Storno (P0-3) |
-| **Workflow-Detail** | ✅ Header/Requirements/TaskAreas/… | 🟡 viele Panels untereinander (P2-2) | ✅ Saubere Komponenten | **Teilweise — Storno fehlt** |
+| **Laufende Vorgaenge** | ✅ Saved-Views, Pagination, Vorschau-Split, Storno (Z21-S3) | ✅ Klar | ✅ Karten + Tabelle | **Ja** |
+| **Workflow-Detail** | ✅ Header/Requirements/TaskAreas/… + Storno (Z21-S3) | 🟡 viele Panels untereinander (P2-2) | ✅ Saubere Komponenten | **Ja** |
 | **Mitarbeiter** | ✅ HR-/Admin-Liste + 360°-Akte mit Tabs | 🟡 `directory_only` und Personen gemischt (P1-1) | 🟡 Inline-Styles (P3-1) | **Ja, kleinere UX-Klaerungen** |
 | **Durchlaufplanung** | ✅ HR-Modus, Stations-Timeline, Audit | 🟡 `?mode=create` URL-versteckt | ✅ Kalender + Timeline | **Ja** |
 | **Wechsel & Aufgaben** | ✅ Filter, Karten/Tabelle, IT-/eigene-Abt. | 🟡 Ueberlappung mit „Meine Aufgaben" (P2-1) | ✅ Strukturierte Sicht | **Ja** |
@@ -314,7 +318,7 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 ### Z21-Naechste Schritte (priorisiert nach Endnutzer-/Produktionsnutzen)
 
 1. **✅ Z21-S1 done (2026-05-12) · Simulation klar als Simulation markieren.** `ActionDefinitionDto.IsSimulated` (abgeleitet aus `handler_type LIKE 'simulated_%'`) im Backend. FE: „Simuliert"-Badge im `WorkflowBuilderActionEditor` neben jeder simulierten Aktion + Hinweis im Dropdown. Admin-Dashboard: Simulation-Hinweis-Banner im `AdminOverviewWorkspaceSection` mit Link zum Aktionskatalog. CSS: `.wf-action-sim-badge`, `.admin-sim-notice`. Tests: `ActionDefinitionDto_IsSimulated_DerivedFromHandlerType` (Theory, 6 Faelle).
-2. **🔴 Storno fuer laufende Workflows einfuehren.** Neuer `POST /workflows/{uid}/cancel` mit Grund-Pflichtfeld, Uebergang in `cancelled`, Tasks automatisch `cancelled`, Notifications stoppen, Audit-Eintrag. UI-Button in `WorkflowManagementPanel` fuer HR/Admin bei `running`-Status.
+2. **✅ Z21-S3 done (2026-05-12) · Storno fuer laufende Workflows.** `POST /workflows/{uid}/cancel` mit Pflicht-Reason-Code (vordefinierte Liste + Freitext bei „other"), Status terminal nach `cancelled`, offene Tasks → `cancelled`, pending Notifications → `disabled`, Audit-Eintrag `workflow_cancelled` mit JSON-Detail. AuthZ: HR/Admin global, Manager nur eigene Abteilung. FE: bespoke `CancelWorkflowDialog` + Button im `WorkflowManagementPanel` + Storno-Readonly-Block fuer abgeschlossene Stornierungen. Schema-Migration `db/manual/2026-05-12_workflow_cancellation.sql`.
 3. **✅ Z21-S2 done (2026-05-12) · Hybrid-AD-Architekturentscheidung getroffen.** AD on-prem fuehrt; schreibende Lifecycle-Aktionen laufen ueber einen dedizierten Windows-Worker, `EntraGraphClient` bleibt read-only. Doku in `KauthWorkflow/Architektur/Entscheidungen.md` (Abschnitt „AD/Entra-Schreibrichtung") + `KauthWorkflow/Architektur/Migrationspfad.md` (Etappe 9a mit 4-Schritte-Zielbild) + `PROJECT_CONTEXT.md` (Guardrail). Sub-Entscheidungen (Deployment / Transport / Schreibmechanik / Auth / Audit) bewusst offen — eigener Plan-Mode-Slice vor Code-Arbeit.
 4. **🟠 Builder fachsprachlicher machen.** Mapping-Editor mit menschlich lesbaren Labels, Condition-Wording weniger technisch, technische Keys nur im Power-Modus.
 5. **🟡 Workflow-Detail- und Listen-Ergonomie auflockern.** Tabs auf Workflow-Detail, klarere Listen-Trennung Worker/Manager, Runtime-Sichtbarkeit fuer blockierte/fehlgeschlagene Mail-Dispatches.

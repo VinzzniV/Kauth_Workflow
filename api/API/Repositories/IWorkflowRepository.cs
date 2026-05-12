@@ -60,6 +60,8 @@ internal interface IWorkflowRepository
     Task<TaskWithWorkflowDto?> AddTaskCommentByRef(string taskRef, string commentText, long actorUserId);
     Task<bool> ArchiveWorkflow(Guid workflowUid, long actorUserId);
     Task<bool> DeleteDraftWorkflow(Guid workflowUid);
+    Task<WorkflowCancellationLookupDto?> LookupWorkflowForCancellation(Guid workflowUid);
+    Task<WorkflowCancellationResultDto?> CancelWorkflow(Guid workflowUid, string reasonCode, string? reasonDetail, long actorUserId);
     Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistory(long personId);
     // A3: Inline-Bearbeitung fehlender Stammdaten (Eintrittsdatum, Ausweisnummer).
     Task<bool> UpdatePersonCoreFields(long personId, DateOnly? entryDate, int? badgeNumber);

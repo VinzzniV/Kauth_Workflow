@@ -10,7 +10,9 @@ public sealed class WorkflowStatusRulesTests
     [InlineData(WorkflowStatusRules.Completed)]
     [InlineData("COMPLETED")]
     [InlineData("  completed  ")]
-    public void IsTerminal_ReturnsTrue_ForCompleted(string status)
+    [InlineData(WorkflowStatusRules.Cancelled)]
+    [InlineData("CANCELLED")]
+    public void IsTerminal_ReturnsTrue_ForTerminalStatuses(string status)
     {
         Assert.True(WorkflowStatusRules.IsTerminal(status));
     }
@@ -20,7 +22,6 @@ public sealed class WorkflowStatusRulesTests
     [InlineData(WorkflowStatusRules.WaitingForSupervisor)]
     [InlineData(WorkflowStatusRules.WaitingForDepartment)]
     [InlineData(WorkflowStatusRules.InProgress)]
-    [InlineData("cancelled")]
     public void IsTerminal_ReturnsFalse_ForActiveStatuses(string status)
     {
         Assert.False(WorkflowStatusRules.IsTerminal(status));
@@ -76,4 +77,26 @@ public sealed class WorkflowStatusRulesTests
         Assert.Equal(expected, WorkflowStatusRules.Normalize(input));
     }
 
+    // --- IsCancellable ---
+
+    [Theory]
+    [InlineData(WorkflowStatusRules.InProgress)]
+    [InlineData(WorkflowStatusRules.WaitingForSupervisor)]
+    [InlineData(WorkflowStatusRules.WaitingForDepartment)]
+    [InlineData("IN_PROGRESS")]
+    [InlineData("  waiting_for_supervisor  ")]
+    public void IsCancellable_ReturnsTrue_ForActiveSourceStatuses(string status)
+    {
+        Assert.True(WorkflowStatusRules.IsCancellable(status));
+    }
+
+    [Theory]
+    [InlineData(WorkflowStatusRules.Draft)]
+    [InlineData(WorkflowStatusRules.Completed)]
+    [InlineData(WorkflowStatusRules.Cancelled)]
+    [InlineData("archived")]
+    public void IsCancellable_ReturnsFalse_ForNonActiveStatuses(string status)
+    {
+        Assert.False(WorkflowStatusRules.IsCancellable(status));
+    }
 }

@@ -19,5 +19,6 @@ internal interface IWorkflowRuntimeService
     Task<IReadOnlyList<TaskWithWorkflowDto>?> GetWorkflowTasksAsync(Guid workflowUid, CurrentUser currentUser, CancellationToken cancellationToken = default);
     Task<bool> ArchiveWorkflowAsync(Guid workflowUid, CurrentUser currentUser, CancellationToken cancellationToken = default);
     Task<bool> DeleteWorkflowAsync(Guid workflowUid, CurrentUser currentUser, CancellationToken cancellationToken = default);
+    Task<WorkflowCancellationOutcome> CancelWorkflowAsync(Guid workflowUid, WorkflowCancellationRequest request, CurrentUser currentUser, CancellationToken cancellationToken = default);
     Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistoryAsync(long personId, CurrentUser currentUser, CancellationToken cancellationToken = default);
 }

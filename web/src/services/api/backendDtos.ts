@@ -352,6 +352,10 @@ export type BackendWorkflowDetailDto = {
   createdAt: string;
   deadlineDate: string | null;
   archivedAt: string | null;
+  cancelledAt: string | null;
+  cancelledByPersonId: number | null;
+  cancellationReasonCode: string | null;
+  cancellationReasonDetail: string | null;
   targetPersonId: number | null;
   requirements: BackendWorkflowRequirementSnapshotDto[];
   requirementSummary: BackendWorkflowRequirementSummaryDto;

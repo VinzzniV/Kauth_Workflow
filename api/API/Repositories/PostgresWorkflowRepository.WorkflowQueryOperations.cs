@@ -480,7 +480,11 @@ SELECT
     w.deadline_date,
     w.created_at,
     w.archived_at,
-    w.target_person_id
+    w.target_person_id,
+    w.cancelled_at,
+    w.cancelled_by_person_id,
+    w.cancellation_reason_code,
+    w.cancellation_reason_detail
 FROM workflows w
 JOIN departments d ON d.id = w.department_id
 JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
@@ -528,6 +532,10 @@ LIMIT 1;";
                 CreatedAt = reader.GetDateTime(16),
                 ArchivedAt = reader.IsDBNull(17) ? null : reader.GetDateTime(17),
                 TargetPersonId = reader.IsDBNull(18) ? null : reader.GetInt64(18),
+                CancelledAt = reader.IsDBNull(19) ? null : reader.GetDateTime(19),
+                CancelledByPersonId = reader.IsDBNull(20) ? null : reader.GetInt64(20),
+                CancellationReasonCode = reader.IsDBNull(21) ? null : reader.GetString(21),
+                CancellationReasonDetail = reader.IsDBNull(22) ? null : reader.GetString(22),
                 Requirements = new List<WorkflowRequirementSnapshotDto>(),
                 RequirementSummary = WorkflowSummaryBuilder.CreateEmptyRequirementSummary(),
                 Tasks = new List<WorkflowTaskDto>(),

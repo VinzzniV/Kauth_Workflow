@@ -4,6 +4,8 @@ import type {
   RelatedWorkflowSummary,
   RequirementSelectionPayload,
   WorkflowAuditEntry,
+  WorkflowCancellationRequest,
+  WorkflowCancellationResult,
   WorkflowConfig,
   WorkflowCreationPayload,
   WorkflowCreationResponse,
@@ -109,6 +111,16 @@ export async function archiveWorkflow(uid: string): Promise<void> {
 
 export async function deleteWorkflow(uid: string): Promise<void> {
   await requestJson<void>(`/workflows/${encodeURIComponent(uid)}`, { method: "DELETE" });
+}
+
+export async function cancelWorkflow(
+  uid: string,
+  request: WorkflowCancellationRequest,
+): Promise<WorkflowCancellationResult> {
+  return requestJson<WorkflowCancellationResult>(`/workflows/${encodeURIComponent(uid)}/cancel`, {
+    method: "POST",
+    body: request,
+  });
 }
 
 export async function getWorkflowByUid(uid: string): Promise<WorkflowDetail> {

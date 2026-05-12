@@ -59,6 +59,219 @@ RETURNING id;";
         return result is not null;
     }
 
+    // Storno-Lookup: liefert nur Header (Department, Status, Person), damit der Aufrufer
+    // AuthZ + Statusvorbedingung pruefen kann, bevor der eigentliche Cancel-Pfad transaktional laeuft.
+    public async Task<WorkflowCancellationLookupDto?> LookupWorkflowForCancellation(Guid workflowUid)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+SELECT id, department_id, status, target_person_id
+FROM workflows
+WHERE uid = @uid
+LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("uid", workflowUid);
+        await using var reader = await command.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new WorkflowCancellationLookupDto
+        {
+            WorkflowId = reader.GetInt64(0),
+            DepartmentId = reader.GetInt32(1),
+            WorkflowStatus = reader.GetString(2),
+            TargetPersonId = reader.IsDBNull(3) ? null : reader.GetInt64(3)
+        };
+    }
+
+    // Storno: aktiver Workflow wird terminal nach 'cancelled' ueberfuehrt, offene Tasks
+    // werden mit-storniert, pending Notifications werden stillgelegt, und der Vorgang
+    // erhaelt einen Audit-Eintrag inkl. ReasonCode + ReasonDetail (als JSON-Detail).
+    public async Task<WorkflowCancellationResultDto?> CancelWorkflow(Guid workflowUid, string reasonCode, string? reasonDetail, long actorUserId)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        const string lockWorkflowSql = @"
+SELECT id, status
+FROM workflows
+WHERE uid = @uid
+FOR UPDATE;";
+
+        long workflowId;
+        string previousStatus;
+        await using (var lookupCmd = new NpgsqlCommand(lockWorkflowSql, connection, transaction))
+        {
+            lookupCmd.Parameters.AddWithValue("uid", workflowUid);
+            await using var reader = await lookupCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                await transaction.RollbackAsync();
+                return null;
+            }
+
+            workflowId = reader.GetInt64(0);
+            previousStatus = reader.GetString(1);
+        }
+
+        if (!WorkflowStatusRules.IsCancellable(previousStatus))
+        {
+            await transaction.RollbackAsync();
+            return null;
+        }
+
+        var cancelledByPersonId = await ResolvePersonIdForActorUser(connection, transaction, actorUserId);
+
+        const string applyCancelSql = @"
+UPDATE workflows
+SET status = 'cancelled',
+    cancelled_at = NOW(),
+    cancelled_by_person_id = @cancelledByPersonId,
+    cancellation_reason_code = @reasonCode,
+    cancellation_reason_detail = @reasonDetail
+WHERE id = @id;";
+
+        await using (var applyCmd = new NpgsqlCommand(applyCancelSql, connection, transaction))
+        {
+            applyCmd.Parameters.AddWithValue("id", workflowId);
+            applyCmd.Parameters.AddWithValue("reasonCode", reasonCode);
+            if (cancelledByPersonId.HasValue)
+            {
+                applyCmd.Parameters.AddWithValue("cancelledByPersonId", cancelledByPersonId.Value);
+            }
+            else
+            {
+                applyCmd.Parameters.Add("cancelledByPersonId", NpgsqlTypes.NpgsqlDbType.Bigint).Value = DBNull.Value;
+            }
+            if (reasonDetail is null)
+            {
+                applyCmd.Parameters.Add("reasonDetail", NpgsqlTypes.NpgsqlDbType.Text).Value = DBNull.Value;
+            }
+            else
+            {
+                applyCmd.Parameters.AddWithValue("reasonDetail", reasonDetail);
+            }
+            await applyCmd.ExecuteNonQueryAsync();
+        }
+
+        // Offene Tasks erst lesen (fuer Audit-Eintraege mit altem Status + Titel), dann en bloc stornieren.
+        const string readOpenTasksSql = @"
+SELECT id, status, title
+FROM workflow_tasks
+WHERE workflow_id = @workflowId
+  AND status NOT IN ('done', 'cancelled')
+FOR UPDATE;";
+
+        var openTasks = new List<(long Id, string Status, string Title)>();
+        await using (var readCmd = new NpgsqlCommand(readOpenTasksSql, connection, transaction))
+        {
+            readCmd.Parameters.AddWithValue("workflowId", workflowId);
+            await using var reader = await readCmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                openTasks.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2)));
+            }
+        }
+
+        var cancelledTaskCount = 0;
+        if (openTasks.Count > 0)
+        {
+            const string updateTasksSql = @"
+UPDATE workflow_tasks
+SET status = 'cancelled'
+WHERE workflow_id = @workflowId
+  AND status NOT IN ('done', 'cancelled');";
+
+            await using var updateTasksCmd = new NpgsqlCommand(updateTasksSql, connection, transaction);
+            updateTasksCmd.Parameters.AddWithValue("workflowId", workflowId);
+            cancelledTaskCount = await updateTasksCmd.ExecuteNonQueryAsync();
+
+            foreach (var task in openTasks)
+            {
+                await PostgresRepositorySharedHelpers.InsertAuditEntry(
+                    connection,
+                    transaction,
+                    workflowId,
+                    task.Id,
+                    actorUserId,
+                    "task_status_changed",
+                    task.Status,
+                    "cancelled",
+                    PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(task.Title));
+            }
+        }
+
+        const string disableNotificationsSql = @"
+UPDATE workflow_notifications
+SET status = 'disabled'
+WHERE workflow_id = @workflowId
+  AND status = 'pending';";
+
+        int disabledNotificationCount;
+        await using (var disableNotifCmd = new NpgsqlCommand(disableNotificationsSql, connection, transaction))
+        {
+            disableNotifCmd.Parameters.AddWithValue("workflowId", workflowId);
+            disabledNotificationCount = await disableNotifCmd.ExecuteNonQueryAsync();
+        }
+
+        // Workflow-Storno-Audit-Eintrag mit JSON-Detail (ReasonCode + ReasonDetail + Counts).
+        var auditDetailJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            reasonCode,
+            reasonDetail,
+            cancelledTaskCount,
+            disabledNotificationCount
+        });
+
+        const string auditSql = @"
+INSERT INTO workflow_audit_log (workflow_id, actor_user_id, event_type, old_value, new_value, detail)
+VALUES (@workflowId, @actorUserId, 'workflow_cancelled', @oldValue, 'cancelled', @detail);";
+
+        await using (var auditCmd = new NpgsqlCommand(auditSql, connection, transaction))
+        {
+            auditCmd.Parameters.AddWithValue("workflowId", workflowId);
+            auditCmd.Parameters.AddWithValue("actorUserId", actorUserId);
+            auditCmd.Parameters.AddWithValue("oldValue", previousStatus);
+            auditCmd.Parameters.AddWithValue("detail", auditDetailJson);
+            await auditCmd.ExecuteNonQueryAsync();
+        }
+
+        await transaction.CommitAsync();
+
+        return new WorkflowCancellationResultDto
+        {
+            Uid = workflowUid,
+            PreviousStatus = previousStatus,
+            CancelledTaskCount = cancelledTaskCount,
+            DisabledNotificationCount = disabledNotificationCount
+        };
+    }
+
+    // Mappt den Akteur-User auf die zugehoerige Person (people.app_user_id), damit
+    // cancelled_by_person_id konsistent zur Person-als-Fachanker-Trennung gepflegt wird.
+    private static async Task<long?> ResolvePersonIdForActorUser(NpgsqlConnection connection, NpgsqlTransaction transaction, long actorUserId)
+    {
+        const string sql = @"
+SELECT id
+FROM people
+WHERE app_user_id = @actorUserId
+LIMIT 1;";
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("actorUserId", actorUserId);
+        var result = await command.ExecuteScalarAsync();
+        if (result is null || result is DBNull)
+        {
+            return null;
+        }
+        return Convert.ToInt64(result);
+    }
+
     // Der Schritt der Abteilungsleitung ersetzt vorhandene Antworten und erzeugt daraus den weiteren Aufgabenplan.
     public async Task<WorkflowDetailDto?> CompleteSupervisorStep(
         Guid workflowUid,

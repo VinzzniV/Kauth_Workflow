@@ -184,6 +184,26 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
         return CanReadWorkflow(user, workflowStatus);
     }
 
+    public bool CanCancelWorkflow(
+        CurrentUser user,
+        int workflowDepartmentId,
+        IReadOnlySet<int>? observableDepartmentIds)
+    {
+        if (CanManageAdminConfiguration(user)
+            || HasAnyRole(user, AuthorizationRoles.Hr))
+        {
+            return true;
+        }
+
+        if (HasAnyRole(user, AuthorizationRoles.Manager)
+            || HasDepartmentLeadSupervisorResponsibility(user))
+        {
+            return observableDepartmentIds?.Contains(workflowDepartmentId) == true;
+        }
+
+        return false;
+    }
+
     public bool CanAccessAssignedSupervisorWorkflow(
         CurrentUser user,
         int workflowDepartmentId,

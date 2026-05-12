@@ -39,7 +39,7 @@ Eine laufende Instanz eines konkreten Vorgangs. Referenziert immer eine feste De
 
 Enthält:
 - Ziel-Person (`targetPersonId`)
-- Status (aktiv, abgeschlossen, abgebrochen)
+- Status (`draft`, `in_progress`, `waiting_for_supervisor`, `waiting_for_department`, `completed`, `cancelled`)
 - Antworten (Formulardaten)
 - Verknüpfte Tasks
 
@@ -52,7 +52,7 @@ Ein Arbeitspaket innerhalb einer Instanz.
 | `assignment_type` | `user` oder `responsibility` |
 | `user` | Genau diese Person ist zuständig |
 | `responsibility` | Geteilte fachliche Zuständigkeit (z.B. IT-Gruppe) |
-| Status | `pending`, `in_progress`, `completed`, `cancelled`, `skipped` |
+| Status | `open`, `ready`, `in_progress`, `blocked`, `done`, `cancelled` (DB-Constraint); abgeleitete UI-Statuswerte zusaetzlich moeglich |
 
 **Wichtig:** Nur mit klarer Zuweisung ist eine Aufgabe für den Verantwortlichen sichtbar. Ein Task ohne Zuweisung ist für Nicht-Admins unsichtbar.
 
@@ -64,6 +64,9 @@ Ein Arbeitspaket innerhalb einer Instanz.
 Erstellt → Anforderungen erfasst (form) → [Freigabe] → Fachaufgaben aktiv → Abgeschlossen
                                                                                     ↓
                                                                     erst nach ALLEN Pflichtaufgaben
+
+Querabbruch (jederzeit aus aktivem Status):
+   in_progress / waiting_for_supervisor / waiting_for_department → cancelled (terminal)
 ```
 
 **Gatekeeper-Regel:** Vor der Aufgabengenerierung kommen immer:
@@ -71,6 +74,17 @@ Erstellt → Anforderungen erfasst (form) → [Freigabe] → Fachaufgaben aktiv 
 2. Optionale Freigabe (Abteilungsleitung)
 
 Keine Fachaufgaben ohne vorherigen Gatekeeper-Schritt.
+
+### Storno (cancelled)
+
+Seit Z21-S3 (2026-05-12) kennt der Lifecycle einen expliziten Storno-Pfad fuer falsch gestartete oder abgesagte Vorgaenge.
+
+- **Endpunkt:** `POST /workflows/{uid}/cancel` mit Pflicht-Reason (`reasonCode` aus vordefinierter Liste + optional `reasonDetail`; bei `reasonCode = "other"` ist `reasonDetail` Pflicht).
+- **Erlaubte Quellstatus:** `in_progress`, `waiting_for_supervisor`, `waiting_for_department`. `draft` bleibt beim bestehenden `DELETE`-Pfad, `completed`/`archived` sind nicht stornierbar.
+- **Wirkung in einer Transaktion:** Workflow-Status → `cancelled` + `cancelled_at`/`cancelled_by_person_id`/`cancellation_reason_*`. Offene Tasks → `cancelled`. Pending Notifications → `disabled`. Audit-Eintrag `workflow_cancelled` mit JSON-Detail (`{ reasonCode, reasonDetail, cancelledTaskCount, disabledNotificationCount }`) + `task_status_changed`-Eintrag pro stornierter Task.
+- **AuthZ:** HR + Admin global; Manager nur bei eigener Abteilung (Department-Scoping ueber `observableDepartmentIds`).
+- **Re-Open:** nicht vorgesehen — `cancelled` ist terminal wie `completed`.
+- **Rotation:** `rotation_plans.source_workflow_id` verlangt per Trigger `completed`-Quellen; ein storno-fertiger Workflow kann demnach keine Rotation-Quelle sein. Kein Cascade noetig.
 
 ---
 

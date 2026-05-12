@@ -62,6 +62,7 @@ export async function loadHrInsights(options: DashboardInsightsOptions = {}): Pr
         waiting_for_department: 2,
         in_progress: 3,
         completed: 4,
+        cancelled: 5,
       };
 
       const statusDelta = statusPriority[left.workflowStatus] - statusPriority[right.workflowStatus];

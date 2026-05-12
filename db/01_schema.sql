@@ -2132,7 +2132,7 @@ CREATE TABLE public.workflow_tasks (
     started_at timestamp with time zone,
     completed_at timestamp with time zone,
     node_instance_id bigint,
-    CONSTRAINT workflow_tasks_status_check CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'ready'::character varying, 'in_progress'::character varying, 'blocked'::character varying, 'done'::character varying])::text[])))
+    CONSTRAINT workflow_tasks_status_check CHECK (((status)::text = ANY ((ARRAY['open'::character varying, 'ready'::character varying, 'in_progress'::character varying, 'blocked'::character varying, 'done'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -2173,8 +2173,12 @@ CREATE TABLE public.workflows (
     started_at timestamp with time zone,
     completed_at timestamp with time zone,
     archived_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    cancelled_by_person_id bigint,
+    cancellation_reason_code character varying(40),
+    cancellation_reason_detail text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT workflows_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'in_progress'::character varying, 'waiting_for_supervisor'::character varying, 'waiting_for_department'::character varying, 'completed'::character varying])::text[])))
+    CONSTRAINT workflows_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'in_progress'::character varying, 'waiting_for_supervisor'::character varying, 'waiting_for_department'::character varying, 'completed'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 

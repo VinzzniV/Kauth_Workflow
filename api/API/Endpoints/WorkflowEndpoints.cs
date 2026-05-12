@@ -288,6 +288,44 @@ internal static class WorkflowEndpoints
           .Produces(StatusCodes.Status400BadRequest)
           .Produces(StatusCodes.Status403Forbidden);
 
+        app.MapPost("/workflows/{uid:guid}/cancel", async (
+            Guid uid,
+            WorkflowCancellationRequest? request,
+            IWorkflowRuntimeService workflowRuntimeService,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy) =>
+        {
+            // Eintrittspolicy: irgendeine Workflow-Bearbeitungsrolle. Feinere Pruefung
+            // (HR/Admin global, Manager nur eigene Abteilung) erfolgt im Service mit Department.
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanCreateWorkflow,
+                "HR, Abteilungsleitung oder Admin role ist erforderlich um Vorgaenge zu stornieren.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            if (request is null)
+            {
+                return Results.BadRequest(new { message = "Storno-Grund ist erforderlich.", code = "missing_reason" });
+            }
+
+            var outcome = await workflowRuntimeService.CancelWorkflowAsync(uid, request, access.User!);
+            return outcome.Status switch
+            {
+                WorkflowCancellationOutcomeStatus.Success => Results.Ok(outcome.Result),
+                WorkflowCancellationOutcomeStatus.NotFound => Results.NotFound(new { message = outcome.ErrorMessage }),
+                WorkflowCancellationOutcomeStatus.Forbidden => EndpointSupport.Forbidden(outcome.ErrorMessage ?? "Storno-Berechtigung fehlt."),
+                WorkflowCancellationOutcomeStatus.InvalidStatus => Results.BadRequest(new { message = outcome.ErrorMessage, code = "invalid_status" }),
+                WorkflowCancellationOutcomeStatus.InvalidReason => Results.BadRequest(new { message = outcome.ErrorMessage, code = "invalid_reason" }),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError)
+            };
+        }).Produces<WorkflowCancellationResultDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status403Forbidden)
+          .Produces(StatusCodes.Status404NotFound);
+
         app.MapGet("/people/{personId:long}/workflows", async (
             long personId,
             IWorkflowRuntimeService workflowRuntimeService,

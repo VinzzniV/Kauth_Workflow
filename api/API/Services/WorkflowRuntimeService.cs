@@ -19,7 +19,8 @@ internal sealed class WorkflowRuntimeService(
         "waiting_for_supervisor",
         "waiting_for_department",
         "in_progress",
-        "completed"
+        "completed",
+        "cancelled"
     };
 
     public async Task<WorkflowCreateResponse> CreateWorkflowAsync(
@@ -348,6 +349,77 @@ internal sealed class WorkflowRuntimeService(
         }
 
         return deleted;
+    }
+
+    public async Task<WorkflowCancellationOutcome> CancelWorkflowAsync(
+        Guid workflowUid,
+        WorkflowCancellationRequest request,
+        CurrentUser currentUser,
+        CancellationToken cancellationToken = default)
+    {
+        var (reasonCode, reasonDetail, reasonError) = WorkflowCancellationReasonCodes.Validate(request);
+        if (reasonError is not null)
+        {
+            return new WorkflowCancellationOutcome
+            {
+                Status = WorkflowCancellationOutcomeStatus.InvalidReason,
+                ErrorMessage = reasonError
+            };
+        }
+
+        var lookup = await repository.LookupWorkflowForCancellation(workflowUid);
+        if (lookup is null)
+        {
+            return new WorkflowCancellationOutcome
+            {
+                Status = WorkflowCancellationOutcomeStatus.NotFound,
+                ErrorMessage = "Workflow nicht gefunden."
+            };
+        }
+
+        var observableDepartmentIds = await workflowVisibilityService.GetObservableWorkflowDepartmentIds(currentUser);
+        if (!authorizationPolicyService.CanCancelWorkflow(currentUser, lookup.DepartmentId, observableDepartmentIds))
+        {
+            return new WorkflowCancellationOutcome
+            {
+                Status = WorkflowCancellationOutcomeStatus.Forbidden,
+                ErrorMessage = "Storno-Berechtigung fehlt."
+            };
+        }
+
+        if (!WorkflowStatusRules.IsCancellable(lookup.WorkflowStatus))
+        {
+            return new WorkflowCancellationOutcome
+            {
+                Status = WorkflowCancellationOutcomeStatus.InvalidStatus,
+                ErrorMessage = $"Workflow im Status '{lookup.WorkflowStatus}' kann nicht storniert werden. Nur aktive Vorgaenge (in_progress, waiting_for_supervisor, waiting_for_department) sind stornierbar."
+            };
+        }
+
+        var result = await repository.CancelWorkflow(workflowUid, reasonCode, reasonDetail, currentUser.UserId);
+        if (result is null)
+        {
+            // Race: zwischen Lookup und Cancel hat ein anderer Pfad den Status veraendert.
+            return new WorkflowCancellationOutcome
+            {
+                Status = WorkflowCancellationOutcomeStatus.InvalidStatus,
+                ErrorMessage = "Workflow konnte nicht storniert werden (Status hat sich zwischenzeitlich geaendert)."
+            };
+        }
+
+        logger.LogInformation(
+            "Workflow {WorkflowUid} cancelled by user {UserId} (previous status: {PreviousStatus}, tasks: {TaskCount}, notifications: {NotificationCount}).",
+            workflowUid,
+            currentUser.UserId,
+            result.PreviousStatus,
+            result.CancelledTaskCount,
+            result.DisabledNotificationCount);
+
+        return new WorkflowCancellationOutcome
+        {
+            Status = WorkflowCancellationOutcomeStatus.Success,
+            Result = result
+        };
     }
 
     public async Task<PersonWorkflowHistoryDto?> GetPersonWorkflowHistoryAsync(

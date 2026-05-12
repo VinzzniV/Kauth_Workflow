@@ -188,14 +188,35 @@ export type WorkflowRuntimeStatus =
   | "in_progress"
   | "waiting_for_supervisor"
   | "waiting_for_department"
-  | "completed";
+  | "completed"
+  | "cancelled";
+
+export type WorkflowCancellationReasonCode =
+  | "entry_cancelled"
+  | "entry_postponed"
+  | "wrong_person"
+  | "started_by_mistake"
+  | "other";
+
+export type WorkflowCancellationRequest = {
+  reasonCode: WorkflowCancellationReasonCode;
+  reasonDetail?: string;
+};
+
+export type WorkflowCancellationResult = {
+  uid: string;
+  previousStatus: WorkflowRuntimeStatus;
+  cancelledTaskCount: number;
+  disabledNotificationCount: number;
+};
 
 export type WorkflowTaskStatus =
   | "open"
   | "ready"
   | "in_progress"
   | "blocked"
-  | "done";
+  | "done"
+  | "cancelled";
 export type RotationTaskStatus =
   | "open"
   | "in_progress"
@@ -290,6 +311,10 @@ export type WorkflowDetail = {
   createdAt: string;
   deadlineDate: string | null;
   archivedAt: string | null;
+  cancelledAt: string | null;
+  cancelledByPersonId: number | null;
+  cancellationReasonCode: WorkflowCancellationReasonCode | null;
+  cancellationReasonDetail: string | null;
   targetPersonId: number | null;
   requirements: WorkflowRequirementSnapshot[];
   requirementSummary: WorkflowRequirementSummary;
