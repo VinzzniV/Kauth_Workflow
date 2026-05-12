@@ -19,6 +19,24 @@
 - frontend-spezifische Backlog-Items → `FRONTEND_TODO.md`
 - backend-Review-Nacharbeit → `TODO.md`
 
+## Verhaeltnis zu `TODO.md` (Slice-Nummerierung)
+
+`PROD_TODO.md` und `TODO.md` fuehren beide eine eigene Z21-Slice-Nummerierung. Die Slices sind fachlich teilweise gleich, die Nummerierung ist aber nicht synchron — Grund: `TODO.md` listet zusaetzlich Folge-Aufbauten (Z21-S7..S10), die im PROD_TODO-Slice-Plan bewusst nicht gefuehrt werden.
+
+| PROD_TODO | TODO.md | Inhalt |
+|---|---|---|
+| Z21-S1 | Z21-S1 | Simulation klar markieren + Mail-Dispatch-Health |
+| Z21-S2 | Z21-S3 | Hybrid-AD-Architekturentscheidung |
+| Z21-S3 | Z21-S2 | Workflow-Storno fuer laufende Vorgaenge |
+| Z21-S4 | — | FE-UX-Buendel (Persona-Switcher, Detail-Tabs, directory_only, Nav-Reihenfolge) |
+| Z21-S5 | Z21-S6 | Builder fachsprachlicher (Mapping-Labels + Condition-Wording) |
+| Z21-S6 | — | `start-vm.sh dev`-Vorab-Check (Betriebs-Hygiene) |
+| — | Z21-S4 | Realer Automation-Pfad aus Hybrid-AD-Entscheidung |
+| — | Z21-S5 | Runtime-/Admin-Sicht fuer fehlgeschlagene Automation/Mailversand |
+| — | Z21-S7..S10 | Folge-Aufbauten Durchlaufplanung-Absicherung, Workflow-Detail-Ergonomie, Mitarbeiter-Trennung, Produktions-Verifikationslauf |
+
+Praktisch: bei Slice-Arbeit immer pruefen, ob die `TODO.md`-Sicht zusaetzliche Vorgaben (Prio, Status) traegt, und beide Listen im selben Arbeitsgang synchron mitziehen.
+
 ## Verwandte Dateien
 
 - `CODE_REVIEW.md` — aktiver Z21-Review mit allen Findings und Belegen
