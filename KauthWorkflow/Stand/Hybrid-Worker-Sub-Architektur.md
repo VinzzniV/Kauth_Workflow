@@ -166,7 +166,7 @@ End-to-End-Onboarding-Pfad mit echtem Initial-Passwort in der Welcome-Mail. Plai
 - **`SendWelcomeMailGraphHandler`** ist der einzige Vault-Konsument. Pflicht-Payload-Feld `credentialVaultId` (UUID). Handler ruft `ITemporaryCredentialRepository.ReadAdInitialPasswordByVaultIdAsync(uuid)` zur Run-time im eigenen Prozess auf. Plain-Passwort lebt nur Mikrosekunden im Handler-Heap, geht NIE ins output_json. Catalog-Template hat jetzt `{{temporary_password}}`-Placeholder; Bestandstemplates (DB-Override) muessen Admins selbst pflegen.
 - **Vault-Key-Verteilung:** Worker-Seite `KAUTH_WORKER_VAULT_KEY`-Env > `vault.config.dpapi` (LocalMachine-Scope) > `vault.config.json` (Dev-Fallback). `install-vault-key.ps1` analog `install-db-config.ps1` aus Schritt 3. API-Seite `KAUTH_VAULT_KEY`-Env-Var (Singleton-Halter, einmal beim Start gelesen). Beide Hosts brauchen bitgenau denselben Schluessel.
 - **Vault-Grenze ist im Code, nicht in Doku:** `ITemporaryCredentialRepository` exponiert ausschliesslich Lookup-by-UUID — keine Mapping-Source-Implementierung kann das Plain-Passwort beim Payload-Build entschluesseln. Konsumenten muessen die `created_ad_user.credentialVaultId`-Verkettung verwenden; die UUID ist kein Geheimnis.
-- **AlreadyExists-Pfad** (extern-vorhandenes AD-Konto): kein Vault-Insert, `credentialVaultId=null` im Output. Welcome-Mail-Folge-Job liefert sauberen Permanent-Failure mit Hinweis "predecessor likely an AlreadyExists case". Workflow-Designer muss solche Faelle aktuell durch eigene Workflow-Auswahl abfedern — Branch-on-automation-output ist eigener Workflow-Engine-Slice.
+- **AlreadyExists-Pfad** (extern-vorhandenes AD-Konto): kein Vault-Insert, `credentialVaultId=null` im Output. Welcome-Mail-Folge-Job liefert sauberen Permanent-Failure mit Hinweis "predecessor likely an AlreadyExists case", falls die Workflow-Definition keinen AlreadyExists-Branch hat. Mit Schritt 8 (siehe unten) kann ein Decision-Node nach CreateAdUserLdaps das `alreadyExisted`-Outcome lesen und zu einer Skip-Edge verzweigen, sodass der Workflow ohne Permanent-Failure terminieren kann.
 
 Praktischer Nutzen: das Initial-Passwort liegt nirgendwo plain in der DB, nur kurz im RAM von Worker (Generierung → Tx-Commit) und API-Handler (Decrypt → Mail-Send). TTL macht es nach Ablauf automatisch wertlos — Lese-Pfad wirft mit klarer Meldung. End-to-End Onboarding ohne Helpdesk-Pickup ist produktionsreif (Fresh-Create).
 
@@ -182,8 +182,21 @@ Schliesst die Onboarding-Kette: nach CreateAdUserLdaps (Worker) wird die Mailbox
 
 **Bewusst Out-of-Scope:** Lizenz-Pool-Monitoring/Reservierung, Sub-License-Disabling (`disabledPlans`), Lizenz-Removal, Cloud-only-User-Anlage. Alle als Folge-Slices vorgesehen.
 
+## Schritt 8 (✓ 2026-05-13) — AlreadyExists-Branch im Workflow-Engine
+
+Decision-Nodes verzweigen jetzt nicht nur ueber Formular-Antworten, sondern auch ueber den Automation-Output ihres direkten Predecessors. Der erste Use-Case: `alreadyExisted: true` aus `CreateAdUserLdaps` ueberspringt SendWelcomeMail. Worker-seitig keine Aenderung — Worker schreibt `alreadyExisted` bereits seit Schritt 6 ins Output.
+
+- **Snapshot-Andock:** `WorkflowRuntimeSnapshot.AutomationOutputsByNodeKey` ist der DB-freie Eingabezustand. `LoadRuntimeSnapshot` im EngineAdapter befuellt es ueber den bestehenden `LoadCreatedAdUserOutputsForWorkflowInScope`-Helper (Wiederverwendung aus Schritt 7 Sub-D). `Plan(...)` reicht den Output-Dict an allen vier internen Stellen (`ResolveNextNodes` initial / Bridge-Skip / Auto-Complete / `ResolveDecisionTarget`) durch.
+- **JSON-Discriminator** `referenceKind: 'answer' | 'automation_output'` in `workflow_edges.condition_expression`. Bestehende Form ohne Discriminator bleibt als `answer`-Default gueltig — keine Migration der Bestandszeilen. Multi-Form (AND/OR) erlaubt Mischfaelle (Answer + Automation-Output im selben Edge).
+- **Drei Validation-Schranken** erzwingen "nur direkter Predecessor" technisch: (1) Property/Operator-Union-Schnellcheck im Parser (kein Graph noetig); (2) Direct-Predecessor-Schranke ueber `IncomingEdgesByTargetNodeId` im Plan-Lauf; (3) Action-Key-Schranke ueber `NodeActionsByNodeId` mit Single-Action-Pflicht (Multi-Action-Predecessor = `ambiguous`). Verletzung produziert `BuildFailurePlan` mit klarer Meldung — kein roher Throw aus dem Parser, der den Runtime-Loop zerlegt.
+- **Initiale Whitelist:** nur `CreateAdUserLdaps.alreadyExisted`. Operator-Set Boolean-only (`is_true`/`is_false`). `AutomationPropertyCatalogSourceDto.ConditionProperties` parallel zur Input-Mapping-`Properties`-Liste; Drift-Schutz-Test asserted die Synchronitaet Catalog ↔ Engine-Map (`AllowedConditionProperties`).
+
+**Praktischer Nutzen:** Workflow `CreateAdUserLdaps → DecisionNode → (true) End-Skip-WelcomeMail | (false/Fallback) AssignGroups → SendWelcomeMail` ist jetzt sauber modellierbar. AlreadyExists ist kein Permanent-Failure mehr, sondern ein gueltiger Workflow-Pfad.
+
+**Bewusst Out-of-Scope:** Builder-UI-Erweiterung fuer `automation_output`-Bedingungen (Source-Dropdown, `ConditionProperties`-Filter — eigener Folge-Slice); String/Number-Compares auf Output-Properties; Loop/History-Tiefe ueber den direkten Predecessor hinaus; Migration bestehender `condition_expression`-Zeilen.
+
 ## Verwandte Notizen
 
-- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3/4/5/6/7-Update
-- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + 2 + 3 + 4 + 5 + 6 + 7 (zuletzt 2026-05-13)
+- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3/4/5/6/7/8-Update
+- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 (zuletzt 2026-05-13)
 - [[Automation]] — Automation-Layer-Modell, in das der Worker einklinkt
