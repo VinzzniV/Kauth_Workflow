@@ -176,6 +176,7 @@ Wichtige Bereiche:
 - `Repositories/`
 - `Services/`
 - `Services/Directory/` — Adapter-/Operations-Module fuer den Entra-Directory-Sync (Z9-Split). Aktuell: `IEntraGraphClient` + `EntraGraphClient` (Microsoft.Graph-Kapsel) sowie `IEntraDirectorySyncOperations` + `EntraDirectorySyncOperations` (DB-Batch-/Projection-Helfer).
+- `Services/Vault/` — Vault-Pfad fuer Temporary Credentials (Etappe 9a Schritt 6). `IVaultKeyProvider` + `EnvVaultKeyProvider` (Singleton, liest `KAUTH_VAULT_KEY`-Env-Var beim Start). Lese-Pfad ueber `ITemporaryCredentialRepository` + `PostgresTemporaryCredentialRepository` (Late-Decrypt; nur UUID-basiert, keine Mapping-Source kann das Plain-Passwort exponieren).
 - `Contracts/`
 
 Aktuell wichtige technische Schwerpunkte:
@@ -186,8 +187,9 @@ Aktuell wichtige technische Schwerpunkte:
 - `ExternalAutomationJobCompletionSweeper` + `StaleWorkerClaimSweeper` als zwei HostedServices fuer den schreibenden Worker-Pfad
 - Strukturierter Linux-Handler-Failure-Pfad (Etappe 9a Schritt 5): `WorkflowAutomationHandlerResult` mit IsSuccess/ErrorMessage/FailureKind; `WorkflowAutomationService` discriminiert Result-Failure vs Exception
 - `INotificationTemplateResolver` (extrahiert aus `NotificationTemplateService.GetEffectiveTemplate`); `IGraphMailSender` + `GraphMailSender` als schmales Mail-Versand-Interface fuer Action-Handler
-- `SendWelcomeMailGraphHandler` als erster echter Linux-side-Handler (Graph App-only)
-- Enge `created_ad_user`-Mapping-Source (Property-Whitelist `distinguishedName`) fuer Verkettung von Worker-Outputs; Vault-Grenze fuer Schritt 6 ist im Code verankert
+- `SendWelcomeMailGraphHandler` als erster echter Linux-side-Handler (Graph App-only); konsumiert `ITemporaryCredentialRepository` fuer Late-Decrypt des Initial-Passworts (Etappe 9a Schritt 6)
+- Enge `created_ad_user`-Mapping-Source mit Property-Whitelist `distinguishedName` + `credentialVaultId` (UUID, kein Geheimnis; Null-Pfad durchgereicht fuer AlreadyExists-Case). Plain-Passwort wird durch keine Mapping-Source exponiert.
+- `temporary_credentials`-Tabelle (pgcrypto symmetric) als Vault fuer Initial-Passwoerter; UNIQUE(workflow_node_instance_id, credential_type) macht den atomaren Worker-Schreib-Pfad idempotent. Schluessel kommt aus `KAUTH_VAULT_KEY`-Env-Var (API) bzw. `vault.config.dpapi` (Worker).
 
 ## Backend-Tests: `api/API.Tests`
 
@@ -206,11 +208,14 @@ Schreibender AD-Automation-Worker (Etappe 9a Schritt 3 — erster echter LDAPS-H
 - `AdAutomationWorker.Core/Polling/` — `IWorkerJobStore` + `PostgresWorkerJobStore` (atomarer Claim mit `FOR UPDATE SKIP LOCKED`, Heartbeat, Stale-Release, Complete-Pfad mit Logs). `WorkerHeartbeatLoop` als Begleitschleife waehrend Handler laeuft.
 - `AdAutomationWorker.Core/Handlers/` — `IWorkerHandler` (Worker-eigener Vertrag), `HandlerRegistry`, `Simulated/SimulatedWindowsWorkerPingHandler` (Transport-/Audit-Test ohne AD) und `CreateAdUserLdapsHandler` (fachliche Logik fuer den ersten echten AD-User-Write; konsumiert `IAdUserWriter`).
 - `AdAutomationWorker.Core/Ad/` — plattform-neutrale AD-Vertraege: `IAdUserWriter`, `AdUserSpec`, `AdWriteOutcome` (DU: Created/AlreadyExists/Transient/Permanent), `AdPasswordGenerator` (CSPRNG, 4 Komplexitaetsklassen).
-- `AdAutomationWorker.Core/Configuration/` — `WorkerSettings` + `AdSettings`, `DbConnectionStringLoader` (3-Pfad: env, DPAPI, JSON-Fallback), `IDbConfigDecryptor` (Interface fuer DPAPI-Decrypt).
+- `AdAutomationWorker.Core/Configuration/` — `WorkerSettings` + `AdSettings` + `VaultSettings`, `DbConnectionStringLoader` und `VaultKeyLoader` (jeweils 3-Pfad: env, DPAPI, JSON-Fallback), `VaultKeyProvider` als gehaltener Symmetric-Key-Singleton, `IDbConfigDecryptor` (Interface fuer DPAPI-Decrypt).
 - `AdAutomationWorker.Core/Ad/AdGroupMembership*` + `IAdGroupMembershipWriter` — plattform-neutrale Vertraege fuer den zweiten LDAPS-Handler `AssignGroupsLdaps`.
 - `AdAutomationWorker/Ad/LdapsAdUserWriter.cs` — Windows-only Implementierung des Writers (`System.DirectoryServices.Protocols`, LDAPS, gMSA via `AuthType.Negotiate`).
 - `AdAutomationWorker/Ad/LdapsAdGroupMembershipWriter.cs` — Windows-only Implementierung fuer Group-Member-Add (Code 20 = AlreadyMember idempotent).
 - `AdAutomationWorker/Configuration/WindowsDpapiDecryptor.cs` — Windows-only DPAPI-Decrypt-Adapter (`ProtectedData.Unprotect`, Scope LocalMachine).
 - `AdAutomationWorker/` — Windows-Service-Host (`net8.0-windows`) mit `Program.cs` + `WorkerHostedService` + `appsettings(.Development).json` inkl. `Ad`-Block.
-- `AdAutomationWorker.Tests/` — 38 Tests, decken Handler-Registry, Ping-Handler, Job-Store-Vertrag, Heartbeat-Loop, Connection-String-Loader, AdPasswordGenerator und `CreateAdUserLdapsHandler` (alle Outcome-Varianten + Payload-Validierung + Password-Not-In-Log) ab.
-- `setup/install-db-config.ps1` (DPAPI-Default, `-PlainJson` als Dev-Fallback), `setup/install-windows-service.ps1` (mit gMSA-Switch via `sc.exe config obj=`), `setup/README.md` (Inbetriebnahme inkl. gMSA, DPAPI-Hinweise, E2E `CreateAdUserLdaps` gegen Test-DC).
+- `AdAutomationWorker.Core/Configuration/VaultKeyLoader.cs` + `VaultKeyProvider.cs` — Vault-Key 3-Pfad-Loader (Env `KAUTH_WORKER_VAULT_KEY` > `vault.config.dpapi` > `vault.config.json`).
+- `AdAutomationWorker.Core/Handlers/IWorkerHandler.cs` — `WorkerHandlerResult.VaultWrite` + `PendingVaultWrite`-Record fuer den atomaren Vault-Schreib-Pfad.
+- `AdAutomationWorker.Core/Polling/PostgresWorkerJobStore.cs` — `MarkJobSucceededAsync` mit `pgp_sym_encrypt`-Insert in `temporary_credentials` + `output_json`-Patch (credentialVaultId) in derselben Tx wie Attempt + Job-Success; `ON CONFLICT DO NOTHING` + SELECT-Fallback fuer Stale-Retry-Idempotenz.
+- `AdAutomationWorker.Tests/` — 57 Tests (vorher 48), erweitert um `VaultKeyLoaderTests` und `CreateAdUserLdapsHandlerTests`-Assertions auf den Vault-Pfad (credentialVaultId-Platzhalter im Output, `PendingVaultWrite` gesetzt, kein Plain-Passwort im Output/Logs).
+- `setup/install-db-config.ps1` (DPAPI-Default, `-PlainJson` als Dev-Fallback), `setup/install-vault-key.ps1` (DPAPI-Default fuer den Vault-Schluessel), `setup/install-windows-service.ps1` (mit gMSA-Switch via `sc.exe config obj=`), `setup/README.md` (Inbetriebnahme inkl. gMSA, DPAPI-Hinweise, Vault-Key-Setup, E2E `CreateAdUserLdaps` gegen Test-DC).

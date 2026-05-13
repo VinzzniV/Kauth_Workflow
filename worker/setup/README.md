@@ -1,8 +1,9 @@
-# Worker-Setup (Stand Etappe 9a Schritt 3)
+# Worker-Setup (Stand Etappe 9a Schritt 6)
 
 Dieser Ordner enthaelt die manuellen Installationsskripte fuer den Windows-Worker auf einer
 Test-VM. Seit Schritt 3 ist der DPAPI-Schreibpfad **Default** und produktiv lauffaehig; gMSA-
-Service-Account-Switch ist mit dabei.
+Service-Account-Switch ist mit dabei. Schritt 6 hat den Temporary-Credentials-Vault produktiv
+gemacht — der Vault-Schluessel folgt demselben DPAPI-Pattern.
 
 ## Voraussetzungen
 
@@ -12,7 +13,13 @@ Service-Account-Switch ist mit dabei.
 - DB-User `kauth_worker` mit den Grants aus Etappe 9a Schritt 1 (SELECT auf View
   `automation_jobs_windows_worker`, UPDATE auf `automation_jobs`, INSERT auf
   `automation_job_attempts` und `automation_job_logs`, kein DELETE, kein Zugriff auf andere
-  Tabellen).
+  Tabellen) **plus INSERT auf `temporary_credentials`** (Etappe 9a Schritt 6 Sub-A).
+- DB-User `kauth_api` mit SELECT + UPDATE auf `temporary_credentials` (Linux-API-Lese-Pfad);
+  kein DELETE. Cleanup ist eigener Folge-Slice.
+- Identischer **Vault-Schluessel** auf Worker (`vault.config.dpapi` oder `KAUTH_WORKER_VAULT_KEY`)
+  und Linux-API (`KAUTH_VAULT_KEY`-Env-Var). Anders koennen die vom Worker geschriebenen
+  `temporary_credentials.encrypted_value`-Eintraege nicht entschluesselt werden, und der
+  Welcome-Mail-Pfad scheitert mit klarer Meldung.
 
 ## Installation
 
@@ -27,15 +34,22 @@ Service-Account-Switch ist mit dabei.
 # Dev-Alternative: Klartext-JSON (loud warning beim Service-Start)
 # .\install-db-config.ps1 -DbHost ... -Password ... -PlainJson
 
-# 2. Worker veroeffentlichen (auf einer Build-Maschine)
+# 2. Vault-Key schreiben (Default: DPAPI in %ProgramData%\KauthWorker\vault.config.dpapi)
+# Derselbe Key muss auf dem Linux-API-Host als Env-Var KAUTH_VAULT_KEY hinterlegt sein.
+.\install-vault-key.ps1 -SymmetricKey '<32+ Zeichen>'
+
+# Dev-Alternative: Klartext-JSON
+# .\install-vault-key.ps1 -SymmetricKey '<...>' -PlainJson
+
+# 3. Worker veroeffentlichen (auf einer Build-Maschine)
 dotnet publish ..\AdAutomationWorker\AdAutomationWorker.csproj -c Release -o C:\Apps\KauthWorker
 
-# 3. gMSA einrichten (siehe Abschnitt unten), dann Service registrieren
+# 4. gMSA einrichten (siehe Abschnitt unten), dann Service registrieren
 .\install-windows-service.ps1 `
     -BinaryPath C:\Apps\KauthWorker\AdAutomationWorker.exe `
     -ServiceAccount 'DOMAIN\kauth-worker$'
 
-# 4. Service starten
+# 5. Service starten
 Start-Service KauthAdAutomationWorker
 ```
 
@@ -65,6 +79,25 @@ Test-ADServiceAccount kauth-worker   # muss True liefern
 - `Reset Password` auf user-Objekten
 
 Diese Rechte werden in `dsa.msc` ueber die OU-Delegation gesetzt.
+
+## Vault-Setup (Pflicht ab Schritt 6)
+
+Der Vault-Schluessel verschluesselt das vom Worker generierte Initial-Passwort. Er muss
+bitgenau identisch sein zwischen Worker (`vault.config.dpapi` / Env-Var) und Linux-API
+(`KAUTH_VAULT_KEY`-Env-Var). Sonst kann die API die Eintraege in `temporary_credentials`
+nicht entschluesseln, und die Welcome-Mail scheitert mit klarer Meldung.
+
+Empfohlene Erzeugung (auf einer beliebigen Maschine, einmalig):
+
+```powershell
+# 32-Byte Random in Base64 -- 43+ Zeichen, ueberschreitet die Mindestlaenge sauber.
+[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+Den so erzeugten Wert auf jedem Worker mit `.\install-vault-key.ps1 -SymmetricKey '<wert>'`
+ablegen und auf dem Linux-API-Host als `KAUTH_VAULT_KEY` setzen (z. B. `systemd`-Unit oder
+docker-compose-Env). DPAPI bindet die Worker-Datei an die Maschine — Kopie auf eine andere VM
+verlangt einen erneuten `install-vault-key.ps1`-Lauf dort.
 
 ## DPAPI-Hinweise
 
