@@ -52,6 +52,7 @@ Merksatz:
 |--------|--------|-----------------|
 | `Architektur/` | Zielbild, Entscheidungen, Migrationspfad, groessere Skizzen | Wohin entwickelt sich das System? |
 | `Domäne/` | Workflow, Rotation, Identity, Begriffe | Was bedeuten die Kernkonzepte? |
+| `Code-Landkarte/` | fachlicher Bereich → Code-Files (Brücke Fach ↔ Code) | Wo liegt der Code für „Abteilungswechsel" / „Automation" / …? |
 | `Betrieb/` | Setup, Laufzeit, Deployment | Wie starte und betreibe ich das System? |
 | `Stand/` | Detail-Doku zu größeren Architektur-Bausteinen | Wie ist Komponente X im Detail aufgebaut? |
 | `Arbeit/` | KI-Workflow, Engineering-Regeln | Wie arbeiten Mensch, Claude und Codex zusammen? |
@@ -84,6 +85,7 @@ Merksatz:
 | [[Begriffe]] | Glossar zentraler Fach- und Technikbegriffe |
 | [[Hybrid-Worker-Sub-Architektur]] | Detail-Doku zum Windows-Worker für AD-Schreibaktionen |
 | [[Admin-Gated-Automation]] | Zielbild für Prod: Plan-Vorschau, Admin-Approval mit Re-Auth, Post-Execution-Summary |
+| [[00 Uebersicht\|Code-Landkarte]] | Brücke Fach → Code: wo liegen die Files für „Abteilungswechsel" etc. |
 | [[KI-Workflow]] | Zusammenarbeit von Mensch, Claude und Codex |
 
 ---

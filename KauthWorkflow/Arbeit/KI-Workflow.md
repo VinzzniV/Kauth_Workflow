@@ -53,6 +53,7 @@ Codex arbeitet primär aus `CODE_REVIEW.md § 7` (konkrete Fix-Snippets). Der Va
 | Architekturentscheidung gefallen (langfristig, neue Konsequenz) | [[Entscheidungen]] ergänzen |
 | Migrationsetappe abgeschlossen (komplett, nicht einzelner Slice) | [[Migrationspfad]] grobes Big-Picture updaten |
 | Neues Domänenkonzept eingeführt | Passende Domänen-Datei ergänzen |
+| Neue Service-/Repository-/Endpoint-/Page-Datei angelegt oder umbenannt | Passende Code-Landkarte (`Code-Landkarte/*`) mit-aktualisieren |
 
 **Wichtig — was NICHT in den Vault gehört:** Slice-für-Slice-Status, Sub-A/B/C-Detailprotokolle, „Schritt N ✓ 2026-...-NN"-Listen, Plan-Mode-Reste, abgeschlossene Skizzen. Diese gehören in `CODE_REVIEW.md`, `TODO.md` und ins git log. Der Vault ist für Menschen, die jetzt verstehen wollen, wie das System aufgebaut ist — nicht für die Historie, wie es dort hingekommen ist.
 
