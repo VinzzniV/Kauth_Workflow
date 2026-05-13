@@ -137,8 +137,15 @@ Beim Polling muss klar sein, was passiert, wenn der Worker einen Job abholt und 
 
 DPAPI: `IDbConfigDecryptor` im Core, `WindowsDpapiDecryptor` (Scope LocalMachine) im Host. `install-db-config.ps1` Default schreibt `db.config.dpapi`; `-PlainJson` bleibt als Dev-Fallback mit Warn-Log. `install-windows-service.ps1` setzt den gMSA via `sc.exe config obj=`.
 
+## Schritt 4 (✓ 2026-05-12) — Härtung: Failure-Klassifikation + Linux-Stale-Sweep
+
+Zwei in Schritt 3 bewusst offen gelassene Trade-offs geschlossen:
+
+- **`failure_kind`-Marker am Attempt** (`automation_job_attempts.failure_kind`, varchar(20), CHECK 'permanent'|'transient'|NULL). Worker schreibt ihn beim `MarkJobFailedAsync`: LDAP-Codes 49/50/32/21/19 und Payload-Validierungsfehler → `'permanent'`; alles andere → `'transient'`. `WorkflowAutomationRetryPolicy.EvaluateRetryOutcome` bekommt einen optionalen `failureKind`-Parameter; `'permanent'` → sofort `FinalFail` (überschreibt `is_idempotent` und `attemptNumber`). Damit fallen die unnötigen Retry-Backoff-Cycles bei klar permanenten Fehlern weg — der Audit-Trail wird ehrlich, die Worker-Job-Rate steigt nicht durch Wiederholungen von hoffnungslosen Calls. Linux-Handler ohne Tagging schreiben weiter `NULL` und behalten die bestehende Retry-Logik (Vorbereitung für künftige echte Linux-Handler).
+- **Zentraler `StaleWorkerClaimSweeper`** als Linux-API-HostedService (60s-Polling, 5min-Stale-Default via `WorkerLeaseSettings`). Greift parallel zum Worker-internen `ReleaseStaleClaimsAsync` — Belt-and-Suspenders. Räumt verwaiste `running`-Jobs auch dann auf, wenn alle Worker tot sind und kein Worker den Lazy-Cleanup mehr ausführen kann.
+
 ## Verwandte Notizen
 
-- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3-Update
-- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + Schritt 2 + Schritt 3 (✓ 2026-05-12)
+- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3/4-Update
+- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + 2 + 3 + 4 (✓ 2026-05-12)
 - [[Automation]] — Automation-Layer-Modell, in das der Worker einklinkt

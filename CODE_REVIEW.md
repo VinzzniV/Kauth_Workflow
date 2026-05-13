@@ -34,7 +34,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 sind durch (Sub-Architektur, Worker-Skeleton + External-Completion-Sweeper, erster echter LDAPS-Handler `CreateAdUserLdaps` + DPAPI produktiv + gMSA-Switch). Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh` (7 Checkpoints; Worker-Tests jetzt 38 statt 20). Aktive Resthebel: P0-1/P0-2 Etappe 9a Schritt 4 (Error-Klassifikation generalisieren, Linux-Stale-Sweep, Vault-Pointer, Migration der restlichen `simulated_*`-Handler), plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
+**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 sind durch (Sub-Architektur, Worker-Skeleton + External-Completion-Sweeper, erster echter LDAPS-Handler `CreateAdUserLdaps` + DPAPI produktiv + gMSA-Switch, failure_kind-Klassifikation + zentraler Stale-Worker-Claim-Sweep). Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh` (Worker-Tests jetzt 39 statt 20). Aktive Resthebel: P0-1/P0-2 Etappe 9a Schritt 5 (Temporary-Credentials-Vault, AssignGroups-LDAPS, SendWelcomeMail real; CreateMailbox/CreateErpEmployee eigene Backend-Slices), plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
 
 ---
 
@@ -96,7 +96,9 @@ Entscheidung dokumentiert in `KauthWorkflow/Architektur/Entscheidungen.md` (Z21-
 
 **Etappe 9a Schritt 3 ✓ 2026-05-12** — Erster echter LDAPS-Handler `CreateAdUserLdaps` (Action ID 7, parallel zur Simulation ID 1) gegen on-prem-DC. Layering: Core-Handler + Windows-Host-Adapter (`System.DirectoryServices.Protocols`, `AuthType.Negotiate`, gMSA-Kontext). Idempotenz via Pre-Search + EntryAlreadyExists-Race-Fallback. CSPRNG-Random-Password mit `pwdLastSet=0` (Force-Change). DPAPI-Encryption produktiv via `IDbConfigDecryptor`+`WindowsDpapiDecryptor` (LocalMachine-Scope); `install-db-config.ps1` schreibt jetzt `db.config.dpapi` als Default. gMSA-Service-Switch via `sc.exe config obj=` in `install-windows-service.ps1`.
 
-**Resthebel ab jetzt:** Etappe 9a Schritt 4 — Error-Klassifikation generalisieren, Linux-API Stale-Worker-Claim-Sweep, Temporary-Credentials-Vault statt Klartext-Passwort im `output_json`, Migration der restlichen `simulated_*`-Handler.
+**Etappe 9a Schritt 4 ✓ 2026-05-12** — Härtung-Block. Neue Spalte `automation_job_attempts.failure_kind` (`'permanent'|'transient'|NULL`); Worker tagt klar permanente LDAP-Fehler (Codes 49/50/32/21/19) und Payload-Validierungen, `WorkflowAutomationRetryPolicy.EvaluateRetryOutcome` mappt `'permanent'` direkt auf `FinalFail` (überschreibt `is_idempotent`+`attemptNumber`). Plus neuer `StaleWorkerClaimSweeper` als Linux-API-HostedService (60s-Polling, 5min-Stale) als Belt-and-Suspenders neben dem Worker-Lazy-Cleanup.
+
+**Resthebel ab jetzt:** Etappe 9a Schritt 5 — Temporary-Credentials-Vault statt Klartext-Passwort im `output_json`, `AssignGroups`-LDAPS-Handler (Wiederverwendung Schritt-3-Layering), `SendWelcomeMail` real (Linux-side via `GraphWorkflowEmailNotificationSender`); `CreateMailbox`+`CreateErpEmployee` brauchen eigene Backend-Architektur-Slices.
 
 ---
 

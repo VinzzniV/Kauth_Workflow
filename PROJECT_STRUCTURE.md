@@ -182,6 +182,8 @@ Aktuell wichtige technische Schwerpunkte:
 - `WorkflowLifecycleService` als Commit-Grenze fuer zentrale Runtime-Mutationen
 - `PostgresWorkflowRepository` weiterhin als groeßter fachlicher Persistenzblock
 - `WorkflowDefinitionDraftValidator` / `WorkflowDefinitionSnapshotValidator` als Validation-Split aus Zyklus 7
+- `WorkflowAutomationRetryPolicy` mit `failure_kind`-Hook (Etappe 9a Schritt 4): Worker-Outcome (`permanent`/`transient`) steuert Retry-Entscheidung
+- `ExternalAutomationJobCompletionSweeper` + `StaleWorkerClaimSweeper` als zwei HostedServices fuer den schreibenden Worker-Pfad
 
 ## Backend-Tests: `api/API.Tests`
 
