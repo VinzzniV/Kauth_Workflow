@@ -21,7 +21,9 @@ internal static class WorkflowAutomationRetryPolicy
         WorkflowAutomationRetrySettings settings,
         int attemptNumber,
         bool isIdempotent,
-        string? failureKind = null)
+        string? failureKind = null,
+        int? maxAttemptsOverride = null,
+        TimeSpan? subsequentRetryDelayOverride = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -40,9 +42,16 @@ internal static class WorkflowAutomationRetryPolicy
             return WorkflowAutomationRetryOutcome.FinalFail();
         }
 
-        if (attemptNumber < settings.MaxAttempts)
+        // Etappe 9a Schritt 7 Sub-A: per-Action-Override. NULL oder nicht-positiv -> globalen
+        // Default verwenden. Damit kann eine einzelne Action (z. B. CreateMailboxGraph, das auf
+        // Entra-Connect-Sync wartet) ein laengeres Retry-Budget bekommen, ohne dass alle anderen
+        // Handler auch laenger retried werden.
+        var effectiveMaxAttempts = maxAttemptsOverride is > 0 ? maxAttemptsOverride.Value : settings.MaxAttempts;
+
+        if (attemptNumber < effectiveMaxAttempts)
         {
-            return WorkflowAutomationRetryOutcome.RetryAfter(settings.ResolveRetryDelay(attemptNumber));
+            var delay = settings.ResolveRetryDelay(attemptNumber, subsequentRetryDelayOverride);
+            return WorkflowAutomationRetryOutcome.RetryAfter(delay);
         }
 
         return WorkflowAutomationRetryOutcome.FinalFail();

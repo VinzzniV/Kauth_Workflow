@@ -38,6 +38,11 @@ internal sealed class ExternalCompletionContext
     public required int AttemptNumber { get; init; }
     public required bool IsIdempotent { get; init; }
     public string? FailureKind { get; init; }
+
+    // Etappe 9a Schritt 7 Sub-A: per-Action-Retry-Override aus action_definitions.
+    // NULL = globaler Default greift.
+    public int? MaxAttemptsOverride { get; init; }
+    public int? SubsequentRetryDelaySecondsOverride { get; init; }
 }
 
 internal sealed class ClaimedAutomationJobRecord
@@ -60,4 +65,9 @@ internal sealed class ClaimedAutomationJobRecord
     public int AttemptNumber { get; set; }
     public required long? CreatedByUserId { get; init; }
     public System.Text.Json.JsonElement? Payload { get; init; }
+
+    // Etappe 9a Schritt 7 Sub-A: per-Action-Retry-Override aus action_definitions.
+    // NULL = globaler Default greift.
+    public int? MaxAttemptsOverride { get; init; }
+    public int? SubsequentRetryDelaySecondsOverride { get; init; }
 }

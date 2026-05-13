@@ -112,7 +112,11 @@ internal sealed class WorkflowAutomationService(
             retrySettings,
             job.AttemptNumber,
             job.IsIdempotent,
-            failureKind);
+            failureKind,
+            job.MaxAttemptsOverride,
+            job.SubsequentRetryDelaySecondsOverride is { } seconds && seconds > 0
+                ? TimeSpan.FromSeconds(seconds)
+                : null);
         var shouldRetry = retryOutcome.Kind == WorkflowAutomationRetryOutcome.OutcomeKind.RetryAfter;
         DateTime? retryAvailableAt = shouldRetry
             ? DateTime.UtcNow + retryOutcome.Delay

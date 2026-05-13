@@ -101,6 +101,15 @@
       "kind": "data",
       "expect_in_schema": [],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-13_action_definitions_retry_override.sql",
+      "description": "Migrationspfad-Etappe 9a Schritt 7 Sub-A: per-Action retry override columns on action_definitions (max_attempts_override, subsequent_retry_delay_seconds_override). NULL means 'use global default'. First consumer in Sub-C: CreateMailboxGraph with 10/300 for the Entra-Connect-Sync window (~41 min total wait budget).",
+      "expect_in_schema": [
+        "max_attempts_override integer",
+        "subsequent_retry_delay_seconds_override integer"
+      ],
+      "forbid_in_schema": []
     }
   ]
 }

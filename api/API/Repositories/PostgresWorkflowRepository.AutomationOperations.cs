@@ -29,7 +29,9 @@ SELECT
     ad.handler_type,
     ad.is_idempotent,
     j.payload_json::text,
-    w.created_by_user_id
+    w.created_by_user_id,
+    ad.max_attempts_override,
+    ad.subsequent_retry_delay_seconds_override
 FROM automation_jobs j
 INNER JOIN workflows w ON w.id = j.workflow_id
 INNER JOIN workflow_node_instances ni ON ni.id = j.workflow_node_instance_id
@@ -70,6 +72,8 @@ LIMIT 1;
                     IsIdempotent = reader.GetBoolean(14),
                     Payload = reader.IsDBNull(15) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(15)),
                     CreatedByUserId = reader.IsDBNull(16) ? null : reader.GetInt64(16),
+                    MaxAttemptsOverride = reader.IsDBNull(17) ? null : reader.GetInt32(17),
+                    SubsequentRetryDelaySecondsOverride = reader.IsDBNull(18) ? null : reader.GetInt32(18),
                     AttemptNumber = 0
                 };
             }
@@ -418,7 +422,9 @@ SELECT j.status,
        (SELECT failure_kind FROM automation_job_attempts a
          WHERE a.automation_job_id = j.id
          ORDER BY a.attempt_number DESC
-         LIMIT 1) AS failure_kind
+         LIMIT 1) AS failure_kind,
+       ad.max_attempts_override,
+       ad.subsequent_retry_delay_seconds_override
 FROM automation_jobs j
 INNER JOIN action_definitions ad ON ad.id = j.action_definition_id
 WHERE j.id = @jobId;
@@ -439,6 +445,8 @@ WHERE j.id = @jobId;
             IsIdempotent = reader.GetBoolean(1),
             AttemptNumber = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
             FailureKind = reader.IsDBNull(3) ? null : reader.GetString(3),
+            MaxAttemptsOverride = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+            SubsequentRetryDelaySecondsOverride = reader.IsDBNull(5) ? null : reader.GetInt32(5),
         };
     }
 
@@ -550,7 +558,8 @@ SELECT
     ad.id, ad.action_key, ad.name, ad.handler_type, ad.is_idempotent,
     j.payload_json::text, w.created_by_user_id,
     (SELECT output_json::text FROM automation_job_attempts a WHERE a.automation_job_id = j.id ORDER BY attempt_number DESC LIMIT 1) AS latest_output,
-    (SELECT MAX(attempt_number) FROM automation_job_attempts WHERE automation_job_id = j.id) AS attempt_number
+    (SELECT MAX(attempt_number) FROM automation_job_attempts WHERE automation_job_id = j.id) AS attempt_number,
+    ad.max_attempts_override, ad.subsequent_retry_delay_seconds_override
 FROM automation_jobs j
 INNER JOIN workflows w ON w.id = j.workflow_id
 INNER JOIN workflow_node_instances ni ON ni.id = j.workflow_node_instance_id
@@ -587,7 +596,9 @@ WHERE j.id = @jobId;
             IsIdempotent = reader.GetBoolean(14),
             Payload = reader.IsDBNull(15) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(15)),
             CreatedByUserId = reader.IsDBNull(16) ? null : reader.GetInt64(16),
-            AttemptNumber = reader.IsDBNull(18) ? 0 : reader.GetInt32(18)
+            AttemptNumber = reader.IsDBNull(18) ? 0 : reader.GetInt32(18),
+            MaxAttemptsOverride = reader.IsDBNull(19) ? null : reader.GetInt32(19),
+            SubsequentRetryDelaySecondsOverride = reader.IsDBNull(20) ? null : reader.GetInt32(20)
         };
 
         JsonElement? output = reader.IsDBNull(17) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(17));

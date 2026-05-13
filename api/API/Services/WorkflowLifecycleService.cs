@@ -85,7 +85,11 @@ internal sealed class WorkflowLifecycleService(
             retrySettings,
             context.AttemptNumber,
             context.IsIdempotent,
-            context.FailureKind);
+            context.FailureKind,
+            context.MaxAttemptsOverride,
+            context.SubsequentRetryDelaySecondsOverride is { } seconds && seconds > 0
+                ? TimeSpan.FromSeconds(seconds)
+                : null);
 
         await automationRepository.ApplyExternalCompletionFailureAsync(jobId, outcome, cancellationToken);
     }

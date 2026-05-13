@@ -294,7 +294,9 @@ CREATE TABLE public.action_definitions (
     is_idempotent boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    target_runtime character varying(40)
+    target_runtime character varying(40),
+    max_attempts_override integer,
+    subsequent_retry_delay_seconds_override integer
 );
 
 
