@@ -37,11 +37,19 @@ internal sealed partial class PostgresWorkflowRuntimeRepository
             workflowId);
         var approvalSpecHints = await LoadApprovalSpecHintsForGraph(connection, transaction, graph);
 
+        // Etappe 9a Schritt 8: succeeded Automation-Outputs fuer automation_output-Decision-
+        // Bedingungen. Aktuell nur CreateAdUserLdaps whitelisted (siehe
+        // WorkflowRuntimeEngine.AllowedConditionProperties). Weitere Producer kommen mit dem
+        // jeweiligen Use-Case dazu und werden hier in dasselbe Dictionary gemerged.
+        var automationOutputsByNodeKey = await PostgresWorkflowAutomationOperations
+            .LoadCreatedAdUserOutputsForWorkflowInScope(connection, transaction, workflowId, CancellationToken.None);
+
         return new WorkflowRuntimeSnapshot
         {
             WorkflowId = workflowId,
             Graph = graph,
             AnswersByKey = answersByKey,
+            AutomationOutputsByNodeKey = automationOutputsByNodeKey,
             NodeInstanceStatusByWorkflowNodeId = nodeInstanceStates,
             WorkflowDefinitionKey = statusContext.WorkflowDefinitionKey,
             RequiresSupervisorStep = statusContext.RequiresSupervisorStep,

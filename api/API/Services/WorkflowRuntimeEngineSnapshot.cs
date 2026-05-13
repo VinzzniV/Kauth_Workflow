@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace API;
 
 // Snapshot-Records fuer WorkflowRuntimeEngine.Plan(...).
@@ -18,6 +20,13 @@ internal sealed class WorkflowRuntimeSnapshot
     public required WorkflowDefinitionGraphRecord Graph { get; init; }
 
     public required IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> AnswersByKey { get; init; }
+
+    // Output-JSON pro `workflow_nodes.node_key` fuer Automation-Output-basierte
+    // Decision-Conditions (Etappe 9a Schritt 8). Quelle: succeeded
+    // automation_job_attempts ueber LoadSucceededAttemptOutputsForActionInScope
+    // im EngineAdapter, gefiltert auf whitelisted Action-Keys (heute nur
+    // CreateAdUserLdaps). Default leer fuer Workflows ohne Output-Bedingungen.
+    public required IReadOnlyDictionary<string, JsonElement> AutomationOutputsByNodeKey { get; init; }
 
     // Status pro `workflow_node_id` (active/done/failed/cancelled). Wird vom
     // Idempotenz-Guard und vom parallel_join-Konvergenz-Check gebraucht.

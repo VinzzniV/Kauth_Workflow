@@ -72,6 +72,15 @@ internal static class AutomationPropertyCatalog
         new AutomationPropertyCatalogPropertyDto { Key = "credentialVaultId", Label = "Vault-ID des Initial-Passworts (UUID)", Kind = KindTechnical }
     };
 
+    // Etappe 9a Schritt 8: schmale Whitelist fuer Decision-Bedingungen auf
+    // CreateAdUserLdaps-Output. Bewusst getrennt von CreatedAdUserProperties (Input-Mapping)
+    // -- jede neue Bedingungs-Property ist eine eigene Entscheidung und braucht zusaetzlich
+    // einen Eintrag in WorkflowRuntimeEngine.AllowedConditionProperties (Drift-Schutz-Test).
+    private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> CreatedAdUserConditionProperties = new[]
+    {
+        new AutomationPropertyCatalogPropertyDto { Key = "alreadyExisted", Label = "AD-User existierte bereits", Kind = KindBusiness }
+    };
+
     // Enge Allow-List fuer Werte aus dem CreateMailboxGraph-Output (Etappe 9a Schritt 7).
     // Nur die echte beobachtete primary SMTP-Adresse ist exponiert; licenseSkuId etc. bleiben
     // bewusst draussen, damit jede zusaetzliche Property eine bewusste Entscheidung ist.
@@ -131,7 +140,8 @@ internal static class AutomationPropertyCatalog
                 {
                     Source = SourceCreatedAdUser,
                     Label = "AD-User aus Vorgaengerschritt",
-                    Properties = CreatedAdUserProperties
+                    Properties = CreatedAdUserProperties,
+                    ConditionProperties = CreatedAdUserConditionProperties
                 },
                 new()
                 {
@@ -154,6 +164,8 @@ public sealed class AutomationPropertyCatalogSourceDto
     public required string Source { get; init; }
     public required string Label { get; init; }
     public required IReadOnlyList<AutomationPropertyCatalogPropertyDto> Properties { get; init; }
+    public IReadOnlyList<AutomationPropertyCatalogPropertyDto> ConditionProperties { get; init; }
+        = Array.Empty<AutomationPropertyCatalogPropertyDto>();
 }
 
 public sealed class AutomationPropertyCatalogPropertyDto

@@ -49,12 +49,14 @@ public sealed class WorkflowRuntimeEngineTests
         bool requiresSupervisorStep = false,
         string? workflowDefinitionKey = null,
         string? approvalTaskTemplateKey = null,
-        IReadOnlyDictionary<long, RuntimeApprovalNodeHint>? approvalSpecs = null)
+        IReadOnlyDictionary<long, RuntimeApprovalNodeHint>? approvalSpecs = null,
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? automationOutputs = null)
         => new()
         {
             WorkflowId = 1,
             Graph = graph,
             AnswersByKey = answers ?? new Dictionary<string, StoredWorkflowAnswerRecord>(),
+            AutomationOutputsByNodeKey = automationOutputs ?? new Dictionary<string, System.Text.Json.JsonElement>(),
             NodeInstanceStatusByWorkflowNodeId = nodeStatuses ?? new Dictionary<long, string>(),
             WorkflowDefinitionKey = workflowDefinitionKey,
             RequiresSupervisorStep = requiresSupervisorStep,
@@ -515,8 +517,9 @@ public sealed class WorkflowRuntimeEngineTests
         var expr = WorkflowRuntimeEngine.ParseDecisionConditionExpression(json);
         Assert.Equal(DecisionConditionLogic.And, expr.Logic);
         Assert.Single(expr.Conditions);
-        Assert.Equal("x", expr.Conditions[0].AnswerKey);
-        Assert.Equal("is_true", expr.Conditions[0].Operator);
+        var answer = Assert.IsType<DecisionConditionRecord.AnswerBased>(expr.Conditions[0]);
+        Assert.Equal("x", answer.Condition.AnswerKey);
+        Assert.Equal("is_true", answer.Condition.Operator);
     }
 
     [Fact]
@@ -566,10 +569,10 @@ public sealed class WorkflowRuntimeEngineTests
         var expr = new DecisionConditionExpressionRecord
         {
             Logic = DecisionConditionLogic.And,
-            Conditions = new[]
+            Conditions = new DecisionConditionRecord[]
             {
-                ConditionRecord("a", "is_true"),
-                ConditionRecord("b", "is_true")
+                new DecisionConditionRecord.AnswerBased(ConditionRecord("a", "is_true")),
+                new DecisionConditionRecord.AnswerBased(ConditionRecord("b", "is_true"))
             }
         };
         var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
@@ -586,10 +589,10 @@ public sealed class WorkflowRuntimeEngineTests
         var expr = new DecisionConditionExpressionRecord
         {
             Logic = DecisionConditionLogic.And,
-            Conditions = new[]
+            Conditions = new DecisionConditionRecord[]
             {
-                ConditionRecord("a", "is_true"),
-                ConditionRecord("b", "is_true")
+                new DecisionConditionRecord.AnswerBased(ConditionRecord("a", "is_true")),
+                new DecisionConditionRecord.AnswerBased(ConditionRecord("b", "is_true"))
             }
         };
         var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
@@ -606,10 +609,10 @@ public sealed class WorkflowRuntimeEngineTests
         var expr = new DecisionConditionExpressionRecord
         {
             Logic = DecisionConditionLogic.Or,
-            Conditions = new[]
+            Conditions = new DecisionConditionRecord[]
             {
-                ConditionRecord("a", "is_true"),
-                ConditionRecord("b", "is_true")
+                new DecisionConditionRecord.AnswerBased(ConditionRecord("a", "is_true")),
+                new DecisionConditionRecord.AnswerBased(ConditionRecord("b", "is_true"))
             }
         };
         var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
@@ -626,7 +629,7 @@ public sealed class WorkflowRuntimeEngineTests
         var expr = new DecisionConditionExpressionRecord
         {
             Logic = DecisionConditionLogic.Or,
-            Conditions = new[] { ConditionRecord("a", "is_true") }
+            Conditions = new DecisionConditionRecord[] { new DecisionConditionRecord.AnswerBased(ConditionRecord("a", "is_true")) }
         };
         var answers = new Dictionary<string, StoredWorkflowAnswerRecord>
         {
@@ -646,4 +649,326 @@ public sealed class WorkflowRuntimeEngineTests
             ExpectedValueBoolean = null,
             ExpectedValueNumber = null
         };
+
+    // ---- Etappe 9a Schritt 8: automation_output Decision-Conditions ----
+
+    private static WorkflowNodeActionRecord ActionRecord(long id, string actionKey, string handlerType = "AdLdaps")
+        => new()
+        {
+            Id = id,
+            ActionDefinitionId = id,
+            ExecutionOrder = 0,
+            OnErrorBehavior = "fail",
+            ActionKey = actionKey,
+            ActionName = actionKey,
+            HandlerType = handlerType,
+            IsIdempotent = true
+        };
+
+    private static IReadOnlyDictionary<string, JsonElement> AutomationOutputs(string nodeKey, string json)
+    {
+        var element = JsonSerializer.Deserialize<JsonElement>(json);
+        return new Dictionary<string, JsonElement> { [nodeKey] = element };
+    }
+
+    private const string AutomationOutputAlreadyExistsCondition =
+        """{"referenceKind":"automation_output","sourceNodeKey":"create-ad-user","property":"alreadyExisted","operator":"is_true"}""";
+
+    [Fact]
+    public void Plan_AutomationOutput_AlreadyExistedTrue_NimmtAlreadyExistsEdge()
+    {
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") }
+        };
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: AutomationOutputAlreadyExistsCondition),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, skipEnd, freshEnd], edges, actions);
+        var outputs = AutomationOutputs("create-ad-user", """{"alreadyExisted":true,"distinguishedName":"CN=x"}""");
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph, automationOutputs: outputs), createAdUser);
+
+        Assert.IsType<WorkflowCompletionOutcome>(plan.Outcome);
+        var decisionStep = plan.NodeSteps.OfType<DecisionStep>().Single();
+        Assert.Equal("decision_already_exists", decisionStep.NodeKey);
+        Assert.Equal("end_skip", plan.NodeSteps.OfType<AutoCompleteStep>().Last().NodeKey);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_AlreadyExistedFalse_NimmtFreshCreateEdge()
+    {
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") }
+        };
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: AutomationOutputAlreadyExistsCondition),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, skipEnd, freshEnd], edges, actions);
+        var outputs = AutomationOutputs("create-ad-user", """{"alreadyExisted":false,"distinguishedName":"CN=x"}""");
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph, automationOutputs: outputs), createAdUser);
+
+        Assert.IsType<WorkflowCompletionOutcome>(plan.Outcome);
+        Assert.Equal("end_fresh", plan.NodeSteps.OfType<AutoCompleteStep>().Last().NodeKey);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_NodeFehltImSnapshot_LiefertFailurePlan()
+    {
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") }
+        };
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: AutomationOutputAlreadyExistsCondition),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, skipEnd, freshEnd], edges, actions);
+        // Snapshot ohne automationOutputs -> Lookup auf "create-ad-user" schlaegt fehl.
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph), createAdUser);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("no succeeded automation output", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_PropertyKeinBoolean_LiefertFailurePlan()
+    {
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") }
+        };
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: AutomationOutputAlreadyExistsCondition),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, skipEnd, freshEnd], edges, actions);
+        var outputs = AutomationOutputs("create-ad-user", """{"alreadyExisted":"true"}""");
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph, automationOutputs: outputs), createAdUser);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("Expected boolean property", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_OperatorNichtIsTrueOderIsFalse_LiefertFailurePlan()
+    {
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") }
+        };
+        const string invalidOperator = """{"referenceKind":"automation_output","sourceNodeKey":"create-ad-user","property":"alreadyExisted","operator":"equals"}""";
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: invalidOperator),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, skipEnd, freshEnd], edges, actions);
+        var outputs = AutomationOutputs("create-ad-user", """{"alreadyExisted":true}""");
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph, automationOutputs: outputs), createAdUser);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("operator", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_PropertyNichtInWhitelist_LiefertFailurePlan()
+    {
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") }
+        };
+        const string forbiddenProperty = """{"referenceKind":"automation_output","sourceNodeKey":"create-ad-user","property":"distinguishedName","operator":"is_true"}""";
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: forbiddenProperty),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, skipEnd, freshEnd], edges, actions);
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph), createAdUser);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("whitelist", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_NichtDirekterPredecessor_LiefertFailurePlan()
+    {
+        // Graph: create-ad-user(1) -> assign-groups(2) -> decision(3) -> ...
+        // Decision referenziert create-ad-user, das aber kein DIRECT Predecessor mehr ist.
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var assignGroups = Node(2, "assign-groups", "automation");
+        var decision = Node(3, "decision_already_exists", "decision");
+        var skipEnd = Node(4, "end_skip", "end");
+        var freshEnd = Node(5, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") },
+            [2] = new() { ActionRecord(101, "AssignGroupsLdaps") }
+        };
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3),
+            Edge(12, 3, 4, priority: 0, condition: AutomationOutputAlreadyExistsCondition),
+            Edge(13, 3, 5, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, assignGroups, decision, skipEnd, freshEnd], edges, actions);
+        var outputs = AutomationOutputs("create-ad-user", """{"alreadyExisted":true}""");
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph, automationOutputs: outputs), createAdUser);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("not a direct predecessor", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_PredecessorOhneActions_LiefertFailurePlan()
+    {
+        var task = Node(1, "task_a", "task");
+        var decision = Node(2, "decision_after_task", "decision");
+        var endA = Node(3, "end_a", "end");
+        var endB = Node(4, "end_b", "end");
+        // Source-Node hat KEINE Action -> Schranke 3a wirft.
+        const string condition = """{"referenceKind":"automation_output","sourceNodeKey":"task_a","property":"alreadyExisted","operator":"is_true"}""";
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: condition),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([task, decision, endA, endB], edges);
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph), task);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("no automation actions", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_PredecessorMitMehrerenActions_LiefertFailurePlan()
+    {
+        var createAdUser = Node(1, "multi-action-node", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        // Source-Node mit zwei Actions -> Schranke 3b wirft.
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new()
+            {
+                ActionRecord(100, "CreateAdUserLdaps"),
+                ActionRecord(101, "AssignGroupsLdaps")
+            }
+        };
+        const string condition = """{"referenceKind":"automation_output","sourceNodeKey":"multi-action-node","property":"alreadyExisted","operator":"is_true"}""";
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: condition),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, skipEnd, freshEnd], edges, actions);
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph), createAdUser);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("multiple actions", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_PredecessorActionNichtWhitelisted_LiefertFailurePlan()
+    {
+        var sendMail = Node(1, "send-mail", "automation");
+        var decision = Node(2, "decision_already_exists", "decision");
+        var skipEnd = Node(3, "end_skip", "end");
+        var freshEnd = Node(4, "end_fresh", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "SendWelcomeMailGraph") }
+        };
+        const string condition = """{"referenceKind":"automation_output","sourceNodeKey":"send-mail","property":"alreadyExisted","operator":"is_true"}""";
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: condition),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([sendMail, decision, skipEnd, freshEnd], edges, actions);
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph), sendMail);
+
+        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
+        Assert.Contains("not a supported producer", failure.Reason);
+    }
+
+    [Fact]
+    public void Plan_AutomationOutput_MixedMultiForm_AndLogic_NimmtPath()
+    {
+        var createAdUser = Node(1, "create-ad-user", "automation");
+        var decision = Node(2, "decision_multi", "decision");
+        var endA = Node(3, "end_a", "end");
+        var endB = Node(4, "end_b", "end");
+        var actions = new Dictionary<long, List<WorkflowNodeActionRecord>>
+        {
+            [1] = new() { ActionRecord(100, "CreateAdUserLdaps") }
+        };
+        const string mixed = """{"logic":"AND","conditions":[{"answerKey":"flag","operator":"is_true"},{"referenceKind":"automation_output","sourceNodeKey":"create-ad-user","property":"alreadyExisted","operator":"is_true"}]}""";
+        var edges = new[]
+        {
+            Edge(10, 1, 2),
+            Edge(11, 2, 3, priority: 0, condition: mixed),
+            Edge(12, 2, 4, priority: 1)
+        };
+        var graph = BuildGraph([createAdUser, decision, endA, endB], edges, actions);
+        var outputs = AutomationOutputs("create-ad-user", """{"alreadyExisted":true}""");
+        var answers = new Dictionary<string, StoredWorkflowAnswerRecord> { ["flag"] = BoolAnswer("flag", true) };
+
+        var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph, answers: answers, automationOutputs: outputs), createAdUser);
+
+        Assert.IsType<WorkflowCompletionOutcome>(plan.Outcome);
+        Assert.Equal("end_a", plan.NodeSteps.OfType<AutoCompleteStep>().Last().NodeKey);
+    }
 }

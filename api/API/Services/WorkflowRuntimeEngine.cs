@@ -28,7 +28,8 @@ internal static class WorkflowRuntimeEngine
     public static IReadOnlyList<WorkflowDefinitionNodeRecord> ResolveNextNodes(
         WorkflowDefinitionGraphRecord graph,
         WorkflowDefinitionNodeRecord currentNode,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        IReadOnlyDictionary<string, JsonElement>? automationOutputsByNodeKey = null)
     {
         if (!graph.OutgoingEdgesBySourceNodeId.TryGetValue(currentNode.NodeId, out var outgoingEdges)
             || outgoingEdges.Count == 0)
@@ -38,7 +39,7 @@ internal static class WorkflowRuntimeEngine
 
         if (string.Equals(currentNode.NodeType, "decision", StringComparison.OrdinalIgnoreCase))
         {
-            var decisionTarget = ResolveDecisionTarget(graph, currentNode, answersByKey, out _);
+            var decisionTarget = ResolveDecisionTarget(graph, currentNode, answersByKey, out _, automationOutputsByNodeKey);
             return decisionTarget is null ? [] : [decisionTarget];
         }
 
@@ -65,7 +66,8 @@ internal static class WorkflowRuntimeEngine
         WorkflowDefinitionGraphRecord graph,
         WorkflowDefinitionNodeRecord decisionNode,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
-        out WorkflowDefinitionEdgeRecord? selectedEdge)
+        out WorkflowDefinitionEdgeRecord? selectedEdge,
+        IReadOnlyDictionary<string, JsonElement>? automationOutputsByNodeKey = null)
     {
         selectedEdge = null;
         if (!graph.OutgoingEdgesBySourceNodeId.TryGetValue(decisionNode.NodeId, out var outgoingEdges)
@@ -96,7 +98,11 @@ internal static class WorkflowRuntimeEngine
                     $"Decision condition on edge '{sourceKey}' → '{targetKey}' is invalid: {ex.Message}", ex);
             }
 
-            if (EvaluateDecisionConditionExpression(expression, answersByKey))
+            // Schranke 2+3 (Plan-Zeit): Direct-Predecessor + Action-Key gegen den
+            // Graph-Kontext pruefen, bevor evaluiert wird.
+            ValidateAutomationOutputReferences(graph, decisionNode, expression);
+
+            if (EvaluateDecisionConditionExpression(expression, answersByKey, automationOutputsByNodeKey))
             {
                 selectedEdge = edge;
                 return graph.NodeById.GetValueOrDefault(edge.TargetNodeId);
@@ -112,10 +118,106 @@ internal static class WorkflowRuntimeEngine
         return null;
     }
 
+    // Schranken 2+3 fuer automation_output-Bedingungen. Wirft InvalidOperationException,
+    // die der Plan(...)-try/catch in BuildFailurePlan ueberfuehrt.
+    //   Schranke 2: sourceNodeKey muss ein direkter eingehender Predecessor der Decision-Node sein.
+    //   Schranke 3: Predecessor-Node muss genau eine Action tragen, deren action_key in
+    //               AllowedConditionProperties whitelisted ist; Property muss in der
+    //               action_key-spezifischen Whitelist liegen.
+    private static void ValidateAutomationOutputReferences(
+        WorkflowDefinitionGraphRecord graph,
+        WorkflowDefinitionNodeRecord decisionNode,
+        DecisionConditionExpressionRecord expression)
+    {
+        foreach (var condition in expression.Conditions)
+        {
+            if (condition is not DecisionConditionRecord.AutomationOutputBased automationOutput)
+            {
+                continue;
+            }
+
+            var sourceNodeKey = automationOutput.Condition.SourceNodeKey;
+
+            // Schranke 2: Direct-Predecessor.
+            var incomingEdges = graph.IncomingEdgesByTargetNodeId.TryGetValue(decisionNode.NodeId, out var edges)
+                ? edges
+                : (IReadOnlyList<WorkflowDefinitionEdgeRecord>)[];
+            WorkflowDefinitionNodeRecord? predecessorNode = null;
+            foreach (var incomingEdge in incomingEdges)
+            {
+                if (!graph.NodeById.TryGetValue(incomingEdge.SourceNodeId, out var candidate))
+                {
+                    continue;
+                }
+                if (string.Equals(candidate.NodeKey, sourceNodeKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    predecessorNode = candidate;
+                    break;
+                }
+            }
+
+            if (predecessorNode is null)
+            {
+                throw new InvalidOperationException(
+                    $"Decision condition on node '{decisionNode.NodeKey}' references node '{sourceNodeKey}', which is not a direct predecessor. Only direct incoming-edge sources are allowed.");
+            }
+
+            // Schranke 3: Action-Key + Property-Whitelist.
+            if (!graph.NodeActionsByNodeId.TryGetValue(predecessorNode.NodeId, out var actions)
+                || actions.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Decision condition references node '{sourceNodeKey}' which has no automation actions; automation_output conditions require a producer node.");
+            }
+
+            if (actions.Count > 1)
+            {
+                var actionKeys = string.Join(", ", actions.Select(a => a.ActionKey));
+                throw new InvalidOperationException(
+                    $"Decision condition references node '{sourceNodeKey}', which carries multiple actions [{actionKeys}]. automation_output conditions require an unambiguous single producer action; refactor the workflow so the referenced node has exactly one whitelisted action.");
+            }
+
+            var actionKey = actions[0].ActionKey;
+            if (!AllowedConditionProperties.TryGetValue(actionKey, out var allowedProperties))
+            {
+                var whitelistedProducers = string.Join(", ", AllowedConditionProperties.Keys);
+                throw new InvalidOperationException(
+                    $"Decision condition references node '{sourceNodeKey}' with action_key '{actionKey}', but this action is not a supported producer for automation_output conditions. Whitelisted producers: [{whitelistedProducers}].");
+            }
+
+            if (!allowedProperties.Contains(automationOutput.Condition.Property))
+            {
+                var allowed = string.Join(", ", allowedProperties);
+                throw new InvalidOperationException(
+                    $"Decision condition references property '{automationOutput.Condition.Property}' on action '{actionKey}', which is not in the whitelist [{allowed}].");
+            }
+        }
+    }
+
+    // Action-Key -> erlaubte Output-Properties in workflow_edges.condition_expression.
+    // Bewusst minimal: nur Outcome-Flags, keine Identifier (kein distinguishedName,
+    // kein UPN, ...). Erweiterung erfordert auch eine Eintragung in
+    // AutomationPropertyCatalog.CreatedAdUserConditionProperties (Drift-Schutz via Test).
+    internal static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> AllowedConditionProperties
+        = new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["CreateAdUserLdaps"] = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "alreadyExisted" }
+        };
+
+    // Operator-Set fuer automation_output-Bedingungen. Boolean-only im ersten Aufschlag;
+    // String-/Number-Compares folgen mit dem jeweiligen Use-Case.
+    internal static readonly IReadOnlySet<string> AllowedAutomationOutputOperators
+        = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "is_true", "is_false" };
+
+    private static readonly IReadOnlySet<string> AllAllowedConditionPropertiesUnion
+        = AllowedConditionProperties.Values
+            .SelectMany(set => set)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
     // Erlaubt zwei Formen:
-    //   Single (legacy):  { answerKey, operator, expectedValue* }
-    //   Multi:            { logic: "AND" | "OR", conditions: [ { answerKey, operator, ... }, ... ] }
-    // Single-Form bleibt fuer Rueckwaertskompat mit bestehenden gespeicherten Bedingungen.
+    //   Single (legacy):  { answerKey, operator, expectedValue* }  oder  { referenceKind, ... }
+    //   Multi:            { logic: "AND" | "OR", conditions: [ ... ] }
+    // Single-Form ohne `referenceKind` bleibt als `answer`-Default fuer Rueckwaertskompat.
     public static DecisionConditionExpressionRecord ParseDecisionConditionExpression(string conditionExpression)
     {
         try
@@ -135,7 +237,7 @@ internal static class WorkflowRuntimeEngine
             return new DecisionConditionExpressionRecord
             {
                 Logic = DecisionConditionLogic.And,
-                Conditions = new List<TaskTemplateConditionRecord> { ParseConditionElement(root) }
+                Conditions = new List<DecisionConditionRecord> { ParseConditionElement(root) }
             };
         }
         catch (JsonException ex)
@@ -144,21 +246,13 @@ internal static class WorkflowRuntimeEngine
         }
     }
 
-    // Erhalten fuer abwaertskompatible Aufrufer. Wirft, wenn die Bedingung
-    // Multi-Form ist — Multi gehoert ueber ParseDecisionConditionExpression.
-    public static TaskTemplateConditionRecord ParseDecisionCondition(string conditionExpression)
-    {
-        var expression = ParseDecisionConditionExpression(conditionExpression);
-        if (expression.Conditions.Count == 1)
-        {
-            return expression.Conditions[0];
-        }
-        throw new InvalidOperationException("Decision condition has multiple sub-conditions. Use ParseDecisionConditionExpression.");
-    }
-
+    // Evaluiert eine Decision-Bedingung gegen Answer- und Automation-Output-Quellen.
+    // `automationOutputsByNodeKey`: Output-JSON pro `workflow_nodes.node_key`. Default leer
+    // fuer reine Answer-Bedingungen (Backwards-Compat).
     public static bool EvaluateDecisionConditionExpression(
         DecisionConditionExpressionRecord expression,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        IReadOnlyDictionary<string, JsonElement>? automationOutputsByNodeKey = null)
     {
         if (expression.Conditions.Count == 0)
         {
@@ -166,8 +260,61 @@ internal static class WorkflowRuntimeEngine
         }
 
         return expression.Logic == DecisionConditionLogic.Or
-            ? expression.Conditions.Any(c => TaskConditionEvaluator.EvaluateCondition(c, answersByKey))
-            : expression.Conditions.All(c => TaskConditionEvaluator.EvaluateCondition(c, answersByKey));
+            ? expression.Conditions.Any(c => EvaluateDecisionCondition(c, answersByKey, automationOutputsByNodeKey))
+            : expression.Conditions.All(c => EvaluateDecisionCondition(c, answersByKey, automationOutputsByNodeKey));
+    }
+
+    private static bool EvaluateDecisionCondition(
+        DecisionConditionRecord condition,
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        IReadOnlyDictionary<string, JsonElement>? automationOutputsByNodeKey)
+    {
+        return condition switch
+        {
+            DecisionConditionRecord.AnswerBased a => TaskConditionEvaluator.EvaluateCondition(a.Condition, answersByKey),
+            DecisionConditionRecord.AutomationOutputBased o => EvaluateAutomationOutputCondition(o.Condition, automationOutputsByNodeKey),
+            _ => throw new InvalidOperationException($"Unknown decision condition variant: {condition.GetType().Name}.")
+        };
+    }
+
+    private static bool EvaluateAutomationOutputCondition(
+        AutomationOutputConditionRecord condition,
+        IReadOnlyDictionary<string, JsonElement>? automationOutputsByNodeKey)
+    {
+        if (automationOutputsByNodeKey is null
+            || !automationOutputsByNodeKey.TryGetValue(condition.SourceNodeKey, out var outputJson))
+        {
+            throw new InvalidOperationException(
+                $"Decision condition references node '{condition.SourceNodeKey}' but no succeeded automation output was found for it in this workflow run.");
+        }
+
+        if (outputJson.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException(
+                $"Automation output for node '{condition.SourceNodeKey}' is not a JSON object (kind: {outputJson.ValueKind}).");
+        }
+
+        if (!outputJson.TryGetProperty(condition.Property, out var propertyValue))
+        {
+            throw new InvalidOperationException(
+                $"Expected boolean property '{condition.Property}' on node '{condition.SourceNodeKey}' output, but the property is missing.");
+        }
+
+        var booleanValue = propertyValue.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => throw new InvalidOperationException(
+                $"Expected boolean property '{condition.Property}' on node '{condition.SourceNodeKey}' output, found {propertyValue.ValueKind}.")
+        };
+
+        return condition.Operator switch
+        {
+            "is_true" => booleanValue,
+            "is_false" => !booleanValue,
+            _ => throw new InvalidOperationException(
+                $"Unsupported operator '{condition.Operator}' for automation_output condition on node '{condition.SourceNodeKey}'.")
+        };
     }
 
     private static DecisionConditionExpressionRecord ParseMultiForm(JsonElement root, JsonElement conditionsProperty)
@@ -190,7 +337,7 @@ internal static class WorkflowRuntimeEngine
             };
         }
 
-        var conditions = new List<TaskTemplateConditionRecord>();
+        var conditions = new List<DecisionConditionRecord>();
         foreach (var item in conditionsProperty.EnumerateArray())
         {
             if (item.ValueKind != JsonValueKind.Object)
@@ -212,7 +359,26 @@ internal static class WorkflowRuntimeEngine
         };
     }
 
-    private static TaskTemplateConditionRecord ParseConditionElement(JsonElement element)
+    private static DecisionConditionRecord ParseConditionElement(JsonElement element)
+    {
+        var referenceKind = "answer";
+        if (element.TryGetProperty("referenceKind", out var referenceKindProperty)
+            && referenceKindProperty.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(referenceKindProperty.GetString()))
+        {
+            referenceKind = referenceKindProperty.GetString()!.Trim().ToLowerInvariant();
+        }
+
+        return referenceKind switch
+        {
+            "answer" => new DecisionConditionRecord.AnswerBased(ParseAnswerConditionElement(element)),
+            "automation_output" => new DecisionConditionRecord.AutomationOutputBased(ParseAutomationOutputConditionElement(element)),
+            _ => throw new InvalidOperationException(
+                $"Decision condition 'referenceKind' must be one of [answer, automation_output], got '{referenceKind}'.")
+        };
+    }
+
+    private static TaskTemplateConditionRecord ParseAnswerConditionElement(JsonElement element)
     {
         if (!element.TryGetProperty("answerKey", out var answerKeyProperty)
             || answerKeyProperty.ValueKind != JsonValueKind.String
@@ -248,6 +414,52 @@ internal static class WorkflowRuntimeEngine
                     ? expectedNumber
                     : null
         };
+    }
+
+    private static AutomationOutputConditionRecord ParseAutomationOutputConditionElement(JsonElement element)
+    {
+        if (!element.TryGetProperty("sourceNodeKey", out var sourceNodeKeyProperty)
+            || sourceNodeKeyProperty.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(sourceNodeKeyProperty.GetString()))
+        {
+            throw new InvalidOperationException("Automation-output decision condition requires sourceNodeKey.");
+        }
+
+        if (!element.TryGetProperty("property", out var propertyProperty)
+            || propertyProperty.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(propertyProperty.GetString()))
+        {
+            throw new InvalidOperationException("Automation-output decision condition requires property.");
+        }
+
+        if (!element.TryGetProperty("operator", out var operatorProperty)
+            || operatorProperty.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(operatorProperty.GetString()))
+        {
+            throw new InvalidOperationException("Automation-output decision condition requires operator.");
+        }
+
+        var property = propertyProperty.GetString()!.Trim();
+        var op = operatorProperty.GetString()!.Trim().ToLowerInvariant();
+
+        // Property-Union-Schnellcheck (Schranke 1): Action-Key-spezifische Whitelist greift erst
+        // in der Engine-Stufe mit Graph-Kontext (Schranke 3).
+        if (!AllAllowedConditionPropertiesUnion.Contains(property))
+        {
+            throw new InvalidOperationException(
+                $"Automation-output decision condition references property '{property}', which is not in the whitelist [{string.Join(", ", AllAllowedConditionPropertiesUnion)}].");
+        }
+
+        if (!AllowedAutomationOutputOperators.Contains(op))
+        {
+            throw new InvalidOperationException(
+                $"Automation-output decision condition operator '{op}' is not supported. Allowed: [{string.Join(", ", AllowedAutomationOutputOperators)}].");
+        }
+
+        return new AutomationOutputConditionRecord(
+            SourceNodeKey: sourceNodeKeyProperty.GetString()!.Trim(),
+            Property: property,
+            Operator: op);
     }
 
     public static WorkflowDefinitionSupervisorGatekeeperEvaluation EvaluateSupervisorGatekeeper(
@@ -401,7 +613,7 @@ internal static class WorkflowRuntimeEngine
         IReadOnlyList<WorkflowDefinitionNodeRecord> initialResolved;
         try
         {
-            initialResolved = ResolveNextNodes(snapshot.Graph, completedNode, snapshot.AnswersByKey);
+            initialResolved = ResolveNextNodes(snapshot.Graph, completedNode, snapshot.AnswersByKey, snapshot.AutomationOutputsByNodeKey);
         }
         catch (InvalidOperationException ex)
         {
@@ -444,7 +656,7 @@ internal static class WorkflowRuntimeEngine
 
                 try
                 {
-                    foreach (var resolved in ResolveNextNodes(snapshot.Graph, nextNode, snapshot.AnswersByKey))
+                    foreach (var resolved in ResolveNextNodes(snapshot.Graph, nextNode, snapshot.AnswersByKey, snapshot.AutomationOutputsByNodeKey))
                     {
                         EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolved);
                     }
@@ -472,7 +684,7 @@ internal static class WorkflowRuntimeEngine
 
                     try
                     {
-                        foreach (var resolved in ResolveNextNodes(snapshot.Graph, nextNode, snapshot.AnswersByKey))
+                        foreach (var resolved in ResolveNextNodes(snapshot.Graph, nextNode, snapshot.AnswersByKey, snapshot.AutomationOutputsByNodeKey))
                         {
                             EnqueueIfNeeded(pendingNodes, scheduledNodeIds, resolved);
                         }
@@ -490,7 +702,7 @@ internal static class WorkflowRuntimeEngine
                     WorkflowDefinitionEdgeRecord? selectedEdge;
                     try
                     {
-                        decisionTarget = ResolveDecisionTarget(snapshot.Graph, nextNode, snapshot.AnswersByKey, out selectedEdge);
+                        decisionTarget = ResolveDecisionTarget(snapshot.Graph, nextNode, snapshot.AnswersByKey, out selectedEdge, snapshot.AutomationOutputsByNodeKey);
                     }
                     catch (InvalidOperationException ex)
                     {
@@ -752,5 +964,20 @@ internal enum DecisionConditionLogic
 internal sealed class DecisionConditionExpressionRecord
 {
     public required DecisionConditionLogic Logic { get; init; }
-    public required IReadOnlyList<TaskTemplateConditionRecord> Conditions { get; init; }
+    public required IReadOnlyList<DecisionConditionRecord> Conditions { get; init; }
 }
+
+// Discriminated Union der Decision-Bedingungs-Varianten (Etappe 9a Schritt 8).
+// AnswerBased: bestehender Pfad, evaluiert ueber StoredWorkflowAnswerRecord.
+// AutomationOutputBased: neuer Pfad, evaluiert ueber das Output-JSON des
+// direkten Predecessor-Automation-Nodes.
+internal abstract record DecisionConditionRecord
+{
+    public sealed record AnswerBased(TaskTemplateConditionRecord Condition) : DecisionConditionRecord;
+    public sealed record AutomationOutputBased(AutomationOutputConditionRecord Condition) : DecisionConditionRecord;
+}
+
+internal sealed record AutomationOutputConditionRecord(
+    string SourceNodeKey,
+    string Property,
+    string Operator);

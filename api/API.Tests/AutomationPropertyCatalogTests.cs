@@ -96,6 +96,64 @@ public sealed class AutomationPropertyCatalogTests
         Assert.Empty(staticSrc.Properties);
     }
 
+    // Etappe 9a Schritt 8: ConditionProperties.
+
+    [Fact]
+    public void BuildDto_CreatedAdUser_HasAlreadyExistedConditionProperty()
+    {
+        var dto = AutomationPropertyCatalog.BuildDto();
+        var src = dto.Sources.Single(s => s.Source == AutomationPropertyCatalog.SourceCreatedAdUser);
+
+        var alreadyExisted = Assert.Single(src.ConditionProperties);
+        Assert.Equal("alreadyExisted", alreadyExisted.Key);
+        Assert.Equal(AutomationPropertyCatalog.KindBusiness, alreadyExisted.Kind);
+    }
+
+    [Fact]
+    public void BuildDto_CreatedAdUser_AlreadyExisted_NotInInputMappingProperties()
+    {
+        // alreadyExisted ist eine Bedingungs-Property, KEINE Input-Mapping-Property.
+        var dto = AutomationPropertyCatalog.BuildDto();
+        var src = dto.Sources.Single(s => s.Source == AutomationPropertyCatalog.SourceCreatedAdUser);
+        Assert.DoesNotContain(src.Properties, p => p.Key == "alreadyExisted");
+    }
+
+    [Theory]
+    [InlineData(AutomationPropertyCatalog.SourceWorkflow)]
+    [InlineData(AutomationPropertyCatalog.SourceTargetPerson)]
+    [InlineData(AutomationPropertyCatalog.SourceDirectoryIdentity)]
+    [InlineData(AutomationPropertyCatalog.SourceAnswer)]
+    [InlineData(AutomationPropertyCatalog.SourceStatic)]
+    [InlineData(AutomationPropertyCatalog.SourceCreatedMailbox)]
+    public void BuildDto_SourcesWithoutConditionProperties_AreEmpty(string source)
+    {
+        var dto = AutomationPropertyCatalog.BuildDto();
+        var src = dto.Sources.Single(s => s.Source == source);
+        Assert.Empty(src.ConditionProperties);
+    }
+
+    [Fact]
+    public void Catalog_AndEngine_AllowedConditionProperties_StayInSync()
+    {
+        // Drift-Schutz: alle Properties, die der Catalog als Condition-Property fuer
+        // created_ad_user fuehrt, muessen auch im Engine-Parser whitelisted sein.
+        // Sonst koennte das UI eine Property anbieten, die der Engine-Parser ablehnt.
+        var dto = AutomationPropertyCatalog.BuildDto();
+        var src = dto.Sources.Single(s => s.Source == AutomationPropertyCatalog.SourceCreatedAdUser);
+        var catalogProperties = src.ConditionProperties.Select(p => p.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.True(
+            WorkflowRuntimeEngine.AllowedConditionProperties.TryGetValue("CreateAdUserLdaps", out var engineProperties),
+            "Engine-Parser kennt keinen Eintrag fuer 'CreateAdUserLdaps' in AllowedConditionProperties.");
+
+        foreach (var property in catalogProperties)
+        {
+            Assert.True(
+                engineProperties!.Contains(property),
+                $"Catalog fuehrt Condition-Property '{property}' fuer 'CreateAdUserLdaps', aber der Engine-Parser kennt sie nicht.");
+        }
+    }
+
     private static AutomationPropertyCatalogPropertyDto GetProperty(
         AutomationPropertyCatalogDto dto,
         string source,
