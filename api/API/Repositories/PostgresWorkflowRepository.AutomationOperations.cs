@@ -506,6 +506,31 @@ WHERE id = @jobId;
         await transaction.CommitAsync(cancellationToken);
     }
 
+    // Etappe 9a Schritt 4 Sub-B: Belt-and-Suspenders-Stale-Sweep auf Linux-Seite. Greift,
+    // wenn alle Worker tot sind und der Worker-Lazy-Cleanup (PostgresWorkerJobStore.
+    // ReleaseStaleClaimsAsync) nicht zum Zug kommt. Eingeschraenkt auf target_runtime IS
+    // NOT NULL — Linux-Pfad-Jobs haben eigenes Lease-Modell.
+    public async Task<int> ReleaseStaleWorkerClaimsAsync(TimeSpan staleTimeout, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+
+        const string sql = """
+UPDATE automation_jobs
+SET status = 'pending',
+    claimed_at = NULL,
+    claimed_by = NULL,
+    heartbeat_at = NULL
+WHERE target_runtime IS NOT NULL
+  AND status = 'running'
+  AND (heartbeat_at IS NULL OR heartbeat_at < NOW() - make_interval(secs => @staleSeconds));
+""";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("staleSeconds", staleTimeout.TotalSeconds);
+        return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task<(ClaimedAutomationJobRecord Job, JsonElement? Output)?> LoadJobForExternalCompletionInScope(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,

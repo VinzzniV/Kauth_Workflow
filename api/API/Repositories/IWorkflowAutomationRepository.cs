@@ -17,6 +17,11 @@ internal interface IWorkflowAutomationRepository
     Task<ExternalCompletionContext?> LoadExternalCompletionContextAsync(long jobId, CancellationToken cancellationToken = default);
     Task ApplyExternalCompletionSuccessAsync(long jobId, CancellationToken cancellationToken = default);
     Task ApplyExternalCompletionFailureAsync(long jobId, WorkflowAutomationRetryOutcome outcome, CancellationToken cancellationToken = default);
+
+    // Etappe 9a Schritt 4 Sub-B: zentraler Stale-Worker-Claim-Sweep. Setzt running-Jobs mit
+    // target_runtime IS NOT NULL und heartbeat_at < NOW() - staleTimeout zurueck auf pending.
+    // Belt-and-Suspenders neben dem Worker-Lazy-Cleanup; greift, wenn alle Worker tot sind.
+    Task<int> ReleaseStaleWorkerClaimsAsync(TimeSpan staleTimeout, CancellationToken cancellationToken = default);
 }
 
 internal sealed class ExternalCompletionClaim

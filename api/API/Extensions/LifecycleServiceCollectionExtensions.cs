@@ -150,6 +150,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IWorkflowRuntimeService, WorkflowRuntimeService>();
         services.AddScoped<IWorkflowDefinitionRuntimeService, WorkflowDefinitionRuntimeService>();
         services.AddSingleton(BuildAutomationRetrySettings(configuration));
+        services.AddSingleton(new WorkerLeaseSettings());
         services.AddScoped<IWorkflowAutomationService, WorkflowAutomationService>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateAdUserAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateMailboxAutomationHandler>();
@@ -179,6 +180,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddHostedService<DirectorySyncHostedService>();
         services.AddHostedService<WorkflowAutomationHostedService>();
         services.AddHostedService<ExternalAutomationJobCompletionSweeper>();
+        services.AddHostedService<StaleWorkerClaimSweeper>();
         services.AddHostedService<RotationNotificationHostedService>();
         services.AddHttpClient("health", client =>
         {

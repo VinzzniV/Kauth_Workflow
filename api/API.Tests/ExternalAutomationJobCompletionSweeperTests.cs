@@ -117,6 +117,7 @@ public sealed class ExternalAutomationJobCompletionSweeperTests
             => Task.FromResult<ExternalCompletionContext?>(null);
         public Task ApplyExternalCompletionSuccessAsync(long jobId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task ApplyExternalCompletionFailureAsync(long jobId, WorkflowAutomationRetryOutcome outcome, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> ReleaseStaleWorkerClaimsAsync(TimeSpan staleTimeout, CancellationToken cancellationToken = default) => Task.FromResult(0);
     }
 
     private sealed class StubLifecycleService : IWorkflowLifecycleService
