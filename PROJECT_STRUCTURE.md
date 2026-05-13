@@ -188,8 +188,12 @@ Aktuell wichtige technische Schwerpunkte:
 - Strukturierter Linux-Handler-Failure-Pfad (Etappe 9a Schritt 5): `WorkflowAutomationHandlerResult` mit IsSuccess/ErrorMessage/FailureKind; `WorkflowAutomationService` discriminiert Result-Failure vs Exception
 - `INotificationTemplateResolver` (extrahiert aus `NotificationTemplateService.GetEffectiveTemplate`); `IGraphMailSender` + `GraphMailSender` als schmales Mail-Versand-Interface fuer Action-Handler
 - `SendWelcomeMailGraphHandler` als erster echter Linux-side-Handler (Graph App-only); konsumiert `ITemporaryCredentialRepository` fuer Late-Decrypt des Initial-Passworts (Etappe 9a Schritt 6)
-- Enge `created_ad_user`-Mapping-Source mit Property-Whitelist `distinguishedName` + `credentialVaultId` (UUID, kein Geheimnis; Null-Pfad durchgereicht fuer AlreadyExists-Case). Plain-Passwort wird durch keine Mapping-Source exponiert.
+- `IGraphMailboxProvisioner` + `GraphMailboxProvisioner` (Etappe 9a Schritt 7): Exchange-Online-Mailbox-Provisioning via Graph App-only mit SMTP-Strictness (kein UPN-Fallback). Outcome-DU mit getrennten Transient-Varianten fuer Entra-Sync-Lag vs Exchange-Provisioning-Lag.
+- `CreateMailboxGraphHandler` (Action ID 10, Etappe 9a Schritt 7) als zweiter echter Linux-side-Handler; per-Action-Retry-Override `max_attempts=10`+`subsequent_delay=300s` = ~41 min Wartezeit-Budget.
+- Enge `created_ad_user`-Mapping-Source mit Property-Whitelist `distinguishedName` + `credentialVaultId` + `userPrincipalName` (alle nicht-geheim). Plain-Passwort wird durch keine Mapping-Source exponiert.
+- Enge `created_mailbox`-Mapping-Source mit Property-Whitelist nur `primarySmtpAddress`. Andere Felder bleiben bewusst draussen.
 - `temporary_credentials`-Tabelle (pgcrypto symmetric) als Vault fuer Initial-Passwoerter; UNIQUE(workflow_node_instance_id, credential_type) macht den atomaren Worker-Schreib-Pfad idempotent. Schluessel kommt aus `KAUTH_VAULT_KEY`-Env-Var (API) bzw. `vault.config.dpapi` (Worker).
+- `action_definitions.max_attempts_override` + `subsequent_retry_delay_seconds_override` (Etappe 9a Schritt 7 Sub-A): per-Action-Retry-Budget-Konfiguration. NULL = globaler Default greift.
 
 ## Backend-Tests: `api/API.Tests`
 

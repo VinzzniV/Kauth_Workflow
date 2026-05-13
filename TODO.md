@@ -4,7 +4,7 @@
 
 Aktiver Produkt- und Umsetzungsplan. Nur Punkte, die direkt auf Endbenutzer-Nutzen, fachliche Funktion, Automatisierung oder Produktionsreife einzahlen.
 
-Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung"). Etappe 9a Schritt 6 (Temporary-Credentials-Vault, 2026-05-13) ist abgeschlossen; Belege siehe Commits `ee77538`/`1d5328a`/`a422c81` und Doku-Commit dieses Slices.
+Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung"). Etappe 9a Schritt 6 (Temporary-Credentials-Vault, 2026-05-13) und Schritt 7 (CreateMailboxGraph, 2026-05-13) sind abgeschlossen; Belege siehe Commits `ee77538`/`1d5328a`/`a422c81`/`0600934` (Schritt 6) und `4c2ea47`/`161db55`/`c23ff86`/`c9382d4` (Schritt 7) + Doku-Commit dieses Slices.
 
 ## Leseregeln
 
@@ -15,7 +15,7 @@ Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „
 
 ## Stand 2026-05-13
 
-Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 + 6 alle durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
+Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 + 6 + 7 alle durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
 - API Release-Build: ✅ gruen
 - API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; keine neuen seit 2026-05-12)
 - FE-Build: ✅ gruen
@@ -30,7 +30,7 @@ Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mo
 
 | ID | Aufgabe | Prio | Status | Nutzen |
 | --- | --- | --- | --- | --- |
-| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 + 6 ✓ 2026-05-13. Schritt 6 hat den Temporary-Credentials-Vault produktiv gemacht: `temporary_credentials`-Tabelle (pgcrypto symmetric), atomare Vault-Tx im `PostgresWorkerJobStore` (Vault-Insert + Attempt + Job in einer Tx; ON CONFLICT-Recovery), `CreateAdUserLdapsHandler` liefert `PendingVaultWrite` und schreibt kein Plain-Passwort mehr ins Output, `created_ad_user`-Whitelist um `credentialVaultId` erweitert (UUID, kein Geheimnis; Null-Pfad durchgereicht), `SendWelcomeMailGraphHandler` decryptet zur Run-time via `ITemporaryCredentialRepository.ReadAdInitialPasswordByVaultIdAsync`, `{{temporary_password}}`-Placeholder im Catalog-Template. Vault-Key auf Worker via DPAPI-Pfad (`vault.config.dpapi` analog `db.config.dpapi`); API via `KAUTH_VAULT_KEY` Env-Var. **Naechste Code-Slices (eigene Plan-Mode-Slices):** `CreateMailbox` (Graph-Mail-Provisioning) und `CreateErpEmployee` (ERP-System-Auswahl mit Stakeholder) jeweils als eigene Backend-Architektur-Slices. Vor Live-Inbetriebnahme: gMSA in der Domaene anlegen + `Install-ADServiceAccount` auf der Worker-VM; Postgres-User `kauth_worker` mit GRANTs (jetzt inkl. INSERT auf `temporary_credentials`) + `kauth_api` mit SELECT+UPDATE auf `temporary_credentials`; `install-db-config.ps1` DPAPI-Lauf; `install-vault-key.ps1` DPAPI-Lauf (gleicher Key auf Linux-API als `KAUTH_VAULT_KEY`-Env-Var); Delegated-Rechte (Create Child + Reset Password + Modify Member auf Groups) auf der Ziel-OU; Graph App-only-Credential. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad — End-to-End Onboarding mit echtem Passwort in der Welcome-Mail ist jetzt produktionsreif. |
+| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 + 6 + 7 ✓ 2026-05-13. Schritt 7 hat `CreateMailboxGraph` produktiv gemacht: (a) per-Action-Retry-Override-Spalten (`max_attempts_override`, `subsequent_retry_delay_seconds_override`) auf `action_definitions` -- CreateMailboxGraph mit 10/300 = ~41 min Wartezeit-Budget fuer Entra-Connect-Sync. (b) `IGraphMailboxProvisioner` mit SMTP-Strictness: nur echte SMTP aus `proxyAddresses`/`mail` -> Success, sonst `MailboxProvisioningInProgress`-Transient (KEIN UPN-Fallback). (c) `CreateMailboxGraphHandler` (Action ID 10) parallel zur Simulation `CreateMailbox` (ID 2); Pflicht-Payload `userPrincipalName` + `skuId`, Output `primarySmtpAddress` + `licenseSkuId` + `assignedAtUtc`. (d) `created_ad_user.userPrincipalName`-Whitelist + neue `created_mailbox.primarySmtpAddress`-Source. Pflicht-Permissions: `User.Read.All` + `LicenseAssignment.ReadWrite.All`. **Naechster Code-Slice (eigener Plan-Mode-Slice):** `CreateErpEmployee` als eigener Backend-Architektur-Slice (ERP-System-Auswahl mit Stakeholder). Vor Live-Inbetriebnahme: alle Schritt-6-Voraussetzungen plus Graph App-only mit erweiterten Permissions (Admin-Consent fuer `User.Read.All` + `LicenseAssignment.ReadWrite.All`); im Workflow-Builder muss `skuId` per `static`-Mapping eingetragen werden (siehe `Get-MgSubscribedSku` fuer die SKU-Liste). | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad — End-to-End Onboarding mit AD-Anlage + automatischer Mailbox + echtem Passwort in der Welcome-Mail. |
 
 ## Nachgelagert
 

@@ -170,8 +170,20 @@ End-to-End-Onboarding-Pfad mit echtem Initial-Passwort in der Welcome-Mail. Plai
 
 Praktischer Nutzen: das Initial-Passwort liegt nirgendwo plain in der DB, nur kurz im RAM von Worker (Generierung → Tx-Commit) und API-Handler (Decrypt → Mail-Send). TTL macht es nach Ablauf automatisch wertlos — Lese-Pfad wirft mit klarer Meldung. End-to-End Onboarding ohne Helpdesk-Pickup ist produktionsreif (Fresh-Create).
 
+## Schritt 7 (✓ 2026-05-13) — `CreateMailboxGraph` (Exchange Online via Graph App-only)
+
+Schliesst die Onboarding-Kette: nach CreateAdUserLdaps (Worker) wird die Mailbox automatisch provisioniert, bevor SendWelcomeMailGraph an die echte Adresse versendet. Drei architektonische Bausteine:
+
+- **Per-Action-Retry-Override (Sub-A):** Zwei nullable Spalten `max_attempts_override` und `subsequent_retry_delay_seconds_override` auf `action_definitions`. `WorkflowAutomationRetryPolicy.EvaluateRetryOutcome` liest sie defensiv (nicht-positive Werte = "nicht gesetzt"). `FirstRetryDelay` bleibt global. Damit kann ein einzelner Handler ein laengeres Retry-Budget bekommen, ohne dass alle anderen mit-laufen. CreateMailboxGraph-Seed setzt 10/300 = 60s + 8x300s = ~41 min Wartezeit-Budget bis zum 10. Versuch — sicher ueber einen Entra-Connect-Sync-Zyklus (~30 min Default).
+- **`IGraphMailboxProvisioner` mit SMTP-Strictness (Sub-B):** Ablauf `GET /users/{upn}` -> `POST /users/{id}/assignLicense` -> zweiter `GET /users/{id}` fuer die echte primary SMTP. Quellen-Reihenfolge: `proxyAddresses` mit Uppercase `SMTP:`-Praefix (primary) > `mail`. **Kein UPN-Fallback** — wenn beides leer ist, kommt `MailboxProvisioningInProgress`-Transient (eigene Outcome-Variante neben `UserNotInDirectoryYet`, damit Sync-Lag und Provisioning-Lag in Logs klar getrennt sind). Error-Mapping: 401/403 endpoint-spezifisch (User.Read.All vs LicenseAssignment.ReadWrite.All), 400 mit "Unknown" -> SKU-Hinweis, 400 mit "CountViolation"/"exceeded" -> Pool-Hinweis, 429/5xx/Timeout -> Transient.
+- **`CreateMailboxGraphHandler` + Verkettung (Sub-C/Sub-D):** Action ID 10 parallel zur Simulation `CreateMailbox` (ID 2). Pflicht-Payload `userPrincipalName` + `skuId` (UUID); Output `primarySmtpAddress` + `licenseSkuId` + `assignedAtUtc`. UPN kommt typischerweise via `created_ad_user.userPrincipalName`-Mapping (`directory_identity`-Source greift erst nach Entra-Sync); SMTP wird via `created_mailbox.primarySmtpAddress`-Source an SendWelcomeMailGraph weitergereicht. `created_ad_user`-Whitelist um `userPrincipalName` erweitert (Pflicht-Spec-Feld, harter Fail bei fehlend/leer); `created_mailbox`-Whitelist nur `primarySmtpAddress` (succeeded Attempt MUSS echte SMTP tragen — sonst handler/provisioner contract bug).
+
+**Operative Pflicht-Voraussetzungen** vor Live-Inbetriebnahme: Graph-App-Registrierung mit den least-privileged Application-Permissions `User.Read.All` + `LicenseAssignment.ReadWrite.All` (Admin-Consent). Exchange-Online-SKU im Tenant vorhanden + Lizenz-Pool nicht erschoepft. SKU-ID wird per `Get-MgSubscribedSku` ermittelt und im Workflow-Builder via `static`-Mapping eingetragen.
+
+**Bewusst Out-of-Scope:** Lizenz-Pool-Monitoring/Reservierung, Sub-License-Disabling (`disabledPlans`), Lizenz-Removal, Cloud-only-User-Anlage. Alle als Folge-Slices vorgesehen.
+
 ## Verwandte Notizen
 
-- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3/4/5/6-Update
-- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + 2 + 3 + 4 + 5 + 6 (zuletzt 2026-05-13)
+- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3/4/5/6/7-Update
+- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + 2 + 3 + 4 + 5 + 6 + 7 (zuletzt 2026-05-13)
 - [[Automation]] — Automation-Layer-Modell, in das der Worker einklinkt
