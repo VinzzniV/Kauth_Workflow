@@ -6,7 +6,8 @@ internal sealed class NotificationTemplateService(
     IRotationNotificationPreviewRepository rotationPreviewRepository,
     IWorkflowRepository workflowRepository,
     IRotationRepository rotationRepository,
-    INotificationEmailConfigurationService notificationEmailConfigurationService) : INotificationTemplateService
+    INotificationEmailConfigurationService notificationEmailConfigurationService,
+    INotificationTemplateResolver templateResolver) : INotificationTemplateService
 {
     public async Task<IReadOnlyList<AdminNotificationTemplateDto>> GetAdminTemplates(CancellationToken cancellationToken = default)
     {
@@ -424,27 +425,12 @@ internal sealed class NotificationTemplateService(
         };
     }
 
-    private async Task<StoredNotificationTemplate> GetEffectiveTemplate(
+    // Etappe 9a Schritt 5 Sub-C: Logik in INotificationTemplateResolver extrahiert; hier nur
+    // noch ein duenner Delegate. Bestehende Render-Pfade bleiben verhaltens-identisch.
+    private Task<StoredNotificationTemplate> GetEffectiveTemplate(
         NotificationTemplateDefinition definition,
         CancellationToken cancellationToken)
-    {
-        var stored = await repository.GetTemplate(definition.TemplateKey, cancellationToken);
-        if (stored is not null)
-        {
-            return stored;
-        }
-
-        return new StoredNotificationTemplate
-        {
-            TemplateKey = definition.TemplateKey,
-            DisplayName = definition.DisplayName,
-            TriggerDescription = definition.TriggerDescription,
-            SubjectTemplate = definition.DefaultSubjectTemplate,
-            BodyTemplate = definition.DefaultBodyTemplate,
-            IsSystemLocked = false,
-            UpdatedAt = null
-        };
-    }
+        => templateResolver.ResolveAsync(definition.TemplateKey, cancellationToken);
 
     private static StoredNotificationTemplate? FindStoredTemplate(
         IEnumerable<StoredNotificationTemplate> storedTemplates,

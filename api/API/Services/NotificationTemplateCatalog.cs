@@ -100,6 +100,30 @@ internal static class NotificationTemplateCatalog
         },
         new NotificationTemplateDefinition
         {
+            TemplateKey = NotificationTemplateKeys.WelcomeMail,
+            DisplayName = "Willkommens-Mail",
+            TriggerDescription = "Wird vom SendWelcomeMailGraph-Handler beim Onboarding eines neuen Mitarbeiters versendet (Etappe 9a Schritt 5).",
+            PreviewTargetType = NotificationTemplatePreviewTargetTypes.Workflow,
+            ActionLabel = "Konto-Infos beim Helpdesk abholen",
+            DefaultSubjectTemplate = "Willkommen, {{first_name}}",
+            DefaultBodyTemplate = "Hallo {{recipient_name}},\n\n" +
+                "dein Benutzerkonto wurde angelegt.\n\n" +
+                "- Anmelde-Name (UPN): {{user_principal_name}}\n" +
+                "- Vorname: {{first_name}}\n" +
+                "- Nachname: {{last_name}}\n\n" +
+                "Bitte hole dein Initial-Passwort beim Helpdesk ab. Beim ersten Login wirst du gebeten, " +
+                "ein eigenes Passwort zu setzen.\n\n" +
+                "Viel Erfolg beim Start!",
+            Placeholders =
+            [
+                CreatePlaceholder("recipient_name", "Empfaengername", "Anzeigename der empfangenden Person."),
+                CreatePlaceholder("first_name", "Vorname", "Vorname des neuen Mitarbeiters."),
+                CreatePlaceholder("last_name", "Nachname", "Nachname des neuen Mitarbeiters."),
+                CreatePlaceholder("user_principal_name", "UPN", "User Principal Name fuer die Anmeldung."),
+            ]
+        },
+        new NotificationTemplateDefinition
+        {
             TemplateKey = NotificationTemplateKeys.Overdue,
             DisplayName = "Überfällige Aufgaben",
             TriggerDescription = "Wird ausgelöst, wenn für einen aktiven Durchlaufplan aktuell überfällige Rotationsaufgaben vorhanden sind.",
@@ -152,6 +176,7 @@ internal static class NotificationTemplateKeys
     public const string UpcomingChange = "upcoming_change";
     public const string Reminder = "reminder";
     public const string Overdue = "overdue";
+    public const string WelcomeMail = "welcome_mail";
 }
 
 internal static class NotificationTemplatePreviewTargetTypes

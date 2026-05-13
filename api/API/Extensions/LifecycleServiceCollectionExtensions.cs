@@ -157,7 +157,13 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddSingleton<IWorkflowAutomationActionHandler, AssignGroupsAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateErpEmployeeAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, SendWelcomeMailAutomationHandler>();
-        services.AddSingleton<IWorkflowAutomationHandlerRegistry, WorkflowAutomationHandlerRegistry>();
+        services.AddScoped<IWorkflowAutomationActionHandler, SendWelcomeMailGraphHandler>();
+        services.AddScoped<IGraphMailSender, GraphMailSender>();
+        services.AddScoped<INotificationTemplateResolver, NotificationTemplateResolver>();
+        // Registry ist Scoped (statt frueher Singleton), damit Scoped-Handler wie
+        // SendWelcomeMailGraphHandler resolved werden koennen. Cost: kleine Dictionary-
+        // Allocation pro Scope — vernachlaessigbar.
+        services.AddScoped<IWorkflowAutomationHandlerRegistry, WorkflowAutomationHandlerRegistry>();
         services.AddScoped<IWorkflowLifecycleService, WorkflowLifecycleService>();
         services.AddScoped<ITaskApplicationService, TaskApplicationService>();
         services.AddScoped<ISupervisorStepService, PostgresSupervisorStepService>();

@@ -72,6 +72,13 @@
       "kind": "data",
       "expect_in_schema": [],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-12_seed_send_welcome_mail_graph_action.sql",
+      "description": "Data-only seed for Migrationspfad-Etappe 9a Schritt 5 Sub-C: inserts action_definitions row 'SendWelcomeMailGraph' (target_runtime=NULL, handler_type=graph_welcome_mail) parallel to the existing simulated SendWelcomeMail (ID 5). Linux-side handler using Graph App-only auth. Idempotent via ON CONFLICT (action_key) DO NOTHING; no fixed ID; no notification_templates row insert (Catalog-Default is the canonical source).",
+      "kind": "data",
+      "expect_in_schema": [],
+      "forbid_in_schema": []
     }
   ]
 }
