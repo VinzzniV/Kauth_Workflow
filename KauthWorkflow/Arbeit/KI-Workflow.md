@@ -25,7 +25,6 @@ Einstieg in den Vault: [[00 Start]]
 |-----------|-------|
 | Architektur-/Planungsaufgabe (neue Features, Schnittentscheidungen) | Zielarchitektur und Entscheidungen als Kontext |
 | Unbekannte Domänenkonzepte (z.B. "Was ist eine Responsibility?") | Identity, Workflow, Rotation als Nachschlagewerk |
-| Review-Einschätzung ohne aktuelles CODE_REVIEW.md-Wissen | Code-Review-Status als Schnelleinstieg |
 | "Passt das zur Architektur?" | Entscheidungen + Zielarchitektur prüfen |
 
 Wie dem Claude mitteilen: "Lies Architektur/Zielarchitektur.md bevor du planst" oder einfach auf eine Vault-Datei verweisen.
@@ -51,10 +50,11 @@ Codex arbeitet primär aus `CODE_REVIEW.md § 7` (konkrete Fix-Snippets). Der Va
 
 | Auslöser | Was updaten |
 |----------|------------|
-| Architekturentscheidung gefallen | [[Entscheidungen]] ergänzen |
-| Migrationspfad-Schritt abgeschlossen | [[Migrationspfad]] Status updaten |
+| Architekturentscheidung gefallen (langfristig, neue Konsequenz) | [[Entscheidungen]] ergänzen |
+| Migrationsetappe abgeschlossen (komplett, nicht einzelner Slice) | [[Migrationspfad]] grobes Big-Picture updaten |
 | Neues Domänenkonzept eingeführt | Passende Domänen-Datei ergänzen |
-| Review-Status ändert sich signifikant | [[Code-Review-Status]] aktualisieren |
+
+**Wichtig — was NICHT in den Vault gehört:** Slice-für-Slice-Status, Sub-A/B/C-Detailprotokolle, „Schritt N ✓ 2026-...-NN"-Listen, Plan-Mode-Reste, abgeschlossene Skizzen. Diese gehören in `CODE_REVIEW.md`, `TODO.md` und ins git log. Der Vault ist für Menschen, die jetzt verstehen wollen, wie das System aufgebaut ist — nicht für die Historie, wie es dort hingekommen ist.
 
 ### Nicht in den Vault schreiben
 
@@ -111,8 +111,8 @@ Die operative Regeldatei dafuer ist `CLAUDE_CONTROL.md` im Repo-Root.
 
 - Vault-Dateien werden nicht bei jeder Session aktualisiert
 - Updates nur wenn sich stabiles Wissen wirklich ändert
-- Stand-Dateien (z.B. Code-Review-Status) können veralten — Repo-Docs sind immer aktueller
 - Vault ist Nachschlagewerk, kein Echtzeit-Spiegel
+- Beim Slice-Abschluss: knapp halten. Details (Sub-A/B/C, exakte Commit-Liste, Migration-Skripte) bleiben in `CODE_REVIEW.md` und im git log
 
 ---
 

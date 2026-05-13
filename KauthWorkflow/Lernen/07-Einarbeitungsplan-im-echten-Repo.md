@@ -116,7 +116,6 @@ Erfolgskriterium:
 Lesen:
 - `CODE_REVIEW.md`
 - `TODO.md`
-- `KauthWorkflow/Stand/Code-Review-Status.md`
 
 Ziel:
 - verstehen, welche Probleme fachlich wichtig sind und welche nur technisch unschön

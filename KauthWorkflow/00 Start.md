@@ -53,7 +53,7 @@ Merksatz:
 | `Architektur/` | Zielbild, Entscheidungen, Migrationspfad, groessere Skizzen | Wohin entwickelt sich das System? |
 | `Domäne/` | Workflow, Rotation, Identity, Begriffe | Was bedeuten die Kernkonzepte? |
 | `Betrieb/` | Setup, Laufzeit, Deployment | Wie starte und betreibe ich das System? |
-| `Stand/` | menschlich lesbare Statusspiegel und Altstands-Notizen | Was ist offen, was ist abgeschlossen? |
+| `Stand/` | Detail-Doku zu größeren Architektur-Bausteinen | Wie ist Komponente X im Detail aufgebaut? |
 | `Arbeit/` | KI-Workflow, Engineering-Regeln | Wie arbeiten Mensch, Claude und Codex zusammen? |
 | `Lernen/` | gefuehrte Lerneinheiten | Wie arbeite ich mich in das Projekt ein? |
 
@@ -82,7 +82,7 @@ Merksatz:
 | [[Entscheidungen]] | langfristige Architekturentscheidungen |
 | [[Migrationspfad]] | grobe Transformationsreihenfolge |
 | [[Begriffe]] | Glossar zentraler Fach- und Technikbegriffe |
-| [[Code-Review-Status]] | menschlich lesbarer Review-Spiegel |
+| [[Hybrid-Worker-Sub-Architektur]] | Detail-Doku zum Windows-Worker für AD-Schreibaktionen |
 | [[KI-Workflow]] | Zusammenarbeit von Mensch, Claude und Codex |
 
 ---

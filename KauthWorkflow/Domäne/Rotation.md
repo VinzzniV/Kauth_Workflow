@@ -121,4 +121,3 @@ Eine Rotationsaufgabe ist **nur sichtbar**, wenn:
 - [[Workflow]] — Workflow-Konzept allgemein
 - [[Identity]] — Personen, Responsibilities
 - [[Automation]] — Automation Layer für Actions
-- [[Code-Review-Status]] — Offene Punkte

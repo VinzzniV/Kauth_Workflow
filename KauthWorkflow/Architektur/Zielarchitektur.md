@@ -84,7 +84,7 @@ Minimale Node-Typen:
 | `automation` | Technische Aktion |
 | `end` | Abschlusspunkt |
 
-`setup` ist kein Bestandteil des Soll-Sets mehr. Code, Seeds und Doku sind bereinigt (Stand 2026-05-11); einzig offener Punkt ist eine manuelle DB-Inventur gegen persistierte `workflow_nodes`-Einträge. Siehe [[Legacy-Abbau-Plan]].
+`setup` ist kein Bestandteil des Soll-Sets mehr. Code, Seeds und Doku sind bereinigt; offen ist nur noch eine manuelle DB-Inventur gegen persistierte `workflow_nodes`-Einträge.
 
 Später erweiterbar um `wait`, `notification`, `subworkflow`.
 
