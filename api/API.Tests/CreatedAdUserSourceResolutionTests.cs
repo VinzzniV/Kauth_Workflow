@@ -160,6 +160,50 @@ public sealed class CreatedAdUserSourceResolutionTests
         Assert.Contains("unexpected kind", ex.Message);
     }
 
+    // Etappe 9a Schritt 7 Sub-D: userPrincipalName als zusaetzliche Whitelist-Property
+    // (fuer die CreateAdUserLdaps -> CreateMailboxGraph Verkettung).
+
+    [Fact]
+    public void Resolve_UserPrincipalName_ReturnsUpnFromOutput()
+    {
+        var output = JsonDocument.Parse("{\"distinguishedName\":\"CN=John\",\"userPrincipalName\":\"john.doe@example.com\"}").RootElement;
+        var lookup = new Dictionary<string, JsonElement> { ["create-user"] = output };
+        var element = JsonDocument.Parse("{\"source\":\"created_ad_user\",\"nodeKey\":\"create-user\",\"property\":\"userPrincipalName\"}").RootElement;
+
+        var resolved = PostgresWorkflowAutomationOperations.ResolveAutomationReferenceForTesting(
+            element, "created_ad_user", MinimalContext(), EmptyAnswers(), lookup);
+
+        Assert.Equal("john.doe@example.com", resolved);
+    }
+
+    [Fact]
+    public void Resolve_UserPrincipalName_Missing_Throws()
+    {
+        var output = JsonDocument.Parse("{\"distinguishedName\":\"CN=John\"}").RootElement;
+        var lookup = new Dictionary<string, JsonElement> { ["create-user"] = output };
+        var element = JsonDocument.Parse("{\"source\":\"created_ad_user\",\"nodeKey\":\"create-user\",\"property\":\"userPrincipalName\"}").RootElement;
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            PostgresWorkflowAutomationOperations.ResolveAutomationReferenceForTesting(
+                element, "created_ad_user", MinimalContext(), EmptyAnswers(), lookup));
+
+        Assert.Contains("no usable 'userPrincipalName'", ex.Message);
+    }
+
+    [Fact]
+    public void Resolve_UserPrincipalName_Empty_Throws()
+    {
+        var output = JsonDocument.Parse("{\"userPrincipalName\":\"\"}").RootElement;
+        var lookup = new Dictionary<string, JsonElement> { ["create-user"] = output };
+        var element = JsonDocument.Parse("{\"source\":\"created_ad_user\",\"nodeKey\":\"create-user\",\"property\":\"userPrincipalName\"}").RootElement;
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            PostgresWorkflowAutomationOperations.ResolveAutomationReferenceForTesting(
+                element, "created_ad_user", MinimalContext(), EmptyAnswers(), lookup));
+
+        Assert.Contains("no usable 'userPrincipalName'", ex.Message);
+    }
+
     private static IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> EmptyAnswers()
         => new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase);
 }

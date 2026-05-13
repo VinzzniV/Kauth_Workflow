@@ -390,7 +390,8 @@ RETURNING id;
         JsonElement? inputMapping,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
         CancellationToken cancellationToken,
-        IReadOnlyDictionary<string, JsonElement>? createdAdUserOutputsByNodeKey = null)
+        IReadOnlyDictionary<string, JsonElement>? createdAdUserOutputsByNodeKey = null,
+        IReadOnlyDictionary<string, JsonElement>? createdMailboxOutputsByNodeKey = null)
     {
         var context = await LoadAutomationPayloadContextAsync(connection, transaction, workflowId, cancellationToken);
         if (!HasJsonValue(inputMapping))
@@ -404,7 +405,9 @@ RETURNING id;
 
         var createdAdUserLookup = createdAdUserOutputsByNodeKey
             ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        var resolved = ResolveAutomationMappingValue(inputMapping!.Value, context, answersByKey, createdAdUserLookup);
+        var createdMailboxLookup = createdMailboxOutputsByNodeKey
+            ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var resolved = ResolveAutomationMappingValue(inputMapping!.Value, context, answersByKey, createdAdUserLookup, createdMailboxLookup);
         return JsonSerializer.SerializeToElement(resolved);
     }
 
@@ -413,10 +416,27 @@ RETURNING id;
     // jeweiligen Job-Erzeugungs-Pfad gerufen und ueber den Mapping-Resolver injiziert.
     // Enge Allow-List: nur Action-Key 'CreateAdUserLdaps', nur das `distinguishedName`-Property
     // wird im Resolver freigegeben — temporaryPassword bleibt unreichbar (Vault-Grenze).
-    internal static async Task<IReadOnlyDictionary<string, JsonElement>> LoadCreatedAdUserOutputsForWorkflowInScope(
+    internal static Task<IReadOnlyDictionary<string, JsonElement>> LoadCreatedAdUserOutputsForWorkflowInScope(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
         long workflowId,
+        CancellationToken cancellationToken)
+        => LoadSucceededAttemptOutputsForActionInScope(connection, transaction, workflowId, "CreateAdUserLdaps", cancellationToken);
+
+    // Etappe 9a Schritt 7 Sub-D: analog `created_ad_user`, aber gefiltert auf 'CreateMailboxGraph'.
+    // Property-Whitelist im Resolver: nur `primarySmtpAddress`. Andere Felder werden hart abgewiesen.
+    internal static Task<IReadOnlyDictionary<string, JsonElement>> LoadCreatedMailboxOutputsForWorkflowInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        CancellationToken cancellationToken)
+        => LoadSucceededAttemptOutputsForActionInScope(connection, transaction, workflowId, "CreateMailboxGraph", cancellationToken);
+
+    private static async Task<IReadOnlyDictionary<string, JsonElement>> LoadSucceededAttemptOutputsForActionInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        string actionKey,
         CancellationToken cancellationToken)
     {
         const string sql = """
@@ -429,7 +449,7 @@ INNER JOIN workflow_node_instances wni ON wni.id = j.workflow_node_instance_id
 INNER JOIN workflow_nodes wn ON wn.id = wni.workflow_node_id
 INNER JOIN automation_job_attempts aja ON aja.automation_job_id = j.id
 WHERE j.workflow_id = @workflowId
-  AND ad.action_key = 'CreateAdUserLdaps'
+  AND ad.action_key = @actionKey
   AND aja.status = 'succeeded'
   AND aja.output_json IS NOT NULL
 ORDER BY wn.node_key, aja.attempt_number DESC;
@@ -438,6 +458,7 @@ ORDER BY wn.node_key, aja.attempt_number DESC;
         var result = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("workflowId", workflowId);
+        command.Parameters.AddWithValue("actionKey", actionKey);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -548,13 +569,14 @@ LIMIT 1;
         JsonElement element,
         AutomationPayloadContextRecord context,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
-        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
+        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey,
+        IReadOnlyDictionary<string, JsonElement> createdMailboxOutputsByNodeKey)
     {
         if (element.ValueKind == JsonValueKind.Object
             && element.TryGetProperty("source", out var sourceProperty)
             && sourceProperty.ValueKind == JsonValueKind.String)
         {
-            return ResolveAutomationReference(element, sourceProperty.GetString()!, context, answersByKey, createdAdUserOutputsByNodeKey);
+            return ResolveAutomationReference(element, sourceProperty.GetString()!, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey);
         }
 
         return element.ValueKind switch
@@ -562,30 +584,40 @@ LIMIT 1;
             JsonValueKind.Object => element.EnumerateObject()
                 .ToDictionary(
                     property => property.Name,
-                    property => ResolveAutomationMappingValue(property.Value, context, answersByKey, createdAdUserOutputsByNodeKey)),
+                    property => ResolveAutomationMappingValue(property.Value, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey)),
             JsonValueKind.Array => element.EnumerateArray()
-                .Select(item => ResolveAutomationMappingValue(item, context, answersByKey, createdAdUserOutputsByNodeKey))
+                .Select(item => ResolveAutomationMappingValue(item, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey))
                 .ToList(),
             _ => ConvertJsonElementToObject(element)
         };
     }
 
     // Public wrapper fuer Unit-Tests (Etappe 9a Schritt 5 Sub-A): erlaubt isolierte
-    // ResolveAutomationReference-Tests ohne DB-Setup.
+    // ResolveAutomationReference-Tests ohne DB-Setup. Schritt 7 Sub-D: zweiter optionaler
+    // Lookup-Parameter fuer `created_mailbox`; default empty dictionary fuer Backwards-Compat
+    // mit bestehenden Schritt-5-Tests.
     internal static object? ResolveAutomationReferenceForTesting(
         JsonElement element,
         string source,
         AutomationPayloadContextRecord context,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
-        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
-        => ResolveAutomationReference(element, source, context, answersByKey, createdAdUserOutputsByNodeKey);
+        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey,
+        IReadOnlyDictionary<string, JsonElement>? createdMailboxOutputsByNodeKey = null)
+        => ResolveAutomationReference(
+            element,
+            source,
+            context,
+            answersByKey,
+            createdAdUserOutputsByNodeKey,
+            createdMailboxOutputsByNodeKey ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal));
 
     private static object? ResolveAutomationReference(
         JsonElement element,
         string source,
         AutomationPayloadContextRecord context,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
-        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
+        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey,
+        IReadOnlyDictionary<string, JsonElement> createdMailboxOutputsByNodeKey)
     {
         switch (source.Trim().ToLowerInvariant())
         {
@@ -618,9 +650,53 @@ LIMIT 1;
                     : null;
             case "created_ad_user":
                 return ResolveCreatedAdUserReference(element, createdAdUserOutputsByNodeKey);
+            case "created_mailbox":
+                return ResolveCreatedMailboxReference(element, createdMailboxOutputsByNodeKey);
             default:
                 throw new InvalidOperationException($"Unsupported automation input mapping source '{source}'.");
         }
+    }
+
+    // Etappe 9a Schritt 7 Sub-D: enge Allow-List-Source fuer Werte aus dem CreateMailboxGraph-
+    // Output. Aktuell nur `primarySmtpAddress` als erlaubtes Property -- die echte beobachtete
+    // SMTP-Adresse des frisch provisionierten Postfachs. Andere Properties (z. B. licenseSkuId)
+    // werden hart abgewiesen, damit das Hinzufuegen weiterer Properties eine bewusste Entscheidung
+    // bleibt (analog created_ad_user).
+    private static object? ResolveCreatedMailboxReference(
+        JsonElement element,
+        IReadOnlyDictionary<string, JsonElement> createdMailboxOutputsByNodeKey)
+    {
+        var nodeKey = element.TryGetProperty("nodeKey", out var nk) && nk.ValueKind == JsonValueKind.String
+            ? nk.GetString()
+            : null;
+        if (string.IsNullOrWhiteSpace(nodeKey))
+        {
+            throw new InvalidOperationException("Input mapping source 'created_mailbox' requires non-empty 'nodeKey'.");
+        }
+
+        var property = element.TryGetProperty("property", out var p) ? p.GetString() : null;
+        if (property != "primarySmtpAddress")
+        {
+            throw new InvalidOperationException(
+                $"Input mapping source 'created_mailbox' supports only property 'primarySmtpAddress' (got '{property}').");
+        }
+
+        if (!createdMailboxOutputsByNodeKey.TryGetValue(nodeKey, out var output))
+        {
+            throw new InvalidOperationException(
+                $"Input mapping source 'created_mailbox' references unknown nodeKey '{nodeKey}' " +
+                "(no succeeded CreateMailboxGraph attempt found on that node in this workflow instance).");
+        }
+
+        if (!output.TryGetProperty("primarySmtpAddress", out var smtp)
+            || smtp.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(smtp.GetString()))
+        {
+            throw new InvalidOperationException(
+                $"CreateMailboxGraph succeeded but produced no primary SMTP address for nodeKey '{nodeKey}' — likely a handler/provisioner contract bug. " +
+                "Sync- and provisioning-lags are handled transient before success; a succeeded attempt must carry a non-empty primarySmtpAddress.");
+        }
+        return smtp.GetString()!;
     }
 
     // Enge Allow-List-Source fuer Werte aus dem CreateAdUserLdaps-Output.
@@ -645,10 +721,10 @@ LIMIT 1;
         }
 
         var property = element.TryGetProperty("property", out var p) ? p.GetString() : null;
-        if (property is not "distinguishedName" and not "credentialVaultId")
+        if (property is not "distinguishedName" and not "credentialVaultId" and not "userPrincipalName")
         {
             throw new InvalidOperationException(
-                $"Input mapping source 'created_ad_user' supports only properties 'distinguishedName' or 'credentialVaultId' (got '{property}'). " +
+                $"Input mapping source 'created_ad_user' supports only properties 'distinguishedName', 'credentialVaultId' or 'userPrincipalName' (got '{property}'). " +
                 "Sensitive fields like 'temporaryPassword' are intentionally not exposed (Vault-Grenze).");
         }
 
@@ -670,6 +746,21 @@ LIMIT 1;
                     "The predecessor handler did not write a non-empty DN — likely a bug or an unfinished attempt.");
             }
             return dn.GetString()!;
+        }
+
+        if (property == "userPrincipalName")
+        {
+            // UPN ist Pflicht-Spec-Feld des CreateAdUserLdapsHandlers (siehe spec.UserPrincipalName);
+            // ein succeeded Attempt MUSS einen non-empty UPN tragen. Fehlend/leer = Bug.
+            if (!output.TryGetProperty("userPrincipalName", out var upn)
+                || upn.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(upn.GetString()))
+            {
+                throw new InvalidOperationException(
+                    $"CreateAdUserLdaps output for nodeKey '{nodeKey}' has no usable 'userPrincipalName'. " +
+                    "Pflicht-Spec-Feld; ein succeeded Attempt muss einen non-empty UPN tragen.");
+            }
+            return upn.GetString()!;
         }
 
         // credentialVaultId-Pfad: null/fehlt/leer wird durchgereicht, Objekt/Array sind Misconfig.

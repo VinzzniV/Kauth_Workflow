@@ -156,6 +156,8 @@ LIMIT 1;
             var answersByKey = await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, job.WorkflowId);
             var createdAdUserOutputsByNodeKey = await PostgresWorkflowAutomationOperations.LoadCreatedAdUserOutputsForWorkflowInScope(
                 connection, transaction, job.WorkflowId, cancellationToken);
+            var createdMailboxOutputsByNodeKey = await PostgresWorkflowAutomationOperations.LoadCreatedMailboxOutputsForWorkflowInScope(
+                connection, transaction, job.WorkflowId, cancellationToken);
             var payload = await PostgresWorkflowAutomationOperations.BuildAutomationJobPayloadAsync(
                 connection,
                 transaction,
@@ -163,7 +165,8 @@ LIMIT 1;
                 nextAction.InputMapping,
                 answersByKey,
                 cancellationToken,
-                createdAdUserOutputsByNodeKey);
+                createdAdUserOutputsByNodeKey,
+                createdMailboxOutputsByNodeKey);
 
             await PostgresWorkflowAutomationOperations.CreateAutomationJobAsync(
                 connection,

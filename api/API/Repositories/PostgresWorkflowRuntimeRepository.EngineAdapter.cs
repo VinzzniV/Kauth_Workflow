@@ -437,6 +437,8 @@ WHERE workflow_id = @workflowId;
 
             var createdAdUserOutputsByNodeKey = await PostgresWorkflowAutomationOperations.LoadCreatedAdUserOutputsForWorkflowInScope(
                 connection, transaction, workflowId, CancellationToken.None);
+            var createdMailboxOutputsByNodeKey = await PostgresWorkflowAutomationOperations.LoadCreatedMailboxOutputsForWorkflowInScope(
+                connection, transaction, workflowId, CancellationToken.None);
             var payload = await PostgresWorkflowAutomationOperations.BuildAutomationJobPayloadAsync(
                 connection,
                 transaction,
@@ -444,7 +446,8 @@ WHERE workflow_id = @workflowId;
                 firstAction.InputMapping,
                 answersByKey,
                 CancellationToken.None,
-                createdAdUserOutputsByNodeKey);
+                createdAdUserOutputsByNodeKey,
+                createdMailboxOutputsByNodeKey);
 
             await PostgresWorkflowAutomationOperations.CreateAutomationJobAsync(
                 connection,

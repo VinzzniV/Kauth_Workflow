@@ -24,6 +24,7 @@ internal static class AutomationPropertyCatalog
     public const string SourceAnswer = "answer";
     public const string SourceStatic = "static";
     public const string SourceCreatedAdUser = "created_ad_user";
+    public const string SourceCreatedMailbox = "created_mailbox";
 
     public const string KindBusiness = "business";
     public const string KindTechnical = "technical";
@@ -61,13 +62,22 @@ internal static class AutomationPropertyCatalog
         new AutomationPropertyCatalogPropertyDto { Key = "roleId", Label = "Rollen-ID (technisch)", Kind = KindTechnical }
     };
 
-    // Enge Allow-List fuer Werte aus dem CreateAdUserLdaps-Output. Nur `distinguishedName` und
-    // `credentialVaultId` sind exponiert -- das eigentliche Passwort wird ueber keine Mapping-
-    // Source erreichbar gemacht (Vault-Grenze ist im Code, siehe Schritt-6-Sub-C).
+    // Enge Allow-List fuer Werte aus dem CreateAdUserLdaps-Output. distinguishedName +
+    // credentialVaultId + userPrincipalName sind exponiert -- das Passwort wird ueber keine
+    // Mapping-Source erreichbar gemacht (Vault-Grenze ist im Code, siehe Schritt-6-Sub-C).
     private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> CreatedAdUserProperties = new[]
     {
         new AutomationPropertyCatalogPropertyDto { Key = "distinguishedName", Label = "AD Distinguished Name", Kind = KindTechnical },
+        new AutomationPropertyCatalogPropertyDto { Key = "userPrincipalName", Label = "User Principal Name (UPN)", Kind = KindTechnical },
         new AutomationPropertyCatalogPropertyDto { Key = "credentialVaultId", Label = "Vault-ID des Initial-Passworts (UUID)", Kind = KindTechnical }
+    };
+
+    // Enge Allow-List fuer Werte aus dem CreateMailboxGraph-Output (Etappe 9a Schritt 7).
+    // Nur die echte beobachtete primary SMTP-Adresse ist exponiert; licenseSkuId etc. bleiben
+    // bewusst draussen, damit jede zusaetzliche Property eine bewusste Entscheidung ist.
+    private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> CreatedMailboxProperties = new[]
+    {
+        new AutomationPropertyCatalogPropertyDto { Key = "primarySmtpAddress", Label = "Primary SMTP Address", Kind = KindBusiness }
     };
 
     private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> DirectoryIdentityProperties = new[]
@@ -122,6 +132,12 @@ internal static class AutomationPropertyCatalog
                     Source = SourceCreatedAdUser,
                     Label = "AD-User aus Vorgaengerschritt",
                     Properties = CreatedAdUserProperties
+                },
+                new()
+                {
+                    Source = SourceCreatedMailbox,
+                    Label = "Mailbox aus Vorgaengerschritt",
+                    Properties = CreatedMailboxProperties
                 }
             }
         };
