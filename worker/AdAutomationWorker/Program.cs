@@ -23,8 +23,10 @@ builder.Services.AddSingleton<IWorkerJobStore>(sp =>
 });
 
 builder.Services.AddSingleton<IAdUserWriter, LdapsAdUserWriter>();
+builder.Services.AddSingleton<IAdGroupMembershipWriter, LdapsAdGroupMembershipWriter>();
 builder.Services.AddSingleton<IWorkerHandler, SimulatedWindowsWorkerPingHandler>();
 builder.Services.AddSingleton<IWorkerHandler, CreateAdUserLdapsHandler>();
+builder.Services.AddSingleton<IWorkerHandler, AssignGroupsLdapsHandler>();
 builder.Services.AddSingleton<HandlerRegistry>();
 builder.Services.AddSingleton<WorkerHeartbeatLoop>();
 builder.Services.AddHostedService<WorkerHostedService>();
