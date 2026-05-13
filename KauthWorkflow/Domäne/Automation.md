@@ -2,7 +2,7 @@
 
 #domäne #automation
 
-Wie automatische technische Aktionen im System kontrolliert ablaufen. Diese Datei erklärt das Gesamtbild — die einzelnen Architektur-Entscheidungen hinter den Bausteinen stehen in [[Entscheidungen]] und [[Hybrid-Worker-Sub-Architektur]].
+Wie automatische technische Aktionen im System kontrolliert ablaufen. Diese Datei erklärt den **heutigen Ist-Stand** der Automation-Infrastruktur. Das **Zielbild für Prod** (Admin-gated Automation mit Plan-Vorschau + Re-Auth) steht in [[Admin-Gated-Automation]] — die Bausteine hier sind die technische Grundlage dafür, aber nicht die finale Nutzungsform für Fachbereiche.
 
 ---
 
@@ -248,6 +248,7 @@ Details in [[Setup]] und [[Deployment-Checkliste]].
 
 ## Verwandte Notizen
 
+- [[Admin-Gated-Automation]] — **Zielbild für Prod**: Plan-Vorschau, Admin-Bestätigung mit Re-Auth, Post-Execution-Summary in der 360°-Karte
 - [[Zielarchitektur]] — Automation Layer als Schicht im Gesamtbild
 - [[Entscheidungen]] — Warum keine freie Automation; AD/Entra-Schreibrichtung
 - [[Hybrid-Worker-Sub-Architektur]] — Worker-Architektur im Detail (7 Sub-Entscheidungen)

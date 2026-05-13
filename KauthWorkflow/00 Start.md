@@ -83,6 +83,7 @@ Merksatz:
 | [[Migrationspfad]] | grobe Transformationsreihenfolge |
 | [[Begriffe]] | Glossar zentraler Fach- und Technikbegriffe |
 | [[Hybrid-Worker-Sub-Architektur]] | Detail-Doku zum Windows-Worker für AD-Schreibaktionen |
+| [[Admin-Gated-Automation]] | Zielbild für Prod: Plan-Vorschau, Admin-Approval mit Re-Auth, Post-Execution-Summary |
 | [[KI-Workflow]] | Zusammenarbeit von Mensch, Claude und Codex |
 
 ---
