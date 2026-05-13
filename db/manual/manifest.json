@@ -79,6 +79,21 @@
       "kind": "data",
       "expect_in_schema": [],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-13_temporary_credentials_vault.sql",
+      "description": "Migrationspfad-Etappe 9a Schritt 6 Sub-A: creates temporary_credentials table (pgcrypto symmetric vault for AD initial passwords). Worker writes via pgp_sym_encrypt in same Tx as MarkJobSucceededAsync (Sub-B); SendWelcomeMailGraphHandler reads/decrypts at run-time (Sub-C). Unique(workflow_node_instance_id, credential_type) makes the atomic vault write idempotent. GRANTs for kauth_worker (INSERT) and kauth_api (SELECT, UPDATE) are conditional via pg_roles lookup.",
+      "expect_in_schema": [
+        "temporary_credentials",
+        "encrypted_value bytea",
+        "first_read_at timestamp with time zone",
+        "read_count integer",
+        "temporary_credentials_pkey",
+        "temporary_credentials_node_instance_unique",
+        "idx_temporary_credentials_node_instance_id",
+        "temporary_credentials_node_instance_fkey"
+      ],
+      "forbid_in_schema": []
     }
   ]
 }

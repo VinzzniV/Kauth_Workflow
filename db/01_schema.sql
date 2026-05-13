@@ -1461,6 +1461,23 @@ ALTER TABLE public.task_assignments ALTER COLUMN id ADD GENERATED ALWAYS AS IDEN
 
 
 
+--
+-- Name: temporary_credentials; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.temporary_credentials (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    workflow_node_instance_id bigint NOT NULL,
+    credential_type character varying(60) NOT NULL,
+    encrypted_value bytea NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    first_read_at timestamp with time zone,
+    read_count integer DEFAULT 0 NOT NULL,
+    CONSTRAINT temporary_credentials_type CHECK (((credential_type)::text = ANY ((ARRAY['ad_initial_password'::character varying])::text[])))
+);
+
+
 
 --
 -- Name: workflow_answer_definitions; Type: TABLE; Schema: public; Owner: -
@@ -2662,6 +2679,22 @@ ALTER TABLE ONLY public.task_assignments
     ADD CONSTRAINT task_assignments_pkey PRIMARY KEY (id);
 
 
+--
+-- Name: temporary_credentials temporary_credentials_node_instance_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.temporary_credentials
+    ADD CONSTRAINT temporary_credentials_node_instance_unique UNIQUE (workflow_node_instance_id, credential_type);
+
+
+--
+-- Name: temporary_credentials temporary_credentials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.temporary_credentials
+    ADD CONSTRAINT temporary_credentials_pkey PRIMARY KEY (id);
+
+
 
 
 
@@ -3373,6 +3406,13 @@ CREATE INDEX idx_system_responsibilities_person ON public.system_responsibilitie
 --
 
 CREATE INDEX idx_task_assignments_task_id ON public.task_assignments USING btree (workflow_task_id);
+
+
+--
+-- Name: idx_temporary_credentials_node_instance_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_temporary_credentials_node_instance_id ON public.temporary_credentials USING btree (workflow_node_instance_id);
 
 
 
@@ -4309,6 +4349,14 @@ ALTER TABLE ONLY public.system_responsibilities
 
 ALTER TABLE ONLY public.task_assignments
     ADD CONSTRAINT task_assignments_workflow_task_id_fkey FOREIGN KEY (workflow_task_id) REFERENCES public.workflow_tasks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: temporary_credentials temporary_credentials_node_instance_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.temporary_credentials
+    ADD CONSTRAINT temporary_credentials_node_instance_fkey FOREIGN KEY (workflow_node_instance_id) REFERENCES public.workflow_node_instances(id) ON DELETE CASCADE;
 
 
 

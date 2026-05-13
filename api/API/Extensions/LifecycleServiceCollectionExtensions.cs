@@ -160,6 +160,10 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IWorkflowAutomationActionHandler, SendWelcomeMailGraphHandler>();
         services.AddScoped<IGraphMailSender, GraphMailSender>();
         services.AddScoped<INotificationTemplateResolver, NotificationTemplateResolver>();
+        // Vault-Pfad (Schritt 6): IVaultKeyProvider als Singleton (Key wird einmal beim Start
+        // gelesen), Repository scoped (eine Connection pro Request).
+        services.AddSingleton<IVaultKeyProvider, EnvVaultKeyProvider>();
+        services.AddScoped<ITemporaryCredentialRepository, PostgresTemporaryCredentialRepository>();
         // Registry ist Scoped (statt frueher Singleton), damit Scoped-Handler wie
         // SendWelcomeMailGraphHandler resolved werden koennen. Cost: kleine Dictionary-
         // Allocation pro Scope — vernachlaessigbar.
