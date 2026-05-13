@@ -23,6 +23,7 @@ internal static class AutomationPropertyCatalog
     public const string SourceDirectoryIdentity = "directory_identity";
     public const string SourceAnswer = "answer";
     public const string SourceStatic = "static";
+    public const string SourceCreatedAdUser = "created_ad_user";
 
     public const string KindBusiness = "business";
     public const string KindTechnical = "technical";
@@ -58,6 +59,15 @@ internal static class AutomationPropertyCatalog
         new AutomationPropertyCatalogPropertyDto { Key = "directoryIdentityId", Label = "Verzeichnis-ID (technisch)", Kind = KindTechnical },
         new AutomationPropertyCatalogPropertyDto { Key = "departmentId", Label = "Abteilungs-ID (technisch)", Kind = KindTechnical },
         new AutomationPropertyCatalogPropertyDto { Key = "roleId", Label = "Rollen-ID (technisch)", Kind = KindTechnical }
+    };
+
+    // Enge Allow-List fuer Werte aus dem CreateAdUserLdaps-Output. Nur `distinguishedName` und
+    // `credentialVaultId` sind exponiert -- das eigentliche Passwort wird ueber keine Mapping-
+    // Source erreichbar gemacht (Vault-Grenze ist im Code, siehe Schritt-6-Sub-C).
+    private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> CreatedAdUserProperties = new[]
+    {
+        new AutomationPropertyCatalogPropertyDto { Key = "distinguishedName", Label = "AD Distinguished Name", Kind = KindTechnical },
+        new AutomationPropertyCatalogPropertyDto { Key = "credentialVaultId", Label = "Vault-ID des Initial-Passworts (UUID)", Kind = KindTechnical }
     };
 
     private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> DirectoryIdentityProperties = new[]
@@ -106,6 +116,12 @@ internal static class AutomationPropertyCatalog
                     Source = SourceStatic,
                     Label = "Statischer Wert",
                     Properties = Array.Empty<AutomationPropertyCatalogPropertyDto>()
+                },
+                new()
+                {
+                    Source = SourceCreatedAdUser,
+                    Label = "AD-User aus Vorgaengerschritt",
+                    Properties = CreatedAdUserProperties
                 }
             }
         };

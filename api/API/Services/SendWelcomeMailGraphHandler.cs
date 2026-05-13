@@ -3,15 +3,24 @@ using System.Text.RegularExpressions;
 
 namespace API;
 
-// Erster echter Linux-side Action-Handler (Etappe 9a Schritt 5 Sub-C). Sendet eine Willkommens-
-// Mail an einen frisch angelegten User via Graph App-only.
+// Erster echter Linux-side Action-Handler (Etappe 9a Schritt 5 Sub-C, mit Vault-Anbindung
+// aus Schritt 6 Sub-C). Sendet eine Willkommens-Mail an einen frisch angelegten User via
+// Graph App-only.
 //
-// Konsequente Vault-Grenze: das Template enthaelt KEINEN `{{temporary_password}}`-Placeholder.
-// Der erste produktive Welcome-Mail-Lauf adressiert den Helpdesk-Pickup. Vault-Slice (Schritt 6)
-// fuegt den Passwort-Pfad nach.
+// Pflicht-Payload (Schritt 6 Sub-C): zusaetzlich zu den Adressfeldern ist `credentialVaultId`
+// (UUID) Pflicht. Der Handler loest den Vault zur Run-time im eigenen Prozess auf und packt
+// das entschluesselte Passwort als `{{temporary_password}}`-Placeholder ins Template.
+// Plain-Passwort lebt nur Mikrosekunden im Handler-Heap; landet NIE in payload_json oder
+// output_json.
 //
-// FailureKind-Vertrag (Etappe 9a Schritt 4 + Schritt 5 Sub-A):
-//   - Payload-Validation, ungueltige E-Mail-Adresse → Failure permanent
+// Vault-Grenze: das Plain-Passwort wird durch keine Mapping-Source exponiert. Der einzige
+// Lese-Pfad ist ITemporaryCredentialRepository.ReadAdInitialPasswordByVaultIdAsync (UUID-
+// only), in genau einem Handler.
+//
+// FailureKind-Vertrag:
+//   - Payload-Validation (inkl. Missing credentialVaultId, invalide UUID) → Failure permanent
+//   - Vault-Lese-Fehler (TTL abgelaufen, unbekannte UUID, falscher Vault-Key) → Failure permanent
+//   - Ungueltige E-Mail-Adresse → Failure permanent
 //   - GraphMailSendOutcome.PermanentFailure → Failure permanent
 //   - GraphMailSendOutcome.TransientFailure → Failure transient
 //   - GraphMailSendOutcome.Sent → Success mit Output (messageId nullable, sentAtUtc gesetzt)
@@ -25,13 +34,16 @@ internal sealed class SendWelcomeMailGraphHandler : IWorkflowAutomationActionHan
 
     private readonly INotificationTemplateResolver templateResolver;
     private readonly IGraphMailSender mailSender;
+    private readonly ITemporaryCredentialRepository credentialRepository;
 
     public SendWelcomeMailGraphHandler(
         INotificationTemplateResolver templateResolver,
-        IGraphMailSender mailSender)
+        IGraphMailSender mailSender,
+        ITemporaryCredentialRepository credentialRepository)
     {
         this.templateResolver = templateResolver;
         this.mailSender = mailSender;
+        this.credentialRepository = credentialRepository;
     }
 
     public string ActionKey => "SendWelcomeMailGraph";
@@ -51,6 +63,7 @@ internal sealed class SendWelcomeMailGraphHandler : IWorkflowAutomationActionHan
         var firstName = ReadRequiredString(payload.Value, "firstName");
         var lastName = ReadRequiredString(payload.Value, "lastName");
         var userPrincipalName = ReadRequiredString(payload.Value, "userPrincipalName");
+        var credentialVaultIdRaw = ReadRequiredString(payload.Value, "credentialVaultId");
 
         var firstMissing = FirstMissing(
             ("toAddress", toAddress),
@@ -63,9 +76,36 @@ internal sealed class SendWelcomeMailGraphHandler : IWorkflowAutomationActionHan
             return Failure($"Missing payload field: {firstMissing}", WorkflowAutomationRetryPolicy.FailureKindPermanent);
         }
 
+        if (string.IsNullOrWhiteSpace(credentialVaultIdRaw))
+        {
+            return Failure(
+                "Missing payload field: credentialVaultId — predecessor CreateAdUserLdaps did not produce a Vault entry " +
+                "(likely an AlreadyExists case; workflow requires a fresh AD account or an alreadyExisted branch).",
+                WorkflowAutomationRetryPolicy.FailureKindPermanent);
+        }
+
+        if (!Guid.TryParse(credentialVaultIdRaw, out var credentialVaultId))
+        {
+            return Failure(
+                $"credentialVaultId must be a UUID (got '{credentialVaultIdRaw}').",
+                WorkflowAutomationRetryPolicy.FailureKindPermanent);
+        }
+
         if (!EmailRegex.IsMatch(toAddress!))
         {
             return Failure($"Invalid 'toAddress' email format: '{toAddress}'.", WorkflowAutomationRetryPolicy.FailureKindPermanent);
+        }
+
+        string temporaryPassword;
+        try
+        {
+            temporaryPassword = await credentialRepository.ReadAdInitialPasswordByVaultIdAsync(credentialVaultId, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Failure(
+                $"Vault read failed for credentialVaultId '{credentialVaultId}': {ex.Message}",
+                WorkflowAutomationRetryPolicy.FailureKindPermanent);
         }
 
         var template = await templateResolver.ResolveAsync(NotificationTemplateKeys.WelcomeMail, cancellationToken);
@@ -75,6 +115,7 @@ internal sealed class SendWelcomeMailGraphHandler : IWorkflowAutomationActionHan
             ["first_name"] = firstName!,
             ["last_name"] = lastName!,
             ["user_principal_name"] = userPrincipalName!,
+            ["temporary_password"] = temporaryPassword,
         };
 
         var rendered = NotificationEmailTemplateBuilder.Build(

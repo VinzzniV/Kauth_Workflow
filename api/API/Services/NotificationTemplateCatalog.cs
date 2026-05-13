@@ -102,17 +102,18 @@ internal static class NotificationTemplateCatalog
         {
             TemplateKey = NotificationTemplateKeys.WelcomeMail,
             DisplayName = "Willkommens-Mail",
-            TriggerDescription = "Wird vom SendWelcomeMailGraph-Handler beim Onboarding eines neuen Mitarbeiters versendet (Etappe 9a Schritt 5).",
+            TriggerDescription = "Wird vom SendWelcomeMailGraph-Handler beim Onboarding eines neuen Mitarbeiters versendet (Etappe 9a Schritt 5; Vault-Pfad mit Initial-Passwort kam in Schritt 6).",
             PreviewTargetType = NotificationTemplatePreviewTargetTypes.Workflow,
-            ActionLabel = "Konto-Infos beim Helpdesk abholen",
+            ActionLabel = "Erstes Login durchfuehren",
             DefaultSubjectTemplate = "Willkommen, {{first_name}}",
             DefaultBodyTemplate = "Hallo {{recipient_name}},\n\n" +
                 "dein Benutzerkonto wurde angelegt.\n\n" +
                 "- Anmelde-Name (UPN): {{user_principal_name}}\n" +
+                "- Initial-Passwort: {{temporary_password}}\n" +
                 "- Vorname: {{first_name}}\n" +
                 "- Nachname: {{last_name}}\n\n" +
-                "Bitte hole dein Initial-Passwort beim Helpdesk ab. Beim ersten Login wirst du gebeten, " +
-                "ein eigenes Passwort zu setzen.\n\n" +
+                "Beim ersten Login wirst du gebeten, ein eigenes Passwort zu setzen. " +
+                "Bewahre das Initial-Passwort nicht auf -- es ist nach Ablauf der Vault-Frist nicht mehr lesbar.\n\n" +
                 "Viel Erfolg beim Start!",
             Placeholders =
             [
@@ -120,6 +121,7 @@ internal static class NotificationTemplateCatalog
                 CreatePlaceholder("first_name", "Vorname", "Vorname des neuen Mitarbeiters."),
                 CreatePlaceholder("last_name", "Nachname", "Nachname des neuen Mitarbeiters."),
                 CreatePlaceholder("user_principal_name", "UPN", "User Principal Name fuer die Anmeldung."),
+                CreatePlaceholder("temporary_password", "Initial-Passwort", "Vom Worker generiertes Initial-Passwort. Wird zur Run-time aus dem Vault entschluesselt (Etappe 9a Schritt 6)."),
             ]
         },
         new NotificationTemplateDefinition

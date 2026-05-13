@@ -94,6 +94,13 @@
         "temporary_credentials_node_instance_fkey"
       ],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-13_update_send_welcome_mail_graph_payload_schema.sql",
+      "description": "Migrationspfad-Etappe 9a Schritt 6 Sub-C: extends action_definitions.parameter_schema_json for SendWelcomeMailGraph by required field 'credentialVaultId' (UUID-Pointer ins temporary_credentials-Vault). Pure data update; idempotent.",
+      "kind": "data",
+      "expect_in_schema": [],
+      "forbid_in_schema": []
     }
   ]
 }

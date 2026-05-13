@@ -623,13 +623,16 @@ LIMIT 1;
         }
     }
 
-    // Enge Allow-List-Source fuer den verketteten DN aus dem CreateAdUserLdaps-Output.
-    // Pflicht-Property: ausschliesslich `distinguishedName`. Sensible Felder wie
-    // `temporaryPassword` sind hier nicht adressierbar — die Vault-Grenze bleibt unverletzt
-    // (siehe Etappe 9a Schritt 5 Plan-Context).
-    // Fehler-Semantik: alle vier Fehler-Cases werfen InvalidOperationException, damit der Fehler
-    // im Payload-Build sichtbar wird statt spaeter als kryptischer LDAP-Fehler.
-    private static string ResolveCreatedAdUserReference(
+    // Enge Allow-List-Source fuer Werte aus dem CreateAdUserLdaps-Output.
+    // Erlaubte Properties (hartkodierte Whitelist):
+    //   - `distinguishedName`: muss vorhanden sein (CreateAdUser-Pfad schreibt immer einen DN).
+    //   - `credentialVaultId`: UUID-Pointer auf den Vault-Eintrag (Etappe 9a Schritt 6 Sub-C).
+    //     **Null-Pfad legitim** (AlreadyExists-Case ohne Vault-Eintrag): kein Throw, sondern null
+    //     durchreichen. Der Konsument-Handler (z. B. SendWelcomeMailGraphHandler) validiert zur
+    //     Run-time und liefert dann einen sauberen Permanent-Failure -- kein Payload-Build-Loop.
+    // Sensible Felder wie `temporaryPassword` sind hier nicht adressierbar -- die Vault-Grenze
+    // bleibt im Code verankert. Das Passwort ist ueberhaupt nicht mehr im output_json (Sub-B).
+    private static object? ResolveCreatedAdUserReference(
         JsonElement element,
         IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
     {
@@ -642,10 +645,10 @@ LIMIT 1;
         }
 
         var property = element.TryGetProperty("property", out var p) ? p.GetString() : null;
-        if (property != "distinguishedName")
+        if (property is not "distinguishedName" and not "credentialVaultId")
         {
             throw new InvalidOperationException(
-                $"Input mapping source 'created_ad_user' supports only property 'distinguishedName' (got '{property}'). " +
+                $"Input mapping source 'created_ad_user' supports only properties 'distinguishedName' or 'credentialVaultId' (got '{property}'). " +
                 "Sensitive fields like 'temporaryPassword' are intentionally not exposed (Vault-Grenze).");
         }
 
@@ -656,16 +659,32 @@ LIMIT 1;
                 "(no succeeded CreateAdUserLdaps attempt found on that node in this workflow instance).");
         }
 
-        if (!output.TryGetProperty("distinguishedName", out var dn)
-            || dn.ValueKind != JsonValueKind.String
-            || string.IsNullOrWhiteSpace(dn.GetString()))
+        if (property == "distinguishedName")
         {
-            throw new InvalidOperationException(
-                $"CreateAdUserLdaps output for nodeKey '{nodeKey}' has no usable 'distinguishedName'. " +
-                "The predecessor handler did not write a non-empty DN — likely a bug or an unfinished attempt.");
+            if (!output.TryGetProperty("distinguishedName", out var dn)
+                || dn.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(dn.GetString()))
+            {
+                throw new InvalidOperationException(
+                    $"CreateAdUserLdaps output for nodeKey '{nodeKey}' has no usable 'distinguishedName'. " +
+                    "The predecessor handler did not write a non-empty DN — likely a bug or an unfinished attempt.");
+            }
+            return dn.GetString()!;
         }
 
-        return dn.GetString()!;
+        // credentialVaultId-Pfad: null/fehlt/leer wird durchgereicht, Objekt/Array sind Misconfig.
+        if (!output.TryGetProperty("credentialVaultId", out var vaultId))
+        {
+            return null;
+        }
+        return vaultId.ValueKind switch
+        {
+            JsonValueKind.Null => null,
+            JsonValueKind.String => string.IsNullOrWhiteSpace(vaultId.GetString()) ? null : vaultId.GetString(),
+            _ => throw new InvalidOperationException(
+                $"CreateAdUserLdaps output for nodeKey '{nodeKey}' has a 'credentialVaultId' of unexpected kind '{vaultId.ValueKind}'. " +
+                "Expected a UUID string or null."),
+        };
     }
 
     private static object? ResolveWorkflowAutomationContextProperty(

@@ -99,6 +99,67 @@ public sealed class CreatedAdUserSourceResolutionTests
         Assert.Contains("requires non-empty 'nodeKey'", ex.Message);
     }
 
+    // Etappe 9a Schritt 6 Sub-C: credentialVaultId als zweite erlaubte Property.
+
+    [Fact]
+    public void Resolve_CredentialVaultId_UuidString_ReturnsUuid()
+    {
+        var uuid = "11111111-2222-3333-4444-555555555555";
+        var output = JsonDocument.Parse("{\"distinguishedName\":\"CN=John\",\"credentialVaultId\":\"" + uuid + "\"}").RootElement;
+        var lookup = new Dictionary<string, JsonElement> { ["create-user"] = output };
+        var element = JsonDocument.Parse("{\"source\":\"created_ad_user\",\"nodeKey\":\"create-user\",\"property\":\"credentialVaultId\"}").RootElement;
+
+        var resolved = PostgresWorkflowAutomationOperations.ResolveAutomationReferenceForTesting(
+            element, "created_ad_user", MinimalContext(), EmptyAnswers(), lookup);
+
+        Assert.Equal(uuid, resolved);
+    }
+
+    [Fact]
+    public void Resolve_CredentialVaultId_Null_ReturnsNullWithoutThrow()
+    {
+        // AlreadyExists-Case: CreateAdUserLdaps schreibt credentialVaultId=null. Resolver
+        // muss null durchreichen, damit der Welcome-Mail-Handler einen sauberen Permanent-
+        // Failure liefern kann statt einen Payload-Build-Loop zu triggern.
+        var output = JsonDocument.Parse("{\"distinguishedName\":\"CN=John\",\"credentialVaultId\":null}").RootElement;
+        var lookup = new Dictionary<string, JsonElement> { ["create-user"] = output };
+        var element = JsonDocument.Parse("{\"source\":\"created_ad_user\",\"nodeKey\":\"create-user\",\"property\":\"credentialVaultId\"}").RootElement;
+
+        var resolved = PostgresWorkflowAutomationOperations.ResolveAutomationReferenceForTesting(
+            element, "created_ad_user", MinimalContext(), EmptyAnswers(), lookup);
+
+        Assert.Null(resolved);
+    }
+
+    [Fact]
+    public void Resolve_CredentialVaultId_Missing_ReturnsNullWithoutThrow()
+    {
+        // Aelterer Output-Pfad ohne credentialVaultId-Feld -> null durchreichen.
+        var output = JsonDocument.Parse("{\"distinguishedName\":\"CN=John\"}").RootElement;
+        var lookup = new Dictionary<string, JsonElement> { ["create-user"] = output };
+        var element = JsonDocument.Parse("{\"source\":\"created_ad_user\",\"nodeKey\":\"create-user\",\"property\":\"credentialVaultId\"}").RootElement;
+
+        var resolved = PostgresWorkflowAutomationOperations.ResolveAutomationReferenceForTesting(
+            element, "created_ad_user", MinimalContext(), EmptyAnswers(), lookup);
+
+        Assert.Null(resolved);
+    }
+
+    [Fact]
+    public void Resolve_CredentialVaultId_NonStringKind_Throws()
+    {
+        // Misconfig: credentialVaultId als Object/Array. Resolver soll hart fehlschlagen.
+        var output = JsonDocument.Parse("{\"distinguishedName\":\"CN=John\",\"credentialVaultId\":{\"nested\":1}}").RootElement;
+        var lookup = new Dictionary<string, JsonElement> { ["create-user"] = output };
+        var element = JsonDocument.Parse("{\"source\":\"created_ad_user\",\"nodeKey\":\"create-user\",\"property\":\"credentialVaultId\"}").RootElement;
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            PostgresWorkflowAutomationOperations.ResolveAutomationReferenceForTesting(
+                element, "created_ad_user", MinimalContext(), EmptyAnswers(), lookup));
+
+        Assert.Contains("unexpected kind", ex.Message);
+    }
+
     private static IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> EmptyAnswers()
         => new Dictionary<string, StoredWorkflowAnswerRecord>(StringComparer.OrdinalIgnoreCase);
 }
