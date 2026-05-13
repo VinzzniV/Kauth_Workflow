@@ -84,7 +84,8 @@ internal sealed class WorkflowLifecycleService(
         var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(
             retrySettings,
             context.AttemptNumber,
-            context.IsIdempotent);
+            context.IsIdempotent,
+            context.FailureKind);
 
         await automationRepository.ApplyExternalCompletionFailureAsync(jobId, outcome, cancellationToken);
     }

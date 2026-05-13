@@ -703,7 +703,9 @@ CREATE TABLE public.automation_job_attempts (
     started_at timestamp with time zone DEFAULT now() NOT NULL,
     completed_at timestamp with time zone,
     output_json jsonb,
-    CONSTRAINT automation_job_attempts_status_check CHECK (((status)::text = ANY ((ARRAY['running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[])))
+    failure_kind character varying(20),
+    CONSTRAINT automation_job_attempts_status_check CHECK (((status)::text = ANY ((ARRAY['running'::character varying, 'succeeded'::character varying, 'failed'::character varying])::text[]))),
+    CONSTRAINT chk_automation_job_attempts_failure_kind CHECK ((failure_kind IS NULL OR (failure_kind)::text = ANY ((ARRAY['permanent'::character varying, 'transient'::character varying])::text[])))
 );
 
 

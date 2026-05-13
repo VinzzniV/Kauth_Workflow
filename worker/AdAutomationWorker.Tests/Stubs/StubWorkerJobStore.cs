@@ -43,12 +43,12 @@ internal sealed class StubWorkerJobStore : IWorkerJobStore
         return Task.CompletedTask;
     }
 
-    public Task MarkJobFailedAsync(long jobId, int attemptNumber, string errorMessage, IReadOnlyList<WorkerLogEntry> logs, CancellationToken cancellationToken)
+    public Task MarkJobFailedAsync(long jobId, int attemptNumber, string errorMessage, IReadOnlyList<WorkerLogEntry> logs, CancellationToken cancellationToken, string? failureKind = null)
     {
-        FailureCalls.Add(new MarkFailureCall(jobId, attemptNumber, errorMessage, logs.ToArray()));
+        FailureCalls.Add(new MarkFailureCall(jobId, attemptNumber, errorMessage, logs.ToArray(), failureKind));
         return Task.CompletedTask;
     }
 
     internal sealed record MarkSuccessCall(long JobId, int AttemptNumber, JsonElement? Output, IReadOnlyList<WorkerLogEntry> Logs);
-    internal sealed record MarkFailureCall(long JobId, int AttemptNumber, string ErrorMessage, IReadOnlyList<WorkerLogEntry> Logs);
+    internal sealed record MarkFailureCall(long JobId, int AttemptNumber, string ErrorMessage, IReadOnlyList<WorkerLogEntry> Logs, string? FailureKind);
 }

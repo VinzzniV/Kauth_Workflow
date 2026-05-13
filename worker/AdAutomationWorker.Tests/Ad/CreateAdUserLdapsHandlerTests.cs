@@ -86,7 +86,7 @@ public sealed class CreateAdUserLdapsHandlerTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_PermanentFailure_ReturnsFailureWithLdapCodePrefix()
+    public async Task ExecuteAsync_PermanentFailure_ReturnsFailureWithLdapCodePrefixAndPermanentKind()
     {
         var writer = new FakeAdUserWriter
         {
@@ -99,12 +99,13 @@ public sealed class CreateAdUserLdapsHandlerTests
         Assert.False(result.IsSuccess);
         Assert.Contains("LDAP 32", result.ErrorMessage);
         Assert.Contains("No such object", result.ErrorMessage);
+        Assert.Equal(WorkerFailureKinds.Permanent, result.FailureKind);
         Assert.Single(result.Logs);
         Assert.Equal("error", result.Logs[0].Level);
     }
 
     [Fact]
-    public async Task ExecuteAsync_TransientFailure_ReturnsFailureWithLdapCodePrefix()
+    public async Task ExecuteAsync_TransientFailure_ReturnsFailureWithLdapCodePrefixAndTransientKind()
     {
         var writer = new FakeAdUserWriter
         {
@@ -116,6 +117,26 @@ public sealed class CreateAdUserLdapsHandlerTests
 
         Assert.False(result.IsSuccess);
         Assert.Contains("LDAP 81", result.ErrorMessage);
+        Assert.Equal(WorkerFailureKinds.Transient, result.FailureKind);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PayloadValidationFailure_MarksPermanent()
+    {
+        var writer = new FakeAdUserWriter();
+        var handler = new CreateAdUserLdapsHandler(writer);
+        var payload = """
+{
+  "samAccountName": "jdoe"
+}
+""";
+
+        var result = await handler.ExecuteAsync(BuildContext(payload), CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        // Payload-Validierung ist klar permanent — gleiche Eingabe wird durch Retry nicht besser.
+        // Linux-Retry-Policy mappt das in FinalFail unabhaengig von is_idempotent.
+        Assert.Equal(WorkerFailureKinds.Permanent, result.FailureKind);
     }
 
     [Fact]

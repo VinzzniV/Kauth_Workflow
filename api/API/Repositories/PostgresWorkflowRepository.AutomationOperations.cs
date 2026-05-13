@@ -404,10 +404,16 @@ RETURNING aj.id, aj.status;
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
 
+        // failure_kind kommt aus dem juengsten Attempt. Bei Success-Jobs ist die Spalte
+        // konsequent NULL; nur Failure-Attempts setzen den Marker.
         const string sql = """
 SELECT j.status,
        ad.is_idempotent,
-       (SELECT MAX(attempt_number) FROM automation_job_attempts WHERE automation_job_id = j.id) AS attempt_number
+       (SELECT MAX(attempt_number) FROM automation_job_attempts WHERE automation_job_id = j.id) AS attempt_number,
+       (SELECT failure_kind FROM automation_job_attempts a
+         WHERE a.automation_job_id = j.id
+         ORDER BY a.attempt_number DESC
+         LIMIT 1) AS failure_kind
 FROM automation_jobs j
 INNER JOIN action_definitions ad ON ad.id = j.action_definition_id
 WHERE j.id = @jobId;
@@ -426,7 +432,8 @@ WHERE j.id = @jobId;
             JobId = jobId,
             Status = reader.GetString(0),
             IsIdempotent = reader.GetBoolean(1),
-            AttemptNumber = reader.IsDBNull(2) ? 0 : reader.GetInt32(2)
+            AttemptNumber = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+            FailureKind = reader.IsDBNull(3) ? null : reader.GetString(3),
         };
     }
 

@@ -31,6 +31,7 @@ internal sealed class ExternalCompletionContext
     public required string Status { get; init; }
     public required int AttemptNumber { get; init; }
     public required bool IsIdempotent { get; init; }
+    public string? FailureKind { get; init; }
 }
 
 internal sealed class ClaimedAutomationJobRecord

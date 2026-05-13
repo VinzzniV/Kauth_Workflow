@@ -28,9 +28,12 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
 
     public async Task<WorkerHandlerResult> ExecuteAsync(WorkerHandlerContext context, CancellationToken cancellationToken)
     {
+        // Payload-Validierung: alle Verstoesse sind klar permanent (gleicher Payload wird durch
+        // Retry nicht besser). Markieren als WorkerFailureKinds.Permanent, damit die Linux-Retry-
+        // Policy sofort FinalFail liefert statt MaxAttempts-Backoff.
         if (context.Payload.ValueKind != JsonValueKind.Object)
         {
-            return WorkerHandlerResult.Failure("Payload must be a JSON object.", Array.Empty<WorkerLogEntry>());
+            return WorkerHandlerResult.Failure("Payload must be a JSON object.", Array.Empty<WorkerLogEntry>(), WorkerFailureKinds.Permanent);
         }
 
         var samAccountName = ReadRequiredString(context.Payload, "samAccountName", out var missing1);
@@ -44,20 +47,22 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
         var firstMissing = missing1 ?? missing2 ?? missing3 ?? missing4 ?? missing5 ?? missing6 ?? missing7;
         if (firstMissing is not null)
         {
-            return WorkerHandlerResult.Failure($"Missing payload field: {firstMissing}", Array.Empty<WorkerLogEntry>());
+            return WorkerHandlerResult.Failure($"Missing payload field: {firstMissing}", Array.Empty<WorkerLogEntry>(), WorkerFailureKinds.Permanent);
         }
 
         if (samAccountName!.Length > 20)
         {
             return WorkerHandlerResult.Failure(
                 $"sAMAccountName '{samAccountName}' exceeds 20 characters (AD limit).",
-                Array.Empty<WorkerLogEntry>());
+                Array.Empty<WorkerLogEntry>(),
+                WorkerFailureKinds.Permanent);
         }
         if (!IsSamAccountNameCharsetValid(samAccountName))
         {
             return WorkerHandlerResult.Failure(
                 $"sAMAccountName '{samAccountName}' contains disallowed characters. Allowed: A-Z a-z 0-9 . - _",
-                Array.Empty<WorkerLogEntry>());
+                Array.Empty<WorkerLogEntry>(),
+                WorkerFailureKinds.Permanent);
         }
 
         var employeeNumber = ReadOptionalString(context.Payload, "employeeNumber");
@@ -82,8 +87,8 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
         {
             AdWriteOutcome.Created created => BuildCreatedResult(created, spec),
             AdWriteOutcome.AlreadyExists already => BuildAlreadyExistsResult(already, spec),
-            AdWriteOutcome.PermanentFailure permanent => BuildFailureResult(permanent.LdapResultCode, permanent.Reason, "permanent"),
-            AdWriteOutcome.TransientFailure transient => BuildFailureResult(transient.LdapResultCode, transient.Reason, "transient"),
+            AdWriteOutcome.PermanentFailure permanent => BuildFailureResult(permanent.LdapResultCode, permanent.Reason, WorkerFailureKinds.Permanent),
+            AdWriteOutcome.TransientFailure transient => BuildFailureResult(transient.LdapResultCode, transient.Reason, WorkerFailureKinds.Transient),
             _ => WorkerHandlerResult.Failure("Unknown AdWriteOutcome variant.", Array.Empty<WorkerLogEntry>()),
         };
     }
@@ -155,7 +160,7 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
                 failureKind,
             }),
         };
-        return WorkerHandlerResult.Failure(errorMessage, new[] { log });
+        return WorkerHandlerResult.Failure(errorMessage, new[] { log }, failureKind);
     }
 
     private static string? ReadRequiredString(JsonElement payload, string property, out string? missingName)

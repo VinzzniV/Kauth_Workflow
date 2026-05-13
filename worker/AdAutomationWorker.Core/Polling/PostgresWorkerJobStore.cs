@@ -189,15 +189,16 @@ WHERE id = @jobId
         JsonElement? output,
         IReadOnlyList<WorkerLogEntry> logs,
         CancellationToken cancellationToken)
-        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusSucceeded, AttemptStatusSucceeded, output, errorMessage: null, logs, cancellationToken);
+        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusSucceeded, AttemptStatusSucceeded, output, errorMessage: null, failureKind: null, logs, cancellationToken);
 
     public Task MarkJobFailedAsync(
         long jobId,
         int attemptNumber,
         string errorMessage,
         IReadOnlyList<WorkerLogEntry> logs,
-        CancellationToken cancellationToken)
-        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusFailed, AttemptStatusFailed, output: null, errorMessage, logs, cancellationToken);
+        CancellationToken cancellationToken,
+        string? failureKind = null)
+        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusFailed, AttemptStatusFailed, output: null, errorMessage, failureKind, logs, cancellationToken);
 
     private async Task MarkJobCompletionAsync(
         long jobId,
@@ -206,6 +207,7 @@ WHERE id = @jobId
         string attemptStatus,
         JsonElement? output,
         string? errorMessage,
+        string? failureKind,
         IReadOnlyList<WorkerLogEntry> logs,
         CancellationToken cancellationToken)
     {
@@ -233,6 +235,7 @@ SET
     status = @attemptStatus,
     error_message = @errorMessage,
     output_json = @outputJson,
+    failure_kind = @failureKind,
     completed_at = NOW()
 WHERE automation_job_id = @jobId
   AND attempt_number = @attemptNumber;
@@ -247,6 +250,7 @@ WHERE automation_job_id = @jobId
             {
                 Value = output.HasValue ? JsonSerializer.Serialize(output.Value) : DBNull.Value
             });
+            updateAttempt.Parameters.AddWithValue("failureKind", (object?)failureKind ?? DBNull.Value);
             await updateAttempt.ExecuteNonQueryAsync(cancellationToken);
         }
 

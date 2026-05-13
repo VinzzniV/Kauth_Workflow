@@ -102,7 +102,8 @@ internal sealed class WorkerHostedService : BackgroundService
                 claim.AttemptNumber,
                 $"No worker handler registered for action_key '{claim.ActionKey}'.",
                 Array.Empty<WorkerLogEntry>(),
-                stoppingToken);
+                stoppingToken,
+                failureKind: WorkerFailureKinds.Permanent);
             return;
         }
 
@@ -135,12 +136,16 @@ internal sealed class WorkerHostedService : BackgroundService
             logger.LogError(ex, "Handler {ActionKey} threw for job {JobId}.", claim.ActionKey, claim.JobId);
             handlerCts.Cancel();
             await SafeAwait(heartbeatTask);
+            // Unbehandelte Handler-Exceptions sind per Default transient — der Handler hatte
+            // keine Chance zu klassifizieren. Linux-API behandelt das wie bisher (Retry je nach
+            // is_idempotent).
             await store.MarkJobFailedAsync(
                 claim.JobId,
                 claim.AttemptNumber,
                 ex.Message,
                 Array.Empty<WorkerLogEntry>(),
-                stoppingToken);
+                stoppingToken,
+                failureKind: WorkerFailureKinds.Transient);
             return;
         }
 
@@ -153,7 +158,13 @@ internal sealed class WorkerHostedService : BackgroundService
         }
         else
         {
-            await store.MarkJobFailedAsync(claim.JobId, claim.AttemptNumber, result.ErrorMessage ?? "Handler reported failure without message.", result.Logs, stoppingToken);
+            await store.MarkJobFailedAsync(
+                claim.JobId,
+                claim.AttemptNumber,
+                result.ErrorMessage ?? "Handler reported failure without message.",
+                result.Logs,
+                stoppingToken,
+                failureKind: result.FailureKind);
         }
     }
 

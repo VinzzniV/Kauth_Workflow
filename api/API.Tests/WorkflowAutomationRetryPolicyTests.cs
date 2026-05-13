@@ -49,4 +49,49 @@ public sealed class WorkflowAutomationRetryPolicyTests
         var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(DefaultSettings(), attemptNumber: 7, isIdempotent: true);
         Assert.Equal(WorkflowAutomationRetryOutcome.OutcomeKind.FinalFail, outcome.Kind);
     }
+
+    [Fact]
+    public void EvaluateRetryOutcome_PermanentFailureKind_FirstAttemptIdempotent_ReturnsFinalFail()
+    {
+        var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(
+            DefaultSettings(), attemptNumber: 1, isIdempotent: true, failureKind: WorkflowAutomationRetryPolicy.FailureKindPermanent);
+        Assert.Equal(WorkflowAutomationRetryOutcome.OutcomeKind.FinalFail, outcome.Kind);
+    }
+
+    [Fact]
+    public void EvaluateRetryOutcome_PermanentFailureKind_NonIdempotent_StillFinalFail()
+    {
+        var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(
+            DefaultSettings(), attemptNumber: 1, isIdempotent: false, failureKind: WorkflowAutomationRetryPolicy.FailureKindPermanent);
+        Assert.Equal(WorkflowAutomationRetryOutcome.OutcomeKind.FinalFail, outcome.Kind);
+    }
+
+    [Fact]
+    public void EvaluateRetryOutcome_TransientFailureKind_Idempotent_FollowsExistingRetryLogic()
+    {
+        var settings = DefaultSettings();
+        var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(
+            settings, attemptNumber: 1, isIdempotent: true, failureKind: WorkflowAutomationRetryPolicy.FailureKindTransient);
+        Assert.Equal(WorkflowAutomationRetryOutcome.OutcomeKind.RetryAfter, outcome.Kind);
+        Assert.Equal(settings.FirstRetryDelay, outcome.Delay);
+    }
+
+    [Fact]
+    public void EvaluateRetryOutcome_NullFailureKind_FallsBackToLegacyLogic()
+    {
+        // Regression-Schutz: Linux-Handler ohne Tagging (heutiger Default) behalten die alte
+        // Semantik. failureKind=null fuehrt nicht zu FinalFail, wenn idempotent+attempts<max.
+        var settings = DefaultSettings();
+        var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(
+            settings, attemptNumber: 1, isIdempotent: true, failureKind: null);
+        Assert.Equal(WorkflowAutomationRetryOutcome.OutcomeKind.RetryAfter, outcome.Kind);
+    }
+
+    [Fact]
+    public void EvaluateRetryOutcome_PermanentMixedCase_IsCaseInsensitive()
+    {
+        var outcome = WorkflowAutomationRetryPolicy.EvaluateRetryOutcome(
+            DefaultSettings(), attemptNumber: 1, isIdempotent: true, failureKind: "PERMANENT");
+        Assert.Equal(WorkflowAutomationRetryOutcome.OutcomeKind.FinalFail, outcome.Kind);
+    }
 }

@@ -29,11 +29,24 @@ public sealed record WorkerHandlerResult
     public JsonElement? Output { get; init; }
     public IReadOnlyList<WorkerLogEntry> Logs { get; init; } = Array.Empty<WorkerLogEntry>();
 
+    // Klassifikation des Failures fuer die Linux-API-Retry-Policy. "permanent" -> sofort
+    // FinalFail (ueberschreibt is_idempotent + attemptNumber); "transient" oder null ->
+    // bestehende Retry-Logik. Beim Success-Result irrelevant (immer null).
+    public string? FailureKind { get; init; }
+
     public static WorkerHandlerResult Success(JsonElement? output, IReadOnlyList<WorkerLogEntry> logs)
         => new() { IsSuccess = true, Output = output, Logs = logs };
 
-    public static WorkerHandlerResult Failure(string errorMessage, IReadOnlyList<WorkerLogEntry> logs)
-        => new() { IsSuccess = false, ErrorMessage = errorMessage, Logs = logs };
+    public static WorkerHandlerResult Failure(string errorMessage, IReadOnlyList<WorkerLogEntry> logs, string? failureKind = null)
+        => new() { IsSuccess = false, ErrorMessage = errorMessage, Logs = logs, FailureKind = failureKind };
+}
+
+// Konstanten fuer FailureKind. String-basiert auf DB-Seite (varchar+Check), damit Linux- und
+// Worker-Handler gleichen Vertrag teilen, ohne Enum-Cross-Compile.
+public static class WorkerFailureKinds
+{
+    public const string Permanent = "permanent";
+    public const string Transient = "transient";
 }
 
 public sealed record WorkerLogEntry
