@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AdAutomationWorker.Core.Configuration;
 using AdAutomationWorker.Core.Handlers;
 using Npgsql;
 using NpgsqlTypes;
@@ -25,11 +26,27 @@ public sealed class PostgresWorkerJobStore : IWorkerJobStore
     private const string AttemptStatusFailed = "failed";
 
     private readonly string connectionString;
+    private readonly VaultKeyProvider? vaultKeyProvider;
+    private readonly TimeSpan vaultTemporaryCredentialTtl;
 
     public PostgresWorkerJobStore(string connectionString)
+        : this(connectionString, vaultKeyProvider: null, vaultTemporaryCredentialTtl: TimeSpan.FromDays(7))
+    {
+    }
+
+    public PostgresWorkerJobStore(
+        string connectionString,
+        VaultKeyProvider? vaultKeyProvider,
+        TimeSpan vaultTemporaryCredentialTtl)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        if (vaultTemporaryCredentialTtl <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(vaultTemporaryCredentialTtl), "Must be positive.");
+        }
         this.connectionString = connectionString;
+        this.vaultKeyProvider = vaultKeyProvider;
+        this.vaultTemporaryCredentialTtl = vaultTemporaryCredentialTtl;
     }
 
     public async Task<WorkerJobClaim?> ClaimNextPendingJobAsync(string workerId, CancellationToken cancellationToken)
@@ -188,8 +205,9 @@ WHERE id = @jobId
         int attemptNumber,
         JsonElement? output,
         IReadOnlyList<WorkerLogEntry> logs,
-        CancellationToken cancellationToken)
-        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusSucceeded, AttemptStatusSucceeded, output, errorMessage: null, failureKind: null, logs, cancellationToken);
+        CancellationToken cancellationToken,
+        PendingVaultWrite? vaultWrite = null)
+        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusSucceeded, AttemptStatusSucceeded, output, errorMessage: null, failureKind: null, logs, vaultWrite, cancellationToken);
 
     public Task MarkJobFailedAsync(
         long jobId,
@@ -199,7 +217,7 @@ WHERE id = @jobId
         CancellationToken cancellationToken,
         string? failureKind = null,
         JsonElement? output = null)
-        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusFailed, AttemptStatusFailed, output, errorMessage, failureKind, logs, cancellationToken);
+        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusFailed, AttemptStatusFailed, output, errorMessage, failureKind, logs, vaultWrite: null, cancellationToken);
 
     private async Task MarkJobCompletionAsync(
         long jobId,
@@ -210,11 +228,67 @@ WHERE id = @jobId
         string? errorMessage,
         string? failureKind,
         IReadOnlyList<WorkerLogEntry> logs,
+        PendingVaultWrite? vaultWrite,
         CancellationToken cancellationToken)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        // 1. Vault-Insert in derselben Tx (sofern verlangt). Erfolgt vor dem Attempt-Update,
+        //    damit der credentialVaultId-Patch im output_json mit der erzeugten UUID arbeiten kann.
+        Guid? vaultId = null;
+        if (vaultWrite is not null)
+        {
+            if (vaultKeyProvider is null)
+            {
+                throw new InvalidOperationException(
+                    "PendingVaultWrite vorhanden, aber kein VaultKeyProvider injiziert. " +
+                    "PostgresWorkerJobStore mit dem Vault-Key-Konstruktor instanziieren.");
+            }
+
+            const string vaultInsertSql = """
+INSERT INTO temporary_credentials (workflow_node_instance_id, credential_type, encrypted_value, expires_at)
+VALUES (@wniid, @type, pgp_sym_encrypt(@plain, @key), NOW() + make_interval(secs => @ttlSeconds))
+ON CONFLICT (workflow_node_instance_id, credential_type) DO NOTHING
+RETURNING id;
+""";
+            await using (var insertVault = new NpgsqlCommand(vaultInsertSql, connection, transaction))
+            {
+                insertVault.Parameters.Add("wniid", NpgsqlDbType.Bigint).Value = vaultWrite.WorkflowNodeInstanceId;
+                insertVault.Parameters.Add("type", NpgsqlDbType.Varchar).Value = vaultWrite.CredentialType;
+                insertVault.Parameters.Add("plain", NpgsqlDbType.Text).Value = vaultWrite.PlainSecret;
+                insertVault.Parameters.Add("key", NpgsqlDbType.Text).Value = vaultKeyProvider.GetSymmetricKey();
+                insertVault.Parameters.Add("ttlSeconds", NpgsqlDbType.Double).Value = vaultTemporaryCredentialTtl.TotalSeconds;
+                var returned = await insertVault.ExecuteScalarAsync(cancellationToken);
+                if (returned is Guid newId)
+                {
+                    vaultId = newId;
+                }
+            }
+
+            if (vaultId is null)
+            {
+                // ON CONFLICT-Pfad: Zeile existierte schon (Retry nach Stale-Claim ohne Crash-Recovery
+                // ueber den frueheren Lauf). Wir lesen die bestehende UUID, um den Pointer zu setzen.
+                const string vaultSelectSql = """
+SELECT id FROM temporary_credentials
+WHERE workflow_node_instance_id = @wniid
+  AND credential_type = @type
+LIMIT 1;
+""";
+                await using var selectVault = new NpgsqlCommand(vaultSelectSql, connection, transaction);
+                selectVault.Parameters.Add("wniid", NpgsqlDbType.Bigint).Value = vaultWrite.WorkflowNodeInstanceId;
+                selectVault.Parameters.Add("type", NpgsqlDbType.Varchar).Value = vaultWrite.CredentialType;
+                var existing = await selectVault.ExecuteScalarAsync(cancellationToken);
+                vaultId = existing as Guid?
+                    ?? throw new InvalidOperationException(
+                        $"Vault row for workflow_node_instance_id={vaultWrite.WorkflowNodeInstanceId} disappeared between ON CONFLICT and follow-up SELECT (race condition).");
+            }
+        }
+
+        // 2. Output-JSON ggf. mit der erzeugten UUID patchen, bevor wir es persistieren.
+        var patchedOutput = ApplyVaultIdPatch(output, vaultId);
 
         const string updateJobSql = """
 UPDATE automation_jobs
@@ -249,7 +323,7 @@ WHERE automation_job_id = @jobId
             updateAttempt.Parameters.AddWithValue("errorMessage", (object?)errorMessage ?? DBNull.Value);
             updateAttempt.Parameters.Add(new NpgsqlParameter("outputJson", NpgsqlDbType.Jsonb)
             {
-                Value = output.HasValue ? JsonSerializer.Serialize(output.Value) : DBNull.Value
+                Value = patchedOutput.HasValue ? JsonSerializer.Serialize(patchedOutput.Value) : DBNull.Value
             });
             updateAttempt.Parameters.AddWithValue("failureKind", (object?)failureKind ?? DBNull.Value);
             await updateAttempt.ExecuteNonQueryAsync(cancellationToken);
@@ -286,6 +360,50 @@ VALUES (
         }
 
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static JsonElement? ApplyVaultIdPatch(JsonElement? output, Guid? vaultId)
+    {
+        if (vaultId is null)
+        {
+            return output;
+        }
+        if (!output.HasValue || output.Value.ValueKind != JsonValueKind.Object)
+        {
+            // Handler hat output_json nicht als Object geliefert -- wir koennen den Patch nicht
+            // anwenden, also schreiben wir ein Minimal-Objekt mit nur dem Pointer.
+            using var minimalDoc = JsonDocument.Parse(
+                JsonSerializer.Serialize(new { credentialVaultId = vaultId.Value.ToString() }));
+            return minimalDoc.RootElement.Clone();
+        }
+
+        // Rebuild des Output-JSON mit credentialVaultId = <uuid>. Andere Felder bleiben unangetastet.
+        var buffer = new System.IO.MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            var patched = false;
+            foreach (var property in output.Value.EnumerateObject())
+            {
+                if (property.NameEquals("credentialVaultId"))
+                {
+                    writer.WriteString("credentialVaultId", vaultId.Value.ToString());
+                    patched = true;
+                }
+                else
+                {
+                    property.WriteTo(writer);
+                }
+            }
+            if (!patched)
+            {
+                writer.WriteString("credentialVaultId", vaultId.Value.ToString());
+            }
+            writer.WriteEndObject();
+        }
+
+        using var doc = JsonDocument.Parse(buffer.ToArray());
+        return doc.RootElement.Clone();
     }
 
     private static async Task<int> LoadNextAttemptNumberAsync(

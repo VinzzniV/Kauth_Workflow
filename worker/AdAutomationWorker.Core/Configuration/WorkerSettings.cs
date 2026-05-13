@@ -17,6 +17,17 @@ public sealed class WorkerSettings
     public int ClaimBatchSize { get; set; } = 1;
 
     public AdSettings Ad { get; set; } = new();
+
+    public VaultSettings Vault { get; set; } = new();
+}
+
+// Konfig fuer den Temporary-Credentials-Vault (Etappe 9a Schritt 6).
+// TTL ist absichtlich grosszuegig (7 Tage Default) -- der Lese-Pfad wirft bei Ablauf
+// mit klarer Meldung; das ist sicherer als ein zu kurzer TTL, der echte Onboarding-
+// Workflows blockiert. Cleanup-Sweeper ist Folge-Slice.
+public sealed class VaultSettings
+{
+    public int TemporaryCredentialTtlSeconds { get; set; } = 7 * 24 * 3600;
 }
 
 // Konfig fuer LDAPS-Verbindungen. Wird vom Host-Adapter `LdapsAdUserWriter` konsumiert; der

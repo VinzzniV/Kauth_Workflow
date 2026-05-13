@@ -34,11 +34,29 @@ public sealed record WorkerHandlerResult
     // bestehende Retry-Logik. Beim Success-Result irrelevant (immer null).
     public string? FailureKind { get; init; }
 
+    // Optionaler atomarer Vault-Schreib-Auftrag (Etappe 9a Schritt 6 Sub-B). Wenn gesetzt,
+    // schreibt PostgresWorkerJobStore.MarkJobSucceededAsync den verschluesselten Wert in
+    // `temporary_credentials` und patcht `credentialVaultId` im Output-JSON mit der erzeugten
+    // UUID — alles in derselben Tx wie Job-Success + Attempt. Damit gibt's keinen Crash-Pfad
+    // mit Vault-Waise oder fehlendem Pointer.
+    public PendingVaultWrite? VaultWrite { get; init; }
+
     public static WorkerHandlerResult Success(JsonElement? output, IReadOnlyList<WorkerLogEntry> logs)
         => new() { IsSuccess = true, Output = output, Logs = logs };
 
     public static WorkerHandlerResult Failure(string errorMessage, IReadOnlyList<WorkerLogEntry> logs, string? failureKind = null, JsonElement? output = null)
         => new() { IsSuccess = false, ErrorMessage = errorMessage, Logs = logs, FailureKind = failureKind, Output = output };
+}
+
+// Atomarer Vault-Schreib-Auftrag. Der Handler reicht den Plain-Wert + Pointer-Metadaten
+// an den JobStore weiter; der JobStore verschluesselt und schreibt in derselben Tx wie
+// die Job-Success-Markierung. Damit verlaesst das Plain-Geheimnis den Worker-Prozess nie
+// unverschluesselt -- es lebt nur zwischen Handler-Exit und JobStore-Insert im Heap.
+public sealed record PendingVaultWrite
+{
+    public required string PlainSecret { get; init; }
+    public required long WorkflowNodeInstanceId { get; init; }
+    public required string CredentialType { get; init; }
 }
 
 // Konstanten fuer FailureKind. String-basiert auf DB-Seite (varchar+Check), damit Linux- und

@@ -22,15 +22,16 @@ public sealed class CreateAdUserLdapsHandlerTests
 """;
 
     [Fact]
-    public async Task ExecuteAsync_CreatedOutcome_ReturnsSuccessWithPasswordAndAlreadyExistedFalse()
+    public async Task ExecuteAsync_CreatedOutcome_ReturnsSuccessWithVaultWriteAndCredentialVaultIdPlaceholder()
     {
         var writer = new FakeAdUserWriter
         {
             OutcomeFactory = spec => new AdWriteOutcome.Created(spec.BuildDistinguishedName()),
         };
         var handler = new CreateAdUserLdapsHandler(writer);
+        var context = BuildContext(ValidPayloadJson, workflowNodeInstanceId: 4711);
 
-        var result = await handler.ExecuteAsync(BuildContext(ValidPayloadJson), CancellationToken.None);
+        var result = await handler.ExecuteAsync(context, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Output);
@@ -39,15 +40,22 @@ public sealed class CreateAdUserLdapsHandlerTests
         Assert.Equal("jdoe", output.GetProperty("samAccountName").GetString());
         Assert.False(output.GetProperty("alreadyExisted").GetBoolean());
         Assert.True(output.GetProperty("mustChangePasswordAtNextLogon").GetBoolean());
-        Assert.NotNull(output.GetProperty("temporaryPassword").GetString());
         Assert.Equal("E12345", output.GetProperty("employeeNumber").GetString());
 
-        var temporaryPassword = output.GetProperty("temporaryPassword").GetString()!;
-        Assert.Equal(writer.Calls.Single().Password, temporaryPassword);
+        // Vault-Pointer ist Platzhalter (null) — der JobStore patcht den Wert in derselben Tx.
+        Assert.True(output.TryGetProperty("credentialVaultId", out var vaultIdProperty));
+        Assert.Equal(JsonValueKind.Null, vaultIdProperty.ValueKind);
+        // Plain-Passwort verlaesst den Output -- nur ueber den VaultWrite-Pfad.
+        Assert.False(output.TryGetProperty("temporaryPassword", out _));
+
+        Assert.NotNull(result.VaultWrite);
+        Assert.Equal(writer.Calls.Single().Password, result.VaultWrite!.PlainSecret);
+        Assert.Equal(4711, result.VaultWrite.WorkflowNodeInstanceId);
+        Assert.Equal("ad_initial_password", result.VaultWrite.CredentialType);
     }
 
     [Fact]
-    public async Task ExecuteAsync_CreatedOutcome_DoesNotLeakPasswordInLogs()
+    public async Task ExecuteAsync_CreatedOutcome_DoesNotLeakPasswordInLogsOrOutput()
     {
         var writer = new FakeAdUserWriter
         {
@@ -57,19 +65,20 @@ public sealed class CreateAdUserLdapsHandlerTests
 
         var result = await handler.ExecuteAsync(BuildContext(ValidPayloadJson), CancellationToken.None);
 
-        var temporaryPassword = result.Output!.Value.GetProperty("temporaryPassword").GetString()!;
+        var plainSecret = result.VaultWrite!.PlainSecret;
+        Assert.DoesNotContain(plainSecret, result.Output!.Value.GetRawText());
         foreach (var log in result.Logs)
         {
-            Assert.DoesNotContain(temporaryPassword, log.Message);
+            Assert.DoesNotContain(plainSecret, log.Message);
             if (log.Details.HasValue)
             {
-                Assert.DoesNotContain(temporaryPassword, log.Details.Value.GetRawText());
+                Assert.DoesNotContain(plainSecret, log.Details.Value.GetRawText());
             }
         }
     }
 
     [Fact]
-    public async Task ExecuteAsync_AlreadyExistsOutcome_ReturnsSuccessWithAlreadyExistedTrueAndNoPassword()
+    public async Task ExecuteAsync_AlreadyExistsOutcome_NoVaultWriteAndCredentialVaultIdNull()
     {
         var writer = new FakeAdUserWriter
         {
@@ -83,6 +92,9 @@ public sealed class CreateAdUserLdapsHandlerTests
         var output = result.Output!.Value;
         Assert.True(output.GetProperty("alreadyExisted").GetBoolean());
         Assert.False(output.TryGetProperty("temporaryPassword", out _));
+        Assert.True(output.TryGetProperty("credentialVaultId", out var vaultId));
+        Assert.Equal(JsonValueKind.Null, vaultId.ValueKind);
+        Assert.Null(result.VaultWrite);
     }
 
     [Fact]
@@ -207,11 +219,11 @@ public sealed class CreateAdUserLdapsHandlerTests
         await Task.CompletedTask;
     }
 
-    private static WorkerHandlerContext BuildContext(string payloadJson) => new()
+    private static WorkerHandlerContext BuildContext(string payloadJson, long workflowNodeInstanceId = 1) => new()
     {
         JobId = 1,
         WorkflowUid = Guid.NewGuid(),
-        WorkflowNodeInstanceId = 1,
+        WorkflowNodeInstanceId = workflowNodeInstanceId,
         ActionKey = "CreateAdUserLdaps",
         Payload = JsonDocument.Parse(payloadJson).RootElement,
         AttemptNumber = 1,

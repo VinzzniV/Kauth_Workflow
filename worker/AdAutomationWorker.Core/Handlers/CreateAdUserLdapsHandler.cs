@@ -12,9 +12,15 @@ namespace AdAutomationWorker.Core.Handlers;
 // Optional:
 //   employeeNumber
 //
-// Initial-Status: Enabled, Random-Passwort mit Force-Change-at-Next-Logon. temporaryPassword
-// landet im Output (automation_job_attempts.output_json) — bewusst akzeptiertes Audit-Risiko,
-// Vault-Pointer kommt im Folge-Slice.
+// Initial-Status: Enabled, Random-Passwort mit Force-Change-at-Next-Logon.
+//
+// Etappe 9a Schritt 6 Sub-B: das generierte Initial-Passwort wird NICHT mehr plain ins
+// Output-JSON geschrieben. Stattdessen liefert der Handler einen `PendingVaultWrite` mit
+// und legt einen `credentialVaultId=null`-Platzhalter ins Output. Der JobStore patcht den
+// Platzhalter in derselben Tx mit der erzeugten UUID. Im AlreadyExists-Pfad gibt es kein
+// Initial-Passwort und damit auch keinen `PendingVaultWrite` -- der Output enthaelt dann
+// `credentialVaultId=null` (Schema-stabil), und ein Welcome-Mail-Folge-Job wird zur Run-time
+// einen sauberen Permanent-Failure liefern.
 public sealed class CreateAdUserLdapsHandler : IWorkerHandler
 {
     private readonly IAdUserWriter writer;
@@ -85,7 +91,7 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
 
         return outcome switch
         {
-            AdWriteOutcome.Created created => BuildCreatedResult(created, spec),
+            AdWriteOutcome.Created created => BuildCreatedResult(created, spec, context.WorkflowNodeInstanceId),
             AdWriteOutcome.AlreadyExists already => BuildAlreadyExistsResult(already, spec),
             AdWriteOutcome.PermanentFailure permanent => BuildFailureResult(permanent.LdapResultCode, permanent.Reason, WorkerFailureKinds.Permanent),
             AdWriteOutcome.TransientFailure transient => BuildFailureResult(transient.LdapResultCode, transient.Reason, WorkerFailureKinds.Transient),
@@ -93,14 +99,17 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
         };
     }
 
-    private static WorkerHandlerResult BuildCreatedResult(AdWriteOutcome.Created created, AdUserSpec spec)
+    private static WorkerHandlerResult BuildCreatedResult(AdWriteOutcome.Created created, AdUserSpec spec, long workflowNodeInstanceId)
     {
+        // credentialVaultId bleibt als null-Platzhalter im Output; der JobStore patcht ihn in
+        // derselben Tx mit der UUID, die er beim Vault-Insert erzeugt. Damit ist das Schema fuer
+        // Konsumenten stabil unabhaengig vom Schreibpfad.
         var output = JsonSerializer.SerializeToElement(new
         {
             distinguishedName = created.DistinguishedName,
             samAccountName = spec.SamAccountName,
             userPrincipalName = spec.UserPrincipalName,
-            temporaryPassword = spec.Password,
+            credentialVaultId = (string?)null,
             mustChangePasswordAtNextLogon = true,
             forceChangeReason = "initial",
             employeeNumber = spec.EmployeeNumber,
@@ -110,7 +119,7 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
         var log = new WorkerLogEntry
         {
             Level = "info",
-            Message = "User created (random password set, force-change at next logon).",
+            Message = "User created (random password set, force-change at next logon; password stored in vault).",
             Details = JsonSerializer.SerializeToElement(new
             {
                 samAccountName = spec.SamAccountName,
@@ -118,16 +127,27 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
             }),
         };
 
-        return WorkerHandlerResult.Success(output, new[] { log });
+        var vaultWrite = new PendingVaultWrite
+        {
+            PlainSecret = spec.Password,
+            WorkflowNodeInstanceId = workflowNodeInstanceId,
+            CredentialType = "ad_initial_password",
+        };
+
+        return WorkerHandlerResult.Success(output, new[] { log }) with { VaultWrite = vaultWrite };
     }
 
     private static WorkerHandlerResult BuildAlreadyExistsResult(AdWriteOutcome.AlreadyExists already, AdUserSpec spec)
     {
+        // Kein Vault-Schreib bei AlreadyExists -- das Konto existierte bereits, das Initial-Passwort
+        // ist hier nicht relevant. credentialVaultId bleibt null und kommt so ins Output. Ein
+        // Welcome-Mail-Folge-Job mit Vault-Verkettung wird daran sauber Permanent-fail.
         var output = JsonSerializer.SerializeToElement(new
         {
             distinguishedName = already.DistinguishedName,
             samAccountName = spec.SamAccountName,
             userPrincipalName = spec.UserPrincipalName,
+            credentialVaultId = (string?)null,
             alreadyExisted = true,
             employeeNumber = spec.EmployeeNumber,
         });

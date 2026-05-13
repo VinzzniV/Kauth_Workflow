@@ -27,12 +27,19 @@ public interface IWorkerJobStore
 
     // Setzt automation_jobs.status='succeeded' + completed_at, schliesst den Attempt mit
     // status='succeeded' + output_json + completed_at, schreibt alle Logs in einer Transaktion.
+    //
+    // Falls vaultWrite != null: Vault-Insert in `temporary_credentials` mit pgp_sym_encrypt
+    // laeuft in derselben Transaktion. Der `credentialVaultId`-Platzhalter im Output-JSON
+    // wird vor dem Attempt-Update mit der erzeugten UUID gepatcht. ON CONFLICT (UNIQUE
+    // workflow_node_instance_id + credential_type) DO NOTHING macht den Pfad idempotent
+    // bei Retry nach Stale-Claim-Release.
     Task MarkJobSucceededAsync(
         long jobId,
         int attemptNumber,
         System.Text.Json.JsonElement? output,
         IReadOnlyList<WorkerLogEntry> logs,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        PendingVaultWrite? vaultWrite = null);
 
     // Setzt automation_jobs.status='failed' + completed_at, schliesst den Attempt mit
     // status='failed' + error_message + failure_kind + completed_at, schreibt alle Logs +

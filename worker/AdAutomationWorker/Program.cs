@@ -9,6 +9,7 @@ using AdAutomationWorker.Core.Polling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -16,10 +17,21 @@ builder.Services.Configure<WorkerSettings>(builder.Configuration.GetSection("Wor
 
 builder.Services.AddSingleton<IDbConfigDecryptor, WindowsDpapiDecryptor>();
 builder.Services.AddSingleton<DbConnectionStringLoader>();
+builder.Services.AddSingleton<VaultKeyLoader>();
+builder.Services.AddSingleton<VaultKeyProvider>(sp =>
+{
+    var loader = sp.GetRequiredService<VaultKeyLoader>();
+    return new VaultKeyProvider(loader.Load());
+});
 builder.Services.AddSingleton<IWorkerJobStore>(sp =>
 {
     var loader = sp.GetRequiredService<DbConnectionStringLoader>();
-    return new PostgresWorkerJobStore(loader.Load());
+    var vaultKeyProvider = sp.GetRequiredService<VaultKeyProvider>();
+    var workerSettings = sp.GetRequiredService<IOptions<WorkerSettings>>().Value;
+    return new PostgresWorkerJobStore(
+        loader.Load(),
+        vaultKeyProvider,
+        TimeSpan.FromSeconds(Math.Max(60, workerSettings.Vault.TemporaryCredentialTtlSeconds)));
 });
 
 builder.Services.AddSingleton<IAdUserWriter, LdapsAdUserWriter>();

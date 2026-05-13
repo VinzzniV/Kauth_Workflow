@@ -154,7 +154,7 @@ internal sealed class WorkerHostedService : BackgroundService
 
         if (result.IsSuccess)
         {
-            await store.MarkJobSucceededAsync(claim.JobId, claim.AttemptNumber, result.Output, result.Logs, stoppingToken);
+            await store.MarkJobSucceededAsync(claim.JobId, claim.AttemptNumber, result.Output, result.Logs, stoppingToken, result.VaultWrite);
         }
         else
         {

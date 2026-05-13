@@ -37,9 +37,9 @@ internal sealed class StubWorkerJobStore : IWorkerJobStore
         return Task.FromResult(HeartbeatReturnValues.Count > 0 ? HeartbeatReturnValues.Dequeue() : 1);
     }
 
-    public Task MarkJobSucceededAsync(long jobId, int attemptNumber, JsonElement? output, IReadOnlyList<WorkerLogEntry> logs, CancellationToken cancellationToken)
+    public Task MarkJobSucceededAsync(long jobId, int attemptNumber, JsonElement? output, IReadOnlyList<WorkerLogEntry> logs, CancellationToken cancellationToken, PendingVaultWrite? vaultWrite = null)
     {
-        SuccessCalls.Add(new MarkSuccessCall(jobId, attemptNumber, output, logs.ToArray()));
+        SuccessCalls.Add(new MarkSuccessCall(jobId, attemptNumber, output, logs.ToArray(), vaultWrite));
         return Task.CompletedTask;
     }
 
@@ -49,6 +49,6 @@ internal sealed class StubWorkerJobStore : IWorkerJobStore
         return Task.CompletedTask;
     }
 
-    internal sealed record MarkSuccessCall(long JobId, int AttemptNumber, JsonElement? Output, IReadOnlyList<WorkerLogEntry> Logs);
+    internal sealed record MarkSuccessCall(long JobId, int AttemptNumber, JsonElement? Output, IReadOnlyList<WorkerLogEntry> Logs, PendingVaultWrite? VaultWrite);
     internal sealed record MarkFailureCall(long JobId, int AttemptNumber, string ErrorMessage, IReadOnlyList<WorkerLogEntry> Logs, string? FailureKind, JsonElement? Output);
 }
