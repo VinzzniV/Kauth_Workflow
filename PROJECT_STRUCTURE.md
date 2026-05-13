@@ -184,6 +184,10 @@ Aktuell wichtige technische Schwerpunkte:
 - `WorkflowDefinitionDraftValidator` / `WorkflowDefinitionSnapshotValidator` als Validation-Split aus Zyklus 7
 - `WorkflowAutomationRetryPolicy` mit `failure_kind`-Hook (Etappe 9a Schritt 4): Worker-Outcome (`permanent`/`transient`) steuert Retry-Entscheidung
 - `ExternalAutomationJobCompletionSweeper` + `StaleWorkerClaimSweeper` als zwei HostedServices fuer den schreibenden Worker-Pfad
+- Strukturierter Linux-Handler-Failure-Pfad (Etappe 9a Schritt 5): `WorkflowAutomationHandlerResult` mit IsSuccess/ErrorMessage/FailureKind; `WorkflowAutomationService` discriminiert Result-Failure vs Exception
+- `INotificationTemplateResolver` (extrahiert aus `NotificationTemplateService.GetEffectiveTemplate`); `IGraphMailSender` + `GraphMailSender` als schmales Mail-Versand-Interface fuer Action-Handler
+- `SendWelcomeMailGraphHandler` als erster echter Linux-side-Handler (Graph App-only)
+- Enge `created_ad_user`-Mapping-Source (Property-Whitelist `distinguishedName`) fuer Verkettung von Worker-Outputs; Vault-Grenze fuer Schritt 6 ist im Code verankert
 
 ## Backend-Tests: `api/API.Tests`
 
@@ -203,7 +207,9 @@ Schreibender AD-Automation-Worker (Etappe 9a Schritt 3 — erster echter LDAPS-H
 - `AdAutomationWorker.Core/Handlers/` — `IWorkerHandler` (Worker-eigener Vertrag), `HandlerRegistry`, `Simulated/SimulatedWindowsWorkerPingHandler` (Transport-/Audit-Test ohne AD) und `CreateAdUserLdapsHandler` (fachliche Logik fuer den ersten echten AD-User-Write; konsumiert `IAdUserWriter`).
 - `AdAutomationWorker.Core/Ad/` — plattform-neutrale AD-Vertraege: `IAdUserWriter`, `AdUserSpec`, `AdWriteOutcome` (DU: Created/AlreadyExists/Transient/Permanent), `AdPasswordGenerator` (CSPRNG, 4 Komplexitaetsklassen).
 - `AdAutomationWorker.Core/Configuration/` — `WorkerSettings` + `AdSettings`, `DbConnectionStringLoader` (3-Pfad: env, DPAPI, JSON-Fallback), `IDbConfigDecryptor` (Interface fuer DPAPI-Decrypt).
+- `AdAutomationWorker.Core/Ad/AdGroupMembership*` + `IAdGroupMembershipWriter` — plattform-neutrale Vertraege fuer den zweiten LDAPS-Handler `AssignGroupsLdaps`.
 - `AdAutomationWorker/Ad/LdapsAdUserWriter.cs` — Windows-only Implementierung des Writers (`System.DirectoryServices.Protocols`, LDAPS, gMSA via `AuthType.Negotiate`).
+- `AdAutomationWorker/Ad/LdapsAdGroupMembershipWriter.cs` — Windows-only Implementierung fuer Group-Member-Add (Code 20 = AlreadyMember idempotent).
 - `AdAutomationWorker/Configuration/WindowsDpapiDecryptor.cs` — Windows-only DPAPI-Decrypt-Adapter (`ProtectedData.Unprotect`, Scope LocalMachine).
 - `AdAutomationWorker/` — Windows-Service-Host (`net8.0-windows`) mit `Program.cs` + `WorkerHostedService` + `appsettings(.Development).json` inkl. `Ad`-Block.
 - `AdAutomationWorker.Tests/` — 38 Tests, decken Handler-Registry, Ping-Handler, Job-Store-Vertrag, Heartbeat-Loop, Connection-String-Loader, AdPasswordGenerator und `CreateAdUserLdapsHandler` (alle Outcome-Varianten + Payload-Validierung + Password-Not-In-Log) ab.

@@ -15,7 +15,7 @@ Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „
 
 ## Stand 2026-05-12
 
-Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 ebenfalls am 2026-05-12 durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
+Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 ebenfalls am 2026-05-12 durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
 - API Release-Build: ✅ gruen
 - API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; keine neuen seit 2026-05-12)
 - FE-Build: ✅ gruen
@@ -30,7 +30,7 @@ Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mo
 
 | ID | Aufgabe | Prio | Status | Nutzen |
 | --- | --- | --- | --- | --- |
-| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 + 3 + 4 ✓ 2026-05-12. Schritt 4 hat die zwei in Schritt 3 offen gelassenen Trade-offs geschlossen: failure_kind-Klassifikation (Worker→Linux) und zentraler Stale-Worker-Claim-Sweep als HostedService. **Naechster Code-Slice: Etappe 9a Schritt 5** — Temporary-Credentials-Vault statt Klartext-Passwort, `AssignGroups`-LDAPS-Handler (Wiederverwendung 3c-Layering), `SendWelcomeMail` real (Linux-side via GraphWorkflowEmailNotificationSender). `CreateMailbox`+`CreateErpEmployee` brauchen eigene Backend-Architektur-Slices. Eigener Plan-Mode-Slice vor Start. Vor Live-Inbetriebnahme (nicht vor Slice-Beginn): gMSA in der Domaene anlegen + `Install-ADServiceAccount` auf der Worker-VM; Postgres-User `kauth_worker` mit den GRANTs aus dem Skeleton-Plan; `install-db-config.ps1` DPAPI-Lauf; Delegated-Rechte (Create Child + Reset Password) auf der Ziel-OU. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
+| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 ✓ 2026-05-12. Schritt 5 hat drei Vertrags-Erweiterungen + zwei reale Handler geliefert (enge created_ad_user-Source mit Vault-Grenze im Code, Worker-Failure-Output, Linux-Handler-strukturierter-Failure-Pfad; AssignGroupsLdaps + SendWelcomeMailGraph). **Naechster Code-Slice: Etappe 9a Schritt 6** — Temporary-Credentials-Vault als eigene Architektur-Entscheidung (pgcrypto/ASP.NET Data Protection/externer KMS), `CreateMailbox`+`CreateErpEmployee` als eigene Backend-Slices. Eigener Plan-Mode-Slice vor Start. Vor Live-Inbetriebnahme (nicht vor Slice-Beginn): gMSA in der Domaene anlegen + `Install-ADServiceAccount` auf der Worker-VM; Postgres-User `kauth_worker` mit den GRANTs aus dem Skeleton-Plan; `install-db-config.ps1` DPAPI-Lauf; Delegated-Rechte (Create Child + Reset Password + Modify Member auf Groups) auf der Ziel-OU; Graph App-only-Credential fuer den Mail-Versand-Pfad. | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad. |
 
 ## Nachgelagert
 

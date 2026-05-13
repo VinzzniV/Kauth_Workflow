@@ -144,8 +144,18 @@ Zwei in Schritt 3 bewusst offen gelassene Trade-offs geschlossen:
 - **`failure_kind`-Marker am Attempt** (`automation_job_attempts.failure_kind`, varchar(20), CHECK 'permanent'|'transient'|NULL). Worker schreibt ihn beim `MarkJobFailedAsync`: LDAP-Codes 49/50/32/21/19 und Payload-Validierungsfehler → `'permanent'`; alles andere → `'transient'`. `WorkflowAutomationRetryPolicy.EvaluateRetryOutcome` bekommt einen optionalen `failureKind`-Parameter; `'permanent'` → sofort `FinalFail` (überschreibt `is_idempotent` und `attemptNumber`). Damit fallen die unnötigen Retry-Backoff-Cycles bei klar permanenten Fehlern weg — der Audit-Trail wird ehrlich, die Worker-Job-Rate steigt nicht durch Wiederholungen von hoffnungslosen Calls. Linux-Handler ohne Tagging schreiben weiter `NULL` und behalten die bestehende Retry-Logik (Vorbereitung für künftige echte Linux-Handler).
 - **Zentraler `StaleWorkerClaimSweeper`** als Linux-API-HostedService (60s-Polling, 5min-Stale-Default via `WorkerLeaseSettings`). Greift parallel zum Worker-internen `ReleaseStaleClaimsAsync` — Belt-and-Suspenders. Räumt verwaiste `running`-Jobs auch dann auf, wenn alle Worker tot sind und kein Worker den Lazy-Cleanup mehr ausführen kann.
 
+## Schritt 5 (✓ 2026-05-12) — Vertrags-Plumbing + zwei weitere reale Handler
+
+Drei Vertrags-Erweiterungen plus zwei reale Handler:
+
+- **Enge `created_ad_user`-Mapping-Source** mit harter Property-Whitelist (nur `distinguishedName`) und `nodeKey`-Referenzierung. Sensible Output-Felder (insbesondere `temporaryPassword`) sind durch keine Input-Mapping-Source adressierbar — Vault-Grenze für Schritt 6 ist im Code, nicht nur in Doku. Alle vier Fehler-Cases werfen `InvalidOperationException` direkt beim Payload-Build (sichtbar im Workflow-Audit, kein kryptischer LDAP-Spätfehler).
+- **Worker-Failure-Pfad trägt Output:** `MarkJobFailedAsync` schreibt jetzt `output_json` auch im Failure-Fall — `PartiallyAdded` bei `AssignGroupsLdaps` (X von N Gruppen erfolgreich, eine permanent gescheitert) liefert einen strukturierten Failure mit Detail-Output (newlyAdded/alreadyMember/failed).
+- **Linux-Handler-Vertrag strukturiert:** `WorkflowAutomationHandlerResult` mit `IsSuccess` (default `true`), `ErrorMessage`, `FailureKind` + Success/Failure-Factories. Bestehende simulierte Handler bleiben rückwärtskompatibel. `WorkflowAutomationService` mappt Result-Failures mit FailureKind in die Retry-Policy; Exception-Pfad bleibt Default ohne Tagging.
+- **`AssignGroupsLdaps`** als zweiter LDAPS-Handler im Worker (`LdapsAdGroupMembershipWriter`): Member-Add per Group; AD-Code 20 (`AttributeOrValueAlreadyExists`) als `AlreadyMember` → idempotent. Connection-Level-Fehler werden zu Top-Level-Failure aggregiert statt leerer PartiallyAdded.
+- **`SendWelcomeMailGraph`** als erster echter Linux-side-Handler via Microsoft Graph App-only (`Users[senderEmail].SendMail.PostAsync`). `INotificationTemplateResolver` extrahiert die Catalog+DB-Override-Logik aus der frühreren privaten `NotificationTemplateService.GetEffectiveTemplate`. Neuer Catalog-Eintrag `welcome_mail` ohne `{{temporary_password}}`-Placeholder (Vault-Slice macht das in Schritt 6). Handler-Registry von Singleton auf Scoped umgestellt, damit Scoped-Handler resolved werden können.
+
 ## Verwandte Notizen
 
-- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3/4-Update
-- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + 2 + 3 + 4 (✓ 2026-05-12)
+- [[Entscheidungen]] — Kurzfassung dieser Sub-Architektur + Hauptentscheidung Z21-S2 + Schritt-3/4/5-Update
+- [[Migrationspfad]] — Etappe 9a mit fixiertem Schritt 1 + 2 + 3 + 4 + 5 (✓ 2026-05-12)
 - [[Automation]] — Automation-Layer-Modell, in das der Worker einklinkt

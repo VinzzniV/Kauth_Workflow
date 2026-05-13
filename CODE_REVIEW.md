@@ -34,7 +34,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 sind durch (Sub-Architektur, Worker-Skeleton + External-Completion-Sweeper, erster echter LDAPS-Handler `CreateAdUserLdaps` + DPAPI produktiv + gMSA-Switch, failure_kind-Klassifikation + zentraler Stale-Worker-Claim-Sweep). Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh` (Worker-Tests jetzt 39 statt 20). Aktive Resthebel: P0-1/P0-2 Etappe 9a Schritt 5 (Temporary-Credentials-Vault, AssignGroups-LDAPS, SendWelcomeMail real; CreateMailbox/CreateErpEmployee eigene Backend-Slices), plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
+**Stand 2026-05-12** — Z21 vollstaendig abgearbeitet. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 sind durch. Schritt 5: enge `created_ad_user`-Mapping-Source mit Vault-Grenze im Code; Worker-Failure-Pfad traegt Output; Linux-Handler-Vertrag strukturiert (`WorkflowAutomationHandlerResult.Failure(...)`); zwei neue reale Handler `AssignGroupsLdaps` (Worker) + `SendWelcomeMailGraph` (Linux). Verifikation reproduzierbar via `./scripts/verify-prod-ready.sh` (Worker-Tests jetzt 48 statt 20). Aktive Resthebel: P0-1/P0-2 Etappe 9a Schritt 6 (Temporary-Credentials-Vault als Architektur-Entscheidung; CreateMailbox/CreateErpEmployee eigene Backend-Slices), plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3).
 
 ---
 
@@ -98,7 +98,9 @@ Entscheidung dokumentiert in `KauthWorkflow/Architektur/Entscheidungen.md` (Z21-
 
 **Etappe 9a Schritt 4 ✓ 2026-05-12** — Härtung-Block. Neue Spalte `automation_job_attempts.failure_kind` (`'permanent'|'transient'|NULL`); Worker tagt klar permanente LDAP-Fehler (Codes 49/50/32/21/19) und Payload-Validierungen, `WorkflowAutomationRetryPolicy.EvaluateRetryOutcome` mappt `'permanent'` direkt auf `FinalFail` (überschreibt `is_idempotent`+`attemptNumber`). Plus neuer `StaleWorkerClaimSweeper` als Linux-API-HostedService (60s-Polling, 5min-Stale) als Belt-and-Suspenders neben dem Worker-Lazy-Cleanup.
 
-**Resthebel ab jetzt:** Etappe 9a Schritt 5 — Temporary-Credentials-Vault statt Klartext-Passwort im `output_json`, `AssignGroups`-LDAPS-Handler (Wiederverwendung Schritt-3-Layering), `SendWelcomeMail` real (Linux-side via `GraphWorkflowEmailNotificationSender`); `CreateMailbox`+`CreateErpEmployee` brauchen eigene Backend-Architektur-Slices.
+**Etappe 9a Schritt 5 ✓ 2026-05-12** — Vertrags-Plumbing + zwei reale Handler. (a) Enge `created_ad_user`-Mapping-Source mit Property-Whitelist (nur `distinguishedName`) und `nodeKey`-Referenz; Vault-Grenze für Schritt 6 ist im Code, sensible Output-Felder unreichbar. Alle vier Fehler-Cases werfen Exception bei Payload-Build (sichtbar im Workflow-Audit). (b) Worker-Failure-Pfad trägt jetzt Output (`MarkJobFailedAsync` schreibt `output_json` auch im Failure-Fall) — `PartiallyAdded` bei AssignGroups als strukturierter Failure mit Detail-Output abbildbar. (c) Linux-Handler-Vertrag strukturiert (`WorkflowAutomationHandlerResult` mit IsSuccess/ErrorMessage/FailureKind + Factories); `WorkflowAutomationService` discriminiert Result-Failure (mit Tagging) vs Exception (Default ohne). (d) `AssignGroupsLdaps` als zweiter LDAPS-Handler im Worker — Code 20 = AlreadyMember = idempotent. (e) `SendWelcomeMailGraph` als erster echter Linux-side-Handler via Graph App-only; `INotificationTemplateResolver` extrahiert aus dem privaten Helper; neuer Catalog-Eintrag `welcome_mail` ohne Klartext-Passwort. Handler-Registry von Singleton auf Scoped umgestellt.
+
+**Resthebel ab jetzt:** Etappe 9a Schritt 6 — Temporary-Credentials-Vault als eigene Architektur-Entscheidung (pgcrypto / ASP.NET Data Protection / externer KMS); `CreateMailbox`+`CreateErpEmployee` als eigene Backend-Architektur-Slices; optional Connection-Pooling im LdapsAdUserWriter/LdapsAdGroupMembershipWriter.
 
 ---
 
