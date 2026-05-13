@@ -158,6 +158,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateErpEmployeeAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, SendWelcomeMailAutomationHandler>();
         services.AddScoped<IWorkflowAutomationActionHandler, SendWelcomeMailGraphHandler>();
+        services.AddScoped<IWorkflowAutomationActionHandler, CreateMailboxGraphHandler>();
         services.AddScoped<IGraphMailSender, GraphMailSender>();
         services.AddScoped<IGraphMailboxProvisioner, GraphMailboxProvisioner>();
         services.AddScoped<INotificationTemplateResolver, NotificationTemplateResolver>();

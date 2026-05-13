@@ -110,6 +110,13 @@
         "subsequent_retry_delay_seconds_override integer"
       ],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-13_seed_create_mailbox_graph_action.sql",
+      "description": "Migrationspfad-Etappe 9a Schritt 7 Sub-C: seeds action_definitions row 'CreateMailboxGraph' (target_runtime=NULL, handler_type=graph_mailbox_provision). Linux-side handler that assigns Exchange Online licenses via Microsoft Graph App-only. Parallel to simulated 'CreateMailbox' (ID 2). Retry-Override: 10 / 300 = ~41min wait budget for Entra-Connect-Sync. Idempotent via ON CONFLICT (action_key) DO NOTHING; no fixed ID.",
+      "kind": "data",
+      "expect_in_schema": [],
+      "forbid_in_schema": []
     }
   ]
 }
