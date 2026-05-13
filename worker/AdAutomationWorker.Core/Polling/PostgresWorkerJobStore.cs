@@ -197,8 +197,9 @@ WHERE id = @jobId
         string errorMessage,
         IReadOnlyList<WorkerLogEntry> logs,
         CancellationToken cancellationToken,
-        string? failureKind = null)
-        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusFailed, AttemptStatusFailed, output: null, errorMessage, failureKind, logs, cancellationToken);
+        string? failureKind = null,
+        JsonElement? output = null)
+        => MarkJobCompletionAsync(jobId, attemptNumber, JobStatusFailed, AttemptStatusFailed, output, errorMessage, failureKind, logs, cancellationToken);
 
     private async Task MarkJobCompletionAsync(
         long jobId,

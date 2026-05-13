@@ -110,7 +110,7 @@ public sealed class ExternalAutomationJobCompletionSweeperTests
 
         public Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default)
             => Task.FromResult<ClaimedAutomationJobRecord?>(null);
-        public Task CompleteAutomationJobFailure(ClaimedAutomationJobRecord job, string errorMessage, bool shouldRetry, DateTime? retryAvailableAt, IReadOnlyList<WorkflowAutomationLogEntry> logs, CancellationToken cancellationToken = default)
+        public Task CompleteAutomationJobFailure(ClaimedAutomationJobRecord job, string errorMessage, bool shouldRetry, DateTime? retryAvailableAt, IReadOnlyList<WorkflowAutomationLogEntry> logs, CancellationToken cancellationToken = default, string? failureKind = null)
             => Task.CompletedTask;
         public Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<ExternalCompletionContext?> LoadExternalCompletionContextAsync(long jobId, CancellationToken cancellationToken = default)

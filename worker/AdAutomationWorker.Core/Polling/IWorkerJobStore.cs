@@ -35,14 +35,18 @@ public interface IWorkerJobStore
         CancellationToken cancellationToken);
 
     // Setzt automation_jobs.status='failed' + completed_at, schliesst den Attempt mit
-    // status='failed' + error_message + failure_kind + completed_at, schreibt alle Logs in einer
-    // Transaktion. failureKind ist optional ("permanent"/"transient"/NULL) und steuert die
-    // Linux-API-Retry-Policy: "permanent" -> sofort FinalFail, sonst attempt-basierter Retry.
+    // status='failed' + error_message + failure_kind + completed_at, schreibt alle Logs +
+    // optional output_json in einer Transaktion.
+    // failureKind ist optional ("permanent"/"transient"/NULL) und steuert die Linux-API-Retry-
+    // Policy: "permanent" -> sofort FinalFail, sonst attempt-basierter Retry.
+    // output ist optional fuer Failure-Faelle mit Teil-Erfolg (z. B. PartiallyAdded bei
+    // AssignGroupsLdaps) — der Failure-Output landet ebenfalls in automation_job_attempts.output_json.
     Task MarkJobFailedAsync(
         long jobId,
         int attemptNumber,
         string errorMessage,
         IReadOnlyList<WorkerLogEntry> logs,
         CancellationToken cancellationToken,
-        string? failureKind = null);
+        string? failureKind = null,
+        System.Text.Json.JsonElement? output = null);
 }

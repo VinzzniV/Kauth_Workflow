@@ -37,8 +37,8 @@ public sealed record WorkerHandlerResult
     public static WorkerHandlerResult Success(JsonElement? output, IReadOnlyList<WorkerLogEntry> logs)
         => new() { IsSuccess = true, Output = output, Logs = logs };
 
-    public static WorkerHandlerResult Failure(string errorMessage, IReadOnlyList<WorkerLogEntry> logs, string? failureKind = null)
-        => new() { IsSuccess = false, ErrorMessage = errorMessage, Logs = logs, FailureKind = failureKind };
+    public static WorkerHandlerResult Failure(string errorMessage, IReadOnlyList<WorkerLogEntry> logs, string? failureKind = null, JsonElement? output = null)
+        => new() { IsSuccess = false, ErrorMessage = errorMessage, Logs = logs, FailureKind = failureKind, Output = output };
 }
 
 // Konstanten fuer FailureKind. String-basiert auf DB-Seite (varchar+Check), damit Linux- und

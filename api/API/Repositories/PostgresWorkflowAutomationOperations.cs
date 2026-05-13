@@ -81,7 +81,8 @@ VALUES (
         string status,
         string? errorMessage,
         CancellationToken cancellationToken,
-        JsonElement? output = null)
+        JsonElement? output = null,
+        string? failureKind = null)
     {
         const string sql = """
 UPDATE automation_job_attempts
@@ -89,6 +90,7 @@ SET
     status = @status,
     error_message = @errorMessage,
     output_json = @outputJson,
+    failure_kind = @failureKind,
     completed_at = NOW()
 WHERE automation_job_id = @jobId
   AND attempt_number = @attemptNumber;
@@ -103,6 +105,7 @@ WHERE automation_job_id = @jobId
         {
             Value = output.HasValue ? (object)JsonSerializer.Serialize(output.Value) : DBNull.Value
         });
+        command.Parameters.AddWithValue("failureKind", (object?)failureKind ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -386,7 +389,8 @@ RETURNING id;
         long workflowId,
         JsonElement? inputMapping,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, JsonElement>? createdAdUserOutputsByNodeKey = null)
     {
         var context = await LoadAutomationPayloadContextAsync(connection, transaction, workflowId, cancellationToken);
         if (!HasJsonValue(inputMapping))
@@ -398,8 +402,50 @@ RETURNING id;
             });
         }
 
-        var resolved = ResolveAutomationMappingValue(inputMapping!.Value, context, answersByKey);
+        var createdAdUserLookup = createdAdUserOutputsByNodeKey
+            ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var resolved = ResolveAutomationMappingValue(inputMapping!.Value, context, answersByKey, createdAdUserLookup);
         return JsonSerializer.SerializeToElement(resolved);
+    }
+
+    // Etappe 9a Schritt 5 Sub-A: laed pro Workflow den juengsten succeeded CreateAdUserLdaps-
+    // Output, indiziert nach Workflow-Node-Key. Wird vor BuildAutomationJobPayloadAsync vom
+    // jeweiligen Job-Erzeugungs-Pfad gerufen und ueber den Mapping-Resolver injiziert.
+    // Enge Allow-List: nur Action-Key 'CreateAdUserLdaps', nur das `distinguishedName`-Property
+    // wird im Resolver freigegeben — temporaryPassword bleibt unreichbar (Vault-Grenze).
+    internal static async Task<IReadOnlyDictionary<string, JsonElement>> LoadCreatedAdUserOutputsForWorkflowInScope(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        long workflowId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+SELECT DISTINCT ON (wn.node_key)
+       wn.node_key,
+       aja.output_json::text
+FROM automation_jobs j
+INNER JOIN action_definitions ad ON ad.id = j.action_definition_id
+INNER JOIN workflow_node_instances wni ON wni.id = j.workflow_node_instance_id
+INNER JOIN workflow_nodes wn ON wn.id = wni.workflow_node_id
+INNER JOIN automation_job_attempts aja ON aja.automation_job_id = j.id
+WHERE j.workflow_id = @workflowId
+  AND ad.action_key = 'CreateAdUserLdaps'
+  AND aja.status = 'succeeded'
+  AND aja.output_json IS NOT NULL
+ORDER BY wn.node_key, aja.attempt_number DESC;
+""";
+
+        var result = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("workflowId", workflowId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var nodeKey = reader.GetString(0);
+            var outputJson = reader.GetString(1);
+            result[nodeKey] = PostgresRepositorySharedHelpers.ParseJsonElement(outputJson);
+        }
+        return result;
     }
 
     internal static async Task<AutomationPayloadContextRecord> LoadAutomationPayloadContextAsync(
@@ -501,13 +547,14 @@ LIMIT 1;
     private static object? ResolveAutomationMappingValue(
         JsonElement element,
         AutomationPayloadContextRecord context,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
     {
         if (element.ValueKind == JsonValueKind.Object
             && element.TryGetProperty("source", out var sourceProperty)
             && sourceProperty.ValueKind == JsonValueKind.String)
         {
-            return ResolveAutomationReference(element, sourceProperty.GetString()!, context, answersByKey);
+            return ResolveAutomationReference(element, sourceProperty.GetString()!, context, answersByKey, createdAdUserOutputsByNodeKey);
         }
 
         return element.ValueKind switch
@@ -515,19 +562,30 @@ LIMIT 1;
             JsonValueKind.Object => element.EnumerateObject()
                 .ToDictionary(
                     property => property.Name,
-                    property => ResolveAutomationMappingValue(property.Value, context, answersByKey)),
+                    property => ResolveAutomationMappingValue(property.Value, context, answersByKey, createdAdUserOutputsByNodeKey)),
             JsonValueKind.Array => element.EnumerateArray()
-                .Select(item => ResolveAutomationMappingValue(item, context, answersByKey))
+                .Select(item => ResolveAutomationMappingValue(item, context, answersByKey, createdAdUserOutputsByNodeKey))
                 .ToList(),
             _ => ConvertJsonElementToObject(element)
         };
     }
 
+    // Public wrapper fuer Unit-Tests (Etappe 9a Schritt 5 Sub-A): erlaubt isolierte
+    // ResolveAutomationReference-Tests ohne DB-Setup.
+    internal static object? ResolveAutomationReferenceForTesting(
+        JsonElement element,
+        string source,
+        AutomationPayloadContextRecord context,
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
+        => ResolveAutomationReference(element, source, context, answersByKey, createdAdUserOutputsByNodeKey);
+
     private static object? ResolveAutomationReference(
         JsonElement element,
         string source,
         AutomationPayloadContextRecord context,
-        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey)
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
     {
         switch (source.Trim().ToLowerInvariant())
         {
@@ -558,9 +616,56 @@ LIMIT 1;
                 return element.TryGetProperty("value", out var valueProperty)
                     ? ConvertJsonElementToObject(valueProperty)
                     : null;
+            case "created_ad_user":
+                return ResolveCreatedAdUserReference(element, createdAdUserOutputsByNodeKey);
             default:
                 throw new InvalidOperationException($"Unsupported automation input mapping source '{source}'.");
         }
+    }
+
+    // Enge Allow-List-Source fuer den verketteten DN aus dem CreateAdUserLdaps-Output.
+    // Pflicht-Property: ausschliesslich `distinguishedName`. Sensible Felder wie
+    // `temporaryPassword` sind hier nicht adressierbar — die Vault-Grenze bleibt unverletzt
+    // (siehe Etappe 9a Schritt 5 Plan-Context).
+    // Fehler-Semantik: alle vier Fehler-Cases werfen InvalidOperationException, damit der Fehler
+    // im Payload-Build sichtbar wird statt spaeter als kryptischer LDAP-Fehler.
+    private static string ResolveCreatedAdUserReference(
+        JsonElement element,
+        IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey)
+    {
+        var nodeKey = element.TryGetProperty("nodeKey", out var nk) && nk.ValueKind == JsonValueKind.String
+            ? nk.GetString()
+            : null;
+        if (string.IsNullOrWhiteSpace(nodeKey))
+        {
+            throw new InvalidOperationException("Input mapping source 'created_ad_user' requires non-empty 'nodeKey'.");
+        }
+
+        var property = element.TryGetProperty("property", out var p) ? p.GetString() : null;
+        if (property != "distinguishedName")
+        {
+            throw new InvalidOperationException(
+                $"Input mapping source 'created_ad_user' supports only property 'distinguishedName' (got '{property}'). " +
+                "Sensitive fields like 'temporaryPassword' are intentionally not exposed (Vault-Grenze).");
+        }
+
+        if (!createdAdUserOutputsByNodeKey.TryGetValue(nodeKey, out var output))
+        {
+            throw new InvalidOperationException(
+                $"Input mapping source 'created_ad_user' references unknown nodeKey '{nodeKey}' " +
+                "(no succeeded CreateAdUserLdaps attempt found on that node in this workflow instance).");
+        }
+
+        if (!output.TryGetProperty("distinguishedName", out var dn)
+            || dn.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(dn.GetString()))
+        {
+            throw new InvalidOperationException(
+                $"CreateAdUserLdaps output for nodeKey '{nodeKey}' has no usable 'distinguishedName'. " +
+                "The predecessor handler did not write a non-empty DN — likely a bug or an unfinished attempt.");
+        }
+
+        return dn.GetString()!;
     }
 
     private static object? ResolveWorkflowAutomationContextProperty(

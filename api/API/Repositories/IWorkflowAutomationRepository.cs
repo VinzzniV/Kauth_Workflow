@@ -9,7 +9,8 @@ internal interface IWorkflowAutomationRepository
         bool shouldRetry,
         DateTime? retryAvailableAt,
         IReadOnlyList<WorkflowAutomationLogEntry> logs,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? failureKind = null);
     Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default);
 
     // Etappe 9a Schritt 2: Sweeper + External-Completion (Worker)

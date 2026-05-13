@@ -164,7 +164,8 @@ internal sealed class WorkerHostedService : BackgroundService
                 result.ErrorMessage ?? "Handler reported failure without message.",
                 result.Logs,
                 stoppingToken,
-                failureKind: result.FailureKind);
+                failureKind: result.FailureKind,
+                output: result.Output);
         }
     }
 

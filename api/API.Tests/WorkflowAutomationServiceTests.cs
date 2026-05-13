@@ -174,16 +174,20 @@ public sealed class WorkflowAutomationServiceTests
         public Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default)
             => Task.FromResult(ClaimedJob);
 
+        public string? LastFailureKind { get; private set; }
+
         public Task CompleteAutomationJobFailure(
             ClaimedAutomationJobRecord job,
             string errorMessage,
             bool shouldRetry,
             DateTime? retryAvailableAt,
             IReadOnlyList<WorkflowAutomationLogEntry> logs,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? failureKind = null)
         {
             LastFailureShouldRetry = shouldRetry;
             LastFailureRetryAvailableAt = retryAvailableAt;
+            LastFailureKind = failureKind;
             return Task.CompletedTask;
         }
 
@@ -253,7 +257,8 @@ public sealed class WorkflowAutomationServiceTests
             bool shouldRetry,
             DateTime? retryAvailableAt,
             IReadOnlyList<WorkflowAutomationLogEntry> logs,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? failureKind = null)
             => throw new InvalidOperationException("Simulated DB failure in CompleteAutomationJobFailure.");
 
         public Task UnclaimAutomationJobAsync(long jobId, CancellationToken cancellationToken = default)

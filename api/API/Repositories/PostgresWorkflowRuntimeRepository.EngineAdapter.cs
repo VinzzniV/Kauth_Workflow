@@ -435,13 +435,16 @@ WHERE workflow_id = @workflowId;
                 .ThenBy(action => action.Id)
                 .First();
 
+            var createdAdUserOutputsByNodeKey = await PostgresWorkflowAutomationOperations.LoadCreatedAdUserOutputsForWorkflowInScope(
+                connection, transaction, workflowId, CancellationToken.None);
             var payload = await PostgresWorkflowAutomationOperations.BuildAutomationJobPayloadAsync(
                 connection,
                 transaction,
                 workflowId,
                 firstAction.InputMapping,
                 answersByKey,
-                CancellationToken.None);
+                CancellationToken.None,
+                createdAdUserOutputsByNodeKey);
 
             await PostgresWorkflowAutomationOperations.CreateAutomationJobAsync(
                 connection,

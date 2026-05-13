@@ -150,13 +150,16 @@ LIMIT 1;
         if (nextAction is not null)
         {
             var answersByKey = await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, job.WorkflowId);
+            var createdAdUserOutputsByNodeKey = await PostgresWorkflowAutomationOperations.LoadCreatedAdUserOutputsForWorkflowInScope(
+                connection, transaction, job.WorkflowId, cancellationToken);
             var payload = await PostgresWorkflowAutomationOperations.BuildAutomationJobPayloadAsync(
                 connection,
                 transaction,
                 job.WorkflowId,
                 nextAction.InputMapping,
                 answersByKey,
-                cancellationToken);
+                cancellationToken,
+                createdAdUserOutputsByNodeKey);
 
             await PostgresWorkflowAutomationOperations.CreateAutomationJobAsync(
                 connection,
@@ -230,7 +233,8 @@ LIMIT 1;
         bool shouldRetry,
         DateTime? retryAvailableAt,
         IReadOnlyList<WorkflowAutomationLogEntry> logs,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? failureKind = null)
     {
         await using var connection = new NpgsqlConnection(GetConnectionString());
         await connection.OpenAsync(cancellationToken);
@@ -243,7 +247,8 @@ LIMIT 1;
             job.AttemptNumber,
             PostgresWorkflowAutomationOperations.AutomationJobStatusFailed,
             errorMessage,
-            cancellationToken);
+            cancellationToken,
+            failureKind: failureKind);
         await PostgresWorkflowAutomationOperations.InsertAutomationLogsAsync(connection, transaction, job.JobId, logs, cancellationToken);
 
         if (shouldRetry && retryAvailableAt.HasValue)
