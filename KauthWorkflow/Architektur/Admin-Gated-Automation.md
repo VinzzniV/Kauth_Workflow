@@ -2,7 +2,7 @@
 
 #architektur #automation #zielbild
 
-Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild, nicht den Ist-Stand. Der heutige End-to-End-Pfad (Engine-driven, siehe [[Automation]]) ist die technische Grundlage, aber **nicht** die Form, in der Fachbereiche damit arbeiten werden.
+Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild. Stand 2026-05-15 sind die Hauptslices 1–3 + 6 umgesetzt (Plan-Vorschau, Task-Automation-Binding, Re-Auth-Gate als Soft-Bestätigung, Action-Bündelung im Task-UI); Slice 4 (360°-Karte), 5 (Referenzuser-Mapping), 7 (Live-Log) und der Folge-Slice „echtes Entra-Re-Auth" sind bewusst offen. Details im Umsetzungsstand weiter unten.
 
 ---
 
@@ -105,6 +105,25 @@ Task automatisch auf "abgeschlossen"
         ▼
 Workflow endet, wenn alle Fachbereich-Tasks durch sind
 ```
+
+---
+
+## Umsetzungsstand 2026-05-15
+
+| # | Baustein | Stand | Belege |
+|---|---|---|---|
+| 1 | Pre-Execution-Plan (WhatIf) für die vier bestehenden Handler | ✅ done (Slice 1, Commit `7ee3dad`) | `WorkflowAutomationPlanService.cs`, `AutomationPlanResults.cs` |
+| 2 | Task-Automation-Binding (Schema, Builder, Engine) | ✅ done (Slices 2 + 4, Commits `d5e7255` + `8d449fc`) | `workflow_nodes.automation_admin_role`, `WorkflowBuilderActionEditor.tsx` |
+| 3 | Re-Auth-Gate (Endpoint + UI) | 🟡 **Soft-Bestätigung** (Slice 3 + 5, Commits `f05e8be` + `058670b`) — echtes Entra-Re-Auth ist eigener Folge-Slice | `AdminAutomationApprovalEndpoints.cs`, `AutomationApprovalDialog.tsx` |
+| 4 | 360°-Karte-Aggregator | ⛔ offen | — |
+| 5 | Referenzuser-Mapping-Source | ⛔ offen | — |
+| 6 | Action-Bündelung im Task (UI) | ✅ done (Slice 6, Commit `ea77fa0`) | `AutomationApprovalDialog.tsx`, `automationActionLabels.ts`, `.wfa-bundle-step` in `workflow.css` |
+| 7 | Live-Log während Ausführung | ⛔ offen — heute nur succeeded/background als End-Phasen | — |
+| 8 | Change-/Offboarding-Handler | ⛔ offen — eigene Inhalts-Slices |  — |
+
+**Praktischer Stand:** der 95%-Pfad funktioniert — Admin öffnet eine Onboarding-Task mit Action-Bundle, sieht den Plan als fachlich gerenderten Stepper, bestätigt mit einem Klick (Soft-Re-Auth ohne Passwort-Prompt), Worker arbeitet ab, Task wird automatisch `done`. Was für einen vollen Prod-Rollout fehlt: echtes Entra-Re-Auth, per-Action-Failure-Detection (Live-Log), 360°-Karte als Post-Execution-Sicht, Referenzuser-Mapping für Gruppen-Provenienz, plus die Change-/Offboarding-Handler aus Baustein 8.
+
+Detail-Historie der Slices 1–6 in `CODE_REVIEW_ARCHIVE.md` § „Admin-Gated-Automation Slices 1-6".
 
 ---
 
@@ -242,15 +261,15 @@ Stand 2026-05-15. Basis: Etappe 9a Schritte 1–8 abgeschlossen. Die technische 
 
 ### Hauptslices (Architekturlinie)
 
-| Nr. | Slice | Modell | Reasoning Effort | Plan Mode | Begründung |
-|---|---|---|---|---|---|
-| 1 | **Pre-Execution-Plan (WhatIf)** | Sonnet | **mittel** | Ja — für Interface-Design; danach direkt pro Handler | `PlanAsync`-Vertrag muss einmal sauber entworfen werden (was darf Read-only, was nicht). Danach ist jeder der 4 Handler mechanische Erweiterung. |
-| 2 | **Task-Automation-Binding** | **Opus** | **hoch** | **Zwingend** | Berührt Schema (Migration), Builder-UI und Engine gleichzeitig. Falsches Schema zieht nachträgliche Migration nach sich; bestehende Workflow-Instanzen dürfen nicht brechen. Höchstes Architekturrisiko aller Slices. |
-| 3 | **Re-Auth-Gate** | **Opus** | **hoch** | **Zwingend** | Sicherheits-kritisch und Querschnitt (Endpoint, UI-Baustein, Audit-Eintrag). Entra-Re-Auth hat Fallstricke (Token-Lebensdauer, Replay, PKCE vs. OBO). Falsch umgesetzt ist es Security-Theater statt echter Schranke. |
-| 4 | **360°-Karte-Aggregator** | Sonnet | **niedrig–mittel** | Kurz — für SQL-Design | Hauptarbeit ist Aggregator-Query über `automation_job_attempts` + neues Read-only-Frontend. SQL-Aggregation braucht Planungsrunde (Indexes, N+1), der Rest ist geradliniges CRUD + Page. |
-| 5 | **Referenzuser-Mapping** | Sonnet | **mittel** | Ja — für Source-Design und Whitelist | Klar begrenzter Slice nach vorhandenem Muster. Plan Mode einmal für die Whitelist-Entscheidung (welche Properties erlaubt), dann direkte Impl. |
-| 6 | **Action-Bündelung im Task (UI)** | Sonnet | **niedrig** | Nein (setzt 1 + 2 voraus) | UI-Rendering-Arbeit, sobald Schema + Plan-Vertrag aus 1/2 stehen. Kein Architekturrisiko, mechanische Erweiterung. |
-| 7 | **Live-Log während Ausführung** | Sonnet | **mittel** | Ja — für Protokoll-Wahl (SSE vs. Polling) | Entscheidung SSE vs. Polling hat Folgen für Backend und UI. Einmal entschieden ist die Umsetzung geradlinig. |
+| Nr. | Slice | Stand | Modell | Reasoning Effort | Plan Mode | Begründung |
+|---|---|---|---|---|---|---|
+| 1 | **Pre-Execution-Plan (WhatIf)** | ✅ done 2026-05-13 (`7ee3dad`) | Sonnet | **mittel** | Ja — für Interface-Design; danach direkt pro Handler | `PlanAsync`-Vertrag muss einmal sauber entworfen werden (was darf Read-only, was nicht). Danach ist jeder der 4 Handler mechanische Erweiterung. |
+| 2 | **Task-Automation-Binding** | ✅ done 2026-05-13 (`d5e7255` + `8d449fc`) | **Opus** | **hoch** | **Zwingend** | Berührt Schema (Migration), Builder-UI und Engine gleichzeitig. Falsches Schema zieht nachträgliche Migration nach sich; bestehende Workflow-Instanzen dürfen nicht brechen. Höchstes Architekturrisiko aller Slices. |
+| 3 | **Re-Auth-Gate** | 🟡 Soft-Bestätigung done 2026-05-15 (`f05e8be` + `058670b`); echtes Entra-Re-Auth offen | **Opus** | **hoch** | **Zwingend** | Sicherheits-kritisch und Querschnitt (Endpoint, UI-Baustein, Audit-Eintrag). Entra-Re-Auth hat Fallstricke (Token-Lebensdauer, Replay, PKCE vs. OBO). Falsch umgesetzt ist es Security-Theater statt echter Schranke. |
+| 4 | **360°-Karte-Aggregator** | ⛔ offen | Sonnet | **niedrig–mittel** | Kurz — für SQL-Design | Hauptarbeit ist Aggregator-Query über `automation_job_attempts` + neues Read-only-Frontend. SQL-Aggregation braucht Planungsrunde (Indexes, N+1), der Rest ist geradliniges CRUD + Page. |
+| 5 | **Referenzuser-Mapping** | ⛔ offen | Sonnet | **mittel** | Ja — für Source-Design und Whitelist | Klar begrenzter Slice nach vorhandenem Muster. Plan Mode einmal für die Whitelist-Entscheidung (welche Properties erlaubt), dann direkte Impl. |
+| 6 | **Action-Bündelung im Task (UI)** | ✅ done 2026-05-15 (`ea77fa0`) | Sonnet | **niedrig** | Nein (setzt 1 + 2 voraus) | UI-Rendering-Arbeit, sobald Schema + Plan-Vertrag aus 1/2 stehen. Kein Architekturrisiko, mechanische Erweiterung. |
+| 7 | **Live-Log während Ausführung** | ⛔ offen | Sonnet | **mittel** | Ja — für Protokoll-Wahl (SSE vs. Polling) | Entscheidung SSE vs. Polling hat Folgen für Backend und UI. Einmal entschieden ist die Umsetzung geradlinig. |
 
 ### Change-/Offboarding-Handler (Inhalts-Slices, bauen auf 1–4 auf)
 

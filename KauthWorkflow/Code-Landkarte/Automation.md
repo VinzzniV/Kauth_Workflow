@@ -23,6 +23,13 @@ Handler für AD-/Mailbox-/Mail-Operationen. Zwei Ausführungsumgebungen: Linux-A
 - `api/API/Services/GraphMailSender.cs` (+ `IGraphMailSender.cs`) — Graph-SendMail-Wrapper
 - `api/API/Services/GraphApplicationConfigurationService.cs` (+ Validator + RuntimeConfiguration) — Graph-App-only-Auth-Konfig
 
+**Plan-Vorschau + Admin-Approval (Slice 1 + 3)**
+- `api/API/Services/WorkflowAutomationPlanService.cs` — WhatIf-Plan-Berechnung pro Action im Task-Bundle
+- `api/API/Services/AutomationPlanResults.cs` — typisierte Plan-Shapes (`AdUserPlan`, `GroupAssignmentPlan`, `MailboxPlan`, `WelcomeMailPlan`)
+- `api/API/Services/AutomationApprovalService.cs` — Re-Auth-Token-Issue + Approve (Audit + erste Action als Automation-Job; Worker-Erfolg auto-completed den Task)
+- `api/API/Endpoints/AdminAutomationPlanEndpoints.cs` — `GET /admin/automation/plan`
+- `api/API/Endpoints/AdminAutomationApprovalEndpoints.cs` — `POST /reauth` + `POST /approve`
+
 **Handler (simuliert, für Bestands-Workflows + Dev)**
 - `api/API/Services/SimulatedWorkflowAutomationHandlers.cs`
 
@@ -46,8 +53,17 @@ Handler für AD-/Mailbox-/Mail-Operationen. Zwei Ausführungsumgebungen: Linux-A
 
 ## Frontend
 
-- `web/src/components/admin-config/WorkflowBuilderActionEditor.tsx` — Action-Wahl am Automation-Node (siehe [[Workflow-Builder]])
+**Builder**
+- `web/src/components/admin-config/WorkflowBuilderActionEditor.tsx` — Action-Wahl am Automation- **oder** Task-Node (Bundle), siehe [[Workflow-Builder]]
 - `web/src/components/admin-config/WorkflowBuilderActionMappingEditor.tsx` — Input-Mapping pro Parameter
+- `web/src/utils/automationAdminRoles.ts` — Whitelist `auth_admin`/`auth_hr`/`auth_manager` + Role-Capability-Mapping (Drift-Schutz Backend ↔ Frontend)
+
+**Approval-Runtime (Slice 5 + 6)**
+- `web/src/components/workflow-detail/AutomationApprovalDialog.tsx` — Plan-Vorschau-Dialog mit State-Machine, Drift-Erkennung, Bundle-Stepper, Plan-Failure-Guard
+- `web/src/services/automationApprovalApi.ts` — `fetchAutomationPlan` / `issueAutomationReauthToken` / `approveAutomationPlan`
+- `web/src/services/mutations/automationApprovalMutations.ts` — Plan-Query + Approve-Mutation mit Inline-Invalidation
+- `web/src/types/automationApproval.ts` — DTO-Types inkl. typisierte Plan-Shapes
+- `web/src/utils/automationActionLabels.ts` — Mapping technischer Action-Key → fachliche Bezeichnung (Slice 6)
 
 ## DB
 
@@ -63,6 +79,7 @@ Handler für AD-/Mailbox-/Mail-Operationen. Zwei Ausführungsumgebungen: Linux-A
 - `api/API.Tests/CreatedAdUserSourceResolutionTests.cs`, `CreatedMailboxSourceResolutionTests.cs`
 - `api/API.Tests/TemporaryCredentialRepositoryTests.cs`, `EnvVaultKeyProviderTests.cs`
 - `api/API.Tests/AutomationPropertyCatalogTests.cs`
+- `api/API.Tests/AdminAutomationEndpointsTests.cs` — Plan-Endpoint + Approve-Pfad
 - `worker/AdAutomationWorker.Tests/**`
 
 ## Cross-Links

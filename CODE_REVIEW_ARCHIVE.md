@@ -348,3 +348,46 @@ Fachliche Trennung Mitarbeiterakte vs. directory_only-Eintrag schon durch Z21-S4
 ### Z21-S10 — Produktions-Verifikationslauf — done 2026-05-12
 
 `scripts/verify-prod-ready.sh` durchlaeuft 5 deterministische Freigabecheckpoints: API Release-Build, API-Test-Build (Drift-Check gegen 7-Errors-Baseline aus frueheren Refactorings), FE-Build, FE-Tests (vitest mit NO_COLOR fuer Summary-Parse), `start-vm.sh`-Syntax. Schreibt Tabelle Schritt|Status|Detail; Exit 0 bei allem gruen, sonst 1. Browser-Smoke und Graph-/Mail-Live-Verifikation bleiben Nutzer-Aufgaben (R8/R10/P3-3).
+
+---
+
+## Migrationspfad-Etappe 9a (Realer Automation-Pfad, 2026-05-12 .. 2026-05-13) — ausgelagert aus CODE_REVIEW.md am 2026-05-15
+
+Acht Schritte vom Worker-Skeleton bis zum AlreadyExists-Branch im Workflow-Engine. End-Ergebnis: produktiver End-to-End-Pfad `CreateAdUserLdaps → CreateMailboxGraph → (Decision auf alreadyExisted) → AssignGroupsLdaps → SendWelcomeMailGraph`.
+
+| Schritt | Datum | Inhalt | Belege |
+|---|---|---|---|
+| 1 | 2026-05-12 | Hybrid-Worker-Sub-Architektur entschieden (VM/DB-Polling/LDAPS/gMSA/Direkt-Audit/DPAPI/Lease-Rahmen). | `KauthWorkflow/Stand/Hybrid-Worker-Sub-Architektur.md` |
+| 2 | 2026-05-12 | Worker-Skeleton + DB-Migration (`target_runtime`/Lease-/Sweeper-Spalten) + `ExternalAutomationJobCompletionSweeper` + shared RetryPolicy. | `worker/AdAutomationWorker.Core/`, `automation_jobs.target_runtime` |
+| 3 | 2026-05-12 | Erster echter LDAPS-Handler `CreateAdUserLdaps` (Action ID 7) gegen on-prem-DC. Core-Handler + Windows-Host-Adapter (`System.DirectoryServices.Protocols`, `AuthType.Negotiate`, gMSA-Kontext). Pre-Search + `EntryAlreadyExists`-Race-Fallback. CSPRNG-Passwort mit `pwdLastSet=0`. DPAPI-Encryption produktiv (`IDbConfigDecryptor`, `WindowsDpapiDecryptor`, `install-db-config.ps1`). gMSA-Service-Switch via `install-windows-service.ps1`. | `worker/AdAutomationWorker.Core/CreateAdUserLdapsHandler.cs`, `LdapsAdUserWriter.cs` |
+| 4 | 2026-05-12 | Haertung. Neue Spalte `automation_job_attempts.failure_kind` (`permanent`/`transient`/NULL); Worker tagt LDAP-Codes 49/50/32/21/19 und Payload-Validierungen permanent. `WorkflowAutomationRetryPolicy.EvaluateRetryOutcome` mappt `permanent` direkt auf FinalFail. Plus `StaleWorkerClaimSweeper` (60s-Polling, 5min-Stale). | `StaleWorkerClaimSweeper.cs`, `WorkflowAutomationRetryPolicy.cs` |
+| 5 | 2026-05-12 | Vertrags-Plumbing + zwei reale Handler. Enge `created_ad_user`-Mapping-Source (`distinguishedName`-Whitelist). Worker-Failure-Pfad traegt `output_json`. Strukturierter `WorkflowAutomationHandlerResult`. `AssignGroupsLdaps` (Code 20 = idempotent). `SendWelcomeMailGraph` via Graph App-only; `INotificationTemplateResolver` ohne Klartext-Passwort. Handler-Registry: Singleton → Scoped. | `AssignGroupsLdapsHandler`, `SendWelcomeMailGraphHandler` |
+| 6 | 2026-05-13 | Temporary-Credentials-Vault produktiv. Tabelle `temporary_credentials` mit pgcrypto-Symmetric, UNIQUE(workflow_node_instance_id, credential_type). GRANTs eng (Worker INSERT-only, API SELECT+UPDATE, kein DELETE). `PostgresWorkerJobStore.MarkJobSucceededAsync` macht Vault-Insert + `credentialVaultId`-Patch + Attempt-Update in EINER Tx. `SendWelcomeMailGraphHandler` liest ueber `ReadAdInitialPasswordByVaultIdAsync`. Vault-Key: `vault.config.dpapi` (Worker), `KAUTH_VAULT_KEY` (API). | Commits `ee77538`/`1d5328a`/`a422c81`/`0600934` |
+| 7 | 2026-05-13 | `CreateMailboxGraph` (Exchange Online via Graph App-only). Per-Action-Retry-Override-Spalten auf `action_definitions`. `IGraphMailboxProvisioner` mit SMTP-Strictness (nach `assignLicense` zweiter GET, SMTP nur aus `proxyAddresses`/`mail`, **kein UPN-Fallback**). Outcome-DU mit Provisioned/UserNotInDirectoryYet/MailboxProvisioningInProgress/Permanent/TransientFailure. Action ID 10 mit `max_attempts=10 × 300s` (~41 min Budget). Enge `created_mailbox`-Source (`primarySmtpAddress` only). | Commits `4c2ea47`/`161db55`/`c23ff86`/`c9382d4` |
+| 8 | 2026-05-13 | AlreadyExists-Branch im Workflow-Engine. `WorkflowRuntimeSnapshot.AutomationOutputsByNodeKey`; JSON-Discriminator `referenceKind: 'answer' \| 'automation_output'`. Drei Validation-Schranken (Property-Union, Direct-Predecessor, Single-Action). Whitelist `CreateAdUserLdaps.alreadyExisted` (Boolean-Operators). Catalog-DTO `ConditionProperties`. AlreadyExists ist gueltiger Workflow-Pfad. | Commit `13371cc` |
+
+**Praktisch:** Out-of-the-box-Onboarding mit AD-Anlage + automatischer Mailbox + echtem Passwort in der Welcome-Mail laeuft End-to-End ohne manuelle Schritte. Initial-Passwort lebt nur Mikrosekunden im Handler-Heap, nie in JSON-Spalten oder Logs.
+
+---
+
+## Admin-Gated-Automation Slices 1-6 (Plan-Vorschau + Approval-Runtime, 2026-05-13 .. 2026-05-15)
+
+Sechs Slices vom WhatIf-Plan ueber Task-Binding und Re-Auth-Gate bis zur Bundle-UI im Approval-Dialog. End-Ergebnis: Admin sieht in der Workflow-Detail-Sicht an task-Nodes mit gebuendeltem Action-Plan einen "Plan anzeigen & freigeben"-Button; Klick oeffnet einen Dialog mit fachlich gerendertem Stepper, Drift-Schutz und automatischem Task-Auto-Complete.
+
+| Slice | Commit | Inhalt |
+|---|---|---|
+| 1 — WhatIf-Plan-Preview | `7ee3dad` | `WorkflowAutomationPlanService` + `AutomationPlanResults` (typisierte Plan-Shapes `AdUserPlan`, `GroupAssignmentPlan`, `MailboxPlan`, `WelcomeMailPlan`). Jeder Handler hat `PlanAsync` ohne Side-Effects ausser Read-Calls. Plan-Hash (SHA-256 ueber canonical JSON) als Drift-Anker. |
+| 2 — Task-Automation-Binding | `d5e7255` | DB-Schema: `workflow_node_actions` auch an `task`-Nodes erlaubt; neue Spalte `workflow_nodes.automation_admin_role` (Whitelist `auth_admin`/`auth_hr`/`auth_manager`). Validierung in `WorkflowDefinitionValidationCatalog`. |
+| 3 — Approval-Endpoint + Re-Auth-Gate | `f05e8be` | `AdminAutomationPlanEndpoints` (`/admin/automation/plan`), `AdminAutomationApprovalEndpoints` (`/reauth` + `/approve`), `AutomationApprovalService`. Approve schreibt Audit + erstellt ersten Automation-Job; nach Worker-Erfolg wird `workflow_tasks` auto-completed. Soft-Re-Auth (Token ohne Passwort-Validierung) als bewusste Slice-Grenze. |
+| 4 — Builder-UI fuer task-Node-Action-Bundle | `8d449fc` | `WorkflowBuilderActionEditor` akzeptiert Actions auf `task`-Nodes (vorher nur `automation`). Role-Selector am task-Node. Whitelist `AUTOMATION_ADMIN_ROLES` deckungsgleich Backend ↔ Frontend (Compile-Check ueber `Record<AutomationAdminRoleSlug, …>`). |
+| 5 — Approval-Runtime-UI | `058670b` | `AutomationApprovalDialog` mit State-Machine (loading-plan → reviewing → submitting → running → succeeded/background). Plan-Renderer pro Action-Key (typisierte Cards). Drift-Erkennung (409). Polling `useWorkflowTasks` mit `refetchInterval` 2s; Timeout 60s → "laeuft im Hintergrund". DTO-Kette: `WorkflowTaskDto`/`BackendWorkflowTaskDto`/`WorkflowTask` um `nodeKey` + `automationAdminRole`; `canCurrentUserApprove`-Helper mit `ROLE_TO_CAPABILITY`-Drift-Schutz. |
+| 6 — Action-Buendelung im Task-UI | `ea77fa0` | Plan-Steps als Bundle gerendert: Bundle-Header mit Step-Zaehler + Failure-Semantik-Hinweis; vertikaler Stepper mit Connector-Linie (CSS `.wfa-bundle-step`); fachliche Action-Labels (`automationActionLabels.ts`) statt technischer Keys; Plan-Failure-Guard disabled den Approve-Button wenn ein Step nicht planbar ist. |
+
+**Bewusst out-of-scope** (eigene Folge-Slices):
+
+- **Echtes Entra-Re-Auth** (Passwort-Prompt via MSAL `prompt: 'login'` + `auth_time`-Claim-Check) — heute Soft-Bestaetigung.
+- **Live-Log mit per-Action-Granularitaet** (Architektur-Doku Slice 7). Heute kennt der Dialog nur succeeded/background als End-Phasen; per-Action-Failure-Detection braucht neuen Read-Pfad auf `workflow_runtime_events` oder ein `GET /admin/automation/approvals/{id}/status`-Endpoint.
+- **Post-Execution 360°-Karte-Aggregator** — person-zentrierte Sicht unter `/people/:personId` (Identitaets-Snapshot, Gruppen mit Provenienz, Mailbox-Stand, Workflow-Spur).
+- **Referenzuser-Mapping-Source** — eigener Slice nach vorhandenem Muster.
+
+**Praktisch:** der erste 95%-Pfad (Admin oeffnet Onboarding-Task → sieht 4-Step-Plan → 1 Klick → Worker arbeitet ab → Task wird automatisch `done`) ist End-to-End nutzbar. Was fehlt fuer einen echten Prod-Rollout sind die vier oben gelisteten Slices plus Browser-Smoke gegen echtes Entra/AD.

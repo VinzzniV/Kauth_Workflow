@@ -2,7 +2,7 @@
 
 #domäne #automation
 
-Wie automatische technische Aktionen im System kontrolliert ablaufen. Diese Datei erklärt den **heutigen Ist-Stand** der Automation-Infrastruktur. Das **Zielbild für Prod** (Admin-gated Automation mit Plan-Vorschau + Re-Auth) steht in [[Admin-Gated-Automation]] — die Bausteine hier sind die technische Grundlage dafür, aber nicht die finale Nutzungsform für Fachbereiche.
+Wie automatische technische Aktionen im System kontrolliert ablaufen. Diese Datei erklärt den **heutigen Ist-Stand** der Automation-Infrastruktur. Das **Zielbild für Prod** (Admin-gated Automation mit Plan-Vorschau + Re-Auth + 360°-Karte) steht in [[Admin-Gated-Automation]]; die Plan-Vorschau, das Task-Automation-Binding und der Approval-Dialog (Soft-Re-Auth, Bundle-Stepper) sind seit 2026-05-15 produktiv nutzbar — echtes Entra-Re-Auth, Live-Log und 360°-Karte bleiben Folge-Slices.
 
 ---
 
@@ -226,6 +226,10 @@ Details in [[Setup]] und [[Deployment-Checkliste]].
 | Slice | Inhalt |
 |---|---|
 | `CreateErpEmployee` | ERP-Anbindung (Ziel InforLN). Wartet auf Stakeholder-Entscheidung. Größter inhaltlicher Resthebel. |
+| Echtes Entra-Re-Auth | Heute Soft-Bestätigung im Approval-Dialog (Token ohne Passwort-Validierung). Echter MSAL-`prompt: 'login'`-Flow + `auth_time`-Claim-Check ist Folge-Slice. |
+| Live-Log im Approval-Dialog | Heute kennt der Dialog nur succeeded/background als End-Phasen; per-Action-Failure-Detection braucht neuen Read-Pfad auf `workflow_runtime_events`. |
+| Post-Execution-360°-Karte | Person-zentrierte Aggregator-Sicht unter `/people/:personId` mit Identitäts-Snapshot, Gruppen-Provenienz, Mailbox-Stand, Workflow-Spur. |
+| Referenzuser-Mapping-Source | Eigene Mapping-Source `reference_user.groups` / `reference_user.licenseSkus` mit Property-Whitelist. |
 | `RemoveMailboxLicense` | Spiegel zu `CreateMailboxGraph` für User-Deprovisionierung. |
 | Builder-UI für `automation_output`-Bedingungen | Heute nur per JSON-API / Dev-Seed konfigurierbar. Source-Dropdown + Property-Filter. |
 | Vault-Cleanup-Sweeper | TTL-getriebener Delete-Job für `temporary_credentials`. |

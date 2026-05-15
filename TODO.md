@@ -4,7 +4,7 @@
 
 Aktiver Produkt- und Umsetzungsplan. Nur Punkte, die direkt auf Endbenutzer-Nutzen, fachliche Funktion, Automatisierung oder Produktionsreife einzahlen.
 
-Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung"). Etappe 9a Schritt 6 (Temporary-Credentials-Vault, 2026-05-13), Schritt 7 (CreateMailboxGraph, 2026-05-13) und Schritt 8 (AlreadyExists-Branch im Workflow-Engine, 2026-05-13) sind abgeschlossen; Belege siehe Commits `ee77538`/`1d5328a`/`a422c81`/`0600934` (Schritt 6), `4c2ea47`/`161db55`/`c23ff86`/`c9382d4` (Schritt 7) und `13371cc` (Schritt 8) + Doku-Commit dieses Slices.
+Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung" + „Migrationspfad-Etappe 9a" + „Admin-Gated-Automation Slices 1-6"). Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..6 (2026-05-13..15) sind komplett abgeschlossen.
 
 ## Leseregeln
 
@@ -13,24 +13,25 @@ Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „
 3. Fuer UI-Arbeiten zusaetzlich `FRONTEND_TODO.md` lesen.
 4. Nach Umsetzung eines Punktes Status, Erkenntnisse und Folgepunkte hier aktualisieren.
 
-## Stand 2026-05-13
+## Stand 2026-05-15
 
-Z21-S1..S3 + S5..S10 + S6b sind 2026-05-12 abgeschlossen. Migrationspfad-Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 alle durch. Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh`):
+Z21-S1..S3 + S5..S10 + S6b (2026-05-12), Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..6 (2026-05-13..15) alle abgeschlossen. Details in `CODE_REVIEW_ARCHIVE.md`.
+
+Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh` und FE-Build/Vitest am 2026-05-15):
 - API Release-Build: ✅ gruen
-- API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; keine neuen seit 2026-05-12)
+- API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; unveraendert seit 2026-05-12)
 - FE-Build: ✅ gruen
 - FE-Tests: ✅ 323 passed
+- FE-Lint: ✅ Baseline (7 errors / 7 warnings; unveraendert seit Slice 5)
 - `start-vm.sh`-Syntax: ✅ gruen
-- Worker.Core + Worker.Tests Build: ✅ gruen (deterministisch, Linux)
-- Worker Core tests: ✅ 57 passed (48 vor Schritt 6 + 9 VaultKeyLoaderTests)
+- Worker.Core + Worker.Tests Build: ✅ gruen
+- Worker Core tests: ✅ 57 passed
 
-Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials, Worker-Host-Build (net8.0-windows) auf einer Windows-Maschine, E2E `CreateAdUserLdaps` gegen Test-DC + Vault-Roundtrip, E2E `SendWelcomeMailGraph` mit Vault-Mapping und echtem Passwort im Mail-Body.
+Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8) + Approval-Dialog, Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials, Worker-Host-Build (net8.0-windows) auf Windows-Maschine, E2E `CreateAdUserLdaps` gegen Test-DC + Vault-Roundtrip, E2E `SendWelcomeMailGraph` mit echtem Passwort im Mail-Body.
 
 ## Aktive TODOs
 
-| ID | Aufgabe | Prio | Status | Nutzen |
-| --- | --- | --- | --- | --- |
-| Z21-S4 | Realen Automation-Pfad aus der Hybrid-AD-Entscheidung ableiten. | HIGH | Etappe 9a Schritt 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 ✓ 2026-05-13. Schritt 8 hat den **AlreadyExists-Branch im Workflow-Engine** geschlossen: Decision-Nodes koennen jetzt zusaetzlich zu Formular-Antworten ueber `automation_output`-Bedingungen verzweigen. Neuer JSON-Discriminator `referenceKind: 'answer' | 'automation_output'` in `workflow_edges.condition_expression` (Bestandsform bleibt als `answer`-Default gueltig — kein Migration-Skript). `WorkflowRuntimeSnapshot.AutomationOutputsByNodeKey` wird im EngineAdapter ueber den bestehenden Schritt-7-Helper befuellt; `Plan(...)` reicht es an allen vier Stellen durch. Drei Validation-Schranken (Property-Union-Schnellcheck im Parser; Direct-Predecessor- und Action-Key-Schranke im Plan-Lauf gegen `IncomingEdgesByTargetNodeId` + `NodeActionsByNodeId` mit Single-Action-Pflicht) erzwingen den "nur direkter Predecessor"-Scope technisch. Initial-Whitelist `CreateAdUserLdaps.alreadyExisted` (Boolean, Operator-Set `is_true`/`is_false`); Catalog-DTO um `ConditionProperties` erweitert mit Drift-Schutz-Test gegen die Engine-Map. Praktisch: Workflow `CreateAdUserLdaps → DecisionNode → (true) End-Skip | (false/Fallback) AssignGroups → SendWelcomeMail` laeuft jetzt sauber durch — AlreadyExists ist kein Permanent-Failure mehr. **Naechster Code-Slice (eigener Plan-Mode-Slice):** `CreateErpEmployee` als eigener Backend-Architektur-Slice (InforLN; zurueckgestellt bis Stakeholder-Wunsch). Vor Live-Inbetriebnahme: alle Schritt-6/7-Voraussetzungen (DPAPI-Vault, Graph-App-Permissions). | Macht aus vorbereiteter Automation einen implementierbaren Produktionspfad — End-to-End Onboarding mit AD-Anlage + automatischer Mailbox + echtem Passwort in der Welcome-Mail. AlreadyExists-Fall ist jetzt als Workflow-Pfad modellierbar (Skip-Edge nach CreateAdUserLdaps), nicht mehr nur als Permanent-Failure. |
+Kein aktiver, code-arbeitsfaehiger Slice. Die produktive Onboarding-Pipeline und der Admin-Approval-Flow sind nutzbar; die Resthebel sind alle entweder stakeholder-blockiert (`CreateErpEmployee`) oder bewusst out-of-scope (siehe „Nachgelagert").
 
 ## Nachgelagert
 
@@ -39,6 +40,13 @@ Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8), Mo
 | Z21-N1 | Bundle-Splitting fuer grosse Frontend-Chunks pruefen. | LOW | offen | Build funktioniert; Performance relevant, aber nicht produktionsblockierend. |
 | Z21-N2 | Mobile Feinschliffe fuer Admin-/Builder-Masken pruefen. | LOW | offen | Primaerer Nutzungsfall ist Desktop. |
 | Z21-N3 | Alte Demo-/Testdaten und unklare Beispielinhalte bereinigen. | LOW | offen | Sinnvoll vor Produktivnahme, aber nicht blockierend. |
+| AGA-N1 | `CreateErpEmployee` (InforLN) als eigener Backend-Architektur-Slice. | HIGH | stakeholder-blockiert | Wartet auf Stakeholder-Entscheidung; eigener Plan-Mode noetig. |
+| AGA-N2 | Echtes Entra-Re-Auth (MSAL `prompt: 'login'` + `auth_time`-Check) statt heutiger Soft-Bestaetigung. | MED | offen | Sicherheits-Slice; Soft-Bestaetigung ist bewusste Slice-5-Grenze. |
+| AGA-N3 | Live-Log mit per-Action-Granularitaet im Approval-Dialog. | MED | offen | Heute kennt der Dialog nur succeeded/background; per-Action-Failure-Detection braucht neuen Read-Pfad. |
+| AGA-N4 | Post-Execution 360°-Karte-Aggregator unter `/people/:personId`. | MED | offen | Eigene Read-only-Sicht, kein Architekturrisiko; baut auf bestehenden `automation_job_attempts` + Vault auf. |
+| AGA-N5 | Referenzuser-Mapping-Source. | LOW | offen | Eigener Slice nach vorhandenem Muster; Whitelist-Entscheidung in Plan-Mode. |
+| AGA-N6 | Builder-UI fuer `automation_output`-Bedingungen (Source-Dropdown + Property-Filter). | LOW | offen | Heute nur per JSON-API / Dev-Seed konfigurierbar. |
+| AGA-N7 | `RemoveMailboxLicense` fuer User-Deprovisionierung; Vault-Cleanup-Sweeper; Key-Rotation; Connection-Pooling LDAPS. | LOW | offen | Operative Resthebel ohne aktuellen Blocker. |
 
 ## Bewusst entfernt aus dem aktiven Backlog
 

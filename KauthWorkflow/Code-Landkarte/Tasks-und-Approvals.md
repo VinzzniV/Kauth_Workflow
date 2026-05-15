@@ -35,6 +35,11 @@ Tasks sind eine Laufzeitwirkung von Workflow-Nodes: Aktivierung eines `task`- od
 - `web/src/components/workflows/TaskCommentsSection.tsx`, `TaskStatusPill.tsx`, `TaskSlaPill.tsx`
 - Supervisor-Approval-UI hängt in `SupervisorStepPage.tsx` (siehe [[Workflow-Runtime]])
 
+**Admin-Gated-Automation-Approval (task-Nodes mit Action-Bundle)**
+- `web/src/components/workflow-detail/AutomationApprovalDialog.tsx` — Plan-Vorschau mit Bundle-Stepper + Soft-Re-Auth + Auto-Complete-Poll
+- Trigger im Task-Card-Bereich von `WorkflowTaskAreasSection.tsx`, sichtbar wenn `task.nodeKey`/`task.automationAdminRole` gesetzt und der User die geforderte Rolle trägt
+- Volle Code-Karte für Plan + Approval-Service unter [[Code-Landkarte/Automation]]
+
 ## DB
 
 `workflow_tasks`, `workflow_task_comments`, `workflow_task_dependencies`, `task_assignments` (User + Responsibility)
