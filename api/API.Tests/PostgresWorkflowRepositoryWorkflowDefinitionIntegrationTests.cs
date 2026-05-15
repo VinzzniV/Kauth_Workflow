@@ -26,7 +26,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
             var uniqueName = $"Builder Smoke {Guid.NewGuid():N}";
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
@@ -69,7 +69,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
             {
@@ -168,7 +168,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
 
             var definitionsPage = await repository.GetAdminWorkflowDefinitions(new AdminListQuery { Limit = AdminListQuery.MaxLimit });
             var definitions = definitionsPage.Items;
@@ -346,7 +346,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
             {
@@ -421,7 +421,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest
             {
@@ -561,7 +561,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
             targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
 
             onboardingRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
@@ -642,7 +642,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
             targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
 
             onboardingRuntime = await lifecycleService.CreateWorkflowInstanceAsync(
@@ -722,7 +722,7 @@ public sealed class PostgresWorkflowRepositoryWorkflowDefinitionIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
             targetPerson = await CreateSeededRuntimeTargetPersonAsync(connectionString);
 
             definition = await repository.CreateAdminWorkflowDefinition(new CreateWorkflowDefinitionRequest

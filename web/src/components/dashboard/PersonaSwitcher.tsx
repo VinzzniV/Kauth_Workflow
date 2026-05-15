@@ -12,7 +12,7 @@ const PERSONA_LABELS: Record<DashboardPersona, string> = {
   generic: "Allgemein",
 };
 
-export function buildPersonaOptions(capabilities: RoleCapabilities): PersonaOption[] {
+function buildPersonaOptions(capabilities: RoleCapabilities): PersonaOption[] {
   const options: PersonaOption[] = [];
   if (capabilities.hasAdminRole) options.push({ persona: "admin", label: PERSONA_LABELS.admin });
   if (capabilities.hasHrRole) options.push({ persona: "hr", label: PERSONA_LABELS.hr });

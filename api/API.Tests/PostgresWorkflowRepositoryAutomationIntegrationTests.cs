@@ -30,7 +30,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
             var automationService = CreateAutomationService(repository);
             var createContext = await LoadOnboardingCreateContextAsync(connectionString);
 
@@ -164,7 +164,7 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
         {
             var repository = new PostgresWorkflowRepository();
             var runtimeRepository = new PostgresWorkflowRuntimeRepository();
-            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+            var lifecycleService = new WorkflowLifecycleService(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
             var automationService = CreateAutomationService(repository);
             var createContext = await LoadOnboardingCreateContextAsync(connectionString);
 
@@ -290,7 +290,9 @@ public sealed class PostgresWorkflowRepositoryAutomationIntegrationTests
             repository,
             new PostgresWorkflowAuditWriteOperations(),
             new PostgresWorkflowStatusCalculationService(),
-            new PostgresWorkflowNotificationDispatchOperations());
+            new PostgresWorkflowNotificationDispatchOperations(),
+            repository,
+            new WorkflowAutomationRetrySettings());
         return new WorkflowAutomationService(
             repository,
             new PostgresWorkflowAutomationReadRepository(),

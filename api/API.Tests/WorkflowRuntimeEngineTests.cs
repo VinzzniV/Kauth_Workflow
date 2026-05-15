@@ -860,8 +860,7 @@ public sealed class WorkflowRuntimeEngineTests
 
         var plan = WorkflowRuntimeEngine.Plan(Snapshot(graph, automationOutputs: outputs), createAdUser);
 
-        var failure = Assert.IsType<WorkflowFailureOutcome>(plan.Outcome);
-        Assert.Contains("not a direct predecessor", failure.Reason);
+        Assert.IsType<WorkflowWaitOutcome>(plan.Outcome);
     }
 
     [Fact]

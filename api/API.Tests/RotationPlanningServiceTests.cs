@@ -101,7 +101,7 @@ public sealed class RotationPlanningServiceTests
     [Fact]
     public async Task ActivateRotationPlanAsync_ReturnsInvalidStatus_WhenPlanIsNotDraft()
     {
-        var plan = CreatePlanWithStations(
+        var basePlan = CreatePlanWithStations(
             new RotationStationDto
             {
                 Id = 1,
@@ -113,9 +113,24 @@ public sealed class RotationPlanningServiceTests
                 OrderIndex = 0,
                 Status = "planned",
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            });
-        plan = plan with { Status = "active" };
+                    UpdatedAt = DateTime.UtcNow
+                });
+        var plan = new RotationPlanDetailDto
+        {
+            Id = basePlan.Id,
+            PersonId = basePlan.PersonId,
+            SourceWorkflowUid = basePlan.SourceWorkflowUid,
+            DisplayName = basePlan.DisplayName,
+            FirstName = basePlan.FirstName,
+            LastName = basePlan.LastName,
+            DepartmentId = basePlan.DepartmentId,
+            DepartmentName = basePlan.DepartmentName,
+            Title = basePlan.Title,
+            Status = "active",
+            CreatedAt = basePlan.CreatedAt,
+            UpdatedAt = basePlan.UpdatedAt,
+            Stations = basePlan.Stations
+        };
         var repository = new StubRotationRepository { Plan = plan };
         var service = CreateService(repository);
 

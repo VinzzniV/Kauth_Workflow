@@ -116,6 +116,7 @@ public sealed class AdminPeopleEndpointsTests
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddRouting();
         builder.Services.AddSingleton<IWorkflowCatalogService>(catalogService);
+        builder.Services.AddSingleton<IWorkflowVisibilityService>(new StubWorkflowVisibilityService());
         builder.Services.AddSingleton<IUserContext>(new StubUserContext(user));
         builder.Services.AddSingleton<IAuthorizationPolicyService, AuthorizationPolicyService>();
 
@@ -193,6 +194,7 @@ public sealed class AdminPeopleEndpointsTests
 
         public Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectoryAsync(
             AdminListQuery query,
+            IReadOnlyCollection<int>? observableDepartmentIds = null,
             CancellationToken cancellationToken = default)
         {
             GetPeopleDirectoryCallCount += 1;
@@ -216,5 +218,26 @@ public sealed class AdminPeopleEndpointsTests
         public Task<AdminListPageDto<UnlinkedDirectoryIdentityDto>> GetUnlinkedDirectoryIdentitiesAsync(string? departmentFilter, bool? onlyEnabled, int limit, int offset, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ImportPeopleFromDirectoryResultDto> ImportPeopleFromDirectoryAsync(ImportPeopleFromDirectoryRequest request, long? actorUserId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> UpdatePersonAsync(long personId, UpdatePersonRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private sealed class StubWorkflowVisibilityService : IWorkflowVisibilityService
+    {
+        public Task<HashSet<int>?> GetObservableWorkflowDepartmentIds(CurrentUser currentUser)
+            => Task.FromResult<HashSet<int>?>(new HashSet<int>());
+
+        public bool CanObserveWorkflow(CurrentUser currentUser, int workflowDepartmentId, string workflowStatus, HashSet<int>? observableDepartmentIds)
+            => false;
+
+        public void ApplyWorkflowTaskPermissions(WorkflowDetailDto workflow, CurrentUser currentUser)
+        {
+        }
+
+        public void ApplyTaskPermissions(IEnumerable<TaskWithWorkflowDto> tasks, CurrentUser currentUser)
+        {
+        }
+
+        public void ApplyTaskPermissions(TaskWithWorkflowDto task, CurrentUser currentUser)
+        {
+        }
     }
 }

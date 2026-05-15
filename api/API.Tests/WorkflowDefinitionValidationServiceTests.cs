@@ -827,7 +827,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Edges = [CreateEdge("Start", "TaskWithPlan", 0), CreateEdge("TaskWithPlan", "End", 0)]
         });
 
-        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "TaskWithPlan");
+        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "taskwithplan");
         Assert.Equal("task", taskNode.NodeType);
         Assert.Single(taskNode.Actions);
         Assert.Equal("auth_admin", taskNode.AutomationAdminRole);
@@ -847,7 +847,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Edges = [CreateEdge("Start", "PlainTask", 0), CreateEdge("PlainTask", "End", 0)]
         });
 
-        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "PlainTask");
+        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "plaintask");
         Assert.Empty(taskNode.Actions);
         Assert.Null(taskNode.AutomationAdminRole);
     }
@@ -954,7 +954,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             Edges = [CreateEdge("Start", "TaskCasing", 0), CreateEdge("TaskCasing", "End", 0)]
         });
 
-        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "TaskCasing");
+        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "taskcasing");
         Assert.Equal("auth_admin", taskNode.AutomationAdminRole);
     }
 
@@ -999,7 +999,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
         Assert.False(snapshot.CanPublish);
         Assert.Contains(
             snapshot.Issues,
-            i => i.Code == "missing_automation_admin_role_for_task_with_actions" && i.ReferenceKey == "TaskNoRole");
+            i => i.Code == "missing_automation_admin_role_for_task_with_actions" && i.ReferenceKey == "tasknorole");
     }
 
     [Fact]

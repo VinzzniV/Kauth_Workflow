@@ -51,7 +51,8 @@ public sealed class NotificationTemplateServiceTests
             rotationPreviewRepository: null!,
             workflowRepository: null!,
             rotationRepository: null!,
-            notificationEmailConfigurationService: null!);
+            notificationEmailConfigurationService: null!,
+            templateResolver: null!);
     }
 
     private sealed class StubNotificationTemplateRepository : INotificationTemplateRepository

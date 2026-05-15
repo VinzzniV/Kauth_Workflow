@@ -56,7 +56,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
                 ("supervisor_fills_document", "ready", true),
                 ("hardware_setup", "blocked", true)
             ],
-            processTypeName: "Onboarding",
+            workflowDefinitionName: "Onboarding",
             requiresSupervisorStep: true,
             approvalSpecKey: "supervisor_fills_document");
 
@@ -71,7 +71,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
                 ("supervisor_fills_document", "ready", true),
                 ("hardware_setup", "ready", true)
             ],
-            processTypeName: "Offboarding",
+            workflowDefinitionName: "Offboarding",
             requiresSupervisorStep: false,
             approvalSpecKey: null);
 
@@ -86,7 +86,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
                 ("department_approval_custom", "in_progress", true),
                 ("hardware_setup", "blocked", true)
             ],
-            processTypeName: "Abteilungsfreigabe",
+            workflowDefinitionName: "Abteilungsfreigabe",
             requiresSupervisorStep: true,
             approvalSpecKey: "department_approval_custom");
 
@@ -101,7 +101,7 @@ public sealed class PostgresWorkflowRepositoryTaskStatusRulesTests
                 ("hardware_setup", "in_progress", true),
                 ("hardware_handover", "blocked", true)
             ],
-            processTypeName: "Mutation",
+            workflowDefinitionName: "Mutation",
             requiresSupervisorStep: false,
             approvalSpecKey: null);
 

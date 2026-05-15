@@ -9,17 +9,7 @@ import type {
   WorkflowCancellationReasonCode,
   WorkflowCancellationRequest,
 } from "../../types/workflow";
-
-export const WORKFLOW_CANCELLATION_REASON_OPTIONS: ReadonlyArray<{
-  code: WorkflowCancellationReasonCode;
-  label: string;
-}> = [
-  { code: "entry_cancelled", label: "Eintritt abgesagt" },
-  { code: "entry_postponed", label: "Eintritt verschoben" },
-  { code: "wrong_person", label: "Falsche Person / Stammdaten" },
-  { code: "started_by_mistake", label: "Versehentlich gestartet" },
-  { code: "other", label: "Sonstiges" },
-];
+import { WORKFLOW_CANCELLATION_REASON_OPTIONS } from "./workflowCancellationReasons";
 
 const DETAIL_MAX_LENGTH = 500;
 
@@ -36,17 +26,36 @@ export function CancelWorkflowDialog({
   onCancel: () => void;
   onConfirm: (request: WorkflowCancellationRequest) => void;
 }) {
-  const dialogRef = useRef<HTMLElement | null>(null);
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <CancelWorkflowDialogContent
+      isSubmitting={isSubmitting}
+      errorMessage={errorMessage}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+function CancelWorkflowDialogContent({
+  isSubmitting,
+  errorMessage,
+  onCancel,
+  onConfirm,
+}: {
+  isSubmitting: boolean;
+  errorMessage?: string | null;
+  onCancel: () => void;
+  onConfirm: (request: WorkflowCancellationRequest) => void;
+}) {
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const [reasonCode, setReasonCode] = useState<WorkflowCancellationReasonCode | "">("");
   const [reasonDetail, setReasonDetail] = useState("");
 
   useEffect(() => {
-    if (!open) {
-      setReasonCode("");
-      setReasonDetail("");
-      return;
-    }
     cancelButtonRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -72,10 +81,6 @@ export function CancelWorkflowDialog({
     }
     return true;
   }, [reasonCode, reasonDetail, detailIsRequired]);
-
-  if (!open) {
-    return null;
-  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

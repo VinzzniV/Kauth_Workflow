@@ -1,5 +1,5 @@
 // Ansicht fuer die Abteilungsleitung, um Anforderungen eines freigabepflichtigen Vorgangs zu bestaetigen oder zu ergaenzen.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import EmptyState from "../components/feedback/EmptyState";
 import LoadingState from "../components/feedback/LoadingState";
@@ -19,6 +19,7 @@ import {
   buildRequirementSelections,
   createEmptyRequirementSelection,
   toRequirementSelectionPayload,
+  type RequirementEntry,
 } from "../utils/requirements";
 import { formatDateTime } from "../utils/dateFormat";
 
@@ -27,77 +28,17 @@ export default function SupervisorStepPage() {
   const { assignedWorkflows, isQueueLoading, queueError, refetchQueue, saveMutation } = useSupervisorWorkflows();
 
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowSummary | null>(null);
-  const [selections, setSelections] = useState<Record<number, RequirementSelectionState>>({});
-  // Track which workflow uid we've already initialized selections for, so refetches don't reset edits
-  const initializedForUid = useRef<string | null>(null);
   const usesAdminOverride = capabilities.canManageAdminConfiguration;
   const { showError, showSuccess } = useToast();
 
   const stepQuery = useSupervisorStep(selectedWorkflow?.uid ?? null);
   const requirements = stepQuery.data ?? [];
 
-  // Initialize selections once per selected workflow when step data first arrives
-  useEffect(() => {
-    if (
-      stepQuery.data &&
-      stepQuery.data.length > 0 &&
-      selectedWorkflow &&
-      initializedForUid.current !== selectedWorkflow.uid
-    ) {
-      setSelections(buildRequirementSelections(stepQuery.data));
-      initializedForUid.current = selectedWorkflow.uid;
-    }
-  }, [selectedWorkflow, stepQuery.data]);
-
   const openSupervisorStep = useCallback((workflow: WorkflowSummary) => {
-    initializedForUid.current = null;
     setSelectedWorkflow(workflow);
-    setSelections({});
   }, []);
 
-  const setRequirementBoolean = useCallback(
-    (requirementId: number, value: boolean | null) => {
-      setSelections((current) =>
-        applyRequirementBooleanEditorSelection(requirements, current, requirementId, value)
-      );
-    },
-    [requirements]
-  );
-
-  const setRequirementText = useCallback((requirementId: number, value: string) => {
-    setSelections((current) => ({
-      ...current,
-      [requirementId]: {
-        ...(current[requirementId] ?? createEmptyRequirementSelection()),
-        valueText: value,
-      },
-    }));
-  }, []);
-
-  const setRequirementSelectedOption = useCallback((requirementId: number, optionId: number | null) => {
-    setSelections((current) =>
-      applyRequirementSingleSelectEditorSelection(requirements, current, requirementId, optionId)
-    );
-  }, [requirements]);
-
-  const toggleRequirementSelectedOption = useCallback((requirementId: number, optionId: number) => {
-    setSelections((current) => {
-      const existing = current[requirementId] ?? createEmptyRequirementSelection();
-      const isActive = existing.selectedOptionIds.includes(optionId);
-
-      return {
-        ...current,
-        [requirementId]: {
-          ...existing,
-          selectedOptionIds: isActive
-            ? existing.selectedOptionIds.filter((id) => id !== optionId)
-            : [...existing.selectedOptionIds, optionId],
-        },
-      };
-    });
-  }, []);
-
-  const saveChanges = useCallback(async () => {
+  const saveChanges = useCallback(async (selections: Record<number, RequirementSelectionState>) => {
     if (!selectedWorkflow) {
       showError("Bitte zuerst einen Vorgang auswählen.");
       return;
@@ -113,19 +54,12 @@ export default function SupervisorStepPage() {
           ? "Auswahl wurde per Admin-Override gespeichert. Der Vorgang wurde in die nächste Phase überführt."
           : "Auswahl wurde gespeichert. Der Vorgang wurde in die nächste Phase überführt."
       );
-      initializedForUid.current = null;
       setSelectedWorkflow(null);
-      setSelections({});
     } catch (err) {
       const message = err instanceof Error ? err.message : "Auswahl konnte nicht gespeichert werden.";
       showError(message);
     }
-  }, [requirements, saveMutation, selections, selectedWorkflow, showError, showSuccess, usesAdminOverride]);
-
-  const canSave = useMemo(
-    () => selectedWorkflow !== null && requirements.length > 0 && !saveMutation.isPending,
-    [selectedWorkflow, requirements, saveMutation.isPending]
-  );
+  }, [requirements, saveMutation, selectedWorkflow, showError, showSuccess, usesAdminOverride]);
 
   const workflowGroups = useMemo(() => {
     const groups = assignedWorkflows.reduce<
@@ -275,34 +209,107 @@ export default function SupervisorStepPage() {
         ) : null}
 
         {!stepQuery.isFetching && !stepQuery.isError && selectedWorkflow && requirements.length > 0 ? (
-          <>
-            <RequirementsSelection
-              requirements={requirements}
-              mode="edit"
-              selections={selections}
-              onToggleBoolean={setRequirementBoolean}
-              onTextChange={setRequirementText}
-              onSelectOption={setRequirementSelectedOption}
-              onToggleMultiOption={toggleRequirementSelectedOption}
-              isLoading={false}
-              error={null}
-              title={`Bedarf festlegen: ${selectedWorkflow.firstName} ${selectedWorkflow.lastName}`}
-              description={
-                usesAdminOverride
-                  ? "Admin-Override: Aufgaben werden nach dem Speichern automatisch erzeugt."
-                  : "Aufgaben werden nach dem Speichern automatisch erzeugt."
-              }
-            />
-            <section className="panel">
-              <div className="action-row">
-                <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void saveChanges()}>
-                  {saveMutation.isPending ? "Speichern..." : usesAdminOverride ? "Angaben per Admin-Override abschließen" : "Angaben abschließen"}
-                </button>
-              </div>
-            </section>
-          </>
+          <SupervisorStepEditor
+            key={selectedWorkflow.uid}
+            selectedWorkflow={selectedWorkflow}
+            requirements={requirements}
+            usesAdminOverride={usesAdminOverride}
+            isSaving={saveMutation.isPending}
+            onSave={saveChanges}
+          />
         ) : null}
       </div>
     </main>
+  );
+}
+
+function SupervisorStepEditor({
+  selectedWorkflow,
+  requirements,
+  usesAdminOverride,
+  isSaving,
+  onSave,
+}: {
+  selectedWorkflow: WorkflowSummary;
+  requirements: RequirementEntry[];
+  usesAdminOverride: boolean;
+  isSaving: boolean;
+  onSave: (selections: Record<number, RequirementSelectionState>) => Promise<void>;
+}) {
+  const [selections, setSelections] = useState<Record<number, RequirementSelectionState>>(() =>
+    buildRequirementSelections(requirements)
+  );
+
+  const setRequirementBoolean = useCallback(
+    (requirementId: number, value: boolean | null) => {
+      setSelections((current) =>
+        applyRequirementBooleanEditorSelection(requirements, current, requirementId, value)
+      );
+    },
+    [requirements]
+  );
+
+  const setRequirementText = useCallback((requirementId: number, value: string) => {
+    setSelections((current) => ({
+      ...current,
+      [requirementId]: {
+        ...(current[requirementId] ?? createEmptyRequirementSelection()),
+        valueText: value,
+      },
+    }));
+  }, []);
+
+  const setRequirementSelectedOption = useCallback((requirementId: number, optionId: number | null) => {
+    setSelections((current) =>
+      applyRequirementSingleSelectEditorSelection(requirements, current, requirementId, optionId)
+    );
+  }, [requirements]);
+
+  const toggleRequirementSelectedOption = useCallback((requirementId: number, optionId: number) => {
+    setSelections((current) => {
+      const existing = current[requirementId] ?? createEmptyRequirementSelection();
+      const isActive = existing.selectedOptionIds.includes(optionId);
+
+      return {
+        ...current,
+        [requirementId]: {
+          ...existing,
+          selectedOptionIds: isActive
+            ? existing.selectedOptionIds.filter((id) => id !== optionId)
+            : [...existing.selectedOptionIds, optionId],
+        },
+      };
+    });
+  }, []);
+
+  const canSave = requirements.length > 0 && !isSaving;
+
+  return (
+    <>
+      <RequirementsSelection
+        requirements={requirements}
+        mode="edit"
+        selections={selections}
+        onToggleBoolean={setRequirementBoolean}
+        onTextChange={setRequirementText}
+        onSelectOption={setRequirementSelectedOption}
+        onToggleMultiOption={toggleRequirementSelectedOption}
+        isLoading={false}
+        error={null}
+        title={`Bedarf festlegen: ${selectedWorkflow.firstName} ${selectedWorkflow.lastName}`}
+        description={
+          usesAdminOverride
+            ? "Admin-Override: Aufgaben werden nach dem Speichern automatisch erzeugt."
+            : "Aufgaben werden nach dem Speichern automatisch erzeugt."
+        }
+      />
+      <section className="panel">
+        <div className="action-row">
+          <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void onSave(selections)}>
+            {isSaving ? "Speichern..." : usesAdminOverride ? "Angaben per Admin-Override abschließen" : "Angaben abschließen"}
+          </button>
+        </div>
+      </section>
+    </>
   );
 }

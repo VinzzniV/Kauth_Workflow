@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { WorkflowDetail } from "../../types/workflow";
-import { WORKFLOW_CANCELLATION_REASON_OPTIONS } from "./CancelWorkflowDialog";
+import { WORKFLOW_CANCELLATION_REASON_OPTIONS } from "./workflowCancellationReasons";
 import { formatDate, formatDateTime, toRuntimeStatusLabel } from "./workflowDetailModel";
 
 type WorkflowHeaderPanelProps = {

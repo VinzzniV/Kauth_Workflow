@@ -1519,7 +1519,7 @@ public sealed class WorkflowEndpointsTests
         public Dictionary<Guid, List<WorkflowNotificationDispatchTarget>> WorkflowCreatedNotificationTargetsByUid { get; } = new();
 
         public Task<AdminListPageDto<DepartmentDto>> GetDepartments(AdminListQuery query) => throw new NotSupportedException();
-        public Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query) => throw new NotSupportedException();
+        public Task<AdminListPageDto<PersonDirectoryItemDto>> GetPeopleDirectory(AdminListQuery query, IReadOnlyCollection<int>? observableDepartmentIds = null) => throw new NotSupportedException();
         public Task<AdminListPageDto<RoleDto>> GetRoles(AdminListQuery query)
         {
             GetRolesCallCount += 1;
@@ -1723,9 +1723,9 @@ public sealed class WorkflowEndpointsTests
             return Task.FromResult(DerivedAnswers);
         }
 
-        public Task<AdminListPageDto<WorkflowDefinitionRefDto>> GetAdminWorkflowDefinitions(AdminListQuery query) => throw new NotSupportedException();
-        public Task<WorkflowDefinitionRefDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
-        public Task<WorkflowDefinitionRefDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request) => throw new NotSupportedException();
+        public Task<AdminListPageDto<WorkflowDefinitionSummaryDto>> GetAdminWorkflowDefinitions(AdminListQuery query) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionSummaryDto> CreateAdminWorkflowDefinition(CreateWorkflowDefinitionRequest request) => throw new NotSupportedException();
+        public Task<WorkflowDefinitionSummaryDto?> UpdateAdminWorkflowDefinition(int definitionId, UpdateWorkflowDefinitionRequest request) => throw new NotSupportedException();
         public Task<bool> DeleteAdminWorkflowDefinition(int definitionId) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionSummaryDto?> CreateAdminWorkflowDefinitionVersion(int definitionId, CreateWorkflowDefinitionVersionRequest request) => throw new NotSupportedException();
         public Task<WorkflowDefinitionVersionDetailDto?> EnsureAdminWorkflowDefinitionWorkingDraft(int definitionId) => throw new NotSupportedException();

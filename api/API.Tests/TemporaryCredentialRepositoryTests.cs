@@ -126,6 +126,11 @@ VALUES (@id, @wniid, 'other_type', pgp_sym_encrypt(@plain, @key), NOW() + interv
             }
             finally
             {
+                await using var cleanup = new NpgsqlCommand(
+                    "DELETE FROM public.temporary_credentials WHERE id = @id;", connection);
+                cleanup.Parameters.Add("id", NpgsqlDbType.Uuid).Value = vaultId;
+                await cleanup.ExecuteNonQueryAsync();
+
                 await using var restoreCheck = new NpgsqlCommand(@"
 ALTER TABLE public.temporary_credentials
     ADD CONSTRAINT temporary_credentials_type CHECK (credential_type IN ('ad_initial_password'));", connection);

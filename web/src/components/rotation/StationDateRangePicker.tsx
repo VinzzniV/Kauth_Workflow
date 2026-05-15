@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import type { RotationStation } from "../../types/rotation";
 
 const STATION_COLORS: Array<{ bg: string; text: string }> = [
@@ -67,22 +67,6 @@ export default function StationDateRangePicker({
   const [isPickingEnd, setIsPickingEnd] = useState(false);
   const [hoverDate, setHoverDate] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!startDate && !endDate) {
-      setIsPickingEnd(false);
-    }
-  }, [startDate, endDate]);
-
-  useEffect(() => {
-    if (startDate) {
-      const d = parseIsoToDate(startDate);
-      if (d) {
-        setViewYear(d.getFullYear());
-        setViewMonth(d.getMonth());
-      }
-    }
-  }, [startDate]);
-
   const bookedMap = useMemo(() => {
     const map = new Map<string, RotationStation>();
     for (const station of stations) {
@@ -115,6 +99,12 @@ export default function StationDateRangePicker({
   }
 
   function handleDayClick(iso: string) {
+    const pickedDate = parseIsoToDate(iso);
+    if (pickedDate) {
+      setViewYear(pickedDate.getFullYear());
+      setViewMonth(pickedDate.getMonth());
+    }
+
     if (!isPickingEnd || !startDate) {
       onStartDateChange(iso);
       onEndDateChange("");
@@ -148,8 +138,21 @@ export default function StationDateRangePicker({
           type="date"
           value={startDate}
           onChange={(e) => {
-            onStartDateChange(e.target.value);
-            setIsPickingEnd(!!e.target.value);
+            const nextStartDate = e.target.value;
+            onStartDateChange(nextStartDate);
+            if (!nextStartDate) {
+              onEndDateChange("");
+              setIsPickingEnd(false);
+              return;
+            }
+
+            const nextDate = parseIsoToDate(nextStartDate);
+            if (nextDate) {
+              setViewYear(nextDate.getFullYear());
+              setViewMonth(nextDate.getMonth());
+            }
+
+            setIsPickingEnd(true);
           }}
         />
       </label>
@@ -159,8 +162,14 @@ export default function StationDateRangePicker({
           type="date"
           value={endDate}
           onChange={(e) => {
-            onEndDateChange(e.target.value);
-            if (e.target.value) setIsPickingEnd(false);
+            const nextEndDate = e.target.value;
+            onEndDateChange(nextEndDate);
+            if (!nextEndDate) {
+              setIsPickingEnd(!!startDate);
+              return;
+            }
+
+            setIsPickingEnd(false);
           }}
         />
       </label>

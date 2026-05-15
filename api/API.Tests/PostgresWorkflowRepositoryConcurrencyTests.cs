@@ -336,7 +336,7 @@ public sealed class PostgresWorkflowRepositoryConcurrencyTests
     }
 
     private static WorkflowLifecycleService CreateLifecycleService(PostgresWorkflowRepository repository)
-        => new(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations());
+        => new(repository, repository, new PostgresWorkflowAuditWriteOperations(), new PostgresWorkflowStatusCalculationService(), new PostgresWorkflowNotificationDispatchOperations(), repository, new WorkflowAutomationRetrySettings());
 
     private sealed class TestWorkflowData
     {

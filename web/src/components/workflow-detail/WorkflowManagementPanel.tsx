@@ -8,10 +8,8 @@ import {
   useDeleteWorkflow,
 } from "../../services/mutations/workflowMutations";
 import type { WorkflowCancellationRequest, WorkflowDetail } from "../../types/workflow";
-import {
-  CancelWorkflowDialog,
-  WORKFLOW_CANCELLATION_REASON_OPTIONS,
-} from "./CancelWorkflowDialog";
+import { CancelWorkflowDialog } from "./CancelWorkflowDialog";
+import { WORKFLOW_CANCELLATION_REASON_OPTIONS } from "./workflowCancellationReasons";
 
 interface WorkflowManagementPanelProps {
   uid: string;
