@@ -363,6 +363,11 @@ public sealed class WorkflowTaskDto
     public long? NodeInstanceId { get; init; }
     public int? TaskTemplateId { get; init; }
     public required string TaskKey { get; init; }
+    // Slice 5 (Admin-Gated-Automation, Approval-Runtime-UI): NodeKey + AutomationAdminRole
+    // werden fuer task-Nodes mit Action-Bundle befuellt — sonst null. Frontend rendert auf
+    // dieser Basis den "Plan anzeigen & freigeben"-Button + per-Node-Role-Check.
+    public string? NodeKey { get; init; }
+    public string? AutomationAdminRole { get; init; }
     public bool IsRuntimeNodeTask { get; init; }
     public bool IsApprovalTask { get; init; }
     public required string Title { get; init; }

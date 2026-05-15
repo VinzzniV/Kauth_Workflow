@@ -311,6 +311,9 @@ export type BackendWorkflowTaskDto = {
   nodeInstanceId: number | null;
   taskTemplateId: number | null;
   taskKey: string;
+  // Slice 5: NodeKey + AutomationAdminRole; null fuer Nicht-Approval-Tasks.
+  nodeKey: string | null;
+  automationAdminRole: string | null;
   isRuntimeNodeTask: boolean;
   isApprovalTask: boolean;
   title: string;

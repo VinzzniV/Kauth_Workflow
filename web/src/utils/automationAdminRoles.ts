@@ -27,3 +27,27 @@ export function getAutomationAdminRoleLabel(slug: string | null | undefined): st
   const match = AUTOMATION_ADMIN_ROLES.find((role) => role.value === normalized);
   return match?.label ?? slug;
 }
+
+// Slice 5 (Admin-Gated-Automation, Approval-Runtime-UI): Mapping vom
+// automation_admin_role-Slug auf das RoleCapabilities-Flag. Drift-Schutz: TypeScript-
+// Compiler verlangt einen Eintrag pro AutomationAdminRoleSlug. Whitelist-Erweiterung
+// hier wirkt unmittelbar — und der Build kippt, falls eine neue Rolle ohne
+// Capability-Mapping eingefuehrt wird.
+import type { RoleCapabilities } from "../auth/roleModel";
+
+const ROLE_TO_CAPABILITY: Record<AutomationAdminRoleSlug, keyof RoleCapabilities> = {
+  auth_admin: "hasAdminRole",
+  auth_hr: "hasHrRole",
+  auth_manager: "hasManagerRole",
+};
+
+export function canCurrentUserApprove(
+  capabilities: RoleCapabilities,
+  requiredRole: string | null | undefined,
+): boolean {
+  if (!requiredRole) return false;
+  const normalized = requiredRole.trim().toLowerCase();
+  if (!isAutomationAdminRoleSlug(normalized)) return false;
+  const capabilityKey = ROLE_TO_CAPABILITY[normalized];
+  return Boolean(capabilities[capabilityKey]);
+}

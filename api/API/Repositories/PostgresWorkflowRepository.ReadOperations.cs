@@ -80,7 +80,9 @@ SELECT
     template_department.name,
     template_responsibility.responsibility_type,
     template_responsibility.responsibility_key,
-    template_responsibility.name
+    template_responsibility.name,
+    runtime_node.node_key,
+    runtime_node.automation_admin_role
 FROM workflow_tasks t
 JOIN workflows w ON w.id = t.workflow_id
 JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
@@ -118,6 +120,9 @@ ORDER BY w.created_at DESC, t.sort_order, t.id;";
                     NodeInstanceId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
                     TaskTemplateId = reader.IsDBNull(2) ? null : checked((int)reader.GetInt64(2)),
                     TaskKey = reader.GetString(3),
+                    // Slice 5: zwei neue Spalten am Ende der SELECT-Liste angehaengt (38, 39).
+                    NodeKey = reader.IsDBNull(38) ? null : reader.GetString(38),
+                    AutomationAdminRole = reader.IsDBNull(39) ? null : reader.GetString(39),
                     IsApprovalTask = reader.GetBoolean(4),
                     IsRuntimeNodeTask = reader.GetBoolean(5),
                     Title = reader.GetString(6),
@@ -392,7 +397,9 @@ SELECT
     template_department.name,
     template_responsibility.responsibility_type,
     template_responsibility.responsibility_key,
-    template_responsibility.name
+    template_responsibility.name,
+    runtime_node.node_key,
+    runtime_node.automation_admin_role
 FROM workflow_tasks wt
 JOIN workflows w ON w.id = wt.workflow_id
 JOIN workflow_definitions pt ON pt.id = w.workflow_definition_id
@@ -421,6 +428,9 @@ ORDER BY wt.sort_order, wt.id;";
                     NodeInstanceId = reader.IsDBNull(1) ? null : reader.GetInt64(1),
                     TaskTemplateId = reader.IsDBNull(2) ? null : checked((int)reader.GetInt64(2)),
                     TaskKey = reader.GetString(3),
+                    // Slice 5: zwei neue Spalten am Ende der SELECT-Liste angehaengt (26, 27).
+                    NodeKey = reader.IsDBNull(26) ? null : reader.GetString(26),
+                    AutomationAdminRole = reader.IsDBNull(27) ? null : reader.GetString(27),
                     IsApprovalTask = reader.GetBoolean(4),
                     IsRuntimeNodeTask = reader.GetBoolean(5),
                     Title = reader.GetString(6),

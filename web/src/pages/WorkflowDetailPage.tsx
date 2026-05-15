@@ -9,6 +9,7 @@ import WorkflowManagementPanel from "../components/workflow-detail/WorkflowManag
 import WorkflowNotificationsPanel from "../components/workflow-detail/WorkflowNotificationsPanel";
 import WorkflowRequirementsPanel from "../components/workflow-detail/WorkflowRequirementsPanel";
 import WorkflowTaskAreasSection from "../components/workflow-detail/WorkflowTaskAreasSection";
+import { AutomationApprovalDialog } from "../components/workflow-detail/AutomationApprovalDialog";
 import {
   useWorkflowAuditLog,
   useWorkflowDetail,
@@ -119,6 +120,14 @@ export default function WorkflowDetailPage() {
   const currentTask = useMemo(() => findCurrentTask(sortedTasks), [sortedTasks]);
   const regularEditingText = useMemo(() => (workflow ? toRegularEditingLabel(workflow) : "-"), [workflow]);
   const usesAdminOverride = capabilities.hasAdminRole && !capabilities.hasHrRole && !capabilities.hasManagerRole;
+  // Slice 5 (Admin-Gated-Automation): state fuer das Approval-Modal.
+  const [approvalDialogTarget, setApprovalDialogTarget] = useState<{ taskId: number; nodeKey: string } | null>(null);
+  const handleOpenApprovalDialog = useCallback((taskId: number, nodeKey: string) => {
+    setApprovalDialogTarget({ taskId, nodeKey });
+  }, []);
+  const handleCloseApprovalDialog = useCallback(() => {
+    setApprovalDialogTarget(null);
+  }, []);
   const canEditSupervisorRequirements = useMemo(() => {
     return workflow?.workflowStatus === "waiting_for_supervisor"
       && (capabilities.canAccessSupervisorStep || capabilities.canManageAdminConfiguration);
@@ -329,6 +338,8 @@ export default function WorkflowDetailPage() {
                   usesAdminOverride={usesAdminOverride}
                   canManageAdminConfiguration={capabilities.canManageAdminConfiguration}
                   isReaderOnlyView={isReaderOnlyView}
+                  capabilities={capabilities}
+                  onApproveAutomation={handleOpenApprovalDialog}
                   onTaskStatusChange={(taskId, status, currentStatus) =>
                     handleStatusChange({ taskId, workflowUid: uid, status, currentStatus })
                   }
@@ -385,6 +396,15 @@ export default function WorkflowDetailPage() {
           </>
         ) : null}
       </div>
+      {approvalDialogTarget ? (
+        <AutomationApprovalDialog
+          open
+          onClose={handleCloseApprovalDialog}
+          workflowInstanceUid={uid}
+          nodeKey={approvalDialogTarget.nodeKey}
+          taskId={approvalDialogTarget.taskId}
+        />
+      ) : null}
     </main>
   );
 }

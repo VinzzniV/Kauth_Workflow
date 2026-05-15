@@ -60,12 +60,18 @@ export function useWorkflowTargetPersonSourcesSearch(search: string, enabled = t
   });
 }
 
-export function useWorkflowTasks(uid: string) {
+export function useWorkflowTasks(
+  uid: string,
+  options?: { refetchInterval?: number | false }
+) {
   return useQuery({
     queryKey: queryKeys.workflows.tasks(uid),
     queryFn: () => getWorkflowTasks(uid),
     enabled: Boolean(uid),
     staleTime: 15 * 1000,
+    // Slice 5: optionales Polling-Intervall fuer den Approval-Modal-running-State.
+    // Default behavior unveraendert (false = kein Polling).
+    refetchInterval: options?.refetchInterval ?? false,
   });
 }
 

@@ -15,6 +15,9 @@ export type RequestOptions = {
 
 export type ApiError = Error & {
   status?: number;
+  // Slice 5: rohe Response-Payload (parsed JSON oder text), damit Aufrufer bei
+  // strukturierten 4xx-Bodies wie 409 plan_drift den Body inspecten koennen.
+  payload?: unknown;
 };
 
 function resolveApiBase(): string {
@@ -211,6 +214,7 @@ async function requestJsonInternal<T>(
 
     const err = new Error(errorMessage) as ApiError;
     err.status = response.status;
+    err.payload = payload;
     throw err;
   }
 

@@ -3,6 +3,8 @@ import TaskStatusPill from "../workflows/TaskStatusPill";
 import TaskCommentsSection from "../workflows/TaskCommentsSection";
 import TaskSlaPill from "../workflows/TaskSlaPill";
 import type { WorkflowTask } from "../../types/workflow";
+import type { RoleCapabilities } from "../../auth/roleModel";
+import { canCurrentUserApprove } from "../../utils/automationAdminRoles";
 import { getResponsibleResponsibilityLabel, getResponsibleUserLabel } from "../../utils/taskAssignment";
 import {
   getAvailableVisibleTaskStatuses,
@@ -31,6 +33,10 @@ type WorkflowTaskAreasSectionProps = {
   usesAdminOverride: boolean;
   canManageAdminConfiguration: boolean;
   isReaderOnlyView: boolean;
+  // Slice 5 (Admin-Gated-Automation, Approval-Runtime-UI): RoleCapabilities fuer
+  // den per-Node-Role-Match am Approval-Button. Callback oeffnet das Approval-Modal.
+  capabilities: RoleCapabilities;
+  onApproveAutomation: (taskId: number, nodeKey: string) => void;
   onTaskStatusChange: (taskId: number, status: VisibleTaskStatus, currentStatus: WorkflowTask["status"]) => Promise<void>;
   onTaskApprovalDecision: (taskId: number, approved: boolean) => Promise<void>;
   onCommentDraftChange: (taskId: number, value: string) => void;
@@ -51,6 +57,8 @@ export default function WorkflowTaskAreasSection({
   usesAdminOverride,
   canManageAdminConfiguration,
   isReaderOnlyView,
+  capabilities,
+  onApproveAutomation,
   onTaskStatusChange,
   onTaskApprovalDecision,
   onCommentDraftChange,
@@ -199,6 +207,15 @@ export default function WorkflowTaskAreasSection({
                           const canChangeTaskStatus =
                             canManageAdminConfiguration && task.canUpdateStatus && availableStatuses.length > 1;
                           const canDecideApproval = task.isApprovalTask && task.canDecideApproval;
+                          // Slice 5: Approval-Button erscheint nur wenn task-Node tatsaechlich
+                          // ein Action-Bundle traegt (nodeKey + automationAdminRole gesetzt)
+                          // UND der aktuelle User die geforderte Rolle hat.
+                          const canApproveAutomation =
+                            !isTaskDone
+                            && task.status !== "cancelled"
+                            && !!task.nodeKey
+                            && !!task.automationAdminRole
+                            && canCurrentUserApprove(capabilities, task.automationAdminRole);
                           return (
                             <li key={task.id} className={`task-card${isTaskDone ? " task-card--done" : ""}${!isTaskDone ? " task-card--active" : ""}`}>
                               <div className="task-card-top">
@@ -277,6 +294,18 @@ export default function WorkflowTaskAreasSection({
                                       ))}
                                     </select>
                                   </label>
+                                </div>
+                              ) : null}
+
+                              {canApproveAutomation ? (
+                                <div className="toolbar-row task-actions-row">
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => onApproveAutomation(task.id, task.nodeKey!)}
+                                  >
+                                    Plan anzeigen & freigeben
+                                  </button>
                                 </div>
                               ) : null}
 

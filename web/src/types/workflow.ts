@@ -433,6 +433,10 @@ export type WorkflowTask = {
   nodeInstanceId: number | null;
   taskTemplateId: number | null;
   taskKey: string;
+  // Slice 5 (Admin-Gated-Automation, Approval-Runtime-UI): NodeKey + AutomationAdminRole
+  // werden fuer task-Nodes mit Action-Bundle befuellt; null sonst.
+  nodeKey: string | null;
+  automationAdminRole: string | null;
   isRuntimeNodeTask: boolean;
   isApprovalTask: boolean;
   title: string;
