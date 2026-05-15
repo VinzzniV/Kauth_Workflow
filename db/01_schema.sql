@@ -2592,20 +2592,8 @@ ALTER TABLE ONLY public.automation_approvals
 --
 -- Name: automation_approvals automation_approvals_workflow_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
-
-ALTER TABLE ONLY public.automation_approvals
-    ADD CONSTRAINT automation_approvals_workflow_fkey
-    FOREIGN KEY (workflow_id) REFERENCES public.workflows(id) ON DELETE CASCADE;
-
-
---
 -- Name: automation_approvals automation_approvals_node_instance_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
-
-ALTER TABLE ONLY public.automation_approvals
-    ADD CONSTRAINT automation_approvals_node_instance_fkey
-    FOREIGN KEY (workflow_node_instance_id) REFERENCES public.workflow_node_instances(id) ON DELETE CASCADE;
-
 
 --
 -- Name: automation_approvals automation_approvals_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
@@ -3149,6 +3137,15 @@ ALTER TABLE ONLY public.workflow_node_instances
 
 
 --
+-- Name: automation_approvals automation_approvals_node_instance_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_node_instance_fkey
+    FOREIGN KEY (workflow_node_instance_id) REFERENCES public.workflow_node_instances(id) ON DELETE CASCADE;
+
+
+--
 -- Name: workflow_node_instances workflow_node_instances_workflow_id_workflow_node_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3234,6 +3231,15 @@ ALTER TABLE ONLY public.workflow_tasks
 
 ALTER TABLE ONLY public.workflows
     ADD CONSTRAINT workflows_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: automation_approvals automation_approvals_workflow_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_workflow_fkey
+    FOREIGN KEY (workflow_id) REFERENCES public.workflows(id) ON DELETE CASCADE;
 
 
 --

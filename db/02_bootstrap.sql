@@ -258,31 +258,34 @@ INSERT INTO public.workflow_definition_versions OVERRIDING SYSTEM VALUE VALUES
 -- Data for Name: workflow_nodes; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.workflow_nodes OVERRIDING SYSTEM VALUE VALUES
-	(19, 2, 'start', 'start', 'Start', 0, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
-	(20, 2, 'collect_requirements', 'form', 'Offboarding-Umfang erfassen', 10, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
-	(21, 2, 'department_setup', 'measure_deprovision', 'Entzugsmaßnahmen erzeugen', 20, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
-	(22, 2, 'end', 'end', 'Abschluss', 30, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
-	(23, 3, 'start', 'start', 'Start', 0, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
-	(24, 3, 'collect_requirements', 'form', 'Wechselumfang erfassen', 10, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
-	(25, 3, 'department_setup', 'measure_change', 'Änderungsmaßnahmen erzeugen', 20, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
-	(26, 3, 'end', 'end', 'Abschluss', 30, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
-	(27, 4, 'start', 'start', 'Start', 0, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
-	(28, 4, 'collect_requirements', 'form', 'Namensänderung erfassen', 10, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
-	(29, 4, 'department_setup', 'measure_rename', 'Umbenennungsmaßnahmen erzeugen', 20, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
-	(30, 4, 'end', 'end', 'Abschluss', 30, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
-	(31, 5, 'start', 'start', 'Start', 0, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
-	(32, 5, 'collect_requirements', 'form', 'Positionswechsel erfassen', 10, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
-	(33, 5, 'department_setup', 'measure_change', 'Änderungsmaßnahmen erzeugen', 20, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
-	(34, 5, 'end', 'end', 'Abschluss', 30, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
-	(35, 6, 'start', 'start', 'Start', 0, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
-	(36, 6, 'collect_requirements', 'form', 'Rollenwechsel erfassen', 10, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
-	(37, 6, 'department_setup', 'measure_change', 'Änderungsmaßnahmen erzeugen', 20, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
-	(38, 6, 'end', 'end', 'Abschluss', 30, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
-	(39, 1, 'start', 'start', 'Start', 0, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
-	(40, 1, 'collect_requirements', 'form', 'Anforderungen erfassen', 10, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
-	(41, 1, 'department_setup', 'measure_provision', 'Bereitstellungsmaßnahmen erzeugen', 20, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
-	(42, 1, 'end', 'end', 'Abschluss', 30, NULL, NULL, '2026-04-27 07:05:52.043926+00');
+INSERT INTO public.workflow_nodes (
+	id, workflow_definition_version_id, node_key, node_type, title, sort_order,
+	position_x, position_y, automation_admin_role, created_at
+) OVERRIDING SYSTEM VALUE VALUES
+	(19, 2, 'start', 'start', 'Start', 0, NULL, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
+	(20, 2, 'collect_requirements', 'form', 'Offboarding-Umfang erfassen', 10, NULL, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
+	(21, 2, 'department_setup', 'measure_deprovision', 'Entzugsmaßnahmen erzeugen', 20, NULL, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
+	(22, 2, 'end', 'end', 'Abschluss', 30, NULL, NULL, NULL, '2026-04-27 07:05:52.0201+00'),
+	(23, 3, 'start', 'start', 'Start', 0, NULL, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
+	(24, 3, 'collect_requirements', 'form', 'Wechselumfang erfassen', 10, NULL, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
+	(25, 3, 'department_setup', 'measure_change', 'Änderungsmaßnahmen erzeugen', 20, NULL, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
+	(26, 3, 'end', 'end', 'Abschluss', 30, NULL, NULL, NULL, '2026-04-27 07:05:52.023922+00'),
+	(27, 4, 'start', 'start', 'Start', 0, NULL, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
+	(28, 4, 'collect_requirements', 'form', 'Namensänderung erfassen', 10, NULL, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
+	(29, 4, 'department_setup', 'measure_rename', 'Umbenennungsmaßnahmen erzeugen', 20, NULL, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
+	(30, 4, 'end', 'end', 'Abschluss', 30, NULL, NULL, NULL, '2026-04-27 07:05:52.03267+00'),
+	(31, 5, 'start', 'start', 'Start', 0, NULL, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
+	(32, 5, 'collect_requirements', 'form', 'Positionswechsel erfassen', 10, NULL, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
+	(33, 5, 'department_setup', 'measure_change', 'Änderungsmaßnahmen erzeugen', 20, NULL, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
+	(34, 5, 'end', 'end', 'Abschluss', 30, NULL, NULL, NULL, '2026-04-27 07:05:52.036601+00'),
+	(35, 6, 'start', 'start', 'Start', 0, NULL, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
+	(36, 6, 'collect_requirements', 'form', 'Rollenwechsel erfassen', 10, NULL, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
+	(37, 6, 'department_setup', 'measure_change', 'Änderungsmaßnahmen erzeugen', 20, NULL, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
+	(38, 6, 'end', 'end', 'Abschluss', 30, NULL, NULL, NULL, '2026-04-27 07:05:52.039432+00'),
+	(39, 1, 'start', 'start', 'Start', 0, NULL, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
+	(40, 1, 'collect_requirements', 'form', 'Anforderungen erfassen', 10, NULL, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
+	(41, 1, 'department_setup', 'measure_provision', 'Bereitstellungsmaßnahmen erzeugen', 20, NULL, NULL, NULL, '2026-04-27 07:05:52.043926+00'),
+	(42, 1, 'end', 'end', 'Abschluss', 30, NULL, NULL, NULL, '2026-04-27 07:05:52.043926+00');
 
 
 --

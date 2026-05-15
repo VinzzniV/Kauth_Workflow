@@ -88,6 +88,18 @@ function Get-AvailableDevWebPort {
     throw "Es konnte kein freier Web-Port aus der bevorzugten Liste ($($preferredPorts -join ', ')) gefunden werden."
 }
 
+function Get-AvailableDevApiPort {
+    $preferredPorts = @(5001, 5002, 5003, 5101, 5102, 5201)
+
+    foreach ($port in $preferredPorts) {
+        if (-not (Test-TcpPortInUse -Port $port) -and (Test-TcpPortUsable -Port $port)) {
+            return $port
+        }
+    }
+
+    throw "Es konnte kein freier Dev-API-Port aus der bevorzugten Liste ($($preferredPorts -join ', ')) gefunden werden."
+}
+
 function Get-AvailableDevDbPort {
     $preferredPorts = @(26432, 35432, 35433, 36432, 36433, 45432, 45433)
 
@@ -259,8 +271,13 @@ function Start-DevEnvironment {
     }
 
     $webPort = Get-AvailableDevWebPort
-    $apiCommand = "Set-Location '$repoRoot'; `$env:ASPNETCORE_ENVIRONMENT='Development'; `$env:ASPNETCORE_URLS='http://0.0.0.0:5001'; `$env:AUTH_MODE='dev-sim'; `$env:ConnectionStrings__Default='Host=localhost;Port=$dbPort;Username=app;Password=app_pw;Database=appdb;GSS Encryption Mode=Disable;SSL Mode=Disable'; `$env:PUBLIC_BASE_URL='http://localhost:$webPort'; `$env:Cors__AllowedOrigins__0='http://localhost:$webPort'; `$env:NotificationEmail__FrontendBaseUrl='http://localhost:$webPort'; `$env:DIRECTORY_GROUP_PREFIX='Onboarding-App-'; `$env:DIRECTORY_SYNC_SCHEDULED='true'; `$env:SWAGGER_ENABLED='true'; dotnet run --project api/API/API.csproj --no-launch-profile"
-    $webCommand = "Set-Location '$repoRoot/web'; `$env:VITE_PORT='$webPort'; npm run dev -- --host 127.0.0.1 --port $webPort"
+    $apiPort = Get-AvailableDevApiPort
+    if ($apiPort -ne 5001) {
+        Write-Warning "Dev-API-Port 5001 ist auf diesem Host nicht nutzbar. Verwende stattdessen Port $apiPort."
+    }
+
+    $apiCommand = "Set-Location '$repoRoot'; `$env:ASPNETCORE_ENVIRONMENT='Development'; `$env:ASPNETCORE_URLS='http://0.0.0.0:$apiPort'; `$env:AUTH_MODE='dev-sim'; `$env:ConnectionStrings__Default='Host=localhost;Port=$dbPort;Username=app;Password=app_pw;Database=appdb;GSS Encryption Mode=Disable;SSL Mode=Disable'; `$env:PUBLIC_BASE_URL='http://localhost:$webPort'; `$env:Cors__AllowedOrigins__0='http://localhost:$webPort'; `$env:NotificationEmail__FrontendBaseUrl='http://localhost:$webPort'; `$env:DIRECTORY_GROUP_PREFIX='Onboarding-App-'; `$env:DIRECTORY_SYNC_SCHEDULED='true'; `$env:SWAGGER_ENABLED='true'; dotnet run --project api/API/API.csproj --no-launch-profile"
+    $webCommand = "Set-Location '$repoRoot/web'; `$env:VITE_PORT='$webPort'; `$env:VITE_API_PORT='$apiPort'; `$env:VITE_API_PROXY_TARGET='http://127.0.0.1:$apiPort'; npm run dev -- --host 127.0.0.1 --port $webPort"
 
     Write-Host "Oeffne API-Fenster ..."
     Start-PowershellWindow -WindowTitle "kauth_workflow API" -Command $apiCommand
@@ -270,7 +287,7 @@ function Start-DevEnvironment {
 
     Write-Host ""
     Write-Host "Dev-Start angestossen."
-    Write-Host "API: http://127.0.0.1:5001"
+    Write-Host "API: http://127.0.0.1:$apiPort"
     Write-Host "Web: http://127.0.0.1:$webPort"
     Write-Host "DB:  localhost:$dbPort"
 
