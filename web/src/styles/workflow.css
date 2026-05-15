@@ -2487,6 +2487,114 @@
   width: min(720px, 95vw);
 }
 
+/* Slice 6: Bundle-View im Approval-Dialog (Stepper mit Connector-Linie) */
+.wfa-bundle-head {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.wfa-bundle-head-count {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.wfa-bundle-head-note {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.wfa-bundle-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.wfa-bundle-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem 0.65rem 0.65rem;
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.wfa-bundle-step + .wfa-bundle-step::before {
+  content: "";
+  position: absolute;
+  left: 1.65rem;
+  top: -0.85rem;
+  width: 2px;
+  height: 0.85rem;
+  background: var(--surface-card-border);
+}
+
+.wfa-bundle-step--error {
+  border-color: var(--border-danger, #dc2626);
+  background: var(--bg-card-danger, #fef2f2);
+}
+
+.wfa-bundle-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 50%;
+  background: var(--surface-card-subtle);
+  border: 1px solid var(--surface-card-border);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.wfa-bundle-step--error .wfa-bundle-step-num {
+  background: var(--border-danger, #dc2626);
+  border-color: var(--border-danger, #dc2626);
+  color: #fff;
+}
+
+.wfa-bundle-step-body {
+  min-width: 0;
+}
+
+.wfa-bundle-step-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin-bottom: 0.25rem;
+}
+
+.wfa-bundle-step-title strong {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.wfa-bundle-step-key {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  background: var(--surface-card-subtle);
+  border: 1px solid var(--surface-card-border);
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+}
+
 .wf-published-banner {
   display: flex;
   align-items: center;

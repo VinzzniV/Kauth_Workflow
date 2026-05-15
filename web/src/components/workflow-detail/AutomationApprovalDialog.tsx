@@ -2,8 +2,11 @@
 // State-Machine idle -> loading-plan -> reviewing -> submitting -> running ->
 // (succeeded | background). Drift (409) und unsupported-Errors (4xx) werden
 // inline behandelt; Failure-Detection (per-action) ist Scope von Slice 7.
+//
+// Slice 6 (Action-Buendelung im Task-UI): Plan wird als Bundle gerendert
+// (Stepper mit Connector, fachliche Action-Labels, Plan-Failure-Guard).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ApiError } from "../../services/api/client";
 import { useToast } from "../feedback/useToast";
 import {
@@ -11,6 +14,7 @@ import {
   useAutomationPlanQuery,
 } from "../../services/mutations/automationApprovalMutations";
 import { useWorkflowTasks } from "../../services/queries/workflowQueries";
+import { getAutomationActionLabel } from "../../utils/automationActionLabels";
 import type {
   AdUserPlanDetail,
   AutomationApproveAlreadyApprovedError,
@@ -321,19 +325,57 @@ function PlanReview(props: {
   onApprove: () => void;
 }) {
   const { plan, driftNotice, errorDetail, submitting, onApprove } = props;
+  const totalSteps = plan.steps.length;
+  const unplannableCount = useMemo(
+    () => plan.steps.filter((s) => !s.isSuccess).length,
+    [plan.steps],
+  );
+  const hasUnplannableStep = unplannableCount > 0;
+
   return (
     <div className="content-stack">
+      <section className="wfa-bundle-head">
+        <p className="wfa-bundle-head-count">
+          {totalSteps === 1
+            ? "1 Aktion wird bei Bestätigung ausgeführt."
+            : `${totalSteps} Aktionen werden bei Bestätigung in dieser Reihenfolge ausgeführt.`}
+        </p>
+        <p className="wfa-bundle-head-note">
+          Schlägt ein Schritt fehl, bleibt die Aufgabe offen — bereits ausgeführte Schritte
+          werden nicht zurückgerollt und müssen ggf. manuell nachgepflegt werden.
+        </p>
+      </section>
+
       {driftNotice ? (
         <p className="wf-step-card-hint wf-step-card-hint--warn">{driftNotice}</p>
       ) : null}
       {errorDetail ? (
         <p className="wf-step-card-hint wf-step-card-hint--error">{errorDetail}</p>
       ) : null}
+      {hasUnplannableStep ? (
+        <p className="wf-step-card-hint wf-step-card-hint--error">
+          {unplannableCount === 1
+            ? "Ein Schritt kann derzeit nicht geplant werden — bitte die Aufgabe später erneut öffnen oder die Konfiguration prüfen."
+            : `${unplannableCount} Schritte können derzeit nicht geplant werden — bitte die Aufgabe später erneut öffnen oder die Konfiguration prüfen.`}
+        </p>
+      ) : null}
 
-      <ol className="content-stack">
+      <ol className="wfa-bundle-steps">
         {plan.steps.map((step, idx) => (
-          <li key={`${step.actionKey}-${idx}`}>
-            <PlanStepDetail step={step} index={idx + 1} />
+          <li
+            key={`${step.actionKey}-${idx}`}
+            className={
+              step.isSuccess
+                ? "wfa-bundle-step"
+                : "wfa-bundle-step wfa-bundle-step--error"
+            }
+          >
+            <span className="wfa-bundle-step-num" aria-hidden="true">
+              {idx + 1}
+            </span>
+            <div className="wfa-bundle-step-body">
+              <PlanStepDetail step={step} />
+            </div>
           </li>
         ))}
       </ol>
@@ -342,7 +384,8 @@ function PlanReview(props: {
         type="button"
         className="btn btn-primary"
         onClick={onApprove}
-        disabled={submitting}
+        disabled={submitting || hasUnplannableStep}
+        title={hasUnplannableStep ? "Mindestens ein Schritt ist nicht planbar." : undefined}
       >
         {submitting ? "Wird genehmigt…" : "Genehmigen & ausführen"}
       </button>
@@ -350,13 +393,15 @@ function PlanReview(props: {
   );
 }
 
-function PlanStepDetail({ step, index }: { step: AutomationPlanStep; index: number }) {
+function PlanStepDetail({ step }: { step: AutomationPlanStep }) {
+  const label = getAutomationActionLabel(step.actionKey);
   if (!step.isSuccess) {
     return (
       <div className="content-stack">
-        <strong>
-          {index}. {step.actionKey}
-        </strong>
+        <div className="wfa-bundle-step-title">
+          <strong>{label}</strong>
+          <span className="wfa-bundle-step-key">{step.actionKey}</span>
+        </div>
         <p className="wf-step-card-hint wf-step-card-hint--error">
           Plan nicht verfügbar: {step.errorMessage ?? "unbekannter Fehler"}
         </p>
@@ -366,9 +411,10 @@ function PlanStepDetail({ step, index }: { step: AutomationPlanStep; index: numb
 
   return (
     <div className="content-stack">
-      <strong>
-        {index}. {step.actionKey}
-      </strong>
+      <div className="wfa-bundle-step-title">
+        <strong>{label}</strong>
+        <span className="wfa-bundle-step-key">{step.actionKey}</span>
+      </div>
       <PlanStepBody actionKey={step.actionKey} plan={step.plan} />
     </div>
   );
