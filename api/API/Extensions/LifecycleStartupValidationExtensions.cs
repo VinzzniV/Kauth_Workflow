@@ -363,7 +363,8 @@ SELECT
     source_node.node_key AS source_node_key,
     target_node.node_key AS target_node_key,
     e.priority,
-    e.condition_expression
+    e.condition_expression,
+    n.automation_admin_role
 FROM workflow_definition_versions v
 INNER JOIN workflow_definitions d
     ON d.id = v.workflow_definition_id
@@ -425,6 +426,8 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, e.priorit
                     Title = reader.IsDBNull(6) ? null : reader.GetString(6),
                     SortOrder = reader.GetInt32(7),
                     Config = reader.IsDBNull(8) ? null : ParseJsonElement(reader.GetString(8)),
+                    AutomationAdminRole = WorkflowDefinitionValidationHelpers.NormalizeAutomationAdminRole(
+                        reader.IsDBNull(13) ? null : reader.GetString(13)),
                     Actions = new List<WorkflowNodeActionDto>()
                 });
             }
@@ -540,7 +543,7 @@ ORDER BY d.definition_key, v.version_number, n.sort_order, n.node_key, wna.execu
                 // LA5: task/approval-Nodes binden ueber workflow_node_task_specs.workflow_node_id
                 // an ihre Spec; Drift-Check beim Startup entfaellt — Runtime-Resolver wirft, falls Spec fehlt.
 
-                if (string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
+                if (WorkflowDefinitionValidationCatalog.AllowsActions(node.NodeType))
                 {
                     foreach (var action in node.Actions)
                     {

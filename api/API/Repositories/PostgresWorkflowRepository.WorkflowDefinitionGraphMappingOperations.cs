@@ -49,7 +49,7 @@ internal sealed partial class PostgresWorkflowRepository
             // ClonePreviousVersionTaskSpecs-Helper ist nicht mehr noetig — EnsureAdminWorkflowDefinitionWorkingDraft
             // klont Specs automatisch via ToDraftNode -> Persist.
 
-            if (string.Equals(node.NodeType, "automation", StringComparison.OrdinalIgnoreCase))
+            if (WorkflowDefinitionValidationCatalog.AllowsActions(node.NodeType))
             {
                 foreach (var action in node.Actions)
                 {
@@ -149,6 +149,7 @@ internal sealed partial class PostgresWorkflowRepository
             PositionX = node.PositionX,
             PositionY = node.PositionY,
             Config = node.Config?.Clone(),
+            AutomationAdminRole = WorkflowDefinitionValidationHelpers.NormalizeAutomationAdminRole(node.AutomationAdminRole),
             Actions = (node.Actions ?? [])
                 .Select(action => new WorkflowDefinitionDraftNodeAction
                 {
@@ -241,7 +242,8 @@ INSERT INTO workflow_nodes (
     title,
     sort_order,
     position_x,
-    position_y
+    position_y,
+    automation_admin_role
 )
 VALUES (
     @versionId,
@@ -250,7 +252,8 @@ VALUES (
     @title,
     @sortOrder,
     @positionX,
-    @positionY
+    @positionY,
+    @automationAdminRole
 )
 RETURNING id;
 """;
@@ -293,6 +296,7 @@ VALUES (
             insertNodeCommand.Parameters.AddWithValue("sortOrder", node.SortOrder);
             insertNodeCommand.Parameters.AddWithValue("positionX", (object?)node.PositionX ?? DBNull.Value);
             insertNodeCommand.Parameters.AddWithValue("positionY", (object?)node.PositionY ?? DBNull.Value);
+            insertNodeCommand.Parameters.AddWithValue("automationAdminRole", (object?)node.AutomationAdminRole ?? DBNull.Value);
 
             var createdNodeId = await insertNodeCommand.ExecuteScalarAsync();
             if (createdNodeId is not long workflowNodeId)

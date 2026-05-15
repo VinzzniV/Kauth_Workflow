@@ -422,6 +422,12 @@ WHERE workflow_id = @workflowId;
             "node_activated",
             CreateJsonbPayload(new { nodeKey = node.NodeKey, nodeType = node.NodeType }));
 
+        // Slice 2 (Task-Automation-Binding): task-Nodes koennen optional Actions in
+        // workflow_node_actions tragen. Diese werden NICHT engine-driven ausgefuehrt
+        // — sie sind Admin-Gated und werden ausschliesslich ueber WorkflowAutomation-
+        // PlanService (Plan-Preview) + (Slice 3) Admin-Approval-Endpoint mit Re-Auth-
+        // Gate orchestriert. Der Engine-Branch hier erzeugt deshalb bewusst nur den
+        // Human Task; etwaige Actions am Node bleiben fuer den Approval-Pfad reserviert.
         if (string.Equals(node.NodeType, "task", StringComparison.OrdinalIgnoreCase)
             || string.Equals(node.NodeType, "approval", StringComparison.OrdinalIgnoreCase))
         {

@@ -416,10 +416,16 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
                 node => node,
                 StringComparer.OrdinalIgnoreCase);
 
+        // Slice 2: Actions sind jetzt sowohl an 'automation'- als auch an 'task'-Nodes
+        // sicherheitskritisch — jeder spaeter admin-getriggert ausgefuehrte Plan haengt
+        // an dieser Konfiguration. Daher behandelt der Gate beide Typen einheitlich.
+        // Drift in entweder Actions ODER automation_admin_role gilt als restricted.
+
+        // Request-Seite: jeder Action-tragende Node muss mit identischem Pendant
+        // auf der Existing-Seite uebereinstimmen.
         foreach (var requestNode in request.Nodes)
         {
-            var requestNodeType = Normalize(requestNode.NodeType);
-            if (!string.Equals(requestNodeType, "automation", StringComparison.OrdinalIgnoreCase))
+            if (!IsActionBearingNodeType(requestNode.NodeType))
             {
                 continue;
             }
@@ -427,7 +433,8 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
             var requestKey = Normalize(requestNode.NodeKey);
             if (requestKey is null
                 || !existingNodesByKey.TryGetValue(requestKey, out var existingNode)
-                || !string.Equals(Normalize(existingNode.NodeType), "automation", StringComparison.OrdinalIgnoreCase))
+                || !IsActionBearingNodeType(existingNode.NodeType)
+                || !string.Equals(Normalize(existingNode.NodeType), Normalize(requestNode.NodeType), StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -436,28 +443,30 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
             {
                 return true;
             }
+
+            if (!AutomationAdminRoleEquivalent(existingNode.AutomationAdminRole, requestNode.AutomationAdminRole))
+            {
+                return true;
+            }
         }
 
+        // Existing-Seite: jeder existierende Action-tragende Node muss im Request mit
+        // identischem Typ und identischen Actions/Role wieder auftauchen — sonst entfernt
+        // bzw. veraendert ein non-Advanced-User automation-relevanten Zustand.
         foreach (var existingNode in existingVersion.Nodes)
         {
-            var existingNodeType = Normalize(existingNode.NodeType);
-            if (!string.Equals(existingNodeType, "automation", StringComparison.OrdinalIgnoreCase))
+            if (!IsActionBearingNodeType(existingNode.NodeType))
             {
-                var existingKey = Normalize(existingNode.NodeKey);
-                if (existingKey is not null
-                    && requestNodesByKey.TryGetValue(existingKey, out var requestNode)
-                    && string.Equals(Normalize(requestNode.NodeType), "automation", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
+                // Defensive: ein non-action-Node, der zu einem Action-Node mutiert, ist
+                // bereits durch die Request-Seite oben abgefangen — hier kein Re-Check.
                 continue;
             }
 
             var existingKeyNormalized = Normalize(existingNode.NodeKey);
             if (existingKeyNormalized is null
                 || !requestNodesByKey.TryGetValue(existingKeyNormalized, out var matchingRequestNode)
-                || !string.Equals(Normalize(matchingRequestNode.NodeType), "automation", StringComparison.OrdinalIgnoreCase))
+                || !IsActionBearingNodeType(matchingRequestNode.NodeType)
+                || !string.Equals(Normalize(matchingRequestNode.NodeType), Normalize(existingNode.NodeType), StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -466,9 +475,26 @@ internal static class AdminWorkflowDefinitionConfigEndpoints
             {
                 return true;
             }
+
+            if (!AutomationAdminRoleEquivalent(existingNode.AutomationAdminRole, matchingRequestNode.AutomationAdminRole))
+            {
+                return true;
+            }
         }
 
         return false;
+    }
+
+    private static bool IsActionBearingNodeType(string? nodeType)
+    {
+        return WorkflowDefinitionValidationCatalog.AllowsActions(Normalize(nodeType));
+    }
+
+    private static bool AutomationAdminRoleEquivalent(string? left, string? right)
+    {
+        var leftNormalized = WorkflowDefinitionValidationHelpers.NormalizeAutomationAdminRole(left);
+        var rightNormalized = WorkflowDefinitionValidationHelpers.NormalizeAutomationAdminRole(right);
+        return string.Equals(leftNormalized, rightNormalized, StringComparison.Ordinal);
     }
 
     private static bool ActionsEquivalent(

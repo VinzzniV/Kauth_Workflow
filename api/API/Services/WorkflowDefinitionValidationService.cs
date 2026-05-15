@@ -61,6 +61,10 @@ internal sealed class WorkflowDefinitionDraftNode
     // FE-9: Specs reisen mit der Version. Bei `task`/`approval`-Nodes 0..1, bei
     // `measure_*` 0..N. Andere Node-Typen sollten leer bleiben (Validation).
     public required List<WorkflowDefinitionDraftNodeSpec> Specs { get; init; }
+    // Slice 2: kanonisch lowercase (NormalizeAutomationAdminRole). Bei task-Nodes
+    // mit Actions Pflicht; Validierung gegen WorkflowDefinitionValidationCatalog
+    // .AllowedAutomationAdminRoles.
+    public string? AutomationAdminRole { get; init; }
 }
 
 internal sealed class WorkflowDefinitionDraftNodeSpec

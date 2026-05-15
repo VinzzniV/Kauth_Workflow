@@ -129,6 +129,14 @@
         "idx_automation_plan_requests_pending"
       ],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-15_workflow_nodes_automation_admin_role.sql",
+      "description": "Admin-Gated-Automation Slice 2 (Task-Automation-Binding): fügt workflow_nodes.automation_admin_role (VARCHAR(40), NULL) hinzu. Bestimmt für task-Nodes mit Actions, welche Admin-Rolle den Plan im Approval-Schritt (Slice 3) bestätigen darf.",
+      "expect_in_schema": [
+        "automation_admin_role character varying(40)"
+      ],
+      "forbid_in_schema": []
     }
   ]
 }

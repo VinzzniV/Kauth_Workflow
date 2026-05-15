@@ -74,6 +74,11 @@ public sealed class WorkflowDefinitionNodeDto
     public int? PositionY { get; init; }
     public JsonElement? Config { get; init; }
     public List<WorkflowNodeActionDto> Actions { get; init; } = new();
+    // Slice 2 (Admin-Gated-Automation, Task-Automation-Binding): bei task-Nodes mit
+    // Actions Pflicht; bestimmt welche Admin-Rolle den Plan im Approval-Schritt
+    // (Slice 3) bestaetigen darf. NULL fuer alle Nicht-task-Nodes und task-Nodes
+    // ohne Actions.
+    public string? AutomationAdminRole { get; init; }
     // FE-9: Task-Specs reisen mit der Version-DTO. Vorher hingen Specs implizit
     // am workflow_node_id der published Version; bei Versions-Wechseln gingen sie
     // verloren. Jetzt: jede Version traegt ihre Specs explizit, EnsureWorkingDraft

@@ -49,7 +49,8 @@ internal static class WorkflowDefinitionDraftValidator
                     PositionY = node.PositionY,
                     Config = CloneConfig(node.Config),
                     Actions = NormalizeNodeActions(node, errors, $"Node[{index}]"),
-                    Specs = NormalizeNodeSpecs(node, nodeType, errors, $"Node[{index}]")
+                    Specs = NormalizeNodeSpecs(node, nodeType, errors, $"Node[{index}]"),
+                    AutomationAdminRole = WorkflowDefinitionValidationHelpers.NormalizeAutomationAdminRole(node.AutomationAdminRole)
                 }))
             {
                 errors.Add($"Duplicate node key '{nodeKey}'.");
@@ -257,20 +258,56 @@ internal static class WorkflowDefinitionDraftValidator
     {
         foreach (var node in nodes)
         {
-            if (!string.Equals(node.NodeType, "automation", StringComparison.Ordinal))
+            var isAutomationNode = string.Equals(node.NodeType, "automation", StringComparison.Ordinal);
+            var isTaskNode = string.Equals(node.NodeType, "task", StringComparison.Ordinal);
+            var hasRole = !string.IsNullOrEmpty(node.AutomationAdminRole);
+
+            // Slice 2: Actions sind ausser bei 'automation' nur noch bei 'task' erlaubt.
+            // Bei jedem anderen Typ ist sowohl Actions als auch automation_admin_role verboten.
+            if (!isAutomationNode && !isTaskNode)
             {
                 if (node.Actions.Count > 0)
                 {
                     errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' must not define actions.");
                 }
 
+                if (hasRole)
+                {
+                    errors.Add($"Node '{node.NodeKey}' of type '{node.NodeType}' must not define an automationAdminRole.");
+                }
+
                 continue;
             }
 
-            if (node.Actions.Count == 0)
+            if (isAutomationNode && node.Actions.Count == 0)
             {
                 errors.Add($"Node '{node.NodeKey}' of type 'automation' requires at least one action.");
                 continue;
+            }
+
+            if (isTaskNode)
+            {
+                if (node.Actions.Count == 0 && hasRole)
+                {
+                    errors.Add($"Node '{node.NodeKey}' defines an automationAdminRole but no actions.");
+                    continue;
+                }
+
+                if (node.Actions.Count > 0 && !hasRole)
+                {
+                    errors.Add($"Node '{node.NodeKey}' of type 'task' defines actions and therefore requires an 'automationAdminRole'.");
+                }
+                else if (node.Actions.Count > 0
+                    && !WorkflowDefinitionValidationCatalog.AllowedAutomationAdminRoles.Contains(node.AutomationAdminRole!))
+                {
+                    errors.Add($"Node '{node.NodeKey}' uses unsupported automationAdminRole '{node.AutomationAdminRole}'.");
+                }
+
+                if (node.Actions.Count == 0)
+                {
+                    // task-Node ohne Actions + ohne Role: klassischer Human Task. OK.
+                    continue;
+                }
             }
 
             var seenExecutionOrders = new HashSet<int>();

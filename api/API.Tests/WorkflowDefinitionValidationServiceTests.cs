@@ -807,6 +807,241 @@ public sealed class WorkflowDefinitionValidationServiceTests
         Assert.Single(measureDraft.Specs.Single(s => s.SpecKey == "spec_b").Dependencies);
     }
 
+    // Slice 2 (Admin-Gated-Automation, Task-Automation-Binding): task-Nodes
+    // duerfen optional Actions tragen, brauchen dann aber einen Role-Slug.
+    [Fact]
+    public void ValidateAndNormalize_AllowsTaskNodeWithActionsAndRole()
+    {
+        var result = _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode(
+                    "TaskWithPlan",
+                    "task",
+                    automationAdminRole: "auth_admin",
+                    actions: CreateAction("CreateAdUser", 10)),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "TaskWithPlan", 0), CreateEdge("TaskWithPlan", "End", 0)]
+        });
+
+        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "TaskWithPlan");
+        Assert.Equal("task", taskNode.NodeType);
+        Assert.Single(taskNode.Actions);
+        Assert.Equal("auth_admin", taskNode.AutomationAdminRole);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_AllowsTaskNodeWithoutActionsOrRole()
+    {
+        var result = _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("PlainTask", "task"),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "PlainTask", 0), CreateEdge("PlainTask", "End", 0)]
+        });
+
+        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "PlainTask");
+        Assert.Empty(taskNode.Actions);
+        Assert.Null(taskNode.AutomationAdminRole);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsTaskNodeWithActionsButNoRole()
+    {
+        var request = new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("TaskNoRole", "task", actions: CreateAction("CreateAdUser", 10)),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "TaskNoRole", 0), CreateEdge("TaskNoRole", "End", 0)]
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(request));
+        Assert.Contains("automationAdminRole", exception.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsTaskNodeWithRoleButNoActions()
+    {
+        var request = new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("RoleOnly", "task", automationAdminRole: "auth_admin"),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "RoleOnly", 0), CreateEdge("RoleOnly", "End", 0)]
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(request));
+        Assert.Contains("automationAdminRole", exception.Message);
+        Assert.Contains("no actions", exception.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsTaskNodeWithUnsupportedRole()
+    {
+        var request = new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode(
+                    "WorkerTask",
+                    "task",
+                    automationAdminRole: "auth_worker",
+                    actions: CreateAction("CreateAdUser", 10)),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "WorkerTask", 0), CreateEdge("WorkerTask", "End", 0)]
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(request));
+        Assert.Contains("unsupported automationAdminRole", exception.Message);
+    }
+
+    [Fact]
+    public void ValidateAndNormalize_RejectsAutomationAdminRoleOnNonActionNode()
+    {
+        var request = new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode(
+                    "FormA",
+                    "form",
+                    configJson: """{"workflowDefinitionKey":"onboarding"}""",
+                    automationAdminRole: "auth_admin"),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "FormA", 0), CreateEdge("FormA", "End", 0)]
+        };
+
+        var exception = Assert.Throws<InvalidOperationException>(() => _sut.ValidateAndNormalize(request));
+        Assert.Contains("automationAdminRole", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("AUTH_ADMIN")]
+    [InlineData("  Auth_Admin  ")]
+    [InlineData("auth_admin")]
+    public void ValidateAndNormalize_NormalizesAutomationAdminRoleCasing(string rawRole)
+    {
+        var result = _sut.ValidateAndNormalize(new ReplaceWorkflowDefinitionVersionRequest
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode(
+                    "TaskCasing",
+                    "task",
+                    automationAdminRole: rawRole,
+                    actions: CreateAction("CreateAdUser", 10)),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "TaskCasing", 0), CreateEdge("TaskCasing", "End", 0)]
+        });
+
+        var taskNode = Assert.Single(result.Nodes, node => node.NodeKey == "TaskCasing");
+        Assert.Equal("auth_admin", taskNode.AutomationAdminRole);
+    }
+
+    [Fact]
+    public void ValidateSnapshot_TaskWithActionsAndRole_ProducesNoIssues()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode(
+                    "TaskSnap",
+                    "task",
+                    automationAdminRole: "auth_admin",
+                    actions: CreateAction("CreateAdUser", 10)),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "TaskSnap", 0), CreateEdge("TaskSnap", "End", 0)]
+        });
+
+        Assert.DoesNotContain(snapshot.Issues, i => i.Code == "missing_automation_admin_role_for_task_with_actions");
+        Assert.DoesNotContain(snapshot.Issues, i => i.Code == "invalid_automation_admin_role");
+        Assert.DoesNotContain(snapshot.Issues, i => i.Code == "task_admin_role_without_actions");
+        Assert.DoesNotContain(snapshot.Issues, i => i.Code == "actions_not_allowed");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_TaskWithActionsWithoutRole_EmitsStructuredIssue()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("TaskNoRole", "task", actions: CreateAction("CreateAdUser", 10)),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "TaskNoRole", 0), CreateEdge("TaskNoRole", "End", 0)]
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(
+            snapshot.Issues,
+            i => i.Code == "missing_automation_admin_role_for_task_with_actions" && i.ReferenceKey == "TaskNoRole");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_TaskWithUnsupportedRole_EmitsInvalidRoleIssue()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode(
+                    "WorkerTask",
+                    "task",
+                    automationAdminRole: "auth_worker",
+                    actions: CreateAction("CreateAdUser", 10)),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "WorkerTask", 0), CreateEdge("WorkerTask", "End", 0)]
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, i => i.Code == "invalid_automation_admin_role");
+    }
+
+    [Fact]
+    public void ValidateSnapshot_TaskWithRoleWithoutActions_EmitsTaskRoleWithoutActionsIssue()
+    {
+        var snapshot = _sut.ValidateSnapshot(new WorkflowDefinitionValidationContext
+        {
+            Nodes =
+            [
+                CreateNode("Start", "start"),
+                CreateNode("RoleOnly", "task", automationAdminRole: "auth_admin"),
+                CreateNode("End", "end")
+            ],
+            Edges = [CreateEdge("Start", "RoleOnly", 0), CreateEdge("RoleOnly", "End", 0)]
+        });
+
+        Assert.False(snapshot.CanPublish);
+        Assert.Contains(snapshot.Issues, i => i.Code == "task_admin_role_without_actions");
+    }
+
     private static WorkflowDefinitionNodeDto CreateNode(
         string nodeKey,
         string nodeType,
@@ -814,6 +1049,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
         string? configJson = null,
         int? positionX = null,
         int? positionY = null,
+        string? automationAdminRole = null,
         params WorkflowNodeActionDto[] actions)
     {
         return new WorkflowDefinitionNodeDto
@@ -824,6 +1060,7 @@ public sealed class WorkflowDefinitionValidationServiceTests
             PositionX = positionX,
             PositionY = positionY,
             Config = configJson is null ? null : JsonDocument.Parse(configJson).RootElement.Clone(),
+            AutomationAdminRole = automationAdminRole,
             Actions = actions.ToList()
         };
     }

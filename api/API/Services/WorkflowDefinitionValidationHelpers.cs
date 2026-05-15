@@ -51,6 +51,15 @@ internal static class WorkflowDefinitionValidationHelpers
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    // Slice 2: Role-Slug kanonisch (Trim + lowercase), damit Builder-Input wie
+    // "AUTH_Admin" oder "  auth_admin " gegen dieselbe Whitelist + denselben
+    // Runtime-Vergleich (AuthorizationPolicyService nutzt OrdinalIgnoreCase)
+    // konsistent persistiert wird.
+    public static string? NormalizeAutomationAdminRole(string? raw)
+    {
+        return NormalizeOptionalText(raw)?.ToLowerInvariant();
+    }
+
     public static bool HasConfig(JsonElement? config)
     {
         return config.HasValue

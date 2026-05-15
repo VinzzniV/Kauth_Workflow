@@ -674,7 +674,8 @@ SELECT
     n.sort_order,
     n.position_x,
     n.position_y,
-    nc.config_json::text
+    nc.config_json::text,
+    n.automation_admin_role
 FROM workflow_nodes n
 LEFT JOIN workflow_node_configs nc
     ON nc.workflow_node_id = n.id
@@ -689,7 +690,8 @@ SELECT
     n.sort_order,
     NULL::integer AS position_x,
     NULL::integer AS position_y,
-    nc.config_json::text
+    nc.config_json::text,
+    n.automation_admin_role
 FROM workflow_nodes n
 LEFT JOIN workflow_node_configs nc
     ON nc.workflow_node_id = n.id
@@ -713,6 +715,8 @@ ORDER BY n.sort_order, n.node_key, n.id;
                     PositionX = reader.IsDBNull(4) ? null : reader.GetInt32(4),
                     PositionY = reader.IsDBNull(5) ? null : reader.GetInt32(5),
                     Config = reader.IsDBNull(6) ? null : PostgresRepositorySharedHelpers.ParseJsonElement(reader.GetString(6)),
+                    AutomationAdminRole = WorkflowDefinitionValidationHelpers.NormalizeAutomationAdminRole(
+                        reader.IsDBNull(7) ? null : reader.GetString(7)),
                     Actions = new List<WorkflowNodeActionDto>()
                 });
             }

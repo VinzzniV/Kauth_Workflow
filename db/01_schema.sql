@@ -2035,6 +2035,7 @@ CREATE TABLE public.workflow_nodes (
     sort_order integer DEFAULT 0 NOT NULL,
     position_x integer,
     position_y integer,
+    automation_admin_role character varying(40),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT workflow_nodes_node_type_check CHECK (((node_type)::text = ANY ((ARRAY['start'::character varying, 'form'::character varying, 'approval'::character varying, 'task'::character varying, 'decision'::character varying, 'parallel_split'::character varying, 'parallel_join'::character varying, 'automation'::character varying, 'measure_provision'::character varying, 'measure_deprovision'::character varying, 'measure_change'::character varying, 'measure_rename'::character varying, 'end'::character varying])::text[])))
 );

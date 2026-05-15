@@ -48,7 +48,8 @@ internal static class WorkflowDefinitionSnapshotValidator
                     PositionY = node.PositionY,
                     Config = WorkflowDefinitionValidationHelpers.CloneConfig(node.Config),
                     Actions = NormalizeNodeActions(node, issues, $"Node[{index}]", nodeKey),
-                    Specs = NormalizeNodeSpecs(node, nodeType, issues, $"Node[{index}]", nodeKey)
+                    Specs = NormalizeNodeSpecs(node, nodeType, issues, $"Node[{index}]", nodeKey),
+                    AutomationAdminRole = WorkflowDefinitionValidationHelpers.NormalizeAutomationAdminRole(node.AutomationAdminRole)
                 }))
             {
                 issues.Add(WorkflowDefinitionValidationHelpers.CreateIssue(
@@ -317,7 +318,13 @@ internal static class WorkflowDefinitionSnapshotValidator
     {
         foreach (var node in nodes)
         {
-            if (!string.Equals(node.NodeType, "automation", StringComparison.Ordinal))
+            var isAutomationNode = string.Equals(node.NodeType, "automation", StringComparison.Ordinal);
+            var isTaskNode = string.Equals(node.NodeType, "task", StringComparison.Ordinal);
+            var hasRole = !string.IsNullOrEmpty(node.AutomationAdminRole);
+
+            // Slice 2: Actions sind ausser bei 'automation' nur noch bei 'task' erlaubt.
+            // Bei jedem anderen Typ ist sowohl Actions als auch automation_admin_role verboten.
+            if (!isAutomationNode && !isTaskNode)
             {
                 if (node.Actions.Count > 0)
                 {
@@ -328,10 +335,21 @@ internal static class WorkflowDefinitionSnapshotValidator
                         node.NodeKey));
                 }
 
+                if (hasRole)
+                {
+                    issues.Add(WorkflowDefinitionValidationHelpers.CreateIssue(
+                        "automation_admin_role_not_allowed",
+                        $"Node '{node.NodeKey}' of type '{node.NodeType}' must not define an automationAdminRole.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
                 continue;
             }
 
-            if (node.Actions.Count == 0)
+            // automation-Pfad: bestehende Pflicht "mindestens eine Action" bleibt;
+            // automation_admin_role ist hier irrelevant (engine-driven, kein Admin-Gate).
+            if (isAutomationNode && node.Actions.Count == 0)
             {
                 issues.Add(WorkflowDefinitionValidationHelpers.CreateIssue(
                     "missing_automation_actions",
@@ -339,6 +357,45 @@ internal static class WorkflowDefinitionSnapshotValidator
                     "workflow_node",
                     node.NodeKey));
                 continue;
+            }
+
+            // task-Pfad: drei Branches je nach (Actions, Role).
+            if (isTaskNode)
+            {
+                if (node.Actions.Count == 0 && hasRole)
+                {
+                    issues.Add(WorkflowDefinitionValidationHelpers.CreateIssue(
+                        "task_admin_role_without_actions",
+                        $"Node '{node.NodeKey}' defines an automationAdminRole but no actions.",
+                        "workflow_node",
+                        node.NodeKey));
+                    continue;
+                }
+
+                if (node.Actions.Count > 0 && !hasRole)
+                {
+                    issues.Add(WorkflowDefinitionValidationHelpers.CreateIssue(
+                        "missing_automation_admin_role_for_task_with_actions",
+                        $"Node '{node.NodeKey}' of type 'task' defines actions and therefore requires an 'automationAdminRole'.",
+                        "workflow_node",
+                        node.NodeKey));
+                    // Kein continue: action-interne Validierung soll trotzdem laufen.
+                }
+                else if (node.Actions.Count > 0
+                    && !WorkflowDefinitionValidationCatalog.AllowedAutomationAdminRoles.Contains(node.AutomationAdminRole!))
+                {
+                    issues.Add(WorkflowDefinitionValidationHelpers.CreateIssue(
+                        "invalid_automation_admin_role",
+                        $"Node '{node.NodeKey}' uses unsupported automationAdminRole '{node.AutomationAdminRole}'.",
+                        "workflow_node",
+                        node.NodeKey));
+                }
+
+                if (node.Actions.Count == 0)
+                {
+                    // task-Node ohne Actions + ohne Role: klassischer Human Task. OK.
+                    continue;
+                }
             }
 
             var seenExecutionOrders = new HashSet<int>();
