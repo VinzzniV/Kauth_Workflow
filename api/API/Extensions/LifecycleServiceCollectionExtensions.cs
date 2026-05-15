@@ -152,6 +152,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddSingleton(BuildAutomationRetrySettings(configuration));
         services.AddSingleton(new WorkerLeaseSettings());
         services.AddScoped<IWorkflowAutomationService, WorkflowAutomationService>();
+        services.AddScoped<WorkflowAutomationPlanService>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateAdUserAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateMailboxAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, AssignGroupsAutomationHandler>();

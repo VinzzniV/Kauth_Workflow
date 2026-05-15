@@ -49,6 +49,20 @@ internal sealed class LdapsAdUserWriter : IAdUserWriter
         this.logger = logger;
     }
 
+    public Task<(bool Exists, string? DistinguishedName)> FindUserAsync(
+        string samAccountName, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.DcHost))
+            throw new InvalidOperationException("Worker AdSettings.DcHost is not configured.");
+        if (string.IsNullOrWhiteSpace(settings.BaseDn))
+            throw new InvalidOperationException("Worker AdSettings.BaseDn is not configured.");
+
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = OpenConnection();
+        var dn = FindExistingUserDn(connection, samAccountName);
+        return Task.FromResult(dn is not null ? (true, dn) : (false, (string?)null));
+    }
+
     public Task<AdWriteOutcome> CreateUserAsync(AdUserSpec spec, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.DcHost))

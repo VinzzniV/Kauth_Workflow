@@ -20,6 +20,7 @@ namespace AdAutomationWorker;
 internal sealed class WorkerHostedService : BackgroundService
 {
     private readonly IWorkerJobStore store;
+    private readonly IWorkerPlanStore planStore;
     private readonly HandlerRegistry handlerRegistry;
     private readonly WorkerHeartbeatLoop heartbeatLoop;
     private readonly WorkerSettings settings;
@@ -28,12 +29,14 @@ internal sealed class WorkerHostedService : BackgroundService
 
     public WorkerHostedService(
         IWorkerJobStore store,
+        IWorkerPlanStore planStore,
         HandlerRegistry handlerRegistry,
         WorkerHeartbeatLoop heartbeatLoop,
         IOptions<WorkerSettings> options,
         ILogger<WorkerHostedService> logger)
     {
         this.store = store;
+        this.planStore = planStore;
         this.handlerRegistry = handlerRegistry;
         this.heartbeatLoop = heartbeatLoop;
         this.settings = options.Value;
@@ -59,14 +62,23 @@ internal sealed class WorkerHostedService : BackgroundService
             try
             {
                 await store.ReleaseStaleClaimsAsync(staleTimeout, stoppingToken);
+                await planStore.ReleaseStaleClaimsAsync(TimeSpan.FromSeconds(30), stoppingToken);
+
                 var claim = await store.ClaimNextPendingJobAsync(workerId, stoppingToken);
-                if (claim is null)
+                if (claim is not null)
                 {
-                    await Task.Delay(pollingInterval, stoppingToken);
+                    await ProcessClaimAsync(claim, heartbeatInterval, stoppingToken);
                     continue;
                 }
 
-                await ProcessClaimAsync(claim, heartbeatInterval, stoppingToken);
+                var planClaim = await planStore.ClaimNextPlanRequestAsync(workerId, stoppingToken);
+                if (planClaim is not null)
+                {
+                    await TryProcessNextPlanRequestAsync(planClaim, stoppingToken);
+                    continue;
+                }
+
+                await Task.Delay(pollingInterval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -87,6 +99,57 @@ internal sealed class WorkerHostedService : BackgroundService
         }
 
         logger.LogInformation("AD-Automation worker stopped (workerId={WorkerId}).", workerId);
+    }
+
+    private async Task TryProcessNextPlanRequestAsync(WorkerPlanClaim claim, CancellationToken stoppingToken)
+    {
+        if (!handlerRegistry.TryGet(claim.ActionKey, out var handler))
+        {
+            logger.LogError(
+                "No handler registered for action_key '{ActionKey}' on plan request {RequestId}; failing request.",
+                claim.ActionKey,
+                claim.RequestId);
+            await planStore.MarkPlanRequestFailedAsync(
+                claim.RequestId,
+                $"No worker handler registered for action_key '{claim.ActionKey}'.",
+                stoppingToken);
+            return;
+        }
+
+        var context = new WorkerPlanContext
+        {
+            WorkflowInstanceUid = claim.WorkflowInstanceUid,
+            ActionKey = claim.ActionKey,
+            Payload = claim.PayloadJson,
+        };
+
+        WorkerPlanResult result;
+        try
+        {
+            result = await handler.PlanAsync(context, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "PlanAsync {ActionKey} threw for plan request {RequestId}.", claim.ActionKey, claim.RequestId);
+            await planStore.MarkPlanRequestFailedAsync(claim.RequestId, ex.Message, stoppingToken);
+            return;
+        }
+
+        if (result.IsSuccess && result.Plan is not null)
+        {
+            await planStore.MarkPlanRequestCompletedAsync(claim.RequestId, result.Plan, stoppingToken);
+        }
+        else
+        {
+            await planStore.MarkPlanRequestFailedAsync(
+                claim.RequestId,
+                result.ErrorMessage ?? "PlanAsync reported failure without message.",
+                stoppingToken);
+        }
     }
 
     private async Task ProcessClaimAsync(WorkerJobClaim claim, TimeSpan heartbeatInterval, CancellationToken stoppingToken)

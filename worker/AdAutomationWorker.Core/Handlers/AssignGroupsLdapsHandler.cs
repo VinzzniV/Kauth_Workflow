@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AdAutomationWorker.Core.Ad;
 
 namespace AdAutomationWorker.Core.Handlers;
@@ -64,6 +65,55 @@ public sealed class AssignGroupsLdapsHandler : IWorkerHandler
             AdGroupMembershipOutcome.TransientFailure transient => BuildTopLevelFailure(transient.Reason, transient.LdapResultCode, WorkerFailureKinds.Transient),
             _ => WorkerHandlerResult.Failure("Unknown AdGroupMembershipOutcome variant.", Array.Empty<WorkerLogEntry>(), WorkerFailureKinds.Transient),
         };
+    }
+
+    public async Task<WorkerPlanResult> PlanAsync(WorkerPlanContext context, CancellationToken cancellationToken)
+    {
+        if (context.Payload.ValueKind != JsonValueKind.Object)
+            return WorkerPlanResult.Failure("Payload must be a JSON object.");
+
+        var userDn = ReadRequiredString(context.Payload, "userDistinguishedName");
+        var groupDns = ReadGroupDistinguishedNames(context.Payload);
+
+        if (groupDns is null)
+            return WorkerPlanResult.Failure(
+                "Missing or empty payload field: groupDistinguishedNames (expected string array with at least one entry).");
+
+        // Sentinel: AD-Vorgänger noch nicht geplant/ausgeführt — DN unbekannt
+        if (string.IsNullOrWhiteSpace(userDn) || userDn!.StartsWith("plan:", StringComparison.Ordinal))
+        {
+            var groups = groupDns.Select(dn => new { groupDn = dn, alreadyMember = (bool?)null }).ToArray();
+            var plan = new
+            {
+                userDistinguishedName = (string?)null,
+                groups,
+                note = "AD-User-DN noch nicht bekannt — AlreadyMember-Status kann erst zur Ausführungszeit geprüft werden.",
+            };
+            return WorkerPlanResult.Success(JsonSerializer.SerializeToNode(plan)!);
+        }
+
+        var plannedGroups = new List<object>();
+        foreach (var groupDn in groupDns)
+        {
+            bool alreadyMember;
+            try
+            {
+                alreadyMember = await writer.IsMemberAsync(userDn, groupDn, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                return WorkerPlanResult.Failure($"LDAP membership check failed for group '{groupDn}': {ex.Message}");
+            }
+            plannedGroups.Add(new { groupDn, alreadyMember = (bool?)alreadyMember });
+        }
+
+        var result = new
+        {
+            userDistinguishedName = userDn,
+            groups = plannedGroups.ToArray(),
+            note = (string?)null,
+        };
+        return WorkerPlanResult.Success(JsonSerializer.SerializeToNode(result)!);
     }
 
     private static WorkerHandlerResult BuildAllAddedResult(AdGroupMembershipSpec spec, AdGroupMembershipOutcome.AllAdded outcome)

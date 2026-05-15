@@ -117,6 +117,18 @@
       "kind": "data",
       "expect_in_schema": [],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-15_automation_plan_requests.sql",
+      "description": "Admin-Gated-Automation Slice 1 (WhatIf): Tabelle für Worker-Plan-Requests. Status-Maschine pending/running/completed/failed; Worker claimed via SKIP LOCKED; Ergebnis als plan_json.",
+      "expect_in_schema": [
+        "automation_plan_requests",
+        "automation_plan_requests_id_seq",
+        "automation_plan_requests_pkey",
+        "automation_plan_requests_status_check",
+        "idx_automation_plan_requests_pending"
+      ],
+      "forbid_in_schema": []
     }
   ]
 }

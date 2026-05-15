@@ -15,4 +15,9 @@ namespace AdAutomationWorker.Core.Ad;
 public interface IAdUserWriter
 {
     Task<AdWriteOutcome> CreateUserAsync(AdUserSpec spec, CancellationToken cancellationToken);
+
+    // Plan-Mode: Read-only-Suche nach einem User via sAMAccountName. Gibt (true, DN) wenn gefunden,
+    // (false, null) wenn nicht gefunden, wirft bei Verbindungsfehlern.
+    Task<(bool Exists, string? DistinguishedName)> FindUserAsync(
+        string samAccountName, CancellationToken cancellationToken);
 }

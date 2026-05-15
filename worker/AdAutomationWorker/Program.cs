@@ -34,6 +34,12 @@ builder.Services.AddSingleton<IWorkerJobStore>(sp =>
         TimeSpan.FromSeconds(Math.Max(60, workerSettings.Vault.TemporaryCredentialTtlSeconds)));
 });
 
+builder.Services.AddSingleton<IWorkerPlanStore>(sp =>
+{
+    var loader = sp.GetRequiredService<DbConnectionStringLoader>();
+    return new PostgresWorkerPlanStore(loader.Load());
+});
+
 builder.Services.AddSingleton<IAdUserWriter, LdapsAdUserWriter>();
 builder.Services.AddSingleton<IAdGroupMembershipWriter, LdapsAdGroupMembershipWriter>();
 builder.Services.AddSingleton<IWorkerHandler, SimulatedWindowsWorkerPingHandler>();

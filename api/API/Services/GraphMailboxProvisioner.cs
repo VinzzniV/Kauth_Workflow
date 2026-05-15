@@ -181,6 +181,25 @@ internal sealed class GraphMailboxProvisioner : IGraphMailboxProvisioner
             AssignedAtUtc: DateTime.UtcNow);
     }
 
+    public async Task<string?> TryGetSkuDisplayNameAsync(Guid skuId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var configuration = await configurationService.GetRuntimeConfiguration(cancellationToken);
+            var client = CreateGraphClient(configuration);
+            var result = await client.SubscribedSkus.GetAsync(req =>
+            {
+                req.QueryParameters.Select = new[] { "skuId", "skuPartNumber" };
+            }, cancellationToken);
+            var sku = result?.Value?.FirstOrDefault(s => s.SkuId == skuId);
+            return sku?.SkuPartNumber;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     // Quellen-Reihenfolge: proxyAddresses 'SMTP:'-Praefix (uppercase = primary), dann mail.
     // KEIN UPN-Fallback -- siehe Plan-Mode-Review zu Schritt 7.
     internal static string? ExtractPrimarySmtpAddress(User? user)

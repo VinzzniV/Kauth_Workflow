@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace API;
 
@@ -95,6 +96,49 @@ internal sealed class CreateMailboxGraphHandler : IWorkflowAutomationActionHandl
                 trans.Reason, trans.HttpStatus, WorkflowAutomationRetryPolicy.FailureKindTransient),
             _ => Failure("Unknown GraphMailboxProvisionOutcome variant.", WorkflowAutomationRetryPolicy.FailureKindTransient),
         };
+    }
+
+    public async Task<AutomationLinuxPlanResult> PlanAsync(
+        AutomationPlanContext ctx,
+        CancellationToken ct = default)
+    {
+        var root = ctx.Payload.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return AutomationLinuxPlanResult.Failure("Payload must be a JSON object.");
+
+        var upn = ReadRequiredString(root, "userPrincipalName");
+        var skuIdRaw = ReadRequiredString(root, "skuId");
+
+        if (string.IsNullOrWhiteSpace(skuIdRaw) || !Guid.TryParse(skuIdRaw, out var skuId))
+            return AutomationLinuxPlanResult.Failure(
+                string.IsNullOrWhiteSpace(skuIdRaw)
+                    ? "Missing payload field: skuId"
+                    : $"skuId must be a UUID (got '{skuIdRaw}').");
+
+        if (PlanSentinels.IsSentinel(upn) || string.IsNullOrWhiteSpace(upn))
+        {
+            var plan = new MailboxPlan(
+                UpnKnown: false,
+                UserPrincipalName: null,
+                SkuId: skuIdRaw!,
+                SkuDisplayName: null,
+                SmtpAddressKnown: false,
+                SmtpNote: "SMTP-Adresse wird erst nach Exchange-Provisioning bekannt (Ausführungszeit).",
+                UpnNote: "UPN aus AD-Anlage noch nicht bekannt — wird zur Ausführungszeit aufgelöst.");
+            return AutomationLinuxPlanResult.Success(JsonSerializer.SerializeToNode(plan)!);
+        }
+
+        var skuDisplayName = await provisioner.TryGetSkuDisplayNameAsync(skuId, ct);
+
+        var result = new MailboxPlan(
+            UpnKnown: true,
+            UserPrincipalName: upn,
+            SkuId: skuIdRaw!,
+            SkuDisplayName: skuDisplayName,
+            SmtpAddressKnown: false,
+            SmtpNote: "SMTP-Adresse wird erst nach Exchange-Provisioning bekannt (Ausführungszeit).",
+            UpnNote: null);
+        return AutomationLinuxPlanResult.Success(JsonSerializer.SerializeToNode(result)!);
     }
 
     private static WorkflowAutomationHandlerResult BuildProvisionedResult(GraphMailboxProvisionOutcome.Provisioned p)

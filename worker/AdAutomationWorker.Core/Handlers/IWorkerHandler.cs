@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace AdAutomationWorker.Core.Handlers;
 
@@ -10,6 +11,28 @@ public interface IWorkerHandler
     string ActionKey { get; }
 
     Task<WorkerHandlerResult> ExecuteAsync(WorkerHandlerContext context, CancellationToken cancellationToken);
+
+    Task<WorkerPlanResult> PlanAsync(WorkerPlanContext context, CancellationToken cancellationToken)
+        => Task.FromResult(WorkerPlanResult.NotSupported(ActionKey));
+}
+
+public sealed record WorkerPlanContext
+{
+    public required string WorkflowInstanceUid { get; init; }
+    public required string ActionKey { get; init; }
+    public required JsonElement Payload { get; init; }
+}
+
+public sealed record WorkerPlanResult(bool IsSuccess, JsonNode? Plan, string? ErrorMessage)
+{
+    public static WorkerPlanResult NotSupported(string actionKey) =>
+        new(false, null, $"PlanAsync not supported for action '{actionKey}'");
+
+    public static WorkerPlanResult Success(JsonNode plan) =>
+        new(true, plan, null);
+
+    public static WorkerPlanResult Failure(string errorMessage) =>
+        new(false, null, errorMessage);
 }
 
 public sealed record WorkerHandlerContext

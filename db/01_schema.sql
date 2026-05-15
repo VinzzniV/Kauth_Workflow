@@ -1482,6 +1482,42 @@ CREATE TABLE public.temporary_credentials (
 
 
 --
+-- Name: automation_plan_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.automation_plan_requests (
+    id bigint NOT NULL,
+    workflow_instance_uid uuid NOT NULL,
+    node_key character varying(80) NOT NULL,
+    action_key character varying(80) NOT NULL,
+    payload_json jsonb NOT NULL,
+    target_runtime character varying(40),
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    claimed_by character varying(120),
+    claimed_at timestamp with time zone,
+    plan_json jsonb,
+    error_message text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    completed_at timestamp with time zone,
+    CONSTRAINT automation_plan_requests_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying, 'completed'::character varying, 'failed'::character varying])::text[])))
+);
+
+
+--
+-- Name: automation_plan_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.automation_plan_requests ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.automation_plan_requests_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: workflow_answer_definitions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2442,6 +2478,14 @@ ALTER TABLE ONLY public.automation_job_logs
 
 
 --
+-- Name: automation_plan_requests automation_plan_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_plan_requests
+    ADD CONSTRAINT automation_plan_requests_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: automation_jobs automation_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3128,6 +3172,13 @@ CREATE INDEX idx_auth_permission_audit_log_actor ON public.auth_permission_audit
 --
 
 CREATE INDEX idx_auth_permission_audit_log_created_at ON public.auth_permission_audit_log USING btree (created_at DESC);
+
+
+--
+-- Name: idx_automation_plan_requests_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_automation_plan_requests_pending ON public.automation_plan_requests USING btree (target_runtime, created_at) WHERE ((status)::text = 'pending'::text);
 
 
 --

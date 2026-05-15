@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AdAutomationWorker.Core.Ad;
 
 namespace AdAutomationWorker.Core.Handlers;
@@ -97,6 +98,48 @@ public sealed class CreateAdUserLdapsHandler : IWorkerHandler
             AdWriteOutcome.TransientFailure transient => BuildFailureResult(transient.LdapResultCode, transient.Reason, WorkerFailureKinds.Transient),
             _ => WorkerHandlerResult.Failure("Unknown AdWriteOutcome variant.", Array.Empty<WorkerLogEntry>()),
         };
+    }
+
+    public async Task<WorkerPlanResult> PlanAsync(WorkerPlanContext context, CancellationToken cancellationToken)
+    {
+        if (context.Payload.ValueKind != JsonValueKind.Object)
+            return WorkerPlanResult.Failure("Payload must be a JSON object.");
+
+        var samAccountName = ReadRequiredString(context.Payload, "samAccountName", out var m1);
+        var userPrincipalName = ReadRequiredString(context.Payload, "userPrincipalName", out var m2);
+        var displayName = ReadRequiredString(context.Payload, "displayName", out var m3);
+        var givenName = ReadRequiredString(context.Payload, "givenName", out var m4);
+        var surname = ReadRequiredString(context.Payload, "surname", out var m5);
+        var mail = ReadRequiredString(context.Payload, "mail", out var m6);
+        var targetOu = ReadRequiredString(context.Payload, "targetOu", out var m7);
+
+        var firstMissing = m1 ?? m2 ?? m3 ?? m4 ?? m5 ?? m6 ?? m7;
+        if (firstMissing is not null)
+            return WorkerPlanResult.Failure($"Missing payload field: {firstMissing}");
+
+        var employeeNumber = ReadOptionalString(context.Payload, "employeeNumber");
+        var targetDn = $"CN={displayName},{targetOu}";
+
+        (bool exists, string? existingDn) = await writer.FindUserAsync(samAccountName!, cancellationToken);
+
+        var plan = new
+        {
+            alreadyExists = exists,
+            existingDn = exists ? existingDn : (string?)null,
+            targetDn = exists ? (string?)null : targetDn,
+            userPrincipalName,
+            samAccountName,
+            displayName,
+            givenName,
+            surname,
+            mail,
+            employeeNumber,
+            passwordNote = exists
+                ? "Bestehendes Konto — kein neues Passwort wird gesetzt."
+                : "Zufälliges Initial-Passwort wird zur Ausführungszeit generiert und im Vault gespeichert.",
+        };
+
+        return WorkerPlanResult.Success(JsonSerializer.SerializeToNode(plan)!);
     }
 
     private static WorkerHandlerResult BuildCreatedResult(AdWriteOutcome.Created created, AdUserSpec spec, long workflowNodeInstanceId)

@@ -41,6 +41,26 @@ internal sealed class LdapsAdGroupMembershipWriter : IAdGroupMembershipWriter
         this.logger = logger;
     }
 
+    public Task<bool> IsMemberAsync(
+        string userDistinguishedName, string groupDistinguishedName, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.DcHost))
+            throw new InvalidOperationException("Worker AdSettings.DcHost is not configured.");
+
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = OpenConnection();
+
+        var escaped = EscapeLdapDn(userDistinguishedName);
+        var search = new SearchRequest(
+            groupDistinguishedName,
+            $"(&(objectClass=group)(member={escaped}))",
+            SearchScope.Base,
+            "distinguishedName");
+
+        var response = (SearchResponse)connection.SendRequest(search);
+        return Task.FromResult(response.Entries.Count > 0);
+    }
+
     public Task<AdGroupMembershipOutcome> AddMembershipsAsync(AdGroupMembershipSpec spec, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.DcHost))
@@ -160,5 +180,25 @@ internal sealed class LdapsAdGroupMembershipWriter : IAdGroupMembershipWriter
         return PermanentLdapCodes.Contains(code)
             ? new AdGroupMembershipOutcome.PermanentFailure(ex.Message, code)
             : new AdGroupMembershipOutcome.TransientFailure(ex.Message, code);
+    }
+
+    // RFC 4515: Escaping eines DN-Werts in einem LDAP-Filter (member=<dn>).
+    // Nur die nötigsten Sonderzeichen — DNs enthalten normalerweise keine Wildcards.
+    private static string EscapeLdapDn(string value)
+    {
+        var sb = new System.Text.StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '\\': sb.Append("\\5c"); break;
+                case '*': sb.Append("\\2a"); break;
+                case '(': sb.Append("\\28"); break;
+                case ')': sb.Append("\\29"); break;
+                case '\0': sb.Append("\\00"); break;
+                default: sb.Append(c); break;
+            }
+        }
+        return sb.ToString();
     }
 }

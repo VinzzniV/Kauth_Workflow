@@ -212,5 +212,8 @@ public sealed class CreateMailboxGraphHandlerTests
             Calls.Add(request);
             return Task.FromResult(OutcomeFactory(request));
         }
+
+        public Task<string?> TryGetSkuDisplayNameAsync(Guid skuId, CancellationToken cancellationToken)
+            => Task.FromResult<string?>(null);
     }
 }

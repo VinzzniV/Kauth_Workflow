@@ -6,6 +6,11 @@ internal interface IWorkflowAutomationActionHandler
     Task<WorkflowAutomationHandlerResult> ExecuteAsync(
         WorkflowAutomationHandlerContext context,
         CancellationToken cancellationToken = default);
+
+    Task<AutomationLinuxPlanResult> PlanAsync(
+        AutomationPlanContext ctx,
+        CancellationToken ct = default)
+        => Task.FromResult(AutomationLinuxPlanResult.NotSupported(ActionKey));
 }
 
 internal sealed class WorkflowAutomationHandlerContext

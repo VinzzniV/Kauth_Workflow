@@ -236,6 +236,55 @@ Vor Beginn jedes Slices ein eigener Plan-Mode mit Stakeholder-Klärung — die D
 
 ---
 
+## Umsetzungsplan — Modell & Reasoning-Empfehlung pro Slice
+
+Stand 2026-05-15. Basis: Etappe 9a Schritte 1–8 abgeschlossen. Die technische Infrastruktur (Worker, Vault, Handler, Engine) steht. Was fehlt ist die Admin-UX-Schicht: Plan → Review → Re-Auth → Ausführung → Summary.
+
+### Hauptslices (Architekturlinie)
+
+| Nr. | Slice | Modell | Reasoning Effort | Plan Mode | Begründung |
+|---|---|---|---|---|---|
+| 1 | **Pre-Execution-Plan (WhatIf)** | Sonnet | **mittel** | Ja — für Interface-Design; danach direkt pro Handler | `PlanAsync`-Vertrag muss einmal sauber entworfen werden (was darf Read-only, was nicht). Danach ist jeder der 4 Handler mechanische Erweiterung. |
+| 2 | **Task-Automation-Binding** | **Opus** | **hoch** | **Zwingend** | Berührt Schema (Migration), Builder-UI und Engine gleichzeitig. Falsches Schema zieht nachträgliche Migration nach sich; bestehende Workflow-Instanzen dürfen nicht brechen. Höchstes Architekturrisiko aller Slices. |
+| 3 | **Re-Auth-Gate** | **Opus** | **hoch** | **Zwingend** | Sicherheits-kritisch und Querschnitt (Endpoint, UI-Baustein, Audit-Eintrag). Entra-Re-Auth hat Fallstricke (Token-Lebensdauer, Replay, PKCE vs. OBO). Falsch umgesetzt ist es Security-Theater statt echter Schranke. |
+| 4 | **360°-Karte-Aggregator** | Sonnet | **niedrig–mittel** | Kurz — für SQL-Design | Hauptarbeit ist Aggregator-Query über `automation_job_attempts` + neues Read-only-Frontend. SQL-Aggregation braucht Planungsrunde (Indexes, N+1), der Rest ist geradliniges CRUD + Page. |
+| 5 | **Referenzuser-Mapping** | Sonnet | **mittel** | Ja — für Source-Design und Whitelist | Klar begrenzter Slice nach vorhandenem Muster. Plan Mode einmal für die Whitelist-Entscheidung (welche Properties erlaubt), dann direkte Impl. |
+| 6 | **Action-Bündelung im Task (UI)** | Sonnet | **niedrig** | Nein (setzt 1 + 2 voraus) | UI-Rendering-Arbeit, sobald Schema + Plan-Vertrag aus 1/2 stehen. Kein Architekturrisiko, mechanische Erweiterung. |
+| 7 | **Live-Log während Ausführung** | Sonnet | **mittel** | Ja — für Protokoll-Wahl (SSE vs. Polling) | Entscheidung SSE vs. Polling hat Folgen für Backend und UI. Einmal entschieden ist die Umsetzung geradlinig. |
+
+### Change-/Offboarding-Handler (Inhalts-Slices, bauen auf 1–4 auf)
+
+| Handler | Modell | Reasoning Effort | Plan Mode | Hinweis |
+|---|---|---|---|---|
+| `DisableAdUserLdaps` | Sonnet | **niedrig** | Nein | Klar begrenzter LDAPS-Write, Muster aus `CreateAdUserLdaps` übertragbar. |
+| `RemoveFromAllGroupsLdaps` | Sonnet | **niedrig** | Nein | Spiegel zu `AssignGroupsLdaps`; Plan-Vorschau der entfernten Gruppen. |
+| `RemoveMailboxLicense` | Sonnet | **niedrig** | Nein | Spiegel zu `CreateMailboxGraph`, klares Graph-API-Äquivalent. |
+| `MoveAdUserOuLdaps` + `UpdateAdUserAttributesLdaps` | Sonnet | **mittel** | Kurz — für Whitelist + Drift-Schutz | Manager/Title/Department-Attribute: Whitelist und Drift-Schutz analog Schritt 5 designen. |
+| `RenameAdUserLdaps` | **Opus** | **hoch** | **Zwingend** | UPN-Wechsel hat Folgewirkungen in Entra/Exchange (alter UPN als Alias?), ggf. SMTP-Adress-Drift. Heikelster Handler — Risikoanalyse vor Code. |
+
+### Kleinere offene Punkte
+
+| Punkt | Modell | Reasoning Effort | Plan Mode | Hinweis |
+|---|---|---|---|---|
+| Builder-UI für `automation_output`-Bedingungen | Sonnet | **niedrig** | Nein | Source-Dropdown + ConditionProperties-Filter nach bekanntem Muster; heute nur per JSON/Dev-Seed konfigurierbar. |
+| Vault-Cleanup-Sweeper | Haiku | **niedrig** | Nein | TTL-getriebener Delete-Job, enge Anforderung, kein Architektureinfluss. |
+| Key-Rotation | Sonnet | **mittel** | Kurz | `key_version`-Spalte + Multi-Decrypt-Fan-Out hat Fehlerquellen; kurze Planungsrunde nötig. |
+| `CreateErpEmployee` (InforLN) | **Opus** | **hoch** | **Zwingend** | Wartet auf Stakeholder-Entscheidung. InforLN-Anbindung ist unbekanntes Terrain — Risikoabschätzung vor Umsetzung. |
+
+### Faustregeln
+
+| Reasoning Effort | Wann |
+|---|---|
+| **hoch** | Sicherheits-kritisch, Schema-Migration mit Folgewirkung, unbekanntes Integrations-Terrain, mehrere Schichten gleichzeitig berührt |
+| **mittel** | Klarer Scope, aber Entwurfs-Entscheidung am Anfang nötig; vorhandenes Muster mit nicht-trivialem Whitelist/Vertrags-Design |
+| **niedrig** | Muster existiert bereits, Arbeit ist mechanische Erweiterung oder isolierter Infrastruktur-Job |
+
+- **Opus** — hoch + Plan Mode zwingend
+- **Sonnet** — mittel oder niedrig, je nach Slice
+- **Haiku** — niedrig, isoliert, kein Architektureinfluss
+
+---
+
 ## Verwandte Notizen
 
 - [[Automation]] — Ist-Stand der Automation-Infrastruktur (technische Grundlage)

@@ -13,6 +13,9 @@ internal interface IGraphMailboxProvisioner
     Task<GraphMailboxProvisionOutcome> AssignExchangeLicenseAsync(
         GraphMailboxProvisionRequest request,
         CancellationToken cancellationToken);
+
+    // Plan-Mode: best-effort SKU-Namens-Lookup fuer die Plan-Vorschau. Gibt null bei jedem Fehler.
+    Task<string?> TryGetSkuDisplayNameAsync(Guid skuId, CancellationToken cancellationToken);
 }
 
 internal sealed record GraphMailboxProvisionRequest

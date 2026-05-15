@@ -15,4 +15,9 @@ namespace AdAutomationWorker.Core.Ad;
 public interface IAdGroupMembershipWriter
 {
     Task<AdGroupMembershipOutcome> AddMembershipsAsync(AdGroupMembershipSpec spec, CancellationToken cancellationToken);
+
+    // Plan-Mode: prüft ob userDistinguishedName bereits Mitglied in groupDistinguishedName ist.
+    // Gibt true/false, wirft bei Verbindungsfehlern.
+    Task<bool> IsMemberAsync(
+        string userDistinguishedName, string groupDistinguishedName, CancellationToken cancellationToken);
 }
