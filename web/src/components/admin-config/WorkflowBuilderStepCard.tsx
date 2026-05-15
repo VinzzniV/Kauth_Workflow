@@ -24,6 +24,10 @@ import { WorkflowBuilderMeasurePreview } from "./WorkflowBuilderMeasurePreview";
 import { WorkflowBuilderActionEditor } from "./WorkflowBuilderActionEditor";
 import { WorkflowBuilderStepConfigEditor } from "./WorkflowBuilderStepConfigEditor";
 import { WorkflowBuilderSpecEditor } from "./WorkflowBuilderSpecEditor";
+import {
+  AUTOMATION_ADMIN_ROLES,
+  getAutomationAdminRoleLabel,
+} from "../../utils/automationAdminRoles";
 
 export type WorkflowBuilderStepCardProps = {
   node: WorkflowBuilderNodeDraft;
@@ -441,6 +445,150 @@ function AutomationStepSummary({
   );
 }
 
+// Slice 4 (Admin-Gated-Automation, Builder-UI): paralleler Block fuer task-Nodes.
+// Wording "Automatisierung beim Abschluss" macht admin-gegated-Semantik sichtbar.
+// Role-Selector liegt im Drawer ueber der Action-Liste; Step-Card zeigt zur
+// Vorschau einen read-only Role-Chip wenn Actions vorhanden.
+function TaskApprovalAutomationSummary({
+  node,
+  actionDefinitions,
+  automationPropertyCatalog,
+  answerDefinitions,
+  canManageAdvanced,
+  onUpdate,
+  onAddAction,
+  onUpdateAction,
+  onRemoveAction,
+}: {
+  node: WorkflowBuilderNodeDraft;
+  actionDefinitions: AdminWorkflowActionDefinition[];
+  automationPropertyCatalog: AdminAutomationPropertyCatalog | null;
+  answerDefinitions: AdminAnswerDefinition[];
+  canManageAdvanced: boolean;
+  onUpdate: (patch: Partial<WorkflowBuilderNodeDraft>) => void;
+  onAddAction: (actionKey: string) => void;
+  onUpdateAction: (actionId: string, patch: Partial<WorkflowBuilderActionDraft>) => void;
+  onRemoveAction: (actionId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const actions = node.actions ?? [];
+  const hasActions = actions.length > 0;
+  const roleLabel = getAutomationAdminRoleLabel(node.automationAdminRole);
+  const actionLabels = actions.map((action) => {
+    const def = actionDefinitions.find((d) => d.actionKey === action.actionKey);
+    return def?.displayName ?? action.actionKey;
+  });
+
+  return (
+    <div className="wf-automation-summary">
+      <div className="wf-automation-summary-head">
+        <span className="wf-automation-summary-count">
+          {!hasActions
+            ? "Noch keine Automatisierung beim Abschluss konfiguriert"
+            : `${actions.length} ${actions.length === 1 ? "Aktion" : "Aktionen"} beim Abschluss`}
+        </span>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setOpen(true)}
+        >
+          {!hasActions ? "Automatisierung anlegen" : "Automatisierung bearbeiten"}
+        </button>
+      </div>
+      {hasActions ? (
+        <div className="wf-automation-summary-chips">
+          {actionLabels.map((label, idx) => (
+            <span key={`${node.id}-task-action-${idx}`} className="chip">
+              {idx + 1}. {label}
+            </span>
+          ))}
+          <span className="chip">
+            Approval-Rolle: {roleLabel ?? "Rolle wählen"}
+          </span>
+        </div>
+      ) : null}
+
+      {open ? (
+        <>
+          <div className="admin-drawer-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />
+          <aside
+            className="admin-drawer wf-automation-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Automatisierung beim Abschluss bearbeiten"
+          >
+            <header className="admin-drawer-head">
+              <div className="admin-drawer-title">
+                <h2>Automatisierung beim Abschluss</h2>
+                <span className="wf-condition-drawer-route">
+                  <strong>{node.title.trim() || node.nodeKey.trim() || "Aufgabe"}</strong>
+                </span>
+              </div>
+              <button type="button" className="admin-drawer-close" onClick={() => setOpen(false)} aria-label="Schließen">
+                ×
+              </button>
+            </header>
+            <div className="admin-drawer-body content-stack">
+              {hasActions ? (
+                <TaskAutomationAdminRoleField
+                  value={node.automationAdminRole}
+                  disabled={!canManageAdvanced}
+                  onChange={(next) => onUpdate({ automationAdminRole: next })}
+                />
+              ) : null}
+              <WorkflowBuilderActionEditor
+                node={node}
+                actionDefinitions={actionDefinitions}
+                automationPropertyCatalog={automationPropertyCatalog}
+                answerDefinitions={answerDefinitions}
+                canManageAdvanced={canManageAdvanced}
+                onAddAction={onAddAction}
+                onUpdateAction={onUpdateAction}
+                onRemoveAction={onRemoveAction}
+              />
+            </div>
+          </aside>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function TaskAutomationAdminRoleField({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string | null;
+  disabled: boolean;
+  onChange: (next: string | null) => void;
+}) {
+  return (
+    <div className="form-field">
+      <label>
+        <span className="form-field-label">
+          Approval-Rolle <span aria-hidden="true">*</span>
+        </span>
+        <select
+          value={value ?? ""}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value ? e.target.value : null)}
+        >
+          <option value="">— bitte wählen —</option>
+          {AUTOMATION_ADMIN_ROLES.map((role) => (
+            <option key={role.value} value={role.value}>
+              {role.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="form-field-hint">
+        Bestimmt, welche Rolle die geplanten Aktionen nach Re-Auth bestätigen darf.
+      </p>
+    </div>
+  );
+}
+
 function StepCardBody(props: WorkflowBuilderStepCardProps) {
   const {
     node, versionDraft, workflowDefinitions,
@@ -525,7 +673,6 @@ function StepCardBody(props: WorkflowBuilderStepCardProps) {
 
     case "form":
     case "approval":
-    case "task":
       return (
         <WorkflowBuilderStepConfigEditor
           node={node}
@@ -534,6 +681,37 @@ function StepCardBody(props: WorkflowBuilderStepCardProps) {
           answerDefinitions={answerDefinitions}
           onUpdate={onUpdate}
         />
+      );
+
+    case "task":
+      return (
+        <>
+          <WorkflowBuilderStepConfigEditor
+            node={node}
+            responsibilityOwners={responsibilityOwners}
+            taskTemplates={taskTemplates}
+            answerDefinitions={answerDefinitions}
+            onUpdate={onUpdate}
+          />
+          {/* Slice 4 (Admin-Gated-Automation): task-Nodes koennen optional
+              ein Action-Bundle tragen, das beim Task-Abschluss admin-getriggert
+              ausgefuehrt wird (Approval + Re-Auth Slice 3). Im Bearbeitungsmodus
+              ohne Advanced-Access ist der Drawer-Button disabled (gleicher
+              Mechanismus wie an automation-Nodes). */}
+          {(canManageAdvanced || (node.actions ?? []).length > 0) ? (
+            <TaskApprovalAutomationSummary
+              node={node}
+              actionDefinitions={actionDefinitions}
+              automationPropertyCatalog={automationPropertyCatalog}
+              answerDefinitions={answerDefinitions}
+              canManageAdvanced={canManageAdvanced}
+              onUpdate={onUpdate}
+              onAddAction={onAddAction}
+              onUpdateAction={onUpdateAction}
+              onRemoveAction={onRemoveAction}
+            />
+          ) : null}
+        </>
       );
 
     default:

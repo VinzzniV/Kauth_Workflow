@@ -9,6 +9,7 @@ import type {
   AdminWorkflowDefinitionVersionSummary,
   AdminWorkflowNodeAction,
 } from "../types/auth";
+import { isAutomationAdminRoleSlug } from "../utils/automationAdminRoles";
 
 export type WorkflowBuilderNodeDraft = {
   id: string;
@@ -38,7 +39,20 @@ export type WorkflowBuilderNodeDraft = {
   // ueber die DELETE/CASCADE-Logik geloescht. Pflege passiert (vorerst) im
   // AdminTaskTemplate-Editor. Bei UI-Inline-Edit wird dieses Feld aufgeruestet.
   specs: AdminWorkflowDefinitionNodeSpec[];
+  // Slice 4 (Admin-Gated-Automation): Approval-Rolle fuer task-Nodes mit
+  // Action-Bundle. Whitelist auth_admin/auth_hr/auth_manager; null fuer alle
+  // anderen Node-Typen.
+  automationAdminRole: string | null;
 };
+
+// Slice 4 (Admin-Gated-Automation, Builder-UI): Single Source of Truth fuer
+// "welche Node-Typen duerfen Action-Bundles tragen". Mirror Backend
+// WorkflowDefinitionValidationCatalog.AllowsActions. Wird im Hook (Validation +
+// addActionFromDefinition) UND im Save-Mapping unten genutzt — Drift zwischen
+// den drei Stellen wuerde die UI inkonsistent machen.
+export function nodeTypeAllowsActions(nodeType: WorkflowBuilderNodeDraft["nodeType"]): boolean {
+  return nodeType === "automation" || nodeType === "task";
+}
 
 export type WorkflowBuilderActionDraft = {
   id: string;
@@ -161,6 +175,7 @@ export function createEmptyNodeDraft(
     configText: "",
     actions: [],
     specs: [],
+    automationAdminRole: null,
   };
 }
 
@@ -211,6 +226,8 @@ function toNodeDraft(
     // FE-9: Specs durchreichen (frueher fehlte das, weshalb Replace die Specs geloescht haette).
     // Defensive []-Default, falls Backend ein altes (Pre-FE-9) Detail-DTO liefert.
     specs: node.specs ?? [],
+    // Slice 4: Approval-Rolle (kanonisch lowercase oder null). Defensive ??.
+    automationAdminRole: node.automationAdminRole ?? null,
   };
 }
 
@@ -354,7 +371,13 @@ export function buildVersionReplacePayload(
       positionX: toNullableInteger(node.positionX),
       positionY: toNullableInteger(node.positionY),
       config: parseOptionalJsonObject(node.configText),
-      actions: node.nodeType === "automation"
+      // Slice 4: Approval-Rolle nur an task-Nodes; bei automation oder anderen
+      // immer null (Backend ignoriert/lehnt sonst ab). Trim+lowercase damit
+      // identisch zum Backend NormalizeAutomationAdminRole-Pfad.
+      automationAdminRole: node.nodeType === "task"
+        ? (node.automationAdminRole?.trim().toLowerCase() || null)
+        : null,
+      actions: nodeTypeAllowsActions(node.nodeType)
         ? node.actions.map((action, actionIndex) => ({
             actionKey: toNullableText(action.actionKey),
             inputMapping: parseOptionalJsonObject(action.inputMappingText),
@@ -457,8 +480,29 @@ export function validateWorkflowBuilderDraft(draft: WorkflowBuilderVersionDraft)
       }
     }
 
-    if (node.nodeType !== "automation" && node.actions.length > 0) {
+    // Slice 4 (Admin-Gated-Automation, Builder-UI): Actions sind erlaubt fuer
+    // automation und task; alle anderen Node-Typen lehnen Actions UND
+    // automationAdminRole ab. Mirror der Slice-2-Backend-Regeln, damit der
+    // Admin keine "Surprise"-Validation erst beim Save bekommt.
+    if (!nodeTypeAllowsActions(node.nodeType) && node.actions.length > 0) {
       issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' darf keine automatischen Aktionen enthalten.`, referenceKey: refKey });
+    }
+
+    if (node.nodeType !== "task" && node.automationAdminRole) {
+      issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' darf keine Approval-Rolle setzen.`, referenceKey: refKey });
+    }
+
+    if (node.nodeType === "task") {
+      if (node.actions.length === 0 && node.automationAdminRole) {
+        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' hat eine Approval-Rolle gesetzt, aber keine Aktionen.`, referenceKey: refKey });
+      }
+      if (node.actions.length > 0 && !node.automationAdminRole) {
+        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' hat Aktionen, aber keine Approval-Rolle gewählt.`, referenceKey: refKey });
+      } else if (node.actions.length > 0
+        && node.automationAdminRole
+        && !isAutomationAdminRoleSlug(node.automationAdminRole)) {
+        issues.push({ scope: "node", message: `Der Schritt '${nodeKey || "?"}' nutzt eine unbekannte Approval-Rolle ('${node.automationAdminRole}').`, referenceKey: refKey });
+      }
     }
 
     if (node.nodeType === "automation") {

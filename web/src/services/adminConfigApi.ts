@@ -492,6 +492,11 @@ export async function replaceAdminWorkflowDefinitionVersion(
       positionX: number | null;
       positionY: number | null;
       config: Record<string, unknown> | null;
+      // Slice 4 (Admin-Gated-Automation, Builder-UI): Approval-Rolle fuer
+      // task-Nodes mit Action-Bundle. Whitelist greift backend-seitig
+      // (WorkflowDefinitionValidationCatalog.AllowedAutomationAdminRoles);
+      // null fuer alle anderen Node-Typen.
+      automationAdminRole: string | null;
       actions: Array<{
         actionKey: string | null;
         inputMapping: Record<string, unknown> | null;

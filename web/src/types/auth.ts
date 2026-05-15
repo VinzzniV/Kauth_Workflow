@@ -687,6 +687,10 @@ export type AdminWorkflowDefinitionNode = {
   // task/approval 0..1. Builder editiert sie (noch) nicht inline, muss sie
   // aber durch Save round-trippen, sonst werden sie beim Replace geloescht.
   specs: AdminWorkflowDefinitionNodeSpec[];
+  // Slice 2 (Admin-Gated-Automation): Approval-Rolle fuer task-Nodes mit
+  // Action-Bundle. Whitelist auth_admin/auth_hr/auth_manager; null fuer alle
+  // anderen Node-Typen und task-Nodes ohne Actions.
+  automationAdminRole: string | null;
 };
 
 export type AdminWorkflowDefinitionNodeSpec = {

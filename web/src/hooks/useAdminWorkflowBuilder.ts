@@ -29,6 +29,7 @@ import {
   createEmptyVersionDraft,
   findVersionSummary,
   isDefinitionMetadataChanged,
+  nodeTypeAllowsActions,
   toVersionDraft,
   type WorkflowBuilderLocalIssue,
   type WorkflowBuilderNodeDraft,
@@ -102,7 +103,9 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     }
 
     for (const node of draft.nodes) {
-      if (node.nodeType !== "automation") {
+      // Slice 4 (Admin-Gated-Automation, Builder-UI): Action-Referenz-Checks
+      // gelten fuer automation- UND task-Nodes (mirror Backend AllowsActions).
+      if (!nodeTypeAllowsActions(node.nodeType)) {
         continue;
       }
 
@@ -509,7 +512,8 @@ export function useAdminWorkflowBuilder({ onNotice, onError, canManageAdvanced }
     setVersionDraft((current) => ({
       ...current,
       nodes: current.nodes.map((node) => {
-        if (node.id !== nodeId || node.nodeType !== "automation") {
+        // Slice 4: Action-Insert auch fuer task-Nodes erlauben.
+        if (node.id !== nodeId || !nodeTypeAllowsActions(node.nodeType)) {
           return node;
         }
 

@@ -106,12 +106,21 @@ export function buildWorkflowBuilderIssueIndex(
     ...backendIssues.map(toRefFromBackend),
   ];
 
+  // Slice 4 (Admin-Gated-Automation): Backend-Snapshot-Validator emittiert
+  // Issues mit scope "workflow_node" bzw. "workflow_edge" (z.B. Slice-2-Codes
+  // wie "missing_automation_admin_role_for_task_with_actions"). Lokale Issues
+  // aus dem Frontend nutzen die kuerzeren scopes "node"/"action"/"edge". Beide
+  // Schreibweisen werden hier akzeptiert, damit Backend-Issues nicht im
+  // general-Bucket landen statt am betroffenen Step/Uebergang.
+  const NODE_SCOPES = new Set(["node", "action", "workflow_node"]);
+  const EDGE_SCOPES = new Set(["edge", "workflow_edge"]);
+
   for (const ref of all) {
     const refKey = normalize(ref.referenceKey);
     const scope = normalize(ref.scope);
     let placed = false;
 
-    if ((scope === "node" || scope === "action") && refKey) {
+    if (NODE_SCOPES.has(scope) && refKey) {
       const node = nodesByKey.get(refKey);
       if (node) {
         pushNode(node.id, ref);
@@ -119,7 +128,7 @@ export function buildWorkflowBuilderIssueIndex(
       }
     }
 
-    if (!placed && scope === "edge" && refKey) {
+    if (!placed && EDGE_SCOPES.has(scope) && refKey) {
       const sourceEdges = edgesBySource.get(refKey);
       if (sourceEdges && sourceEdges.length > 0) {
         for (const edge of sourceEdges) {
