@@ -146,6 +146,21 @@ internal sealed class AuthorizationPolicyService : IAuthorizationPolicyService
                || HasAnyRole(user, AuthorizationRoles.Admin);
     }
 
+    // Slice 3 (Admin-Gated-Automation): Vorfilter fuer /admin/automation/reauth +
+    // /admin/automation/approve. User muss entweder eine Rolle aus der Slice-2-
+    // Whitelist (auth_admin/auth_hr/auth_manager) tragen ODER per Permission-Pfad
+    // (AdminPermissionsManage) als Admin gelten — sonst kein Probing-Recht.
+    // Die eigentliche per-Node-Role-Match-Schranke laeuft am Approval-Endpoint
+    // gegen workflow_nodes.automation_admin_role.
+    public bool IsPotentialAutomationApprover(CurrentUser user)
+    {
+        return HasAnyRole(user,
+                   AuthorizationRoles.Admin,
+                   AuthorizationRoles.Hr,
+                   AuthorizationRoles.Manager)
+               || CanManageAdminConfiguration(user);
+    }
+
     public bool CanViewTaskAssigneeIdentity(CurrentUser user)
     {
         return HasPermission(user, AuthorizationPermissions.TasksAssignOverride)

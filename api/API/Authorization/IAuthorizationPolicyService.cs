@@ -19,6 +19,7 @@ internal interface IAuthorizationPolicyService
     bool CanAccessWorkflowBuilder(CurrentUser user);
     bool CanManageWorkflowBuilderAdvanced(CurrentUser user);
     bool CanManageAdminConfiguration(CurrentUser user);
+    bool IsPotentialAutomationApprover(CurrentUser user);
     bool CanViewTaskAssigneeIdentity(CurrentUser user);
     bool CanObserveWorkflow(CurrentUser user, int workflowDepartmentId, string workflowStatus, IReadOnlySet<int>? observableDepartmentIds);
     bool CanCancelWorkflow(CurrentUser user, int workflowDepartmentId, IReadOnlySet<int>? observableDepartmentIds);

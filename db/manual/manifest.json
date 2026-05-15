@@ -137,6 +137,27 @@
         "automation_admin_role character varying(40)"
       ],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-16_admin_approval_tables.sql",
+      "description": "Admin-Gated-Automation Slice 3 (Approval-Endpoint + Re-Auth-Gate): zwei neue Tabellen. automation_reauth_tokens ist der one-shot Token-Store (60s TTL, replay-Schutz via used_at). automation_approvals verlinkt eine Approval zur Node-Instanz; UNIQUE auf workflow_node_instance_id verhindert Doppel-Approval (Drift-Tx rollbackt vor INSERT).",
+      "expect_in_schema": [
+        "automation_reauth_tokens",
+        "automation_reauth_tokens_id_seq",
+        "automation_reauth_tokens_pkey",
+        "automation_reauth_tokens_token_hash_uk",
+        "automation_reauth_tokens_user_fkey",
+        "idx_automation_reauth_tokens_user_purpose",
+        "automation_approvals",
+        "automation_approvals_id_seq",
+        "automation_approvals_pkey",
+        "automation_approvals_node_instance_uk",
+        "automation_approvals_workflow_fkey",
+        "automation_approvals_node_instance_fkey",
+        "automation_approvals_user_fkey",
+        "automation_approvals_token_fkey"
+      ],
+      "forbid_in_schema": []
     }
   ]
 }

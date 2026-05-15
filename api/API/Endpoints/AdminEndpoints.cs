@@ -19,6 +19,7 @@ internal static class AdminEndpoints
         app.MapAdminRuntimeHealthEndpoints();
         app.MapAdminPeopleEndpoints();
         app.MapAdminAutomationPlanEndpoints();
+        app.MapAdminAutomationApprovalEndpoints();
         return app;
     }
 }

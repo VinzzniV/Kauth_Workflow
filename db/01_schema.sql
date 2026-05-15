@@ -1518,6 +1518,66 @@ ALTER TABLE public.automation_plan_requests ALTER COLUMN id ADD GENERATED ALWAYS
 
 
 --
+-- Name: automation_reauth_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.automation_reauth_tokens (
+    id bigint NOT NULL,
+    token_hash character varying(64) NOT NULL,
+    user_id bigint NOT NULL,
+    purpose character varying(40) DEFAULT 'automation_approval'::character varying NOT NULL,
+    issued_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    used_at timestamp with time zone
+);
+
+
+--
+-- Name: automation_reauth_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.automation_reauth_tokens ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.automation_reauth_tokens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: automation_approvals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.automation_approvals (
+    id bigint NOT NULL,
+    workflow_id bigint NOT NULL,
+    workflow_node_instance_id bigint NOT NULL,
+    actor_user_id bigint NOT NULL,
+    reauth_token_id bigint NOT NULL,
+    plan_hash character varying(64) NOT NULL,
+    plan_snapshot_json jsonb NOT NULL,
+    hash_algorithm character varying(20) DEFAULT 'SHA-256'::character varying NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: automation_approvals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.automation_approvals ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.automation_approvals_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: workflow_answer_definitions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2487,6 +2547,85 @@ ALTER TABLE ONLY public.automation_plan_requests
 
 
 --
+-- Name: automation_reauth_tokens automation_reauth_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_reauth_tokens
+    ADD CONSTRAINT automation_reauth_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: automation_reauth_tokens automation_reauth_tokens_token_hash_uk; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_reauth_tokens
+    ADD CONSTRAINT automation_reauth_tokens_token_hash_uk UNIQUE (token_hash);
+
+
+--
+-- Name: automation_reauth_tokens automation_reauth_tokens_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_reauth_tokens
+    ADD CONSTRAINT automation_reauth_tokens_user_fkey
+    FOREIGN KEY (user_id) REFERENCES public.app_users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: automation_approvals automation_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: automation_approvals automation_approvals_node_instance_uk; Type: CONSTRAINT; Schema: public; Owner: -
+-- Slice 3: UNIQUE auf workflow_node_instance_id verhindert Doppel-Approval.
+-- Drift-Pfad rollbackt die Tx; es kommen keine "rejected"-Rows in die Tabelle.
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_node_instance_uk UNIQUE (workflow_node_instance_id);
+
+
+--
+-- Name: automation_approvals automation_approvals_workflow_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_workflow_fkey
+    FOREIGN KEY (workflow_id) REFERENCES public.workflows(id) ON DELETE CASCADE;
+
+
+--
+-- Name: automation_approvals automation_approvals_node_instance_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_node_instance_fkey
+    FOREIGN KEY (workflow_node_instance_id) REFERENCES public.workflow_node_instances(id) ON DELETE CASCADE;
+
+
+--
+-- Name: automation_approvals automation_approvals_user_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_user_fkey
+    FOREIGN KEY (actor_user_id) REFERENCES public.app_users(id);
+
+
+--
+-- Name: automation_approvals automation_approvals_token_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.automation_approvals
+    ADD CONSTRAINT automation_approvals_token_fkey
+    FOREIGN KEY (reauth_token_id) REFERENCES public.automation_reauth_tokens(id);
+
+
+--
 -- Name: automation_jobs automation_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3180,6 +3319,15 @@ CREATE INDEX idx_auth_permission_audit_log_created_at ON public.auth_permission_
 --
 
 CREATE INDEX idx_automation_plan_requests_pending ON public.automation_plan_requests USING btree (target_runtime, created_at) WHERE ((status)::text = 'pending'::text);
+
+
+--
+-- Name: idx_automation_reauth_tokens_user_purpose; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_automation_reauth_tokens_user_purpose
+    ON public.automation_reauth_tokens USING btree (user_id, purpose)
+    WHERE (used_at IS NULL);
 
 
 --

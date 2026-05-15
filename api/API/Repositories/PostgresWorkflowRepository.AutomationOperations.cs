@@ -200,6 +200,60 @@ LIMIT 1;
             throw new InvalidOperationException($"Runtime automation node '{job.NodeKey}' could not be resolved.");
         }
 
+        // Slice 3 (Admin-Gated-Automation): bei approval-getriggerten task-Node-Chains
+        // wird der Approver-User als Actor durchgereicht. Faellt auf job.CreatedByUserId
+        // zurueck fuer klassische automation-Nodes und task-Nodes ohne Approval (letzteres
+        // ist nach Slice-2-Validierung nicht erreichbar, aber defensiv).
+        long? actorUserId = job.CreatedByUserId;
+        long? approvalId = null;
+        if (string.Equals(node.NodeType, "task", StringComparison.OrdinalIgnoreCase))
+        {
+            var approval = await LoadApprovalForNodeInstanceAsync(connection, transaction, job.WorkflowNodeInstanceId, cancellationToken);
+            if (approval is not null)
+            {
+                actorUserId = approval.Value.ActorUserId;
+                approvalId = approval.Value.ApprovalId;
+
+                // Auto-Complete des workflow_tasks-Rows ueber kanonischen Pfad
+                // (PersistTaskStatus + task_status_changed-Audit + SyncPrimaryAssignmentCompletion).
+                var taskId = await PostgresWorkflowRuntimeRepository.LoadWorkflowTaskIdByNodeInstanceId(
+                    connection, transaction, job.WorkflowNodeInstanceId);
+                if (taskId.HasValue)
+                {
+                    var taskRecord = await _statusCalculation.LoadTaskStateForUpdate(connection, transaction, taskId.Value);
+                    if (taskRecord.HasValue && !TaskStatusRules.TerminalTaskStatuses.Contains(taskRecord.Value.CurrentStatus))
+                    {
+                        await _statusCalculation.PersistTaskStatus(connection, transaction, taskId.Value, "done");
+                        await _auditWrite.InsertAuditEntry(
+                            connection, transaction,
+                            job.WorkflowId, taskId.Value, actorUserId,
+                            "task_status_changed",
+                            taskRecord.Value.CurrentStatus, "done",
+                            PostgresRepositorySharedHelpers.BuildTaskStatusAuditDetail(taskRecord.Value.TaskTitle));
+                        await _statusCalculation.SyncPrimaryAssignmentCompletion(connection, transaction, taskId.Value, "done");
+
+                        // Finding B: kanonisches task_completed-Runtime-Event mit Approval-Marker.
+                        await PostgresWorkflowRuntimeRepository.InsertWorkflowRuntimeEvent(
+                            connection, transaction,
+                            job.WorkflowId, job.WorkflowNodeInstanceId,
+                            "task_completed",
+                            PostgresWorkflowRuntimeRepository.CreateJsonbPayload(new
+                            {
+                                nodeKey = node.NodeKey,
+                                source = "approval",
+                                approvalId
+                            }));
+                        await _auditWrite.InsertAuditEntry(
+                            connection, transaction,
+                            job.WorkflowId, taskId.Value, actorUserId,
+                            "runtime_task_completed", null,
+                            PostgresWorkflowRuntimeRepository.NodeInstanceStatusDone,
+                            node.NodeKey);
+                    }
+                }
+            }
+        }
+
         await PostgresWorkflowRuntimeRepository.UpdateNodeInstanceStatus(
             connection,
             transaction,
@@ -218,7 +272,7 @@ LIMIT 1;
             transaction,
             job.WorkflowId,
             null,
-            job.CreatedByUserId,
+            actorUserId,                                  // Slice 3: Approver-Override fuer task-Chains
             "runtime_automation_completed",
             null,
             PostgresWorkflowRuntimeRepository.NodeInstanceStatusDone,
@@ -231,7 +285,26 @@ LIMIT 1;
             graph,
             node,
             await PostgresRepositorySharedHelpers.LoadStoredAnswersByKey(connection, transaction, job.WorkflowId),
-            job.CreatedByUserId);
+            actorUserId);                                  // Slice 3: Approver-Override fuer task-Chains
+    }
+
+    // Slice 3 (Admin-Gated-Automation): lookup der Approval-Zuordnung pro Node-Instanz.
+    // Unique-Constraint auf automation_approvals.workflow_node_instance_id garantiert <=1.
+    // Liefert null fuer node-instances ohne Approval (klassische automation-Nodes).
+    private static async Task<(long ApprovalId, long ActorUserId)?> LoadApprovalForNodeInstanceAsync(
+        NpgsqlConnection connection, NpgsqlTransaction transaction, long nodeInstanceId, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT id, actor_user_id
+            FROM public.automation_approvals
+            WHERE workflow_node_instance_id = @nodeInstanceId
+            LIMIT 1
+            """;
+        await using var cmd = new NpgsqlCommand(sql, connection, transaction);
+        cmd.Parameters.AddWithValue("nodeInstanceId", nodeInstanceId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct)) return null;
+        return (reader.GetInt64(0), reader.GetInt64(1));
     }
 
     public async Task CompleteAutomationJobFailure(
@@ -300,6 +373,13 @@ LIMIT 1;
         string errorMessage,
         CancellationToken cancellationToken = default)
     {
+        // Slice 3 (Admin-Gated-Automation, Finding C): bei approval-getriggerten task-Node-
+        // Chains traegt das workflow_failed-Audit den Approver, nicht den Workflow-Initiator.
+        // Lookup ist bedingungslos guenstig (Query liefert null fuer non-approval-Chains).
+        var approval = await LoadApprovalForNodeInstanceAsync(
+            connection, transaction, job.WorkflowNodeInstanceId, cancellationToken);
+        long? actorUserId = approval?.ActorUserId ?? job.CreatedByUserId;
+
         await PostgresWorkflowAutomationOperations.SetAutomationJobStatusAsync(
             connection,
             transaction,
@@ -341,7 +421,7 @@ LIMIT 1;
             connection,
             transaction,
             job.WorkflowId,
-            job.CreatedByUserId,
+            actorUserId,                                  // Slice 3: Approver-Override
             errorMessage);
     }
 
