@@ -40,9 +40,13 @@ export function createRequirementEditorSelection(
 }
 
 export function buildRequirementSelections(
-  requirements: WorkflowRequirementSnapshot[]
+  requirements: RequirementLike[]
 ): Record<number, RequirementSelectionState> {
   return requirements.reduce<Record<number, RequirementSelectionState>>((acc, requirement) => {
+    if (!isWorkflowRequirementSnapshot(requirement)) {
+      acc[requirement.id] = createRequirementEditorSelection(requirement);
+      return acc;
+    }
     acc[requirement.id] = {
       valueBoolean:
         requirement.inputType === "boolean"

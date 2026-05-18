@@ -101,6 +101,37 @@ internal static class AdminAutomationApprovalEndpoints
         .Produces(StatusCodes.Status409Conflict)
         .Produces(StatusCodes.Status422UnprocessableEntity);
 
+        // Slice 7: Live-Status pro Approval — Approval-Dialog polled das im running-State.
+        app.MapGet("/admin/automation/approvals/{approvalId:long}/status", async (
+            [FromRoute] long approvalId,
+            [FromServices] AutomationApprovalStatusService statusService,
+            [FromServices] IUserContext userContext,
+            [FromServices] IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken ct) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.IsPotentialAutomationApprover,
+                "Not a potential automation approver.");
+            if (access.Error is not null)
+            {
+                return access.Error;
+            }
+
+            var outcome = await statusService.GetStatusAsync(approvalId, access.User!, ct);
+            return outcome switch
+            {
+                AutomationApprovalStatusOutcome.Success s => Results.Ok(s.Response),
+                AutomationApprovalStatusOutcome.NotFound => Results.NotFound(new { message = "approval_not_found" }),
+                AutomationApprovalStatusOutcome.InsufficientRole => EndpointSupport.Forbidden("insufficient_role"),
+                _ => Results.Problem("Unhandled status outcome.")
+            };
+        })
+        .Produces<AutomationApprovalStatusResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
         return app;
     }
 }

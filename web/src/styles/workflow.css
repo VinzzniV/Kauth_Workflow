@@ -2595,6 +2595,98 @@
   border-radius: var(--radius-sm);
 }
 
+/* Slice 7: Live-Status-Pill + Attempt-Counter + Logs */
+.wfa-status-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.wfa-status-pill--pending {
+  background: var(--surface-card-subtle);
+  color: var(--text-secondary);
+  border-color: var(--surface-card-border);
+}
+
+.wfa-status-pill--running {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+
+.wfa-status-pill--succeeded {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.wfa-status-pill--failed {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.wfa-status-pill--cancelled {
+  background: var(--surface-card-subtle);
+  color: var(--text-secondary);
+  border-color: var(--surface-card-border);
+}
+
+.wfa-status-attempt {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.wfa-status-logs {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.wfa-status-logs summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.15rem 0;
+}
+
+.wfa-status-logs summary:hover {
+  color: var(--text-primary);
+}
+
+.wfa-status-logs ul {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.72rem;
+}
+
+.wfa-status-logs li {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.wfa-status-logs-time {
+  color: var(--text-tertiary, var(--text-secondary));
+  flex-shrink: 0;
+}
+
+.wfa-status-logs-level {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
 .wf-published-banner {
   display: flex;
   align-items: center;

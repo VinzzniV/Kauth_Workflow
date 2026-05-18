@@ -171,6 +171,9 @@ public sealed class WorkflowAutomationServiceTests
         public Task<CursorPageDto<AutomationJobDetailDto>> GetAutomationJobs(Guid workflowUid, CursorPageQuery query, CancellationToken cancellationToken = default)
             => Task.FromResult(new CursorPageDto<AutomationJobDetailDto> { Items = [], HasMore = false, NextCursor = null });
 
+        public Task<IReadOnlyList<AutomationJobDetailDto>> GetAutomationJobsForNodeInstance(long workflowNodeInstanceId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AutomationJobDetailDto>>([]);
+
         public Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default)
             => Task.FromResult(ClaimedJob);
 
@@ -247,6 +250,9 @@ public sealed class WorkflowAutomationServiceTests
 
         public Task<CursorPageDto<AutomationJobDetailDto>> GetAutomationJobs(Guid workflowUid, CursorPageQuery query, CancellationToken cancellationToken = default)
             => Task.FromResult(new CursorPageDto<AutomationJobDetailDto> { Items = [], HasMore = false, NextCursor = null });
+
+        public Task<IReadOnlyList<AutomationJobDetailDto>> GetAutomationJobsForNodeInstance(long workflowNodeInstanceId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<AutomationJobDetailDto>>([]);
 
         public Task<ClaimedAutomationJobRecord?> ClaimNextPendingAutomationJob(CancellationToken cancellationToken = default)
             => Task.FromResult(ClaimedJob);

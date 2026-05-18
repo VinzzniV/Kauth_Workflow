@@ -5,6 +5,7 @@
 
 import { requestJson } from "./api/client";
 import type {
+  AutomationApprovalStatusResponse,
   AutomationApproveSuccess,
   AutomationPlanResponse,
   AutomationReauthIssueResponse,
@@ -26,6 +27,17 @@ export async function issueAutomationReauthToken(): Promise<AutomationReauthIssu
     method: "POST",
     body: { purpose: "automation_approval" },
   });
+}
+
+// Slice 7: Live-Status-Poll pro Approval-Bundle. Wird im AutomationApprovalDialog
+// im running-State alle 2s aufgerufen.
+export async function fetchAutomationApprovalStatus(
+  approvalId: number,
+): Promise<AutomationApprovalStatusResponse> {
+  return requestJson<AutomationApprovalStatusResponse>(
+    `/admin/automation/approvals/${approvalId}/status`,
+    { method: "GET" },
+  );
 }
 
 export async function approveAutomationPlan(req: {

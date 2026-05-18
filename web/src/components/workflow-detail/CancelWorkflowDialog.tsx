@@ -103,7 +103,6 @@ function CancelWorkflowDialogContent({
       }}
     >
       <section
-        ref={dialogRef}
         className="confirmation-dialog confirmation-dialog--danger"
         role="alertdialog"
         aria-modal="true"

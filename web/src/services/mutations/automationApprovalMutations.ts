@@ -4,11 +4,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveAutomationPlan,
+  fetchAutomationApprovalStatus,
   fetchAutomationPlan,
   issueAutomationReauthToken,
 } from "../automationApprovalApi";
 import { queryKeys } from "../queryKeys";
 import type {
+  AutomationApprovalStatusResponse,
   AutomationApproveSuccess,
   AutomationPlanResponse,
 } from "../../types/automationApproval";
@@ -27,6 +29,23 @@ export function useAutomationPlanQuery(req: {
     enabled: req.enabled && Boolean(req.workflowInstanceUid) && Boolean(req.nodeKey),
     // staleTime 0: bei jedem Modal-Open frisch laden, weil der Plan jederzeit
     // driften kann (Form-Antworten, Vorgaenger-Aktionen).
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+// Slice 7: Per-Action-Live-Status. Im running-State pollt der Dialog alle 2s,
+// solange enabled=true ist. React-Query raeumt das Interval automatisch ab, sobald
+// enabled umkippt (zB beim Wechsel auf succeeded/failed/background).
+export function useAutomationApprovalStatusQuery(req: {
+  approvalId: number | null;
+  enabled: boolean;
+}) {
+  return useQuery<AutomationApprovalStatusResponse>({
+    queryKey: ["automation-approval-status", req.approvalId],
+    queryFn: () => fetchAutomationApprovalStatus(req.approvalId!),
+    enabled: req.enabled && req.approvalId !== null,
+    refetchInterval: 2_000,
     staleTime: 0,
     retry: false,
   });

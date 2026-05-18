@@ -1,22 +1,28 @@
 // Slice 5 (Admin-Gated-Automation, Approval-Runtime-UI): Modal-Dialog mit
 // State-Machine idle -> loading-plan -> reviewing -> submitting -> running ->
 // (succeeded | background). Drift (409) und unsupported-Errors (4xx) werden
-// inline behandelt; Failure-Detection (per-action) ist Scope von Slice 7.
+// inline behandelt.
 //
 // Slice 6 (Action-Buendelung im Task-UI): Plan wird als Bundle gerendert
 // (Stepper mit Connector, fachliche Action-Labels, Plan-Failure-Guard).
+//
+// Slice 7 (Live-Log waehrend Ausfuehrung): running-State zeigt jetzt per-Action-
+// Status (Status-Pill, Versuch N/M, Logs); permanente Failures kippen die Phase
+// auf "failed" statt nur den 60s-background-Fallback abzuwarten.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ApiError } from "../../services/api/client";
 import { useToast } from "../feedback/useToast";
 import {
   useApproveAutomationPlanMutation,
+  useAutomationApprovalStatusQuery,
   useAutomationPlanQuery,
 } from "../../services/mutations/automationApprovalMutations";
 import { useWorkflowTasks } from "../../services/queries/workflowQueries";
 import { getAutomationActionLabel } from "../../utils/automationActionLabels";
 import type {
   AdUserPlanDetail,
+  AutomationApprovalStatusStep,
   AutomationApproveAlreadyApprovedError,
   AutomationApproveDriftError,
   AutomationPlanResponse,
@@ -36,6 +42,7 @@ type DialogPhase =
   | "submitting"
   | "running"
   | "succeeded"
+  | "failed"
   | "background"
   | "error-already-approved"
   | "error-plan-unavailable"
@@ -58,6 +65,9 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
   const [driftNotice, setDriftNotice] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [runningStartedAt, setRunningStartedAt] = useState<number | null>(null);
+  // Slice 7: Approval-ID aus dem Approve-Erfolg, wird im running-State fuer den
+  // Status-Poll genutzt.
+  const [approvalId, setApprovalId] = useState<number | null>(null);
 
   const planQuery = useAutomationPlanQuery({
     workflowInstanceUid,
@@ -71,6 +81,12 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
     workflowInstanceUid,
     { refetchInterval: phase === "running" ? POLL_INTERVAL_MS : false },
   );
+
+  // Slice 7: Live-Status pro Action im running-State.
+  const statusQuery = useAutomationApprovalStatusQuery({
+    approvalId,
+    enabled: phase === "running",
+  });
 
   // Phase-Transition: Plan geladen -> reviewing. setState-in-effect ist hier die
   // einzige Moeglichkeit, weil React-Query v5 die onSuccess/onError-Callbacks
@@ -95,6 +111,7 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
       setDriftNotice(null);
       setErrorDetail(null);
       setRunningStartedAt(null);
+      setApprovalId(null);
     }
   }, [open]);
 
@@ -113,6 +130,16 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
     }
   }, [phase, tasksQuery.data, taskId, runningStartedAt, showSuccess]);
 
+  // Slice 7: Permanent-Failure / Retries-Erschöpft → "failed"-Endphase.
+  useEffect(() => {
+    if (phase !== "running") return;
+    if (statusQuery.data?.overallStatus === "failed") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Poll-Failure
+      setPhase("failed");
+      setErrorDetail(buildFailureSummary(statusQuery.data.steps));
+    }
+  }, [phase, statusQuery.data]);
+
   // Watchdog-Tick fuer Timeout (force-rerender alle 1s im running-State).
   useEffect(() => {
     if (phase !== "running") return;
@@ -130,11 +157,12 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
     setDriftNotice(null);
     setErrorDetail(null);
     try {
-      await approveMutation.mutateAsync({
+      const result = await approveMutation.mutateAsync({
         workflowInstanceUid,
         nodeKey,
         planHash: planQuery.data.planHash,
       });
+      setApprovalId(result.approvalId);
       setRunningStartedAt(Date.now());
       setPhase("running");
     } catch (err) {
@@ -240,6 +268,9 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
                 Aktionen werden ausgeführt. Die Aufgabe aktualisiert sich automatisch — Du kannst
                 dieses Fenster offen lassen.
               </p>
+              {statusQuery.data ? (
+                <LiveStatusList steps={statusQuery.data.steps} />
+              ) : null}
             </div>
           )}
 
@@ -248,7 +279,28 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
               <p className="wf-step-card-hint wf-step-card-hint--success">
                 Aktionen wurden erfolgreich ausgeführt. Die Aufgabe wurde abgeschlossen.
               </p>
+              {statusQuery.data ? (
+                <LiveStatusList steps={statusQuery.data.steps} />
+              ) : null}
               <button type="button" className="btn btn-primary" onClick={onClose}>
+                Schließen
+              </button>
+            </div>
+          )}
+
+          {phase === "failed" && (
+            <div className="content-stack">
+              <p className="wf-step-card-hint wf-step-card-hint--error">
+                Eine Aktion ist fehlgeschlagen — die Aufgabe bleibt offen. Bitte im Workflow-Detail
+                manuell weiterarbeiten.
+              </p>
+              {errorDetail ? (
+                <p className="wf-step-card-hint wf-step-card-hint--error">{errorDetail}</p>
+              ) : null}
+              {statusQuery.data ? (
+                <LiveStatusList steps={statusQuery.data.steps} />
+              ) : null}
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
                 Schließen
               </button>
             </div>
@@ -532,4 +584,108 @@ function renderPasswordAvailability(state: WelcomeMailPlanDetail["passwordAvaila
       return "kein neues Passwort (User existiert bereits)";
   }
 }
+
+// ---------- Slice 7: Live-Status-Rendering ----------
+
+function LiveStatusList({ steps }: { steps: AutomationApprovalStatusStep[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <ol className="wfa-bundle-steps">
+      {steps.map((step) => (
+        <li
+          key={`status-${step.actionKey}-${step.executionOrder}`}
+          className={
+            step.jobStatus === "failed"
+              ? "wfa-bundle-step wfa-bundle-step--error"
+              : "wfa-bundle-step"
+          }
+        >
+          <span className="wfa-bundle-step-num" aria-hidden="true">
+            {step.executionOrder}
+          </span>
+          <div className="wfa-bundle-step-body">
+            <LiveStatusStep step={step} />
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function LiveStatusStep({ step }: { step: AutomationApprovalStatusStep }) {
+  const label = getAutomationActionLabel(step.actionKey);
+  const showAttempt = step.currentAttempt > 1
+    && (step.jobStatus === "running" || step.jobStatus === "failed");
+  return (
+    <div className="content-stack">
+      <div className="wfa-bundle-step-title">
+        <strong>{label}</strong>
+        <span className="wfa-bundle-step-key">{step.actionKey}</span>
+        <StatusPill status={step.jobStatus} />
+        {showAttempt ? (
+          <span className="wfa-status-attempt">
+            Versuch {step.currentAttempt}/{step.maxAttempts}
+          </span>
+        ) : null}
+      </div>
+      {step.jobStatus === "failed" && step.latestErrorMessage ? (
+        <p className="wf-step-card-hint wf-step-card-hint--error">
+          {step.latestErrorMessage}
+          {step.latestFailureKind ? (
+            <> — {renderFailureKind(step.latestFailureKind)}</>
+          ) : null}
+        </p>
+      ) : null}
+      {step.logs.length > 0 ? (
+        <details className="wfa-status-logs">
+          <summary>Details ({step.logs.length})</summary>
+          <ul>
+            {step.logs.map((log, idx) => (
+              <li key={`log-${idx}`}>
+                <span className="wfa-status-logs-time">
+                  {new Date(log.createdAt).toLocaleTimeString()}
+                </span>
+                <span className="wfa-status-logs-level">[{log.level}]</span>
+                <span>{log.message}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: AutomationApprovalStatusStep["jobStatus"] }) {
+  return (
+    <span className={`wfa-status-pill wfa-status-pill--${status}`}>
+      {renderStatusLabel(status)}
+    </span>
+  );
+}
+
+function renderStatusLabel(status: AutomationApprovalStatusStep["jobStatus"]): string {
+  switch (status) {
+    case "pending":   return "wartet";
+    case "running":   return "läuft";
+    case "succeeded": return "erfolgreich";
+    case "failed":    return "fehlgeschlagen";
+    case "cancelled": return "abgebrochen";
+  }
+}
+
+function renderFailureKind(kind: "permanent" | "transient"): string {
+  return kind === "permanent" ? "permanenter Fehler" : "vorübergehender Fehler";
+}
+
+function buildFailureSummary(steps: AutomationApprovalStatusStep[]): string {
+  const failed = steps.find((s) => s.jobStatus === "failed");
+  if (!failed) return "Eine Aktion ist fehlgeschlagen.";
+  const label = getAutomationActionLabel(failed.actionKey);
+  if (failed.latestErrorMessage) {
+    return `${label} (Schritt ${failed.executionOrder}): ${failed.latestErrorMessage}`;
+  }
+  return `${label} (Schritt ${failed.executionOrder}) fehlgeschlagen.`;
+}
+
 

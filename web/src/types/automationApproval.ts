@@ -93,3 +93,31 @@ export type WelcomeMailPlanDetail = {
     | "NotAvailable";
   note: string;
 };
+
+// ---- Slice 7 (Live-Log waehrend Ausfuehrung): Per-Action-Status-Polling ----
+
+export type AutomationApprovalStepStatus =
+  | "pending" | "running" | "succeeded" | "failed" | "cancelled";
+
+export type AutomationApprovalStatusLogEntry = {
+  level: string;
+  message: string;
+  createdAt: string;
+};
+
+export type AutomationApprovalStatusStep = {
+  actionKey: string;
+  executionOrder: number;
+  jobStatus: AutomationApprovalStepStatus;
+  currentAttempt: number;
+  maxAttempts: number;
+  latestErrorMessage: string | null;
+  latestFailureKind: "permanent" | "transient" | null;
+  logs: AutomationApprovalStatusLogEntry[];
+};
+
+export type AutomationApprovalStatusResponse = {
+  approvalId: number;
+  overallStatus: "running" | "succeeded" | "failed";
+  steps: AutomationApprovalStatusStep[];
+};

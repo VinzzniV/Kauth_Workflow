@@ -46,6 +46,10 @@ public sealed class AutomationJobAttemptDto
     public string? ErrorMessage { get; init; }
     public required DateTime StartedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
+    // Slice 7: failure_kind aus automation_job_attempts (permanent | transient | null).
+    // Wird gebraucht, damit der Approval-Live-Log Permanent- vs Transient-Failures
+    // im UI unterscheiden kann (sonst sieht ein Retry-Loop aus wie ein finaler Fehler).
+    public string? FailureKind { get; init; }
 }
 
 public sealed class AutomationJobLogDto
