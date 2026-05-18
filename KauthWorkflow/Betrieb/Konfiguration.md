@@ -51,7 +51,7 @@ Gelesen via `LifecycleRuntimeSettingsResolver.Resolve(IConfiguration)` in [api/A
 | `ENTRA_AUDIENCE` | API-Audience (z.B. `api://...`) | — | prod: ja | `compose.yml:32`, `compose.prod.yml:18`, `.env.prod` | |
 | `ENTRA_CLIENT_SECRET` | Entra-App-Secret | — | prod: bedingt | `compose.yml:33`, `compose.prod.yml:19`, `.env.prod` | mindestens eins von `ENTRA_CLIENT_SECRET` oder `GRAPH_CLIENT_SECRET` |
 | `GRAPH_CLIENT_SECRET` | optionaler Graph-Secret-Override | — | nein | `compose.yml:34`, `compose.prod.yml:20`, `.env.prod` | nur Override für Graph/Mail; Tenant + Client-ID bleiben bei `ENTRA_*` |
-| `KAUTH_VAULT_KEY` | symmetrischer Vault-Key | — | prod: ja | `.env.prod` | **heute nicht im Compose-Passthrough** — K2 fügt `KAUTH_VAULT_KEY: ${KAUTH_VAULT_KEY:-}` im API-Service-Block ergänzt; gelesen via [EnvVaultKeyProvider.cs:12](api/API/Services/EnvVaultKeyProvider.cs#L12); muss identisch sein zum Wert im Worker-`vault.config.dpapi` |
+| `KAUTH_VAULT_KEY` | symmetrischer Vault-Key | — | prod: ja | `compose.yml` (API-Service-Passthrough) + `.env.prod` | gelesen via [EnvVaultKeyProvider.cs:12](api/API/Services/EnvVaultKeyProvider.cs#L12); muss identisch sein zum Wert im Worker-`vault.config.dpapi` |
 | `DIRECTORY_GROUP_PREFIX` | Prefix für Directory-Sync-Gruppen | — | empfohlen | `compose.yml:35`, `launchSettings.json:14`, `.env.prod` | z.B. `Onboarding-App-` |
 | `DIRECTORY_EXPLICIT_GROUP_IDS` | komma-getrennte Liste expliziter Gruppen-IDs | — | nein | `compose.yml:36`, `.env.prod` | |
 | `DIRECTORY_SYNC_SCHEDULED` | Sync-Hosted-Service aktiv? | `true` | nein | `compose.yml:37`, `launchSettings.json:15`, `.env.prod` | |
@@ -70,7 +70,7 @@ Gelesen via `BuildAutomationRetrySettings` in [api/API/Extensions/LifecycleServi
 
 | Variable | Was | Default | Wo heute gesetzt |
 |---|---|---|---|
-| `WORKFLOW_AUTOMATION_MAX_ATTEMPTS` | max. Versuche pro Job | `3` | Env, kein Compose-Eintrag heute |
+| `WORKFLOW_AUTOMATION_MAX_ATTEMPTS` | max. Versuche pro Job | `3` | `compose.yml` (Passthrough) + `.env.prod` (optional Override; in `.env.prod.example` als auskommentierter Hint) |
 | `WORKFLOW_AUTOMATION_FIRST_RETRY_DELAY_SECONDS` | Delay nach erstem Fail | `60` | dito |
 | `WORKFLOW_AUTOMATION_SUBSEQUENT_RETRY_DELAY_SECONDS` | Delay nach weiteren Fails | `300` | dito |
 
@@ -90,7 +90,7 @@ Per-Action-Override existiert in der DB-Spalte `action_definitions.max_attempts_
 | `POSTGRES_USER` | DB-User | `app` | `compose.yml:8` |
 | `POSTGRES_PASSWORD` | DB-Passwort | `app_pw` (dev) | `compose.yml:9` |
 | `DEV_DB_PORT` | Host-Port für Dev-DB | `26432` | `compose.dev-db.yml` |
-| `WEB_AUTH_MODE` | Auth-Modus im Web-Container | `dev-sim` | `compose.yml:50`; **heute in `compose.prod.yml:42` hart auf `entra` überschrieben** — K2 stellt das auf `${WEB_AUTH_MODE:-entra}` um, damit `.env.prod` wirken kann |
+| `WEB_AUTH_MODE` | Auth-Modus im Web-Container | `dev-sim` (compose.yml) / `entra` (compose.prod.yml) | `compose.yml:50` (dev-Default) + `compose.prod.yml:42` (prod-Default `entra`) + `.env.prod` (Override). Nicht mit dem API-`AUTH_MODE` verwechseln. |
 
 ---
 
@@ -176,6 +176,7 @@ Application-Permissions, die der Tenant-Admin freigeben muss:
 
 - **API-Container:** `docker exec <api-container> env | sort` zeigt die finale Env-Sicht.
 - **Compose-Dry-Run:** `docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml config` rendert alle Variablen aufgelöst.
+- **Drift-Schutz:** `pwsh scripts/verify-config-coverage.ps1` schlägt fehl, wenn `compose.yml`/`compose.prod.yml` eine Variable referenzieren, die im `.env.prod.example` nicht dokumentiert ist.
 - **Runtime-Diagnose (nach K5):** `Administration > System > Konfiguration` zeigt die aktiven Werte mit Secret-Redaction.
 
 ### „Wo soll der Wert wirklich leben?"

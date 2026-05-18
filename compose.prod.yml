@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     environment:
       API_BASE: /api
-      AUTH_MODE: entra
+      AUTH_MODE: ${WEB_AUTH_MODE:-entra}
       ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID}
       ENTRA_TENANT_ID: ${ENTRA_TENANT_ID}
       ENTRA_AUDIENCE: ${ENTRA_AUDIENCE}
