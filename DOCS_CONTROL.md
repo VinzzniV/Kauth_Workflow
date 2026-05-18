@@ -42,6 +42,7 @@ Zusaetzlich je nach Aufgabe:
 - `KauthWorkflow/Arbeit/Engineering-Regeln.md` fuer Umsetzungs- und Handoff-Regeln
 - `CLAUDE_CONTROL.md` fuer Rollen, Commit-Regel und Slice-Workflow zwischen Codex und Claude
 - `KauthWorkflow/Betrieb/Setup.md` fuer lokale Entwicklung, Deployment und Laufzeitkonfiguration
+- `KauthWorkflow/Betrieb/Konfiguration.md` fuer die vollstaendige Variablen-Uebersicht (Backend + Frontend + Worker, kanonische Speicherorte)
 - `web/README.md` fuer Frontend-Orientierung
 
 Pflicht nach dem Lesen:
@@ -68,6 +69,7 @@ Verwende diese Dateien bewusst:
 - Repo-/Modulstruktur und wichtige Einstiegspunkte → `PROJECT_STRUCTURE.md`
 - aeltere Claude/Codex-Handoffs → `CODEX_SYNC_ARCHIVE.md`
 - lokale Setup-, Deploy- und Laufzeitdoku → `KauthWorkflow/Betrieb/Setup.md`
+- vollstaendige Variablen-/Konfig-Uebersicht (Backend + Frontend + Worker) → `KauthWorkflow/Betrieb/Konfiguration.md`
 - priorisierte Arbeitspakete fuer das Rotations-/Durchlauf-Feature → `TODO.md`
 - Produkt-/UX-/Produktionsreife-Slices aus Z21 (Reihenfolge + Reasoning-/Modell-Profil) → `PROD_TODO.md`
 - Claude-Steuerung unter Codex-Orchestrierung → `CLAUDE_CONTROL.md`
@@ -83,7 +85,7 @@ Wenn sich diese Bereiche aendern, muessen die passenden Dokus im selben Arbeitsg
 - Review-Priorisierung, Reihenfolge oder Deliverables der Nacharbeit → `CODE_REVIEW.md` oder `TODO.md`
 - stabile Produktregeln oder Guardrails → `PROJECT_CONTEXT.md`
 - neue Ordner, neue Entry-Points, umbenannte Module → `PROJECT_STRUCTURE.md`
-- veraendertes Runtime-, Compose-, Deploy- oder Env-Verhalten → `KauthWorkflow/Betrieb/Setup.md`
+- veraendertes Runtime-, Compose-, Deploy- oder Env-Verhalten → `KauthWorkflow/Betrieb/Setup.md` und `KauthWorkflow/Betrieb/Konfiguration.md` (Variablen-Tabelle)
 - neue offene Risiken oder bewusst unvollstaendige Nacharbeiten → `MEMORY.md`
 - veraenderte Frontend-Modulgrenzen oder Admin-/Builder-Flows → `web/README.md`
 

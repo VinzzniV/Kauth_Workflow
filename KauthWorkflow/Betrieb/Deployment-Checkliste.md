@@ -6,6 +6,7 @@ Ausführbare Checkliste für ein sauberes Production-Deployment.
 Primärquelle im Repo war: `PRODUCTION_CHECKLIST.md` (in Vault migriert)
 
 Detailbeschreibungen → [[Setup]]
+Vollständige Variablen-Übersicht → [[Konfiguration]]
 
 ---
 

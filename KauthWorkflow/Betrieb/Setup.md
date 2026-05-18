@@ -5,6 +5,8 @@
 Operative Doku für lokale Entwicklung, servernahes Deployment und Laufzeitkonfiguration.
 Primärquelle im Repo war: `SETUP.md` (in Vault migriert)
 
+> **Vollständige Variablen-Übersicht (alle Konfig-Werte, kanonische Speicherorte): → [[Konfiguration]]**
+
 ---
 
 ## Architektur-Hinweise
