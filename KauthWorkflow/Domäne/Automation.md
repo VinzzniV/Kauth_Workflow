@@ -209,15 +209,13 @@ temporary_credentials       — Vault: workflow_node_instance_id × credential_t
 
 Nicht-code-prüfbar — muss manuell:
 
-1. Windows-Server-VM aufsetzen, domain-joined, Worker-Service installieren
-2. gMSA `gMSA-KauthWorker$` anlegen, `Install-ADServiceAccount` auf Worker-VM
-3. Postgres-User `kauth_worker` + DPAPI-Konfig (`install-db-config.ps1`)
-4. Vault-Key auf beide Hosts verteilen (`install-vault-key.ps1`, `KAUTH_VAULT_KEY`-Env auf API)
-5. Microsoft-Graph-App-Registrierung mit Admin-Consent für `Mail.Send` + `User.Read.All` + `LicenseAssignment.ReadWrite.All` + `Group.Read.All` (letzteres für die `reference_user.groups`-Mapping-Source)
-6. Exchange-SKU per `Get-MgSubscribedSku` ermitteln, GUID im Workflow-Builder als `static`-Mapping eintragen
-7. E2E-Test gegen Test-Tenant durchspielen
+1. **Windows-Worker** aufsetzen, gMSA + DPAPI + Postgres-Login + Service — linearer Wizard in [[Worker-Setup]].
+2. **Vault-Key** identisch verteilen — auf der Linux-API als `KAUTH_VAULT_KEY` (siehe `scripts/Configure.ps1`), auf dem Worker als `vault.config.dpapi` (siehe [[Worker-Setup]]).
+3. **Microsoft-Graph-App-Registrierung** mit Admin-Consent für `Mail.Send` + `User.Read.All` + `LicenseAssignment.ReadWrite.All` + `Group.Read.All` (letzteres für die `reference_user.groups`-Mapping-Source).
+4. **Exchange-SKU** per `Get-MgSubscribedSku` ermitteln, GUID im Workflow-Builder als `static`-Mapping eintragen.
+5. **E2E-Test** gegen Test-Tenant durchspielen.
 
-Details in [[Setup]] und [[Deployment-Checkliste]].
+Details: [[Setup]], [[Konfiguration]], [[Worker-Setup]], [[Deployment-Checkliste]].
 
 ---
 

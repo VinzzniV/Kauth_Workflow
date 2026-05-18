@@ -86,6 +86,7 @@ Merksatz:
 | [[Hybrid-Worker-Sub-Architektur]] | Detail-Doku zum Windows-Worker für AD-Schreibaktionen |
 | [[Admin-Gated-Automation]] | Zielbild für Prod: Plan-Vorschau, Admin-Approval mit Re-Auth, Post-Execution-Summary |
 | [[Konfiguration]] | Variablen-Übersicht: alle Konfig-Werte + kanonische Speicherorte (Backend + Frontend + Worker) |
+| [[Worker-Setup]] | Linearer Wizard für die Windows-Worker-Einrichtung (gMSA, DB-Login, Configure-Worker.ps1) |
 | [[00 Uebersicht\|Code-Landkarte]] | Brücke Fach → Code: wo liegen die Files für „Abteilungswechsel" etc. |
 | [[KI-Workflow]] | Zusammenarbeit von Mensch, Claude und Codex |
 

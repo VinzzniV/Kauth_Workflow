@@ -6,6 +6,8 @@ Operative Doku für lokale Entwicklung, servernahes Deployment und Laufzeitkonfi
 Primärquelle im Repo war: `SETUP.md` (in Vault migriert)
 
 > **Vollständige Variablen-Übersicht (alle Konfig-Werte, kanonische Speicherorte): → [[Konfiguration]]**
+>
+> **Windows-Worker-Einrichtung (gMSA, DB-Login, Configure-Worker.ps1): → [[Worker-Setup]]**
 
 ---
 

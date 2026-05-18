@@ -17,7 +17,7 @@ Eine Wahrheit für alle Konfig-Werte. Wer eine Variable sucht, einen Wert änder
 - [[Setup]] — wie startet man lokal / auf der VM (operatives Wie)
 - [[Deployment-Checkliste]] — produktiver Roll-out
 - `scripts/Configure.ps1` — interaktiver Wizard für `.env.prod` und `web/.env.local`
-- `worker/setup/Configure-Worker.ps1` — Worker-Setup-Wrapper (kommt mit Slice K4)
+- `worker/setup/Configure-Worker.ps1` — Worker-Setup-Wrapper; volle Anleitung in [[Worker-Setup]]
 - `.env.prod.example` — kanonisches Template für Prod
 
 ---
@@ -131,6 +131,8 @@ Im Prod-Web-Container schreibt das Entrypoint-Skript [web/docker-entrypoint.d/40
 ---
 
 ## Worker (`worker/AdAutomationWorker/appsettings.json`)
+
+> **Einrichtung auf der Windows-VM:** lineare Anleitung in [[Worker-Setup]] (gMSA, DB-Login, Configure-Worker.ps1, Verifikation, Fehlerbilder).
 
 Gelesen via `IOptions<WorkerSettings>` aus [worker/AdAutomationWorker.Core/Configuration/WorkerSettings.cs](worker/AdAutomationWorker.Core/Configuration/WorkerSettings.cs). Alle Keys hängen unter dem `Worker`-Prefix.
 
