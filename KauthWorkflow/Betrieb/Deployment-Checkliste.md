@@ -18,6 +18,7 @@ Detailbeschreibungen → [[Setup]]
 - [ ] `ENTRA_AUDIENCE` gesetzt
 - [ ] Redirect URI als SPA eingetragen und exakt auf `PUBLIC_BASE_URL` abgestimmt
 - [ ] API Permission `<audience>/access_as_user` freigegeben
+- [ ] Microsoft-Graph-Application-Permissions (Admin-Consent) freigegeben: `Mail.Send`, `User.Read.All`, `LicenseAssignment.ReadWrite.All`, `Group.Read.All` (letzteres für `reference_user.groups`-Mapping)
 - [ ] Gruppen für Rollen-Mapping vorbereitet
 
 ---

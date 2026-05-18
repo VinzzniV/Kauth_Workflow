@@ -213,7 +213,7 @@ Nicht-code-prüfbar — muss manuell:
 2. gMSA `gMSA-KauthWorker$` anlegen, `Install-ADServiceAccount` auf Worker-VM
 3. Postgres-User `kauth_worker` + DPAPI-Konfig (`install-db-config.ps1`)
 4. Vault-Key auf beide Hosts verteilen (`install-vault-key.ps1`, `KAUTH_VAULT_KEY`-Env auf API)
-5. Microsoft-Graph-App-Registrierung mit Admin-Consent für `Mail.Send` + `User.Read.All` + `LicenseAssignment.ReadWrite.All`
+5. Microsoft-Graph-App-Registrierung mit Admin-Consent für `Mail.Send` + `User.Read.All` + `LicenseAssignment.ReadWrite.All` + `Group.Read.All` (letzteres für die `reference_user.groups`-Mapping-Source)
 6. Exchange-SKU per `Get-MgSubscribedSku` ermitteln, GUID im Workflow-Builder als `static`-Mapping eintragen
 7. E2E-Test gegen Test-Tenant durchspielen
 
