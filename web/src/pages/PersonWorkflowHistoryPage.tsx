@@ -14,7 +14,7 @@ import {
   type AggregatedNotification,
   type AggregatedTask,
 } from "../hooks/usePersonWorkflowAggregates";
-import { usePersonWorkflowHistory } from "../services/queries/peopleQueries";
+import { usePerson360View, usePersonWorkflowHistory } from "../services/queries/peopleQueries";
 import { updatePerson } from "../services/peopleApi";
 import { queryKeys } from "../services/queryKeys";
 import type {
@@ -39,7 +39,7 @@ import {
   getWorkflowRuntimeStatusPillClass,
 } from "../utils/workflowStatus";
 
-type WorkspaceTab = "overview" | "tasks" | "notifications" | "workflows";
+type WorkspaceTab = "overview" | "tasks" | "notifications" | "workflows" | "360-view";
 type HistorySortKey = "created" | "completed" | "type" | "status" | "department";
 type SortDirection = "asc" | "desc";
 
@@ -1039,6 +1039,15 @@ export default function PersonWorkflowHistoryPage() {
                 Vorgänge
                 <span className="admin-tab-count">{history.workflows.length}</span>
               </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "360-view"}
+                className={`admin-tab ${activeTab === "360-view" ? "active" : ""}`}
+                onClick={() => setActiveTab("360-view")}
+              >
+                360°-Sicht
+              </button>
             </div>
 
             {activeTab === "overview" ? (
@@ -1077,9 +1086,125 @@ export default function PersonWorkflowHistoryPage() {
                 isRetroactivelyImported={isRetroactivelyImported}
               />
             ) : null}
+
+            {activeTab === "360-view" ? (
+              <Person360ViewSection personId={history.personId} enabled={true} />
+            ) : null}
           </div>
         ) : null}
       </div>
     </main>
+  );
+}
+
+// Slice 4: 360°-Karte-Aggregator (Tab-Inhalt). Lazy-fetch via enabled-Flag
+// vom Aufrufer; Tab ist immer sichtbar wenn personId aufgeloest ist.
+function Person360ViewSection({ personId, enabled }: { personId: number; enabled: boolean }) {
+  const query = usePerson360View(personId, enabled);
+  if (query.isLoading) return <LoadingState title="360°-Sicht wird geladen…" />;
+  if (query.isError || !query.data) return <EmptyState title="360°-Sicht nicht verfügbar" />;
+  const v = query.data;
+  return (
+    <div className="person-360-view">
+      <section className="person-card">
+        <h3>Identitäts-Snapshot</h3>
+        <dl className="person-360-snapshot">
+          {v.identitySnapshot.displayName ? (<><dt>Anzeigename</dt><dd>{v.identitySnapshot.displayName}</dd></>) : null}
+          {v.identitySnapshot.userPrincipalName ? (<><dt>UPN</dt><dd>{v.identitySnapshot.userPrincipalName}</dd></>) : null}
+          {v.identitySnapshot.mail ? (<><dt>Mail</dt><dd>{v.identitySnapshot.mail}</dd></>) : null}
+          {v.identitySnapshot.department ? (<><dt>Abteilung</dt><dd>{v.identitySnapshot.department}</dd></>) : null}
+          {v.identitySnapshot.jobTitle ? (<><dt>Position</dt><dd>{v.identitySnapshot.jobTitle}</dd></>) : null}
+          {v.identitySnapshot.accountEnabled !== null ? (<><dt>Konto</dt><dd>{v.identitySnapshot.accountEnabled ? "aktiv" : "deaktiviert"}</dd></>) : null}
+        </dl>
+      </section>
+
+      <section className="person-card">
+        <h3>Gruppen-Mitgliedschaften (aktueller Stand)</h3>
+        {v.currentGroupMemberships.length === 0 ? (
+          <p className="text-secondary">Keine Cloud-Gruppen aus dem Entra-Sync verbunden.</p>
+        ) : (
+          <ul className="person-360-list">
+            {v.currentGroupMemberships.map((g) => (
+              <li key={`current-${g.directoryGroupId}`}>
+                {g.displayName}
+                <span className="text-secondary"> · zuletzt synchronisiert {new Date(g.lastSyncedAt).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {v.groupAutomationTrace.length > 0 ? (
+          <details className="person-360-trace">
+            <summary>Workflow-Spur ({v.groupAutomationTrace.length})</summary>
+            <ul className="person-360-list">
+              {v.groupAutomationTrace.map((t, idx) => (
+                <li key={`trace-${idx}`}>
+                  <code>{t.groupDistinguishedName}</code>
+                  <span className="text-secondary">
+                    {" "}— gesetzt durch Workflow {t.workflowUid.slice(0, 8)}, Task {t.taskNodeKey}, Status {t.jobStatus}
+                    {t.completedAt ? `, fertig ${new Date(t.completedAt).toLocaleString()}` : ` (geplant ${new Date(t.intendedAt).toLocaleString()})`}
+                  </span>
+                  {t.attemptErrorMessage ? <div className="wf-step-card-hint wf-step-card-hint--error">{t.attemptErrorMessage}</div> : null}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+      </section>
+
+      <section className="person-card">
+        <h3>Mailbox</h3>
+        {v.mailbox ? (
+          <dl className="person-360-snapshot">
+            <dt>Primäre SMTP</dt><dd>{v.mailbox.primarySmtpAddress}</dd>
+            <dt>Lizenz-SKU</dt><dd><code>{v.mailbox.licenseSkuId}</code></dd>
+            <dt>Zugewiesen am</dt><dd>{new Date(v.mailbox.assignedAtUtc).toLocaleString()}</dd>
+            <dt>Workflow</dt><dd><code>{v.mailbox.workflowUid.slice(0, 8)}</code></dd>
+          </dl>
+        ) : (
+          <p className="text-secondary">Keine Mailbox-Provisionierung via Automation gefunden.</p>
+        )}
+      </section>
+
+      <section className="person-card">
+        <h3>Workflow-Spur</h3>
+        {v.workflowTrace.length === 0 ? (
+          <p className="text-secondary">Keine Workflows für diese Person.</p>
+        ) : (
+          <ul className="person-360-list">
+            {v.workflowTrace.map((w) => (
+              <li key={`wf-${w.workflowId}`}>
+                <strong>{w.definitionKey}</strong>
+                <span className="text-secondary">
+                  {" "}— Status {w.status}, gestartet {new Date(w.startedAt).toLocaleString()}
+                  {w.completedAt ? `, fertig ${new Date(w.completedAt).toLocaleString()}` : ""}
+                  {w.automationJobsTotal > 0 ? ` · Automation ${w.automationJobsSucceeded}/${w.automationJobsTotal} erfolgreich${w.automationJobsFailed > 0 ? `, ${w.automationJobsFailed} fehlgeschlagen` : ""}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="person-card">
+        <h3>Initial-Passwort-Status</h3>
+        {v.initialPasswords.length === 0 ? (
+          <p className="text-secondary">Kein Initial-Passwort im Vault.</p>
+        ) : (
+          <ul className="person-360-list">
+            {v.initialPasswords.map((p) => (
+              <li key={`pwd-${p.vaultId}`}>
+                Vault <code>{p.vaultId.slice(0, 8)}</code>
+                <span className="text-secondary">
+                  {" "}— erzeugt {new Date(p.createdAt).toLocaleString()}, läuft ab {new Date(p.expiresAt).toLocaleString()}
+                  {p.isExpired ? " (abgelaufen)" : ""}
+                  {p.firstReadAt ? `, gelesen ${new Date(p.firstReadAt).toLocaleString()}` : ", noch nicht gelesen"}
+                  {p.readCount > 0 ? ` · ${p.readCount}× gelesen` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getPersonWorkflowHistory, getPeopleDirectory, searchPeople, searchRotationEligiblePeople } from "../peopleApi";
+import { getPerson360View, getPersonWorkflowHistory, getPeopleDirectory, searchPeople, searchRotationEligiblePeople } from "../peopleApi";
 import { queryKeys } from "../queryKeys";
 
 export function usePeopleSearch(search: string, enabled = true) {
@@ -28,6 +28,17 @@ export function usePersonWorkflowHistory(personId: number | null, enabled = true
     queryFn: () => getPersonWorkflowHistory(personId as number),
     enabled: enabled && typeof personId === "number" && personId > 0,
     staleTime: 15 * 1000,
+  });
+}
+
+// Slice 4: 360°-Karte. Lazy-Fetch on Tab-Activate via enabled-Param —
+// kein Polling, staleTime 30s reicht fuer Read-only-Detail.
+export function usePerson360View(personId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.people.view360(personId ?? 0),
+    queryFn: () => getPerson360View(personId as number),
+    enabled: enabled && typeof personId === "number" && personId > 0,
+    staleTime: 30 * 1000,
   });
 }
 

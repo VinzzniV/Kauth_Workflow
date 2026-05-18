@@ -32,8 +32,8 @@
 
 ## Current Focus
 
-- **Z21 + Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..7 alle durch** (Stand 2026-05-18). Detail-Historie in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21" / „Migrationspfad-Etappe 9a" / „Admin-Gated-Automation Slices 1-7". Produktive Onboarding-Pipeline `CreateAdUserLdaps → CreateMailboxGraph → (Decision auf alreadyExisted) → AssignGroupsLdaps → SendWelcomeMailGraph` lauffaehig; Admin-Gated-Approval-UI mit Plan-Vorschau, Soft-Re-Auth, Bundle-Dialog und Live-Status pro Action (Versuch-Counter, Logs, `failed`-Endphase) nutzbar.
-- **Kein aktiver Code-Slice** in der Pipeline. Naechster vorbereiteter Slice (stakeholder-blockiert): **`CreateErpEmployee`** (InforLN, eigener Plan-Mode noetig). Bewusst out-of-scope-Slices als Backlog in `TODO.md` § „Nachgelagert" (AGA-N1, N2, N4, N5, N6, N7 — N3 Live-Log ist mit Slice 7 erledigt).
+- **Z21 + Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..4 + 6..7 alle durch** (Stand 2026-05-18). Detail-Historie in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21" / „Migrationspfad-Etappe 9a" / „Admin-Gated-Automation Slices 1-7". Slice 4 (360°-Karte-Aggregator) wurde 2026-05-18 nachgezogen — `PersonWorkflowHistoryPage` hat einen neuen 360°-Tab mit Identity-Snapshot, aktuellem Cloud-Gruppen-Stand, Automation-Provenienz, Mailbox, Workflow-Spur und Vault-Status. Slice 5 (Referenzuser-Mapping) bleibt offen — zu grosser Querschnitts-Slice (15+ Files), eigene Session noetig.
+- **Kein aktiver Code-Slice** in der Pipeline. Offene Folge-Slices als Backlog in `TODO.md` § „Nachgelagert" (AGA-N1 CreateErpEmployee stakeholder-blockiert, N2 echtes Entra-Re-Auth, N5 Referenzuser-Mapping, N6 Builder-UI fuer automation_output, N7 operative Resthebel).
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

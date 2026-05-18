@@ -631,6 +631,75 @@ export type PersonWorkflowHistory = {
   workflows: PersonWorkflowSummary[];
 };
 
+// Slice 4 (Admin-Gated-Automation, 360°-Karte): Person-zentrierte Read-only-Sicht.
+export type PersonIdentitySnapshot = {
+  distinguishedName: string | null;
+  userPrincipalName: string | null;
+  samAccountName: string | null;
+  mail: string | null;
+  displayName: string | null;
+  department: string | null;
+  jobTitle: string | null;
+  accountEnabled: boolean | null;
+};
+
+export type PersonCurrentGroup = {
+  directoryGroupId: number;
+  displayName: string;
+  sourceSystem: string | null;
+  lastSyncedAt: string;
+};
+
+export type PersonGroupAutomationTrace = {
+  groupDistinguishedName: string;
+  intendedAt: string;
+  completedAt: string | null;
+  workflowUid: string;
+  taskNodeKey: string;
+  jobStatus: string;
+  attemptErrorMessage: string | null;
+};
+
+export type PersonMailbox = {
+  primarySmtpAddress: string;
+  licenseSkuId: string;
+  assignedAtUtc: string;
+  workflowUid: string;
+};
+
+export type PersonWorkflowTrace = {
+  workflowId: number;
+  workflowUid: string;
+  definitionKey: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  automationJobsTotal: number;
+  automationJobsSucceeded: number;
+  automationJobsFailed: number;
+};
+
+export type PersonInitialPasswordStatus = {
+  vaultId: string;
+  credentialType: string;
+  createdAt: string;
+  expiresAt: string;
+  firstReadAt: string | null;
+  readCount: number;
+  isExpired: boolean;
+  workflowUid: string;
+};
+
+export type Person360View = {
+  personId: number;
+  identitySnapshot: PersonIdentitySnapshot;
+  currentGroupMemberships: PersonCurrentGroup[];
+  groupAutomationTrace: PersonGroupAutomationTrace[];
+  mailbox: PersonMailbox | null;
+  workflowTrace: PersonWorkflowTrace[];
+  initialPasswords: PersonInitialPasswordStatus[];
+};
+
 // Z16-S3: Kompakter Listen-Eintrag im Personenverzeichnis (HR + Admin).
 export type PersonDirectoryItem = {
   personId: number | null;

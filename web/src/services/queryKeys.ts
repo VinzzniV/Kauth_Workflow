@@ -12,6 +12,7 @@ export const queryKeys = {
     rotationEligible: (search: string) => ["people", "rotation-eligible", search] as const,
     history: (personId: number) => ["people", personId, "history"] as const,
     directory: (search: string, offset: number) => ["people", "directory", search, offset] as const,
+    view360: (personId: number) => ["people", personId, "360-view"] as const,
   },
 
   workflows: {

@@ -1,4 +1,4 @@
-import type { CreatePersonPayload, PersonDirectoryItem, PersonWorkflowHistory, WorkflowTargetPerson } from "../types/workflow";
+import type { CreatePersonPayload, Person360View, PersonDirectoryItem, PersonWorkflowHistory, WorkflowTargetPerson } from "../types/workflow";
 import type { ImportPeopleFromDirectoryResult, UnlinkedDirectoryIdentity } from "../types/auth";
 import { encodeId, requestJson } from "./api/client";
 import type { BackendPersonWorkflowHistoryDto, BackendWorkflowTargetPersonDto } from "./api/backendDtos";
@@ -8,6 +8,12 @@ import { buildAdminListQuery, type AdminListPage, type AdminListQueryOptions } f
 export async function getPersonWorkflowHistory(personId: number): Promise<PersonWorkflowHistory> {
   const data = await requestJson<BackendPersonWorkflowHistoryDto>(`/people/${encodeId(personId)}/workflows`);
   return mapPersonWorkflowHistory(data);
+}
+
+// Slice 4: 360°-Karte-Aggregator. Backend kommt mit camelCase JSON, daher
+// kein Mapper noetig — direkter Type-Cast reicht.
+export async function getPerson360View(personId: number): Promise<Person360View> {
+  return requestJson<Person360View>(`/people/${encodeId(personId)}/360-view`);
 }
 
 export async function searchPeople(

@@ -28,6 +28,7 @@ Handler für AD-/Mailbox-/Mail-Operationen. Zwei Ausführungsumgebungen: Linux-A
 - `api/API/Services/AutomationPlanResults.cs` — typisierte Plan-Shapes (`AdUserPlan`, `GroupAssignmentPlan`, `MailboxPlan`, `WelcomeMailPlan`)
 - `api/API/Services/AutomationApprovalService.cs` — Re-Auth-Token-Issue + Approve (Audit + erste Action als Automation-Job; Worker-Erfolg auto-completed den Task)
 - `api/API/Services/AutomationApprovalStatusService.cs` — Live-Status-Aggregation (Slice 7): pro Bundle-Action `jobStatus` + Versuch-Counter + Logs; Steps ohne Job als `pending`-Synthese; `maxAttempts` spiegelt `WorkflowAutomationRetryPolicy`
+- `api/API/Services/PersonDetailsReadService.cs` — 360°-Karte-Aggregator (Slice 4): Identity-Snapshot + aktueller Gruppen-Stand (Entra-Sync) + Automation-Provenienz + Mailbox + Workflow-Spur + Vault-Status
 - `api/API/Services/AutomationNodeAuthLookup.cs` — Auth-/Node-Resolver (Slice 3), genutzt von Plan + Approve + Status
 - `api/API/Endpoints/AdminAutomationPlanEndpoints.cs` — `GET /admin/automation/plan`
 - `api/API/Endpoints/AdminAutomationApprovalEndpoints.cs` — `POST /reauth` + `POST /approve` + `GET /admin/automation/approvals/{id}/status`

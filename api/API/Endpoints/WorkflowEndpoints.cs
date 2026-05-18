@@ -359,6 +359,35 @@ internal static class WorkflowEndpoints
           .Produces(StatusCodes.Status404NotFound)
           .Produces(StatusCodes.Status403Forbidden);
 
+        // Slice 4: 360°-Karte-Aggregator. Auth-Vertrag identisch zu /people/{id}/workflows
+        // (CanAccessWorkflowOverview + Abteilungs-Scope ueber den Service).
+        app.MapGet("/people/{personId:long}/360-view", async (
+            long personId,
+            PersonDetailsReadService service,
+            IUserContext userContext,
+            IAuthorizationPolicyService authorizationPolicy,
+            CancellationToken ct) =>
+        {
+            var access = await EndpointSupport.RequireAuthorization(
+                userContext,
+                authorizationPolicy.CanAccessWorkflowOverview,
+                "Workflow-Übersicht Zugriff ist erforderlich.");
+            if (access.Error is not null) return access.Error;
+
+            try
+            {
+                var view = await service.GetAsync(personId, access.User!, ct);
+                if (view is null) return Results.NotFound(new { message = "Person nicht gefunden." });
+                return Results.Ok(view);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return EndpointSupport.Forbidden(ex.Message);
+            }
+        }).Produces<Person360ViewDto>(StatusCodes.Status200OK)
+          .Produces(StatusCodes.Status404NotFound)
+          .Produces(StatusCodes.Status403Forbidden);
+
         return app;
     }
 }

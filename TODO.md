@@ -40,7 +40,6 @@ Kein aktiver, code-arbeitsfaehiger Slice. Die produktive Onboarding-Pipeline und
 | Z21-N3 | Alte Demo-/Testdaten und unklare Beispielinhalte bereinigen. | LOW | offen | Sinnvoll vor Produktivnahme, aber nicht blockierend. |
 | AGA-N1 | `CreateErpEmployee` (InforLN) als eigener Backend-Architektur-Slice. | HIGH | stakeholder-blockiert | Wartet auf Stakeholder-Entscheidung; eigener Plan-Mode noetig. |
 | AGA-N2 | Echtes Entra-Re-Auth (MSAL `prompt: 'login'` + `auth_time`-Check) statt heutiger Soft-Bestaetigung. | MED | offen | Sicherheits-Slice; Soft-Bestaetigung ist bewusste Slice-5-Grenze. |
-| AGA-N4 | Post-Execution 360°-Karte-Aggregator unter `/people/:personId`. | MED | offen | Eigene Read-only-Sicht, kein Architekturrisiko; baut auf bestehenden `automation_job_attempts` + Vault auf. |
 | AGA-N5 | Referenzuser-Mapping-Source. | LOW | offen | Eigener Slice nach vorhandenem Muster; Whitelist-Entscheidung in Plan-Mode. |
 | AGA-N6 | Builder-UI fuer `automation_output`-Bedingungen (Source-Dropdown + Property-Filter). | LOW | offen | Heute nur per JSON-API / Dev-Seed konfigurierbar. |
 | AGA-N7 | `RemoveMailboxLicense` fuer User-Deprovisionierung; Vault-Cleanup-Sweeper; Key-Rotation; Connection-Pooling LDAPS. | LOW | offen | Operative Resthebel ohne aktuellen Blocker. |
