@@ -13,7 +13,7 @@
 
 ## Verwandte Dateien
 
-- `TODO.md` — aktive Backlog-Punkte (Etappe 9a + Admin-Gated-Automation Slices 1..6 alle erledigt; einzig offen `CreateErpEmployee` stakeholder-blockiert)
+- `TODO.md` — aktive Backlog-Punkte (Etappe 9a + Admin-Gated-Automation Slices 1..7 alle erledigt; einzig offen `CreateErpEmployee` stakeholder-blockiert)
 - `PROD_TODO.md` — abgeschlossener Slice-Plan + Mapping zwischen den Z21-Nummerierungen
 - `MEMORY.md` — aktueller Fokus
 - `CODE_REVIEW_ARCHIVE.md` — vollstaendige Detail-Historie
@@ -34,7 +34,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand 2026-05-15** — Z21 + Migrationspfad-Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..6 alle durch. Reale Onboarding-Pipeline `CreateAdUserLdaps → CreateMailboxGraph → (AlreadyExists-Decision) → AssignGroupsLdaps → SendWelcomeMailGraph` produktionsreif (vor Live-Rollout: Browser-Smoke + Graph-/Mail-Live-Verifikation). Admin-Gated-Approval-UI (Plan-Vorschau, Re-Auth, Bundle-Dialog mit Auto-Complete) ist nutzbar; vier Folge-Slices bewusst offen (echtes Entra-Re-Auth, Live-Log, 360°-Karte-Aggregator, Referenzuser-Mapping). Aktiver Resthebel: nur noch `CreateErpEmployee` (InforLN, stakeholder-blockiert) plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3). Detail-Historie aller acht Etappen + sechs Slices in `CODE_REVIEW_ARCHIVE.md`.
+**Stand 2026-05-18** — Z21 + Migrationspfad-Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..7 alle durch. Reale Onboarding-Pipeline `CreateAdUserLdaps → CreateMailboxGraph → (AlreadyExists-Decision) → AssignGroupsLdaps → SendWelcomeMailGraph` produktionsreif (vor Live-Rollout: Browser-Smoke + Graph-/Mail-Live-Verifikation). Admin-Gated-Approval-UI (Plan-Vorschau, Re-Auth, Bundle-Dialog, Live-Status pro Action mit Versuch-Counter + Logs + klarer failed-Endphase) ist nutzbar; drei Folge-Slices bewusst offen (echtes Entra-Re-Auth, 360°-Karte-Aggregator, Referenzuser-Mapping). Aktiver Resthebel: nur noch `CreateErpEmployee` (InforLN, stakeholder-blockiert) plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3). Detail-Historie aller acht Etappen + sieben Slices in `CODE_REVIEW_ARCHIVE.md`.
 
 ---
 
@@ -82,7 +82,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 **Z21-P0-2 · Hybrid-AD-Schreibpfad fehlt** — gelöst durch Etappe 9a Schritt 1..8 (Sub-Architektur, Worker, LDAPS, gMSA, DPAPI, Vault, Mailbox-Graph, AlreadyExists-Branch im Engine). Verbleibender Code-Slice: **`CreateErpEmployee`** als eigener Backend-Architektur-Slice (Ziel: InforLN), zurueckgestellt bis Stakeholder-Wunsch.
 
-**Admin-Gated-Automation Slices 1..6 (2026-05-13 .. 2026-05-15)** — Plan-Vorschau (WhatIf), Task-Automation-Binding, Approval-Endpoint mit Soft-Re-Auth, Builder-UI, Approval-Runtime-Dialog mit Bundle-Stepper. Details + Folge-Slice-Liste (echtes Entra-Re-Auth, Live-Log, 360°-Karte, Referenzuser-Mapping) in `CODE_REVIEW_ARCHIVE.md` § „Admin-Gated-Automation Slices 1-6".
+**Admin-Gated-Automation Slices 1..7 (2026-05-13 .. 2026-05-15)** — Plan-Vorschau (WhatIf), Task-Automation-Binding, Approval-Endpoint mit Soft-Re-Auth, Builder-UI, Approval-Runtime-Dialog mit Bundle-Stepper. Details + Folge-Slice-Liste (echtes Entra-Re-Auth, Live-Log, 360°-Karte, Referenzuser-Mapping) in `CODE_REVIEW_ARCHIVE.md` § „Admin-Gated-Automation Slices 1-6".
 
 **Optionale offene Resthebel (kein blocker):** Builder-UI-Erweiterung fuer `automation_output`-Bedingungen (Source-Dropdown, `ConditionProperties`-Filter); `RemoveMailboxLicense` fuer User-Deprovisionierung; Lizenz-Pool-Monitoring; Sub-License-Disabling; Connection-Pooling im LDAPS-Writer-Pfad; Vault-Cleanup-Sweeper; Key-Rotation.
 
@@ -136,7 +136,7 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 
 - Detailzyklen **Z8 bis Z20** + **vollstaendige Z21-Detail-Historie** (alle Done-Slices S1..S10 + S5b/S6b) liegen in `CODE_REVIEW_ARCHIVE.md`.
 - **Migrationspfad-Etappe 9a Schritt 1..8** (2026-05-12..13) liegt seit 2026-05-15 in `CODE_REVIEW_ARCHIVE.md`.
-- **Admin-Gated-Automation Slices 1..6** (2026-05-13..15) liegen in `CODE_REVIEW_ARCHIVE.md`.
+- **Admin-Gated-Automation Slices 1..7** (2026-05-13..15) liegen in `CODE_REVIEW_ARCHIVE.md`.
 - Detailhistorie **Zyklus 7** in `CODE_REVIEW_ARCHIVE.md` + `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`.
 
 ---

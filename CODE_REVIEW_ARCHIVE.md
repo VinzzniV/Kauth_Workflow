@@ -370,9 +370,9 @@ Acht Schritte vom Worker-Skeleton bis zum AlreadyExists-Branch im Workflow-Engin
 
 ---
 
-## Admin-Gated-Automation Slices 1-6 (Plan-Vorschau + Approval-Runtime, 2026-05-13 .. 2026-05-15)
+## Admin-Gated-Automation Slices 1-7 (Plan-Vorschau + Approval-Runtime + Live-Log, 2026-05-13 .. 2026-05-18)
 
-Sechs Slices vom WhatIf-Plan ueber Task-Binding und Re-Auth-Gate bis zur Bundle-UI im Approval-Dialog. End-Ergebnis: Admin sieht in der Workflow-Detail-Sicht an task-Nodes mit gebuendeltem Action-Plan einen "Plan anzeigen & freigeben"-Button; Klick oeffnet einen Dialog mit fachlich gerendertem Stepper, Drift-Schutz und automatischem Task-Auto-Complete.
+Sieben Slices vom WhatIf-Plan ueber Task-Binding und Re-Auth-Gate bis zum Live-Log mit per-Action-Failure-Detection. End-Ergebnis: Admin sieht in der Workflow-Detail-Sicht an task-Nodes mit gebuendeltem Action-Plan einen "Plan anzeigen & freigeben"-Button; Klick oeffnet einen Dialog mit fachlich gerendertem Stepper, Drift-Schutz, Live-Status pro Action (Status-Pill, Versuch N/M, Logs) und automatischem Task-Auto-Complete.
 
 | Slice | Commit | Inhalt |
 |---|---|---|
@@ -382,12 +382,13 @@ Sechs Slices vom WhatIf-Plan ueber Task-Binding und Re-Auth-Gate bis zur Bundle-
 | 4 — Builder-UI fuer task-Node-Action-Bundle | `8d449fc` | `WorkflowBuilderActionEditor` akzeptiert Actions auf `task`-Nodes (vorher nur `automation`). Role-Selector am task-Node. Whitelist `AUTOMATION_ADMIN_ROLES` deckungsgleich Backend ↔ Frontend (Compile-Check ueber `Record<AutomationAdminRoleSlug, …>`). |
 | 5 — Approval-Runtime-UI | `058670b` | `AutomationApprovalDialog` mit State-Machine (loading-plan → reviewing → submitting → running → succeeded/background). Plan-Renderer pro Action-Key (typisierte Cards). Drift-Erkennung (409). Polling `useWorkflowTasks` mit `refetchInterval` 2s; Timeout 60s → "laeuft im Hintergrund". DTO-Kette: `WorkflowTaskDto`/`BackendWorkflowTaskDto`/`WorkflowTask` um `nodeKey` + `automationAdminRole`; `canCurrentUserApprove`-Helper mit `ROLE_TO_CAPABILITY`-Drift-Schutz. |
 | 6 — Action-Buendelung im Task-UI | `ea77fa0` | Plan-Steps als Bundle gerendert: Bundle-Header mit Step-Zaehler + Failure-Semantik-Hinweis; vertikaler Stepper mit Connector-Linie (CSS `.wfa-bundle-step`); fachliche Action-Labels (`automationActionLabels.ts`) statt technischer Keys; Plan-Failure-Guard disabled den Approve-Button wenn ein Step nicht planbar ist. |
+| 7 — Live-Log waehrend Ausfuehrung | `7527e9d` | Backend: `AutomationJobAttemptDto.FailureKind` + Repository selektiert `failure_kind`; `IWorkflowAutomationReadRepository.GetAutomationJobsForNodeInstance(long)`; `AutomationApprovalStatusService` aggregiert Bundle-Actions + Jobs/Attempts/Logs (Steps ohne Job als pending-Synthese; `maxAttempts` spiegelt `WorkflowAutomationRetryPolicy.cs:49`); `GET /admin/automation/approvals/{id}/status`. Frontend: `useAutomationApprovalStatusQuery` mit `refetchInterval=2s`; neue Dialog-Phase `failed`; `LiveStatusList` + `StatusPill` mit Versuch-N/M + collapsible Logs; CSS `.wfa-status-pill*` / `.wfa-status-attempt` / `.wfa-status-logs`. Bonus-Fixes: pre-existing `dialogRef` in `CancelWorkflowDialog.tsx` + Typ-Drift in `buildRequirementSelections`. |
 
 **Bewusst out-of-scope** (eigene Folge-Slices):
 
 - **Echtes Entra-Re-Auth** (Passwort-Prompt via MSAL `prompt: 'login'` + `auth_time`-Claim-Check) — heute Soft-Bestaetigung.
-- **Live-Log mit per-Action-Granularitaet** (Architektur-Doku Slice 7). Heute kennt der Dialog nur succeeded/background als End-Phasen; per-Action-Failure-Detection braucht neuen Read-Pfad auf `workflow_runtime_events` oder ein `GET /admin/automation/approvals/{id}/status`-Endpoint.
+- **Inline-Retry/Re-Approve** im `failed`-State des Dialogs — Admin schliesst Modal, arbeitet im Workflow-Detail manuell weiter.
 - **Post-Execution 360°-Karte-Aggregator** — person-zentrierte Sicht unter `/people/:personId` (Identitaets-Snapshot, Gruppen mit Provenienz, Mailbox-Stand, Workflow-Spur).
 - **Referenzuser-Mapping-Source** — eigener Slice nach vorhandenem Muster.
 
-**Praktisch:** der erste 95%-Pfad (Admin oeffnet Onboarding-Task → sieht 4-Step-Plan → 1 Klick → Worker arbeitet ab → Task wird automatisch `done`) ist End-to-End nutzbar. Was fehlt fuer einen echten Prod-Rollout sind die vier oben gelisteten Slices plus Browser-Smoke gegen echtes Entra/AD.
+**Praktisch:** der End-to-End-Pfad (Admin oeffnet Onboarding-Task → sieht 4-Step-Plan → 1 Klick → Live-Status pro Action mit Versuch-Counter und Logs → Task wird automatisch `done` ODER klarer `failed`-Endzustand) ist nutzbar. Was fehlt fuer den vollen Prod-Rollout sind die drei oben gelisteten Slices plus Browser-Smoke gegen echtes Entra/AD.

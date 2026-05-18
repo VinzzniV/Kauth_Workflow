@@ -23,12 +23,14 @@ Handler für AD-/Mailbox-/Mail-Operationen. Zwei Ausführungsumgebungen: Linux-A
 - `api/API/Services/GraphMailSender.cs` (+ `IGraphMailSender.cs`) — Graph-SendMail-Wrapper
 - `api/API/Services/GraphApplicationConfigurationService.cs` (+ Validator + RuntimeConfiguration) — Graph-App-only-Auth-Konfig
 
-**Plan-Vorschau + Admin-Approval (Slice 1 + 3)**
+**Plan-Vorschau + Admin-Approval (Slice 1 + 3 + 7)**
 - `api/API/Services/WorkflowAutomationPlanService.cs` — WhatIf-Plan-Berechnung pro Action im Task-Bundle
 - `api/API/Services/AutomationPlanResults.cs` — typisierte Plan-Shapes (`AdUserPlan`, `GroupAssignmentPlan`, `MailboxPlan`, `WelcomeMailPlan`)
 - `api/API/Services/AutomationApprovalService.cs` — Re-Auth-Token-Issue + Approve (Audit + erste Action als Automation-Job; Worker-Erfolg auto-completed den Task)
+- `api/API/Services/AutomationApprovalStatusService.cs` — Live-Status-Aggregation (Slice 7): pro Bundle-Action `jobStatus` + Versuch-Counter + Logs; Steps ohne Job als `pending`-Synthese; `maxAttempts` spiegelt `WorkflowAutomationRetryPolicy`
+- `api/API/Services/AutomationNodeAuthLookup.cs` — Auth-/Node-Resolver (Slice 3), genutzt von Plan + Approve + Status
 - `api/API/Endpoints/AdminAutomationPlanEndpoints.cs` — `GET /admin/automation/plan`
-- `api/API/Endpoints/AdminAutomationApprovalEndpoints.cs` — `POST /reauth` + `POST /approve`
+- `api/API/Endpoints/AdminAutomationApprovalEndpoints.cs` — `POST /reauth` + `POST /approve` + `GET /admin/automation/approvals/{id}/status`
 
 **Handler (simuliert, für Bestands-Workflows + Dev)**
 - `api/API/Services/SimulatedWorkflowAutomationHandlers.cs`
@@ -58,11 +60,11 @@ Handler für AD-/Mailbox-/Mail-Operationen. Zwei Ausführungsumgebungen: Linux-A
 - `web/src/components/admin-config/WorkflowBuilderActionMappingEditor.tsx` — Input-Mapping pro Parameter
 - `web/src/utils/automationAdminRoles.ts` — Whitelist `auth_admin`/`auth_hr`/`auth_manager` + Role-Capability-Mapping (Drift-Schutz Backend ↔ Frontend)
 
-**Approval-Runtime (Slice 5 + 6)**
-- `web/src/components/workflow-detail/AutomationApprovalDialog.tsx` — Plan-Vorschau-Dialog mit State-Machine, Drift-Erkennung, Bundle-Stepper, Plan-Failure-Guard
-- `web/src/services/automationApprovalApi.ts` — `fetchAutomationPlan` / `issueAutomationReauthToken` / `approveAutomationPlan`
-- `web/src/services/mutations/automationApprovalMutations.ts` — Plan-Query + Approve-Mutation mit Inline-Invalidation
-- `web/src/types/automationApproval.ts` — DTO-Types inkl. typisierte Plan-Shapes
+**Approval-Runtime (Slice 5 + 6 + 7)**
+- `web/src/components/workflow-detail/AutomationApprovalDialog.tsx` — Plan-Vorschau-Dialog mit State-Machine, Drift-Erkennung, Bundle-Stepper, Plan-Failure-Guard, Live-Status mit `failed`-Endphase
+- `web/src/services/automationApprovalApi.ts` — `fetchAutomationPlan` / `issueAutomationReauthToken` / `approveAutomationPlan` / `fetchAutomationApprovalStatus`
+- `web/src/services/mutations/automationApprovalMutations.ts` — Plan-Query + Approve-Mutation + `useAutomationApprovalStatusQuery` (Slice 7, `refetchInterval=2s` im running-State)
+- `web/src/types/automationApproval.ts` — DTO-Types inkl. typisierte Plan-Shapes + `AutomationApprovalStatusResponse`/`Step`/`LogEntry` (Slice 7)
 - `web/src/utils/automationActionLabels.ts` — Mapping technischer Action-Key → fachliche Bezeichnung (Slice 6)
 
 ## DB

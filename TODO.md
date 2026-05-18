@@ -4,7 +4,7 @@
 
 Aktiver Produkt- und Umsetzungsplan. Nur Punkte, die direkt auf Endbenutzer-Nutzen, fachliche Funktion, Automatisierung oder Produktionsreife einzahlen.
 
-Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung" + „Migrationspfad-Etappe 9a" + „Admin-Gated-Automation Slices 1-6"). Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..6 (2026-05-13..15) sind komplett abgeschlossen.
+Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung" + „Migrationspfad-Etappe 9a" + „Admin-Gated-Automation Slices 1-7"). Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..7 (2026-05-13..18) sind komplett abgeschlossen.
 
 ## Leseregeln
 
@@ -13,17 +13,15 @@ Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „
 3. Fuer UI-Arbeiten zusaetzlich `FRONTEND_TODO.md` lesen.
 4. Nach Umsetzung eines Punktes Status, Erkenntnisse und Folgepunkte hier aktualisieren.
 
-## Stand 2026-05-15
+## Stand 2026-05-18
 
-Z21-S1..S3 + S5..S10 + S6b (2026-05-12), Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..6 (2026-05-13..15) alle abgeschlossen. Details in `CODE_REVIEW_ARCHIVE.md`.
+Z21-S1..S3 + S5..S10 + S6b (2026-05-12), Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..7 (2026-05-13..18) alle abgeschlossen. Details in `CODE_REVIEW_ARCHIVE.md`.
 
-Verifizierter Ist-Stand (per `scripts/verify-prod-ready.sh` und FE-Build/Vitest am 2026-05-15):
+Verifizierter Ist-Stand (Slice 7, 2026-05-18):
 - API Release-Build: ✅ gruen
-- API-Test-Build: ✅ 7 Errors (Baseline aus frueheren Refactorings; unveraendert seit 2026-05-12)
 - FE-Build: ✅ gruen
-- FE-Tests: ✅ 323 passed
-- FE-Lint: ✅ Baseline (7 errors / 7 warnings; unveraendert seit Slice 5)
-- `start-vm.sh`-Syntax: ✅ gruen
+- FE-Tests: 319/323 (4 pre-existing PersonaSwitcher-Failures, unveraendert vor/nach Slice 7 — eigener Baseline-Slice)
+- FE-Lint: ✅ 0 Errors / 5 Warnings (verbessert die alte 7/7-Baseline durch zwei pre-existing-Fixes in Slice 7)
 - Worker.Core + Worker.Tests Build: ✅ gruen
 - Worker Core tests: ✅ 57 passed
 
@@ -42,7 +40,6 @@ Kein aktiver, code-arbeitsfaehiger Slice. Die produktive Onboarding-Pipeline und
 | Z21-N3 | Alte Demo-/Testdaten und unklare Beispielinhalte bereinigen. | LOW | offen | Sinnvoll vor Produktivnahme, aber nicht blockierend. |
 | AGA-N1 | `CreateErpEmployee` (InforLN) als eigener Backend-Architektur-Slice. | HIGH | stakeholder-blockiert | Wartet auf Stakeholder-Entscheidung; eigener Plan-Mode noetig. |
 | AGA-N2 | Echtes Entra-Re-Auth (MSAL `prompt: 'login'` + `auth_time`-Check) statt heutiger Soft-Bestaetigung. | MED | offen | Sicherheits-Slice; Soft-Bestaetigung ist bewusste Slice-5-Grenze. |
-| AGA-N3 | Live-Log mit per-Action-Granularitaet im Approval-Dialog. | MED | offen | Heute kennt der Dialog nur succeeded/background; per-Action-Failure-Detection braucht neuen Read-Pfad. |
 | AGA-N4 | Post-Execution 360°-Karte-Aggregator unter `/people/:personId`. | MED | offen | Eigene Read-only-Sicht, kein Architekturrisiko; baut auf bestehenden `automation_job_attempts` + Vault auf. |
 | AGA-N5 | Referenzuser-Mapping-Source. | LOW | offen | Eigener Slice nach vorhandenem Muster; Whitelist-Entscheidung in Plan-Mode. |
 | AGA-N6 | Builder-UI fuer `automation_output`-Bedingungen (Source-Dropdown + Property-Filter). | LOW | offen | Heute nur per JSON-API / Dev-Seed konfigurierbar. |

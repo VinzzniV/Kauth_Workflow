@@ -2,7 +2,7 @@
 
 #architektur #automation #zielbild
 
-Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild. Stand 2026-05-15 sind die Hauptslices 1–3 + 6 umgesetzt (Plan-Vorschau, Task-Automation-Binding, Re-Auth-Gate als Soft-Bestätigung, Action-Bündelung im Task-UI); Slice 4 (360°-Karte), 5 (Referenzuser-Mapping), 7 (Live-Log) und der Folge-Slice „echtes Entra-Re-Auth" sind bewusst offen. Details im Umsetzungsstand weiter unten.
+Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild. Stand 2026-05-18 sind die Hauptslices 1–3 + 6 + 7 umgesetzt (Plan-Vorschau, Task-Automation-Binding, Re-Auth-Gate als Soft-Bestätigung, Action-Bündelung im Task-UI, Live-Log mit per-Action-Status + Versuch-Counter + Logs + klarer `failed`-Endphase); Slice 4 (360°-Karte), 5 (Referenzuser-Mapping) und der Folge-Slice „echtes Entra-Re-Auth" sind bewusst offen. Details im Umsetzungsstand weiter unten.
 
 ---
 
@@ -108,7 +108,7 @@ Workflow endet, wenn alle Fachbereich-Tasks durch sind
 
 ---
 
-## Umsetzungsstand 2026-05-15
+## Umsetzungsstand 2026-05-18
 
 | # | Baustein | Stand | Belege |
 |---|---|---|---|
@@ -118,12 +118,12 @@ Workflow endet, wenn alle Fachbereich-Tasks durch sind
 | 4 | 360°-Karte-Aggregator | ⛔ offen | — |
 | 5 | Referenzuser-Mapping-Source | ⛔ offen | — |
 | 6 | Action-Bündelung im Task (UI) | ✅ done (Slice 6, Commit `ea77fa0`) | `AutomationApprovalDialog.tsx`, `automationActionLabels.ts`, `.wfa-bundle-step` in `workflow.css` |
-| 7 | Live-Log während Ausführung | ⛔ offen — heute nur succeeded/background als End-Phasen | — |
+| 7 | Live-Log während Ausführung | ✅ done (Slice 7, Commit `7527e9d`) | `AutomationApprovalStatusService.cs`, `GET /admin/automation/approvals/{id}/status`, `useAutomationApprovalStatusQuery`, `LiveStatusList`/`StatusPill`, `.wfa-status-pill*` |
 | 8 | Change-/Offboarding-Handler | ⛔ offen — eigene Inhalts-Slices |  — |
 
-**Praktischer Stand:** der 95%-Pfad funktioniert — Admin öffnet eine Onboarding-Task mit Action-Bundle, sieht den Plan als fachlich gerenderten Stepper, bestätigt mit einem Klick (Soft-Re-Auth ohne Passwort-Prompt), Worker arbeitet ab, Task wird automatisch `done`. Was für einen vollen Prod-Rollout fehlt: echtes Entra-Re-Auth, per-Action-Failure-Detection (Live-Log), 360°-Karte als Post-Execution-Sicht, Referenzuser-Mapping für Gruppen-Provenienz, plus die Change-/Offboarding-Handler aus Baustein 8.
+**Praktischer Stand:** der End-to-End-Pfad funktioniert — Admin öffnet eine Onboarding-Task mit Action-Bundle, sieht den Plan als fachlich gerenderten Stepper, bestätigt mit einem Klick (Soft-Re-Auth ohne Passwort-Prompt), sieht den Live-Status pro Action (Status-Pill, Versuch-Counter, Logs) und am Ende entweder Auto-Complete (`done`) oder einen klaren `failed`-Endzustand mit Fehler-Details. Was für einen vollen Prod-Rollout fehlt: echtes Entra-Re-Auth, 360°-Karte als Post-Execution-Sicht, Referenzuser-Mapping für Gruppen-Provenienz, plus die Change-/Offboarding-Handler aus Baustein 8.
 
-Detail-Historie der Slices 1–6 in `CODE_REVIEW_ARCHIVE.md` § „Admin-Gated-Automation Slices 1-6".
+Detail-Historie der Slices 1–7 in `CODE_REVIEW_ARCHIVE.md` § „Admin-Gated-Automation Slices 1-7".
 
 ---
 
@@ -269,7 +269,7 @@ Stand 2026-05-15. Basis: Etappe 9a Schritte 1–8 abgeschlossen. Die technische 
 | 4 | **360°-Karte-Aggregator** | ⛔ offen | Sonnet | **niedrig–mittel** | Kurz — für SQL-Design | Hauptarbeit ist Aggregator-Query über `automation_job_attempts` + neues Read-only-Frontend. SQL-Aggregation braucht Planungsrunde (Indexes, N+1), der Rest ist geradliniges CRUD + Page. |
 | 5 | **Referenzuser-Mapping** | ⛔ offen | Sonnet | **mittel** | Ja — für Source-Design und Whitelist | Klar begrenzter Slice nach vorhandenem Muster. Plan Mode einmal für die Whitelist-Entscheidung (welche Properties erlaubt), dann direkte Impl. |
 | 6 | **Action-Bündelung im Task (UI)** | ✅ done 2026-05-15 (`ea77fa0`) | Sonnet | **niedrig** | Nein (setzt 1 + 2 voraus) | UI-Rendering-Arbeit, sobald Schema + Plan-Vertrag aus 1/2 stehen. Kein Architekturrisiko, mechanische Erweiterung. |
-| 7 | **Live-Log während Ausführung** | ⛔ offen | Sonnet | **mittel** | Ja — für Protokoll-Wahl (SSE vs. Polling) | Entscheidung SSE vs. Polling hat Folgen für Backend und UI. Einmal entschieden ist die Umsetzung geradlinig. |
+| 7 | **Live-Log während Ausführung** | ✅ done 2026-05-18 (`7527e9d`) — Polling 2s | Sonnet | **mittel** | Ja — für Protokoll-Wahl (SSE vs. Polling) | Entscheidung SSE vs. Polling hat Folgen für Backend und UI. Einmal entschieden ist die Umsetzung geradlinig. |
 
 ### Change-/Offboarding-Handler (Inhalts-Slices, bauen auf 1–4 auf)
 
