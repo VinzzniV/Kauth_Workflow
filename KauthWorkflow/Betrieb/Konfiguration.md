@@ -16,8 +16,8 @@ Eine Wahrheit für alle Konfig-Werte. Wer eine Variable sucht, einen Wert änder
 
 - [[Setup]] — wie startet man lokal / auf der VM (operatives Wie)
 - [[Deployment-Checkliste]] — produktiver Roll-out
-- `scripts/Configure.ps1` — interaktiver Wizard für `.env.prod` (siehe K3)
-- `worker/setup/Configure-Worker.ps1` — Worker-Setup-Wrapper (siehe K4)
+- `scripts/Configure.ps1` — interaktiver Wizard für `.env.prod` und `web/.env.local`
+- `worker/setup/Configure-Worker.ps1` — Worker-Setup-Wrapper (kommt mit Slice K4)
 - `.env.prod.example` — kanonisches Template für Prod
 
 ---
@@ -174,6 +174,7 @@ Application-Permissions, die der Tenant-Admin freigeben muss:
 
 ### „Was ist aktuell aktiv?"
 
+- **Wizard-Anzeige:** `pwsh scripts/Configure.ps1 -Show` listet die Werte aus `.env.prod` + `web/.env.local` mit Secret-Redaction.
 - **API-Container:** `docker exec <api-container> env | sort` zeigt die finale Env-Sicht.
 - **Compose-Dry-Run:** `docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml config` rendert alle Variablen aufgelöst.
 - **Drift-Schutz:** `pwsh scripts/verify-config-coverage.ps1` schlägt fehl, wenn `compose.yml`/`compose.prod.yml` eine Variable referenzieren, die im `.env.prod.example` nicht dokumentiert ist.

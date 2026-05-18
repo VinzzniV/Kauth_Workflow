@@ -137,6 +137,16 @@ npm run build
 
 ### 1 — Produktive Konfiguration anlegen
 
+**Empfohlen (interaktiver Wizard):**
+
+```powershell
+pwsh ./scripts/Configure.ps1
+```
+
+Der Wizard fragt alle Werte sektionsweise ab, validiert (https-URLs, GUIDs), generiert auf Wunsch DB-Passwort + Vault-Key und schreibt eine fertige `.env.prod`. Bestehende Datei wird mit Zeitstempel-Suffix gesichert. Re-Run mit `-Update` zum Aendern einzelner Werte; `-Show` zeigt den aktuellen Stand mit Secret-Redaction.
+
+**Alternativ (manuell):**
+
 ```bash
 cp .env.prod.example .env.prod
 ```
