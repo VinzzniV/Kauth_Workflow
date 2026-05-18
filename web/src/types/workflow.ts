@@ -36,7 +36,10 @@ export type RequirementOption = {
   isDefault: boolean;
 };
 
-export type RequirementInputType = "boolean" | "text" | "select" | "multi_select";
+// Slice 5: "person_lookup" speichert die ausgewaehlte person.id in valueNumber
+// (keine neue DB-Spalte). Backend-Vertrag deckungsgleich in
+// WorkflowSummaryBuilder.HasAnswer + CHECK-Constraint auf workflow_answers/_definitions.
+export type RequirementInputType = "boolean" | "text" | "select" | "multi_select" | "person_lookup";
 
 export type RequirementVisibilityDependency = {
   dependencyKey: string;

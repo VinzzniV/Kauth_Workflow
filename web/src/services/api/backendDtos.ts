@@ -103,7 +103,7 @@ export type BackendRequirementDto = {
   description: string;
   category: string;
   iconKey: string | null;
-  inputType: "boolean" | "text" | "select" | "multi_select";
+  inputType: "boolean" | "text" | "select" | "multi_select" | "person_lookup";
   isRequired: boolean;
   sortOrder: number;
   behavior: BackendRequirementBehaviorDto;
@@ -238,7 +238,7 @@ export type BackendWorkflowRequirementSnapshotDto = {
   description: string;
   category: string;
   iconKey: string | null;
-  inputType: "boolean" | "text" | "select" | "multi_select";
+  inputType: "boolean" | "text" | "select" | "multi_select" | "person_lookup";
   isRequired: boolean;
   isVisible: boolean;
   sortOrder: number;

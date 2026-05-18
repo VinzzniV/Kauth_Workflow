@@ -14,16 +14,19 @@ internal sealed class WorkflowAutomationPlanService
 {
     private readonly LifecycleRuntimeSettings runtimeSettings;
     private readonly IWorkflowAutomationHandlerRegistry handlerRegistry;
+    private readonly IReferenceUserDirectoryReader referenceUserReader;
 
     private static readonly TimeSpan WorkerPollInterval = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan WorkerPollTimeout = TimeSpan.FromSeconds(30);
 
     public WorkflowAutomationPlanService(
         LifecycleRuntimeSettings runtimeSettings,
-        IWorkflowAutomationHandlerRegistry handlerRegistry)
+        IWorkflowAutomationHandlerRegistry handlerRegistry,
+        IReferenceUserDirectoryReader referenceUserReader)
     {
         this.runtimeSettings = runtimeSettings;
         this.handlerRegistry = handlerRegistry;
+        this.referenceUserReader = referenceUserReader;
     }
 
     public async Task<NodePlanResult?> ComputeNodePlanAsync(
@@ -74,6 +77,11 @@ internal sealed class WorkflowAutomationPlanService
         var steps = new List<ActionPlanStep>();
         foreach (var action in actions)
         {
+            // Slice 5: Referenzuser-Gruppen pro Action vorab via Graph-Reader laden.
+            // answersByKey wird hier aus dem laufenden Workflow-Snapshot uebergeben.
+            var refUserCache = await PostgresWorkflowAutomationOperations.LoadReferenceUserGroupsForMappingAsync(
+                connection, tx, referenceUserReader, action.InputMapping, answersByKey, ct);
+
             JsonElement payload;
             try
             {
@@ -85,7 +93,8 @@ internal sealed class WorkflowAutomationPlanService
                     answersByKey,
                     ct,
                     adUserDict,
-                    mailboxDict);
+                    mailboxDict,
+                    refUserCache);
             }
             catch (InvalidOperationException ex)
             {

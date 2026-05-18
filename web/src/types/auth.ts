@@ -645,7 +645,7 @@ export type AdminAnswerDefinition = {
   category: string;
   description: string;
   iconKey: string | null;
-  inputType: "boolean" | "text" | "select" | "multi_select";
+  inputType: "boolean" | "text" | "select" | "multi_select" | "person_lookup";
   isRequired: boolean;
   sortOrder: number;
   isActive: boolean;

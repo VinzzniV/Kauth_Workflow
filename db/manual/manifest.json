@@ -158,6 +158,14 @@
         "automation_approvals_token_fkey"
       ],
       "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-18_person_lookup_input_type.sql",
+      "description": "Slice 5 (Admin-Gated-Automation, Referenzuser-Mapping): erweitert die input_type-CHECK-Constraints auf workflow_answer_definitions und workflow_answers um 'person_lookup'. Antwort wird als value_number = person.id gespeichert (keine neue Spalte).",
+      "expect_in_schema": [
+        "'person_lookup'::character varying"
+      ],
+      "forbid_in_schema": []
     }
   ]
 }

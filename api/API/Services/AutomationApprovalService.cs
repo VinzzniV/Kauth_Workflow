@@ -13,19 +13,22 @@ internal sealed class AutomationApprovalService
     private readonly WorkflowAutomationPlanService planService;
     private readonly AutomationReauthTokenService reauthTokenService;
     private readonly IWorkflowAuditWriteOperations auditWrite;
+    private readonly IReferenceUserDirectoryReader referenceUserReader;
 
     public AutomationApprovalService(
         LifecycleRuntimeSettings runtimeSettings,
         IAuthorizationPolicyService authorizationPolicy,
         WorkflowAutomationPlanService planService,
         AutomationReauthTokenService reauthTokenService,
-        IWorkflowAuditWriteOperations auditWrite)
+        IWorkflowAuditWriteOperations auditWrite,
+        IReferenceUserDirectoryReader referenceUserReader)
     {
         this.runtimeSettings = runtimeSettings;
         this.authorizationPolicy = authorizationPolicy;
         this.planService = planService;
         this.reauthTokenService = reauthTokenService;
         this.auditWrite = auditWrite;
+        this.referenceUserReader = referenceUserReader;
     }
 
     public async Task<AutomationApprovalOutcome> ApproveAsync(
@@ -155,6 +158,10 @@ internal sealed class AutomationApprovalService
             connection, tx, nodeContext.WorkflowId, ct);
         var createdMailboxOutputsByNodeKey = await PostgresWorkflowAutomationOperations.LoadCreatedMailboxOutputsForWorkflowInScope(
             connection, tx, nodeContext.WorkflowId, ct);
+        // Slice 5: reference_user-Gruppen vor dem Payload-Build laden.
+        var refUserCache = await PostgresWorkflowAutomationOperations.LoadReferenceUserGroupsForMappingAsync(
+            connection, tx, referenceUserReader, firstAction.InputMapping, answersByKey, ct);
+
         var payload = await PostgresWorkflowAutomationOperations.BuildAutomationJobPayloadAsync(
             connection, tx,
             nodeContext.WorkflowId,
@@ -162,7 +169,8 @@ internal sealed class AutomationApprovalService
             answersByKey,
             ct,
             createdAdUserOutputsByNodeKey,
-            createdMailboxOutputsByNodeKey);
+            createdMailboxOutputsByNodeKey,
+            refUserCache);
 
         var firstJobId = await PostgresWorkflowAutomationOperations.CreateAutomationJobAsync(
             connection, tx,

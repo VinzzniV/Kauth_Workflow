@@ -25,6 +25,9 @@ internal static class AutomationPropertyCatalog
     public const string SourceStatic = "static";
     public const string SourceCreatedAdUser = "created_ad_user";
     public const string SourceCreatedMailbox = "created_mailbox";
+    // Slice 5: Cloud-Gruppen eines per person_lookup-Antwort gewaehlten Referenzusers.
+    // licenseSkus ist out-of-scope (CreateMailboxGraph erwartet single-skuId).
+    public const string SourceReferenceUser = "reference_user";
 
     public const string KindBusiness = "business";
     public const string KindTechnical = "technical";
@@ -89,6 +92,12 @@ internal static class AutomationPropertyCatalog
         new AutomationPropertyCatalogPropertyDto { Key = "primarySmtpAddress", Label = "Primary SMTP Address", Kind = KindBusiness }
     };
 
+    // Slice 5: einzige Property bewusst eng (Multi-SKU-Mapping waere Folge-Slice).
+    private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> ReferenceUserProperties = new[]
+    {
+        new AutomationPropertyCatalogPropertyDto { Key = "groups", Label = "Gruppen-Mitgliedschaften", Kind = KindBusiness }
+    };
+
     private static readonly IReadOnlyList<AutomationPropertyCatalogPropertyDto> DirectoryIdentityProperties = new[]
     {
         new AutomationPropertyCatalogPropertyDto { Key = "userPrincipalName", Label = "Login-Name (UPN)", Kind = KindBusiness },
@@ -148,6 +157,12 @@ internal static class AutomationPropertyCatalog
                     Source = SourceCreatedMailbox,
                     Label = "Mailbox aus Vorgaengerschritt",
                     Properties = CreatedMailboxProperties
+                },
+                new()
+                {
+                    Source = SourceReferenceUser,
+                    Label = "Referenzuser (aus Formular-Antwort)",
+                    Properties = ReferenceUserProperties
                 }
             }
         };

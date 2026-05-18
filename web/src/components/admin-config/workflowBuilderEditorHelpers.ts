@@ -220,14 +220,18 @@ export function serializeConditionExpression(expr: ParsedDecisionExpression): st
 
 // ─── Action mapping editor ──────────────────────────────────────────────────
 
-export type MappingSource = "static" | "workflow" | "target_person" | "directory_identity" | "answer";
+// Slice 5 (Admin-Gated-Automation, Referenzuser-Mapping): neue Source `reference_user`.
+// Im Gegensatz zu den anderen Sources traegt sie sowohl `property` (heute nur "groups")
+// ALS AUCH `answerKey` (Verweis auf eine person_lookup-Form-Antwort).
+export type MappingSource = "static" | "workflow" | "target_person" | "directory_identity" | "answer" | "reference_user";
 
 export type MappingEntry =
   | { source: "static"; value: string }
   | { source: "workflow"; property: string }
   | { source: "target_person"; property: string }
   | { source: "directory_identity"; property: string }
-  | { source: "answer"; answerKey: string };
+  | { source: "answer"; answerKey: string }
+  | { source: "reference_user"; property: string; answerKey: string };
 
 export function parseMapping(text: string): Record<string, unknown> | null {
   if (!text.trim()) return {};
@@ -265,6 +269,12 @@ export function readEntry(mapping: Record<string, unknown>, paramKey: string): M
         return { source: "directory_identity", property: typeof obj.property === "string" ? obj.property : "" };
       case "answer":
         return { source: "answer", answerKey: typeof obj.answerKey === "string" ? obj.answerKey : "" };
+      case "reference_user":
+        return {
+          source: "reference_user",
+          property: typeof obj.property === "string" ? obj.property : "",
+          answerKey: typeof obj.answerKey === "string" ? obj.answerKey : "",
+        };
       default:
         return null;
     }
@@ -285,5 +295,7 @@ export function entryToJson(entry: MappingEntry): Record<string, unknown> {
       return { source: "directory_identity", property: entry.property };
     case "answer":
       return { source: "answer", answerKey: entry.answerKey };
+    case "reference_user":
+      return { source: "reference_user", property: entry.property, answerKey: entry.answerKey };
   }
 }

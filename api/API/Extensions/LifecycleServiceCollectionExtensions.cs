@@ -157,6 +157,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<AutomationApprovalService>();
         services.AddScoped<AutomationApprovalStatusService>();
         services.AddScoped<PersonDetailsReadService>();
+        services.AddScoped<IReferenceUserDirectoryReader, GraphReferenceUserDirectoryReader>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateAdUserAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, CreateMailboxAutomationHandler>();
         services.AddSingleton<IWorkflowAutomationActionHandler, AssignGroupsAutomationHandler>();

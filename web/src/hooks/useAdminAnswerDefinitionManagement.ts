@@ -16,7 +16,8 @@ type AnswerDefinitionDraft = {
   category: string;
   description: string;
   iconKey: string;
-  inputType: "boolean" | "text" | "select" | "multi_select";
+  // Slice 5: person_lookup als neuer Form-InputType (Werte in valueNumber).
+  inputType: "boolean" | "text" | "select" | "multi_select" | "person_lookup";
   isRequired: boolean;
   sortOrder: string;
   isActive: boolean;

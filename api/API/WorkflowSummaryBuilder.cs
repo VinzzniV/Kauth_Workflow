@@ -251,6 +251,8 @@ internal static class WorkflowSummaryBuilder
             "text" => !string.IsNullOrWhiteSpace(answer?.ValueText),
             "select" => answer is not null && (answer.SelectedOptionId.HasValue || answer.SelectedOptionIds.Count > 0),
             "multi_select" => answer is not null && answer.SelectedOptionIds.Count > 0,
+            // Slice 5: person_lookup speichert die ausgewaehlte person.id in value_number.
+            "person_lookup" => answer?.ValueNumber is not null,
             _ => false
         };
     }

@@ -391,7 +391,8 @@ RETURNING id;
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
         CancellationToken cancellationToken,
         IReadOnlyDictionary<string, JsonElement>? createdAdUserOutputsByNodeKey = null,
-        IReadOnlyDictionary<string, JsonElement>? createdMailboxOutputsByNodeKey = null)
+        IReadOnlyDictionary<string, JsonElement>? createdMailboxOutputsByNodeKey = null,
+        IReadOnlyDictionary<string, ReferenceUserGroupsCacheEntry>? referenceUserGroupsByAnswerKey = null)
     {
         var context = await LoadAutomationPayloadContextAsync(connection, transaction, workflowId, cancellationToken);
         if (!HasJsonValue(inputMapping))
@@ -407,8 +408,119 @@ RETURNING id;
             ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         var createdMailboxLookup = createdMailboxOutputsByNodeKey
             ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        var resolved = ResolveAutomationMappingValue(inputMapping!.Value, context, answersByKey, createdAdUserLookup, createdMailboxLookup);
+        var referenceUserLookup = referenceUserGroupsByAnswerKey
+            ?? new Dictionary<string, ReferenceUserGroupsCacheEntry>(StringComparer.Ordinal);
+        var resolved = ResolveAutomationMappingValue(inputMapping!.Value, context, answersByKey, createdAdUserLookup, createdMailboxLookup, referenceUserLookup);
         return JsonSerializer.SerializeToElement(resolved);
+    }
+
+    // Slice 5: Pre-Loader fuer reference_user.groups. Scannt das input_mapping nach
+    // reference_user-Sources, schlaegt die zugehoerigen person_lookup-Antworten in
+    // answersByKey nach (valueNumber = person.id), resolved zu UPN ueber directory_identities
+    // und ruft den Graph-Reader. Wird vor BuildAutomationJobPayloadAsync gerufen — analog
+    // zu LoadCreatedAdUserOutputsForWorkflowInScope.
+    internal static async Task<IReadOnlyDictionary<string, ReferenceUserGroupsCacheEntry>> LoadReferenceUserGroupsForMappingAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        IReferenceUserDirectoryReader reader,
+        JsonElement? inputMapping,
+        IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
+        CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, ReferenceUserGroupsCacheEntry>(StringComparer.Ordinal);
+        if (!HasJsonValue(inputMapping)) return result;
+
+        var answerKeys = new HashSet<string>(StringComparer.Ordinal);
+        CollectReferenceUserAnswerKeys(inputMapping!.Value, answerKeys);
+        if (answerKeys.Count == 0) return result;
+
+        foreach (var answerKey in answerKeys)
+        {
+            if (!answersByKey.TryGetValue(answerKey, out var answer) || !answer.ValueNumber.HasValue)
+            {
+                result[answerKey] = ReferenceUserGroupsCacheEntry.FromError(
+                    $"Referenzuser-Antwort '{answerKey}' ist leer — bitte einen Referenzuser auswaehlen, bevor die Aktion ausgefuehrt wird.");
+                continue;
+            }
+
+            var personId = (long)answer.ValueNumber.Value;
+            var upn = await LoadDirectoryUpnForPersonIdAsync(connection, transaction, personId, cancellationToken);
+            if (string.IsNullOrWhiteSpace(upn))
+            {
+                result[answerKey] = ReferenceUserGroupsCacheEntry.FromError(
+                    $"Person {personId} hat keinen verbundenen Verzeichnis-Eintrag (UPN). Referenzuser-Lookup nicht moeglich.");
+                continue;
+            }
+
+            var graphResult = await reader.LoadGroupsAsync(upn, cancellationToken);
+            switch (graphResult)
+            {
+                case ReferenceUserDirectoryResult.Loaded loaded:
+                    result[answerKey] = ReferenceUserGroupsCacheEntry.FromLoaded(loaded.DisplayName, loaded.Groups);
+                    break;
+                case ReferenceUserDirectoryResult.NotFound:
+                    result[answerKey] = ReferenceUserGroupsCacheEntry.FromError(
+                        $"Referenzuser '{upn}' nicht im Verzeichnis gefunden.");
+                    break;
+                case ReferenceUserDirectoryResult.PermissionMissing pm:
+                    result[answerKey] = ReferenceUserGroupsCacheEntry.FromError(pm.Message);
+                    break;
+                case ReferenceUserDirectoryResult.TransientFailure tf:
+                    result[answerKey] = ReferenceUserGroupsCacheEntry.FromError(
+                        $"Graph-Read transient fehlgeschlagen: {tf.Message}");
+                    break;
+            }
+        }
+        return result;
+    }
+
+    private static void CollectReferenceUserAnswerKeys(JsonElement element, HashSet<string> sink)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                if (element.TryGetProperty("source", out var sourceProp)
+                    && sourceProp.ValueKind == JsonValueKind.String
+                    && string.Equals(sourceProp.GetString(), "reference_user", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (element.TryGetProperty("answerKey", out var akProp)
+                        && akProp.ValueKind == JsonValueKind.String)
+                    {
+                        var ak = akProp.GetString();
+                        if (!string.IsNullOrWhiteSpace(ak)) sink.Add(ak!);
+                    }
+                    return;
+                }
+                foreach (var prop in element.EnumerateObject())
+                {
+                    CollectReferenceUserAnswerKeys(prop.Value, sink);
+                }
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    CollectReferenceUserAnswerKeys(item, sink);
+                }
+                break;
+        }
+    }
+
+    private static async Task<string?> LoadDirectoryUpnForPersonIdAsync(
+        NpgsqlConnection connection, NpgsqlTransaction? transaction, long personId, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT di.user_principal_name
+            FROM public.people p
+            INNER JOIN public.directory_identities di ON di.id = p.directory_identity_id
+            WHERE p.id = @personId
+            LIMIT 1
+            """;
+        await using var cmd = transaction is null
+            ? new NpgsqlCommand(sql, connection)
+            : new NpgsqlCommand(sql, connection, transaction);
+        cmd.Parameters.AddWithValue("personId", personId);
+        var raw = await cmd.ExecuteScalarAsync(ct);
+        return raw is string s ? s : null;
     }
 
     // Etappe 9a Schritt 5 Sub-A: laed pro Workflow den juengsten succeeded CreateAdUserLdaps-
@@ -570,13 +682,14 @@ LIMIT 1;
         AutomationPayloadContextRecord context,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
         IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey,
-        IReadOnlyDictionary<string, JsonElement> createdMailboxOutputsByNodeKey)
+        IReadOnlyDictionary<string, JsonElement> createdMailboxOutputsByNodeKey,
+        IReadOnlyDictionary<string, ReferenceUserGroupsCacheEntry> referenceUserGroupsByAnswerKey)
     {
         if (element.ValueKind == JsonValueKind.Object
             && element.TryGetProperty("source", out var sourceProperty)
             && sourceProperty.ValueKind == JsonValueKind.String)
         {
-            return ResolveAutomationReference(element, sourceProperty.GetString()!, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey);
+            return ResolveAutomationReference(element, sourceProperty.GetString()!, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey, referenceUserGroupsByAnswerKey);
         }
 
         return element.ValueKind switch
@@ -584,9 +697,9 @@ LIMIT 1;
             JsonValueKind.Object => element.EnumerateObject()
                 .ToDictionary(
                     property => property.Name,
-                    property => ResolveAutomationMappingValue(property.Value, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey)),
+                    property => ResolveAutomationMappingValue(property.Value, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey, referenceUserGroupsByAnswerKey)),
             JsonValueKind.Array => element.EnumerateArray()
-                .Select(item => ResolveAutomationMappingValue(item, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey))
+                .Select(item => ResolveAutomationMappingValue(item, context, answersByKey, createdAdUserOutputsByNodeKey, createdMailboxOutputsByNodeKey, referenceUserGroupsByAnswerKey))
                 .ToList(),
             _ => ConvertJsonElementToObject(element)
         };
@@ -602,14 +715,16 @@ LIMIT 1;
         AutomationPayloadContextRecord context,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
         IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey,
-        IReadOnlyDictionary<string, JsonElement>? createdMailboxOutputsByNodeKey = null)
+        IReadOnlyDictionary<string, JsonElement>? createdMailboxOutputsByNodeKey = null,
+        IReadOnlyDictionary<string, ReferenceUserGroupsCacheEntry>? referenceUserGroupsByAnswerKey = null)
         => ResolveAutomationReference(
             element,
             source,
             context,
             answersByKey,
             createdAdUserOutputsByNodeKey,
-            createdMailboxOutputsByNodeKey ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal));
+            createdMailboxOutputsByNodeKey ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal),
+            referenceUserGroupsByAnswerKey ?? new Dictionary<string, ReferenceUserGroupsCacheEntry>(StringComparer.Ordinal));
 
     private static object? ResolveAutomationReference(
         JsonElement element,
@@ -617,7 +732,8 @@ LIMIT 1;
         AutomationPayloadContextRecord context,
         IReadOnlyDictionary<string, StoredWorkflowAnswerRecord> answersByKey,
         IReadOnlyDictionary<string, JsonElement> createdAdUserOutputsByNodeKey,
-        IReadOnlyDictionary<string, JsonElement> createdMailboxOutputsByNodeKey)
+        IReadOnlyDictionary<string, JsonElement> createdMailboxOutputsByNodeKey,
+        IReadOnlyDictionary<string, ReferenceUserGroupsCacheEntry> referenceUserGroupsByAnswerKey)
     {
         switch (source.Trim().ToLowerInvariant())
         {
@@ -652,9 +768,69 @@ LIMIT 1;
                 return ResolveCreatedAdUserReference(element, createdAdUserOutputsByNodeKey);
             case "created_mailbox":
                 return ResolveCreatedMailboxReference(element, createdMailboxOutputsByNodeKey);
+            case "reference_user":
+                return ResolveReferenceUserReference(element, referenceUserGroupsByAnswerKey);
             default:
                 throw new InvalidOperationException($"Unsupported automation input mapping source '{source}'.");
         }
+    }
+
+    // Slice 5: Resolver fuer reference_user.groups. Liest aus dem Pre-Loader-Cache
+    // (keyed by answerKey). Property-Whitelist: nur 'groups'. Fehlt der Cache-Eintrag
+    // oder ist er als Error markiert, wird InvalidOperationException geworfen — der
+    // Plan-Step kippt damit auf isSuccess=false mit klarer Message.
+    private static object? ResolveReferenceUserReference(
+        JsonElement element,
+        IReadOnlyDictionary<string, ReferenceUserGroupsCacheEntry> referenceUserGroupsByAnswerKey)
+    {
+        var property = element.TryGetProperty("property", out var p) ? p.GetString() : null;
+        if (property != "groups")
+        {
+            throw new InvalidOperationException(
+                $"Input mapping source 'reference_user' supports only property 'groups' (got '{property}'). " +
+                "licenseSkus ist out-of-scope von Slice 5; siehe Architektur-Doku.");
+        }
+
+        var answerKey = element.TryGetProperty("answerKey", out var ak) && ak.ValueKind == JsonValueKind.String
+            ? ak.GetString()
+            : null;
+        if (string.IsNullOrWhiteSpace(answerKey))
+        {
+            throw new InvalidOperationException(
+                "Input mapping source 'reference_user' benoetigt ein non-empty 'answerKey' (Verweis auf eine person_lookup-Antwort).");
+        }
+
+        if (!referenceUserGroupsByAnswerKey.TryGetValue(answerKey!, out var entry))
+        {
+            throw new InvalidOperationException(
+                $"Input mapping source 'reference_user' referenziert answerKey '{answerKey}', " +
+                "fuer den keine Referenzuser-Gruppen vorgeladen wurden. Der Plan-Service muss " +
+                "LoadReferenceUserGroupsForMappingAsync vor BuildAutomationJobPayloadAsync rufen.");
+        }
+        if (!entry.IsSuccess)
+        {
+            throw new InvalidOperationException(entry.ErrorMessage ?? "Referenzuser-Lookup fehlgeschlagen.");
+        }
+
+        // Output-Form: string[] mit Group-DN-Werten — passt zum bestehenden
+        // AssignGroupsLdapsHandler-Payload-Vertrag (groupDistinguishedNames: string[]).
+        // Fallback auf displayName, wenn kein onPremisesDistinguishedName aus Graph
+        // verfuegbar — dann sieht der Operator wenigstens den Group-Namen statt einer
+        // leeren Liste; LDAPS-Resolve wird im Worker-Pre-Search ohnehin nochmal versucht.
+        // PlannedGroup.Source-Befuellung mit "Referenzuser: {Name}" ist Worker-Output-
+        // Vertrags-Slice (out-of-scope von Slice 5; eigener Folge-Slice).
+        var list = new List<object>();
+        foreach (var g in entry.Groups)
+        {
+            var dn = !string.IsNullOrWhiteSpace(g.OnPremDistinguishedName)
+                ? g.OnPremDistinguishedName
+                : g.DisplayName;
+            if (!string.IsNullOrWhiteSpace(dn))
+            {
+                list.Add(dn!);
+            }
+        }
+        return list;
     }
 
     // Etappe 9a Schritt 7 Sub-D: enge Allow-List-Source fuer Werte aus dem CreateMailboxGraph-

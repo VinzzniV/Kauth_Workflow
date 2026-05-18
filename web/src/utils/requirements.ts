@@ -176,6 +176,14 @@ export function toRequirementSelectionPayload(
       };
     }
 
+    // Slice 5: person_lookup speichert die person.id als valueNumber.
+    if (requirement.inputType === "person_lookup") {
+      return {
+        requirementId: requirement.id,
+        valueNumber: selection.valueNumber,
+      };
+    }
+
     return {
       requirementId: requirement.id,
       selectedOptionIds: [...selection.selectedOptionIds],

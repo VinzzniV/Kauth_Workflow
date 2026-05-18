@@ -1593,7 +1593,7 @@ CREATE TABLE public.workflow_answer_definitions (
     is_required boolean DEFAULT false NOT NULL,
     sort_order integer DEFAULT 0 NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    CONSTRAINT workflow_answer_definitions_input_type_check CHECK (((input_type)::text = ANY ((ARRAY['boolean'::character varying, 'text'::character varying, 'select'::character varying, 'multi_select'::character varying])::text[])))
+    CONSTRAINT workflow_answer_definitions_input_type_check CHECK (((input_type)::text = ANY ((ARRAY['boolean'::character varying, 'text'::character varying, 'select'::character varying, 'multi_select'::character varying, 'person_lookup'::character varying])::text[])))
 );
 
 
@@ -1821,7 +1821,7 @@ CREATE TABLE public.workflow_answers (
     value_number numeric(12,2),
     selected_option_id integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT workflow_answers_input_type_check CHECK (((input_type)::text = ANY ((ARRAY['boolean'::character varying, 'text'::character varying, 'select'::character varying, 'multi_select'::character varying])::text[])))
+    CONSTRAINT workflow_answers_input_type_check CHECK (((input_type)::text = ANY ((ARRAY['boolean'::character varying, 'text'::character varying, 'select'::character varying, 'multi_select'::character varying, 'person_lookup'::character varying])::text[])))
 );
 
 

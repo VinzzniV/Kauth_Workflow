@@ -89,6 +89,18 @@ export function useRequirementEditor({
     [workflow]
   );
 
+  // Slice 5 (Admin-Gated-Automation, Referenzuser-Mapping): Setter fuer person_lookup-
+  // Antworten. Speichert die ausgewaehlte person.id als valueNumber im Selection-State.
+  const setRequirementPerson = useCallback((requirementId: number, personId: number | null) => {
+    setRequirementSelections((current) => ({
+      ...current,
+      [requirementId]: {
+        ...(current[requirementId] ?? createEmptyRequirementSelection()),
+        valueNumber: personId,
+      },
+    }));
+  }, []);
+
   const toggleRequirementSelectedOption = useCallback((requirementId: number, optionId: number) => {
     setRequirementSelections((current) => {
       const existing = current[requirementId] ?? createEmptyRequirementSelection();
@@ -140,6 +152,7 @@ export function useRequirementEditor({
     setRequirementBoolean,
     setRequirementText,
     setRequirementSelectedOption,
+    setRequirementPerson,
     toggleRequirementSelectedOption,
     handleRequirementSave,
   };

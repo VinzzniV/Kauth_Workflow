@@ -139,6 +139,7 @@ export default function WorkflowDetailPage() {
     setRequirementBoolean,
     setRequirementText,
     setRequirementSelectedOption,
+    setRequirementPerson,
     toggleRequirementSelectedOption,
     handleRequirementSave,
   } = useRequirementEditor({
@@ -364,6 +365,7 @@ export default function WorkflowDetailPage() {
                 onTextChange={setRequirementText}
                 onSelectOption={setRequirementSelectedOption}
                 onToggleMultiOption={toggleRequirementSelectedOption}
+                onPersonSelect={setRequirementPerson}
                 onSave={handleRequirementSave}
               />
             ) : null}

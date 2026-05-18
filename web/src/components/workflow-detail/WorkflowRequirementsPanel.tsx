@@ -15,6 +15,7 @@ type WorkflowRequirementsPanelProps = {
   onTextChange: (requirementId: number, value: string) => void;
   onSelectOption: (requirementId: number, optionId: number | null) => void;
   onToggleMultiOption: (requirementId: number, optionId: number) => void;
+  onPersonSelect: (requirementId: number, personId: number | null) => void;
   onSave: () => void | Promise<void>;
 };
 
@@ -49,6 +50,7 @@ export default function WorkflowRequirementsPanel({
   onTextChange,
   onSelectOption,
   onToggleMultiOption,
+  onPersonSelect,
   onSave,
 }: WorkflowRequirementsPanelProps) {
   if (workflow.requirements.length === 0) {
@@ -65,6 +67,7 @@ export default function WorkflowRequirementsPanel({
         onTextChange={canEditSupervisorRequirements ? onTextChange : undefined}
         onSelectOption={canEditSupervisorRequirements ? onSelectOption : undefined}
         onToggleMultiOption={canEditSupervisorRequirements ? onToggleMultiOption : undefined}
+        onPersonSelect={canEditSupervisorRequirements ? onPersonSelect : undefined}
         isLoading={false}
         error={null}
         title="Anforderungen"

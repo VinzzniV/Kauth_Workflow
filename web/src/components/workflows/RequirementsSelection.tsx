@@ -13,6 +13,7 @@ import {
 import { coerceIconKey } from "../../utils/iconRegistry";
 import EmptyState from "../feedback/EmptyState";
 import LoadingState from "../feedback/LoadingState";
+import PersonLookupInput from "./PersonLookupInput";
 import RequirementIcon from "./RequirementIcon";
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
   onTextChange?: (requirementId: number, value: string) => void;
   onSelectOption?: (requirementId: number, optionId: number | null) => void;
   onToggleMultiOption?: (requirementId: number, optionId: number) => void;
+  onPersonSelect?: (requirementId: number, personId: number | null) => void;
   isLoading: boolean;
   error: string | null;
   onRetry?: () => void;
@@ -100,6 +102,10 @@ function formatSelectionValue(requirement: RequirementEntry, selection: Requirem
     return findOptionLabel(requirement, selection.selectedOptionId);
   }
 
+  if (requirement.inputType === "person_lookup") {
+    return selection.valueNumber !== null ? `Person #${selection.valueNumber}` : "-";
+  }
+
   const labels = selection.selectedOptionIds
     .map((optionId) => findOptionLabel(requirement, optionId))
     .filter((label) => label !== "-");
@@ -160,6 +166,17 @@ function renderReadOnlyRequirementField(
     );
   }
 
+  if (requirement.inputType === "person_lookup") {
+    return (
+      <div className="field">
+        <span>Referenzuser</span>
+        <div className="requirement-readonly-value">
+          {selection.valueNumber !== null ? `Person #${selection.valueNumber}` : "Nicht ausgewählt"}
+        </div>
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -169,7 +186,8 @@ function renderEditableRequirementField(
   requirementId: number,
   onTextChange?: (requirementId: number, value: string) => void,
   onSelectOption?: (requirementId: number, optionId: number | null) => void,
-  onToggleMultiOption?: (requirementId: number, optionId: number) => void
+  onToggleMultiOption?: (requirementId: number, optionId: number) => void,
+  onPersonSelect?: (requirementId: number, personId: number | null) => void
 ) {
   if (requirement.inputType === "text") {
     return (
@@ -230,6 +248,19 @@ function renderEditableRequirementField(
     );
   }
 
+  if (requirement.inputType === "person_lookup") {
+    return (
+      <div className="field">
+        <span>Referenzuser</span>
+        <PersonLookupInput
+          requirementId={requirementId}
+          value={selection.valueNumber}
+          onChange={(id, personId) => onPersonSelect?.(id, personId)}
+        />
+      </div>
+    );
+  }
+
   return null;
 }
 
@@ -241,6 +272,7 @@ export default function RequirementsSelection({
   onTextChange,
   onSelectOption,
   onToggleMultiOption,
+  onPersonSelect,
   isLoading,
   error,
   onRetry,
@@ -375,7 +407,8 @@ export default function RequirementsSelection({
                                     requirementId,
                                     onTextChange,
                                     onSelectOption,
-                                    onToggleMultiOption
+                                    onToggleMultiOption,
+                                    onPersonSelect
                                   )}
                                 </div>
 

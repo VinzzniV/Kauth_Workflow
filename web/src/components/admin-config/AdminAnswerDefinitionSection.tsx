@@ -12,6 +12,9 @@ const INPUT_TYPE_OPTIONS = [
   { value: "text", label: "text" },
   { value: "select", label: "select" },
   { value: "multi_select", label: "multi_select" },
+  // Slice 5 (Admin-Gated-Automation, Referenzuser-Mapping): speichert person.id
+  // in value_number; konsumiert ueber reference_user-Mapping-Source in Automation.
+  { value: "person_lookup", label: "person_lookup" },
 ] as const;
 
 export function AdminAnswerDefinitionSection({
@@ -166,7 +169,7 @@ export function AdminAnswerDefinitionSection({
                       className="form-select"
                       value={draft.inputType}
                       onChange={(event) =>
-                        updateDraft("inputType", event.target.value as "boolean" | "text" | "select" | "multi_select")
+                        updateDraft("inputType", event.target.value as "boolean" | "text" | "select" | "multi_select" | "person_lookup")
                       }
                     >
                       {INPUT_TYPE_OPTIONS.map((option) => (

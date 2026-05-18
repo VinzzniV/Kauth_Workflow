@@ -265,6 +265,18 @@ function SupervisorStepEditor({
     );
   }, [requirements]);
 
+  // Slice 5: person_lookup-Setter (eigene State-Maschine im Supervisor-Step,
+  // analog setRequirementText — speichert person.id in valueNumber).
+  const setRequirementPerson = useCallback((requirementId: number, personId: number | null) => {
+    setSelections((current) => ({
+      ...current,
+      [requirementId]: {
+        ...(current[requirementId] ?? createEmptyRequirementSelection()),
+        valueNumber: personId,
+      },
+    }));
+  }, []);
+
   const toggleRequirementSelectedOption = useCallback((requirementId: number, optionId: number) => {
     setSelections((current) => {
       const existing = current[requirementId] ?? createEmptyRequirementSelection();
@@ -294,6 +306,7 @@ function SupervisorStepEditor({
         onTextChange={setRequirementText}
         onSelectOption={setRequirementSelectedOption}
         onToggleMultiOption={toggleRequirementSelectedOption}
+        onPersonSelect={setRequirementPerson}
         isLoading={false}
         error={null}
         title={`Bedarf festlegen: ${selectedWorkflow.firstName} ${selectedWorkflow.lastName}`}

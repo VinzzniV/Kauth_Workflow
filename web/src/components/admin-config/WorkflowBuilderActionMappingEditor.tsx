@@ -20,6 +20,8 @@ const SOURCE_OPTIONS: { value: MappingSource; label: string }[] = [
   { value: "target_person", label: "Person (Ziel)" },
   { value: "directory_identity", label: "Verzeichnis-Identität" },
   { value: "answer", label: "Antwort aus Formular" },
+  // Slice 5: nutzt eine person_lookup-Form-Antwort + Property (heute nur "groups").
+  { value: "reference_user", label: "Referenzuser (aus Formular-Antwort)" },
 ];
 
 // Fallback-Listen, falls der `/admin/config/automation-property-catalog`-Endpoint
@@ -337,6 +339,43 @@ function ParameterRow({
             ))}
           </select>
         )}
+
+        {source === "reference_user" && (
+          <>
+            <select
+              className="form-select"
+              value={entry?.source === "reference_user" ? entry.property : ""}
+              onChange={(e) => {
+                const currentAnswerKey = entry?.source === "reference_user" ? entry.answerKey : "";
+                onChange({ source: "reference_user", property: e.target.value, answerKey: currentAnswerKey });
+              }}
+              disabled={disabled}
+              aria-label={`Eigenschaft des Referenzusers für ${paramKey}`}
+            >
+              <option value="">– Eigenschaft wählen –</option>
+              <option value="groups">Gruppen-Mitgliedschaften</option>
+            </select>
+            <select
+              className="form-select"
+              value={entry?.source === "reference_user" ? entry.answerKey : ""}
+              onChange={(e) => {
+                const currentProperty = entry?.source === "reference_user" ? entry.property : "";
+                onChange({ source: "reference_user", property: currentProperty, answerKey: e.target.value });
+              }}
+              disabled={disabled}
+              aria-label={`person_lookup-Antwort für ${paramKey}`}
+            >
+              <option value="">– person_lookup-Antwort wählen –</option>
+              {answerDefinitions
+                .filter((ans) => ans.inputType === "person_lookup")
+                .map((ans) => (
+                  <option key={ans.id} value={ans.answerKey}>
+                    {ans.title} ({ans.answerKey})
+                  </option>
+                ))}
+            </select>
+          </>
+        )}
       </div>
     </div>
   );
@@ -419,5 +458,6 @@ function buildDefaultEntry(source: MappingSource): MappingEntry {
     case "target_person": return { source: "target_person", property: "" };
     case "directory_identity": return { source: "directory_identity", property: "" };
     case "answer": return { source: "answer", answerKey: "" };
+    case "reference_user": return { source: "reference_user", property: "groups", answerKey: "" };
   }
 }
