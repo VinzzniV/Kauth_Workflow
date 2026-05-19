@@ -168,6 +168,20 @@
       "forbid_in_schema": []
     },
     {
+      "file": "2026-05-19_seed_move_ad_user_ou_ldaps_action.sql",
+      "description": "Data-only seed: inserts action_definitions row 'MoveAdUserOuLdaps' (target_runtime=windows_worker, handler_type=windows_worker_ldaps). Change-Handler: verschiebt AD-User per LDAP ModifyDN in eine andere OU; RDN bleibt erhalten; idempotent (alreadyInTargetOu). Idempotent via ON CONFLICT (action_key) DO NOTHING.",
+      "kind": "data",
+      "expect_in_schema": [],
+      "forbid_in_schema": []
+    },
+    {
+      "file": "2026-05-19_seed_update_ad_user_attributes_ldaps_action.sql",
+      "description": "Data-only seed: inserts action_definitions row 'UpdateAdUserAttributesLdaps' (target_runtime=windows_worker, handler_type=windows_worker_ldaps). Change-Handler: aktualisiert Whitelist-Attribute (managerDistinguishedName, department, title, description) via LDAPS; JSON null = Clear-Semantik; idempotent (noChangesNeeded). Idempotent via ON CONFLICT (action_key) DO NOTHING.",
+      "kind": "data",
+      "expect_in_schema": [],
+      "forbid_in_schema": []
+    },
+    {
       "file": "2026-05-19_seed_disable_ad_user_ldaps_action.sql",
       "description": "Data-only seed: inserts action_definitions row 'DisableAdUserLdaps' (target_runtime=windows_worker, handler_type=windows_worker_ldaps). Offboarding-Handler: deaktiviert AD-User via LDAPS (ACCOUNTDISABLE-Bit). Idempotent via ON CONFLICT (action_key) DO NOTHING.",
       "kind": "data",
