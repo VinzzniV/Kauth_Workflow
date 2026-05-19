@@ -11,6 +11,8 @@ const AUTOMATION_ACTION_LABELS: Record<string, string> = {
   DisableAdUserLdaps: "Active-Directory-Benutzer deaktivieren",
   RemoveFromAllGroupsLdaps: "Aus allen Gruppen entfernen",
   RemoveMailboxLicense: "Exchange-Lizenz entfernen",
+  MoveAdUserOuLdaps: "AD-Benutzer in Organisationseinheit verschieben",
+  UpdateAdUserAttributesLdaps: "AD-Benutzer-Attribute aktualisieren",
 };
 
 export function getAutomationActionLabel(actionKey: string): string {

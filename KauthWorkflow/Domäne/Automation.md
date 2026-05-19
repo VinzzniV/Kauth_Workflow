@@ -48,7 +48,7 @@ Schreibende Automation läuft auf zwei Hosts, die zusammenarbeiten:
 
 ## Was das System konkret kann
 
-Sieben produktiv-taugliche Handler:
+Neun produktiv-taugliche Handler:
 
 | Handler | Wo | Was er tut |
 |---|---|---|
@@ -59,6 +59,8 @@ Sieben produktiv-taugliche Handler:
 | `DisableAdUserLdaps` | Worker | Setzt das ACCOUNTDISABLE-Bit (`userAccountControl \|= 0x2`) via LDAPS. Idempotent: bereits deaktivierter User liefert `alreadyDisabled=true`. Offboarding-Handler. |
 | `RemoveFromAllGroupsLdaps` | Worker | Entfernt User per LDAP-Filter `(&(objectClass=group)(member=<dn>))` aus allen Gruppen via ModifyRequest. Idempotent: Code 16 (NoSuchAttribute) = `AlreadyRemoved`. Teilfehler im `failed`-Array. Offboarding-Handler. |
 | `RemoveMailboxLicense` | Linux-API | Entfernt Exchange-Online-Lizenz via Microsoft Graph. Idempotent: Lizenz nicht zugewiesen → `licenseNotAssigned=true`. Pflicht-Permissions: User.Read.All + LicenseAssignment.ReadWrite.All. Offboarding-Handler. |
+| `MoveAdUserOuLdaps` | Worker | Verschiebt AD-User per ModifyDN in andere OU (RDN bleibt). Idempotent: User bereits in Ziel-OU → `alreadyInTargetOu=true`. PlanAsync zeigt current/target-OU. Change-Handler. |
+| `UpdateAdUserAttributesLdaps` | Worker | Aktualisiert Whitelist-Attribute (manager, department, title, description) via ModifyRequest. JSON null = Clear. Nur tatsächlich geänderte Attribute werden geschrieben. PlanAsync zeigt current vs. planned. Change-Handler. |
 
 Parallel dazu existieren simulierte Handler (`simulated_*`) für Bestands-Workflows und für Dev-Setups — diese tun nichts, melden aber Success. Das UI kennzeichnet simulierte Actions sichtbar.
 

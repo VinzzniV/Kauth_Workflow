@@ -2,7 +2,7 @@
 
 #architektur #automation #zielbild
 
-Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild. Stand 2026-05-19 sind die Hauptslices 1–7 plus AGA-N2 (echtes Entra-Re-Auth) alle umgesetzt (Plan-Vorschau, Task-Automation-Binding, Re-Auth-Gate mit echtem MSAL-`prompt: 'login'`-Popup + `auth_time`-Claim-Check im Backend, 360°-Karte-Aggregator, Referenzuser-Mapping `reference_user.groups` via Graph App-only, Action-Bündelung im Task-UI, Live-Log mit per-Action-Status + Versuch-Counter + Logs + klarer `failed`-Endphase). Von Baustein 8 (Change-/Offboarding-Handler) sind die drei Offboarding-Handler `DisableAdUserLdaps`, `RemoveFromAllGroupsLdaps`, `RemoveMailboxLicense` implementiert (Commit `0b9d225`); offen bleiben die Change-Workflow-Handler (`MoveAdUserOuLdaps`, `UpdateAdUserAttributesLdaps`, `RenameAdUserLdaps`). Details im Umsetzungsstand weiter unten.
+Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild. Stand 2026-05-19 sind die Hauptslices 1–7 plus AGA-N2 (echtes Entra-Re-Auth) alle umgesetzt (Plan-Vorschau, Task-Automation-Binding, Re-Auth-Gate mit echtem MSAL-`prompt: 'login'`-Popup + `auth_time`-Claim-Check im Backend, 360°-Karte-Aggregator, Referenzuser-Mapping `reference_user.groups` via Graph App-only, Action-Bündelung im Task-UI, Live-Log mit per-Action-Status + Versuch-Counter + Logs + klarer `failed`-Endphase). Von Baustein 8 (Change-/Offboarding-Handler) sind alle Offboarding-Handler (`DisableAdUserLdaps`, `RemoveFromAllGroupsLdaps`, `RemoveMailboxLicense`, Commit `0b9d225`) und die Change-Handler `MoveAdUserOuLdaps` + `UpdateAdUserAttributesLdaps` implementiert; offen bleibt `RenameAdUserLdaps` (UPN-Wechsel-Risiken, eigener Slice mit Opus + Zwingend Plan-Mode). Details im Umsetzungsstand weiter unten.
 
 ---
 
@@ -283,7 +283,7 @@ Stand 2026-05-15. Basis: Etappe 9a Schritte 1–8 abgeschlossen. Die technische 
 | `DisableAdUserLdaps` | Sonnet | **niedrig** | Nein | Klar begrenzter LDAPS-Write, Muster aus `CreateAdUserLdaps` übertragbar. |
 | `RemoveFromAllGroupsLdaps` | Sonnet | **niedrig** | Nein | Spiegel zu `AssignGroupsLdaps`; Plan-Vorschau der entfernten Gruppen. |
 | `RemoveMailboxLicense` | Sonnet | **niedrig** | Nein | Spiegel zu `CreateMailboxGraph`, klares Graph-API-Äquivalent. |
-| `MoveAdUserOuLdaps` + `UpdateAdUserAttributesLdaps` | Sonnet | **mittel** | Kurz — für Whitelist + Drift-Schutz | Manager/Title/Department-Attribute: Whitelist und Drift-Schutz analog Schritt 5 designen. |
+| `MoveAdUserOuLdaps` + `UpdateAdUserAttributesLdaps` | Sonnet | **mittel** | Kurz — für Whitelist + Drift-Schutz | ✅ done — beide Handler implementiert (Worker Core + Host + Tests + Seed + Bootstrap + UI-Labels). Whitelist UpdateAdUserAttributes: managerDistinguishedName, department, title, description; JSON null = Clear-Semantik; PlanAsync zeigt current vs. planned. MoveAdUserOu: ModifyDN, RDN bleibt, idempotent. |
 | `RenameAdUserLdaps` | **Opus** | **hoch** | **Zwingend** | UPN-Wechsel hat Folgewirkungen in Entra/Exchange (alter UPN als Alias?), ggf. SMTP-Adress-Drift. Heikelster Handler — Risikoanalyse vor Code. |
 
 ### Kleinere offene Punkte

@@ -32,7 +32,7 @@ Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8) + A
 
 ## Aktive TODOs
 
-_keine — AGA-N2 ist mit diesem Slice geschlossen._
+_keine — Change-Handler-Slice (MoveAdUserOuLdaps + UpdateAdUserAttributesLdaps) abgeschlossen._
 
 ## Nachgelagert
 
@@ -42,8 +42,9 @@ _keine — AGA-N2 ist mit diesem Slice geschlossen._
 | Z21-N2 | Mobile Feinschliffe fuer Admin-/Builder-Masken pruefen. | LOW | offen | Primaerer Nutzungsfall ist Desktop. |
 | Z21-N3 | Alte Demo-/Testdaten und unklare Beispielinhalte bereinigen. | LOW | offen | Sinnvoll vor Produktivnahme, aber nicht blockierend. |
 | AGA-N1 | `CreateErpEmployee` (InforLN) als eigener Backend-Architektur-Slice. | HIGH | stakeholder-blockiert | Wartet auf Stakeholder-Entscheidung; eigener Plan-Mode noetig. |
+| AGA-N5 | `RenameAdUserLdaps` (UPN + sAMAccountName + CN + displayName) als eigener Slice. | HIGH | offen | UPN-Wechsel hat Folgewirkungen in Entra/Exchange (alter UPN als Alias?). Opus + Zwingend Plan-Mode vor Code. |
 | AGA-N6 | Builder-UI fuer `automation_output`-Bedingungen (Source-Dropdown + Property-Filter). | LOW | offen | Heute nur per JSON-API / Dev-Seed konfigurierbar. |
-| AGA-N7 | Vault-Cleanup-Sweeper; Key-Rotation; Connection-Pooling LDAPS. (`DisableAdUserLdaps`, `RemoveFromAllGroupsLdaps`, `RemoveMailboxLicense` sind als Handler + Seed/Bootstrap implementiert — Commit 0b9d225.) | LOW | offen | Operative Resthebel ohne aktuellen Blocker. |
+| AGA-N7 | Vault-Cleanup-Sweeper; Key-Rotation; Connection-Pooling LDAPS. (Alle Offboarding-Handler + Change-Handler MoveAdUserOuLdaps + UpdateAdUserAttributesLdaps sind als Handler + Seed/Bootstrap implementiert.) | LOW | offen | Operative Resthebel ohne aktuellen Blocker. |
 
 ## Bewusst entfernt aus dem aktiven Backlog
 
