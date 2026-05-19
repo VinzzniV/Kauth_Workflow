@@ -2,7 +2,7 @@
 
 #architektur #automation #zielbild
 
-Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild. Stand 2026-05-18 sind die Hauptslices 1–7 alle umgesetzt (Plan-Vorschau, Task-Automation-Binding, Re-Auth-Gate als Soft-Bestätigung, 360°-Karte-Aggregator, Referenzuser-Mapping `reference_user.groups` via Graph App-only, Action-Bündelung im Task-UI, Live-Log mit per-Action-Status + Versuch-Counter + Logs + klarer `failed`-Endphase); bewusst offen bleiben nur noch der Folge-Slice „echtes Entra-Re-Auth" (heute Soft-Bestätigung) sowie die Change-/Offboarding-Handler aus Baustein 8. Details im Umsetzungsstand weiter unten.
+Wie Automation in der produktiven Nutzung ablaufen soll. Diese Datei beschreibt das Zielbild. Stand 2026-05-19 sind die Hauptslices 1–7 plus AGA-N2 (echtes Entra-Re-Auth) alle umgesetzt (Plan-Vorschau, Task-Automation-Binding, Re-Auth-Gate mit echtem MSAL-`prompt: 'login'`-Popup + `auth_time`-Claim-Check im Backend, 360°-Karte-Aggregator, Referenzuser-Mapping `reference_user.groups` via Graph App-only, Action-Bündelung im Task-UI, Live-Log mit per-Action-Status + Versuch-Counter + Logs + klarer `failed`-Endphase); bewusst offen bleiben nur noch die Change-/Offboarding-Handler aus Baustein 8. Details im Umsetzungsstand weiter unten.
 
 ---
 
@@ -108,22 +108,22 @@ Workflow endet, wenn alle Fachbereich-Tasks durch sind
 
 ---
 
-## Umsetzungsstand 2026-05-18
+## Umsetzungsstand 2026-05-19
 
 | # | Baustein | Stand | Belege |
 |---|---|---|---|
 | 1 | Pre-Execution-Plan (WhatIf) für die vier bestehenden Handler | ✅ done (Slice 1, Commit `7ee3dad`) | `WorkflowAutomationPlanService.cs`, `AutomationPlanResults.cs` |
 | 2 | Task-Automation-Binding (Schema, Builder, Engine) | ✅ done (Slices 2 + 4, Commits `d5e7255` + `8d449fc`) | `workflow_nodes.automation_admin_role`, `WorkflowBuilderActionEditor.tsx` |
-| 3 | Re-Auth-Gate (Endpoint + UI) | 🟡 **Soft-Bestätigung** (Slice 3 + 5, Commits `f05e8be` + `058670b`) — echtes Entra-Re-Auth ist eigener Folge-Slice | `AdminAutomationApprovalEndpoints.cs`, `AutomationApprovalDialog.tsx` |
+| 3 | Re-Auth-Gate (Endpoint + UI) | ✅ **done** (Slices 3 + 5 + AGA-N2, 2026-05-19) — echtes Entra-Re-Auth via MSAL-Popup `prompt: 'login'` + `auth_time`-Claim-Check (max 120s + 30s Skew) im Backend | `AutomationReauthFreshnessGate.cs`, `AdminAutomationApprovalEndpoints.cs`, `EntraIdentityProvider.triggerInteractiveReauth`, `automationApprovalMutations.acquireReauthToken`, `AutomationApprovalDialog.tsx` |
 | 4 | 360°-Karte-Aggregator | ✅ done (Slice 4, Commit `5fcd388`) | `PersonDetailsReadService.cs`, `GET /people/{id}/360-view`, `usePerson360View`, `Person360ViewSection` in `PersonWorkflowHistoryPage.tsx` |
 | 5 | Referenzuser-Mapping-Source | ✅ done (Slice 5, Commit `102ae3a`) — nur `groups` (licenseSkus out-of-scope), Graph-only | `IReferenceUserDirectoryReader` + `GraphReferenceUserDirectoryReader`, `reference_user`-Source im Catalog + Resolver, `LoadReferenceUserGroupsForMappingAsync` Pre-Loader, `person_lookup`-InputType + Edit-Kette + Admin-Authoring + `PersonLookupInput`, Builder-Mapping-Vertrag erweitert |
 | 6 | Action-Bündelung im Task (UI) | ✅ done (Slice 6, Commit `ea77fa0`) | `AutomationApprovalDialog.tsx`, `automationActionLabels.ts`, `.wfa-bundle-step` in `workflow.css` |
 | 7 | Live-Log während Ausführung | ✅ done (Slice 7, Commit `7527e9d`) | `AutomationApprovalStatusService.cs`, `GET /admin/automation/approvals/{id}/status`, `useAutomationApprovalStatusQuery`, `LiveStatusList`/`StatusPill`, `.wfa-status-pill*` |
 | 8 | Change-/Offboarding-Handler | ⛔ offen — eigene Inhalts-Slices |  — |
 
-**Praktischer Stand:** der End-to-End-Pfad funktioniert — Admin öffnet eine Onboarding-Task mit Action-Bundle, sieht den Plan als fachlich gerenderten Stepper, bestätigt mit einem Klick (Soft-Re-Auth ohne Passwort-Prompt), sieht den Live-Status pro Action (Status-Pill, Versuch-Counter, Logs) und am Ende entweder Auto-Complete (`done`) oder einen klaren `failed`-Endzustand. Nach Abschluss zeigt die `PersonWorkflowHistoryPage` einen 360°-Sicht-Tab mit Identitäts-Snapshot, aktuellem Gruppen-Stand (Entra-Sync) + Automation-Provenienz (Workflow-Spur), Mailbox-Stand, Workflow-Spur und Vault-Status. Im Builder kann HR/Manager am Onboarding einen Referenzuser per `person_lookup`-Form-Antwort hinterlegen; der Approval-Plan zeigt die Gruppen-Quelle dann als „Referenzuser: {Name}" (Cloud-Gruppen via Graph App-only `Group.Read.All`). Was für einen vollen Prod-Rollout fehlt: echtes Entra-Re-Auth (heute Soft-Bestätigung) plus die Change-/Offboarding-Handler aus Baustein 8.
+**Praktischer Stand:** der End-to-End-Pfad funktioniert — Admin öffnet eine Onboarding-Task mit Action-Bundle, sieht den Plan als fachlich gerenderten Stepper, bestätigt durch einen echten Entra-Re-Login (MSAL-Popup mit `prompt: 'login'` in `AUTH_MODE=entra`; `dev-sim` skipped den Popup), sieht den Live-Status pro Action (Status-Pill, Versuch-Counter, Logs) und am Ende entweder Auto-Complete (`done`) oder einen klaren `failed`-Endzustand. Nach Abschluss zeigt die `PersonWorkflowHistoryPage` einen 360°-Sicht-Tab mit Identitäts-Snapshot, aktuellem Gruppen-Stand (Entra-Sync) + Automation-Provenienz (Workflow-Spur), Mailbox-Stand, Workflow-Spur und Vault-Status. Im Builder kann HR/Manager am Onboarding einen Referenzuser per `person_lookup`-Form-Antwort hinterlegen; der Approval-Plan zeigt die Gruppen-Quelle dann als „Referenzuser: {Name}" (Cloud-Gruppen via Graph App-only `Group.Read.All`). Was für einen vollen Prod-Rollout fehlt: die Change-/Offboarding-Handler aus Baustein 8 sowie die externe Pflicht-Konfiguration `auth_time` als optional claim in der API-App-Registration (siehe Baustein 3 unten und `Betrieb/Deployment-Checkliste.md`).
 
-Detail-Historie der Slices 1–7 in `CODE_REVIEW_ARCHIVE.md` § „Admin-Gated-Automation Slices 1-7".
+Detail-Historie der Slices 1–7 in `CODE_REVIEW_ARCHIVE.md` § „Admin-Gated-Automation Slices 1-7"; AGA-N2 in `CODEX_SYNC.md`.
 
 ---
 
@@ -161,11 +161,16 @@ Engine-driven `automation`-Nodes bleiben gültig für vollautomatische Use-Cases
 
 ### 3. Re-Auth-Gate
 
-Vor Ausführung des Plans gibt der Admin sein Passwort ein. Backend prüft gegen Entra (oder den konfigurierten IdP) und bindet die Ausführung an diesen Re-Auth-Token. Token ist kurzlebig (z. B. 60 s), nicht wiederverwendbar.
+Vor Ausführung des Plans muss sich der Admin frisch bei Entra anmelden. In `AUTH_MODE=entra` ruft das Frontend MSAL `loginPopup({ prompt: 'login' })` und macht danach `acquireTokenSilent({ forceRefresh: true })`, damit der nächste API-Call den Token mit dem frischen `auth_time`-Claim mitnimmt. Backend `POST /admin/automation/reauth` lässt den `AutomationReauthFreshnessGate` den `auth_time`-Claim aus dem Access-Token prüfen (max 120 s alt, plus 30 s Clock-Skew); nur bei Erfolg wird das kurzlebige One-Shot-Token (60 s, nicht wiederverwendbar) ausgestellt und an die spätere `POST /admin/automation/approve`-Anfrage gebunden.
+
+Fehler-Pfade sind strukturiert:
+- `401 reauth_required` (Body: `error: "reauth_required"`, `reason: "auth_time_stale"`, `maxAgeSeconds`, `authTimeAgeSeconds`) — Admin-Login ist alt, UI triggert den Popup und versucht das Token-Issue **genau einmal** danach erneut.
+- `422 reauth_unconfigured` (Body: `error: "reauth_unconfigured"`, `reason: "auth_time_missing"`, `hint`) — der API-Access-Token trägt keinen `auth_time`-Claim. Das ist eine Konfigurationspflicht im Entra-App-Registration-Manifest („Optional claims" → Access tokens → `auth_time`). Ohne diese Konfiguration ist keine Approval möglich; die UI zeigt eine klare Admin-Meldung statt unklarem Soft-Erfolg.
+- `dev-sim`: `LifecycleRuntimeSettings.EntraAuthEnabled=false` skipped den Check sauber, kein Popup, Token wird wie bisher ausgestellt.
 
 Ein Re-Auth deckt entweder einen einzelnen Plan ab oder ein zusammenhängendes Plan-Bündel pro Task. Mehrere Tasks in einem Schritt zu bestätigen ist möglich, aber muss explizit so im UI angeboten werden („Alle 3 Pläne bestätigen") — keine implizite Auto-Eskalation.
 
-Audit-Eintrag: wer (Admin-User) hat wann welchen Plan freigegeben, mit welchem Re-Auth-Token-Identifier.
+Audit-Eintrag: wer (Admin-User) hat wann welchen Plan freigegeben, mit welchem Re-Auth-Token-Identifier; der `auth_time`-Claim hängt nicht am Audit-Datensatz, aber an dem ihn auslösenden Access-Token im Identity-Provider-Log.
 
 ### 4. Referenzuser-Mapping
 
@@ -265,7 +270,7 @@ Stand 2026-05-15. Basis: Etappe 9a Schritte 1–8 abgeschlossen. Die technische 
 |---|---|---|---|---|---|---|
 | 1 | **Pre-Execution-Plan (WhatIf)** | ✅ done 2026-05-13 (`7ee3dad`) | Sonnet | **mittel** | Ja — für Interface-Design; danach direkt pro Handler | `PlanAsync`-Vertrag muss einmal sauber entworfen werden (was darf Read-only, was nicht). Danach ist jeder der 4 Handler mechanische Erweiterung. |
 | 2 | **Task-Automation-Binding** | ✅ done 2026-05-13 (`d5e7255` + `8d449fc`) | **Opus** | **hoch** | **Zwingend** | Berührt Schema (Migration), Builder-UI und Engine gleichzeitig. Falsches Schema zieht nachträgliche Migration nach sich; bestehende Workflow-Instanzen dürfen nicht brechen. Höchstes Architekturrisiko aller Slices. |
-| 3 | **Re-Auth-Gate** | 🟡 Soft-Bestätigung done 2026-05-15 (`f05e8be` + `058670b`); echtes Entra-Re-Auth offen | **Opus** | **hoch** | **Zwingend** | Sicherheits-kritisch und Querschnitt (Endpoint, UI-Baustein, Audit-Eintrag). Entra-Re-Auth hat Fallstricke (Token-Lebensdauer, Replay, PKCE vs. OBO). Falsch umgesetzt ist es Security-Theater statt echter Schranke. |
+| 3 | **Re-Auth-Gate** | ✅ done — Soft-Bestätigung 2026-05-15 (`f05e8be` + `058670b`); echtes Entra-Re-Auth (AGA-N2) 2026-05-19 | **Opus** | **hoch** | **Zwingend** | Sicherheits-kritisch und Querschnitt (Endpoint, UI-Baustein, Audit-Eintrag). MSAL `prompt: 'login'` + `auth_time`-Claim-Check im Backend (max 120 s + 30 s Skew) ohne OBO-Neubau gelöst. Externe Pflicht: `auth_time` als optional claim in der API-App-Registration. |
 | 4 | **360°-Karte-Aggregator** | ✅ done 2026-05-18 | Sonnet | **niedrig–mittel** | Kurz — für SQL-Design | Hauptarbeit ist Aggregator-Query über `automation_job_attempts` + neues Read-only-Frontend. SQL-Aggregation braucht Planungsrunde (Indexes, N+1), der Rest ist geradliniges CRUD + Page. |
 | 5 | **Referenzuser-Mapping** | ✅ done 2026-05-18 — nur `groups` (Graph-only) | Sonnet | **mittel** | Ja — für Source-Design und Whitelist | Klar begrenzter Slice nach vorhandenem Muster. Plan Mode einmal für die Whitelist-Entscheidung (welche Properties erlaubt), dann direkte Impl. |
 | 6 | **Action-Bündelung im Task (UI)** | ✅ done 2026-05-15 (`ea77fa0`) | Sonnet | **niedrig** | Nein (setzt 1 + 2 voraus) | UI-Rendering-Arbeit, sobald Schema + Plan-Vertrag aus 1/2 stehen. Kein Architekturrisiko, mechanische Erweiterung. |

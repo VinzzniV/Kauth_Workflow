@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ApiError } from "../../services/api/client";
 import { useToast } from "../feedback/useToast";
 import {
+  ApproveReauthError,
   useApproveAutomationPlanMutation,
   useAutomationApprovalStatusQuery,
   useAutomationPlanQuery,
@@ -47,7 +48,8 @@ type DialogPhase =
   | "error-already-approved"
   | "error-plan-unavailable"
   | "error-no-role"
-  | "error-config";
+  | "error-config"
+  | "error-reauth-unconfigured";
 
 type AutomationApprovalDialogProps = {
   open: boolean;
@@ -166,6 +168,33 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
       setRunningStartedAt(Date.now());
       setPhase("running");
     } catch (err) {
+      // Slice AGA-N2: strukturierte Re-Auth-Fehler kommen aus der Mutation,
+      // bevor /approve ueberhaupt aufgerufen wird.
+      if (err instanceof ApproveReauthError) {
+        const detail = err.detail;
+        if (detail.kind === "cancelled") {
+          setErrorDetail("Re-Auth wurde abgebrochen. Bitte erneut versuchen.");
+          setPhase("reviewing");
+          return;
+        }
+        if (detail.kind === "unconfigured") {
+          setErrorDetail(detail.hint);
+          setPhase("error-reauth-unconfigured");
+          return;
+        }
+        if (detail.kind === "still_stale") {
+          setErrorDetail(
+            `Re-Auth ist nicht frisch genug (max ${detail.maxAgeSeconds}s). Bitte erneut versuchen.`,
+          );
+          setPhase("reviewing");
+          return;
+        }
+        // popup_failed: unspezifischer Fehler — Detail anzeigen.
+        setErrorDetail(`Re-Auth fehlgeschlagen: ${detail.reason}`);
+        setPhase("reviewing");
+        return;
+      }
+
       const apiError = err as ApiError;
       const status = apiError.status ?? 0;
       const payload = apiError.payload as
@@ -356,6 +385,20 @@ export function AutomationApprovalDialog(props: AutomationApprovalDialogProps) {
               <p className="wf-step-card-hint wf-step-card-hint--error">
                 Diese Aufgabe ist für die Freigabe nicht konfiguriert. Bitte einen Admin verständigen.
               </p>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                Schließen
+              </button>
+            </div>
+          )}
+
+          {phase === "error-reauth-unconfigured" && (
+            <div className="content-stack">
+              <p className="wf-step-card-hint wf-step-card-hint--error">
+                Re-Auth ist nicht korrekt konfiguriert. Bitte einen Admin verständigen.
+              </p>
+              {errorDetail ? (
+                <p className="wf-step-card-hint">{errorDetail}</p>
+              ) : null}
               <button type="button" className="btn btn-secondary" onClick={onClose}>
                 Schließen
               </button>

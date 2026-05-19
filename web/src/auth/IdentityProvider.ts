@@ -11,6 +11,16 @@ import { EntraIdentityProvider } from "./EntraIdentityProvider";
 import { getAuthMode as getConfiguredAuthMode } from "../config/appRuntimeConfig";
 import type { Me, SimulationLoginResponse, SimulationLoginUserOption } from "../types/auth";
 
+// Slice AGA-N2: Interactive Re-Auth fuer Approval-Flow.
+// Entra: MSAL-Popup mit `prompt: 'login'` + force-refreshen, damit der naechste
+//        API-Call ein Access-Token mit frischem auth_time-Claim traegt.
+// Dev-Sim: bewusster No-Op (kein echter IdP fuer auth_time-Frische).
+export type InteractiveReauthOutcome =
+  | { kind: "skipped-dev-sim" }
+  | { kind: "succeeded" }
+  | { kind: "cancelled" }
+  | { kind: "failed"; reason: string };
+
 export type IIdentityProvider = {
   readonly providerKind: string;
   getStoredToken: () => string | null | Promise<string | null>;
@@ -20,6 +30,7 @@ export type IIdentityProvider = {
   getLoginOptions: () => Promise<SimulationLoginUserOption[]>;
   loginAsUser: (userId: number) => Promise<SimulationLoginResponse>;
   logout: () => Promise<void>;
+  triggerInteractiveReauth: () => Promise<InteractiveReauthOutcome>;
 };
 
 class DevSimulationIdentityProvider implements IIdentityProvider {
@@ -51,6 +62,13 @@ class DevSimulationIdentityProvider implements IIdentityProvider {
 
   public logout(): Promise<void> {
     return simulationLogout();
+  }
+
+  public async triggerInteractiveReauth(): Promise<InteractiveReauthOutcome> {
+    // Dev-Sim hat keinen echten IdP, gegen den ein `prompt: 'login'` laufen koennte.
+    // Bewusster Fallback fuer lokale Entwicklung — die Backend-Schranke fuer
+    // auth_time-Frische ist in dev-sim ebenfalls deaktiviert.
+    return { kind: "skipped-dev-sim" };
   }
 }
 

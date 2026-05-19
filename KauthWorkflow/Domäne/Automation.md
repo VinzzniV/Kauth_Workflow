@@ -2,7 +2,7 @@
 
 #domäne #automation
 
-Wie automatische technische Aktionen im System kontrolliert ablaufen. Diese Datei erklärt den **heutigen Ist-Stand** der Automation-Infrastruktur. Das **Zielbild für Prod** (Admin-gated Automation mit Plan-Vorschau + Re-Auth + 360°-Karte) steht in [[Admin-Gated-Automation]]; die Plan-Vorschau, das Task-Automation-Binding, der Approval-Dialog (Soft-Re-Auth, Bundle-Stepper), der Live-Log mit per-Action-Status, die Post-Execution 360°-Karte (Identitäts-Snapshot, Gruppen, Mailbox, Workflow-Spur, Vault-Status pro Person) und das Referenzuser-Mapping (Cloud-Gruppen-Übernahme via `person_lookup`-Form-Antwort) sind seit 2026-05-18 produktiv nutzbar — echtes Entra-Re-Auth bleibt Folge-Slice.
+Wie automatische technische Aktionen im System kontrolliert ablaufen. Diese Datei erklärt den **heutigen Ist-Stand** der Automation-Infrastruktur. Das **Zielbild für Prod** (Admin-gated Automation mit Plan-Vorschau + Re-Auth + 360°-Karte) steht in [[Admin-Gated-Automation]]; die Plan-Vorschau, das Task-Automation-Binding, der Approval-Dialog mit echtem MSAL-`prompt: 'login'`-Popup und Backend-`auth_time`-Claim-Check (Bundle-Stepper), der Live-Log mit per-Action-Status, die Post-Execution 360°-Karte (Identitäts-Snapshot, Gruppen, Mailbox, Workflow-Spur, Vault-Status pro Person) und das Referenzuser-Mapping (Cloud-Gruppen-Übernahme via `person_lookup`-Form-Antwort) sind seit 2026-05-19 produktiv nutzbar — externe Pflicht-Konfiguration: `auth_time` als optional claim in der API-App-Registration (siehe [[Konfiguration]] und [[Deployment-Checkliste]]).
 
 ---
 
@@ -224,7 +224,6 @@ Details: [[Setup]], [[Konfiguration]], [[Worker-Setup]], [[Deployment-Checkliste
 | Slice | Inhalt |
 |---|---|
 | `CreateErpEmployee` | ERP-Anbindung (Ziel InforLN). Wartet auf Stakeholder-Entscheidung. Größter inhaltlicher Resthebel. |
-| Echtes Entra-Re-Auth | Heute Soft-Bestätigung im Approval-Dialog (Token ohne Passwort-Validierung). Echter MSAL-`prompt: 'login'`-Flow + `auth_time`-Claim-Check ist Folge-Slice. |
 | `RemoveMailboxLicense` | Spiegel zu `CreateMailboxGraph` für User-Deprovisionierung. |
 | Builder-UI für `automation_output`-Bedingungen | Heute nur per JSON-API / Dev-Seed konfigurierbar. Source-Dropdown + Property-Filter. |
 | Vault-Cleanup-Sweeper | TTL-getriebener Delete-Job für `temporary_credentials`. |

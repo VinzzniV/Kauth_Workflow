@@ -17,7 +17,7 @@
 - `PROD_TODO.md` — abgeschlossener Slice-Plan + Mapping zwischen den Z21-Nummerierungen
 - `MEMORY.md` — aktueller Fokus
 - `CODE_REVIEW_ARCHIVE.md` — vollstaendige Detail-Historie
-- `KauthWorkflow/Stand/Code-Review-Status.md`
+- `KauthWorkflow/Architektur/Admin-Gated-Automation.md`
 - `KauthWorkflow/Architektur/Migrationspfad.md` — Etappe 9a-Detail
 
 ---
@@ -34,7 +34,7 @@ Diese Regel ist auch in `CLAUDE_CONTROL.md` als Arbeits-Pflicht verankert.
 
 ---
 
-**Stand 2026-05-18** — Z21 + Migrationspfad-Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..7 alle durch (inkl. 360°-Karte-Aggregator und Referenzuser-Mapping `reference_user.groups` via Graph App-only). Reale Onboarding-Pipeline `CreateAdUserLdaps → CreateMailboxGraph → (AlreadyExists-Decision) → AssignGroupsLdaps → SendWelcomeMailGraph` produktionsreif (vor Live-Rollout: Browser-Smoke + Graph-/Mail-Live-Verifikation). Admin-Gated-Approval-UI (Plan-Vorschau, Re-Auth, Bundle-Dialog, Live-Status pro Action mit Versuch-Counter + Logs + klarer failed-Endphase) ist nutzbar; nur noch **ein** Folge-Slice bewusst offen: **echtes Entra-Re-Auth** (heute Soft-Bestätigung). Aktiver Resthebel: `CreateErpEmployee` (InforLN, stakeholder-blockiert) plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3). Detail-Historie aller acht Etappen + sieben Slices in `CODE_REVIEW_ARCHIVE.md`.
+**Stand 2026-05-19** — Z21 + Migrationspfad-Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..7 + AGA-N2 alle durch. Reale Onboarding-Pipeline `CreateAdUserLdaps → CreateMailboxGraph → (AlreadyExists-Decision) → AssignGroupsLdaps → SendWelcomeMailGraph` ist produktionsreif (vor Live-Rollout: Browser-Smoke + Graph-/Mail-Live-Verifikation). Admin-Gated-Approval-UI (Plan-Vorschau, Bundle-Dialog, Live-Status pro Action mit Versuch-Counter + Logs + klarer `failed`-Endphase) ist nutzbar; mit AGA-N2 ist der Re-Auth-Gate aus Baustein 3 jetzt **echte Sicherheitsschranke** statt Soft-Bestaetigung: Approval-Mutation triggert in `AUTH_MODE=entra` einen MSAL-Popup mit `prompt: 'login'`, Backend `/admin/automation/reauth` validiert den `auth_time`-Claim (max 120s + 30s Skew) und antwortet strukturiert mit `401 reauth_required` (zu alt) oder `422 reauth_unconfigured` (Claim im API-App-Registration-Manifest nicht konfiguriert). Praktisch: ein vergessener Admin-Browser-Tab oder ein gestohlener Refresh-Token reicht nicht mehr fuer eine Plan-Freigabe; das Audit-Log haengt am frischen Anmelde-Event. Externe Pflicht fuer Prod: `auth_time` als optional claim in der API-App-Registration setzen. Aktiver Resthebel danach: `CreateErpEmployee` (InforLN, stakeholder-blockiert) plus kleinere P-Findings (P1-2-Sub „Definition-Schluessel"-Slug, P2-3..P2-5, P3-3). Detail-Historie aller acht Etappen + sieben Slices in `CODE_REVIEW_ARCHIVE.md`.
 
 ---
 
@@ -159,4 +159,4 @@ Trennung „fachlich vorgesehen / im Code vorbereitet / real lauffaehig / produk
 | 1–18 | 2026-04-23 .. 2026-05-08 | Code-Review/Hardening, HQ/LQ, Test-Coverage, Naming, Legacy-Abbau, Runtime-Lifecycle, Skalierbarkeit, Mehrrollen-Persona, Mitarbeiterakte, Theme-Leaks, Frontend Full Review |
 | 19 | 2026-05-11 | Backend Full Review / Holistic Audit — abgeschlossen |
 | 20 | 2026-05-11 | Admin/Directory/Runtime Read Contracts Phase 2 — abgeschlossen |
-| **21** | **2026-05-12** | Produkt-/Funktions-/UX-Review — vollstaendig abgearbeitet bis auf Z21-S4 (blockiert) |
+| **21** | **2026-05-12** | Produkt-/Funktions-/UX-Review — fachlich abgeschlossen; Folge-Slices laufen jetzt als `AGA-N*` / `Z21-N*` in `TODO.md` |

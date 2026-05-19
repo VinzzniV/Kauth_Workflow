@@ -172,6 +172,16 @@ Application-Permissions, die der Tenant-Admin freigeben muss:
 
 ---
 
+## Optional claims (Access Tokens)
+
+Im API-App-Registration-Manifest unter „Token configuration → Add optional claim → Token type: **Access**" muss zusätzlich freigeschaltet sein:
+
+| Claim | Wofür |
+|---|---|
+| `auth_time` | Pflicht für Admin-Gated-Automation-Approvals. Backend `AutomationReauthFreshnessGate` prüft `auth_time` am Access-Token (max 120 s + 30 s Skew) und lehnt sonst jeden `/admin/automation/reauth`-Call mit `422 reauth_unconfigured` ab. Ohne diesen Claim kann kein Plan freigegeben werden. |
+
+---
+
 ## Verifikationspfade
 
 ### „Was ist aktuell aktiv?"

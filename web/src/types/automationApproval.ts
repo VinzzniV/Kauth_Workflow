@@ -22,6 +22,24 @@ export type AutomationReauthIssueResponse = {
   expiresAt: string;
 };
 
+// Slice AGA-N2: strukturierte Fehlerpfade des /admin/automation/reauth-Endpoints.
+// 401 reauth_required: auth_time-Claim ist da, aber zu alt — UI muss MSAL-Popup
+// triggern und das Token-Issue dann wiederholen.
+export type AutomationReauthRequiredError = {
+  error: "reauth_required";
+  reason: "auth_time_stale";
+  maxAgeSeconds: number;
+  authTimeAgeSeconds: number;
+};
+
+// 422 reauth_unconfigured: API-App-Registration hat 'auth_time' nicht als
+// optional claim konfiguriert — kein UI-Fix moeglich, klare Admin-Meldung.
+export type AutomationReauthUnconfiguredError = {
+  error: "reauth_unconfigured";
+  reason: "auth_time_missing";
+  hint: string;
+};
+
 export type AutomationApproveSuccess = {
   approvalId: number;
   firstJobId: number;

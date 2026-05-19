@@ -32,8 +32,9 @@
 
 ## Current Focus
 
-- **Z21 + Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..7 alle durch** (Stand 2026-05-18). Detail-Historie in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21" / „Migrationspfad-Etappe 9a" / „Admin-Gated-Automation Slices 1-7". Slice 4 (360°-Karte-Aggregator) und Slice 5 (Referenzuser-Mapping) wurden 2026-05-18 nachgezogen — `PersonWorkflowHistoryPage` hat einen 360°-Tab; `person_lookup` ist neuer Form-InputType, `reference_user.groups`-Mapping-Source liefert Cloud-Gruppen via Graph App-only (Pflicht-Permission `Group.Read.All`).
-- **Kein aktiver Code-Slice** in der Pipeline. Offene Folge-Slices als Backlog in `TODO.md` § „Nachgelagert" (AGA-N1 CreateErpEmployee stakeholder-blockiert, N2 echtes Entra-Re-Auth, N6 Builder-UI fuer automation_output, N7 operative Resthebel).
+- **Z21 + Etappe 9a Schritt 1..8 + Admin-Gated-Automation Slices 1..7 + AGA-N2 alle durch** (Stand 2026-05-19). Detail-Historie in `CODE_REVIEW_ARCHIVE.md` § „Zyklus 21" / „Migrationspfad-Etappe 9a" / „Admin-Gated-Automation Slices 1-7" plus aktive Doku in `KauthWorkflow/Architektur/Admin-Gated-Automation.md` § Baustein 3.
+- **AGA-N2 echtes Entra-Re-Auth abgeschlossen** (2026-05-19). Approval-Pfad fordert in `AUTH_MODE=entra` jetzt einen frischen `auth_time`-Claim (max 120s + 30s Skew). Backend `/admin/automation/reauth` liefert strukturiert `401 reauth_required` (zu alt) oder `422 reauth_unconfigured` (Claim fehlt). FE triggert MSAL-Popup mit `prompt: 'login'` und macht danach `forceRefresh`, retried das Token-Issue **genau einmal**. `dev-sim` skipped den Check sauber (`LifecycleRuntimeSettings.EntraAuthEnabled=false`). **Externe Pflicht fuer Prod:** API-App-Registration braucht `auth_time` als optional claim im Manifest — sonst sieht jeder Admin `422 reauth_unconfigured` mit klarem Hinweis.
+- **Aktiver Slice: keiner.** Naechster Backlog-Kandidat ist AGA-N1 `CreateErpEmployee` (stakeholder-blockiert) bzw. die kleineren Folge-Findings (P1-2-Sub, P2-3..P2-5, P3-3).
 - **Schreibregel (verbindlich):** jedes Review-Finding und jeder Slice muss zusaetzlich zur Technik kurz erklaeren, was es praktisch bedeutet, warum es sich lohnt, und was dadurch besser/sicherer/schneller/wartbarer wird. Verankert in `CODE_REVIEW.md` § „Schreibregel" und `CLAUDE_CONTROL.md`.
 
 ## Active Risks / Watchouts

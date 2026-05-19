@@ -1,10 +1,12 @@
 import {
   PublicClientApplication,
   type AccountInfo,
+  BrowserAuthError,
   InteractionRequiredAuthError,
+  ServerError,
 } from "@azure/msal-browser";
 import { msalConfig, loginRequest } from "./msalConfig";
-import type { IIdentityProvider } from "./IdentityProvider";
+import type { IIdentityProvider, InteractiveReauthOutcome } from "./IdentityProvider";
 import type { Me, SimulationLoginResponse, SimulationLoginUserOption } from "../types/auth";
 import { requestJson } from "../services/api/client";
 
@@ -120,5 +122,45 @@ export class EntraIdentityProvider implements IIdentityProvider {
     await instance.logoutRedirect({
       postLogoutRedirectUri: msalConfig.auth.redirectUri as string,
     });
+  }
+
+  // Slice AGA-N2: Interaktiver Re-Auth fuer Approval-Flow.
+  // Popup mit `prompt: 'login'` zwingt einen frischen Entra-Login (neuer
+  // auth_time-Claim). Anschliessend forceRefresh, damit der naechste API-Call
+  // den frischen Access-Token bekommt — sonst sieht das Backend weiter den
+  // alten auth_time. Popup statt Redirect, damit der Approval-Dialog erhalten
+  // bleibt.
+  public async triggerInteractiveReauth(): Promise<InteractiveReauthOutcome> {
+    await ensureMsalInitialized();
+    const instance = getMsalInstance();
+
+    try {
+      const popupResponse = await instance.loginPopup({
+        ...loginRequest,
+        prompt: "login",
+      });
+      if (popupResponse.account) {
+        instance.setActiveAccount(popupResponse.account);
+      }
+    } catch (error) {
+      if (error instanceof BrowserAuthError) {
+        if (error.errorCode === "user_cancelled" || error.errorCode === "popup_window_error") {
+          return { kind: "cancelled" };
+        }
+      }
+      if (error instanceof ServerError) {
+        return { kind: "failed", reason: error.errorMessage || error.message };
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      return { kind: "failed", reason: message };
+    }
+
+    // forceRefresh erzwingt, dass der naechste Token aus dem frischen
+    // Login (popup) verwendet wird — nicht ein gecachter alter Token.
+    const refreshed = await acquireToken(true);
+    if (!refreshed) {
+      return { kind: "failed", reason: "no_token_after_reauth" };
+    }
+    return { kind: "succeeded" };
   }
 }

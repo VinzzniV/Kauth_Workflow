@@ -9,11 +9,15 @@ internal static class AdminAutomationApprovalEndpoints
 {
     public static IEndpointRouteBuilder MapAdminAutomationApprovalEndpoints(this IEndpointRouteBuilder app)
     {
-        // Slice 3: Issue one-shot Re-Auth-Token (60s TTL). Vorfilter ueber
-        // IsPotentialAutomationApprover schuetzt vor Probing; per-Node-Role-Match
-        // erfolgt erst am /approve-Endpoint.
+        // Slice 3 + AGA-N2: Issue one-shot Re-Auth-Token (60s TTL) — aber NUR,
+        // wenn der vorgelagerte Entra-Login frisch genug ist. Server prueft
+        // `auth_time`-Claim aus dem validierten JWT (MaxAge 120s + 30s Skew).
+        // In `AUTH_MODE=dev-sim` faellt der Frische-Check bewusst weg, weil dort
+        // keine echte Entra-Token-Quelle existiert (Dev-Fallback dokumentiert in
+        // `KauthWorkflow/Betrieb/Konfiguration.md` und Admin-Gated-Automation.md).
         app.MapPost("/admin/automation/reauth", async (
             [FromServices] AutomationReauthTokenService reauthTokenService,
+            [FromServices] AutomationReauthFreshnessGate freshnessGate,
             [FromServices] IUserContext userContext,
             [FromServices] IAuthorizationPolicyService authorizationPolicy,
             [FromBody] ReauthTokenIssueRequest? request,
@@ -28,6 +32,35 @@ internal static class AdminAutomationApprovalEndpoints
                 return access.Error;
             }
 
+            var freshness = freshnessGate.Evaluate(DateTimeOffset.UtcNow);
+            switch (freshness)
+            {
+                case ReauthFreshnessResult.StaleResult stale:
+                    return Results.Json(
+                        new
+                        {
+                            error = "reauth_required",
+                            reason = "auth_time_stale",
+                            maxAgeSeconds = (int)AutomationReauthFreshnessGate.MaxAuthTimeAge.TotalSeconds,
+                            authTimeAgeSeconds = (int)stale.Age.TotalSeconds
+                        },
+                        statusCode: StatusCodes.Status401Unauthorized);
+                case ReauthFreshnessResult.MissingClaimResult:
+                    return Results.Json(
+                        new
+                        {
+                            error = "reauth_unconfigured",
+                            reason = "auth_time_missing",
+                            hint = "Das API-Access-Token traegt keinen 'auth_time'-Claim. Im API-App-Registration-Manifest muss 'auth_time' als optional claim fuer den Access-Token konfiguriert sein."
+                        },
+                        statusCode: StatusCodes.Status422UnprocessableEntity);
+                case ReauthFreshnessResult.FreshResult:
+                case ReauthFreshnessResult.SkippedDevSimResult:
+                    break;
+                default:
+                    return Results.Problem("Unhandled reauth freshness outcome.");
+            }
+
             var purpose = string.IsNullOrWhiteSpace(request?.Purpose)
                 ? AutomationReauthTokenService.PurposeAutomationApproval
                 : request!.Purpose!;
@@ -37,7 +70,8 @@ internal static class AdminAutomationApprovalEndpoints
         })
         .Produces<ReauthTokenIssueResponse>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status403Forbidden);
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status422UnprocessableEntity);
 
         // Slice 3: Approve + execute. Drei-Schichten-Auth (Auth + Vorfilter + per-Node).
         app.MapPost("/admin/automation/approve", async (

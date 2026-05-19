@@ -154,6 +154,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IWorkflowAutomationService, WorkflowAutomationService>();
         services.AddScoped<WorkflowAutomationPlanService>();
         services.AddScoped<AutomationReauthTokenService>();
+        services.AddScoped<AutomationReauthFreshnessGate>();
         services.AddScoped<AutomationApprovalService>();
         services.AddScoped<AutomationApprovalStatusService>();
         services.AddScoped<PersonDetailsReadService>();

@@ -4,7 +4,7 @@
 
 Aktiver Produkt- und Umsetzungsplan. Nur Punkte, die direkt auf Endbenutzer-Nutzen, fachliche Funktion, Automatisierung oder Produktionsreife einzahlen.
 
-Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung" + „Migrationspfad-Etappe 9a" + „Admin-Gated-Automation Slices 1-7"). Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..7 (2026-05-13..18) sind komplett abgeschlossen.
+Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „Zyklus 21 (Done-Findings)" + „Zyklus 21 (weitere Done-Findings, 2026-05-12) — Erweiterung" + „Migrationspfad-Etappe 9a" + „Admin-Gated-Automation Slices 1-7"). Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13), Admin-Gated-Automation Slices 1..7 (2026-05-13..18) und AGA-N2 echtes Entra-Re-Auth (2026-05-19) sind komplett abgeschlossen.
 
 ## Leseregeln
 
@@ -13,23 +13,26 @@ Historie und erledigte Slices liegen in `CODE_REVIEW_ARCHIVE.md` (Abschnitte „
 3. Fuer UI-Arbeiten zusaetzlich `FRONTEND_TODO.md` lesen.
 4. Nach Umsetzung eines Punktes Status, Erkenntnisse und Folgepunkte hier aktualisieren.
 
-## Stand 2026-05-18
+## Stand 2026-05-19
 
-Z21-S1..S3 + S5..S10 + S6b (2026-05-12), Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13) und Admin-Gated-Automation Slices 1..7 (2026-05-13..18) alle abgeschlossen. Details in `CODE_REVIEW_ARCHIVE.md`.
+Z21-S1..S3 + S5..S10 + S6b (2026-05-12), Migrationspfad-Etappe 9a Schritt 1..8 (2026-05-12..13), Admin-Gated-Automation Slices 1..7 (2026-05-13..18) und AGA-N2 (2026-05-19) alle abgeschlossen. Details in `CODE_REVIEW_ARCHIVE.md`.
 
-Verifizierter Ist-Stand (Slice 7, 2026-05-18):
+Verifizierter Ist-Stand (AGA-N2, 2026-05-19):
 - API Release-Build: ✅ gruen
-- FE-Build: ✅ gruen
-- FE-Tests: 319/323 (4 pre-existing PersonaSwitcher-Failures, unveraendert vor/nach Slice 7 — eigener Baseline-Slice)
-- FE-Lint: ✅ 0 Errors / 5 Warnings (verbessert die alte 7/7-Baseline durch zwei pre-existing-Fixes in Slice 7)
-- Worker.Core + Worker.Tests Build: ✅ gruen
-- Worker Core tests: ✅ 57 passed
+- FE-Typecheck (`tsc --noEmit`): ✅ gruen
+- FE-Tests Automation-Re-Auth-Mutation: ✅ 6/6 passed
+- FE-Tests Gesamt: 325/329 (4 pre-existing `PersonaSwitcher`-Failures, vor/nach AGA-N2 unveraendert)
+- FE-Lint: ✅ 0 Errors / 5 Warnings (baseline)
+- API-Tests `AutomationReauthFreshnessGate`: ✅ 8/8 passed; alle Automation-Tests: ✅ 102/102 passed
+- API-Tests Gesamt: pre-existing Infrastruktur-Fail in `WorkflowEndpointsTests` (Body-Inferred bei `RequestDelegateFactory`, unabhaengig von AGA-N2; identische Failures auch ohne diesen Slice)
 
-Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8) + Approval-Dialog, Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials, Worker-Host-Build (net8.0-windows) auf Windows-Maschine, E2E `CreateAdUserLdaps` gegen Test-DC + Vault-Roundtrip, E2E `SendWelcomeMailGraph` mit echtem Passwort im Mail-Body.
+Externe Voraussetzung fuer Prod (Nutzer-Aufgabe): in der API-App-Registration im Entra-Manifest `auth_time` als optional claim fuer Access-Tokens konfigurieren. Ohne diesen Claim liefert das Backend strukturiert `422 reauth_unconfigured`; die UI zeigt einen klaren Admin-Hinweis statt unklarem Soft-Erfolg.
+
+Nicht code-pruefbar (Nutzer-Aufgabe): Browser-Smoke Builder-Form-Editor (R8) + Approval-Dialog mit echtem Entra-Popup (`prompt=login`), Mobile-Layout (R10), Graph-/Mail-Live-Verifikation mit echten Credentials, Worker-Host-Build (net8.0-windows) auf Windows-Maschine, E2E `CreateAdUserLdaps` gegen Test-DC + Vault-Roundtrip, E2E `SendWelcomeMailGraph` mit echtem Passwort im Mail-Body.
 
 ## Aktive TODOs
 
-Kein aktiver, code-arbeitsfaehiger Slice. Die produktive Onboarding-Pipeline und der Admin-Approval-Flow sind nutzbar; die Resthebel sind alle entweder stakeholder-blockiert (`CreateErpEmployee`) oder bewusst out-of-scope (siehe „Nachgelagert").
+_keine — AGA-N2 ist mit diesem Slice geschlossen._
 
 ## Nachgelagert
 
@@ -39,7 +42,6 @@ Kein aktiver, code-arbeitsfaehiger Slice. Die produktive Onboarding-Pipeline und
 | Z21-N2 | Mobile Feinschliffe fuer Admin-/Builder-Masken pruefen. | LOW | offen | Primaerer Nutzungsfall ist Desktop. |
 | Z21-N3 | Alte Demo-/Testdaten und unklare Beispielinhalte bereinigen. | LOW | offen | Sinnvoll vor Produktivnahme, aber nicht blockierend. |
 | AGA-N1 | `CreateErpEmployee` (InforLN) als eigener Backend-Architektur-Slice. | HIGH | stakeholder-blockiert | Wartet auf Stakeholder-Entscheidung; eigener Plan-Mode noetig. |
-| AGA-N2 | Echtes Entra-Re-Auth (MSAL `prompt: 'login'` + `auth_time`-Check) statt heutiger Soft-Bestaetigung. | MED | offen | Sicherheits-Slice; Soft-Bestaetigung ist bewusste Slice-5-Grenze. |
 | AGA-N6 | Builder-UI fuer `automation_output`-Bedingungen (Source-Dropdown + Property-Filter). | LOW | offen | Heute nur per JSON-API / Dev-Seed konfigurierbar. |
 | AGA-N7 | `RemoveMailboxLicense` fuer User-Deprovisionierung; Vault-Cleanup-Sweeper; Key-Rotation; Connection-Pooling LDAPS. | LOW | offen | Operative Resthebel ohne aktuellen Blocker. |
 

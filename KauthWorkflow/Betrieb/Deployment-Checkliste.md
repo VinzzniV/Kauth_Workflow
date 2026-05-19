@@ -20,6 +20,7 @@ Vollständige Variablen-Übersicht → [[Konfiguration]]
 - [ ] Redirect URI als SPA eingetragen und exakt auf `PUBLIC_BASE_URL` abgestimmt
 - [ ] API Permission `<audience>/access_as_user` freigegeben
 - [ ] Microsoft-Graph-Application-Permissions (Admin-Consent) freigegeben: `Mail.Send`, `User.Read.All`, `LicenseAssignment.ReadWrite.All`, `Group.Read.All` (letzteres für `reference_user.groups`-Mapping)
+- [ ] **Optional claim `auth_time` für Access Tokens** im Manifest aktiviert (Token configuration → Add optional claim → Token type: **Access** → `auth_time`). Pflicht für Admin-Gated-Automation-Approvals: der `AutomationReauthFreshnessGate` lehnt sonst jeden Re-Auth mit `422 reauth_unconfigured` ab und kein Plan kann freigegeben werden.
 - [ ] Gruppen für Rollen-Mapping vorbereitet
 
 ---
@@ -88,6 +89,7 @@ Erwartung:
 Browser:
 - [ ] `https://<PUBLIC_HOSTNAME>` öffnet
 - [ ] Entra-Login funktioniert
+- [ ] **Approval-Re-Auth-Smoke:** Admin öffnet eine Automation-Task mit Bundle, klickt „Plan bestätigen", sieht den MSAL-Popup mit `prompt: 'login'`, schließt ihn ab und der Plan läuft. Sieht der Admin stattdessen die Fehlermeldung „auth_time-Claim fehlt im Access-Token", ist der optional claim `auth_time` in der App-Registration nicht gesetzt (Schritt 1).
 
 ---
 
