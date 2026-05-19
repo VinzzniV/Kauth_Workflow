@@ -1,6 +1,7 @@
 import type { AdminGraphApplicationConfiguration, AdminNotificationEmailConfiguration } from "../../types/auth";
 import { AdminGraphApplicationSection } from "./AdminGraphApplicationSection";
 import { AdminNotificationEmailSection } from "./AdminNotificationEmailSection";
+import { AdminRuntimeConfigSnapshotSection } from "./AdminRuntimeConfigSnapshotSection";
 
 type AdminSystemConfigurationSectionProps = {
   graphApplicationConfiguration: AdminGraphApplicationConfiguration | null;
@@ -59,6 +60,8 @@ export function AdminSystemConfigurationSection(props: AdminSystemConfigurationS
         onSave={props.onSaveNotificationEmailConfiguration}
         onSendTest={props.onSendNotificationEmailTest}
       />
+
+      <AdminRuntimeConfigSnapshotSection />
     </div>
   );
 }

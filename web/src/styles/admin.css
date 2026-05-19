@@ -258,6 +258,40 @@
   box-shadow: var(--surface-card-shadow);
 }
 
+.admin-runtime-config-snapshot__list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.admin-runtime-config-snapshot__row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) 1fr;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--surface-card-border);
+}
+
+.admin-runtime-config-snapshot__row:last-child {
+  border-bottom: none;
+}
+
+.admin-runtime-config-snapshot__row dt {
+  margin: 0;
+  font-weight: 500;
+  color: var(--color-foreground-muted);
+}
+
+.admin-runtime-config-snapshot__row dd {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.92em;
+  word-break: break-word;
+}
+
 .admin-sim-notice {
   display: flex;
   align-items: center;

@@ -180,7 +180,7 @@ Application-Permissions, die der Tenant-Admin freigeben muss:
 - **API-Container:** `docker exec <api-container> env | sort` zeigt die finale Env-Sicht.
 - **Compose-Dry-Run:** `docker compose --env-file .env.prod -f compose.yml -f compose.prod.yml config` rendert alle Variablen aufgelöst.
 - **Drift-Schutz:** `pwsh scripts/verify-config-coverage.ps1` schlägt fehl, wenn `compose.yml`/`compose.prod.yml` eine Variable referenzieren, die im `.env.prod.example` nicht dokumentiert ist.
-- **Runtime-Diagnose (nach K5):** `Administration > System > Konfiguration` zeigt die aktiven Werte mit Secret-Redaction.
+- **Runtime-Diagnose im Admin-UI:** `Administration > System > Konfiguration` zeigt das Panel „Aktive Laufzeit-Konfiguration" mit allen Werten aus dem laufenden API-Container; Secrets sind als `set`/`unset` bzw. `present`/`missing` redacted. Endpoint: `GET /admin/system/config` (Capability `canManageAdminConfiguration`).
 
 ### „Wo soll der Wert wirklich leben?"
 

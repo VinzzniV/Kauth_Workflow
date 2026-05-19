@@ -184,6 +184,7 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddScoped<IGraphApplicationConfigurationService, GraphApplicationConfigurationService>();
         services.AddScoped<INotificationEmailConfigurationService, NotificationEmailConfigurationService>();
         services.AddScoped<IAdminRuntimeHealthService, AdminRuntimeHealthService>();
+        services.AddScoped<ISystemConfigSnapshotService, SystemConfigSnapshotService>();
         services.AddScoped<PostgresWorkflowNotificationReadRepository>();
         services.AddScoped<INotificationTemplatePreviewRepository>(sp => sp.GetRequiredService<PostgresWorkflowNotificationReadRepository>());
         services.AddScoped<IWorkflowNotificationReadRepository>(sp => sp.GetRequiredService<PostgresWorkflowNotificationReadRepository>());

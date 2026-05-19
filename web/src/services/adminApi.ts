@@ -18,6 +18,7 @@ import type {
   AdminUser,
 } from "../types/auth";
 import type { WorkflowConfig } from "../types/workflow";
+import type { SystemConfigSnapshot } from "../types/systemConfigSnapshot";
 import { encodeId, requestJson } from "./api/client";
 import { buildAdminListQuery, type AdminListPage, type AdminListQueryOptions } from "./api/adminList";
 import { buildCursorPageQuery, type CursorPage, type CursorPageQueryOptions } from "./api/cursorPage";
@@ -205,6 +206,10 @@ export async function getAdminSystemLogSummary(options: Omit<AdminSystemLogQuery
   return requestJson<BackendAdminSystemLogSummaryDto>(
     `/admin/system/logs/summary${buildAdminSystemLogQuery(options)}`
   );
+}
+
+export async function getAdminSystemConfigSnapshot(): Promise<SystemConfigSnapshot> {
+  return requestJson<SystemConfigSnapshot>("/admin/system/config");
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {

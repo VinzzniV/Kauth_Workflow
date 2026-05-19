@@ -64,6 +64,7 @@ export const queryKeys = {
     notificationEmail: () => ["admin", "notification-email"] as const,
     workflowConfig: () => ["admin", "workflow-config"] as const,
     runtimeHealth: () => ["admin", "runtime-health"] as const,
+    systemConfigSnapshot: () => ["admin", "system-config-snapshot"] as const,
     unlinkedIdentities: (onlyEnabled: boolean) => ["admin", "unlinked-identities", onlyEnabled] as const,
     departmentEntraJobTitles: (departmentId: number) => ["admin", "department-entra-job-titles", departmentId] as const,
   },
