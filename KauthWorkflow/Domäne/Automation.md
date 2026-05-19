@@ -48,7 +48,7 @@ Schreibende Automation läuft auf zwei Hosts, die zusammenarbeiten:
 
 ## Was das System konkret kann
 
-Vier produktiv-taugliche Handler:
+Sieben produktiv-taugliche Handler:
 
 | Handler | Wo | Was er tut |
 |---|---|---|
@@ -56,6 +56,9 @@ Vier produktiv-taugliche Handler:
 | `AssignGroupsLdaps` | Worker | Fügt User zu AD-Gruppen. AD-Code 20 (`AttributeOrValueAlreadyExists`) = idempotent. Teilfehler werden als `PartiallyAdded` mit Detail-Output abgebildet. |
 | `CreateMailboxGraph` | Linux-API | Weist Exchange-Online-Lizenz zu. Exchange Online provisioniert die Mailbox automatisch. Wartet auf Entra-Connect-Sync (bis zu ~41 min Retry-Budget). Liefert die echte primäre SMTP-Adresse zurück — **kein UPN-Fallback**. |
 | `SendWelcomeMailGraph` | Linux-API | Entschlüsselt das Initial-Passwort aus dem Vault, sendet Welcome-Mail an die echte SMTP-Adresse mit Klartext-Passwort im Body. |
+| `DisableAdUserLdaps` | Worker | Setzt das ACCOUNTDISABLE-Bit (`userAccountControl \|= 0x2`) via LDAPS. Idempotent: bereits deaktivierter User liefert `alreadyDisabled=true`. Offboarding-Handler. |
+| `RemoveFromAllGroupsLdaps` | Worker | Entfernt User per LDAP-Filter `(&(objectClass=group)(member=<dn>))` aus allen Gruppen via ModifyRequest. Idempotent: Code 16 (NoSuchAttribute) = `AlreadyRemoved`. Teilfehler im `failed`-Array. Offboarding-Handler. |
+| `RemoveMailboxLicense` | Linux-API | Entfernt Exchange-Online-Lizenz via Microsoft Graph. Idempotent: Lizenz nicht zugewiesen → `licenseNotAssigned=true`. Pflicht-Permissions: User.Read.All + LicenseAssignment.ReadWrite.All. Offboarding-Handler. |
 
 Parallel dazu existieren simulierte Handler (`simulated_*`) für Bestands-Workflows und für Dev-Setups — diese tun nichts, melden aber Success. Das UI kennzeichnet simulierte Actions sichtbar.
 
@@ -224,7 +227,6 @@ Details: [[Setup]], [[Konfiguration]], [[Worker-Setup]], [[Deployment-Checkliste
 | Slice | Inhalt |
 |---|---|
 | `CreateErpEmployee` | ERP-Anbindung (Ziel InforLN). Wartet auf Stakeholder-Entscheidung. Größter inhaltlicher Resthebel. |
-| `RemoveMailboxLicense` | Spiegel zu `CreateMailboxGraph` für User-Deprovisionierung. |
 | Builder-UI für `automation_output`-Bedingungen | Heute nur per JSON-API / Dev-Seed konfigurierbar. Source-Dropdown + Property-Filter. |
 | Vault-Cleanup-Sweeper | TTL-getriebener Delete-Job für `temporary_credentials`. |
 | Key-Rotation | `key_version`-Spalte + Multi-Decrypt-Fan-Out im Vault-Pfad. |

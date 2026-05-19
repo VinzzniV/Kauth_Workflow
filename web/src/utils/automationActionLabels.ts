@@ -8,6 +8,9 @@ const AUTOMATION_ACTION_LABELS: Record<string, string> = {
   AssignGroupsLdaps: "Gruppen-Mitgliedschaften zuweisen",
   CreateMailboxGraph: "Mailbox-Lizenz zuweisen",
   SendWelcomeMailGraph: "Willkommens-Mail versenden",
+  DisableAdUserLdaps: "Active-Directory-Benutzer deaktivieren",
+  RemoveFromAllGroupsLdaps: "Aus allen Gruppen entfernen",
+  RemoveMailboxLicense: "Exchange-Lizenz entfernen",
 };
 
 export function getAutomationActionLabel(actionKey: string): string {
