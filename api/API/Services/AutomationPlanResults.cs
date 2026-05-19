@@ -71,6 +71,12 @@ internal enum PasswordAvailability
     NotAvailable        // null — AlreadyExists-Pfad, kein Vault-Eintrag
 }
 
+// Plan-Ergebnis für RemoveMailboxLicense
+internal record MailboxDeprovisionPlan(
+    string? UserPrincipalName,
+    string SkuId,
+    string Note);
+
 // Aggregiertes Plan-Ergebnis für einen Workflow-Node (enthält alle Action-Schritte)
 internal record NodePlanResult(
     string NodeKey,

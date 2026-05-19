@@ -166,8 +166,10 @@ internal static class LifecycleServiceCollectionExtensions
         services.AddSingleton<IWorkflowAutomationActionHandler, SendWelcomeMailAutomationHandler>();
         services.AddScoped<IWorkflowAutomationActionHandler, SendWelcomeMailGraphHandler>();
         services.AddScoped<IWorkflowAutomationActionHandler, CreateMailboxGraphHandler>();
+        services.AddScoped<IWorkflowAutomationActionHandler, RemoveMailboxLicenseGraphHandler>();
         services.AddScoped<IGraphMailSender, GraphMailSender>();
         services.AddScoped<IGraphMailboxProvisioner, GraphMailboxProvisioner>();
+        services.AddScoped<IGraphMailboxDeprovisioner, GraphMailboxDeprovisioner>();
         services.AddScoped<INotificationTemplateResolver, NotificationTemplateResolver>();
         // Vault-Pfad (Schritt 6): IVaultKeyProvider als Singleton (Key wird einmal beim Start
         // gelesen), Repository scoped (eine Connection pro Request).

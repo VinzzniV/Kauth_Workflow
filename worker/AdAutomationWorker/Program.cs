@@ -41,10 +41,14 @@ builder.Services.AddSingleton<IWorkerPlanStore>(sp =>
 });
 
 builder.Services.AddSingleton<IAdUserWriter, LdapsAdUserWriter>();
+builder.Services.AddSingleton<IAdUserDisabler, LdapsAdUserDisabler>();
 builder.Services.AddSingleton<IAdGroupMembershipWriter, LdapsAdGroupMembershipWriter>();
+builder.Services.AddSingleton<IAdGroupMembershipRemover, LdapsAdGroupMembershipRemover>();
 builder.Services.AddSingleton<IWorkerHandler, SimulatedWindowsWorkerPingHandler>();
 builder.Services.AddSingleton<IWorkerHandler, CreateAdUserLdapsHandler>();
 builder.Services.AddSingleton<IWorkerHandler, AssignGroupsLdapsHandler>();
+builder.Services.AddSingleton<IWorkerHandler, DisableAdUserLdapsHandler>();
+builder.Services.AddSingleton<IWorkerHandler, RemoveFromAllGroupsLdapsHandler>();
 builder.Services.AddSingleton<HandlerRegistry>();
 builder.Services.AddSingleton<WorkerHeartbeatLoop>();
 builder.Services.AddHostedService<WorkerHostedService>();
