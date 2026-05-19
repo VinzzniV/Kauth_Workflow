@@ -45,7 +45,7 @@ There is a knowledge base at `KauthWorkflow/` (Obsidian vault, lives inside the 
 - Getting the human-readable map of the vault → `KauthWorkflow/00 Start.md`
 - Planning architecture changes or migration steps → `KauthWorkflow/Architektur/`
 - Clarifying domain concepts (Rotation, Identity, Automation, Workflow) → `KauthWorkflow/Domäne/`
-- Checking what is open vs. done in the code review → `KauthWorkflow/Stand/Code-Review-Status.md`
+- Checking what is open vs. done in the code review → `CODE_REVIEW.md` and `CODE_REVIEW_ARCHIVE.md`
 - Understanding how Claude and Codex are supposed to work together → `KauthWorkflow/Arbeit/KI-Workflow.md`
 - Start at `KauthWorkflow/00 Start.md` for the full index
 
@@ -53,7 +53,7 @@ There is a knowledge base at `KauthWorkflow/` (Obsidian vault, lives inside the 
 - A new architecture decision was made → update `KauthWorkflow/Architektur/Entscheidungen.md`
 - A migration step was completed → update `KauthWorkflow/Architektur/Migrationspfad.md`
 - A new domain concept was introduced → update or create the relevant file in `KauthWorkflow/Domäne/`
-- Review status changed significantly → update `KauthWorkflow/Stand/Code-Review-Status.md`
+- Review status changed significantly → update `CODE_REVIEW.md` and move deep history to `CODE_REVIEW_ARCHIVE.md`
 
 **Do not write to the vault for:**
 - Short-term session context → use `MEMORY.md`

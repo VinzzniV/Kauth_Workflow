@@ -99,7 +99,7 @@ Backend-Solution, API-Projekt und Backend-Tests.
 Frontend-Projekt auf Basis von React, Vite und React Query.
 
 `worker/`
-Windows-Worker fuer den schreibenden AD-Automation-Pfad (Etappe 9a Schritt 2 — Skeleton).
+Windows-Worker fuer den schreibenden AD-Automation-Pfad (Etappe 9a produktiv-tauglicher Write-Pfad).
 `Worker.sln` mit drei Projekten: `AdAutomationWorker.Core` (net8.0, plattform-neutral: Polling, Lease, Handler-Vertrag), `AdAutomationWorker` (net8.0-windows, Service-Host) und `AdAutomationWorker.Tests`. Setup-Skripte und Inbetriebnahme-Doku unter `worker/setup/`.
 
 ## Vault: `KauthWorkflow/`

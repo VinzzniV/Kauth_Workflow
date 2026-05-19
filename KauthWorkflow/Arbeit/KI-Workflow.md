@@ -33,7 +33,7 @@ Wie dem Claude mitteilen: "Lies Architektur/Zielarchitektur.md bevor du planst" 
 
 ## Wann Codex den Vault lesen soll
 
-Codex arbeitet primär aus `CODE_REVIEW.md § 7` (konkrete Fix-Snippets). Der Vault ist für Codex nützlich bei:
+Codex arbeitet primaer aus `DOCS_CONTROL.md`, `CODE_REVIEW.md`, `TODO.md`, `MEMORY.md` und den jeweils aufgabenspezifischen Vault-Dateien. Der Vault ist fuer Codex nuetzlich bei:
 
 | Situation | Welche Datei |
 |-----------|-------------|
@@ -70,9 +70,9 @@ Codex arbeitet primär aus `CODE_REVIEW.md § 7` (konkrete Fix-Snippets). Der Va
 
 Codex braucht für jede Aufgabe aus `TODO.md`:
 
-1. Primärquelle: `CODE_REVIEW.md § 7` (konkrete Snippets)
-2. Pflichtlektüre: `DOCS_CONTROL.md`, `PROJECT_CONTEXT.md`, `MEMORY.md`
-3. Nach Abschluss: Eintrag in `CODEX_SYNC.md`, Status in `TODO.md` auf `done`
+1. Primaerquelle: `DOCS_CONTROL.md`, `CODE_REVIEW.md`, `TODO.md`, `MEMORY.md`
+2. Pflichtlektuere: dazu die je Aufgabe relevanten Vault-Dateien, z. B. `[[Admin-Gated-Automation]]` oder `[[Automation]]`
+3. Nach Abschluss: Eintrag in `CODEX_SYNC.md`, Status in `TODO.md` nachziehen und veraltete Punkte aus `MEMORY.md` entfernen
 
 Wichtige Regeln für Codex:
 - Nur ändern, was für den aktuellen Schritt nötig ist

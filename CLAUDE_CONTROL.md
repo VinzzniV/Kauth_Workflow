@@ -69,7 +69,7 @@ Claude ist zustaendig fuer:
 
 ## Schreibregel fuer Reviews und Findings (verbindlich)
 
-Bei Review-Zyklen und einzelnen Findings — egal ob in `CODE_REVIEW.md`, `KauthWorkflow/Stand/Code-Review-Status.md`, `TODO.md`, `MEMORY.md` oder `CODEX_SYNC.md` — muss Claude neben dem technischen Befund immer kurz erklaeren:
+Bei Review-Zyklen und einzelnen Findings — egal ob in `CODE_REVIEW.md`, `CODE_REVIEW_ARCHIVE.md`, `TODO.md`, `MEMORY.md` oder `CODEX_SYNC.md` — muss Claude neben dem technischen Befund immer kurz erklaeren:
 
 - **Was bedeutet das praktisch?** — was ein normal verstaendlicher Leser im Alltag merkt.
 - **Warum lohnt es sich, das anzugehen?** — der konkrete Anlass oder das Risiko.
@@ -182,7 +182,7 @@ Typische Dateien:
 - `CODE_REVIEW.md`
 - `MEMORY.md`
 - `CODEX_SYNC.md`
-- `KauthWorkflow/Stand/Code-Review-Status.md`
+- `CODE_REVIEW_ARCHIVE.md`
 - `KauthWorkflow/Architektur/Schritt7-Runtime-TaskSystem-Skizze.md`
 - weitere Architektur- oder Strukturdateien, falls der Slice das rechtfertigt
 
