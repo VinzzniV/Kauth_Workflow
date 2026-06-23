@@ -237,7 +237,9 @@ Solange das System nicht produktiv läuft, werden Schema- und Seed-Änderungen d
 
 Manuelle Inplace-Migrationen leben unter `db/manual/*.sql`. Jede Datei ist über `db/manual/manifest.json` registriert; der Test `api/API.Tests/SchemaParityTests.cs` prüft im normalen Testlauf, dass die End-Marker der Migration tatsächlich in `db/01_schema.sql` stehen und Alt-Marker (z. B. umbenannte Spalten) dort nicht mehr auftauchen. Damit fällt Schema-Drift früh im Testlauf auf, nicht erst beim Laufzeitfehler. Workflow- und Konventions-Details siehe `db/manual/README.md`.
 
-Wenn eine bestehende DB bereits mit einem älteren Schema läuft, reicht ein Container-/API-Neustart nicht. In dem Fall muss die vorhandene Datenbank einmalig inplace angepasst werden; ein Volume-Löschen ist nur für wegwerfbare Dev-Daten sinnvoll.
+Wenn eine bestehende DB bereits mit einem älteren Schema läuft, reicht ein reiner API-Neustart nicht — das vorhandene Datenverzeichnis lässt Postgres die Init-Skripte (`db/01_schema.sql`) überspringen. In dem Fall muss die Datenbank einmalig inplace angepasst werden; ein Volume-Löschen ist nur für wegwerfbare Dev-Daten sinnvoll.
+
+**Automatik in `prod`:** `scripts/start-vm.sh prod` (und `prod restart`) startet seit dem `automation_admin_role`-Vorfall (2026-06-23) zuerst nur den DB-Container, wendet danach **alle** `db/manual/*.sql` idempotent gegen die laufende Prod-DB an (`psql -v ON_ERROR_STOP=1` über den `./db:/docker-entrypoint-sql`-Mount) und bringt erst dann API/Web/Proxy hoch. Dadurch bootet die API nie gegen ein veraltetes Schema. Die manuellen `psql`-Aufrufe unten sind damit nur noch Fallback für DBs, die nicht über `start-vm.sh` deployt werden.
 
 Beispiel 2026-05-08:
 - `workflow_definitions.approval_task_template_key` wurde zu `approval_spec_key` umbenannt.

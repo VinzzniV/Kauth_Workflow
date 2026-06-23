@@ -676,10 +676,99 @@ stop_dev_environment() {
     dev_compose down
 }
 
+get_prod_env_value() {
+    # Liest einen Wert aus .env.prod (letzter Treffer gewinnt) oder gibt den
+    # Default zurueck. Bewusst kein 'source', damit Anfuehrungszeichen/Sonderzeichen
+    # in anderen Variablen den Start nicht beeinflussen.
+    local key="$1"
+    local default="$2"
+    local line
+
+    line="$(grep -E "^${key}=" "$REPO_ROOT/.env.prod" 2>/dev/null | tail -n1 || true)"
+    if [[ -n "$line" ]]; then
+        local value="${line#*=}"
+        value="${value%\"}"
+        value="${value#\"}"
+        printf '%s\n' "$value"
+    else
+        printf '%s\n' "$default"
+    fi
+}
+
+wait_for_prod_database() {
+    local timeout_seconds="${1:-90}"
+    local deadline
+    deadline=$((SECONDS + timeout_seconds))
+
+    while (( SECONDS < deadline )); do
+        local container_id
+        container_id="$(prod_compose ps -q db | tr -d '[:space:]')"
+
+        if [[ -n "$container_id" ]]; then
+            local state
+            state="$(get_docker_container_state "$container_id")"
+            local status="${state%%|*}"
+            local health="${state##*|}"
+            echo "Prod-DB-Status: $status, Health: $health"
+
+            if [[ "$status" == "running" && "$health" == "healthy" ]]; then
+                return 0
+            fi
+
+            if [[ "$status" == "exited" || "$status" == "dead" ]]; then
+                fail "Prod-DB-Container ist nicht lauffaehig (Status: $status)."
+            fi
+        fi
+
+        sleep 2
+    done
+
+    fail "Prod-DB wurde innerhalb von $timeout_seconds Sekunden nicht healthy."
+}
+
+apply_prod_manual_migrations() {
+    # Bestehende Prod-Volumes bekommen db/01_schema.sql NICHT automatisch (Postgres
+    # ueberspringt die Initialisierung bei vorhandenem Datenverzeichnis). Die
+    # idempotenten Inplace-Patches in db/manual/ ziehen die DB auf den Schema-Stand,
+    # den das API-Binary erwartet. Wir wenden sie VOR dem API-Start an, damit die
+    # Startup-Validierung nicht gegen ein veraltetes Schema crash-loopt.
+    # db/ ist via compose.prod.yml als /docker-entrypoint-sql in den db-Container gemountet.
+    local db_user db_name
+    db_user="$(get_prod_env_value POSTGRES_USER app)"
+    db_name="$(get_prod_env_value POSTGRES_DB appdb)"
+
+    local found=0 f name
+    echo "Wende manuelle DB-Migrationen idempotent an (db/manual/*.sql) ..."
+    for f in "$REPO_ROOT"/db/manual/*.sql; do
+        [[ -e "$f" ]] || continue
+        found=1
+        name="$(basename "$f")"
+        echo "  -> $name"
+        if ! prod_compose exec -T db \
+            psql -v ON_ERROR_STOP=1 -U "$db_user" -d "$db_name" \
+            -f "/docker-entrypoint-sql/manual/$name" >/dev/null; then
+            fail "Manuelle Migration fehlgeschlagen: $name. Prod-Start abgebrochen, bevor die API startet."
+        fi
+    done
+
+    if (( found == 0 )); then
+        echo "Keine manuellen Migrationen gefunden (db/manual/*.sql)."
+    else
+        echo "Manuelle Migrationen angewendet."
+    fi
+}
+
 start_prod_environment() {
     ensure_prod_prerequisites
 
-    echo "Starte produktionsnahen Compose-Stack ..."
+    # DB zuerst, dann idempotente Schema-Patches, dann der Rest. So bootet die API
+    # erst gegen ein aktuelles Schema (verhindert die automation_admin_role-Crash-Loop).
+    echo "Starte Prod-Datenbank ..."
+    prod_compose up -d --build db
+    wait_for_prod_database
+    apply_prod_manual_migrations
+
+    echo "Starte restlichen produktionsnahen Compose-Stack ..."
     prod_compose up -d --build
 
     echo
